@@ -176,14 +176,13 @@ class SignupView(discord.ui.View):
                 )
 
         courses_str = ", ".join(self.courses)
-        await interaction.response.send_message(
-            f"**Basic info saved:**\n"
+        await interaction.response.edit_message(
+            content=f"**Basic info saved:**\n"
             f"- Courses: {courses_str}\n"
             f"- Experience: {self.experience}\n"
             f"- Timezone: {self.timezone}\n\n"
             f"Now select which days you're available:",
-            view=DaySelectionView(self.user_id),
-            ephemeral=True
+            view=DaySelectionView(self.user_id)
         )
 
 
@@ -247,13 +246,12 @@ class DaySelectionView(discord.ui.View):
             return
 
         sorted_days = sorted(self.selected_days, key=lambda d: list(DAY_CODES.keys()).index(d))
-        await interaction.response.send_message(
-            f"Selected days: {', '.join(sorted_days)}\n\n"
+        await interaction.response.edit_message(
+            content=f"Selected days: {', '.join(sorted_days)}\n\n"
             f"Now select your available time slots for **{sorted_days[0]}** (in your local timezone).\n"
             f"**Only select hours where you're available for the full hour.**\n"
             f"Click once for 🟢 Available, twice for 🔵 If needed, three times to clear:",
-            view=TimeSlotView(self.user_id, sorted_days, 0),
-            ephemeral=True
+            view=TimeSlotView(self.user_id, sorted_days, 0)
         )
 
 
@@ -430,13 +428,14 @@ class EnrollmentCog(commands.Cog):
     @app_commands.command(name="view-availability", description="View your current availability in UTC and local time")
     async def view_availability(self, interaction: discord.Interaction):
         """Display user's availability in both UTC and local timezone"""
+        await interaction.response.defer(ephemeral=True)
+
         user_id = str(interaction.user.id)
         user_data = get_user_data(user_id)
 
         if not user_data or (not user_data.get("availability") and not user_data.get("if_needed")):
-            await interaction.response.send_message(
-                "You haven't set up your availability yet! Use `/signup` to get started.",
-                ephemeral=True
+            await interaction.followup.send(
+                "You haven't set up your availability yet! Use `/signup` to get started."
             )
             return
 
@@ -497,7 +496,7 @@ class EnrollmentCog(commands.Cog):
 
         embed.set_footer(text="* = if needed | Day codes: M=Mon, T=Tue, W=Wed, R=Thu, F=Fri, S=Sat, U=Sun")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="toggle-facilitator", description="Toggle your facilitator status")
     async def toggle_facilitator(self, interaction: discord.Interaction):
