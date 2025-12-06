@@ -10,6 +10,7 @@ import os
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from test_bot_manager import test_bot_manager
 
 
 def create_bot() -> commands.Bot:
@@ -32,6 +33,8 @@ COGS = [
     "cogs.enrollment_cog",
     "cogs.scheduler_cog",
     "cogs.cohorts_cog",
+    "cogs.breakout_cog",
+    "cogs.sync_cog",
     # "cogs.meetings_cog",  # Temporarily disabled
 ]
 
@@ -54,6 +57,9 @@ async def on_ready():
     """Called when the bot is ready and connected to Discord."""
     print(f"Bot is ready! Logged in as {bot.user}")
 
+    # Start test bots for breakout testing
+    await test_bot_manager.start_all()
+
     # Load all cogs
     for cog in COGS:
         try:
@@ -67,16 +73,9 @@ async def on_ready():
             print(f"  ✗ Error loading {cog}: {e}")
             traceback.print_exc()
 
-    # Sync slash commands with Discord
-    try:
-        synced = await bot.tree.sync()
-        print(f"\nSynced {len(synced)} command(s):")
-        for cmd in bot.tree.get_commands():
-            print(f"  /{cmd.name}")
-    except Exception as e:
-        import traceback
-        print(f"Error syncing commands: {e}")
-        traceback.print_exc()
+    # Slash commands are synced manually via !sync command
+    # This avoids conflicts with Discord Activities Entry Point
+    print("\nRun !sync in Discord to register slash commands")
 
 
 def main():
