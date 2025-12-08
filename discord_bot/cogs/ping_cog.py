@@ -6,6 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from datetime import datetime
+import asyncio
 
 
 class PingCog(commands.Cog):
@@ -286,6 +287,83 @@ Key concerns include:
             view=view
         )
 
+    @app_commands.command(name="scrollingtext", description="Test streaming chain of thought display")
+    async def scrollingtext_test(self, interaction: discord.Interaction):
+        """Simulate streaming chain of thought with cycling last 3 lines."""
+        # Simulated chain of thought text (what Stampy might "think")
+        cot_text = """Let me think about this question carefully.
+First, I need to understand what the user is asking about AI safety.
+They seem to want to know about alignment problems.
+The alignment problem is fundamentally about ensuring AI systems pursue intended goals.
+I should explain the difference between outer and inner alignment.
+Outer alignment is about specifying the right objective function.
+Inner alignment is about ensuring the AI actually pursues that objective.
+Let me also consider mentioning robustness and distributional shift.
+These are important technical concepts in AI safety research.
+I should probably give some concrete examples to illustrate.
+For instance, a reward hacking example would be helpful.
+An AI trained to maximize points in a game might exploit bugs.
+This illustrates the gap between specified and intended goals.
+I think I have enough context now to formulate a response.
+Let me structure this in a clear and accessible way.
+I'll start with a definition, then examples, then implications."""
+
+        # Send initial message
+        await interaction.response.send_message("**Stampy is thinking...**\n```\n...\n```")
+        message = await interaction.original_response()
+
+        # Split into words and simulate streaming
+        words = cot_text.split()
+        current_text = ""
+        lines = []
+
+        # 2.5fps = 400ms per update (Discord rate limit safe)
+        update_interval = 0.4
+        words_per_update = 4  # Add multiple words each update
+
+        word_index = 0
+        while word_index < len(words):
+            # Add multiple words per update
+            for _ in range(words_per_update):
+                if word_index < len(words):
+                    current_text += words[word_index] + " "
+                    word_index += 1
+
+            # Split current accumulated text into lines (wrap at ~60 chars)
+            temp_lines = []
+            current_line = ""
+            for w in current_text.split():
+                if len(current_line) + len(w) + 1 > 60:
+                    temp_lines.append(current_line.strip())
+                    current_line = w + " "
+                else:
+                    current_line += w + " "
+            if current_line.strip():
+                temp_lines.append(current_line.strip())
+
+            lines = temp_lines
+
+            # Show only last 5 lines
+            display_lines = lines[-5:] if len(lines) > 5 else lines
+            display_text = "\n".join(display_lines)
+
+            # Update message
+            try:
+                await message.edit(content=f"**Stampy is thinking...**\n```\n{display_text}\n```")
+            except discord.errors.HTTPException:
+                # Rate limited, wait a bit longer
+                await asyncio.sleep(1.0)
+                continue
+
+            await asyncio.sleep(update_interval)
+
+        # Final message with expand button
+        view = CoTExpandView(cot_text)
+        await message.edit(
+            content=f"**Stampy finished thinking.**\n```\n{chr(10).join(lines[-5:])}\n```",
+            view=view
+        )
+
 
 class CollapseView(discord.ui.View):
     def __init__(self):
@@ -338,6 +416,47 @@ The alignment problem refers to the challenge of ensuring that AI systems pursue
             content = self.get_collapsed_content()
 
         await interaction.response.edit_message(content=content, view=self)
+
+
+class CoTExpandView(discord.ui.View):
+    def __init__(self, full_cot: str):
+        super().__init__(timeout=300)
+        self.full_cot = full_cot
+        self.expanded = False
+
+    @discord.ui.button(label="▼ Show full reasoning", style=discord.ButtonStyle.secondary)
+    async def toggle_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.expanded = not self.expanded
+
+        if self.expanded:
+            button.label = "▲ Hide reasoning"
+            # Send full CoT as a file attachment to avoid message length limits
+            import io
+            file = discord.File(io.StringIO(self.full_cot), filename="chain_of_thought.txt")
+            await interaction.response.edit_message(
+                content="**Stampy's full reasoning:**",
+                attachments=[file],
+                view=self
+            )
+        else:
+            button.label = "▼ Show full reasoning"
+            # Get last 3 lines for collapsed view
+            lines = []
+            current_line = ""
+            for w in self.full_cot.split():
+                if len(current_line) + len(w) + 1 > 60:
+                    lines.append(current_line.strip())
+                    current_line = w + " "
+                else:
+                    current_line += w + " "
+            if current_line.strip():
+                lines.append(current_line.strip())
+
+            await interaction.response.edit_message(
+                content=f"**Stampy finished thinking.**\n```\n{chr(10).join(lines[-5:])}\n```",
+                attachments=[],
+                view=self
+            )
 
 
 async def setup(bot: commands.Bot):
