@@ -287,6 +287,189 @@ Key concerns include:
             view=view
         )
 
+    @app_commands.command(name="test-presence", description="Show your presence and user info")
+    async def test_presence(self, interaction: discord.Interaction):
+        """Report all available information about the user including presence data."""
+        user = interaction.user
+        member = interaction.guild.get_member(user.id) if interaction.guild else None
+
+        lines = ["**User Information**\n"]
+
+        # Basic user info
+        lines.append(f"**ID:** {user.id}")
+        lines.append(f"**Username:** {user.name}")
+        lines.append(f"**Display Name:** {user.display_name}")
+        lines.append(f"**Discriminator:** {user.discriminator}")
+        lines.append(f"**Bot:** {user.bot}")
+        lines.append(f"**System:** {user.system}")
+        lines.append(f"**Created At:** {user.created_at}")
+        lines.append(f"**Avatar URL:** {user.avatar.url if user.avatar else 'None'}")
+        lines.append(f"**Default Avatar URL:** {user.default_avatar.url}")
+        lines.append(f"**Mention:** {user.mention}")
+
+        if member:
+            lines.append("\n**Member Information (Server-specific)**\n")
+            lines.append(f"**Nick:** {member.nick}")
+            lines.append(f"**Joined At:** {member.joined_at}")
+            lines.append(f"**Premium Since:** {member.premium_since}")
+            lines.append(f"**Pending:** {member.pending}")
+            lines.append(f"**Timed Out Until:** {member.timed_out_until}")
+            lines.append(f"**Top Role:** {member.top_role.name}")
+            lines.append(f"**Roles:** {', '.join([r.name for r in member.roles])}")
+            lines.append(f"**Color:** {member.color}")
+            lines.append(f"**Guild Permissions:** {member.guild_permissions.value}")
+
+            # Presence data
+            lines.append("\n**Presence Information**\n")
+            lines.append(f"**Status:** {member.status}")
+            lines.append(f"**Raw Status:** {member.raw_status}")
+            lines.append(f"**Desktop Status:** {member.desktop_status}")
+            lines.append(f"**Mobile Status:** {member.mobile_status}")
+            lines.append(f"**Web Status:** {member.web_status}")
+            lines.append(f"**Is On Mobile:** {member.is_on_mobile()}")
+
+            # Activities
+            if member.activities:
+                lines.append("\n**Activities:**")
+                for i, activity in enumerate(member.activities):
+                    lines.append(f"\n  *Activity {i+1}:*")
+                    lines.append(f"    Type: {activity.type.name if hasattr(activity, 'type') else 'Unknown'}")
+                    lines.append(f"    Name: {activity.name if hasattr(activity, 'name') else 'Unknown'}")
+
+                    if isinstance(activity, discord.Spotify):
+                        lines.append(f"    (Spotify)")
+                        lines.append(f"    Title: {activity.title}")
+                        lines.append(f"    Artist: {activity.artist}")
+                        lines.append(f"    Album: {activity.album}")
+                        lines.append(f"    Duration: {activity.duration}")
+                        lines.append(f"    Track ID: {activity.track_id}")
+                    elif isinstance(activity, discord.Game):
+                        lines.append(f"    (Game)")
+                        lines.append(f"    Start: {activity.start}")
+                        lines.append(f"    End: {activity.end}")
+                    elif isinstance(activity, discord.Streaming):
+                        lines.append(f"    (Streaming)")
+                        lines.append(f"    URL: {activity.url}")
+                        lines.append(f"    Platform: {activity.platform}")
+                        lines.append(f"    Game: {activity.game}")
+                    elif isinstance(activity, discord.CustomActivity):
+                        lines.append(f"    (Custom)")
+                        lines.append(f"    State: {activity.state}")
+                        lines.append(f"    Emoji: {activity.emoji}")
+                    elif isinstance(activity, discord.Activity):
+                        lines.append(f"    (Activity)")
+                        if hasattr(activity, 'details'):
+                            lines.append(f"    Details: {activity.details}")
+                        if hasattr(activity, 'state'):
+                            lines.append(f"    State: {activity.state}")
+                        if hasattr(activity, 'application_id'):
+                            lines.append(f"    App ID: {activity.application_id}")
+                        if hasattr(activity, 'timestamps'):
+                            lines.append(f"    Timestamps: {activity.timestamps}")
+                        if hasattr(activity, 'assets'):
+                            lines.append(f"    Assets: {activity.assets}")
+                        if hasattr(activity, 'party'):
+                            lines.append(f"    Party: {activity.party}")
+            else:
+                lines.append("\n**Activities:** None")
+
+            # Voice state
+            if member.voice:
+                lines.append("\n**Voice State:**")
+                lines.append(f"  Channel: {member.voice.channel}")
+                lines.append(f"  Self Mute: {member.voice.self_mute}")
+                lines.append(f"  Self Deaf: {member.voice.self_deaf}")
+                lines.append(f"  Server Mute: {member.voice.mute}")
+                lines.append(f"  Server Deaf: {member.voice.deaf}")
+                lines.append(f"  Streaming: {member.voice.self_stream}")
+                lines.append(f"  Video: {member.voice.self_video}")
+                lines.append(f"  Suppress: {member.voice.suppress}")
+                lines.append(f"  Requested to Speak: {member.voice.requested_to_speak_at}")
+            else:
+                lines.append("\n**Voice State:** Not in voice")
+        else:
+            lines.append("\n*Not in a guild - member-specific info unavailable*")
+
+        await interaction.response.send_message("\n".join(lines))
+
+    @app_commands.command(name="test-embed-simple", description="Test simple embed with just text")
+    async def test_embed_simple(self, interaction: discord.Interaction):
+        """Send a simple embed with just description text, no fields."""
+        embed = discord.Embed(
+            description="""AI safety is a field of research focused on ensuring that artificial intelligence systems are beneficial and do not pose risks to humanity. As AI systems become more capable, questions about their safety and alignment with human values become increasingly important.
+
+The alignment problem refers to the challenge of ensuring that AI systems pursue goals that are aligned with human values and intentions. This problem becomes more pressing as AI systems become more capable.
+
+There are several key aspects to the alignment problem:
+
+**Outer Alignment:** This refers to the challenge of specifying the right objective function. Even if an AI system perfectly optimizes for its given objective, that objective might not capture what we actually want.
+
+**Inner Alignment:** Even if we specify the right objective, there's no guarantee that the AI system will internally pursue that objective. The system might learn to pursue a different objective that happens to correlate with good performance during training.
+
+**Robustness:** AI systems need to behave safely even in novel situations they weren't explicitly trained for. This includes handling distributional shift, adversarial inputs, and edge cases.
+
+**Interpretability:** To verify that an AI system is aligned, we need to understand how it makes decisions. This is challenging for modern deep learning systems, which are often described as "black boxes."
+
+Researchers are pursuing many different technical approaches to AI safety, including reinforcement learning from human feedback (RLHF), constitutional AI, interpretability research, formal verification, and red teaming.""",
+            color=discord.Color.blue(),
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="test-linebreak", description="Test LINE SEPARATOR character")
+    async def test_linebreak(self, interaction: discord.Interaction):
+        """Test if Unicode LINE SEPARATOR renders as line break but copies as space."""
+        # \u2028 is LINE SEPARATOR
+        # \u2029 is PARAGRAPH SEPARATOR
+        test_message = (
+            "**Testing Unicode line separators - try copying this text:**\n\n"
+            "Regular newline:\n"
+            "Line 1\n"
+            "Line 2\n"
+            "Line 3\n\n"
+            "LINE SEPARATOR (\\u2028):\n"
+            f"Line A\u2028Line B\u2028Line C\n\n"
+            "PARAGRAPH SEPARATOR (\\u2029):\n"
+            f"Para X\u2029Para Y\u2029Para Z\n\n"
+            "Copy each section and paste somewhere to see what gets copied!"
+        )
+        await interaction.response.send_message(test_message)
+
+    @app_commands.command(name="test-spaces", description="Test trailing spaces preservation")
+    async def test_spaces(self, interaction: discord.Interaction):
+        """Test if Discord preserves trailing spaces."""
+        # Send multiple messages to test different space counts
+        await interaction.response.send_message(
+            f"**0. 200 chars of text:**\n|{'x'*200}|"
+        )
+        await interaction.followup.send(
+            f"**1. 200 spaces:**\n|{' '*200}.|"
+        )
+        await interaction.followup.send(
+            f"**2. 400 spaces:**\n|{' '*400}.|"
+        )
+        await interaction.followup.send(
+            f"**3. 600 spaces:**\n|{' '*600}.|"
+        )
+        await interaction.followup.send(
+            f"**4. 800 spaces:**\n|{' '*800}.|"
+        )
+        await interaction.followup.send(
+            f"**5. 200 braille blanks (\\u2800):**\n|{chr(0x2800)*200}.|"
+        )
+        # Braille blanks with spaces every 10 chars to allow line breaking
+        braille_with_breaks = (chr(0x2800)*10 + ' ') * 20
+        await interaction.followup.send(
+            f"**6. 200 braille blanks with space every 10:**\n|{braille_with_breaks}.|"
+        )
+        await interaction.followup.send(
+            f"**7. space then 200 braille blanks:**\n| {chr(0x2800)*200}.|"
+        )
+        # Alternating: braille, space, braille, space...
+        alternating = (chr(0x2800) + ' ') * 200
+        await interaction.followup.send(
+            f"**8. 200 alternating braille+space:**\n|{alternating}.|"
+        )
+
     @app_commands.command(name="scrollingtext", description="Test streaming chain of thought display")
     async def scrollingtext_test(self, interaction: discord.Interaction):
         """Simulate streaming chain of thought with cycling last 3 lines."""

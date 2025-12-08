@@ -7,6 +7,7 @@ import traceback
 import asyncio
 import time
 import io
+import os
 
 import sys
 from pathlib import Path
@@ -14,13 +15,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core import stampy
 
-ASK_STAMPY_CHANNEL = "ask-stampy"
+ASK_STAMPY_CHANNEL = os.getenv("ASK_STAMPY_CHANNEL", "ask-stampy")
+STAMPY_DEBUG = os.getenv("STAMPY_DEBUG", "false").lower() == "true"
 STAMPY_NAME = "Stampy"
 STAMPY_AVATAR = "https://raw.githubusercontent.com/StampyAI/StampyAIAssets/main/profile/stampy-profile-228.png"
 
 # Scrolling codeblock settings
 SCROLL_LINES = 5
-SCROLL_LINE_WIDTH = 60
+SCROLL_LINE_WIDTH = 50
 SCROLL_UPDATE_INTERVAL = 0.5  # 2fps (safe margin under 2.5/sec rate limit)
 
 
@@ -52,6 +54,87 @@ def format_scrolling_codeblock(text: str, num_lines: int = SCROLL_LINES) -> str:
     lines = wrap_text_to_lines(text)
     display_lines = lines[-num_lines:] if len(lines) > num_lines else lines
     return "```\n" + "\n".join(display_lines) + "\n```"
+
+
+import re
+
+def get_ref_mapping(text: str) -> tuple[list[str], dict[str, str]]:
+    """Extract reference mapping from text.
+
+    Returns (ordered_refs, ref_to_display) where:
+    - ordered_refs: list of ref numbers in order of first appearance
+    - ref_to_display: mapping from ref number to display number
+    """
+    all_refs = re.findall(r'\d+', ''.join(re.findall(r'\[[\d,\s]+\]', text)))
+    seen = set()
+    ordered_refs = []
+    for ref in all_refs:
+        if ref not in seen:
+            seen.add(ref)
+            ordered_refs.append(ref)
+    ref_to_display = {ref: str(i+1) for i, ref in enumerate(ordered_refs)}
+    return ordered_refs, ref_to_display
+
+
+def format_refs_inline(text: str, ref_to_display: dict[str, str] = None) -> str:
+    """Format [1], [1, 2] style references to display numbers.
+
+    Maps references to display numbers in order of first appearance.
+    If ref_to_display is provided, uses that mapping; otherwise computes it.
+
+    When STAMPY_DEBUG=true: Shows [Ref 1→1] format with mapping
+    When STAMPY_DEBUG=false: Shows clean [1] format (display number only)
+    """
+    if ref_to_display is None:
+        _, ref_to_display = get_ref_mapping(text)
+
+    def replace_refs(match):
+        bracket_content = match.group(1)
+        refs = re.findall(r'\d+', bracket_content)
+        parts = []
+        for ref in refs:
+            display = ref_to_display.get(ref, "?")
+            if STAMPY_DEBUG:
+                parts.append(f"Ref {ref}→{display}")
+            else:
+                parts.append(display)
+        return f"[{', '.join(parts)}]"
+
+    return re.sub(r'\[([\d,\s]+)\]', replace_refs, text)
+
+
+INITIAL_PADDING_PAIRS = 450  # Starting number of padding groups (each is 4 chars: 3 braille + 1 space)
+SPACE_PAIRS_PER_CHAR_RATIO = 0.12  # Remove ~0.12 pairs per character (each pair is now 4 chars: 3 braille + 1 space)
+BRAILLE_BLANK = '\u2800'  # Braille blank (wider than regular space)
+INITIAL_TRAILING_NEWLINES = 10  # Starting newlines for paragraph breaks
+
+
+def pad_with_space_reservoir(text: str, initial_pairs: int = INITIAL_PADDING_PAIRS) -> str:
+    """Pad text with trailing braille+space pairs and newlines.
+
+    Uses 3 braille blanks + 1 regular space per padding unit.
+    Also adds trailing newlines to compensate for paragraph breaks (\n\n) in text.
+    Ends with a dot since Discord trims trailing whitespace.
+    """
+    # Calculate how many pairs to remove based on text length
+    pairs_to_remove = int(len(text) * SPACE_PAIRS_PER_CHAR_RATIO)
+    remaining_pairs = max(0, initial_pairs - pairs_to_remove)
+
+    # Count double newlines in text, remove one trailing newline for each
+    double_newlines = text.count('\n\n')
+    remaining_newlines = max(0, INITIAL_TRAILING_NEWLINES - double_newlines)
+
+    result = text
+    if remaining_pairs > 0:
+        padding = (BRAILLE_BLANK * 3 + ' ') * remaining_pairs
+        result += padding
+
+    # Add trailing newlines
+    if remaining_newlines > 0:
+        result += '\n' * remaining_newlines
+
+    result += "."  # Trailing dot to prevent Discord trimming
+    return result
 
 
 class ThinkingExpandView(discord.ui.View):
@@ -112,6 +195,47 @@ class ThinkingExpandView(discord.ui.View):
                 attachments=[],
                 view=self
             )
+
+
+class SourcesView(discord.ui.View):
+    """View with button to show/hide sources."""
+    def __init__(self, citations: list, answer_text: str):
+        super().__init__(timeout=600)  # 10 min timeout
+        self.citations = citations
+        self.answer_text = answer_text
+        self.showing_sources = False
+
+    def format_sources(self) -> str:
+        """Format citations as a readable list."""
+        if not self.citations:
+            return "No sources available."
+
+        lines = ["**Sources:**"]
+        for i, citation in enumerate(self.citations, 1):
+            title = citation.get("title", "Untitled")
+            url = citation.get("url", "")
+            if url:
+                lines.append(f"{i}. [{title}]({url})")
+            else:
+                lines.append(f"{i}. {title}")
+        return "\n".join(lines)
+
+    @discord.ui.button(label="📚 Show sources", style=discord.ButtonStyle.secondary)
+    async def toggle_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.showing_sources = not self.showing_sources
+
+        if self.showing_sources:
+            button.label = "📚 Hide sources"
+            sources = self.format_sources()
+            # Combine answer with sources
+            content = f"{self.answer_text}\n\n{sources}"
+            if len(content) > 2000:
+                content = content[:1997] + "..."
+        else:
+            button.label = "📚 Show sources"
+            content = self.answer_text
+
+        await interaction.response.edit_message(content=content, view=self)
 
 
 class StampyCog(commands.Cog):
@@ -191,12 +315,26 @@ class StampyCog(commands.Cog):
 
         thinking_chunks = []
         answer_chunks = []
+        citations = []
         answer_msg = None
+        answer_msg_precreated = False  # Track if answer msg was pre-created during thinking
         last_thinking_update = time.time()
-        last_answer_update = time.time()
+        last_answer_update = 0  # Start at 0 so first update happens immediately
+
+        # Timing instrumentation
+        last_chunk_time = time.time()
+        chunk_count = 0
+        stream_start_time = None
 
         try:
             async for state, content in stampy.ask(message.content):
+                # Measure time since last chunk
+                now = time.time()
+                chunk_gap = (now - last_chunk_time) * 1000  # ms
+                last_chunk_time = now
+                chunk_count += 1
+                print(f"[Timing] Chunk #{chunk_count} ({state}): gap={chunk_gap:.0f}ms, content_len={len(content) if isinstance(content, str) else 'N/A'}")
+
                 if state == "thinking":
                     thinking_chunks.append(content)
                     full_thinking = "".join(thinking_chunks)
@@ -213,41 +351,80 @@ class StampyCog(commands.Cog):
                             if num_lines >= MIN_LINES_FOR_BUTTON and not view_added:
                                 view_added = True
 
+                            t0 = time.time()
                             await thinking_msg.edit(
                                 content=thinking_view.get_display_content(),
                                 view=thinking_view if view_added else None
                             )
+                            print(f"[Timing] thinking_msg.edit took {(time.time()-t0)*1000:.0f}ms")
+
+                            # Pre-create answer message during thinking phase (after ~3 lines)
+                            # This eliminates the expensive webhook.send() from the critical path
+                            if not answer_msg_precreated and num_lines >= MIN_LINES_FOR_BUTTON:
+                                t0 = time.time()
+                                answer_msg = await webhook.send(
+                                    pad_with_space_reservoir(""),  # Start with just padding
+                                    username=STAMPY_NAME,
+                                    avatar_url=STAMPY_AVATAR,
+                                    wait=True,
+                                )
+                                answer_msg_precreated = True
+                                print(f"[Timing] Pre-created answer message in {(time.time()-t0)*1000:.0f}ms: {answer_msg.id}")
+
                         except discord.errors.HTTPException as e:
                             print(f"[Stampy] Rate limited on thinking update: {e}")
                             await asyncio.sleep(1.0)  # Rate limited, back off more
                         last_thinking_update = now
 
+                elif state == "citations":
+                    citations = content  # content is list of citation dicts
+                    print(f"[Stampy] Got {len(citations)} citations")
+
                 elif state == "streaming":
-                    # First streaming chunk - finalize thinking, start answer
-                    if answer_msg is None:
+                    # First streaming chunk - finalize thinking, start/update answer
+                    if len(answer_chunks) == 0:  # First streaming chunk
+                        stream_start_time = time.time()
+                        print(f"[Timing] First streaming chunk arrived, answer_msg_precreated={answer_msg_precreated}")
+
                         thinking_view.finish_streaming()
                         final_thinking = "".join(thinking_chunks)
-                        if final_thinking:
-                            # Ensure view is added if we have enough lines
-                            num_lines = len(wrap_text_to_lines(final_thinking))
-                            if num_lines >= MIN_LINES_FOR_BUTTON:
-                                view_added = True
-                            await thinking_msg.edit(
-                                content=thinking_view.get_display_content(),
-                                view=thinking_view if view_added else None
-                            )
-                            print(f"[Stampy] Finalized thinking: {len(final_thinking)} chars")
-                        else:
-                            await thinking_msg.edit(content="*(No thinking content)*", view=None)
 
-                        # Start answer message
-                        answer_msg = await webhook.send(
-                            "**Answer:**\nGenerating...",
-                            username=STAMPY_NAME,
-                            avatar_url=STAMPY_AVATAR,
-                            wait=True,
-                        )
-                        print(f"[Stampy] Sent answer message: {answer_msg.id}")
+                        # Fire-and-forget thinking finalization (non-blocking)
+                        async def finalize_thinking():
+                            try:
+                                if final_thinking:
+                                    num_lines = len(wrap_text_to_lines(final_thinking))
+                                    await thinking_msg.edit(
+                                        content=thinking_view.get_display_content(),
+                                        view=thinking_view if num_lines >= MIN_LINES_FOR_BUTTON else None
+                                    )
+                                    print(f"[Timing] Fire-and-forget thinking finalization done")
+                                else:
+                                    await thinking_msg.edit(content="*(No thinking content)*", view=None)
+                            except discord.errors.HTTPException as e:
+                                print(f"[Stampy] Rate limited on thinking finalization: {e}")
+
+                        asyncio.create_task(finalize_thinking())
+
+                        if not answer_msg_precreated:
+                            # Fallback: create answer message now (shouldn't normally happen)
+                            print(f"[Timing] Answer message not pre-created, creating now...")
+                            t0 = time.time()
+                            answer_msg = await webhook.send(
+                                pad_with_space_reservoir(""),
+                                username=STAMPY_NAME,
+                                avatar_url=STAMPY_AVATAR,
+                                wait=True,
+                            )
+                            print(f"[Timing] Fallback webhook.send (answer) took {(time.time()-t0)*1000:.0f}ms")
+                        else:
+                            print(f"[Timing] Using pre-created answer message: {answer_msg.id}")
+
+                        print(f"[Timing] Total time from first stream chunk to answer ready: {(time.time()-stream_start_time)*1000:.0f}ms")
+
+                        # Reset timing for answer updates - allow immediate first update
+                        last_chunk_time = time.time()
+                        last_answer_update = 0
 
                     answer_chunks.append(content)
                     current = "".join(answer_chunks)
@@ -255,9 +432,15 @@ class StampyCog(commands.Cog):
                     # Update answer at 2fps
                     now = time.time()
                     if now - last_answer_update >= SCROLL_UPDATE_INTERVAL:
-                        display = current[:1990] + "..." if len(current) > 1990 else current
+                        # Format references inline during streaming
+                        display = format_refs_inline(current)
+                        # Pad with space reservoir to prevent message jumping
+                        display = pad_with_space_reservoir(display)
+                        display = display[:1990] + "..." if len(display) > 1990 else display
                         try:
+                            t0 = time.time()
                             await answer_msg.edit(content=display)
+                            print(f"[Timing] answer_msg.edit took {(time.time()-t0)*1000:.0f}ms, content_len={len(current)}")
                         except discord.errors.HTTPException as e:
                             print(f"[Stampy] Rate limited on answer update: {e}")
                             await asyncio.sleep(1.0)
@@ -265,20 +448,73 @@ class StampyCog(commands.Cog):
 
             # Final answer
             final_answer = "".join(answer_chunks)
-            print(f"[Stampy] Got {len(final_answer)} chars of answer")
+            print(f"[Stampy] Got {len(final_answer)} chars of answer, {len(citations)} citations")
+
+            # Debug: print citations
+            for i, c in enumerate(citations):
+                print(f"[Stampy] Citation {i+1}: {c.get('title', 'no title')} - {c.get('url', 'no url')[:50]}")
 
             if answer_msg:
-                header = "**Answer:**\n"
-                if len(header + final_answer) > 2000:
-                    await answer_msg.edit(content=header + final_answer[:1990-len(header)] + "...")
-                    for i in range(1990-len(header), len(final_answer), 1990):
+                # Build ref -> display number mapping (order of first appearance)
+                ordered_refs, ref_to_display = get_ref_mapping(final_answer)
+                print(f"[Stampy] Ref to display mapping: {ref_to_display}")
+
+                # Replace refs in answer with debug format
+                answer_content = format_refs_inline(final_answer, ref_to_display) if final_answer else "No response received"
+
+                # Split answer into chunks if needed (2000 char limit)
+                if len(answer_content) > 2000:
+                    await answer_msg.edit(content=answer_content[:1997] + "...")
+                    # Send remaining chunks
+                    for i in range(1997, len(answer_content), 1997):
+                        chunk = answer_content[i:i+1997]
+                        if i + 1997 < len(answer_content):
+                            chunk += "..."
                         await webhook.send(
-                            final_answer[i:i+1990],
+                            chunk,
                             username=STAMPY_NAME,
                             avatar_url=STAMPY_AVATAR,
                         )
                 else:
-                    await answer_msg.edit(content=header + final_answer if final_answer else "No response received")
+                    await answer_msg.edit(content=answer_content)
+
+                # Send sources as separate message
+                if citations:
+                    # Find which references are actually used in the answer
+                    used_refs = set(ordered_refs)
+                    print(f"[Stampy] References used in answer: {used_refs}")
+
+                    # Filter and sort citations by display number (order of appearance)
+                    used_citations = [c for c in citations if c.get("reference") in used_refs]
+                    sorted_citations = sorted(used_citations, key=lambda c: int(ref_to_display.get(c.get("reference"), "99")))
+
+                    if sorted_citations:
+                        sources_lines = ["**Sources:** (debug mode)" if STAMPY_DEBUG else "**Sources:**"]
+                        for c in sorted_citations:
+                            ref = c.get("reference", "?")
+                            display = ref_to_display.get(ref, "?")
+                            title = c.get("title", "Untitled")[:50]
+                            url = c.get("url", "")
+                            if "#" in url:
+                                url = url.split("#")[0]
+                            if url:
+                                if STAMPY_DEBUG:
+                                    sources_lines.append(f"{display}. [{title}](<{url}>) (ref {ref})")
+                                else:
+                                    sources_lines.append(f"{display}. [{title}](<{url}>)")
+                            else:
+                                if STAMPY_DEBUG:
+                                    sources_lines.append(f"{display}. {title} (ref {ref})")
+                                else:
+                                    sources_lines.append(f"{display}. {title}")
+
+                        sources_text = "\n".join(sources_lines)
+                        if len(sources_text) <= 2000:
+                            await webhook.send(
+                                sources_text,
+                                username=STAMPY_NAME,
+                                avatar_url=STAMPY_AVATAR,
+                            )
             else:
                 # No streaming content received, just thinking
                 thinking_view.finish_streaming()
