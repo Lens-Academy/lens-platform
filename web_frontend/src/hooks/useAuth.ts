@@ -6,8 +6,7 @@ export interface User {
   user_id: number;
   discord_id: string;
   discord_username: string;
-  first_name: string | null;
-  last_name: string | null;
+  nickname: string | null;
   email: string | null;
   timezone: string | null;
   availability_utc: string | null;

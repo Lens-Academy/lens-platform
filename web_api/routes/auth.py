@@ -43,9 +43,13 @@ ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:8000",
     "http://localhost:8001",
+    "http://localhost:8002",
+    "http://localhost:8003",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:8000",
     "http://127.0.0.1:8001",
+    "http://127.0.0.1:8002",
+    "http://127.0.0.1:8003",
 ]
 # Add production domain via env var if not already in list
 if FRONTEND_URL not in ALLOWED_ORIGINS:
@@ -184,9 +188,10 @@ async def discord_oauth_callback(
     discord_id = discord_user["id"]
     discord_username = discord_user.get("global_name") or discord_user["username"]
     email = discord_user.get("email")
+    email_verified = discord_user.get("verified", False)
 
     # Create or update user in database
-    await get_or_create_user(discord_id, discord_username, email)
+    await get_or_create_user(discord_id, discord_username, email, email_verified)
 
     # Create JWT and set cookie
     token = create_jwt(discord_id, discord_username)

@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Default Ports by Workspace
+
+When starting the server, use the default port based on the workspace directory:
+
+| Workspace | Default Port |
+|-----------|--------------|
+| `ai-safety-course-platform` | 8000 |
+| `ai-safety-course-platform-ws2` | 8001 |
+
+This allows running both workspaces simultaneously without port conflicts.
+
 ## Commands
 
 **Unified Backend (FastAPI + Discord Bot):**
@@ -11,8 +22,8 @@ pip install -r requirements.txt
 
 python main.py                      # Default: with Discord bot
 python main.py --no-bot             # Without Discord bot
-python main.py --port 8001          # Custom port
-python main.py --no-bot --port 8001 # Both options
+python main.py --port 8000          # Use workspace default port (8000 for this repo)
+python main.py --no-bot --port 8000 # Both options
 
 # Development mode (spawns Vite dev server with HMR):
 python main.py --dev                # FastAPI :8000 + Vite :5173

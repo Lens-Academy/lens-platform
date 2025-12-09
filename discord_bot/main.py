@@ -18,6 +18,7 @@ def create_bot() -> commands.Bot:
     intents = discord.Intents.default()
     intents.message_content = True
     intents.voice_states = True  # Required for tracking voice channel joins
+    intents.members = True  # Required for on_member_join and on_member_update
 
     bot = commands.Bot(command_prefix="!", intents=intents)
     return bot
@@ -36,6 +37,8 @@ COGS = [
     "cogs.breakout_cog",
     "cogs.sync_cog",
     "cogs.stampy_cog",
+    "cogs.test_nickname_cog",
+    "discord_bot.cogs.nickname_cog",  # Full path so web_api gets same module instance
     # "cogs.meetings_cog",  # Temporarily disabled
 ]
 

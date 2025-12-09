@@ -1,9 +1,31 @@
-import { defineConfig } from 'vite'
+import { defineConfig, Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import fs from 'fs'
+import path from 'path'
+
+// Plugin to serve static landing page at root (dev server only)
+function serveLandingPage(): Plugin {
+  return {
+    name: 'serve-landing-page',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url === '/' || req.url === '/index.html') {
+          const landingPath = path.resolve(__dirname, 'static/landing.html')
+          if (fs.existsSync(landingPath)) {
+            res.setHeader('Content-Type', 'text/html')
+            res.end(fs.readFileSync(landingPath, 'utf-8'))
+            return
+          }
+        }
+        next()
+      })
+    }
+  }
+}
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [serveLandingPage(), react(), tailwindcss()],
   server: {
     proxy: {
       '/api': 'http://localhost:8000',

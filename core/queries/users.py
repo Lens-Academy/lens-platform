@@ -26,6 +26,7 @@ async def create_user(
     discord_id: str,
     discord_username: str | None = None,
     email: str | None = None,
+    email_verified: bool = False,
 ) -> dict[str, Any]:
     """Create a new user and return the created record."""
     values = {
@@ -34,6 +35,8 @@ async def create_user(
     }
     if email:
         values["email"] = email
+        if email_verified:
+            values["email_verified_at"] = datetime.now(timezone.utc)
 
     result = await conn.execute(insert(users).values(**values).returning(users))
     row = result.mappings().first()
@@ -62,11 +65,13 @@ async def get_or_create_user(
     discord_id: str,
     discord_username: str | None = None,
     email: str | None = None,
+    email_verified: bool = False,
 ) -> dict[str, Any]:
     """
     Get or create a user by Discord ID.
 
     If user exists and new fields are provided, updates them.
+    When email changes or is newly set with verification, updates email_verified_at.
     """
     existing = await get_user_by_discord_id(conn, discord_id)
 
@@ -77,9 +82,14 @@ async def get_or_create_user(
             updates["discord_username"] = discord_username
         if email and email != existing.get("email"):
             updates["email"] = email
+            # Update verification status when email changes from Discord
+            if email_verified:
+                updates["email_verified_at"] = datetime.now(timezone.utc)
+            else:
+                updates["email_verified_at"] = None
 
         if updates:
             return await update_user(conn, discord_id, **updates)
         return existing
 
-    return await create_user(conn, discord_id, discord_username, email)
+    return await create_user(conn, discord_id, discord_username, email, email_verified)

@@ -16,8 +16,8 @@ export default function SignupWizard() {
 
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [formData, setFormData] = useState<SignupFormData>({
-    firstName: "",
-    lastName: "",
+    displayName: "",
+    email: "",
     discordConnected: false,
     discordUsername: undefined,
     availability: { ...EMPTY_AVAILABILITY },
@@ -32,9 +32,9 @@ export default function SignupWizard() {
         ...prev,
         discordConnected: true,
         discordUsername: discordUsername,
-        // Pre-fill name from database if available
-        firstName: user?.first_name || prev.firstName,
-        lastName: user?.last_name || prev.lastName,
+        // Pre-fill: database nickname > Discord username > existing value
+        displayName: user?.nickname || discordUsername || prev.displayName,
+        email: user?.email || prev.email,
       }));
     }
   }, [isAuthenticated, discordUsername, user]);
@@ -61,8 +61,9 @@ export default function SignupWizard() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          first_name: formData.firstName || null,
-          last_name: formData.lastName || null,
+          nickname: formData.displayName || null,
+          email: formData.email || null,
+          timezone: formData.timezone,
           availability_utc: JSON.stringify(formData.availability),
         }),
       });
@@ -90,22 +91,22 @@ export default function SignupWizard() {
   }
 
   if (currentStep === "complete") {
-    return <SuccessMessage formData={formData} />;
+    return <SuccessMessage />;
   }
 
   return (
     <div>
       {currentStep === 1 && (
         <PersonalInfoStep
-          firstName={formData.firstName}
-          lastName={formData.lastName}
+          displayName={formData.displayName}
+          email={formData.email}
           discordConnected={formData.discordConnected}
           discordUsername={formData.discordUsername}
-          onFirstNameChange={(value) =>
-            setFormData((prev) => ({ ...prev, firstName: value }))
+          onDisplayNameChange={(value) =>
+            setFormData((prev) => ({ ...prev, displayName: value }))
           }
-          onLastNameChange={(value) =>
-            setFormData((prev) => ({ ...prev, lastName: value }))
+          onEmailChange={(value) =>
+            setFormData((prev) => ({ ...prev, email: value }))
           }
           onDiscordConnect={handleDiscordConnect}
           onNext={() => setCurrentStep(2)}

@@ -12,8 +12,8 @@ export type TimeSlot = string; // "09:00", "14:00", etc.
 export type AvailabilityData = Record<DayName, TimeSlot[]>;
 
 export interface SignupFormData {
-  firstName: string;
-  lastName: string;
+  displayName: string;
+  email: string;
   discordConnected: boolean;
   discordUsername?: string;
   availability: AvailabilityData;

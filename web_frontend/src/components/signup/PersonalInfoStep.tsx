@@ -1,21 +1,23 @@
+import { Info } from "lucide-react";
+
 interface PersonalInfoStepProps {
-  firstName: string;
-  lastName: string;
+  displayName: string;
+  email: string;
   discordConnected: boolean;
   discordUsername?: string;
-  onFirstNameChange: (value: string) => void;
-  onLastNameChange: (value: string) => void;
+  onDisplayNameChange: (value: string) => void;
+  onEmailChange: (value: string) => void;
   onDiscordConnect: () => void;
   onNext: () => void;
 }
 
 export default function PersonalInfoStep({
-  firstName,
-  lastName,
+  displayName,
+  email,
   discordConnected,
   discordUsername,
-  onFirstNameChange,
-  onLastNameChange,
+  onDisplayNameChange,
+  onEmailChange,
   onDiscordConnect,
   onNext,
 }: PersonalInfoStepProps) {
@@ -49,41 +51,49 @@ export default function PersonalInfoStep({
         )}
       </button>
 
-      {/* Name fields - shown after Discord connect */}
+      {/* Profile fields - shown after Discord connect */}
       {discordConnected && (
         <div className="mt-8 space-y-4">
           <div>
             <label
-              htmlFor="firstName"
+              htmlFor="email"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              First Name <span className="text-gray-400">(optional)</span>
+              Email address
+              <span className="relative inline-flex items-center align-middle ml-1 group">
+                <Info className="w-[18px] h-[18px] text-gray-500 cursor-help" />
+                <span className="absolute left-0 bottom-full mb-2 px-3 py-2 text-xs text-white bg-gray-800 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity w-56 pointer-events-none z-10">
+                  You can use any email address. It doesn't need to match the email you use for your Discord account.
+                </span>
+              </span>
             </label>
             <input
-              type="text"
-              id="firstName"
-              value={firstName}
-              onChange={(e) => onFirstNameChange(e.target.value)}
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => onEmailChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-              placeholder="Enter your first name"
+              placeholder="Enter your email"
             />
           </div>
 
           <div>
             <label
-              htmlFor="lastName"
+              htmlFor="displayName"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Last Name <span className="text-gray-400">(optional)</span>
+              What should we call you?
             </label>
             <input
               type="text"
-              id="lastName"
-              value={lastName}
-              onChange={(e) => onLastNameChange(e.target.value)}
+              id="displayName"
+              value={displayName}
+              onChange={(e) => onDisplayNameChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-              placeholder="Enter your last name"
             />
+            <p className="mt-1 text-sm text-gray-500">
+              This will be set as your nickname in the Coursey McCourseface Discord server, visible to all members.
+            </p>
           </div>
         </div>
       )}

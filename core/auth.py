@@ -11,6 +11,7 @@ async def get_or_create_user(
     discord_id: str,
     discord_username: str | None = None,
     email: str | None = None,
+    email_verified: bool = False,
 ) -> dict:
     """
     Get or create a user by Discord ID.
@@ -22,12 +23,15 @@ async def get_or_create_user(
         discord_id: The Discord user ID
         discord_username: Optional username to set/update
         email: Optional email to set/update
+        email_verified: Whether the email is verified (from Discord)
 
     Returns:
         The user record from the database
     """
     async with get_transaction() as conn:
-        return await _get_or_create_user(conn, discord_id, discord_username, email)
+        return await _get_or_create_user(
+            conn, discord_id, discord_username, email, email_verified
+        )
 
 
 async def create_auth_code(discord_id: str, expires_minutes: int = 5) -> str:

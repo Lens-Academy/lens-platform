@@ -191,7 +191,15 @@ app.add_middleware(
     allow_origins=[
         FRONTEND_URL,
         "http://localhost:5173",
+        "http://localhost:8000",
+        "http://localhost:8001",
+        "http://localhost:8002",
+        "http://localhost:8003",
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8001",
+        "http://127.0.0.1:8002",
+        "http://127.0.0.1:8003",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -211,6 +219,13 @@ spa_path = project_root / "web_frontend" / "dist"  # React SPA build
 @app.get("/")
 async def root():
     """Serve landing page if it exists, otherwise return API status."""
+    dev_mode = os.getenv("DEV_MODE", "").lower() in ("true", "1", "yes")
+    if dev_mode:
+        return {
+            "status": "ok",
+            "message": "API-only mode. Access frontend at Vite dev server.",
+            "bot_ready": bot.is_ready() if bot else False,
+        }
     landing_file = static_path / "landing.html"
     if landing_file.exists():
         return FileResponse(landing_file)
