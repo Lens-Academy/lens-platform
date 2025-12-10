@@ -18,7 +18,8 @@ def create_bot() -> commands.Bot:
     intents = discord.Intents.default()
     intents.message_content = True
     intents.voice_states = True  # Required for tracking voice channel joins
-    intents.members = True  # Required for on_member_join and on_member_update
+    intents.presences = True  # Required for presence/activity data
+    intents.members = True  # Required for full member data
 
     bot = commands.Bot(command_prefix="!", intents=intents)
     return bot
