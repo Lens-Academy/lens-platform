@@ -2,43 +2,51 @@
 Cohort creation and availability matching.
 """
 
+import json
 from datetime import datetime
 from typing import Optional
 import pytz
 
-from .data import get_user_data
+from .database import get_connection
+from .queries import users as user_queries
 from .timezone import utc_to_local_time
 
 
-def find_availability_overlap(
+async def find_availability_overlap(
     member_ids: list[str],
-    get_user_data_fn=None
 ) -> Optional[tuple[str, int]]:
     """
     Find a 1-hour slot where all members are available.
 
     Args:
-        member_ids: List of user ID strings
-        get_user_data_fn: Function to fetch user data by ID (default: core.data.get_user_data)
+        member_ids: List of Discord user ID strings
 
     Returns:
         (day_name, hour) in UTC or None if no overlap found.
         Prefers fully available slots over if-needed slots.
     """
-    if get_user_data_fn is None:
-        get_user_data_fn = get_user_data
+    # Batch fetch all users from database
+    async with get_connection() as conn:
+        users = await user_queries.get_users_by_discord_ids(conn, member_ids)
+
+    # Build lookup by discord_id
+    user_by_id = {u["discord_id"]: u for u in users}
 
     # Collect all availability
     all_available = {}  # {(day, hour): [user_ids who are available]}
     all_if_needed = {}  # {(day, hour): [user_ids who marked if-needed]}
 
     for member_id in member_ids:
-        user_data = get_user_data_fn(member_id)
-        if not user_data:
+        user = user_by_id.get(member_id)
+        if not user:
             continue
 
-        availability = user_data.get("availability", {})
-        if_needed = user_data.get("if_needed", {})
+        # Parse availability from JSON strings
+        availability_str = user.get("availability_utc")
+        if_needed_str = user.get("if_needed_availability_utc")
+
+        availability = json.loads(availability_str) if availability_str else {}
+        if_needed = json.loads(if_needed_str) if if_needed_str else {}
 
         for day, slots in availability.items():
             for slot in slots:

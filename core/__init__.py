@@ -3,9 +3,8 @@ Core business logic - platform-agnostic.
 Can be used by Discord bot, web API, or any other interface.
 """
 
-# Data persistence
+# Data persistence (courses still on JSON, users migrated to database)
 from .data import (
-    load_data, save_data, get_user_data, save_user_data,
     load_courses, save_courses, get_course
 )
 
@@ -60,8 +59,7 @@ from core import stampy
 from core import lesson_chat
 
 __all__ = [
-    # Data
-    'load_data', 'save_data', 'get_user_data', 'save_user_data',
+    # Data (courses still on JSON)
     'load_courses', 'save_courses', 'get_course',
     # Database (SQLAlchemy)
     'get_connection', 'get_transaction', 'get_engine', 'close_engine', 'is_configured',

@@ -12,10 +12,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core import (
-    load_courses, save_courses, get_course, get_user_data, save_user_data,
+    load_courses, save_courses, get_course,
     extract_doc_id, fetch_google_doc, parse_doc_tabs,
     mark_week_complete, get_user_progress
 )
+# User data still on JSON for courses (pending courses DB migration)
+from core.data import get_user_data
 
 
 class CoursesCog(commands.Cog):

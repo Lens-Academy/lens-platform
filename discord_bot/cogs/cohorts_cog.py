@@ -3,6 +3,7 @@ Cohorts Cog - Discord adapter for cohort creation.
 Handles manual cohort creation with Discord channels and scheduled events.
 """
 
+import json
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -14,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core import (
-    get_user_data, get_course,
+    get_user_profile, get_course, is_facilitator,
     CohortNameGenerator,
     find_availability_overlap, format_local_time
 )
@@ -51,25 +52,34 @@ class CohortsCog(commands.Cog):
         members = [m for m in [member1, member2, member3, member4, member5,
                                member6, member7, member8, member9, member10] if m]
 
-        # Check all members have signed up
+        # Check all members have signed up and get their data
         missing_signup = []
+        member_data = {}  # discord_id -> user profile
         for member in members:
-            user_data = get_user_data(str(member.id))
-            if not user_data or not user_data.get("availability"):
+            user_data = await get_user_profile(str(member.id))
+            if not user_data:
                 missing_signup.append(member.mention)
+            else:
+                # Parse availability to check if it exists
+                availability_str = user_data.get("availability_utc")
+                availability = json.loads(availability_str) if availability_str else {}
+                if not availability:
+                    missing_signup.append(member.mention)
+                else:
+                    member_data[str(member.id)] = user_data
 
         if missing_signup:
             await interaction.followup.send(
-                f"❌ These members haven't completed signup:\n{', '.join(missing_signup)}\n\n"
+                f"These members haven't completed signup:\n{', '.join(missing_signup)}\n\n"
                 f"They need to use `/signup` first."
             )
             return
 
-        # Validate course exists and has weeks
+        # Validate course exists and has weeks (still uses JSON)
         course_data = get_course(course)
         if not course_data:
             await interaction.followup.send(
-                f"❌ Course `{course}` not found!\n"
+                f"Course `{course}` not found!\n"
                 f"Use `/list-courses` to see available courses."
             )
             return
@@ -77,17 +87,17 @@ class CohortsCog(commands.Cog):
         num_weeks = len(course_data.get("weeks", []))
         if num_weeks == 0:
             await interaction.followup.send(
-                f"❌ Course `{course}` has no weeks defined!\n"
+                f"Course `{course}` has no weeks defined!\n"
                 f"Use `/add-week` to add weeks to the course first."
             )
             return
 
-        # Find overlapping availability using core function
+        # Find overlapping availability using core function (now async)
         member_ids = [str(m.id) for m in members]
-        overlap = find_availability_overlap(member_ids)
+        overlap = await find_availability_overlap(member_ids)
         if not overlap:
             await interaction.followup.send(
-                f"❌ No overlapping availability found for these {len(members)} members.\n"
+                f"No overlapping availability found for these {len(members)} members.\n"
                 f"Consider adjusting their availability with `/signup`."
             )
             return
@@ -100,7 +110,7 @@ class CohortsCog(commands.Cog):
 
         # Create category for cohort
         category = await interaction.guild.create_category(
-            name=f"🎓 {cohort_name}",
+            name=f"{cohort_name}",
             reason=f"Cohort created by {interaction.user}"
         )
 
@@ -135,7 +145,7 @@ class CohortsCog(commands.Cog):
                 )
         except discord.Forbidden:
             await interaction.followup.send(
-                "⚠️ Bot lacks permission to manage channel permissions.\n"
+                "Bot lacks permission to manage channel permissions.\n"
                 "Please ensure the bot has **Manage Channels** and **Manage Roles** permissions, "
                 "and that its role is above the members' roles in the hierarchy."
             )
@@ -178,8 +188,7 @@ class CohortsCog(commands.Cog):
         # Find facilitator (if any)
         facilitator = None
         for member in members:
-            user_data = get_user_data(str(member.id))
-            if user_data and user_data.get("is_facilitator"):
+            if await is_facilitator(str(member.id)):
                 facilitator = member
                 break
 
@@ -187,21 +196,21 @@ class CohortsCog(commands.Cog):
         member_list = []
         for member in members:
             if member == facilitator:
-                member_list.append(f"• {member.mention} (Facilitator) 🌟")
+                member_list.append(f"- {member.mention} (Facilitator)")
             else:
-                member_list.append(f"• {member.mention}")
+                member_list.append(f"- {member.mention}")
 
         # Schedule with each member's timezone using core function
         schedule_lines = []
         for member in members:
-            user_data = get_user_data(str(member.id))
-            tz_name = user_data.get("timezone", "UTC")
+            user_data = member_data.get(str(member.id), {})
+            tz_name = user_data.get("timezone") or "UTC"
 
             # Get city name from timezone (simplified)
             city = tz_name.split("/")[-1].replace("_", " ")
 
             local_day, time_str = format_local_time(utc_day, utc_hour, tz_name)
-            schedule_lines.append(f"• {member.mention} ({city}): {time_str}")
+            schedule_lines.append(f"- {member.mention} ({city}): {time_str}")
 
         # UTC reference
         utc_hour_12 = utc_hour if utc_hour <= 12 else utc_hour - 12
@@ -214,7 +223,7 @@ class CohortsCog(commands.Cog):
         # Format first meeting date
         first_meeting_str = first_meeting.strftime("%B %d, %Y")
 
-        welcome_message = f"""🎉 **Welcome to {cohort_name}!**
+        welcome_message = f"""**Welcome to {cohort_name}!**
 
 **Your cohort:**
 {chr(10).join(member_list)}
@@ -222,28 +231,28 @@ class CohortsCog(commands.Cog):
 **Meeting Schedule:**
 {chr(10).join(schedule_lines)}
 
-📍 **UTC Reference:** {utc_reference}
+**UTC Reference:** {utc_reference}
 
 **First Meeting:** {first_meeting_str}
 
 **Action Items:**
-1. ✅ Introduce yourself below!
-2. 📚 Read Week 1 materials in the course library
-3. 🗓️ Check your scheduled events ({num_weeks} meetings): {events[0].url}
-4. 🎤 Join {voice_channel.mention} when it's meeting time
+1. Introduce yourself below!
+2. Read Week 1 materials in the course library
+3. Check your scheduled events ({num_weeks} meetings): {events[0].url}
+4. Join {voice_channel.mention} when it's meeting time
 
-Questions? Just ask! We're here to help each other learn. 💬
+Questions? Just ask! We're here to help each other learn.
 
 ---
-📜 **Code of Conduct:** Be respectful, assume good faith, welcome all questions.
+**Code of Conduct:** Be respectful, assume good faith, welcome all questions.
 """
 
         await text_channel.send(welcome_message)
 
         # Notify admin
-        events_summary = "\n".join([f"• Week {i+1}: {event.url}" for i, event in enumerate(events)])
+        events_summary = "\n".join([f"- Week {i+1}: {event.url}" for i, event in enumerate(events)])
         await interaction.followup.send(
-            f"✅ **{cohort_name}** created!\n\n"
+            f"**{cohort_name}** created!\n\n"
             f"**Members:** {len(members)}\n"
             f"**Meeting:** {utc_day}s at {utc_hour}:00 UTC\n"
             f"**Channel:** {text_channel.mention}\n"
