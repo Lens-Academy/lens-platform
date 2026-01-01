@@ -31,8 +31,16 @@ export async function createSession(lessonId: string): Promise<number> {
   return data.session_id;
 }
 
-export async function getSession(sessionId: number): Promise<SessionState> {
-  const res = await fetch(`${API_BASE}/api/lesson-sessions/${sessionId}`, {
+export async function getSession(
+  sessionId: number,
+  viewStage?: number
+): Promise<SessionState> {
+  const url =
+    viewStage !== undefined
+      ? `${API_BASE}/api/lesson-sessions/${sessionId}?view_stage=${viewStage}`
+      : `${API_BASE}/api/lesson-sessions/${sessionId}`;
+
+  const res = await fetch(url, {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch session");

@@ -50,4 +50,5 @@ export type SessionState = {
   messages: ChatMessage[];
   completed: boolean;
   content: string | null;
+  stages: Stage[];
 };
