@@ -415,3 +415,27 @@ auth_codes = Table(
     Index("idx_auth_codes_code", "code"),
     Index("idx_auth_codes_user_id", "user_id"),
 )
+
+
+# =====================================================
+# 14. LESSON_SESSIONS
+# =====================================================
+lesson_sessions = Table(
+    "lesson_sessions",
+    metadata,
+    Column("session_id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "user_id",
+        Integer,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("lesson_id", Text, nullable=False),
+    Column("current_stage_index", Integer, server_default="0"),
+    Column("messages", JSONB, server_default="[]"),
+    Column("started_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column("last_active_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column("completed_at", TIMESTAMP(timezone=True)),
+    Index("idx_lesson_sessions_user_id", "user_id"),
+    Index("idx_lesson_sessions_lesson_id", "lesson_id"),
+)

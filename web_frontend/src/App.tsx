@@ -7,12 +7,14 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import InteractiveLesson from "./pages/InteractiveLesson";
 import ArticleLesson from "./pages/ArticleLesson";
+import UnifiedLesson from "./pages/UnifiedLesson";
 
 function App() {
   return (
     <Routes>
-      {/* Full-screen prototypes (no Layout) */}
+      {/* Full-screen pages (no Layout) */}
       <Route path="/prototype/article-lesson" element={<ArticleLesson />} />
+      <Route path="/lesson/:lessonId" element={<UnifiedLesson />} />
 
       {/* Standard pages with Layout */}
       <Route element={<Layout />}>

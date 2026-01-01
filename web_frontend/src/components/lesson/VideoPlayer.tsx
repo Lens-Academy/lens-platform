@@ -253,7 +253,7 @@ export default function VideoPlayer({
   const showControls = isHovering || isPaused || fragmentEnded;
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-4 p-4">
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -262,7 +262,7 @@ export default function VideoPlayer({
       `}</style>
       {/* Video + progress bar container with hover detection */}
       <div
-        className="w-full max-w-3xl"
+        className="w-full"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
       >
@@ -355,7 +355,7 @@ export default function VideoPlayer({
           </div>
         </>
       ) : (
-        <div className="w-full max-w-3xl flex justify-between items-center">
+        <div className="w-full flex justify-between items-center">
           <span className="text-xs text-gray-400">
             Watching full video
             <button
