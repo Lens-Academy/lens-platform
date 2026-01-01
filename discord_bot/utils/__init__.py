@@ -18,9 +18,7 @@ from core import (
     DAY_CODES, DAY_NAMES, TIMEZONES,
     # Timezone
     local_to_utc_time, utc_to_local_time,
-    # Data (courses only - users migrated to database)
-    load_courses, save_courses, get_course,
-    # Cohort names
+    # Group names (formerly cohort names)
     COHORT_NAMES, CohortNameGenerator,
     # Google docs
     extract_doc_id, fetch_google_doc, parse_doc_tabs,
@@ -32,9 +30,6 @@ __all__ = [
     'TIMEZONES',
     'local_to_utc_time',
     'utc_to_local_time',
-    'load_courses',
-    'save_courses',
-    'get_course',
     'COHORT_NAMES',
     'CohortNameGenerator',
     'extract_doc_id',

@@ -1,6 +1,6 @@
 """
-Cohorts Cog - Discord adapter for cohort creation.
-Handles manual cohort creation with Discord channels and scheduled events.
+Groups Cog - Discord adapter for group creation.
+Handles manual group creation with Discord channels and scheduled events.
 """
 
 import json
@@ -21,20 +21,20 @@ from core import (
 )
 
 
-# TODO: Refactor this cog. 
-# We have switched to using the DB and the scheduler to initate cohort creation.
+# TODO: Refactor this cog.
+# We have switched to using the DB and the scheduler to initiate group creation.
 # But I can imagine a cog like this could then make the actual channels in Discord, for example.
 # Ask user for input on how to do this.
-class CohortsCog(commands.Cog):
-    """Cog for creating and managing cohorts."""
+class GroupsCog(commands.Cog):
+    """Cog for creating and managing groups."""
 
     def __init__(self, bot):
         self.bot = bot
         self.name_generator = CohortNameGenerator()
 
-    @app_commands.command(name="cohort", description="Create a cohort from selected members")
+    @app_commands.command(name="group", description="Create a group from selected members")
     @app_commands.checks.has_permissions(administrator=True)
-    async def create_cohort(
+    async def create_group(
         self,
         interaction: discord.Interaction,
         course: str,
@@ -49,7 +49,7 @@ class CohortsCog(commands.Cog):
         member9: discord.Member = None,
         member10: discord.Member = None,
     ):
-        """Create a cohort with the specified members."""
+        """Create a group with the specified members."""
         await interaction.response.defer()
 
         # Collect all members (filter None)
@@ -108,31 +108,31 @@ class CohortsCog(commands.Cog):
 
         utc_day, utc_hour = overlap
 
-        # Generate cohort name
-        cohort_word = self.name_generator.next_name()
-        cohort_name = f"{cohort_word} - {course}"
+        # Generate group name
+        group_word = self.name_generator.next_name()
+        group_name = f"{group_word} - {course}"
 
-        # Create category for cohort
+        # Create category for group
         category = await interaction.guild.create_category(
-            name=f"{cohort_name}",
-            reason=f"Cohort created by {interaction.user}"
+            name=f"{group_name}",
+            reason=f"Group created by {interaction.user}"
         )
 
         # Create text channel
         text_channel = await interaction.guild.create_text_channel(
-            name=f"cohort-{cohort_word.lower()}-{course.lower()}",
+            name=f"group-{group_word.lower()}-{course.lower()}",
             category=category,
-            reason=f"{cohort_name} text channel"
+            reason=f"{group_name} text channel"
         )
 
         # Create voice channel
         voice_channel = await interaction.guild.create_voice_channel(
-            name=f"Cohort {cohort_word} Voice",
+            name=f"Group {group_word} Voice",
             category=category,
-            reason=f"{cohort_name} voice channel"
+            reason=f"{group_name} voice channel"
         )
 
-        # Set permissions - only cohort members can see
+        # Set permissions - only group members can see
         try:
             await category.set_permissions(
                 interaction.guild.default_role,
@@ -178,11 +178,11 @@ class CohortsCog(commands.Cog):
             week_title = week_data["title"] if week_data else f"Week {week_num + 1}"
 
             event = await interaction.guild.create_scheduled_event(
-                name=f"{cohort_name} - Week {week_num + 1}: {week_title}",
+                name=f"{group_name} - Week {week_num + 1}: {week_title}",
                 start_time=meeting_time,
                 end_time=meeting_time + timedelta(hours=1),
                 channel=voice_channel,
-                description=f"Week {week_num + 1} meeting for {cohort_name}",
+                description=f"Week {week_num + 1} meeting for {group_name}",
                 entity_type=discord.EntityType.voice,
                 privacy_level=discord.PrivacyLevel.guild_only
             )
@@ -227,9 +227,9 @@ class CohortsCog(commands.Cog):
         # Format first meeting date
         first_meeting_str = first_meeting.strftime("%B %d, %Y")
 
-        welcome_message = f"""**Welcome to {cohort_name}!**
+        welcome_message = f"""**Welcome to {group_name}!**
 
-**Your cohort:**
+**Your group:**
 {chr(10).join(member_list)}
 
 **Meeting Schedule:**
@@ -256,7 +256,7 @@ Questions? Just ask! We're here to help each other learn.
         # Notify admin
         events_summary = "\n".join([f"- Week {i+1}: {event.url}" for i, event in enumerate(events)])
         await interaction.followup.send(
-            f"**{cohort_name}** created!\n\n"
+            f"**{group_name}** created!\n\n"
             f"**Members:** {len(members)}\n"
             f"**Meeting:** {utc_day}s at {utc_hour}:00 UTC\n"
             f"**Channel:** {text_channel.mention}\n"
@@ -265,4 +265,4 @@ Questions? Just ask! We're here to help each other learn.
 
 
 async def setup(bot):
-    await bot.add_cog(CohortsCog(bot))
+    await bot.add_cog(GroupsCog(bot))
