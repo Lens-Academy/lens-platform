@@ -14,6 +14,7 @@ type ChatPanelProps = {
   onConfirmTransition: () => void;
   onContinueChatting: () => void;
   showDisclaimer?: boolean;
+  isReviewing?: boolean;
 };
 
 export default function ChatPanel({
@@ -23,11 +24,12 @@ export default function ChatPanel({
   onRetryMessage,
   isLoading,
   streamingContent,
-  currentStage: _currentStage,
+  currentStage,
   pendingTransition,
   onConfirmTransition,
   onContinueChatting,
   showDisclaimer = false,
+  isReviewing = false,
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -139,10 +141,31 @@ export default function ChatPanel({
 
       {/* Disclaimer when not in chat stage */}
       {showDisclaimer && (
-        <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
-          <p className="text-sm text-gray-500">
-            Feel free to ask questions. The focus is on the content above.
-          </p>
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 relative z-20">
+          {isReviewing ? (
+            <>
+              <p className="text-sm font-medium text-gray-800">You're reviewing a previous article/video</p>
+              <p className="text-sm text-gray-500 mt-1">
+                You can ask the AI tutor questions, but it doesn't know that you're reviewing older content.
+              </p>
+            </>
+          ) : currentStage?.type === "article" ? (
+            <>
+              <p className="text-sm font-medium text-gray-800">Please read the article</p>
+              <p className="text-sm text-gray-500 mt-1">
+                You can already chat with the AI tutor about it, but there will also be a dedicated chat section after reading the article.
+              </p>
+            </>
+          ) : currentStage?.type === "video" ? (
+            <>
+              <p className="text-sm font-medium text-gray-800">Please watch the video</p>
+              <p className="text-sm text-gray-500 mt-1">
+                You can already chat with the AI tutor about it, but there will also be a dedicated chat section after watching the video.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-gray-500">Feel free to ask questions.</p>
+          )}
         </div>
       )}
 

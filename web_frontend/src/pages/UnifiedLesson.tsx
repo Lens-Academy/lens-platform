@@ -242,31 +242,12 @@ export default function UnifiedLesson() {
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between mb-2">
+        <div className="mb-2">
           <h1 className="text-lg font-semibold text-gray-900">{session.lesson_title}</h1>
-          {/* Right side: reviewing indicator or skip button */}
-          <div className="flex items-center gap-2">
-            {isReviewing ? (
-              <button
-                onClick={handleReturnToCurrent}
-                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-              >
-                Return to current →
-              </button>
-            ) : (
-              !isChatStage && (
-                <button
-                  onClick={handleAdvanceStage}
-                  className="text-gray-500 hover:text-gray-700 text-sm"
-                >
-                  Skip →
-                </button>
-              )
-            )}
-          </div>
         </div>
-        {/* Progress bar */}
-        <StageProgressBar
+        {/* Progress bar row with skip button */}
+        <div className="flex items-center justify-between">
+          <StageProgressBar
           stages={session.stages}
           currentStageIndex={session.current_stage_index}
           viewingStageIndex={viewingStageIndex}
@@ -276,12 +257,37 @@ export default function UnifiedLesson() {
           canGoPrevious={canGoBack}
           canGoNext={canGoForward}
         />
+          {/* Skip/return button */}
+          {isReviewing ? (
+            <button
+              onClick={handleReturnToCurrent}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+            >
+              Return to current section →
+            </button>
+          ) : (
+            <button
+              onClick={handleAdvanceStage}
+              className="text-gray-500 hover:text-gray-700 text-sm"
+            >
+              Skip section →
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Main content - split panel */}
       <div className="flex-1 flex overflow-hidden">
         {/* Chat panel - left */}
-        <div className="w-1/2 border-r border-gray-200 bg-white">
+        <div className={`w-1/2 relative ${
+          isChatStage && !isReviewing
+            ? "bg-white shadow-2xl z-10"
+            : "bg-gray-50"
+        }`}>
+          {/* Dimming overlay when not focused */}
+          {(!isChatStage || isReviewing) && (
+            <div className="absolute inset-0 bg-gray-200/25 pointer-events-none z-10 transition-opacity duration-200" />
+          )}
           <ChatPanel
             messages={messages}
             pendingMessage={pendingMessage}
@@ -294,17 +300,29 @@ export default function UnifiedLesson() {
             onConfirmTransition={handleAdvanceStage}
             onContinueChatting={handleContinueChatting}
             showDisclaimer={!isChatStage || isReviewing}
+            isReviewing={isReviewing}
           />
         </div>
 
         {/* Content panel - right */}
-        <div className="w-1/2 bg-white">
+        <div className={`w-1/2 relative ${
+          !isChatStage || isReviewing
+            ? "bg-white shadow-2xl z-10"
+            : "bg-gray-50"
+        }`}>
+          {/* Dimming overlay when not focused */}
+          {(isChatStage && !isReviewing) && (
+            <div className="absolute inset-0 bg-gray-200/25 pointer-events-none z-10 transition-opacity duration-200" />
+          )}
           <ContentPanel
             stage={displayedStage}
             articleContent={session.content || undefined}
             onVideoEnded={handleAdvanceStage}
             onNextClick={handleAdvanceStage}
             isReviewing={isReviewing}
+            previousContent={session.previous_content}
+            previousStage={session.previous_stage}
+            includePreviousContent={session.include_previous_content}
           />
         </div>
       </div>

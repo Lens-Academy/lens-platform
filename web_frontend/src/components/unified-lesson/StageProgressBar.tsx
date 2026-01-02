@@ -124,18 +124,18 @@ export default function StageProgressBar({
                     isFuture
                       ? "Not yet reached"
                       : stage.type === "chat"
-                        ? "Chat (cannot revisit)"
-                        : `View ${stage.type}`
+                        ? "Chat section (cannot revisit)"
+                        : `View ${stage.type} section`
                   }
                 >
                   <StageIcon type={stage.type} small />
                 </button>
 
-                {/* Tooltip for chat stages */}
+                {/* Tooltip for chat sections */}
                 {tooltipIndex === index && (
                   <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-10">
                     <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                      Chat stages can't be revisited
+                      Chat sections can't be revisited
                     </div>
                   </div>
                 )}

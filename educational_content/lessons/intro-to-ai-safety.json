@@ -23,6 +23,17 @@
       "type": "chat",
       "context": "The user just watched a video clip about AI safety. Quiz them on the key points without providing hints - test their recall.",
       "includePreviousContent": false
+    },
+    {
+      "type": "article",
+      "source_url": "articles/four-background-claims.md",
+      "from": "build powerful generally intelligent AI systems.",
+      "to": "We call this the problem of AI alignment"
+    },
+    {
+      "type": "chat",
+      "context": "Quiz the user on what they just read. Test their recall without showing them the article - they should remember the key points.",
+      "includePreviousContent": false
     }
   ]
 }

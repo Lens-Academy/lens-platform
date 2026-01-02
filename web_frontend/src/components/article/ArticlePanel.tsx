@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 
 type ArticlePanelProps = {
@@ -6,6 +7,7 @@ type ArticlePanelProps = {
   author?: string;
   date?: string;
   blurred?: boolean; // For active recall - blur the content
+  onScrolledToBottom?: () => void;
 };
 
 export default function ArticlePanel({
@@ -14,9 +16,31 @@ export default function ArticlePanel({
   author,
   date,
   blurred = false,
+  onScrolledToBottom,
 }: ArticlePanelProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !onScrolledToBottom) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      // Consider "bottom" when within 20px of the end
+      if (scrollTop + clientHeight >= scrollHeight - 20) {
+        onScrolledToBottom();
+      }
+    };
+
+    // Check immediately in case content is shorter than container
+    handleScroll();
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [onScrolledToBottom, content]);
+
   return (
-    <div className="h-full overflow-y-auto">
+    <div ref={containerRef} className="h-full overflow-y-auto relative">
       <article className={`prose prose-gray max-w-none p-6 ${blurred ? "blur-sm select-none" : ""}`}>
         {title && <h1 className="text-2xl font-bold mb-2">{title}</h1>}
         {(author || date) && (
@@ -85,9 +109,12 @@ export default function ArticlePanel({
       </article>
 
       {blurred && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/50">
-          <div className="bg-yellow-100 border border-yellow-300 rounded-lg px-4 py-2 text-yellow-800">
-            Answer the question to reveal the article
+        <div className="absolute inset-0 flex items-center justify-center z-20">
+          <div className="bg-white rounded-lg px-6 py-4 shadow-lg text-center">
+            <svg className="w-8 h-8 mx-auto mb-2 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+            </svg>
+            <p className="text-gray-600 text-sm">Please chat with the AI tutor</p>
           </div>
         </div>
       )}

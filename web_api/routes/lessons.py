@@ -230,6 +230,18 @@ async def get_session_state(
     if content_stage:
         stage_content = get_stage_content(content_stage)
 
+    # For chat stages, get previous stage content (for blur/visible display)
+    previous_content = None
+    previous_stage = None
+    include_previous_content = True
+    if current_stage and current_stage.type == "chat" and view_stage is None:
+        # Only provide previous content when viewing current (not reviewing)
+        stage_idx = session["current_stage_index"]
+        if stage_idx > 0:
+            previous_stage = lesson.stages[stage_idx - 1]
+            previous_content = get_stage_content(previous_stage)
+            include_previous_content = current_stage.include_previous_content
+
     return {
         "session_id": session["session_id"],
         "lesson_id": session["lesson_id"],
@@ -264,6 +276,17 @@ async def get_session_state(
         "messages": session["messages"],
         "completed": session["completed_at"] is not None,
         "content": stage_content,
+        # Previous content for chat stages (blurred or visible based on includePreviousContent)
+        "previous_content": previous_content,
+        "previous_stage": (
+            {
+                "type": previous_stage.type,
+                **({"videoId": previous_stage.video_id} if previous_stage.type == "video" else {}),
+            }
+            if previous_stage
+            else None
+        ),
+        "include_previous_content": include_previous_content,
         # Add all stages for frontend navigation
         "stages": [
             {

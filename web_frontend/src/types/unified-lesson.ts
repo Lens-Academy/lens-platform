@@ -40,6 +40,11 @@ export type PendingMessage = {
   status: "sending" | "failed";
 };
 
+export type PreviousStageInfo = {
+  type: "article" | "video";
+  videoId?: string;
+};
+
 export type SessionState = {
   session_id: number;
   lesson_id: string;
@@ -51,4 +56,8 @@ export type SessionState = {
   completed: boolean;
   content: string | null;
   stages: Stage[];
+  // For chat stages: previous content to display (blurred or visible)
+  previous_content: string | null;
+  previous_stage: PreviousStageInfo | null;
+  include_previous_content: boolean;
 };

@@ -6,7 +6,6 @@ type VideoPlayerProps = {
   start: number;
   end: number;
   onEnded: () => void;
-  onSkip: () => void;
 };
 
 // Extend JSX to include the youtube-video custom element
@@ -31,7 +30,6 @@ export default function VideoPlayer({
   start,
   end,
   onEnded,
-  onSkip,
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -335,41 +333,25 @@ export default function VideoPlayer({
 
       {/* Clip info and controls */}
       {!isFullVideo ? (
-        <>
-          <div className="text-center text-xs text-gray-400">
-            Clip from {formatTime(start)} to {formatTime(end)}
-            <span className="mx-1">·</span>
-            <button
-              onClick={handleWatchFullVideo}
-              className="text-gray-400 hover:text-gray-600 underline"
-            >
-              Watch full video
-            </button>
-            <span className="mx-1">·</span>
-            <button
-              onClick={onSkip}
-              className="text-gray-400 hover:text-gray-600 underline"
-            >
-              Skip to next question
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="w-full flex justify-between items-center">
-          <span className="text-xs text-gray-400">
-            Watching full video
-            <button
-              onClick={handleWatchClipOnly}
-              className="ml-2 text-gray-400 hover:text-gray-600 underline"
-            >
-              Watch clip only
-            </button>
-          </span>
+        <div className="text-center text-xs text-gray-400">
+          Clip from {formatTime(start)} to {formatTime(end)}
+          <span className="mx-1">·</span>
           <button
-            onClick={onSkip}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            onClick={handleWatchFullVideo}
+            className="text-gray-400 hover:text-gray-600 underline"
           >
-            Continue with lesson
+            Watch full video
+          </button>
+        </div>
+      ) : (
+        <div className="text-center text-xs text-gray-400">
+          Watching full video
+          <span className="mx-1">·</span>
+          <button
+            onClick={handleWatchClipOnly}
+            className="text-gray-400 hover:text-gray-600 underline"
+          >
+            Watch clip only
           </button>
         </div>
       )}
