@@ -25,12 +25,14 @@ function serveLandingPage(): Plugin {
   }
 }
 
+const apiPort = process.env.API_PORT || '8000'
+
 export default defineConfig({
   plugins: [serveLandingPage(), react(), tailwindcss()],
   server: {
     proxy: {
-      '/api': 'http://localhost:8000',
-      '/auth': 'http://localhost:8000',
+      '/api': `http://localhost:${apiPort}`,
+      '/auth': `http://localhost:${apiPort}`,
     },
   },
 })

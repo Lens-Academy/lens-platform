@@ -50,6 +50,7 @@ from web_api.routes.auth import router as auth_router
 from web_api.routes.users import router as users_router
 from web_api.routes.lesson import router as lesson_router
 from web_api.routes.lessons import router as lessons_router
+from web_api.routes.speech import router as speech_router
 
 # Track bot task for cleanup
 _bot_task: asyncio.Task | None = None
@@ -213,6 +214,7 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(lesson_router)
 app.include_router(lessons_router)
+app.include_router(speech_router)
 
 
 # New paths for static files
@@ -315,6 +317,7 @@ if __name__ == "__main__":
     if args.dev:
         os.environ["DEV_MODE"] = "true"
         os.environ["VITE_PORT"] = str(args.vite_port)
+        os.environ["API_PORT"] = str(args.port)  # For Vite proxy
         print(f"Dev mode enabled - Vite will run on port {args.vite_port}")
         print(f"Access frontend at: http://localhost:{args.vite_port}")
 

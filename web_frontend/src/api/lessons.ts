@@ -100,3 +100,22 @@ export async function* sendMessage(
     }
   }
 }
+
+export async function transcribeAudio(audioBlob: Blob): Promise<string> {
+  const formData = new FormData();
+  formData.append("audio", audioBlob, "recording.webm");
+
+  const res = await fetch(`${API_BASE}/api/transcribe`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    if (res.status === 413) throw new Error("Recording too large");
+    if (res.status === 429) throw new Error("Too many requests, try again shortly");
+    throw new Error("Transcription failed");
+  }
+
+  const data = await res.json();
+  return data.text;
+}
