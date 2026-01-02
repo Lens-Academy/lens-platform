@@ -11,7 +11,8 @@
     {
       "type": "chat",
       "context": "The user just read about the intelligence feedback loop and recursive self-improvement. Check their understanding of the core dynamics: why intelligence makes it easier to create more intelligence, and the implications for AI development timelines.",
-      "includePreviousContent": true
+      "showUserPreviousContent": true,
+      "showTutorPreviousContent": true
     },
     {
       "type": "video",
@@ -22,7 +23,8 @@
     {
       "type": "chat",
       "context": "The user just watched a Kurzgesagt video about AI and intelligence explosion. Quiz them on the key concepts without providing hints. Test their understanding of the feedback loop dynamics.",
-      "includePreviousContent": true
+      "showUserPreviousContent": true,
+      "showTutorPreviousContent": true
     }
   ]
 }

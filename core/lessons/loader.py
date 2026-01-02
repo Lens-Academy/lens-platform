@@ -35,10 +35,21 @@ def _parse_stage(data: dict) -> Stage:
             to_seconds=data.get("to"),
         )
     elif stage_type == "chat":
+        # Support new separate fields, with backwards compat for old includePreviousContent
+        if "showUserPreviousContent" in data or "showTutorPreviousContent" in data:
+            show_user = data.get("showUserPreviousContent", True)
+            show_tutor = data.get("showTutorPreviousContent", True)
+        else:
+            # Backwards compatibility: old field sets both
+            legacy_value = data.get("includePreviousContent", True)
+            show_user = legacy_value
+            show_tutor = legacy_value
+
         return ChatStage(
             type="chat",
             context=data["context"],
-            include_previous_content=data.get("includePreviousContent", True),
+            show_user_previous_content=show_user,
+            show_tutor_previous_content=show_tutor,
         )
     else:
         raise ValueError(f"Unknown stage type: {stage_type}")

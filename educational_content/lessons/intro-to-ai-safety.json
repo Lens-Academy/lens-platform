@@ -11,7 +11,8 @@
     {
       "type": "chat",
       "context": "The user just read an introduction to AI Safety. Ask them what they found most surprising or what questions they have. Check their understanding of why AI safety matters.",
-      "includePreviousContent": true
+      "showUserPreviousContent": true,
+      "showTutorPreviousContent": true
     },
     {
       "type": "video",
@@ -22,7 +23,8 @@
     {
       "type": "chat",
       "context": "The user just watched a video clip about AI safety. Quiz them on the key points without providing hints - test their recall.",
-      "includePreviousContent": false
+      "showUserPreviousContent": false,
+      "showTutorPreviousContent": true
     },
     {
       "type": "article",
@@ -33,7 +35,8 @@
     {
       "type": "chat",
       "context": "Quiz the user on what they just read. Test their recall without showing them the article - they should remember the key points.",
-      "includePreviousContent": false
+      "showUserPreviousContent": false,
+      "showTutorPreviousContent": true
     }
   ]
 }

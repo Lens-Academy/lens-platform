@@ -23,7 +23,7 @@ type ContentPanelProps = {
   // For chat stages: show previous content (blurred or visible)
   previousArticle?: ArticleData | null;
   previousStage?: PreviousStageInfo | null;
-  includePreviousContent?: boolean;
+  showUserPreviousContent?: boolean;
 };
 
 export default function ContentPanel({
@@ -34,7 +34,7 @@ export default function ContentPanel({
   isReviewing = false,
   previousArticle,
   previousStage,
-  includePreviousContent = true,
+  showUserPreviousContent = true,
 }: ContentPanelProps) {
   // Track if user has scrolled to bottom of article
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
@@ -68,7 +68,7 @@ export default function ContentPanel({
 
   // Unified article data: current article for article stage, previous for chat stage
   const articleToShow = isArticleStage ? (article ?? { content: "Loading..." }) : previousArticle;
-  const isBlurred = isChatAfterArticle && !includePreviousContent;
+  const isBlurred = isChatAfterArticle && !showUserPreviousContent;
   const showButton = isArticleStage && !isReviewing;
 
   if (!stage) {
@@ -145,7 +145,7 @@ export default function ContentPanel({
 
   // Chat stage with video as previous content
   if (stage.type === "chat" && previousStage?.type === "video" && previousStage.videoId) {
-    const blurred = !includePreviousContent;
+    const blurred = !showUserPreviousContent;
     const thumbnailUrl = `https://img.youtube.com/vi/${previousStage.videoId}/maxresdefault.jpg`;
     return (
       <div className="h-full flex items-center justify-center bg-white overflow-hidden relative">

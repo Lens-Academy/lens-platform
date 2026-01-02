@@ -157,7 +157,8 @@ async def get_lesson(lesson_id: str):
                     **(
                         {
                             "context": s.context,
-                            "includePreviousContent": s.include_previous_content,
+                            "showUserPreviousContent": s.show_user_previous_content,
+                            "showTutorPreviousContent": s.show_tutor_previous_content,
                         }
                         if s.type == "chat"
                         else {}
@@ -265,7 +266,7 @@ async def get_session_state(
     # For chat stages, get previous stage content (for blur/visible display)
     previous_article = None
     previous_stage = None
-    include_previous_content = True
+    show_user_previous_content = True
     if current_stage and current_stage.type == "chat" and view_stage is None:
         # Only provide previous content when viewing current (not reviewing)
         stage_idx = session["current_stage_index"]
@@ -273,7 +274,7 @@ async def get_session_state(
             previous_stage = lesson.stages[stage_idx - 1]
             prev_result = get_stage_content(previous_stage)
             previous_article = bundle_article(prev_result)
-            include_previous_content = current_stage.include_previous_content
+            show_user_previous_content = current_stage.show_user_previous_content
 
     return {
         "session_id": session["session_id"],
@@ -316,7 +317,7 @@ async def get_session_state(
             if previous_stage
             else None
         ),
-        "include_previous_content": include_previous_content,
+        "show_user_previous_content": show_user_previous_content,
         # Add all stages for frontend navigation
         "stages": [
             {
@@ -356,11 +357,19 @@ async def send_message_endpoint(
     current_stage = lesson.stages[stage_index]
     previous_stage = lesson.stages[stage_index - 1] if stage_index > 0 else None
 
-    # Get previous content if needed
+    # Get content for AI context
+    current_content = None
     previous_content = None
-    if previous_stage:
-        prev_result = get_stage_content(previous_stage)
-        previous_content = prev_result.content if prev_result else None
+
+    if current_stage.type in ("article", "video"):
+        # For article/video stages: always provide current content to tutor
+        result = get_stage_content(current_stage)
+        current_content = result.content if result else None
+    elif current_stage.type == "chat" and previous_stage:
+        # For chat stages: provide previous content if showTutorPreviousContent
+        if current_stage.show_tutor_previous_content:
+            prev_result = get_stage_content(previous_stage)
+            previous_content = prev_result.content if prev_result else None
 
     # Add user message to session (skip empty messages - used for AI auto-initiation)
     if request_body.content:
@@ -381,7 +390,7 @@ async def send_message_endpoint(
         assistant_content = ""
         try:
             async for chunk in send_lesson_message(
-                messages, current_stage, previous_stage, previous_content
+                messages, current_stage, current_content, previous_content
             ):
                 if chunk["type"] == "text":
                     assistant_content += chunk["content"]

@@ -29,7 +29,8 @@ class ChatStage:
     """Active discussion with AI tutor."""
     type: Literal["chat"]
     context: str  # Instructions for the AI
-    include_previous_content: bool = True
+    show_user_previous_content: bool = True  # Show previous article/video to user in UI
+    show_tutor_previous_content: bool = True  # Include previous content in tutor's context
 
 
 Stage = ArticleStage | VideoStage | ChatStage

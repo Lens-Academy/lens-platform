@@ -38,10 +38,16 @@ TRANSITION_TOOL = {
 
 def _build_system_prompt(
     current_stage: Stage,
-    previous_stage: Stage | None,
+    current_content: str | None,
     previous_content: str | None,
 ) -> str:
-    """Build the system prompt based on current stage and context."""
+    """Build the system prompt based on current stage and context.
+
+    Args:
+        current_stage: The current lesson stage
+        current_content: Content of current stage (for article/video stages)
+        previous_content: Content from previous stage (for chat stages, if showTutorPreviousContent)
+    """
 
     base = """You are a Socratic tutor helping someone learn about AI safety.
 
@@ -60,7 +66,7 @@ Do NOT:
         # Active chat stage - use authored context
         prompt = base + f"\n\nContext for this conversation:\n{current_stage.context}"
 
-        if current_stage.include_previous_content and previous_content:
+        if current_stage.show_tutor_previous_content and previous_content:
             prompt += f"\n\nThe user just engaged with this content:\n---\n{previous_content}\n---"
 
     elif isinstance(current_stage, (ArticleStage, VideoStage)):
@@ -71,8 +77,8 @@ Do NOT:
 Keep responses brief - the user should focus on the content.
 Answer questions if asked, but don't initiate lengthy discussion.
 """
-        if previous_content:
-            prompt += f"\n\nCurrent content:\n---\n{previous_content}\n---"
+        if current_content:
+            prompt += f"\n\nContent the user is viewing:\n---\n{current_content}\n---"
 
     else:
         prompt = base
@@ -134,7 +140,7 @@ def get_stage_content(stage: Stage) -> ArticleContent | None:
 async def send_message(
     messages: list[dict],
     current_stage: Stage,
-    previous_stage: Stage | None = None,
+    current_content: str | None = None,
     previous_content: str | None = None,
 ) -> AsyncIterator[dict]:
     """
@@ -143,8 +149,8 @@ async def send_message(
     Args:
         messages: List of {"role": "user"|"assistant"|"system", "content": str}
         current_stage: The current lesson stage
-        previous_stage: The previous stage (for context)
-        previous_content: Content from previous stage (if includePreviousContent)
+        current_content: Content of current stage (for article/video stages)
+        previous_content: Content from previous stage (for chat stages)
 
     Yields:
         Dicts with either:
@@ -154,7 +160,7 @@ async def send_message(
     """
     client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-    system = _build_system_prompt(current_stage, previous_stage, previous_content)
+    system = _build_system_prompt(current_stage, current_content, previous_content)
 
     # Filter out system messages (stage transition markers) - Claude API doesn't accept them
     api_messages = [m for m in messages if m["role"] != "system"]
