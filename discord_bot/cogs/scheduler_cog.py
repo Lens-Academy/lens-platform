@@ -11,10 +11,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core import (
-    format_time_range, calculate_total_available_time,
-    get_people_for_scheduling,
-    schedule as run_schedule, SchedulingError, NoUsersError, NoFacilitatorsError
+    format_time_range,
+    schedule_cohort,
+    CohortSchedulingResult,
 )
+from core.database import get_connection
+from core.queries.cohorts import get_schedulable_cohorts
 
 
 class SchedulerCog(commands.Cog):
@@ -23,28 +25,49 @@ class SchedulerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def cohort_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str,
+    ) -> list[app_commands.Choice[int]]:
+        """Autocomplete for cohorts with users awaiting grouping."""
+        async with get_connection() as conn:
+            cohorts = await get_schedulable_cohorts(conn)
 
-    @app_commands.command(name="schedule", description="Run the cohort scheduling algorithm")
+        choices = []
+        for cohort in cohorts[:25]:  # Discord limit
+            display_name = f"{cohort['cohort_name']} ({cohort['pending_users']} pending)"
+            if current.lower() in display_name.lower():
+                choices.append(
+                    app_commands.Choice(name=display_name[:100], value=cohort["cohort_id"])
+                )
+
+        return choices[:25]
+
+    @app_commands.command(name="schedule", description="Run scheduling for a cohort")
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.describe(
+        cohort="The cohort to schedule",
         meeting_length="Meeting length in minutes (default: 60)",
-        min_people="Minimum people per cohort (default: 4)",
-        max_people="Maximum people per cohort (default: 8)",
+        min_people="Minimum people per group (default: 4)",
+        max_people="Maximum people per group (default: 8)",
         iterations="Number of iterations to run (default: 1000)",
-        balance="Balance cohort sizes after scheduling (default: True)",
+        balance="Balance group sizes after scheduling (default: True)",
         use_if_needed="Include 'if needed' times in scheduling (default: True)",
-        facilitator_mode="Require each cohort to have one facilitator (default: False)"
     )
-    async def schedule(self, interaction: discord.Interaction,
-                       meeting_length: int = 60,
-                       min_people: int = 4,
-                       max_people: int = 8,
-                       iterations: int = 1000,
-                       balance: bool = True,
-                       use_if_needed: bool = True,
-                       facilitator_mode: bool = False):
-        """Run the scheduling algorithm on all registered users."""
-
+    @app_commands.autocomplete(cohort=cohort_autocomplete)
+    async def schedule(
+        self,
+        interaction: discord.Interaction,
+        cohort: int,
+        meeting_length: int = 60,
+        min_people: int = 4,
+        max_people: int = 8,
+        iterations: int = 1000,
+        balance: bool = True,
+        use_if_needed: bool = True,
+    ):
+        """Run the scheduling algorithm for a specific cohort."""
         await interaction.response.defer()
 
         # Progress message
@@ -53,129 +76,61 @@ class SchedulerCog(commands.Cog):
             ephemeral=False
         )
 
-        async def update_progress(course_name, current, total, best_score, total_people):
+        async def update_progress(current, total, best_score, total_people):
             try:
                 await progress_msg.edit(
-                    content=f"Scheduling **{course_name}**...\n"
+                    content=f"Scheduling...\n"
                             f"Iteration: {current}/{total} | "
                             f"Best: {best_score}/{total_people}"
                 )
-            except:
+            except Exception:
                 pass
 
-        # Run scheduling (all business logic is in core)
+        # Run scheduling
         try:
-            result = await run_schedule(
+            result = await schedule_cohort(
+                cohort_id=cohort,
                 meeting_length=meeting_length,
                 min_people=min_people,
                 max_people=max_people,
                 num_iterations=iterations,
                 balance=balance,
                 use_if_needed=use_if_needed,
-                facilitator_mode=facilitator_mode,
-                progress_callback=update_progress
+                progress_callback=update_progress,
             )
-        except NoUsersError:
-            await progress_msg.edit(content="No users have set their availability yet!")
-            return
-        except NoFacilitatorsError:
-            await progress_msg.edit(
-                content="Facilitator mode is enabled but no facilitators are marked!\n"
-                        "Use `/toggle-facilitator` to mark people as facilitators."
-            )
+        except ValueError as e:
+            await progress_msg.edit(content=f"Error: {e}")
             return
 
         # Build results embed
-        placement_rate = result.total_scheduled * 100 // result.total_people if result.total_people else 0
+        total_users = result.users_grouped + result.users_ungroupable
+        placement_rate = (result.users_grouped * 100 // total_users) if total_users else 0
 
         embed = discord.Embed(
-            title="Scheduling Complete!",
+            title=f"Scheduling Complete: {result.cohort_name}",
             color=discord.Color.green() if placement_rate >= 80 else discord.Color.yellow()
         )
 
-        balance_info = f"\n**Balance moves:** {result.total_balance_moves}" if result.total_balance_moves > 0 else ""
         embed.add_field(
             name="Summary",
-            value=f"**Courses:** {len(result.course_results)}\n"
-                  f"**Total cohorts:** {result.total_cohorts}\n"
-                  f"**People scheduled:** {result.total_scheduled}/{result.total_people} ({placement_rate}%){balance_info}",
+            value=f"**Groups created:** {result.groups_created}\n"
+                  f"**Users grouped:** {result.users_grouped}\n"
+                  f"**Ungroupable:** {result.users_ungroupable}\n"
+                  f"**Placement rate:** {placement_rate}%",
             inline=False
         )
 
-        # List cohorts by course
-        cohort_num = 1
-        for course_name, course_result in result.course_results.items():
-            if course_result.groups:
-                embed.add_field(
-                    name=f"{course_name}",
-                    value=f"{len(course_result.groups)} cohort(s), {course_result.score} people",
-                    inline=False
-                )
-
-                for group in course_result.groups:
-                    members = [p.name for p in group.people]
-                    time_str = format_time_range(*group.selected_time) if group.selected_time else "No common time"
-
-                    embed.add_field(
-                        name=f"Cohort {cohort_num} ({len(group.people)} people)",
-                        value=f"**Time (UTC):** {time_str}\n"
-                              f"**Members:** {', '.join(members)}",
-                        inline=False
-                    )
-                    cohort_num += 1
-
-            # Show unassigned for this course
-            if course_result.unassigned:
-                unassigned_names = [p.name for p in course_result.unassigned]
-                embed.add_field(
-                    name=f"{course_name} - Unassigned ({len(course_result.unassigned)})",
-                    value=", ".join(unassigned_names[:10]) + ("..." if len(unassigned_names) > 10 else ""),
-                    inline=False
-                )
-
-        await progress_msg.edit(content=None, embed=embed)
-
-    @app_commands.command(name="list-users", description="List all users with availability")
-    async def list_users(self, interaction: discord.Interaction):
-        """List all users who have set their availability."""
-
-        # Load people from database
-        people, user_data = await get_people_for_scheduling()
-
-        if not people:
-            await interaction.response.send_message(
-                "No users have set their availability yet. Use `/signup` to register!",
-                ephemeral=True
-            )
-            return
-
-        embed = discord.Embed(
-            title=f"Registered Users ({len(people)})",
-            color=discord.Color.blue()
-        )
-
-        for person in people[:25]:  # Show max 25
-            total_time = calculate_total_available_time(person)
-            hours = total_time // 60
-
-            # Check facilitator status
-            is_facilitator = user_data.get(person.id, {}).get("is_facilitator", False)
-            facilitator_badge = " *" if is_facilitator else ""
-
-            courses_str = ", ".join(person.courses) if person.courses else "N/A"
+        # List groups
+        for group in result.groups:
             embed.add_field(
-                name=f"{person.name}{facilitator_badge}",
-                value=f"Available: {hours}h/week\n"
-                      f"Courses: {courses_str}",
+                name=f"{group['group_name']} ({group['member_count']} members)",
+                value=f"**Meeting time:** {group['meeting_time']}",
                 inline=True
             )
 
-        if len(people) > 25:
-            embed.set_footer(text=f"... and {len(people) - 25} more | * = Facilitator")
-        else:
-            embed.set_footer(text="* = Facilitator")
+        embed.set_footer(text="Use /realize-groups to create Discord channels")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await progress_msg.edit(content=None, embed=embed)
 
 
 async def setup(bot):

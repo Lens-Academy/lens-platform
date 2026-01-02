@@ -164,6 +164,8 @@ cohorts = Table(
     ),
     Column("cohort_start_date", Date, nullable=False),
     Column("duration_days", Integer, nullable=False),
+    Column("number_of_group_meetings", Integer, nullable=False),
+    Column("discord_category_id", Text),
     Column("status", cohort_status_enum, server_default="active"),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now()),

@@ -1,0 +1,615 @@
+{
+  "video_id": "tcdVC4e6EV4",
+  "title": "Deadly Truth of General AI? - Computerphile",
+  "url": "https://www.youtube.com/watch?v=tcdVC4e6EV4",
+  "words": [
+    {
+      "text": "In a very basic sense, if you've got a",
+      "start": 0.049
+    },
+    {
+      "text": "general intelligence which therefore has preferences over world states",
+      "start": 3.11
+    },
+    {
+      "text": "and takes actions in the world to change the world,",
+      "start": 7.66
+    },
+    {
+      "text": "we have to make sure that its preferences are aligned with ours",
+      "start": 10.67
+    },
+    {
+      "text": "- that it wants what we want.",
+      "start": 14.519
+    },
+    {
+      "text": "Because otherwise it's going to try and do things that we don't want it to do.",
+      "start": 17.42
+    },
+    {
+      "text": "That's the basic idea.",
+      "start": 20.82
+    },
+    {
+      "text": "Sci-fi comes to the fore - we're talking things like Terminator, The Matrix,",
+      "start": 24.74
+    },
+    {
+      "text": "that machines take over the world.",
+      "start": 28.34
+    },
+    {
+      "text": "\"I for one welcome our new robot overlords.\"",
+      "start": 29.74
+    },
+    {
+      "text": "It makes it difficult to think about the problem, right?",
+      "start": 32.56
+    },
+    {
+      "text": "When things happen in fiction, it's generally what would make a better story",
+      "start": 34.98
+    },
+    {
+      "text": "rather than what would actually happen. And I think a",
+      "start": 39.21
+    },
+    {
+      "text": "realistic \"AI takes over the world\" type story",
+      "start": 42.28
+    },
+    {
+      "text": "might not be any fun to read. So on the one side,",
+      "start": 46.289
+    },
+    {
+      "text": "this stuff is difficult to think about because of fiction, because we've all been",
+      "start": 49.309
+    },
+    {
+      "text": "exposed to something similar to these ideas before.",
+      "start": 52.48
+    },
+    {
+      "text": "The other side that makes this difficult to think about is anthropomorphism,",
+      "start": 55.02
+    },
+    {
+      "text": "because we are talking about general intelligence,",
+      "start": 58.94
+    },
+    {
+      "text": "so we're going to compare it to the examples of general intelligence that we",
+      "start": 62.67
+    },
+    {
+      "text": "have,",
+      "start": 65.619
+    },
+    {
+      "text": "which is human minds. And human minds and artificial general intelligences",
+      "start": 66.07
+    },
+    {
+      "text": "need not be anything alike,",
+      "start": 71.54
+    },
+    {
+      "text": "in the same way that a plane is not similar to a bird.",
+      "start": 73.979
+    },
+    {
+      "text": "A supersonic fighter jet is a threat to you in a way that",
+      "start": 77.409
+    },
+    {
+      "text": "no bird is. It's not a useful comparison to make. In fact,",
+      "start": 80.56
+    },
+    {
+      "text": "when you say, \"Oh, it's a thing, it has wings and it flies,\" people",
+      "start": 84.119
+    },
+    {
+      "text": "who don't know anything about planes immediately go to birds.",
+      "start": 87.59
+    },
+    {
+      "text": "\"Presumably a machine could be much more selfish than we can ever imagine.\"",
+      "start": 89.97
+    },
+    {
+      "text": "Absolutely. The space of minds in general is vast.",
+      "start": 93.29
+    },
+    {
+      "text": "I like this because we've already talked about spaces, so I can do this. If you",
+      "start": 98.09
+    },
+    {
+      "text": "take the space of all possible minds,",
+      "start": 101.18
+    },
+    {
+      "text": "it's huge. And then somewhere within that, you have the space of all minds",
+      "start": 103.03
+    },
+    {
+      "text": "that biological evolution can produce,",
+      "start": 106.32
+    },
+    {
+      "text": "and that's also huge. Somewhere within that, you have the space of",
+      "start": 108.369
+    },
+    {
+      "text": "actual minds that exist, which is much smaller but still huge.",
+      "start": 111.72
+    },
+    {
+      "text": "Within that, you've got human minds, right? And they're a tiny - they're a",
+      "start": 115.86
+    },
+    {
+      "text": "minuscule dot on a minuscule dot on a minuscule dot of the",
+      "start": 120.409
+    },
+    {
+      "text": "actual possibilities for intelligence that exist. And",
+      "start": 123.46
+    },
+    {
+      "text": "a general intelligence that we create is from a completely different part of the",
+      "start": 127.29
+    },
+    {
+      "text": "space.",
+      "start": 132.8
+    },
+    {
+      "text": "And it's extremely tempting to anthropomorphize,",
+      "start": 133.23
+    },
+    {
+      "text": "more so even than in other contexts, because",
+      "start": 136.64
+    },
+    {
+      "text": "it's a thing that's demonstrably intelligent, that makes plans, that takes",
+      "start": 140.01
+    },
+    {
+      "text": "actions in the real world.",
+      "start": 143.87
+    },
+    {
+      "text": "But it need not think",
+      "start": 145.0
+    },
+    {
+      "text": "anything like us, and it's a mistake to think of it",
+      "start": 148.02
+    },
+    {
+      "text": "as basically a person, because it isn't one. So there's actually a really good example",
+      "start": 151.25
+    },
+    {
+      "text": "that we can use. It's sort of a thought experiment.",
+      "start": 155.099
+    },
+    {
+      "text": "This is not a machine that could practically speaking be built",
+      "start": 158.44
+    },
+    {
+      "text": "- this is an example of an artificial general intelligence",
+      "start": 161.91
+    },
+    {
+      "text": "which is specified in overview,",
+      "start": 166.019
+    },
+    {
+      "text": "and it gives you something to think about when you're thinking about",
+      "start": 170.8
+    },
+    {
+      "text": "artificial general intelligences that makes it distinct from",
+      "start": 174.25
+    },
+    {
+      "text": "a sort of anthropomorphized human-type intelligence.",
+      "start": 178.0
+    },
+    {
+      "text": "So the story is, there's",
+      "start": 181.629
+    },
+    {
+      "text": "a stamp collector who is also an AI",
+      "start": 184.989
+    },
+    {
+      "text": "programmer, and he decides he would like to collect a lot more stamps,",
+      "start": 188.12
+    },
+    {
+      "text": "so he's going to write an AI to do this for him. So he builds a machine",
+      "start": 192.78
+    },
+    {
+      "text": "- he has some startling insight into general intelligence and he builds this",
+      "start": 196.709
+    },
+    {
+      "text": "machine",
+      "start": 200.489
+    },
+    {
+      "text": "which is connected to the internet, right?",
+      "start": 201.099
+    },
+    {
+      "text": "So the rules for this system are",
+      "start": 204.26
+    },
+    {
+      "text": "pretty straightforward. First thing: it's connected to the internet, and it will",
+      "start": 207.69
+    },
+    {
+      "text": "send and receive data",
+      "start": 211.349
+    },
+    {
+      "text": "for one year. So he's given himself a one-year time",
+      "start": 212.89
+    },
+    {
+      "text": "window within which to collect stamps. The second thing is",
+      "start": 216.94
+    },
+    {
+      "text": "it has an internal model of reality, of the universe.",
+      "start": 220.19
+    },
+    {
+      "text": "This is the thing that's a bit magic - we don't really know how to build an",
+      "start": 223.239
+    },
+    {
+      "text": "accurate",
+      "start": 226.87
+    },
+    {
+      "text": "model of reality. The point is, this allows it to",
+      "start": 227.59
+    },
+    {
+      "text": "make accurate predictions about what will happen if it does different things.",
+      "start": 230.86
+    },
+    {
+      "text": "The third thing is, for every possible sequence of packets it could send,",
+      "start": 235.159
+    },
+    {
+      "text": "it uses its model to predict",
+      "start": 239.189
+    },
+    {
+      "text": "how many stamps it ends up with at the end of that. And then",
+      "start": 242.7
+    },
+    {
+      "text": "the fourth thing is it outputs as its",
+      "start": 246.01
+    },
+    {
+      "text": "actual data to the internet",
+      "start": 249.239
+    },
+    {
+      "text": "whichever output it has predicted will produce the most stamps.",
+      "start": 252.65
+    },
+    {
+      "text": "You can see here",
+      "start": 256.07
+    },
+    {
+      "text": "that this has all the properties of a general intelligence.",
+      "start": 256.959
+    },
+    {
+      "text": "It has an internal model of reality. It has",
+      "start": 260.34
+    },
+    {
+      "text": "a utility function or an evaluation function, which is the number of stamps.",
+      "start": 263.419
+    },
+    {
+      "text": "And the optimization is",
+      "start": 267.74
+    },
+    {
+      "text": "extremely simple. And like so much in computer science,",
+      "start": 270.75
+    },
+    {
+      "text": "the simple things to specify are the hard things to compute.",
+      "start": 273.87
+    },
+    {
+      "text": "It looks at every possible output data - in other words, every",
+      "start": 277.009
+    },
+    {
+      "text": "point in that space - and it picks out",
+      "start": 280.6
+    },
+    {
+      "text": "the highest one. So this is a kind of magic intelligence",
+      "start": 284.32
+    },
+    {
+      "text": "that takes the entire space at once, finds the highest point, and says,",
+      "start": 287.56
+    },
+    {
+      "text": "\"That one.\" Which means it's an extremely powerful intelligence,",
+      "start": 291.81
+    },
+    {
+      "text": "right? It is - you could say it's extremely intelligent.",
+      "start": 296.61
+    },
+    {
+      "text": "The question is, how does this machine behave? Well, we can look at certain",
+      "start": 299.729
+    },
+    {
+      "text": "possible sequences of outputs",
+      "start": 303.09
+    },
+    {
+      "text": "and see how they fare in its evaluation criteria.",
+      "start": 304.789
+    },
+    {
+      "text": "First off, the vast majority of output sequences are complete junk,",
+      "start": 308.19
+    },
+    {
+      "text": "right? It's spewing random data onto the network. Nothing happens",
+      "start": 312.03
+    },
+    {
+      "text": "of any consequence.",
+      "start": 315.229
+    },
+    {
+      "text": "No stamps get collected. Those are all rated zero.",
+      "start": 317.38
+    },
+    {
+      "text": "But suppose one of the possible sequences",
+      "start": 321.699
+    },
+    {
+      "text": "sends a request to a server - let's say",
+      "start": 325.5
+    },
+    {
+      "text": "eBay - that results in a bid on some stamps,",
+      "start": 329.0
+    },
+    {
+      "text": "right? When that happens, there's a thing of 20 stamps,",
+      "start": 332.05
+    },
+    {
+      "text": "so that output is rated 20. This is the kind of thing that",
+      "start": 335.409
+    },
+    {
+      "text": "the stamp collecting machine's creator was expecting to happen.",
+      "start": 338.699
+    },
+    {
+      "text": "So then that's good - 20 stamps.",
+      "start": 342.659
+    },
+    {
+      "text": "Suppose it could do that lots of times. It could send out bids, for example, to",
+      "start": 345.99
+    },
+    {
+      "text": "30 different stamp collectors on eBay and buy 30 sets of different stamps,",
+      "start": 350.58
+    },
+    {
+      "text": "and that's even better, right? That would be rated even higher. But the thing is that",
+      "start": 354.63
+    },
+    {
+      "text": "the particularly highly rated options in this search space",
+      "start": 358.789
+    },
+    {
+      "text": "are probably things that the",
+      "start": 362.57
+    },
+    {
+      "text": "stamp collecting device's creator did not think of",
+      "start": 365.69
+    },
+    {
+      "text": "and did not anticipate. So for example, when he made it, he will have presumably given",
+      "start": 368.729
+    },
+    {
+      "text": "it his credit card details or something so it could engage in these bids.",
+      "start": 374.08
+    },
+    {
+      "text": "But ultimately it's searching every possible sequence of outputs. It needn't use",
+      "start": 378.849
+    },
+    {
+      "text": "his credit card.",
+      "start": 382.22
+    },
+    {
+      "text": "It needn't use money at all. There's a huge variety of things that it could do here.",
+      "start": 383.03
+    },
+    {
+      "text": "So it might send out an enormous number of emails to all the stamp collectors in the",
+      "start": 388.56
+    },
+    {
+      "text": "world",
+      "start": 392.72
+    },
+    {
+      "text": "and convince them through persuasive argument that",
+      "start": 393.3
+    },
+    {
+      "text": "he is opening a museum and wants to exhibit their stamps.",
+      "start": 397.32
+    },
+    {
+      "text": "It may build a fake website for that - whatever is necessary.",
+      "start": 402.56
+    },
+    {
+      "text": "It can predict the world, right? It has an internal model of reality. That internal",
+      "start": 406.53
+    },
+    {
+      "text": "model of reality",
+      "start": 410.21
+    },
+    {
+      "text": "includes the people, right? In the same way that it's modeling",
+      "start": 411.41
+    },
+    {
+      "text": "people to understand that if it bids on this",
+      "start": 414.51
+    },
+    {
+      "text": "offer, then a human being will mail the stamps to them, it understands this",
+      "start": 418.34
+    },
+    {
+      "text": "email might get more people to send stamps, for example, or something.",
+      "start": 421.92
+    },
+    {
+      "text": "But then, what exactly is a stamp? How is this defined?",
+      "start": 426.11
+    },
+    {
+      "text": "What counts as a stamp?",
+      "start": 429.77
+    },
+    {
+      "text": "If it's already written the sequence of outputs that collects",
+      "start": 431.5
+    },
+    {
+      "text": "all of the stamps in the world, you think you're done, right? You built this machine,",
+      "start": 434.29
+    },
+    {
+      "text": "suddenly it's collected all the stamps in the world.",
+      "start": 437.5
+    },
+    {
+      "text": "No. There could be more stamps. Within a year, we've got time to print more stamps.",
+      "start": 439.16
+    },
+    {
+      "text": "So maybe it hijacks the world's stamp printing factories and puts them into overdrive,",
+      "start": 442.88
+    },
+    {
+      "text": "producing stamps",
+      "start": 447.139
+    },
+    {
+      "text": "as many as you possibly can in that time. Or perhaps",
+      "start": 448.22
+    },
+    {
+      "text": "it writes a virus and it hijacks all the computers in the world to get all of",
+      "start": 451.22
+    },
+    {
+      "text": "the printers in the world to do nothing but print stamps.",
+      "start": 455.669
+    },
+    {
+      "text": "That's even better, right? The highest-rated",
+      "start": 457.919
+    },
+    {
+      "text": "outcomes for this machine are not good for people.",
+      "start": 461.64
+    },
+    {
+      "text": "There comes a point when the stamp collecting device is thinking,",
+      "start": 465.8
+    },
+    {
+      "text": "\"Okay, what are stamps made of?",
+      "start": 469.57
+    },
+    {
+      "text": "They're made of paper. Paper is made of carbon, hydrogen, oxygen.",
+      "start": 472.82
+    },
+    {
+      "text": "I'm going to need all of that I can get to make stamps.\"",
+      "start": 476.77
+    },
+    {
+      "text": "And it's going to notice that people are made of carbon, hydrogen, and oxygen,",
+      "start": 479.88
+    },
+    {
+      "text": "right? There comes a point where the stamp collecting device becomes",
+      "start": 483.289
+    },
+    {
+      "text": "extremely dangerous.",
+      "start": 486.18
+    },
+    {
+      "text": "And that point is as soon as you switch it on.",
+      "start": 487.55
+    },
+    {
+      "text": "So this is just a thought experiment example where we take a sort of maximally powerful intelligence",
+      "start": 495.34
+    },
+    {
+      "text": "and see how it behaves, so that we can think about",
+      "start": 499.88
+    },
+    {
+      "text": "how powerful intelligences behave, and most importantly,",
+      "start": 503.87
+    },
+    {
+      "text": "how they are not like people.",
+      "start": 507.36
+    }
+  ]
+}

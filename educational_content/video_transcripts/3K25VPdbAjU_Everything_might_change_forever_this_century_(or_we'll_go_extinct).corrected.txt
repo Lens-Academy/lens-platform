@@ -1,0 +1,187 @@
+A very unusual time period.
+
+The celebrated science fiction author and chemistry professor Isaac Asimov once cataloged a history of inventions and scientific discoveries throughout all of human history. While incomplete, his efforts still reveal something intriguing about our current era. Out of the 694 pages in Asimov's book, 553 pages documented inventions and discoveries since 1500, even though his book starts in 4 million BCE. In other words, throughout human history, most scientific innovation has come relatively recently, within only the last few hundred years.
+
+Other historical trends paint a similar picture. For example, here's a chart of world populations since 10,000 B.C. For nearly all of human history, up until quite recently, there weren't very many people on Earth. It took until about 1800 for the population to reach 1 billion people. And just 200 years later, a blink of an eye compared to how long our species has been around, Earth reached 6 billion people.
+
+Economic historian Bradford DeLong attempted to piece together the total world economic production over the last million years. By its nature, his reconstruction of the historical data is speculative, but the rough story it tells is consistent with the aforementioned historical trends in population and technology. In the millennia preceding the current era, economic growth, by which we mean growth in how much valuable stuff humanity as a whole can produce, was extremely slow. Now growth is much faster.
+
+Bradford DeLong's data provides historians a quantitative account of what they already know from reading narratives written in the distant past. For nearly all of human history, people lived similarly to the way their grandparents lived, unlike what we expect today. Most people did not see major changes in living standards, technology, and economic production over their lifetimes. To be sure, people were aware that empires rose and fell. Infectious disease ravaged communities and wars were fought. Individual humans saw profound change in their own lives through the births and deaths of those they loved, cultural change, and migration. But the idea of a qualitatively different mode of life with electricity, computers, and the prospect of thermonuclear war? That's all come extremely recently on historical timescales.
+
+As new technologies were developed, quality of life shot up in various ways. For ten-year-olds, life expectancy was once under 60 all over the world. Now, in many nations, a ten-year-old can expect to live to the age of 80. With progress in automating food production, fewer people now are required to grow food. As a result, our time has been freed to pursue different activities, for example, going to school.
+
+And it's not just technology that changed. In the past, people took for granted some social institutions that had existed for thousands of years, such as the monarchy and chattel slavery. In the midst of the Industrial Revolution, these institutions began to vanish.
+
+Writing in 1763, the eminent British economist Adam Smith wrote that slavery, quote: "Takes place in all societies at the beginning and proceeds from that tyrannical disposition, which may almost be said to be natural to mankind." While Adam Smith personally found the practice repugnant, he nonetheless was pessimistic about the future of slavery, predicting that, quote: "It is indeed almost impossible that it should ever be totally or generally abolished."
+
+And yet, mere decades after Adam Smith wrote those lines, Britain outlawed slavery and launched a campaign to end the practice in its colonies around the world. By the end of the 20th century, every nation in the world had formally abolished slavery.
+
+Another scholar from his era, Thomas Malthus, made a similar blunder. At the end of the 18th century, Malthus was concerned by the population growth he saw in his time. He reasoned that historically, excess population growth had always outstripped the food supply, leading to famine and mass death. As a consequence, Malthus predicted that recent high population growth in England would inevitably result in a catastrophe.
+
+But what might have been true about all the centuries before the 18th century evidently came to an end shortly after Malthus's pessimistic prediction. Historians now recognize that rather than famine becoming more frequent, food in Britain became more widely available in the 19th and 20th centuries, despite unprecedented population growth.
+
+What Adam Smith and Thomas Malthus failed to see was that they were living in the very beginning of a historically atypical time of rapid change, a period we now refer to as the Industrial Revolution. The effects of the Industrial Revolution have been dramatic, reshaping not only how we live, but also our ideas about what to expect in the future.
+
+The 21st century could be much weirder than we imagine.
+
+It's easy to fault historical figures at the time of the Industrial Revolution for failing to see what was to come in the next few centuries. But their method of reasoning, of looking at the past and extrapolating past trends outwards, is something we still commonly do today to gauge our expectations of the future.
+
+In the last several decades, society has become accustomed to the global economy growing at a steady rate of about 2% to 4% per year. When people imagine the future, they often implicitly extrapolate this rate of change continuing indefinitely. We can call this perspective "business as usual" - the idea that change in the coming decades will look more or less like change in the last few decades.
+
+Under business as usual, the world in 50 years looks a lot like our current world, but with some modifications. The world in 2072 would look just about as strange as someone from 1972 looking at our current world. Which is to say there will be more technology, different ways of communicating and socializing with others, distinct popular social movements and novel economic circumstances, but nothing too out of the ordinary like the prospect of mind uploading or building Dyson spheres around the sun.
+
+Parents sometimes take this perspective when imagining what life will one day be like for their children. Policymakers often take this perspective when crafting policy so that their proposed rules will be robust to new developments in the future. And workers who save for their retirement often take this perspective when they prepare for the challenges of growing old.
+
+Contrast business as usual with another perspective, which we can call "the radical change thesis." Perhaps like Adam Smith and Thomas Malthus in their time, we are failing to see something really big on the horizon. Under the radical change thesis, the world by the end of the 21st century will look so different as to make it almost unrecognizable to people living today. Technologies that might seem unimaginable to us now, like advanced nanotechnology, cures for aging, interstellar spaceflight, and fully realistic virtual reality, could only be a few decades away, as opposed to many centuries or thousands of years away.
+
+It's sensible to be skeptical of the radical change thesis. Scientific research happens slowly, and there's even some evidence that the rate of technological progress has slowed down in recent decades. At the same time, the radical change thesis makes intuitive sense from a long view perspective.
+
+Recall the trend in economic growth. Here, we've zoomed in on the last hundred years of economic growth. This view justifies the business as usual perspective. In the last 100 years, economic production and technology underlying economic production has grown at a fairly constant rate. Given the regularity of economic growth in recent decades, it makes a lot of sense to expect that affairs will continue to change at the current rate for the foreseeable future.
+
+But now zoom out. What we see is not the regular and predictable trend we saw before, but something far more dynamic and uncertain. And rather than looking like change is about to slow down, it looks more likely that change will continue to speed up.
+
+In a classic 1993 paper, economist Michael Kremer proposed that the best fit to this long-run economic data is not the familiar slow rate of exponential change that we're used to, but rather what's called hyperbolic growth. Over a long enough time horizon, hyperbolic growth is much more dramatic than exponential growth, making it consistent with the radical change thesis. But it can also be a bit counterintuitive for people to imagine.
+
+So here's an analogy. Imagine a pile of gold that spontaneously grows over the course of a day. This pile of gold represents the total size of the world economy over time, which we assume grows hyperbolically. At 12 a.m., the beginning of the day, there's only one piece of gold in the pile. After 12 hours, the gold pile doubles in size so that there are now two pieces. Then at 6 p.m., there are four gold pieces. Three hours later, at 9 p.m., there are eight gold pieces. And only one and a half hours after that, at 10:30 p.m., there are 16 gold pieces.
+
+From the perspective of someone watching at 10:30 p.m., it would be tempting to think that growth over the next few hours will be similar to growth in the last few hours, and that by midnight the next day, an hour and a half later, the gold pile will double in size yet again to 32 pieces. But this intuition would be wrong.
+
+Notice that the time it takes for the gold pile to double in size cut in half each time the size of the pile doubles. As midnight draws nearer, the pile will continue to double in size again and again, more frequently each time than the last. In fact, exactly at midnight, the pile will reach what's called a singularity and grow to be infinitely large.
+
+We can perform a similar exercise with the real world economy. In 2020, David Roodman found that after fitting a hyperbolic function to historical economic data, the economy is expected to grow to be infinitely large as we approach roughly the year 2047. A general result, he says, is fairly robust to extrapolating the trend at different periods in history.
+
+Now it's important not to take this headline result too seriously, especially the specific year 2047. Physical resource limits prohibit the economy from becoming infinitely large, and moreover, long-run historical data is notoriously unreliable. Using historical statistics alone, especially those from the distant past, it's very difficult to predict what the future will really be like.
+
+The business as usual perspective might still be correct for the foreseeable future, or something else entirely might happen. Maybe civilization itself will collapse as we become consigned to fighting endless wars, famines, and pandemics. Humanity might even go extinct.
+
+These possibilities notwithstanding, there do exist concrete reasons to think that the world could be fundamentally different by the end of the 21st century, in a way consistent with the radical change thesis. Infinite growth is out of the question, but one technology is clearly visible on the horizon which arguably has the potential to change our civilization dramatically.
+
+"The Duplicator"
+
+Before we try to predict what technology in the coming decades could precipitate explosive economic growth, let's first start by examining a hypothetical example - a technology that would be sufficient to have such an effect. The machine is the Duplicator from the comic Calvin and Hobbes.
+
+Here's how it works: When someone steps in, two exact replicas step out. The replicas keep all of the memories, personalities, and talents of the original. Basically, it splits you into two people, each of whom remember an identical past. To constrain our expectations a bit, let's imagine that using the Duplicator isn't free. We can only use it to replicate people, and it costs a lot of money to build and operate a Duplicator.
+
+Yet even with these constraints, it seems safe to assume that the Duplicator would have a very large impact on the world. Even without knowing exactly how it will be used, there will presumably be people who want to use the Duplicator to clone themselves and other people. Unlike with ordinary population growth, in which it takes 18 years and a considerable amount of effort to create one productive worker, the Duplicator would allow us to create productive humans almost instantly and without having to pay the costs of educating and raising them.
+
+Consider the case of scientific innovation. If we could clone our most productive scientists - say Newton, Galileo, or von Neumann - just imagine how much faster our civilization could innovate. And it's not just raw scientific innovation that could increase. With a machine that can duplicate people, all industries could benefit. The most talented rocket engineers, for example, could be cloned and directly planted into places where they're needed the most. And we could duplicate the most talented doctors, musicians, and architects.
+
+As a consequence, the Duplicator would lift a crucial bottleneck to civilization-wide output. Unless we impose some strict controls on how often people could use the Duplicator, it appears likely that there would be a population explosion. But more than just a population explosion, it would be a productivity explosion, since the new duplicates could be direct copies of the most productive people on Earth, who in turn would use their talents to invent even more productive technologies and potentially even better duplicators.
+
+Would the Duplicator be enough to sustain the hyperbolic growth trend in gross world product and enable us to approach the economic singularity we discussed earlier? Maybe.
+
+In academic models of economic growth, there are roughly three inputs to economic production that determine the overall size of the economy. These inputs are: population, capital, and technology. Population is the most intuitive input - it just means how many workers there are in a society. Capital is another term for equipment and supplies like machines, roads, and buildings that allow workers to produce stuff. Technology is what joins these two inputs together. It refers to the inherent efficiency of labor and includes the quality of tools and the knowledge of how to create stuff in the first place.
+
+A simple model of economic growth is the following: Over time, people have children and the population gets larger. With more people, the economy also grows. But the economy also grows faster than the population because people work to accumulate new capital and invent new technology at the same time the population is growing. Most importantly, people come up with new ideas. These new ideas are shared with others and can be used by everyone to increase efficiency.
+
+The process of economic growth looks a lot like a feedback loop. Start with a set of people. These people innovate and produce capital, which makes them more productive, and they also produce resources which enables them to produce more people. The next generation can rinse and repeat, with each generation more productive than the last, not only producing more people but also more stuff per capita.
+
+In the absence of increased economic efficiency, the population will grow exponentially. But when the total production per person also increases, this process implies super-exponential economic growth.
+
+Recall the analogy of the gold pile that grows in size from earlier. The underlying dynamic is that the gold pile doubles in size every interval, but the interval in which the pile doubles is not fixed. Metaphorically, the gold pile becomes more efficient at doubling in size during each interval, giving rise to a process much faster than exponential growth.
+
+Many standard models of economic growth carry the same implication about the world economy. However, we know our current economy isn't exploding in size in the way predicted by this simple model. So, why not?
+
+One reason could be that our population growth is slowing down. Since the 1960s, population growth worldwide actually peaked before entering a decline. Not coincidentally, world economic growth has fallen since that decade. The underlying reason behind the fall in population growth and economic growth, also called the "demographic transition," is still a matter of debate. But regardless of its causes, the effect of the demographic transition has been that most mainstream economic and population forecasters do not anticipate explosive growth in the 21st century.
+
+But hypothetically, if something like the Duplicator were invented, then the potential for explosive growth could return.
+
+The most important invention ever?
+
+It's unlikely that humans will soon build the Duplicator. What's more likely, however, is the invention of artificial intelligence that can automate labor. As with the Duplicator, AI could be copied and used as a worker, vastly increasing total economic productivity.
+
+In fact, the potential for AI is even more profound than the Duplicator. That's because AI has a number of advantages over humans that could enable it to be far more productive in principle. These advantages include being able to think faster, save their current memory state, copy and transfer themselves across the internet, make improvements to their own software, and much more.
+
+Under the assumption that the development of AI will have a similar effect on the long-term future as the Duplicator hypothetically would, the question of whether the 21st century will have explosive growth becomes a question of predicting when AI will arrive. If advanced AI is indeed invented later this century, it might mean the 21st century is the most important century in history.
+
+When will advanced AI arrive?
+
+If you've paid any attention to the field of AI in recent years, you've probably noticed that we've made some startling developments. In the last ten years, we've seen the rise of artificial neural networks that can match human performance in image classification, generate photorealistic images, beat the top Go players in the world, drive cars autonomously, reach grandmaster level at the real-time strategy game StarCraft 2, learn how to play Atari games from scratch using only the raw pixel data, and write rudimentary poetry and fiction stories.
+
+If the next decade is anything like the last, we're sure to see even more impressive developments in the near-term future.
+
+Looking further, the holy grail of the field of artificial intelligence is so-called artificial general intelligence, or AGI - a system capable of performing not only narrow tasks like game playing and image classification, but the entire breadth of tasks that humans are capable of performing. This would include the ability to reason abstractly and prove new mathematical theorems, perform scientific research, write books, and invent new goods and services. In short, an AGI, if created, would be at least as useful as a human worker and would in theory have the ability to automate almost any type of human labor.
+
+We know that AGI is possible in principle because human brains are already a type of general intelligence created by evolution. Many cognitive scientists and neuroscientists regularly analogized the brain to a computer and believe that everything we do is a consequence of algorithms implicit in the structure of our biological neural networks within our brains. Unless the human brain performs literal magic, then we have good reason to believe that one day we should be able to replicate its abilities in a computer.
+
+However, knowing that AGI is possible is one thing. Knowing when it will be developed and deployed in the real world is another thing entirely.
+
+Since the beginning of their discipline, AI researchers have experienced notorious difficulty predicting the future of the field. In the early days of the 1960s, the field was plagued with over-optimism, with some prominent researchers declaring that human-like AI was due within 20 years. After these predictions failed to come to fruition, most expectations became more modest. In the 1980s, the field entered what is now known as an AI winter, and many researchers became more focused on short-term commercial applications rather than the long-term goal of creating something that rivals the human brain.
+
+These days, there's a wide variety of opinions among researchers about when AGI will be developed. The most comprehensive survey to date was by Grace et al. from 2016. AI experts were asked when they expected, quote: "for any occupation, machines could be built to carry out the task better and more cheaply than human workers." The median response was the year 2061, with considerable variation in individual responses.
+
+These results show that most researchers take the possibility of AGI being developed by the end of the century quite seriously. However, it is worth noting that responses were very sensitive to the exact phrasing of the question being asked. A subset of the researchers were asked when they expect AI to automate all human labor, and the median guess for that question was the year 2136. It's clear that a significant minority of researchers are unconvinced that AGI will arrive any time soon.
+
+To see more about this survey of AI researchers, check out Rob Miles' video about it on his channel. ...or my channel. Really, I mean I'm Rob Miles. I do the voice for this channel, but I also have my own channel, Rob Miles AI. Anyway...
+
+In general, forecasting when AI will be developed is extremely difficult. Ideally, we could create a measure that represents how much progress there has been in the field of artificial intelligence. Then we could plot that measure on a graph and extrapolate outwards until we're expected to reach a critical threshold identified with the development of AGI. The problem with this approach is that it's very hard to find a robust measure of progress in AI.
+
+Luckily, a recent report from researcher Ajeya Cotra takes us part of the way there. Instead of trying to extrapolate progress in AI directly, her report tries to estimate when something like AGI might be developed based on trends in how affordable it is to build increasingly large AI models trained using increasingly difficult tasks. We can ground estimates of the needed size of the models in what she calls biological anchors - estimates from biology that inform how much computation and effort more generally will be required to develop software that can do what human brains do.
+
+The result very roughly coincides with the median responses from the expert survey, predicting that humans will likely develop AI that can cheaply automate nearly all human labor by the end of the century. In fact, more likely than not by 2060. To understand how her model comes to this conclusion, we need to first get a sense of how current progress in AI is made.
+
+Ajeya Cotra's report on AI timelines
+
+Since 2012, the field of AI has been revolutionized by developments in deep learning. Deep learning involves training large artificial neural networks to learn tasks using an enormous amount of data without the aid of hand-crafted rules and heuristics. And it's been successful at cracking a set of traditionally hard problems in the field, such as those involving vision and natural language.
+
+One way to visualize deep learning is to imagine a digital brain called an artificial neural network that tries a massive amount of trial and error at a given task - for example, predicting the next character in a sequence of text. The neural network starts out randomly initialized and so will generate gibberish at first. During training, however, the neural network will be given a set of problems and will be asked to provide a solution to each of those problems. If the neural network solutions are incorrect, its inner workings are slightly rewired with the intention of it providing a better answer next time. Over time, the neural network should become better at the assigned task. If it does, then we say that it's learning.
+
+In her report, Ajeya Cotra discusses a deep connection between progress in hardware and progress in AI. The idea is simple: with greater access to computation, AI researchers can train larger and more general deep learning models. In fact, the rise of deep learning in the last decade has largely been attributed to the falling cost of computation, especially given progress in graphics processing units, which are used heavily in AI research.
+
+In a nutshell, Cotra tries to predict when it will become affordable for companies or governments to train extremely large deep learning models, with the effect of automating labor across the wide variety of tasks that humans are capable of learning. In building this forecast, she makes some assumptions about our ability to scale deep learning models to reach human-level performance and the continued growth in computing hardware over the coming decades.
+
+Over time, researchers have found increasingly effective deep learning models that are capable of learning to perform a wider variety of tasks and more efficiently than before. It seems plausible that this process will continue until deep learning models are capable of automating any aspect of human cognition. Even if future AI is not created via deep learning, Cotra's model may still be useful because of how it puts a soft upper bound on when humans will create AGI. She readily admits that if some more clever and more efficient paradigm for designing AI than deep learning is discovered, then the dates predicted by this model may end up being too conservative.
+
+Cotra's model extrapolates the rate at which progress in computing hardware will continue and the economy will continue to steadily get larger, making it more feasible for people to train extremely large deep learning models on very large datasets. By their nature, deep learning algorithms are extremely data and computation hungry. It can often take a lot of money and many gigabytes of training data for deep learning algorithms to learn tasks that most humans find relatively easy, like manipulating a Rubik's cube or spotting simple logical errors in natural language. This is partly why it has only recently become practically possible to train neural networks to perform these tasks.
+
+Historically, progress in computing power was extraordinarily rapid. According to data from William Nordhaus, between 1950 and 2010, the price of computation dropped by over 100 billion. Put another way, that means that if you needed to perform a calculation in 1950 that would cost the same amount as the Apollo program that would later send humans to the moon, then the equivalent calculation would cost less than $10 using computers in 2010, when adjusted for inflation over the same time period.
+
+Since 2010, the rate of progress in computing hardware has slowed down from this spectacular pace, but still continues to improve relatively steadily. By projecting outwards current trends, we can forecast when various computing milestones will be reached. For example, we can predict when it will become affordable to train a deep learning model with 1 billion petaflops or 1 trillion petaflops.
+
+Of course, simply knowing how much computation will be available in the future can't tell us how powerful deep learning models will be. For that, we need to understand the relationship between the amount of computation used to train a deep learning model and its performance.
+
+Here's where Ajeya Cotra's model becomes a little tricky. Roughly speaking, there are two factors that determine how much computation it takes to train a deep learning model on some task, holding other factors fixed: the size of the deep learning model, and how much trial and error the model needs to learn the task.
+
+Let's consider the first factor - the size of the deep learning model. Larger models are sort of like larger brains. They're able to learn more stuff, execute more complex instructions, and pick up on more nuanced patterns in the world. In the animal kingdom, we often, but not always, consider animals with larger brains, such as dogs, to be more generally intelligent than animals with smaller brains, such as fish.
+
+For many complex tasks, like writing code, you need a fairly large minimum model size - perhaps almost the size of a mouse's brain - to learn the task to any reasonable degree of performance. And it will still be significantly worse than human programmers.
+
+The task we're most interested in is the task of automating human labor, at least the key components of human labor most important for advancing science and technology. It seems plausible that we'd need to use substantially larger models than any we've trained so far if we want to train on this task. Cotra roughly anchors "the size of model that would be capable of learning the task of automating R&D" with the size of the human brain, give or take a few orders of magnitude.
+
+In fact, this approach of using biological anchors to guide our AI forecasts has precedent. In 1997, the computer scientist Hans Moravec tried to predict when computer hardware would become available that would rival the human brain. Later work by Ray Kurzweil mirrored Moravec's approach. After looking into these older estimates, Cotra felt that the loose brain anchor made sense and seemed broadly consistent with machine learning performance so far. She ultimately made the guess that current algorithms are about 1/10 as efficient as the human brain, with very wide uncertainty around this estimate.
+
+Now we come to the second factor: How much trial and error would a brain-sized model need to learn tasks required to automate science and technology R&D? This is the hardest and most uncertain open question in this entire analysis. How much trial and error is needed to train this model is a question of how efficient deep learning models will be at learning tasks of this form. And we only have limited and very indirect evidence about that question.
+
+The possibilities span a wide range. For example, perhaps deep learning models will be as efficient as human children, taking only the equivalent of 20 years of experience, sped up greatly within a computer, to learn how to be a scientist or engineer. Cotra thinks this is unlikely, but not impossible. On the other extreme, perhaps deep learning models will be as inefficient as evolution, taking the equivalent of hundreds of trillions of lifetimes of experience to evolve into a scientist or engineer. Again, Cotra thinks this is unlikely but possible.
+
+Cotra thinks the answer is likely to lie somewhere in between - that training deep learning models to automate science and engineering will require much more computation than raising a human child to be a scientist, but much less computation than simulating natural selection until it evolves scientists. In her report, Cotra considers several anchors that lie in between these two extremes and proceeds by placing a subjective probability distribution over all of them.
+
+She arrived at the prediction that there's a roughly 50% chance that it will become economically feasible to train the relevant type of advanced AI by 2052. The uncertainty in her calculation was quite large, however, reflecting the uncertainty in her assumptions. Here's a graph showing how the resulting probability distribution changes under different assumptions.
+
+What does this all ultimately mean?
+
+Now you might be thinking, let's say these predictions are right. AGI arrives later this century, and as a result, there's a productivity explosion changing human life as we know it. What does it ultimately mean for us? Should we be excited? Should we be scared?
+
+At the very least, our expectations should be calibrated to the magnitude of the event. If your main concern from AGI is that you might lose your job to a robot, then your vision of what the future will be like might be too parochial. If AGI arrives later this century, it could mark a fundamental transformation in our species, not merely a societal shift, a new fad, or the invention of a few new gadgets.
+
+As science fiction author Vernor Vinge put it in a famous 1993 essay, this change will be a throwing away of all the human rules, perhaps in the blink of an eye, an exponential runaway beyond any hope of control. Developments that were thought might only happen in a million years, if ever, will likely happen in the next century.
+
+One way of thinking about this event is to imagine that humanity is on a cliff's edge, ready to slide off into the abyss. In the abyss, we have only the vaguest sense as to what lies beyond. But we can give our best guesses.
+
+A good guess is that humans, or our descendants, will colonize the galaxy and beyond. That means, roughly speaking, the history of life looks a lot like this, with our present time tightly packed between the time humans first came into existence and the time of the first galaxy-wide civilization. Our future could be extraordinarily vast, filled with technological wonders, a giant number of people and strange beings, and forms of social and political organization we can scarcely imagine.
+
+The future could be extremely bright... or it could be filled with horrors. One harrowing possibility is that the development of AGI will be much like the development of human life on Earth, which wasn't necessarily so great for the other animals. The worry here is one of value misalignment. It is not guaranteed that even though humans will be the ones to develop AI, that AI will be aligned with human values.
+
+In fact, my channel is about how advanced AI could turn out to be misaligned with human values, which could surely lead to bad outcomes. This prospect raises a variety of technical challenges, prompting the need for more research on how to make sure future AI is compatible with human values.
+
+In addition to understanding what's to come, we also have a responsibility to make sure things go right. When approaching what may be the most important event in human history, perhaps the only appropriate emotion is vigilance.
+
+If we are on the edge of a radical transformation of our civilization, the actions we take today could have profound effects on the long-term future, reverberating through billions of years of future history. Even if we're not literally among the most important people who ever live, our actions may still reach far farther than we might have otherwise expected.
+
+The astronomer Carl Sagan once wrote that Earth is a pale blue dot suspended in the void of space whose inhabitants exaggerate their importance. He asked us to think of the rivers of blood spilled by all those generals and emperors, so that in glory and triumph they could become the momentary masters of a fraction of a dot. Carl Sagan's intention was to get us to understand the gravity of our decisions by virtue of our cosmic insignificance.
+
+However, in the light of the fact that the 21st century could be the most important century in human history, we can turn this sentiment on its head. If indeed humans will, sometime in the foreseeable future, reach the stars, our choices now are cosmically significant, despite currently only being tiny inhabitants of a pale blue dot.
+
+Right now our civilization is tiny, but we could be the seed to something that will soon become almost incomprehensibly big and measured on astronomical scales. The vast majority of planets and stars could be dead, but we might fill them with value. Much of what we might have previously thought impossible this century may soon become possible.
+
+Truly mind-bending technological and economic change may all play a role in our lifetimes. Rather than pondering our unimportance, perhaps it's wiser to try to understand our true place in history. And quickly. There might be only so much time left before we take the deep plunge into the abyss.

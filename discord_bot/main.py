@@ -31,14 +31,12 @@ bot = create_bot()
 # List of cogs to load (refactored as thin adapters, business logic in core/)
 COGS = [
     "cogs.ping_cog",
-    "cogs.courses_cog",
     "cogs.enrollment_cog",
     "cogs.scheduler_cog",
-    "cogs.cohorts_cog",
+    "cogs.groups_cog",
     "cogs.breakout_cog",
     "cogs.sync_cog",
     "cogs.stampy_cog",
-    "cogs.test_nickname_cog",
     "discord_bot.cogs.nickname_cog",  # Full path so web_api gets same module instance
     # "cogs.meetings_cog",  # Temporarily disabled
 ]

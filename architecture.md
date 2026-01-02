@@ -67,15 +67,10 @@ Thin adapter cogs that handle Discord UI/events and delegate to `core/`.
 | Cog | Commands | Purpose |
 |-----|----------|---------|
 | `scheduler_cog.py` | `/schedule` | Run scheduling algorithm |
-| `courses_cog.py` | `/add-course`, `/sync-course` | Google Docs course management |
 | `enrollment_cog.py` | `/signup`, `/view-availability` | User enrollment flow |
-| `cohorts_cog.py` | `/cohort` | Manual cohort creation |
+| `groups_cog.py` | `/group` | Manual group creation (needs refactor) |
 | `sync_cog.py` | `/sync` | Slash command sync |
 | `ping_cog.py` | `/ping` | Health check |
-
-**Data files:**
-- `user_data.json` - User profiles, availability, progress
-- `courses.json` - Course structure, Discord channel mappings
 
 ### Layer 2b: Web API (`web_api/`)
 
