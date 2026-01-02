@@ -95,7 +95,6 @@ export default function ConversationView({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your response..."
-            disabled={isLoading}
             className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
