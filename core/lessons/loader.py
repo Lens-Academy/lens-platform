@@ -30,7 +30,7 @@ def _parse_stage(data: dict) -> Stage:
     elif stage_type == "video":
         return VideoStage(
             type="video",
-            video_id=data["videoId"],
+            source_url=data["source_url"],
             from_seconds=data.get("from", 0),
             to_seconds=data.get("to"),
         )

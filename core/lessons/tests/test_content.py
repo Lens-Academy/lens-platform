@@ -6,9 +6,10 @@ from core.lessons.content import extract_article_section, load_article
 
 
 def test_load_full_article():
-    """Should load entire article content."""
+    """Should load entire article content (without frontmatter)."""
     content = load_article("articles/four-background-claims.md")
-    assert "Four Background Claims" in content
+    # Title is in frontmatter, not body - check for actual body content
+    assert "MIRI's mission is to ensure" in content
     assert len(content) > 100
 
 

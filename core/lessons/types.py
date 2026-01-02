@@ -19,7 +19,7 @@ class ArticleStage:
 class VideoStage:
     """Display a YouTube video clip."""
     type: Literal["video"]
-    video_id: str
+    source_url: str  # Path to transcript markdown file
     from_seconds: int = 0
     to_seconds: int | None = None  # None means to end
 

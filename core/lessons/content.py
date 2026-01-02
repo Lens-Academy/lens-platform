@@ -19,6 +19,22 @@ class ArticleMetadata:
 
 
 @dataclass
+class VideoTranscriptMetadata:
+    """Metadata extracted from video transcript frontmatter."""
+    video_id: str | None = None
+    title: str | None = None
+    url: str | None = None  # YouTube URL
+
+
+@dataclass
+class VideoTranscriptContent:
+    """Video transcript content with metadata."""
+    transcript: str
+    metadata: VideoTranscriptMetadata
+    is_excerpt: bool = False  # True if time-based extraction was used
+
+
+@dataclass
 class ArticleContent:
     """Article content with metadata."""
     content: str
@@ -159,19 +175,84 @@ def extract_article_section(
     return content[start_idx:end_idx].strip()
 
 
+def parse_video_frontmatter(text: str) -> tuple[VideoTranscriptMetadata, str]:
+    """
+    Parse YAML frontmatter from video transcript markdown.
+
+    Args:
+        text: Full markdown text, possibly with frontmatter
+
+    Returns:
+        Tuple of (metadata, transcript_without_frontmatter)
+    """
+    # Match frontmatter: starts with ---, ends with ---
+    pattern = r'^---\s*\n(.*?)\n---\s*\n'
+    match = re.match(pattern, text, re.DOTALL)
+
+    if not match:
+        return VideoTranscriptMetadata(), text
+
+    frontmatter_text = match.group(1)
+    content = text[match.end():]
+
+    # Simple YAML parsing (just key: value pairs)
+    metadata = VideoTranscriptMetadata()
+    for line in frontmatter_text.split('\n'):
+        line = line.strip()
+        if ':' in line:
+            key, value = line.split(':', 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key == 'video_id':
+                metadata.video_id = value
+            elif key == 'title':
+                metadata.title = value
+            elif key == 'url':
+                metadata.url = value
+
+    return metadata, content
+
+
 def load_video_transcript(source_url: str) -> str:
     """
-    Load video transcript from file.
+    Load video transcript from file (without metadata).
 
     Args:
         source_url: Relative path from content directory
 
     Returns:
-        Full transcript as string
+        Full transcript as string (frontmatter stripped)
     """
     transcript_path = CONTENT_DIR / source_url
 
     if not transcript_path.exists():
         raise FileNotFoundError(f"Transcript not found: {source_url}")
 
-    return transcript_path.read_text()
+    raw_text = transcript_path.read_text()
+    _, transcript = parse_video_frontmatter(raw_text)
+    return transcript
+
+
+def load_video_transcript_with_metadata(source_url: str) -> VideoTranscriptContent:
+    """
+    Load video transcript with metadata.
+
+    Args:
+        source_url: Relative path from content directory
+
+    Returns:
+        VideoTranscriptContent with metadata and transcript
+    """
+    transcript_path = CONTENT_DIR / source_url
+
+    if not transcript_path.exists():
+        raise FileNotFoundError(f"Transcript not found: {source_url}")
+
+    raw_text = transcript_path.read_text()
+    metadata, transcript = parse_video_frontmatter(raw_text)
+
+    return VideoTranscriptContent(
+        transcript=transcript,
+        metadata=metadata,
+        is_excerpt=False,
+    )

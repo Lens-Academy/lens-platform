@@ -34,9 +34,23 @@ from core.lessons import (
     get_stage_content,
     ArticleStage,
     VideoStage,
+    load_video_transcript_with_metadata,
 )
 from core import get_or_create_user
 from web_api.auth import get_optional_user
+
+
+def get_video_info(stage: VideoStage) -> dict:
+    """Get video metadata from transcript file."""
+    try:
+        result = load_video_transcript_with_metadata(stage.source_url)
+        return {
+            "video_id": result.metadata.video_id,
+            "title": result.metadata.title,
+            "url": result.metadata.url,
+        }
+    except FileNotFoundError:
+        return {"video_id": None, "title": None, "url": None}
 
 
 def get_stage_title(stage) -> str:
@@ -47,8 +61,9 @@ def get_stage_title(stage) -> str:
         # Convert kebab-case to Title Case
         return " ".join(word.capitalize() for word in filename.split("-"))
     elif isinstance(stage, VideoStage):
-        # Simple label for now (would need YouTube API for real title)
-        return "Video"
+        # Get title from transcript file
+        info = get_video_info(stage)
+        return info.get("title") or "Video"
     return ""
 
 
@@ -106,6 +121,18 @@ async def list_lessons():
     return {"lessons": lessons}
 
 
+def serialize_video_stage(s: VideoStage) -> dict:
+    """Serialize a video stage to JSON, loading video_id from transcript."""
+    info = get_video_info(s)
+    return {
+        "type": "video",
+        "videoId": info["video_id"],
+        "title": info["title"],
+        "from": s.from_seconds,
+        "to": s.to_seconds,
+    }
+
+
 @router.get("/lessons/{lesson_id}")
 async def get_lesson(lesson_id: str):
     """Get a lesson definition."""
@@ -126,15 +153,7 @@ async def get_lesson(lesson_id: str):
                         if s.type == "article"
                         else {}
                     ),
-                    **(
-                        {
-                            "videoId": s.video_id,
-                            "from": s.from_seconds,
-                            "to": s.to_seconds,
-                        }
-                        if s.type == "video"
-                        else {}
-                    ),
+                    **(serialize_video_stage(s) if s.type == "video" else {}),
                     **(
                         {
                             "context": s.context,
@@ -275,11 +294,7 @@ async def get_session_state(
                     else {}
                 ),
                 **(
-                    {
-                        "videoId": current_stage.video_id,
-                        "from": current_stage.from_seconds,
-                        "to": current_stage.to_seconds,
-                    }
+                    serialize_video_stage(current_stage)
                     if current_stage and current_stage.type == "video"
                     else {}
                 ),
@@ -296,7 +311,7 @@ async def get_session_state(
         "previous_stage": (
             {
                 "type": previous_stage.type,
-                **({"videoId": previous_stage.video_id} if previous_stage.type == "video" else {}),
+                **({"videoId": get_video_info(previous_stage)["video_id"]} if previous_stage.type == "video" else {}),
             }
             if previous_stage
             else None
@@ -307,7 +322,7 @@ async def get_session_state(
             {
                 "type": s.type,
                 **({"source_url": s.source_url} if s.type == "article" else {}),
-                **({"videoId": s.video_id, "from": s.from_seconds, "to": s.to_seconds} if s.type == "video" else {}),
+                **(serialize_video_stage(s) if s.type == "video" else {}),
             }
             for s in lesson.stages
         ],
