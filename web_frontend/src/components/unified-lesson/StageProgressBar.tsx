@@ -1,5 +1,5 @@
 // web_frontend/src/components/unified-lesson/StageProgressBar.tsx
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { Stage } from "../../types/unified-lesson";
 
 type StageProgressBarProps = {
@@ -50,9 +50,36 @@ export default function StageProgressBar({
   canGoPrevious,
   canGoNext,
 }: StageProgressBarProps) {
-  const [tooltipIndex, setTooltipIndex] = useState<number | null>(null);
-
   const viewingIndex = viewingStageIndex ?? currentStageIndex;
+  const [tooltipIndex, setTooltipIndex] = useState<number | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showTooltip = (index: number) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setTooltipIndex(index);
+  };
+
+  const hideTooltip = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setTooltipIndex(null);
+  };
+
+  const handleMouseEnter = (index: number, isPastChat: boolean) => {
+    if (!isPastChat) return;
+    hoverTimeoutRef.current = setTimeout(() => {
+      setTooltipIndex(index);
+    }, 500); // Match native tooltip delay
+  };
+
+  const handleMouseLeave = () => {
+    hideTooltip();
+  };
 
   const handleDotClick = (index: number, stage: Stage) => {
     if (index > currentStageIndex) {
@@ -60,14 +87,13 @@ export default function StageProgressBar({
       return;
     }
 
-    if (stage.type === "chat") {
-      // Show tooltip for chat stages
-      setTooltipIndex(index);
-      setTimeout(() => setTooltipIndex(null), 2000);
+    if (stage.type === "chat" && index < currentStageIndex) {
+      // Past chat stages can't be revisited - show tooltip immediately on click
+      showTooltip(index);
       return;
     }
 
-    // Navigate to content stage
+    // Navigate to stage
     onStageClick(index);
   };
 
@@ -90,7 +116,9 @@ export default function StageProgressBar({
         {stages.map((stage, index) => {
           const isReached = index <= currentStageIndex;
           const isViewing = index === viewingIndex;
-          const isClickable = isReached && stage.type !== "chat";
+          // Clickable: reached stages, except past chat stages (current chat IS clickable)
+          const isPastChat = stage.type === "chat" && index < currentStageIndex;
+          const isClickable = isReached && !isPastChat;
           const isFuture = index > currentStageIndex;
 
           return (
@@ -108,6 +136,8 @@ export default function StageProgressBar({
               <div className="relative">
                 <button
                   onClick={() => handleDotClick(index, stage)}
+                  onMouseEnter={() => handleMouseEnter(index, isPastChat)}
+                  onMouseLeave={handleMouseLeave}
                   disabled={isFuture}
                   className={`
                     relative w-7 h-7 rounded-full flex items-center justify-center
@@ -121,18 +151,20 @@ export default function StageProgressBar({
                     ${isViewing ? "ring-2 ring-offset-2 ring-blue-500" : ""}
                   `}
                   title={
-                    isFuture
-                      ? "Not yet reached"
-                      : stage.type === "chat"
-                        ? "Chat section (cannot revisit)"
-                        : `View ${stage.type} section`
+                    isPastChat
+                      ? undefined // Custom tooltip instead
+                      : isFuture
+                        ? "Not yet reached"
+                        : stage.type === "chat"
+                          ? "Return to chat"
+                          : `View ${stage.type} section`
                   }
                 >
                   <StageIcon type={stage.type} small />
                 </button>
 
-                {/* Tooltip for chat sections */}
-                {tooltipIndex === index && (
+                {/* Tooltip for past chat sections */}
+                {tooltipIndex === index && isPastChat && (
                   <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-10">
                     <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
                       Chat sections can't be revisited
