@@ -1,7 +1,7 @@
-# Takeoff Speeds
-
-**Author:** Paul Christiano | **Date:** February 24, 2018 | **Source:** https://sideways-view.com/2018/02/24/takeoff-speeds/
-
+---
+title: Takeoff Speeds
+author: Paul Christiano
+source_url: https://sideways-view.com/2018/02/24/takeoff-speeds/
 ---
 
 Futurists have argued for years about whether the development of AGI will look more like a breakthrough within a small group ("fast takeoff"), or a continuous acceleration distributed across the broader economy or a large firm ("slow takeoff").

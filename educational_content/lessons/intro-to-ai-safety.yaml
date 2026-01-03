@@ -1,0 +1,40 @@
+id: intro-to-ai-safety
+title: Introduction to AI Safety
+
+stages:
+  - type: article
+    source: articles/four-background-claims.md
+    from: "MIRI's mission is to ensure"
+    to: "build powerful generally intelligent AI systems."
+
+  - type: chat
+    instructions: >
+      The user just read an introduction to AI Safety.
+      Ask them what they found most surprising or what questions they have.
+      Check their understanding of why AI safety matters.
+    showUserPreviousContent: true
+    showTutorPreviousContent: true
+
+  - type: video
+    source: video_transcripts/pYXy-A4siMw_Intro_to_AI_Safety,_Remastered.md
+    from: "1:00"
+    to: "2:00"
+
+  - type: chat
+    instructions: >
+      The user just watched a video clip about AI safety.
+      Quiz them on the key points without providing hints - test their recall.
+    showUserPreviousContent: false
+    showTutorPreviousContent: true
+
+  - type: article
+    source: articles/four-background-claims.md
+    from: "build powerful generally intelligent AI systems."
+    to: "We call this the problem of AI alignment"
+
+  - type: chat
+    instructions: >
+      Quiz the user on what they just read.
+      Test their recall without showing them the article - they should remember the key points.
+    showUserPreviousContent: false
+    showTutorPreviousContent: true

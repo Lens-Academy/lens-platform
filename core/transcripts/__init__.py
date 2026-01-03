@@ -2,7 +2,7 @@
 """Transcript lookup tools for video content."""
 
 from .tools import (
-    find_transcript,
+    find_transcript_timestamps,
     get_text_at_time,
     get_time_from_text,
     flatten_transcript,
@@ -12,7 +12,7 @@ from .tools import (
 )
 
 __all__ = [
-    "find_transcript",
+    "find_transcript_timestamps",
     "get_text_at_time",
     "get_time_from_text",
     "flatten_transcript",

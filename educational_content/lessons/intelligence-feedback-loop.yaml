@@ -1,0 +1,29 @@
+id: intelligence-feedback-loop
+title: Intelligence Feedback Loop
+
+stages:
+  - type: article
+    source: articles/karnofsky-most-important-century.md
+    from: "## The long-run future could come much faster than we think"
+    to: "why-ai-alignment-could-be-hard-with-modern-deep-learning/)"
+
+  - type: chat
+    instructions: >
+      The user just read about the intelligence feedback loop and recursive self-improvement.
+      Check their understanding of the core dynamics: why intelligence makes it easier
+      to create more intelligence, and the implications for AI development timelines.
+    showUserPreviousContent: true
+    showTutorPreviousContent: true
+
+  - type: video
+    source: video_transcripts/fa8k8IQ1_X0_A.I._‐_Humanity's_Final_Invention.md
+    from: "0:00"
+    to: "5:00"
+
+  - type: chat
+    instructions: >
+      The user just watched a Kurzgesagt video about AI and intelligence explosion.
+      Quiz them on the key concepts without providing hints.
+      Test their understanding of the feedback loop dynamics.
+    showUserPreviousContent: true
+    showTutorPreviousContent: true

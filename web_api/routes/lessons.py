@@ -34,21 +34,36 @@ from core.lessons import (
     get_stage_content,
     ArticleStage,
     VideoStage,
+    load_video_transcript_with_metadata,
 )
 from core import get_or_create_user
 from web_api.auth import get_optional_user
+
+
+def get_video_info(stage: VideoStage) -> dict:
+    """Get video metadata from transcript file."""
+    try:
+        result = load_video_transcript_with_metadata(stage.source)
+        return {
+            "video_id": result.metadata.video_id,
+            "title": result.metadata.title,
+            "url": result.metadata.url,
+        }
+    except FileNotFoundError:
+        return {"video_id": None, "title": None, "url": None}
 
 
 def get_stage_title(stage) -> str:
     """Extract display title from a stage."""
     if isinstance(stage, ArticleStage):
         # Parse from source_url like "articles/four-background-claims.md"
-        filename = stage.source_url.split("/")[-1].replace(".md", "")
+        filename = stage.source.split("/")[-1].replace(".md", "")
         # Convert kebab-case to Title Case
         return " ".join(word.capitalize() for word in filename.split("-"))
     elif isinstance(stage, VideoStage):
-        # Simple label for now (would need YouTube API for real title)
-        return "Video"
+        # Get title from transcript file
+        info = get_video_info(stage)
+        return info.get("title") or "Video"
     return ""
 
 
@@ -106,6 +121,18 @@ async def list_lessons():
     return {"lessons": lessons}
 
 
+def serialize_video_stage(s: VideoStage) -> dict:
+    """Serialize a video stage to JSON, loading video_id from transcript."""
+    info = get_video_info(s)
+    return {
+        "type": "video",
+        "videoId": info["video_id"],
+        "title": info["title"],
+        "from": s.from_seconds,
+        "to": s.to_seconds,
+    }
+
+
 @router.get("/lessons/{lesson_id}")
 async def get_lesson(lesson_id: str):
     """Get a lesson definition."""
@@ -119,26 +146,19 @@ async def get_lesson(lesson_id: str):
                     "type": s.type,
                     **(
                         {
-                            "source_url": s.source_url,
+                            "source": s.source_url,
                             "from": s.from_text,
                             "to": s.to_text,
                         }
                         if s.type == "article"
                         else {}
                     ),
+                    **(serialize_video_stage(s) if s.type == "video" else {}),
                     **(
                         {
-                            "videoId": s.video_id,
-                            "from": s.from_seconds,
-                            "to": s.to_seconds,
-                        }
-                        if s.type == "video"
-                        else {}
-                    ),
-                    **(
-                        {
-                            "context": s.context,
-                            "includePreviousContent": s.include_previous_content,
+                            "instructions": s.instructions,
+                            "showUserPreviousContent": s.show_user_previous_content,
+                            "showTutorPreviousContent": s.show_tutor_previous_content,
                         }
                         if s.type == "chat"
                         else {}
@@ -246,7 +266,7 @@ async def get_session_state(
     # For chat stages, get previous stage content (for blur/visible display)
     previous_article = None
     previous_stage = None
-    include_previous_content = True
+    show_user_previous_content = True
     if current_stage and current_stage.type == "chat" and view_stage is None:
         # Only provide previous content when viewing current (not reviewing)
         stage_idx = session["current_stage_index"]
@@ -254,7 +274,7 @@ async def get_session_state(
             previous_stage = lesson.stages[stage_idx - 1]
             prev_result = get_stage_content(previous_stage)
             previous_article = bundle_article(prev_result)
-            include_previous_content = current_stage.include_previous_content
+            show_user_previous_content = current_stage.show_user_previous_content
 
     return {
         "session_id": session["session_id"],
@@ -267,7 +287,7 @@ async def get_session_state(
                 "type": current_stage.type,
                 **(
                     {
-                        "source_url": current_stage.source_url,
+                        "source": current_stage.source,
                         "from": current_stage.from_text,
                         "to": current_stage.to_text,
                     }
@@ -275,11 +295,7 @@ async def get_session_state(
                     else {}
                 ),
                 **(
-                    {
-                        "videoId": current_stage.video_id,
-                        "from": current_stage.from_seconds,
-                        "to": current_stage.to_seconds,
-                    }
+                    serialize_video_stage(current_stage)
                     if current_stage and current_stage.type == "video"
                     else {}
                 ),
@@ -296,18 +312,18 @@ async def get_session_state(
         "previous_stage": (
             {
                 "type": previous_stage.type,
-                **({"videoId": previous_stage.video_id} if previous_stage.type == "video" else {}),
+                **({"videoId": get_video_info(previous_stage)["video_id"]} if previous_stage.type == "video" else {}),
             }
             if previous_stage
             else None
         ),
-        "include_previous_content": include_previous_content,
+        "show_user_previous_content": show_user_previous_content,
         # Add all stages for frontend navigation
         "stages": [
             {
                 "type": s.type,
-                **({"source_url": s.source_url} if s.type == "article" else {}),
-                **({"videoId": s.video_id, "from": s.from_seconds, "to": s.to_seconds} if s.type == "video" else {}),
+                **({"source": s.source} if s.type == "article" else {}),
+                **(serialize_video_stage(s) if s.type == "video" else {}),
             }
             for s in lesson.stages
         ],
@@ -341,11 +357,19 @@ async def send_message_endpoint(
     current_stage = lesson.stages[stage_index]
     previous_stage = lesson.stages[stage_index - 1] if stage_index > 0 else None
 
-    # Get previous content if needed
+    # Get content for AI context
+    current_content = None
     previous_content = None
-    if previous_stage:
-        prev_result = get_stage_content(previous_stage)
-        previous_content = prev_result.content if prev_result else None
+
+    if current_stage.type in ("article", "video"):
+        # For article/video stages: always provide current content to tutor
+        result = get_stage_content(current_stage)
+        current_content = result.content if result else None
+    elif current_stage.type == "chat" and previous_stage:
+        # For chat stages: provide previous content if showTutorPreviousContent
+        if current_stage.show_tutor_previous_content:
+            prev_result = get_stage_content(previous_stage)
+            previous_content = prev_result.content if prev_result else None
 
     # Add user message to session (skip empty messages - used for AI auto-initiation)
     if request_body.content:
@@ -366,7 +390,7 @@ async def send_message_endpoint(
         assistant_content = ""
         try:
             async for chunk in send_lesson_message(
-                messages, current_stage, previous_stage, previous_content
+                messages, current_stage, current_content, previous_content
             ):
                 if chunk["type"] == "text":
                     assistant_content += chunk["content"]

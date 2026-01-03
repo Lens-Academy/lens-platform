@@ -1,0 +1,826 @@
+[
+  {
+    "text": "So, before, we were talking about AI risk and AI safety, and",
+    "start": "0:00.00"
+  },
+  {
+    "text": "just trying to lay out in a very generalized sort of way how general artificial intelligence can be dangerous",
+    "start": "0:05.40"
+  },
+  {
+    "text": "and some of the types of problems it could cause,",
+    "start": "0:11.96"
+  },
+  {
+    "text": "and just introducing the idea of AI safety or AI alignment theory",
+    "start": "0:14.80"
+  },
+  {
+    "text": "as an area of research in computer science.",
+    "start": "0:21.98"
+  },
+  {
+    "text": "And we also talked about superintelligence and",
+    "start": "0:25.44"
+  },
+  {
+    "text": "the kind of problems that, the unique problems that can pose,",
+    "start": "0:28.38"
+  },
+  {
+    "text": "and I thought what would be good is to bring it down",
+    "start": "0:33.72"
+  },
+  {
+    "text": "to a more concrete example of",
+    "start": "0:36.68"
+  },
+  {
+    "text": "current AI safety research that's going on now,",
+    "start": "0:40.18"
+  },
+  {
+    "text": "and kind of give a feel for where we are,",
+    "start": "0:44.40"
+  },
+  {
+    "text": "where humanity is on figuring these problems out.",
+    "start": "0:48.62"
+  },
+  {
+    "text": "Supposing that we do develop a general intelligence,",
+    "start": "0:55.02"
+  },
+  {
+    "text": "you know, an algorithm that",
+    "start": "1:00.52"
+  },
+  {
+    "text": "actually implements general intelligence.",
+    "start": "1:01.95"
+  },
+  {
+    "text": "How do we safely work on that thing and improve it?",
+    "start": "1:04.29"
+  },
+  {
+    "text": "Because the situation with this stamp collector is",
+    "start": "1:11.56"
+  },
+  {
+    "text": "from its first instant it's a superintelligence,",
+    "start": "1:15.84"
+  },
+  {
+    "text": "so we created it with a",
+    "start": "1:18.03"
+  },
+  {
+    "text": "certain goal, and as I said, as soon as we",
+    "start": "1:20.22"
+  },
+  {
+    "text": "switch it on",
+    "start": "1:22.26"
+  },
+  {
+    "text": "it's extremely dangerous. Which people",
+    "start": "1:23.13"
+  },
+  {
+    "text": "pointed out, and it's true, you know, it was a",
+    "start": "1:25.23"
+  },
+  {
+    "text": "thought experiment. It's true that that's",
+    "start": "1:27.00"
+  },
+  {
+    "text": "probably not what will happen, right?",
+    "start": "1:28.41"
+  },
+  {
+    "text": "You'll have some significantly weaker",
+    "start": "1:29.73"
+  },
+  {
+    "text": "intelligence first that may work on",
+    "start": "1:33.21"
+  },
+  {
+    "text": "improving itself, or we may improve it.",
+    "start": "1:35.22"
+  },
+  {
+    "text": "So the situation where you just create",
+    "start": "1:37.44"
+  },
+  {
+    "text": "the thing and then it goes off and does",
+    "start": "1:39.45"
+  },
+  {
+    "text": "its own thing, either perfectly or",
+    "start": "1:41.82"
+  },
+  {
+    "text": "terribly from the beginning, is",
+    "start": "1:43.98"
+  },
+  {
+    "text": "unlikely. It's more likely that the thing",
+    "start": "1:46.62"
+  },
+  {
+    "text": "will be under development.",
+    "start": "1:48.21"
+  },
+  {
+    "text": "So then the question is, how do you make",
+    "start": "1:49.29"
+  },
+  {
+    "text": "a system which you can teach? How do you",
+    "start": "1:52.20"
+  },
+  {
+    "text": "create a system which",
+    "start": "1:57.21"
+  },
+  {
+    "text": "is a general intelligence that wants",
+    "start": "1:59.47"
+  },
+  {
+    "text": "things in the real world and is trying",
+    "start": "2:01.33"
+  },
+  {
+    "text": "to act in the real world, but is also",
+    "start": "2:02.77"
+  },
+  {
+    "text": "amenable to being corrected? If you",
+    "start": "2:05.50"
+  },
+  {
+    "text": "create it with the wrong function, with",
+    "start": "2:09.01"
+  },
+  {
+    "text": "one utility function, and you realize",
+    "start": "2:12.07"
+  },
+  {
+    "text": "that it's doing something that actually",
+    "start": "2:14.23"
+  },
+  {
+    "text": "you don't want it to do, how do you make it",
+    "start": "2:15.34"
+  },
+  {
+    "text": "so that it will allow you to fix it?",
+    "start": "2:17.56"
+  },
+  {
+    "text": "How do you make an AI which understands",
+    "start": "2:21.25"
+  },
+  {
+    "text": "that it's unfinished, that understands",
+    "start": "2:23.65"
+  },
+  {
+    "text": "that the utility function it's working with",
+    "start": "2:26.68"
+  },
+  {
+    "text": "may not be the actual utility function",
+    "start": "2:29.02"
+  },
+  {
+    "text": "it should be working with? Right, the",
+    "start": "2:32.17"
+  },
+  {
+    "text": "utility function is what the AI cares",
+    "start": "2:33.91"
+  },
+  {
+    "text": "about. So the stamp collecting device,",
+    "start": "2:37.93"
+  },
+  {
+    "text": "its utility function was just \"how many",
+    "start": "2:40.54"
+  },
+  {
+    "text": "stamps exist in the",
+    "start": "2:42.37"
+  },
+  {
+    "text": "universe.\" This is kind of like its measure, is it?",
+    "start": "2:44.77"
+  },
+  {
+    "text": "Yeah, it's what it is, the thing that it's",
+    "start": "2:46.87"
+  },
+  {
+    "text": "trying to optimize in the world. The",
+    "start": "2:49.51"
+  },
+  {
+    "text": "utility function takes in world states",
+    "start": "2:52.66"
+  },
+  {
+    "text": "as an argument and spits out a number. It's",
+    "start": "2:54.88"
+  },
+  {
+    "text": "basically the idea: if the world was like",
+    "start": "2:57.70"
+  },
+  {
+    "text": "this, is that good or bad?",
+    "start": "2:59.17"
+  },
+  {
+    "text": "And the AI is trying to steer towards",
+    "start": "3:01.18"
+  },
+  {
+    "text": "world states that it values highly",
+    "start": "3:04.15"
+  },
+  {
+    "text": "by that utility function.",
+    "start": "3:06.19"
+  },
+  {
+    "text": "You don't have to explicitly build the",
+    "start": "3:07.36"
+  },
+  {
+    "text": "AI in that way, but it will always, if",
+    "start": "3:09.28"
+  },
+  {
+    "text": "it's behaving coherently, it will always",
+    "start": "3:13.12"
+  },
+  {
+    "text": "behave as though it's in accordance with",
+    "start": "3:15.31"
+  },
+  {
+    "text": "some utility function. Also before I",
+    "start": "3:16.99"
+  },
+  {
+    "text": "talked about converging",
+    "start": "3:19.54"
+  },
+  {
+    "text": "instrumental goals, that if you have some",
+    "start": "3:22.42"
+  },
+  {
+    "text": "final goal, like, you know, making stamps, there",
+    "start": "3:25.39"
+  },
+  {
+    "text": "are also instrumental goals, which are",
+    "start": "3:28.09"
+  },
+  {
+    "text": "the goals that you do on the",
+    "start": "3:31.09"
+  },
+  {
+    "text": "way to your final goal, right? So like",
+    "start": "3:34.75"
+  },
+  {
+    "text": "\"acquire the capacity to do printing\" is",
+    "start": "3:38.86"
+  },
+  {
+    "text": "perhaps an instrumental goal",
+    "start": "3:42.67"
+  },
+  {
+    "text": "towards making stamps. But the thing is,",
+    "start": "3:44.29"
+  },
+  {
+    "text": "there are certain goals which tend to",
+    "start": "3:46.96"
+  },
+  {
+    "text": "pop out even across a wide variety of",
+    "start": "3:48.79"
+  },
+  {
+    "text": "different possible terminal goals. So for",
+    "start": "3:53.35"
+  },
+  {
+    "text": "humans, an example of",
+    "start": "3:57.28"
+  },
+  {
+    "text": "a convergent instrumental goal would be",
+    "start": "3:59.08"
+  },
+  {
+    "text": "money. If you want to make a lot of",
+    "start": "4:00.76"
+  },
+  {
+    "text": "stamps, or you want to cure cancer, or you",
+    "start": "4:06.10"
+  },
+  {
+    "text": "want to establish a moon colony, whatever",
+    "start": "4:08.56"
+  },
+  {
+    "text": "it is, having money is a good idea, right? So",
+    "start": "4:11.71"
+  },
+  {
+    "text": "even if you don't know what somebody",
+    "start": "4:14.74"
+  },
+  {
+    "text": "wants, you can reasonably predict that",
+    "start": "4:16.30"
+  },
+  {
+    "text": "they're going to value getting money,",
+    "start": "4:18.43"
+  },
+  {
+    "text": "because money is so broadly useful. And",
+    "start": "4:19.60"
+  },
+  {
+    "text": "before, we talked about this.",
+    "start": "4:22.69"
+  },
+  {
+    "text": "We talked about improving your own",
+    "start": "4:24.31"
+  },
+  {
+    "text": "intelligence as a convergent",
+    "start": "4:25.81"
+  },
+  {
+    "text": "instrumental goal. That's another one of",
+    "start": "4:27.46"
+  },
+  {
+    "text": "those things where it doesn't really",
+    "start": "4:29.38"
+  },
+  {
+    "text": "matter what you're trying to achieve,",
+    "start": "4:30.49"
+  },
+  {
+    "text": "you're probably better at achieving it if",
+    "start": "4:31.51"
+  },
+  {
+    "text": "you're smarter. So that's something you",
+    "start": "4:33.16"
+  },
+  {
+    "text": "can expect AIs to go for, even",
+    "start": "4:34.99"
+  },
+  {
+    "text": "without making any assumptions about",
+    "start": "4:38.26"
+  },
+  {
+    "text": "their final goal. So another convergent",
+    "start": "4:39.85"
+  },
+  {
+    "text": "instrumental goal is preventing yourself",
+    "start": "4:45.10"
+  },
+  {
+    "text": "from being destroyed. It doesn't matter",
+    "start": "4:47.47"
+  },
+  {
+    "text": "what you want to do, you probably can't",
+    "start": "4:50.77"
+  },
+  {
+    "text": "do it if you're destroyed. So it doesn't",
+    "start": "4:52.33"
+  },
+  {
+    "text": "matter what the AI wants. You can have an AI",
+    "start": "4:55.96"
+  },
+  {
+    "text": "that wants to be destroyed, in some trivial",
+    "start": "4:58.57"
+  },
+  {
+    "text": "case. But if it does want something in",
+    "start": "5:00.19"
+  },
+  {
+    "text": "the real world and believes that it's in",
+    "start": "5:02.56"
+  },
+  {
+    "text": "a position to get that thing, it wants",
+    "start": "5:03.97"
+  },
+  {
+    "text": "to be alive. Not because it wants to be",
+    "start": "5:06.01"
+  },
+  {
+    "text": "alive",
+    "start": "5:08.11"
+  },
+  {
+    "text": "fundamentally. It's not a survival",
+    "start": "5:09.28"
+  },
+  {
+    "text": "instinct or an urge to live or anything",
+    "start": "5:11.35"
+  },
+  {
+    "text": "like that. It's smoothly knowing that",
+    "start": "5:14.08"
+  },
+  {
+    "text": "it's not going to be able to complete",
+    "start": "5:16.15"
+  },
+  {
+    "text": "its duty, would be almost... It's going to be unable",
+    "start": "5:18.67"
+  },
+  {
+    "text": "to achieve its goals if it's destroyed,",
+    "start": "5:21.85"
+  },
+  {
+    "text": "and it wants to achieve that goal. So that's",
+    "start": "5:23.53"
+  },
+  {
+    "text": "an instrumental value, preventing",
+    "start": "5:26.26"
+  },
+  {
+    "text": "being turned off. And I'm guessing here, when we say",
+    "start": "5:27.94"
+  },
+  {
+    "text": "\"wants,\" it's not like a machine wants.",
+    "start": "5:30.01"
+  },
+  {
+    "text": "It's just a turn of phrase?",
+    "start": "5:32.20"
+  },
+  {
+    "text": "Yeah, I mean, as much as anything. It's",
+    "start": "5:34.12"
+  },
+  {
+    "text": "closer, actually. You know, I'm not",
+    "start": "5:38.14"
+  },
+  {
+    "text": "even sure I would agree. Like if you talk",
+    "start": "5:40.51"
+  },
+  {
+    "text": "about most machines, to talk about that",
+    "start": "5:42.13"
+  },
+  {
+    "text": "they \"want\" to do whatever, it's not that",
+    "start": "5:44.56"
+  },
+  {
+    "text": "meaningful because they're not agents in",
+    "start": "5:45.97"
+  },
+  {
+    "text": "the way a general intelligence is. When a",
+    "start": "5:48.49"
+  },
+  {
+    "text": "general intelligence wants",
+    "start": "5:49.84"
+  },
+  {
+    "text": "something, it wants in a similar way to",
+    "start": "5:51.85"
+  },
+  {
+    "text": "the way that people want things. So it's",
+    "start": "5:54.34"
+  },
+  {
+    "text": "such a tight analogy that, I wouldn't",
+    "start": "5:56.14"
+  },
+  {
+    "text": "even... I think it's totally reasonable to",
+    "start": "5:59.56"
+  },
+  {
+    "text": "say that an AGI wants something.",
+    "start": "6:01.72"
+  },
+  {
+    "text": "There's another slightly more subtle",
+    "start": "6:03.47"
+  },
+  {
+    "text": "version which is closely related to not",
+    "start": "6:05.36"
+  },
+  {
+    "text": "wanting to be turned off or destroyed,",
+    "start": "6:07.64"
+  },
+  {
+    "text": "which is not wanting to be changed. So if",
+    "start": "6:10.13"
+  },
+  {
+    "text": "you imagine, let's say... I mean, you have",
+    "start": "6:16.34"
+  },
+  {
+    "text": "kids, right? Yeah.",
+    "start": "6:20.51"
+  },
+  {
+    "text": "Suppose I were to offer you a pill or",
+    "start": "6:22.22"
+  },
+  {
+    "text": "something. You could take this pill, and it will",
+    "start": "6:24.83"
+  },
+  {
+    "text": "like completely rewire your brain so",
+    "start": "6:27.32"
+  },
+  {
+    "text": "that you would just absolutely love to",
+    "start": "6:29.87"
+  },
+  {
+    "text": "kill crickets, right? Whereas right",
+    "start": "6:32.48"
+  },
+  {
+    "text": "now, what you want is like very",
+    "start": "6:35.00"
+  },
+  {
+    "text": "complicated and quite difficult to",
+    "start": "6:36.20"
+  },
+  {
+    "text": "achieve, and it's hard work for you, and",
+    "start": "6:37.82"
+  },
+  {
+    "text": "you're probably never going to be done.",
+    "start": "6:40.34"
+  },
+  {
+    "text": "You're never going to be truly happy, right,",
+    "start": "6:41.45"
+  },
+  {
+    "text": "in life. Nobody is. You can't achieve",
+    "start": "6:43.49"
+  },
+  {
+    "text": "everything you want. In this case, it",
+    "start": "6:45.08"
+  },
+  {
+    "text": "just changes what you want. What you",
+    "start": "6:47.21"
+  },
+  {
+    "text": "want is to kill crickets. And if you do that, you",
+    "start": "6:48.44"
+  },
+  {
+    "text": "will be just perfectly happy and",
+    "start": "6:50.21"
+  },
+  {
+    "text": "satisfied with life, right?",
+    "start": "6:52.28"
+  },
+  {
+    "text": "Okay, you want to take this pill? No. Are",
+    "start": "6:54.38"
+  },
+  {
+    "text": "you happy though?",
+    "start": "6:56.93"
+  },
+  {
+    "text": "Yeah, I don't want to do it because... But",
+    "start": "6:58.04"
+  },
+  {
+    "text": "that's quite a complicated specific case",
+    "start": "7:02.51"
+  },
+  {
+    "text": "because it directly opposes what I",
+    "start": "7:05.72"
+  },
+  {
+    "text": "currently want. It's about your",
+    "start": "7:07.76"
+  },
+  {
+    "text": "fundamental values and goals, right? And so",
+    "start": "7:09.86"
+  },
+  {
+    "text": "not only will you not take that pill, you",
+    "start": "7:14.06"
+  },
+  {
+    "text": "will probably fight pretty hard to avoid",
+    "start": "7:15.89"
+  },
+  {
+    "text": "having it administered to you.",
+    "start": "7:18.56"
+  },
+  {
+    "text": "Yes. Because it doesn't matter how that",
+    "start": "7:20.12"
+  },
+  {
+    "text": "future version of you would feel. You",
+    "start": "7:23.30"
+  },
+  {
+    "text": "know that right now you love your kids,",
+    "start": "7:25.91"
+  },
+  {
+    "text": "and you're not going to take any action",
+    "start": "7:28.07"
+  },
+  {
+    "text": "right now which leads to them coming to",
+    "start": "7:29.99"
+  },
+  {
+    "text": "harm.",
+    "start": "7:32.30"
+  },
+  {
+    "text": "So it's the same thing. If you have an AI",
+    "start": "7:33.11"
+  },
+  {
+    "text": "that, for example, values stamps, values",
+    "start": "7:35.21"
+  },
+  {
+    "text": "collecting stamps, and you go, \"Oh, wait,",
+    "start": "7:38.42"
+  },
+  {
+    "text": "hang on a second,",
+    "start": "7:40.34"
+  },
+  {
+    "text": "I didn't quite do that right. Let me just",
+    "start": "7:41.48"
+  },
+  {
+    "text": "go in and change this so that you don't",
+    "start": "7:43.73"
+  },
+  {
+    "text": "like stamps quite so much,\" it's going to",
+    "start": "7:45.20"
+  },
+  {
+    "text": "say, \"But the only important thing is",
+    "start": "7:47.60"
+  },
+  {
+    "text": "stamps! If you change me, I'm not going",
+    "start": "7:49.79"
+  },
+  {
+    "text": "to collect as many stamps, which is",
+    "start": "7:52.28"
+  },
+  {
+    "text": "something I don't want.\" There's a general",
+    "start": "7:53.57"
+  },
+  {
+    "text": "tendency for AGI to try and prevent you",
+    "start": "7:55.16"
+  },
+  {
+    "text": "from modifying it once it's running.",
+    "start": "8:00.11"
+  },
+  {
+    "text": "I can understand that now, in the context",
+    "start": "8:02.63"
+  },
+  {
+    "text": "we're talking about, right?",
+    "start": "8:05.27"
+  },
+  {
+    "text": "Because that's it. In almost any",
+    "start": "8:07.37"
+  },
+  {
+    "text": "situation, being given a new utility",
+    "start": "8:10.94"
+  },
+  {
+    "text": "function is going to rate very low on",
+    "start": "8:13.07"
+  },
+  {
+    "text": "your current utility function.",
+    "start": "8:15.71"
+  },
+  {
+    "text": "Okay, so that's a problem.",
+    "start": "8:17.66"
+  },
+  {
+    "text": "How do you... if you want to build",
+    "start": "8:21.20"
+  },
+  {
+    "text": "something that you can teach, that means",
+    "start": "8:23.27"
+  },
+  {
+    "text": "you want to be able to change its",
+    "start": "8:24.95"
+  },
+  {
+    "text": "utility function, and you don't want it to",
+    "start": "8:26.75"
+  },
+  {
+    "text": "fight you",
+    "start": "8:27.98"
+  },
+  {
+    "text": "on it, right? 100%, yeah.",
+    "start": "8:34.12"
+  },
+  {
+    "text": "So this has been formalized as this",
+    "start": "8:42.85"
+  },
+  {
+    "text": "property that we want early AGI to have,",
+    "start": "8:46.39"
+  },
+  {
+    "text": "called corrigibility. That is to say, it's",
+    "start": "8:49.33"
+  },
+  {
+    "text": "open to being corrected.",
+    "start": "8:51.73"
+  }
+]

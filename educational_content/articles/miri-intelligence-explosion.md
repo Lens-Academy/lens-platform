@@ -1,28 +1,7 @@
-# Intelligence Explosion: Evidence and Import
-
-*Luke Muehlhauser & Anna Salamon, MIRI*
-
-MIRI
-MACHINE INTELLIGENCE
-RESEARCH INSTITUTE
-Intelligence Explosion:
-Evidence and Import
-Luke Muehlhauser, Anna Salamon
-Machine Intelligence Research Institute
-Abstract
-In this chapter we review the evidence for and against three claims: that (1) there is a
-substantial chance we will create human-level AI before 2100, that (2) if human-level AI
-is created, there is a good chance vastly superhuman AI will follow via an “intelligence
-explosion,” and that (3) an uncontrolled intelligence explosion could destroy everything
-we value, but a controlled intelligence explosion would benefit humanity enormously
-if we can achieve it. We conclude with recommendations for increasing the odds of a
-controlled intelligence explosion relative to an uncontrolled intelligence explosion.
-Muehlhauser, Luke, and Anna Salamon. 2012. “Intelligence Explosion: Evidence and Import.”
-In Singularity Hypotheses: A Scientific and Philosophical Assessment, edited by Amnon Eden, Johnny
-Søraker, James H. Moor, and Eric Steinhart. Berlin: Springer.
-This version contains changes.
-
-
+---
+title: "Intelligence Explosion: Evidence and Import"
+author: Luke Muehlhauser & Anna Salamon
+source_url: https://intelligence.org/files/IE-EI.pdf
 ---
 
 The best answer to the question, “Will computers ever be as smart as

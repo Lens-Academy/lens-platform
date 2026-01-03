@@ -1,0 +1,610 @@
+[
+  {
+    "text": "In a very basic sense, if you've got a",
+    "start": "0:00.05"
+  },
+  {
+    "text": "general intelligence which therefore has preferences over world states",
+    "start": "0:03.11"
+  },
+  {
+    "text": "and takes actions in the world to change the world,",
+    "start": "0:07.66"
+  },
+  {
+    "text": "we have to make sure that its preferences are aligned with ours",
+    "start": "0:10.67"
+  },
+  {
+    "text": "- that it wants what we want.",
+    "start": "0:14.52"
+  },
+  {
+    "text": "Because otherwise it's going to try and do things that we don't want it to do.",
+    "start": "0:17.42"
+  },
+  {
+    "text": "That's the basic idea.",
+    "start": "0:20.82"
+  },
+  {
+    "text": "Sci-fi comes to the fore - we're talking things like Terminator, The Matrix,",
+    "start": "0:24.74"
+  },
+  {
+    "text": "that machines take over the world.",
+    "start": "0:28.34"
+  },
+  {
+    "text": "\"I for one welcome our new robot overlords.\"",
+    "start": "0:29.74"
+  },
+  {
+    "text": "It makes it difficult to think about the problem, right?",
+    "start": "0:32.56"
+  },
+  {
+    "text": "When things happen in fiction, it's generally what would make a better story",
+    "start": "0:34.98"
+  },
+  {
+    "text": "rather than what would actually happen. And I think a",
+    "start": "0:39.21"
+  },
+  {
+    "text": "realistic \"AI takes over the world\" type story",
+    "start": "0:42.28"
+  },
+  {
+    "text": "might not be any fun to read. So on the one side,",
+    "start": "0:46.29"
+  },
+  {
+    "text": "this stuff is difficult to think about because of fiction, because we've all been",
+    "start": "0:49.31"
+  },
+  {
+    "text": "exposed to something similar to these ideas before.",
+    "start": "0:52.48"
+  },
+  {
+    "text": "The other side that makes this difficult to think about is anthropomorphism,",
+    "start": "0:55.02"
+  },
+  {
+    "text": "because we are talking about general intelligence,",
+    "start": "0:58.94"
+  },
+  {
+    "text": "so we're going to compare it to the examples of general intelligence that we",
+    "start": "1:02.67"
+  },
+  {
+    "text": "have,",
+    "start": "1:05.62"
+  },
+  {
+    "text": "which is human minds. And human minds and artificial general intelligences",
+    "start": "1:06.07"
+  },
+  {
+    "text": "need not be anything alike,",
+    "start": "1:11.54"
+  },
+  {
+    "text": "in the same way that a plane is not similar to a bird.",
+    "start": "1:13.98"
+  },
+  {
+    "text": "A supersonic fighter jet is a threat to you in a way that",
+    "start": "1:17.41"
+  },
+  {
+    "text": "no bird is. It's not a useful comparison to make. In fact,",
+    "start": "1:20.56"
+  },
+  {
+    "text": "when you say, \"Oh, it's a thing, it has wings and it flies,\" people",
+    "start": "1:24.12"
+  },
+  {
+    "text": "who don't know anything about planes immediately go to birds.",
+    "start": "1:27.59"
+  },
+  {
+    "text": "\"Presumably a machine could be much more selfish than we can ever imagine.\"",
+    "start": "1:29.97"
+  },
+  {
+    "text": "Absolutely. The space of minds in general is vast.",
+    "start": "1:33.29"
+  },
+  {
+    "text": "I like this because we've already talked about spaces, so I can do this. If you",
+    "start": "1:38.09"
+  },
+  {
+    "text": "take the space of all possible minds,",
+    "start": "1:41.18"
+  },
+  {
+    "text": "it's huge. And then somewhere within that, you have the space of all minds",
+    "start": "1:43.03"
+  },
+  {
+    "text": "that biological evolution can produce,",
+    "start": "1:46.32"
+  },
+  {
+    "text": "and that's also huge. Somewhere within that, you have the space of",
+    "start": "1:48.37"
+  },
+  {
+    "text": "actual minds that exist, which is much smaller but still huge.",
+    "start": "1:51.72"
+  },
+  {
+    "text": "Within that, you've got human minds, right? And they're a tiny - they're a",
+    "start": "1:55.86"
+  },
+  {
+    "text": "minuscule dot on a minuscule dot on a minuscule dot of the",
+    "start": "2:00.41"
+  },
+  {
+    "text": "actual possibilities for intelligence that exist. And",
+    "start": "2:03.46"
+  },
+  {
+    "text": "a general intelligence that we create is from a completely different part of the",
+    "start": "2:07.29"
+  },
+  {
+    "text": "space.",
+    "start": "2:12.80"
+  },
+  {
+    "text": "And it's extremely tempting to anthropomorphize,",
+    "start": "2:13.23"
+  },
+  {
+    "text": "more so even than in other contexts, because",
+    "start": "2:16.64"
+  },
+  {
+    "text": "it's a thing that's demonstrably intelligent, that makes plans, that takes",
+    "start": "2:20.01"
+  },
+  {
+    "text": "actions in the real world.",
+    "start": "2:23.87"
+  },
+  {
+    "text": "But it need not think",
+    "start": "2:25.00"
+  },
+  {
+    "text": "anything like us, and it's a mistake to think of it",
+    "start": "2:28.02"
+  },
+  {
+    "text": "as basically a person, because it isn't one. So there's actually a really good example",
+    "start": "2:31.25"
+  },
+  {
+    "text": "that we can use. It's sort of a thought experiment.",
+    "start": "2:35.10"
+  },
+  {
+    "text": "This is not a machine that could practically speaking be built",
+    "start": "2:38.44"
+  },
+  {
+    "text": "- this is an example of an artificial general intelligence",
+    "start": "2:41.91"
+  },
+  {
+    "text": "which is specified in overview,",
+    "start": "2:46.02"
+  },
+  {
+    "text": "and it gives you something to think about when you're thinking about",
+    "start": "2:50.80"
+  },
+  {
+    "text": "artificial general intelligences that makes it distinct from",
+    "start": "2:54.25"
+  },
+  {
+    "text": "a sort of anthropomorphized human-type intelligence.",
+    "start": "2:58.00"
+  },
+  {
+    "text": "So the story is, there's",
+    "start": "3:01.63"
+  },
+  {
+    "text": "a stamp collector who is also an AI",
+    "start": "3:04.99"
+  },
+  {
+    "text": "programmer, and he decides he would like to collect a lot more stamps,",
+    "start": "3:08.12"
+  },
+  {
+    "text": "so he's going to write an AI to do this for him. So he builds a machine",
+    "start": "3:12.78"
+  },
+  {
+    "text": "- he has some startling insight into general intelligence and he builds this",
+    "start": "3:16.71"
+  },
+  {
+    "text": "machine",
+    "start": "3:20.49"
+  },
+  {
+    "text": "which is connected to the internet, right?",
+    "start": "3:21.10"
+  },
+  {
+    "text": "So the rules for this system are",
+    "start": "3:24.26"
+  },
+  {
+    "text": "pretty straightforward. First thing: it's connected to the internet, and it will",
+    "start": "3:27.69"
+  },
+  {
+    "text": "send and receive data",
+    "start": "3:31.35"
+  },
+  {
+    "text": "for one year. So he's given himself a one-year time",
+    "start": "3:32.89"
+  },
+  {
+    "text": "window within which to collect stamps. The second thing is",
+    "start": "3:36.94"
+  },
+  {
+    "text": "it has an internal model of reality, of the universe.",
+    "start": "3:40.19"
+  },
+  {
+    "text": "This is the thing that's a bit magic - we don't really know how to build an",
+    "start": "3:43.24"
+  },
+  {
+    "text": "accurate",
+    "start": "3:46.87"
+  },
+  {
+    "text": "model of reality. The point is, this allows it to",
+    "start": "3:47.59"
+  },
+  {
+    "text": "make accurate predictions about what will happen if it does different things.",
+    "start": "3:50.86"
+  },
+  {
+    "text": "The third thing is, for every possible sequence of packets it could send,",
+    "start": "3:55.16"
+  },
+  {
+    "text": "it uses its model to predict",
+    "start": "3:59.19"
+  },
+  {
+    "text": "how many stamps it ends up with at the end of that. And then",
+    "start": "4:02.70"
+  },
+  {
+    "text": "the fourth thing is it outputs as its",
+    "start": "4:06.01"
+  },
+  {
+    "text": "actual data to the internet",
+    "start": "4:09.24"
+  },
+  {
+    "text": "whichever output it has predicted will produce the most stamps.",
+    "start": "4:12.65"
+  },
+  {
+    "text": "You can see here",
+    "start": "4:16.07"
+  },
+  {
+    "text": "that this has all the properties of a general intelligence.",
+    "start": "4:16.96"
+  },
+  {
+    "text": "It has an internal model of reality. It has",
+    "start": "4:20.34"
+  },
+  {
+    "text": "a utility function or an evaluation function, which is the number of stamps.",
+    "start": "4:23.42"
+  },
+  {
+    "text": "And the optimization is",
+    "start": "4:27.74"
+  },
+  {
+    "text": "extremely simple. And like so much in computer science,",
+    "start": "4:30.75"
+  },
+  {
+    "text": "the simple things to specify are the hard things to compute.",
+    "start": "4:33.87"
+  },
+  {
+    "text": "It looks at every possible output data - in other words, every",
+    "start": "4:37.01"
+  },
+  {
+    "text": "point in that space - and it picks out",
+    "start": "4:40.60"
+  },
+  {
+    "text": "the highest one. So this is a kind of magic intelligence",
+    "start": "4:44.32"
+  },
+  {
+    "text": "that takes the entire space at once, finds the highest point, and says,",
+    "start": "4:47.56"
+  },
+  {
+    "text": "\"That one.\" Which means it's an extremely powerful intelligence,",
+    "start": "4:51.81"
+  },
+  {
+    "text": "right? It is - you could say it's extremely intelligent.",
+    "start": "4:56.61"
+  },
+  {
+    "text": "The question is, how does this machine behave? Well, we can look at certain",
+    "start": "4:59.73"
+  },
+  {
+    "text": "possible sequences of outputs",
+    "start": "5:03.09"
+  },
+  {
+    "text": "and see how they fare in its evaluation criteria.",
+    "start": "5:04.79"
+  },
+  {
+    "text": "First off, the vast majority of output sequences are complete junk,",
+    "start": "5:08.19"
+  },
+  {
+    "text": "right? It's spewing random data onto the network. Nothing happens",
+    "start": "5:12.03"
+  },
+  {
+    "text": "of any consequence.",
+    "start": "5:15.23"
+  },
+  {
+    "text": "No stamps get collected. Those are all rated zero.",
+    "start": "5:17.38"
+  },
+  {
+    "text": "But suppose one of the possible sequences",
+    "start": "5:21.70"
+  },
+  {
+    "text": "sends a request to a server - let's say",
+    "start": "5:25.50"
+  },
+  {
+    "text": "eBay - that results in a bid on some stamps,",
+    "start": "5:29.00"
+  },
+  {
+    "text": "right? When that happens, there's a thing of 20 stamps,",
+    "start": "5:32.05"
+  },
+  {
+    "text": "so that output is rated 20. This is the kind of thing that",
+    "start": "5:35.41"
+  },
+  {
+    "text": "the stamp collecting machine's creator was expecting to happen.",
+    "start": "5:38.70"
+  },
+  {
+    "text": "So then that's good - 20 stamps.",
+    "start": "5:42.66"
+  },
+  {
+    "text": "Suppose it could do that lots of times. It could send out bids, for example, to",
+    "start": "5:45.99"
+  },
+  {
+    "text": "30 different stamp collectors on eBay and buy 30 sets of different stamps,",
+    "start": "5:50.58"
+  },
+  {
+    "text": "and that's even better, right? That would be rated even higher. But the thing is that",
+    "start": "5:54.63"
+  },
+  {
+    "text": "the particularly highly rated options in this search space",
+    "start": "5:58.79"
+  },
+  {
+    "text": "are probably things that the",
+    "start": "6:02.57"
+  },
+  {
+    "text": "stamp collecting device's creator did not think of",
+    "start": "6:05.69"
+  },
+  {
+    "text": "and did not anticipate. So for example, when he made it, he will have presumably given",
+    "start": "6:08.73"
+  },
+  {
+    "text": "it his credit card details or something so it could engage in these bids.",
+    "start": "6:14.08"
+  },
+  {
+    "text": "But ultimately it's searching every possible sequence of outputs. It needn't use",
+    "start": "6:18.85"
+  },
+  {
+    "text": "his credit card.",
+    "start": "6:22.22"
+  },
+  {
+    "text": "It needn't use money at all. There's a huge variety of things that it could do here.",
+    "start": "6:23.03"
+  },
+  {
+    "text": "So it might send out an enormous number of emails to all the stamp collectors in the",
+    "start": "6:28.56"
+  },
+  {
+    "text": "world",
+    "start": "6:32.72"
+  },
+  {
+    "text": "and convince them through persuasive argument that",
+    "start": "6:33.30"
+  },
+  {
+    "text": "he is opening a museum and wants to exhibit their stamps.",
+    "start": "6:37.32"
+  },
+  {
+    "text": "It may build a fake website for that - whatever is necessary.",
+    "start": "6:42.56"
+  },
+  {
+    "text": "It can predict the world, right? It has an internal model of reality. That internal",
+    "start": "6:46.53"
+  },
+  {
+    "text": "model of reality",
+    "start": "6:50.21"
+  },
+  {
+    "text": "includes the people, right? In the same way that it's modeling",
+    "start": "6:51.41"
+  },
+  {
+    "text": "people to understand that if it bids on this",
+    "start": "6:54.51"
+  },
+  {
+    "text": "offer, then a human being will mail the stamps to them, it understands this",
+    "start": "6:58.34"
+  },
+  {
+    "text": "email might get more people to send stamps, for example, or something.",
+    "start": "7:01.92"
+  },
+  {
+    "text": "But then, what exactly is a stamp? How is this defined?",
+    "start": "7:06.11"
+  },
+  {
+    "text": "What counts as a stamp?",
+    "start": "7:09.77"
+  },
+  {
+    "text": "If it's already written the sequence of outputs that collects",
+    "start": "7:11.50"
+  },
+  {
+    "text": "all of the stamps in the world, you think you're done, right? You built this machine,",
+    "start": "7:14.29"
+  },
+  {
+    "text": "suddenly it's collected all the stamps in the world.",
+    "start": "7:17.50"
+  },
+  {
+    "text": "No. There could be more stamps. Within a year, we've got time to print more stamps.",
+    "start": "7:19.16"
+  },
+  {
+    "text": "So maybe it hijacks the world's stamp printing factories and puts them into overdrive,",
+    "start": "7:22.88"
+  },
+  {
+    "text": "producing stamps",
+    "start": "7:27.14"
+  },
+  {
+    "text": "as many as you possibly can in that time. Or perhaps",
+    "start": "7:28.22"
+  },
+  {
+    "text": "it writes a virus and it hijacks all the computers in the world to get all of",
+    "start": "7:31.22"
+  },
+  {
+    "text": "the printers in the world to do nothing but print stamps.",
+    "start": "7:35.67"
+  },
+  {
+    "text": "That's even better, right? The highest-rated",
+    "start": "7:37.92"
+  },
+  {
+    "text": "outcomes for this machine are not good for people.",
+    "start": "7:41.64"
+  },
+  {
+    "text": "There comes a point when the stamp collecting device is thinking,",
+    "start": "7:45.80"
+  },
+  {
+    "text": "\"Okay, what are stamps made of?",
+    "start": "7:49.57"
+  },
+  {
+    "text": "They're made of paper. Paper is made of carbon, hydrogen, oxygen.",
+    "start": "7:52.82"
+  },
+  {
+    "text": "I'm going to need all of that I can get to make stamps.\"",
+    "start": "7:56.77"
+  },
+  {
+    "text": "And it's going to notice that people are made of carbon, hydrogen, and oxygen,",
+    "start": "7:59.88"
+  },
+  {
+    "text": "right? There comes a point where the stamp collecting device becomes",
+    "start": "8:03.29"
+  },
+  {
+    "text": "extremely dangerous.",
+    "start": "8:06.18"
+  },
+  {
+    "text": "And that point is as soon as you switch it on.",
+    "start": "8:07.55"
+  },
+  {
+    "text": "So this is just a thought experiment example where we take a sort of maximally powerful intelligence",
+    "start": "8:15.34"
+  },
+  {
+    "text": "and see how it behaves, so that we can think about",
+    "start": "8:19.88"
+  },
+  {
+    "text": "how powerful intelligences behave, and most importantly,",
+    "start": "8:23.87"
+  },
+  {
+    "text": "how they are not like people.",
+    "start": "8:27.36"
+  }
+]

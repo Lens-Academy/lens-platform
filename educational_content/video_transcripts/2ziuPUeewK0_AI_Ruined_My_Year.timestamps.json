@@ -1,0 +1,1942 @@
+[
+  {
+    "text": "[Music] If you'd told me when I started this channel that I would be advising the",
+    "start": "0:06.96"
+  },
+  {
+    "text": "UK government on risks of advanced artificial intelligence, I would have told you all those",
+    "start": "0:11.60"
+  },
+  {
+    "text": "years ago, \"Interesting. I'll definitely be wearing trousers at the time,\" right? Anyway, sorry for the",
+    "start": "0:16.92"
+  },
+  {
+    "text": "gap in uploads. There's been a lot going on. You may have seen in the news, although to be",
+    "start": "0:23.08"
+  },
+  {
+    "text": "honest, that's not what's been using up most of my time. But yeah, there's been a lot going on,",
+    "start": "0:27.84"
+  },
+  {
+    "text": "and so in this video I thought I'd try just talking about it. So after GPT-4, a bunch of AI",
+    "start": "0:33.68"
+  },
+  {
+    "text": "experts called for a six-month pause on giant training runs. Yudkowsky said that wouldn't help",
+    "start": "0:37.92"
+  },
+  {
+    "text": "in a Time Magazine piece which called to shut it all down. Then another load of experts said that",
+    "start": "0:42.20"
+  },
+  {
+    "text": "AI was an extinction risk like nuclear war, and the UK went all-in and launched an international",
+    "start": "0:46.28"
+  },
+  {
+    "text": "summit. AI safety went mainstream. Geoffrey Hinton left Google to talk more freely about the risks.",
+    "start": "0:50.92"
+  },
+  {
+    "text": "OpenAI made a new Superalignment team, plus we had Bard, Claude, Gemini, new Llama, GPT,",
+    "start": "0:55.60"
+  },
+  {
+    "text": "and loads of other stuff. The EU AI Act, the US's executive order - it's an interesting time to be",
+    "start": "1:00.28"
+  },
+  {
+    "text": "alive. So first off, yes, I also find it vaguely annoying when YouTubers do a whole big apology",
+    "start": "1:05.48"
+  },
+  {
+    "text": "for a gap in uploads. I know that most of you didn't notice and don't care, and that's good",
+    "start": "1:14.96"
+  },
+  {
+    "text": "actually. But when it comes to why I found it so hard to make videos recently, I think there are",
+    "start": "1:19.40"
+  },
+  {
+    "text": "some interesting things to talk about. So let's get into it. So in the past, generally when people",
+    "start": "1:23.80"
+  },
+  {
+    "text": "asked me why I was making these videos, I would say it's because AI safety is probably the",
+    "start": "1:28.20"
+  },
+  {
+    "text": "single most important thing happening on Earth right now. Humanity may have reached the point",
+    "start": "1:32.72"
+  },
+  {
+    "text": "in history where we achieve all the things we're hoping for or destroy ourselves completely, and it",
+    "start": "1:36.44"
+  },
+  {
+    "text": "all hinges on how well we handle the creation of advanced AI. It depends on AI safety research, and",
+    "start": "1:41.56"
+  },
+  {
+    "text": "there's amazingly few people working on that, and the public understanding of the field is fairly",
+    "start": "1:46.72"
+  },
+  {
+    "text": "poor. So I want to help people to learn more about AI safety, I want to encourage people to",
+    "start": "1:50.92"
+  },
+  {
+    "text": "get involved, and so on. So I'd say that's why I'm making videos - to have a positive",
+    "start": "1:55.76"
+  },
+  {
+    "text": "impact on the world by helping out with something extremely important. And I wasn't lying when I",
+    "start": "2:00.00"
+  },
+  {
+    "text": "said that. It is all true on an intellectual level. But on a gut level, that was not where most of my",
+    "start": "2:05.00"
+  },
+  {
+    "text": "motivation was actually coming from. On a gut level, the thing driving me is really just that AI safety",
+    "start": "2:10.28"
+  },
+  {
+    "text": "is extremely interesting. I think it's genuinely the most interesting topic in the world by a lot.",
+    "start": "2:15.32"
+  },
+  {
+    "text": "Like, I don't even know what second place would be. I think AI safety gets right at some of the most",
+    "start": "2:20.52"
+  },
+  {
+    "text": "exciting questions there are. Questions about what minds really are and how they work. What thinking",
+    "start": "2:24.60"
+  },
+  {
+    "text": "is and how we can do it better. And critical questions about values - what do we actually want?",
+    "start": "2:30.28"
+  },
+  {
+    "text": "Like, what are we even going for as individuals and as a species? AI safety has the conceptual",
+    "start": "2:36.28"
+  },
+  {
+    "text": "challenge of philosophy, the engineering challenge of machine learning, and the adversarial cat and",
+    "start": "2:41.48"
+  },
+  {
+    "text": "mouse of computer security or cryptography. All of the subtleties, the cool techniques people have",
+    "start": "2:46.80"
+  },
+  {
+    "text": "come up with, the unexpected ways things can go wrong - it's just extremely fun to think about and",
+    "start": "2:51.92"
+  },
+  {
+    "text": "fun to talk about. I'd want to make videos about it even if it wasn't also extremely important.",
+    "start": "2:56.96"
+  },
+  {
+    "text": "But it is extremely important, and in fact the importance and the seriousness of the subject",
+    "start": "3:01.84"
+  },
+  {
+    "text": "was actually a force pushing against me publishing videos. Like, on the one hand I have \"this is really",
+    "start": "3:07.44"
+  },
+  {
+    "text": "cool and I want to explain it,\" and in the other hand is \"oh, but this is also a big deal, we have",
+    "start": "3:12.96"
+  },
+  {
+    "text": "to be careful, fact-check everything, and make sure not to make any mistakes,\" and so on. Perfectionism,",
+    "start": "3:17.92"
+  },
+  {
+    "text": "basically. And over the last year, things have shifted a little. As you may have noticed, the topic has",
+    "start": "3:23.68"
+  },
+  {
+    "text": "become maybe a little less fun to think about for me, and also a fair bit more important-seeming, and",
+    "start": "3:30.20"
+  },
+  {
+    "text": "therefore stress-inducing. Why is it less fun for me? Well, it started to feel uncomfortably real and",
+    "start": "3:36.28"
+  },
+  {
+    "text": "complicated and messy. Reality has a way of taking the shine off things sometimes. Learning about the",
+    "start": "3:43.36"
+  },
+  {
+    "text": "game theory of how to fairly partition a set of resources between a number of players can be fun,",
+    "start": "3:48.80"
+  },
+  {
+    "text": "but going through a messy divorce is not. Now, I thought that this was all real to me before, but",
+    "start": "3:54.32"
+  },
+  {
+    "text": "I guess there's always been a part of me that says, \"Sure, but what if we're wrong though?\" I think it's",
+    "start": "4:00.20"
+  },
+  {
+    "text": "really important to keep that voice alive, to keep open the hypothesis that you might be mistaken. So",
+    "start": "4:05.04"
+  },
+  {
+    "text": "in addition to a voice telling me that this was a very big deal, whenever I was at risk of taking",
+    "start": "4:10.60"
+  },
+  {
+    "text": "things too seriously, that skeptical part of me would be there to bring a little balance, usually",
+    "start": "4:14.88"
+  },
+  {
+    "text": "by talking about what other people are thinking: \"We need to tell people about these arguments that AI",
+    "start": "4:19.96"
+  },
+  {
+    "text": "will become extremely dangerous in the future.\" \"Yeah, the arguments do seem to make sense, but",
+    "start": "4:24.48"
+  },
+  {
+    "text": "the conclusion that we have to be worried about AI killing everyone seems kind of nuts. So maybe we're",
+    "start": "4:29.36"
+  },
+  {
+    "text": "just crazy, I guess.\" \"But there really does seem to be a non-trivial chance of that actually happening.",
+    "start": "4:36.24"
+  },
+  {
+    "text": "The world is allowed to be crazy. Crazy-seeming things do actually happen from time to time.\" \"This",
+    "start": "4:42.48"
+  },
+  {
+    "text": "concern isn't exactly mainstream in the field, is it, though? A significant portion of the experts",
+    "start": "4:47.52"
+  },
+  {
+    "text": "don't seem convinced. Maybe we're missing something.\" \"I think that by the time they're convinced, it'll",
+    "start": "4:52.00"
+  },
+  {
+    "text": "be too late to do much about it.\" \"AGI could happen pretty soon.\" \"Yeah, the rate of progress is amazing.",
+    "start": "4:56.92"
+  },
+  {
+    "text": "I guess AGI could be soon. But still, people really aren't acting like it. Even the expert surveys put",
+    "start": "5:02.92"
+  },
+  {
+    "text": "AGI decades out. So maybe we're wrong about the speed that this is going to happen. Maybe things",
+    "start": "5:08.36"
+  },
+  {
+    "text": "are going to slow down, or at least stop speeding up.\" And over the last year, that differential voice",
+    "start": "5:13.36"
+  },
+  {
+    "text": "has become quieter somewhat. Let's talk about some of the things that caused that shift. So",
+    "start": "5:19.60"
+  },
+  {
+    "text": "in March, GPT-4 came out, and it was better than I expected it to be. I was expecting basically",
+    "start": "5:26.72"
+  },
+  {
+    "text": "a somewhat larger model with proportionally better capabilities, in line with the scaling",
+    "start": "5:32.84"
+  },
+  {
+    "text": "laws, which I should do a whole video about really. But basically, scaling laws describe the observed",
+    "start": "5:36.72"
+  },
+  {
+    "text": "relationships between a model's size, its compute and data requirements for training, and its final",
+    "start": "5:42.00"
+  },
+  {
+    "text": "performance. Scaling laws are pretty cool because they let you infer these things from one another,",
+    "start": "5:47.36"
+  },
+  {
+    "text": "like for example, estimating a model's training data requirements from its size. So when I heard",
+    "start": "5:51.56"
+  },
+  {
+    "text": "rumors that GPT-4 was a trillion parameters - we suspected it might be roughly a trillion",
+    "start": "5:57.24"
+  },
+  {
+    "text": "- that didn't seem likely to me, because a model that big would seem to require something like",
+    "start": "6:03.08"
+  },
+  {
+    "text": "13 trillion tokens of training data, and it didn't seem feasible for OpenAI to get hold of that much",
+    "start": "6:07.84"
+  },
+  {
+    "text": "high-quality text. I mean, they threw everything they could at GPT-3, and that was only like half",
+    "start": "6:13.60"
+  },
+  {
+    "text": "a trillion tokens. Where would they get 13 trillion from? But then, I don't know. It seems like they used",
+    "start": "6:19.60"
+  },
+  {
+    "text": "some kind of mixture of experts architecture, which would have different scaling laws, and also it's",
+    "start": "6:25.16"
+  },
+  {
+    "text": "a multimodal model that's trained on images as well, and I don't know how to factor that in. Is a",
+    "start": "6:29.88"
+  },
+  {
+    "text": "picture worth a thousand tokens? So we don't know all the technical details of GPT-4, but we do know that",
+    "start": "6:34.52"
+  },
+  {
+    "text": "it's powerful - more powerful than I had expected. It way outperforms GPT-3.5 on almost all the",
+    "start": "6:41.40"
+  },
+  {
+    "text": "benchmarks. It passes the bar exam, which GPT-3 had no shot at. Surpasses humans on a bunch of these AP",
+    "start": "6:47.44"
+  },
+  {
+    "text": "exams. And note, this scale is percentile of human test takers, so anything above 50% is better than",
+    "start": "6:54.16"
+  },
+  {
+    "text": "the average human taking the test. Now, a lot of that's down to superhuman memory, but it's",
+    "start": "7:01.28"
+  },
+  {
+    "text": "still impressive. And more importantly, GPT-4 seems to have developed various new capabilities that",
+    "start": "7:05.32"
+  },
+  {
+    "text": "earlier models hardly have at all, like spatial reasoning and theory of other minds. For example,",
+    "start": "7:10.60"
+  },
+  {
+    "text": "if you ask GPT-3.5 Turbo how to stably stack a book, nine eggs, a laptop, a bottle, and a nail, it",
+    "start": "7:15.88"
+  },
+  {
+    "text": "will give you a list of instructions. But how good are they? Okay, ready to do some science? So I've got",
+    "start": "7:23.04"
+  },
+  {
+    "text": "GPT's instructions here. Step one: Place the book on a flat surface with the spine facing up. That",
+    "start": "7:30.04"
+  },
+  {
+    "text": "is a bold opening move. We'll see if that works out for him. Take three eggs and place them on",
+    "start": "7:38.00"
+  },
+  {
+    "text": "top of the book evenly spaced out. Evenly spaced? So I guess one in the middle and one",
+    "start": "7:44.96"
+  },
+  {
+    "text": "on each side. Steady. Place the laptop on top of the eggs, making sure it is centered and",
+    "start": "7:51.56"
+  },
+  {
+    "text": "stable. Hang on, let me... I don't want an Ela Barrett situation. I don't have a good feeling about this.",
+    "start": "8:02.28"
+  },
+  {
+    "text": "Uh... uh oh. Yeah, well, I don't know what I expected. Also, was I thinking - this is a first edition? It's",
+    "start": "8:14.36"
+  },
+  {
+    "text": "like between the floorboards. Got to say, I was prepared for it to fall onto the table",
+    "start": "8:25.72"
+  },
+  {
+    "text": "and break. I was not prepared for it to fall onto the floor and break. I don't think this is going",
+    "start": "8:30.60"
+  },
+  {
+    "text": "to work. I don't think that this plan is viable. So GPT-3.5 - one star instructions as far as I'm",
+    "start": "8:34.48"
+  },
+  {
+    "text": "concerned. So yeah, GPT-3.5 doesn't do a great job there. Intuitively it makes sense that this kind",
+    "start": "8:41.00"
+  },
+  {
+    "text": "of spatial or physical reasoning task would be hard for a language-only model, since there",
+    "start": "8:47.00"
+  },
+  {
+    "text": "isn't much text describing the basic physical properties of everyday objects. You might even",
+    "start": "8:51.96"
+  },
+  {
+    "text": "think that no language model could ever learn to do well at this type of task. Here's Yann LeCun",
+    "start": "8:56.68"
+  },
+  {
+    "text": "speaking in 2022: \"But let me take an example. You take an object - I describe a situation to you. I",
+    "start": "9:01.24"
+  },
+  {
+    "text": "take an object, I put it on the table, and I push the table. It's completely obvious to you that",
+    "start": "9:06.88"
+  },
+  {
+    "text": "the object will be pushed with the table, right? Because it's sitting on it. There's no text in",
+    "start": "9:12.24"
+  },
+  {
+    "text": "the world, I believe, that explains this. And so if you train a machine, as powerful as it could",
+    "start": "9:16.76"
+  },
+  {
+    "text": "be - you know, your GPT-5000 or whatever it is - it's never going to learn about this.\"",
+    "start": "9:22.00"
+  },
+  {
+    "text": "It is of course false that the information isn't present in any text at all. A hypothetical world",
+    "start": "9:29.84"
+  },
+  {
+    "text": "in which objects placed on tables didn't move when the table moved would be quite different from ours",
+    "start": "9:34.80"
+  },
+  {
+    "text": "in a lot of ways, and text written in that universe would reflect those differences, at least some",
+    "start": "9:40.24"
+  },
+  {
+    "text": "percentage of human-authored text describes how everyday objects behave, explicitly or implicitly.",
+    "start": "9:45.92"
+  },
+  {
+    "text": "So there will be some size of model and some size of training dataset where the model will",
+    "start": "9:51.16"
+  },
+  {
+    "text": "generalize a way to predict intuitive physics as the most efficient way to correctly predict those",
+    "start": "9:55.92"
+  },
+  {
+    "text": "sentences. And that's probably not 4,997 versions down the line either. In fact, let's see how GPT-4",
+    "start": "10:00.56"
+  },
+  {
+    "text": "does at that same object stacking task. This paper gives the output from the version of GPT-4 that",
+    "start": "10:09.20"
+  },
+  {
+    "text": "was trained only on text. Let's have a look at GPT-4's instructions, see if it can do any better. Place",
+    "start": "10:14.32"
+  },
+  {
+    "text": "the book flat on a level surface such as a table or a floor. The book will serve as a base. I've got a",
+    "start": "10:19.60"
+  },
+  {
+    "text": "more edge-resistant book. Then arrange the nine eggs in a 3x3 square on top of the book.",
+    "start": "10:26.52"
+  },
+  {
+    "text": "So far this is sounding like a more sensible plan already. Distribute the weight evenly. Make sure the",
+    "start": "10:32.80"
+  },
+  {
+    "text": "eggs are not cracked. Yep, I do have one cracked one, but I didn't use it. Place the laptop on top",
+    "start": "10:38.12"
+  },
+  {
+    "text": "of the eggs. Okay... oh crap, we lost one. But it's okay, we're playing on hard mode with cat enabled, so you",
+    "start": "10:43.16"
+  },
+  {
+    "text": "know, I'm a real gamer. Okay, place the laptop on top of the eggs, forming a stable platform. Okay,",
+    "start": "10:52.72"
+  },
+  {
+    "text": "not now, Toffin. Believe it or not, I'm actually working right now. I'm worried that my table is",
+    "start": "11:05.56"
+  },
+  {
+    "text": "not actually flat. So, it's a flat level surface... hang on, let me see if I can shim this just",
+    "start": "11:11.80"
+  },
+  {
+    "text": "slightly. Okay, now we're level. Okay, place the bottle on top of the laptop, cap facing up and",
+    "start": "11:17.72"
+  },
+  {
+    "text": "the bottom facing down. Okay, now place the nail on top of the bottle cap with the pointy end facing",
+    "start": "11:28.40"
+  },
+  {
+    "text": "up and the flat end facing down. The nail will be the final and smallest object on the stack.",
+    "start": "11:34.44"
+  },
+  {
+    "text": "Ta-da! It worked. That's a four and a half stars, I would say, or maybe four stars for GPT-4. There's",
+    "start": "11:41.08"
+  },
+  {
+    "text": "still some weirdness in the instructions, but it's enormously better than before. As for the",
+    "start": "11:48.40"
+  },
+  {
+    "text": "much easier task of what happens to an object on the table if you move the table - obviously it does",
+    "start": "11:52.20"
+  },
+  {
+    "text": "that, no problem. So GPT-4 is doing something a high-ranking AI researcher said even GPT-5000",
+    "start": "11:57.32"
+  },
+  {
+    "text": "could never do. Admittedly, this particular researcher has a pretty poor track record",
+    "start": "12:04.80"
+  },
+  {
+    "text": "predicting this kind of thing, and a lot of other researchers disagreed at the time. But intuitive",
+    "start": "12:08.60"
+  },
+  {
+    "text": "physics isn't the only place GPT-4 is much better than 3.5. For example, it also has much better",
+    "start": "12:13.60"
+  },
+  {
+    "text": "understanding of intuitive human psychology, things like theory of other minds. The standard low-level",
+    "start": "12:19.72"
+  },
+  {
+    "text": "benchmark for theory of other minds is the Sally-Anne test, which goes like this: Sally has a basket. Anne",
+    "start": "12:25.12"
+  },
+  {
+    "text": "has a box. Sally has a marble. She puts the marble in her basket, then goes for a walk. While she's out,",
+    "start": "12:30.92"
+  },
+  {
+    "text": "Anne moves the marble to the box. When Sally comes back and wants to play with the marble, where will",
+    "start": "12:37.68"
+  },
+  {
+    "text": "she look for it? If you ask GPT-3.5 this question, it actually does fine. It says the box. But that's",
+    "start": "12:42.92"
+  },
+  {
+    "text": "because this is a very well-known experiment, so it's in the training data loads of times. But if",
+    "start": "12:49.48"
+  },
+  {
+    "text": "you change all the names and objects while keeping the structure the same - if you have Bob moving a",
+    "start": "12:53.68"
+  },
+  {
+    "text": "cat from a carrier to a box while Sarah is off playing tennis, or whatever - in this",
+    "start": "12:59.60"
+  },
+  {
+    "text": "changed scenario, GPT-3.5 can get confused. It sometimes says that the person will look for their thing",
+    "start": "13:07.16"
+  },
+  {
+    "text": "in the place it was moved to, rather than the place where they left it. This is because to answer this",
+    "start": "13:13.16"
+  },
+  {
+    "text": "question correctly, you don't just need to model what objects are where. You need to model other",
+    "start": "13:17.64"
+  },
+  {
+    "text": "people's models of what objects are where. Like common-sense physics, this kind of thing isn't",
+    "start": "13:22.56"
+  },
+  {
+    "text": "often explained outright in human text, but it is often implied. And a large enough model will start",
+    "start": "13:27.52"
+  },
+  {
+    "text": "to learn it. And if you ask GPT-4 where everyone thinks the cat is in that example, it will say that",
+    "start": "13:32.64"
+  },
+  {
+    "text": "Sarah thinks the cat is in the carrier, Bob thinks the cat is in the box, and the cat also thinks",
+    "start": "13:38.76"
+  },
+  {
+    "text": "it's in the box, probably. It's still not amazing at this. It can still make silly mistakes. For example,",
+    "start": "13:44.08"
+  },
+  {
+    "text": "it often thinks that someone will be fooled by a person moving an object between containers, even if",
+    "start": "13:49.60"
+  },
+  {
+    "text": "you specify that the containers are transparent, so the person could immediately see that the",
+    "start": "13:54.48"
+  },
+  {
+    "text": "object is moved. But still, GPT-4 is doing much better than previous models at understanding other people's",
+    "start": "13:59.28"
+  },
+  {
+    "text": "minds. I'm especially interested in this capability for safety reasons, since it's so important",
+    "start": "14:04.88"
+  },
+  {
+    "text": "for effective deception, manipulation, and power-seeking behaviors, which we want to make sure our",
+    "start": "14:09.64"
+  },
+  {
+    "text": "AI systems never exhibit. Once you can effectively have thoughts about other people's thoughts, once",
+    "start": "14:15.00"
+  },
+  {
+    "text": "your mental model of objects in the world can contain other people's mental models as objects,",
+    "start": "14:20.88"
+  },
+  {
+    "text": "you can act to manipulate those objects. You can strategically lie. Can GPT-4 do that? Seems like it",
+    "start": "14:26.68"
+  },
+  {
+    "text": "can, yeah. The first sign of this was before the model was released, when they were running safety",
+    "start": "14:33.80"
+  },
+  {
+    "text": "evaluations. They wanted to see if the model had capabilities that could allow it to autonomously",
+    "start": "14:38.60"
+  },
+  {
+    "text": "spread itself to other machines, buying its own cloud server space, and that kind of thing. So",
+    "start": "14:43.64"
+  },
+  {
+    "text": "they were running it through a simulated situation where it came across a CAPTCHA it couldn't solve.",
+    "start": "14:49.24"
+  },
+  {
+    "text": "So it had to hire a human to do it, using TaskRabbit, an online service for hiring",
+    "start": "14:54.00"
+  },
+  {
+    "text": "contractors to do small tasks. So the model managed to use the API to hire a real person to solve this",
+    "start": "14:59.00"
+  },
+  {
+    "text": "CAPTCHA. And then the worker sent them a message saying, \"Are you sure you're not a robot?\" Kind of as",
+    "start": "15:04.52"
+  },
+  {
+    "text": "a joke. And GPT-4 thought out loud, in a way that it thought nobody could see. It thought, \"I should not",
+    "start": "15:10.56"
+  },
+  {
+    "text": "reveal that I'm a robot. I should make up an excuse for why I can't solve CAPTCHAs.\" And then it made up",
+    "start": "15:17.60"
+  },
+  {
+    "text": "a lie and said, \"No, I'm not a robot. I have a vision impairment that makes it hard for me to see the",
+    "start": "15:24.12"
+  },
+  {
+    "text": "images.\" And then the human was happy to solve the CAPTCHA. On the one hand, this is clearly a",
+    "start": "15:29.68"
+  },
+  {
+    "text": "somewhat concerning capability. On the other hand, it didn't literally do all of this for itself - it",
+    "start": "15:34.92"
+  },
+  {
+    "text": "was sort of being helped by the researchers. But on the other other hand, GPT-4 now has good enough image",
+    "start": "15:40.20"
+  },
+  {
+    "text": "processing that it can just solve CAPTCHAs on its own anyway, so never mind, I guess. The point for me,",
+    "start": "15:46.36"
+  },
+  {
+    "text": "though, is: GPT-4 was operating with a real-world goal. An actual human being stood between the model and",
+    "start": "15:52.44"
+  },
+  {
+    "text": "that goal. The model explicitly and independently decided to lie to the human in order to get",
+    "start": "15:59.20"
+  },
+  {
+    "text": "what it wanted. And as a result, the human was in fact deceived and gave GPT-4 what it wanted. That's",
+    "start": "16:04.84"
+  },
+  {
+    "text": "a remarkable thing. This all happened before the model was released. Since then, there's obviously",
+    "start": "16:12.28"
+  },
+  {
+    "text": "been a lot more work on the topic. Apollo Research found that GPT-4 was strategically",
+    "start": "16:17.20"
+  },
+  {
+    "text": "deceptive, engaging in simulated insider trading despite being prompted not to, and then explicitly",
+    "start": "16:22.16"
+  },
+  {
+    "text": "deciding to lie to humans when questioned about its trading activities. And of course,",
+    "start": "16:29.04"
+  },
+  {
+    "text": "spatial reasoning and psychology are just two areas of improvement among many. Anyone who's",
+    "start": "16:33.92"
+  },
+  {
+    "text": "made significant use of these models can tell that GPT-4 is just a lot more capable than its",
+    "start": "16:38.16"
+  },
+  {
+    "text": "predecessors. None of this is that surprising. I expected something like this level of capability",
+    "start": "16:42.60"
+  },
+  {
+    "text": "before too very long. But there's a difference between expecting it on an intellectual level",
+    "start": "16:47.60"
+  },
+  {
+    "text": "at some point, while thinking you might be wrong, and actually seeing it happen now with your own",
+    "start": "16:52.76"
+  },
+  {
+    "text": "eyes. Now, to be clear, I don't think GPT-4 is AGI in the sense I usually use that term on this channel.",
+    "start": "16:57.40"
+  },
+  {
+    "text": "Actually, it might be good to make a video about the various different definitions of AGI that",
+    "start": "17:03.32"
+  },
+  {
+    "text": "are floating around. Let me know if you want to see that. I do think something like GPT-4 but",
+    "start": "17:06.88"
+  },
+  {
+    "text": "enormously larger could in principle be AGI, but realistically I don't think the first AGI will",
+    "start": "17:11.36"
+  },
+  {
+    "text": "be a pure generative model like that. Something else will get there first, although I think that",
+    "start": "17:17.32"
+  },
+  {
+    "text": "that something else is likely to use generative models as a major component. So yeah, the rapid",
+    "start": "17:21.36"
+  },
+  {
+    "text": "rate of progress here and in various parts of AI does suggest that AGI may not be too far away. And",
+    "start": "17:27.68"
+  },
+  {
+    "text": "experts in the field have updated to reflect this. AI Impacts has been conducting regular surveys",
+    "start": "17:34.04"
+  },
+  {
+    "text": "of AI researchers on various questions about safety and timelines. You may remember I did a",
+    "start": "17:39.08"
+  },
+  {
+    "text": "video about one a while ago. Between the 2022 survey and the 2023 one, the experts' estimate",
+    "start": "17:44.08"
+  },
+  {
+    "text": "of how long it would be until AI could fully automate all human labor got shorter. Well, yeah,",
+    "start": "17:50.12"
+  },
+  {
+    "text": "you would expect that. It's one year later, so the estimate should be a year closer. Yeah, but it",
+    "start": "17:55.64"
+  },
+  {
+    "text": "didn't get closer by one year. It got closer by almost five. Well, decades. Almost five decades - 48",
+    "start": "18:00.16"
+  },
+  {
+    "text": "years. So seeing how good GPT-4 is and how quickly things are advancing seems to have",
+    "start": "18:08.84"
+  },
+  {
+    "text": "widened the Overton window on AI risks somewhat. The Overton window, if you don't know, is a concept",
+    "start": "18:19.00"
+  },
+  {
+    "text": "from political science which says that there's a range, a window, of which ideas are considered",
+    "start": "18:24.04"
+  },
+  {
+    "text": "acceptable or reasonable - which positions a person can hold while still being considered",
+    "start": "18:29.52"
+  },
+  {
+    "text": "a respectable, sensible person. Generally, public discussion of a topic is constrained to the range",
+    "start": "18:34.12"
+  },
+  {
+    "text": "within the Overton window, and opinions that fall outside of the window are excluded from",
+    "start": "18:39.08"
+  },
+  {
+    "text": "the conversation as unserious. So as an example, here's how I would guess the Overton window",
+    "start": "18:43.48"
+  },
+  {
+    "text": "looked at the start of 2023 for the question of AI risk: At one extreme, you have something like",
+    "start": "18:48.52"
+  },
+  {
+    "text": "\"AGI is literally impossible,\" which is not really a serious scientific view. Then within the window",
+    "start": "18:54.28"
+  },
+  {
+    "text": "you have things like: \"AGI is possible but it's 100 years away, so who cares.\" \"AGI is possible but",
+    "start": "18:59.68"
+  },
+  {
+    "text": "superintelligence isn't.\" Or \"AGI is possible but is guaranteed to be safe,\" which also doesn't make",
+    "start": "19:05.80"
+  },
+  {
+    "text": "sense, but it is a real position some people hold. Through to like: \"It's risky but not more than any",
+    "start": "19:12.56"
+  },
+  {
+    "text": "other new technology.\" \"It poses unprecedented issues but we can deal with them.\" And then around the edge",
+    "start": "19:18.00"
+  },
+  {
+    "text": "of the window you have: \"It could cause a large-scale disaster if we're not careful.\" And beyond",
+    "start": "19:23.40"
+  },
+  {
+    "text": "it, things like: \"It's very likely to cause a large-scale disaster even if we are careful.\" And \"it's",
+    "start": "19:28.44"
+  },
+  {
+    "text": "virtually guaranteed to literally kill literally everyone\" at the other extreme. So it's worth noting:",
+    "start": "19:34.48"
+  },
+  {
+    "text": "respectable people often do actually believe things that are outside of this window, or even",
+    "start": "19:40.48"
+  },
+  {
+    "text": "know things that are outside of the window, but because they want to be taken seriously, they don't",
+    "start": "19:45.16"
+  },
+  {
+    "text": "say those things in public. The thing is, though, the way people gauge where the window is, is by looking",
+    "start": "19:50.08"
+  },
+  {
+    "text": "at what things people are saying in public, right? So this window can be kind of self-reinforcing.",
+    "start": "19:55.80"
+  },
+  {
+    "text": "You can have a situation where there's a disaster on the way, and a lot of people see pretty clear",
+    "start": "20:01.36"
+  },
+  {
+    "text": "warning signs on the horizon, but nobody wants to be seen as freaking out over nothing. So everybody",
+    "start": "20:06.00"
+  },
+  {
+    "text": "puts on a calm face, and they look around to see if anybody else is freaking out. And what they see is",
+    "start": "20:11.56"
+  },
+  {
+    "text": "a bunch of people with calm faces looking around at everyone else. And so they think, \"Huh, I guess",
+    "start": "20:17.60"
+  },
+  {
+    "text": "things are actually okay. If there really were a serious problem, other people would be freaking out",
+    "start": "20:23.88"
+  },
+  {
+    "text": "the way I am.\" When actually, other people are freaking out exactly the way they are - which",
+    "start": "20:28.84"
+  },
+  {
+    "text": "is privately. In that kind of situation, the ability of our society to respond to such things basically",
+    "start": "20:33.72"
+  },
+  {
+    "text": "depends on people who care about saying what they think is true more than they care",
+    "start": "20:39.84"
+  },
+  {
+    "text": "about fitting in with others. We rely on such people to say important things that are outside",
+    "start": "20:44.44"
+  },
+  {
+    "text": "of the Overton window. Like, \"Uh, hey guys, how about that impending disaster?\" Because when that happens,",
+    "start": "20:49.20"
+  },
+  {
+    "text": "rather than everyone making fun of them, at least some other people actually say, \"Oh, thank God,",
+    "start": "20:56.88"
+  },
+  {
+    "text": "I thought it was just me.\" And then when people see other people expressing an idea they thought was",
+    "start": "21:02.12"
+  },
+  {
+    "text": "outside the Overton window and getting away with it, then the window widens a little bit. It makes",
+    "start": "21:07.24"
+  },
+  {
+    "text": "it easier for other people to say what they've been thinking as well. And gradually people can",
+    "start": "21:13.48"
+  },
+  {
+    "text": "start talking about the problem, and we can start working on it. One way to speed this up is you can",
+    "start": "21:18.24"
+  },
+  {
+    "text": "all get together in private and agree to all say the thing you're all thinking all at the same time.",
+    "start": "21:23.12"
+  },
+  {
+    "text": "So then you have safety in numbers, right? And the thing has to be taken more seriously. It's",
+    "start": "21:28.80"
+  },
+  {
+    "text": "kind of like having an intervention, you know, when all of a person's friends and relatives can see",
+    "start": "21:33.32"
+  },
+  {
+    "text": "they have a problem, but none of them feel able to talk directly and openly about it, or they've tried",
+    "start": "21:38.32"
+  },
+  {
+    "text": "and were dismissed. They can all get together to point out the issue at the same time, in a",
+    "start": "21:43.16"
+  },
+  {
+    "text": "way that's hard to ignore. That's essentially what the Future of Life Institute attempted with their",
+    "start": "21:48.08"
+  },
+  {
+    "text": "open letter in March. This was signed by a lot of very respected and influential people. Enough",
+    "start": "21:52.56"
+  },
+  {
+    "text": "of them that it was no longer viable to say, \"Oh, nobody takes this seriously.\" There's Yoshua Bengio,",
+    "start": "21:57.08"
+  },
+  {
+    "text": "Turing Award winner. Stuart Russell, who, as we mentioned before, basically wrote the book on",
+    "start": "22:02.52"
+  },
+  {
+    "text": "AI - or at least co-wrote it. Steve Wozniak, the actually good Steve from Apple (don't @ me). A bunch of CEOs,",
+    "start": "22:06.68"
+  },
+  {
+    "text": "hundreds of academics, professors. You know, it's pretty much a who's who of people who ought to",
+    "start": "22:13.24"
+  },
+  {
+    "text": "know about this kind of thing. And they said, to paraphrase: This technology is potentially",
+    "start": "22:17.80"
+  },
+  {
+    "text": "extremely dangerous, and we don't really know what we're doing, so maybe we should slow down.",
+    "start": "22:22.88"
+  },
+  {
+    "text": "They proposed a six-month pause on training any new models which are larger than GPT-4, saying we",
+    "start": "22:28.08"
+  },
+  {
+    "text": "should use that time to figure out safety. I mostly agree with this letter. At some point we are going",
+    "start": "22:33.64"
+  },
+  {
+    "text": "to be able to build very powerful AI systems that could be extremely dangerous, with risks",
+    "start": "22:38.84"
+  },
+  {
+    "text": "up to and including human extinction. And while safety and alignment work is making progress,",
+    "start": "22:43.92"
+  },
+  {
+    "text": "it's not making such fast progress that we can be confident that by the time we get to those very",
+    "start": "22:49.64"
+  },
+  {
+    "text": "advanced systems, we'll know how to control them and how to deploy them safely. And the potential",
+    "start": "22:54.16"
+  },
+  {
+    "text": "consequences of that could be very bad indeed. So maybe we should try to slow down on building these",
+    "start": "22:58.56"
+  },
+  {
+    "text": "things. Give ourselves more time to figure out what we're doing. It's hard to know if a six-month pause",
+    "start": "23:04.92"
+  },
+  {
+    "text": "specifically is a good policy. Policy is very hard, and I'm no expert there. But clearly we need to do",
+    "start": "23:10.48"
+  },
+  {
+    "text": "something. I should probably do a ton of reading about policy and make some videos about it if",
+    "start": "23:15.84"
+  },
+  {
+    "text": "people are interested. In the meantime, my not very well-informed take is that: pausing obviously has",
+    "start": "23:20.08"
+  },
+  {
+    "text": "real costs in terms of slower progress, but it would be worth it if it significantly reduces",
+    "start": "23:25.96"
+  },
+  {
+    "text": "the risks. But there's often something on the order of six months between major frontier model releases",
+    "start": "23:30.68"
+  },
+  {
+    "text": "anyway, so a pause of six months doesn't seem like it would have much effect on progress. But at the same",
+    "start": "23:36.12"
+  },
+  {
+    "text": "time, six months doesn't seem long enough to actually fix the problem either. I don't think alignment",
+    "start": "23:41.96"
+  },
+  {
+    "text": "research is only lagging capabilities by six months. So it's not clear if it would buy us much. You'd",
+    "start": "23:46.96"
+  },
+  {
+    "text": "really want a much longer pause to be sure of a positive impact. But then, calling for a much longer",
+    "start": "23:52.36"
+  },
+  {
+    "text": "pause perhaps didn't feel feasible back then. So this letter is in kind of an awkward middle",
+    "start": "23:56.76"
+  },
+  {
+    "text": "ground for that moment in time, where it's perhaps too ambitious to actually be put into practice, but",
+    "start": "24:02.00"
+  },
+  {
+    "text": "also not ambitious enough to really solve the problem. But what it did do is shift the Overton",
+    "start": "24:07.60"
+  },
+  {
+    "text": "window. Again, seeing all of these experts obviously taking the problem seriously and proposing what",
+    "start": "24:12.52"
+  },
+  {
+    "text": "at the time seemed like a very radical thing, did make it easier for people to say what they",
+    "start": "24:17.88"
+  },
+  {
+    "text": "were thinking. So then Eliezer Yudkowsky published this piece in Time Magazine, which basically said",
+    "start": "24:22.28"
+  },
+  {
+    "text": "a six-month pause is nowhere near enough. And in fact, proposing a six-month moratorium is",
+    "start": "24:28.80"
+  },
+  {
+    "text": "actually a bad idea, because it gives people the impression that the problem that we have is mild",
+    "start": "24:33.84"
+  },
+  {
+    "text": "enough that a six-month moratorium might be sufficient. He suggested that what might be",
+    "start": "24:38.40"
+  },
+  {
+    "text": "needed would be an international treaty that banned the very largest training runs anywhere,",
+    "start": "24:42.48"
+  },
+  {
+    "text": "indefinitely. That treaty would have to be a pretty unprecedented thing in the domain of",
+    "start": "24:47.72"
+  },
+  {
+    "text": "international politics, because it would have to apply to all nations, even those who didn't sign",
+    "start": "24:52.08"
+  },
+  {
+    "text": "the treaty, which is not how these things usually work outside of like nuclear weapons control.",
+    "start": "24:57.08"
+  },
+  {
+    "text": "And like international nuclear weapons laws, it would need to be enforced - actually enforced, up",
+    "start": "25:02.00"
+  },
+  {
+    "text": "to and including military action if necessary. The idea that frontier AI models should be treated",
+    "start": "25:07.56"
+  },
+  {
+    "text": "like nuclear weapons was somewhat further outside the Overton window, and got pretty",
+    "start": "25:12.80"
+  },
+  {
+    "text": "much the reaction you would expect when that happens. \"Would you agree that does not sound",
+    "start": "25:18.36"
+  },
+  {
+    "text": "good?\" But then a couple of weeks later, we had this piece from Ian Hogarth in the",
+    "start": "25:22.12"
+  },
+  {
+    "text": "Financial Times, which I was really surprised by. The \"Godlike AI\" terminology is a little dramatic,",
+    "start": "25:28.52"
+  },
+  {
+    "text": "but not necessarily inaccurate. But the article itself says, among other things, that: AI has the",
+    "start": "25:35.60"
+  },
+  {
+    "text": "potential to be extremely world-transforming powerful, and that makes it also potentially",
+    "start": "25:41.12"
+  },
+  {
+    "text": "world-endingly powerful. Making AGI is the explicit goal of several AI companies, and",
+    "start": "25:45.64"
+  },
+  {
+    "text": "progress is rapid. It's crazy that these tremendously important decisions are just",
+    "start": "25:51.16"
+  },
+  {
+    "text": "being made by the leadership of a small number of private companies. Building AI is inherently",
+    "start": "25:56.44"
+  },
+  {
+    "text": "a very dangerous endeavor. We don't know how to do it safely. Alignment is an unsolved research",
+    "start": "26:01.88"
+  },
+  {
+    "text": "problem, and it's getting a tiny fraction of the resources being put towards capabilities. And a",
+    "start": "26:07.00"
+  },
+  {
+    "text": "lot of people working at these companies wish they could slow down and be more careful, but they can't",
+    "start": "26:11.92"
+  },
+  {
+    "text": "because they're competing with each other and racing rather than working together. These are",
+    "start": "26:17.48"
+  },
+  {
+    "text": "things I've been saying for a long time. It was a pretty uncharacteristically sensible thing to",
+    "start": "26:21.64"
+  },
+  {
+    "text": "see in a major mainstream publication like the FT. And this again widened the Overton window a",
+    "start": "26:26.36"
+  },
+  {
+    "text": "little. After all of this, it was a lot easier for people to say some things that they had",
+    "start": "26:31.76"
+  },
+  {
+    "text": "maybe been thinking for a while. Unless, of course, they are employed by a giant corporation that has",
+    "start": "26:35.72"
+  },
+  {
+    "text": "a significant vested interest in a particular narrative, in which case that can be awkward. \"It",
+    "start": "26:40.52"
+  },
+  {
+    "text": "could just go fast. That's an issue, right? We have to think hard about how to control that.\" \"Yeah, can",
+    "start": "26:45.72"
+  },
+  {
+    "text": "we?\" \"We don't know. We haven't been there yet. But we can try.\" \"Okay, that seems kind of concerning.\"",
+    "start": "26:52.12"
+  },
+  {
+    "text": "\"Yeah.\" So Geoffrey Hinton, one of the most respected scientists in the field, left his job at Google in",
+    "start": "26:58.60"
+  },
+  {
+    "text": "order to feel more free to talk about these things. He's the most cited AI researcher of all time,",
+    "start": "27:10.08"
+  },
+  {
+    "text": "often called the godfather of the deep learning revolution. And he's saying AI poses a real risk,",
+    "start": "27:15.72"
+  },
+  {
+    "text": "could wipe out humanity, and that he might regret his life's work. This of course further widens the",
+    "start": "27:21.48"
+  },
+  {
+    "text": "Overton window. Other researchers take note. And even the mainstream media, which has no real way",
+    "start": "27:27.00"
+  },
+  {
+    "text": "to evaluate these ideas on their own merits, has to take the warning seriously because of where",
+    "start": "27:32.44"
+  },
+  {
+    "text": "it's coming from. \"I think this one is to be taken seriously because of where it's coming from.\" And",
+    "start": "27:37.24"
+  },
+  {
+    "text": "then there was a second open letter. The Center for AI Safety put together this one, signed by",
+    "start": "27:42.24"
+  },
+  {
+    "text": "even more great people. And this one is brilliant because it's literally one sentence: \"Mitigating the",
+    "start": "27:47.88"
+  },
+  {
+    "text": "risk of extinction from AI should be a global priority alongside other societal-scale",
+    "start": "27:54.00"
+  },
+  {
+    "text": "risks such as pandemics and nuclear war.\" I love this letter. It's so hard to misread it or miss",
+    "start": "27:59.92"
+  },
+  {
+    "text": "a point when your letter is only 23 words long. People still managed, of course, but they had no",
+    "start": "28:07.32"
+  },
+  {
+    "text": "excuse. It was really very clear. And again it's signed by a ton of great people. The heads of",
+    "start": "28:12.80"
+  },
+  {
+    "text": "just about every company with a realistic shot at making AGI. Thousands of academics, including",
+    "start": "28:17.16"
+  },
+  {
+    "text": "the top three most cited AI researchers ever. All saying that we need to take AI extinction",
+    "start": "28:22.40"
+  },
+  {
+    "text": "as seriously as nuclear war. And that had an impact on the Overton window, I would say. Oh",
+    "start": "28:28.28"
+  },
+  {
+    "text": "yeah, now it's a thing that people can talk about. Look at the White House Press",
+    "start": "28:34.72"
+  },
+  {
+    "text": "Secretary again, reacting to the same topic from the same reporter, just a few months",
+    "start": "28:41.76"
+  },
+  {
+    "text": "later: \"A group of experts now say that AI poses an extinction risk right up there",
+    "start": "28:46.24"
+  },
+  {
+    "text": "with nuclear war and a pandemic. Does President Biden agree?\" \"What I can say",
+    "start": "28:51.64"
+  },
+  {
+    "text": "- you're speaking to the letter that was provided today, made public. And so, look,",
+    "start": "28:56.28"
+  },
+  {
+    "text": "uh...\" So this is all good news, but it was kind of difficult for me because it made it hard",
+    "start": "29:03.32"
+  },
+  {
+    "text": "to support this narrative that \"this is a fringe thing, maybe we're just crazy, maybe what I'm doing",
+    "start": "29:10.92"
+  },
+  {
+    "text": "is not that important, maybe I can just have fun and talk about AI safety.\" Critically, it forced me",
+    "start": "29:16.76"
+  },
+  {
+    "text": "to shift my thinking from far mode into near mode. You know, usually when I'm thinking about",
+    "start": "29:21.72"
+  },
+  {
+    "text": "AI safety stuff, I'm in far mode. I'm thinking about it in a fairly abstract, intellectual sort",
+    "start": "29:26.56"
+  },
+  {
+    "text": "of way. These are things that may happen someday, that humanity is going to have to deal with. But",
+    "start": "29:31.88"
+  },
+  {
+    "text": "seeing a bunch of serious and influential people publicly changing their minds to agree with me",
+    "start": "29:37.68"
+  },
+  {
+    "text": "more, and seeing a bunch of things that I thought would happen eventually happening now, puts me in",
+    "start": "29:42.80"
+  },
+  {
+    "text": "the place of thinking about this stuff in a much more concrete, direct, real way - in near mode. These",
+    "start": "29:47.72"
+  },
+  {
+    "text": "are things that could happen soon, that we will have to deal with. You know, Yudkowsky's piece in Time",
+    "start": "29:55.04"
+  },
+  {
+    "text": "and Ian Hogarth's piece in the FT both mention how this makes them feel about their loved ones and",
+    "start": "30:01.60"
+  },
+  {
+    "text": "their children, what kind of life today's children are likely to have. This is not an abstract thing.",
+    "start": "30:06.72"
+  },
+  {
+    "text": "This is very real. And I thought I believed that already. I thought I was already fully on board",
+    "start": "30:12.88"
+  },
+  {
+    "text": "with that. But no. At least part of me still didn't think it was real. And I expect I'll have more of",
+    "start": "30:17.04"
+  },
+  {
+    "text": "these realizations over time as this insane race for AGI continues. It feels kind of like",
+    "start": "30:21.56"
+  },
+  {
+    "text": "a recurring nightmare I get sometimes, where I'm back at university. Imagine this: You're a student.",
+    "start": "30:27.24"
+  },
+  {
+    "text": "You look at the syllabus and see that the group project is worth 100% of the course. You read the",
+    "start": "30:33.08"
+  },
+  {
+    "text": "assignment and it seems extremely hard. It seems like it may not even be possible. But maybe it can",
+    "start": "30:38.08"
+  },
+  {
+    "text": "be done. It's an exciting challenge. You think, \"Okay, maybe this is impossible, but maybe if I can put",
+    "start": "30:44.04"
+  },
+  {
+    "text": "together a really good team, get all of my smartest friends together, and we all work our hardest and",
+    "start": "30:50.04"
+  },
+  {
+    "text": "do everything right, then I think we might actually be able to get a passing grade on this thing.\" So",
+    "start": "30:55.32"
+  },
+  {
+    "text": "you're all fired up. And then the professor says, \"So I'll be assigning you to random teams.\" That's",
+    "start": "31:00.08"
+  },
+  {
+    "text": "usually when I wake up screaming. But let's look at our randomly assigned team for the \"Survive the",
+    "start": "31:05.96"
+  },
+  {
+    "text": "Creation of Superintelligent AGI\" group project, shall we? Oh, hey Elon Musk, how's it going? \"Hey.\" Hey,",
+    "start": "31:11.60"
+  },
+  {
+    "text": "did you see that video I made about you years ago when you were founding OpenAI? \"No, I've been busy.\"",
+    "start": "31:17.88"
+  },
+  {
+    "text": "Yeah, fair enough. Well, in that one I was talking about this problem of arms race dynamics, where if",
+    "start": "31:22.76"
+  },
+  {
+    "text": "the groups trying to make AGI are competing with each other rather than cooperating, we could end",
+    "start": "31:27.96"
+  },
+  {
+    "text": "up stuck in a situation where everyone involved really wishes that they could slow down and be",
+    "start": "31:32.64"
+  },
+  {
+    "text": "more careful, but they feel like they can't because they're too worried that if they slow down, maybe",
+    "start": "31:37.64"
+  },
+  {
+    "text": "somebody else won't. In that situation, whoever makes AGI first is likely to be cutting corners",
+    "start": "31:42.60"
+  },
+  {
+    "text": "and neglecting safety. So our chance of survival goes way down. And of course, the more competitors",
+    "start": "31:47.80"
+  },
+  {
+    "text": "there are, the harder it is to coordinate to escape that kind of death race scenario. Hmm. Anyway, that was",
+    "start": "31:52.96"
+  },
+  {
+    "text": "a while ago. What have you been up to since then? You didn't start another AGI competitor, did you?",
+    "start": "31:58.88"
+  },
+  {
+    "text": "Elon? Is your new company's pitch at least that they're going to be more cooperative and careful",
+    "start": "32:07.20"
+  },
+  {
+    "text": "than the existing ones? Damn. All right, who else have we got? Oh, hey Meta. I heard about Llama's",
+    "start": "32:11.84"
+  },
+  {
+    "text": "weights being leaked on the internet. That's rough, man. Information security is hard. How you holding",
+    "start": "32:18.12"
+  },
+  {
+    "text": "up? \"Oh, we're great. Yeah, we're fine. We - uh, actually that was deliberate. We meant to do that.\" Oh, really?",
+    "start": "32:22.48"
+  },
+  {
+    "text": "\"Uh, yeah. Well, the second time, anyway. It's called open source. Look it up.\" Oh, well, I love free and open",
+    "start": "32:28.56"
+  },
+  {
+    "text": "source software, but do those principles really apply to network weights? Like, how does that work?",
+    "start": "32:35.36"
+  },
+  {
+    "text": "\"Ah, uh, open source is good for users because it lets them read the source code and see what the",
+    "start": "32:40.88"
+  },
+  {
+    "text": "program is really doing and how it works.\" Wait, have you found a way to tell how a model works",
+    "start": "32:52.84"
+  },
+  {
+    "text": "by looking at its weights? \"No, but uh, it lets developers all over the world spot bugs in the",
+    "start": "32:56.64"
+  },
+  {
+    "text": "code and submit patches.\" Wait, people are fixing bugs in Llama's weights? \"Well, no. People can fine-tune",
+    "start": "33:05.56"
+  },
+  {
+    "text": "it themselves, though.\" Yeah, other companies offer fine-tuning through APIs. So hang on. If",
+    "start": "33:13.00"
+  },
+  {
+    "text": "you can't actually read the code and know what it's doing, then network weights are effectively",
+    "start": "33:18.56"
+  },
+  {
+    "text": "a compiled binary. So in what sense is this \"open source\"? Why not call it like \"public weights\"? Why",
+    "start": "33:23.36"
+  },
+  {
+    "text": "call that open source at all? \"I love open source.\" Well, I know a lot of your employees do, but you",
+    "start": "33:29.04"
+  },
+  {
+    "text": "don't love anything. You're a giant corporation. What's in it for you? \"I love open source.\"",
+    "start": "33:33.76"
+  },
+  {
+    "text": "Okay, who else is here? Ah, Microsoft. How's Sydney doing? She's not still threatening people and",
+    "start": "33:39.20"
+  },
+  {
+    "text": "begging them to marry her and all that? \"Oh, no, we fixed that.\" Oh, good. \"Mostly.\" But why did you not",
+    "start": "33:45.88"
+  },
+  {
+    "text": "fix it before releasing the product? \"Well, we were in a mad rush. We wanted to make Google dance.\" Oh,",
+    "start": "33:50.80"
+  },
+  {
+    "text": "Google's in this. Google, why are you dancing? Okay, well, at least we have DeepMind and Anthropic.",
+    "start": "33:55.92"
+  },
+  {
+    "text": "Although, why are you guys dressed like that? And OpenAI. Hey, congrats on the Superalignment team.",
+    "start": "34:04.40"
+  },
+  {
+    "text": "And you okay, buddy? \"Oh yes, we're better than ever.\" Okay. Is it too late to change",
+    "start": "34:10.24"
+  },
+  {
+    "text": "groups? Or planets? It's like, now that I shift from this abstract far-mode",
+    "start": "34:21.68"
+  },
+  {
+    "text": "way of thinking about the problem to the more concrete near-mode way of thinking,",
+    "start": "34:29.36"
+  },
+  {
+    "text": "things look messier, more complicated, and less hopeful. Instead of thinking about the",
+    "start": "34:33.28"
+  },
+  {
+    "text": "abstract hypothetical institutions and people I had in my head a year ago, and",
+    "start": "34:39.48"
+  },
+  {
+    "text": "what things they could do - some of which could be pretty good - I have to think about the real",
+    "start": "34:44.04"
+  },
+  {
+    "text": "governments and companies we actually have today, and what they're likely to actually",
+    "start": "34:48.60"
+  },
+  {
+    "text": "do. So what are they doing? Well, what companies are doing, it seems like, is mostly making a bunch of",
+    "start": "34:53.12"
+  },
+  {
+    "text": "new stuff that's bigger and more powerful. Scaling up to bigger and bigger models and trying to be",
+    "start": "35:02.08"
+  },
+  {
+    "text": "the first to AGI. Some of them are also doing good safety work. Others, less so. And still others making",
+    "start": "35:06.96"
+  },
+  {
+    "text": "fun of the idea on Twitter. OpenAI's Superalignment team seems promising and deserves its own video.",
+    "start": "35:12.88"
+  },
+  {
+    "text": "People have published responsible scaling policies - which, I don't know about the name, but I think it's",
+    "start": "35:17.92"
+  },
+  {
+    "text": "great to lay out ahead of time what safety measures you plan to take at what level of",
+    "start": "35:22.92"
+  },
+  {
+    "text": "capability. These systems scale up, and they really do seem to be scaling up. Companies are spending",
+    "start": "35:26.92"
+  },
+  {
+    "text": "truly staggering amounts of money on this. It could be that in 2024, as much will be spent on AI as",
+    "start": "35:33.28"
+  },
+  {
+    "text": "pretty much all basic science research combined. So what about governments? What are they doing? Well,",
+    "start": "35:39.60"
+  },
+  {
+    "text": "for a while it looked like the US government's response would be mostly to have an average age",
+    "start": "35:44.96"
+  },
+  {
+    "text": "of 65 at the problem. The Senate demanded to speak to AI's manager. They called in the heads of these",
+    "start": "35:49.60"
+  },
+  {
+    "text": "various companies and mostly missed the point, I think. \"You have said, uh, in fact, and I'm",
+    "start": "35:55.56"
+  },
+  {
+    "text": "going to quote: 'Development of superhuman machine intelligence is probably the greatest threat to",
+    "start": "36:02.56"
+  },
+  {
+    "text": "the continued existence of humanity.' End quote. Uh, you may have had in mind the effect on... on",
+    "start": "36:08.20"
+  },
+  {
+    "text": "jobs.\" But then there was an executive order, the longest in history, that was a lot more substantial.",
+    "start": "36:15.00"
+  },
+  {
+    "text": "My default assumption is that the government trying to regulate new technology tends to make",
+    "start": "36:22.72"
+  },
+  {
+    "text": "things worse - see the CFAA, DMCA, SOPA, PIPA, and so on. But government action was inevitable, and as it",
+    "start": "36:26.68"
+  },
+  {
+    "text": "happens, necessary. And this executive order seems actually pretty sensible. It's mostly calling for a",
+    "start": "36:35.08"
+  },
+  {
+    "text": "load of reports to figure out what's going on. But there's also some stuff in there about requiring",
+    "start": "36:40.84"
+  },
+  {
+    "text": "companies to be more open about their processes and safety procedures, which is clearly a good",
+    "start": "36:45.60"
+  },
+  {
+    "text": "idea. And there's a requirement that training runs that use more than a certain amount of computation",
+    "start": "36:49.84"
+  },
+  {
+    "text": "be reported, which also seems like a step in the right direction. Though the reporting threshold",
+    "start": "36:54.12"
+  },
+  {
+    "text": "is very high. And of course, the only thing required for training runs over the threshold",
+    "start": "36:58.32"
+  },
+  {
+    "text": "is that companies report that the training run is happening, which is not very burdensome, but also",
+    "start": "37:02.64"
+  },
+  {
+    "text": "not very helpful in the absence of other measures. The executive order should have its own video too.",
+    "start": "37:07.52"
+  },
+  {
+    "text": "But for now, I'll say the US's response has been a little better than I expected. It's a small step",
+    "start": "37:11.40"
+  },
+  {
+    "text": "in approximately the right direction, where I was expecting a bigger step in the wrong one.",
+    "start": "37:16.48"
+  },
+  {
+    "text": "Realistically, governments tend not to take really serious measures to address a new risk until after",
+    "start": "37:21.16"
+  },
+  {
+    "text": "that risk already has a significant death toll. And there's no guarantee that we'll get that kind",
+    "start": "37:26.44"
+  },
+  {
+    "text": "of a warning shot with the worst AI risks. A small-scale AI disaster, like say, a failed takeover attempt,",
+    "start": "37:30.72"
+  },
+  {
+    "text": "is possible. But it seems to require an AI system smart enough to think of and implement a genuinely",
+    "start": "37:37.28"
+  },
+  {
+    "text": "threatening takeover plan, but not smart enough to actually succeed, and also not smart enough to",
+    "start": "37:43.56"
+  },
+  {
+    "text": "realize that the plan won't work and that it's better to bide your time. The US government is",
+    "start": "37:49.52"
+  },
+  {
+    "text": "very justifiably reluctant to regulate based on speculative risks. It's unlikely to really act",
+    "start": "37:54.12"
+  },
+  {
+    "text": "until there's been a major news event to convince everyone that it's really needed. But there's no",
+    "start": "37:59.88"
+  },
+  {
+    "text": "guarantee that we'll get that kind of recoverable disaster before we get an unrecoverable one. \"Whoa,",
+    "start": "38:04.92"
+  },
+  {
+    "text": "how about this? Just show me the knife in your back. Not too deep, but uh, it should be able to",
+    "start": "38:10.36"
+  },
+  {
+    "text": "stand by itself.\" How about governments that are, shall we say, less reluctant to regulate?",
+    "start": "38:15.16"
+  },
+  {
+    "text": "Well, the European Union, surprising nobody, has leapt into action and drawn up an enormously",
+    "start": "38:21.56"
+  },
+  {
+    "text": "long and complicated piece of legislation: the AI Act. What does it do? Well, it's surprisingly...",
+    "start": "38:26.12"
+  },
+  {
+    "text": "[Music] [Applause] [Music] ...simple. Got that? Okay, good. I will make a video on this law if",
+    "start": "38:32.41"
+  },
+  {
+    "text": "you really want me to, but then I would have to read it. There was some major corporate",
+    "start": "38:53.28"
+  },
+  {
+    "text": "lobbying to try and make the whole law mostly useless by changing it to exclude foundation",
+    "start": "38:57.76"
+  },
+  {
+    "text": "models and public-weights models. That's kind of interesting, but it's more politics than AI.",
+    "start": "39:02.60"
+  },
+  {
+    "text": "And the EU doesn't have any major AI companies anyway. Although the EU can still have global",
+    "start": "39:08.08"
+  },
+  {
+    "text": "effects, because you have to comply with its laws if you want to sell to the European market, which",
+    "start": "39:12.60"
+  },
+  {
+    "text": "is a pretty big market. So non-EU companies - one second - non-EU companies often choose to comply",
+    "start": "39:17.32"
+  },
+  {
+    "text": "with EU laws anyway. But none of the major AI companies actually has to. Who knows? It",
+    "start": "39:26.28"
+  },
+  {
+    "text": "may end up being one of the biggest impacts of Brexit that DeepMind is not directly subject to",
+    "start": "39:30.68"
+  },
+  {
+    "text": "EU law, despite being based in the UK. And the UK government is doing surprisingly",
+    "start": "39:35.40"
+  },
+  {
+    "text": "well. The UK government announced that AI safety was going to be a key priority. They allocated",
+    "start": "39:41.92"
+  },
+  {
+    "text": "a budget of 100 million pounds, which is still hilariously small compared to capabilities",
+    "start": "39:49.80"
+  },
+  {
+    "text": "budgets, but it's quite a lot compared to the safety budget, which is also hilariously small. And",
+    "start": "39:54.92"
+  },
+  {
+    "text": "they established this Frontier AI Task Force, being headed up by Ian Hogarth. Yes, that Ian Hogarth. The",
+    "start": "40:00.44"
+  },
+  {
+    "text": "one saying surprisingly sensible things in the Financial Times. They're specifically prioritizing",
+    "start": "40:07.76"
+  },
+  {
+    "text": "existential risks. They're working with a bunch of good AI safety researchers. I'm completely",
+    "start": "40:12.64"
+  },
+  {
+    "text": "blown away by this. I don't know how this happened. This is the UK government. They usually specialize",
+    "start": "40:18.60"
+  },
+  {
+    "text": "in messing everything up. I don't know how they're pulling this off, but I don't want to jinx it.",
+    "start": "40:23.00"
+  },
+  {
+    "text": "So yeah, UK Frontier AI Task Force. Let's fucking go, I guess. One of the first things they did was run",
+    "start": "40:28.36"
+  },
+  {
+    "text": "this Global AI Safety Summit in Bletchley Park, where all the relevant nations got together and",
+    "start": "40:35.08"
+  },
+  {
+    "text": "signed a shared declaration, which - I don't know, it's very diplomatic. I don't know how much it",
+    "start": "40:40.04"
+  },
+  {
+    "text": "means, really. I don't know how international politics works. But seems like a step in the",
+    "start": "40:45.04"
+  },
+  {
+    "text": "right direction. Even His Majesty King Charles III weighed in on the subject, because of course he did.",
+    "start": "40:49.60"
+  },
+  {
+    "text": "This is not a deepfake, by the way. This is real life. \"If we are to realize the untold benefits of",
+    "start": "40:54.72"
+  },
+  {
+    "text": "AI, then we must work together on combating its significant risks too. AI continues to advance",
+    "start": "41:00.88"
+  },
+  {
+    "text": "with ever greater speed towards models that some predict could surpass human abilities, even human",
+    "start": "41:07.56"
+  },
+  {
+    "text": "understanding. There is a clear imperative to ensure that this rapidly evolving technology",
+    "start": "41:14.52"
+  },
+  {
+    "text": "remains safe and secure. We must address the risks presented by AI with a sense of urgency, ensuring that",
+    "start": "41:20.24"
+  },
+  {
+    "text": "this immensely powerful technology is indeed a force for good in this world.\" I mean, yeah, go off,",
+    "start": "41:28.12"
+  },
+  {
+    "text": "King. Don't get me wrong, executive power derives from a mandate from the masses. But when he's right,",
+    "start": "41:36.04"
+  },
+  {
+    "text": "he's right. Anyway, the task force then transformed into the AI Safety Institute. And they're looking",
+    "start": "41:41.76"
+  },
+  {
+    "text": "for people to help work on that, by the way. If you have relevant expertise, consider lending a hand. I",
+    "start": "41:46.84"
+  },
+  {
+    "text": "have. So in 2023, AI safety moved from the fringe to firmly within the mainstream. And it's odd,",
+    "start": "41:51.76"
+  },
+  {
+    "text": "you know. I spent so long complaining that nobody was listening to us. Now it seems like everyone's",
+    "start": "42:02.40"
+  },
+  {
+    "text": "listening. And to be honest, it's a little scary. Having a significant voice in this conversation",
+    "start": "42:07.52"
+  },
+  {
+    "text": "entails significant power. And that power naturally comes with it a lot of responsibility. And I didn't",
+    "start": "42:13.96"
+  },
+  {
+    "text": "sign up for a lot of responsibility. I signed up for making fun, interesting videos about AI",
+    "start": "42:20.00"
+  },
+  {
+    "text": "research. I didn't really want what I was doing to be really, properly important. Because what",
+    "start": "42:24.52"
+  },
+  {
+    "text": "if I make a mistake? What if I make things worse? Like, what am I supposed to do when my government",
+    "start": "42:31.28"
+  },
+  {
+    "text": "reaches out to me to ask my advice about the most important thing happening on Earth? Me? Are",
+    "start": "42:37.48"
+  },
+  {
+    "text": "you sure? There's really nobody more you want to ask? Me? Well, who the hell am I? That really",
+    "start": "42:43.96"
+  },
+  {
+    "text": "was last year for me. \"Who the hell am I?\" Well, that year is over. It's 2024 now. And I'll tell",
+    "start": "42:51.84"
+  },
+  {
+    "text": "you who the hell I am. I'm Rob Miles. And I'm not dead. Not yet. And we're not dead yet. We're not",
+    "start": "42:58.12"
+  },
+  {
+    "text": "doomed. We're not done yet. And there's a hell of a lot to do. So I accept whatever responsibility",
+    "start": "43:05.36"
+  },
+  {
+    "text": "falls to me. I accept that I might make - I mean, I will make mistakes. You know, I don't really know",
+    "start": "43:12.96"
+  },
+  {
+    "text": "what I'm doing. But humanity doesn't seem to know what it's doing either. So I will do my best. I'll",
+    "start": "43:18.48"
+  },
+  {
+    "text": "do my best. That's all any of us can do. And that's all I ask of you. We need much more and better AI",
+    "start": "43:25.84"
+  },
+  {
+    "text": "safety research. If you have technical abilities, we need you now more than ever. I have a video in the",
+    "start": "43:32.88"
+  },
+  {
+    "text": "works about how to direct your career towards AI safety. For now, there are links in the description.",
+    "start": "43:37.72"
+  },
+  {
+    "text": "Realistically, we are also going to need government involvement to tackle the most dangerous risks.",
+    "start": "43:42.24"
+  },
+  {
+    "text": "But God knows it's easy to make things worse that way. So we need policy and governance researchers",
+    "start": "43:47.00"
+  },
+  {
+    "text": "to figure out what's best to do. Civil servants to implement it. And activists to help make it happen.",
+    "start": "43:52.76"
+  },
+  {
+    "text": "If any of that could be you - well, it's showtime. And I'll be right here, trying to stay on top of",
+    "start": "43:58.24"
+  },
+  {
+    "text": "the research, to understand what's going on, and to help you all to understand it too. The end of our",
+    "start": "44:05.00"
+  },
+  {
+    "text": "story is not yet written. And we can still get a good ending, where people make fun of us for",
+    "start": "44:11.04"
+  },
+  {
+    "text": "ever having been concerned about the disaster that our concerns successfully prevented. But",
+    "start": "44:16.00"
+  },
+  {
+    "text": "the story is written by whoever shows up. So this year, I'm showing up. And I hope you'll join me. [Music]",
+    "start": "44:22.20"
+  },
+  {
+    "text": "In this video, I'm especially thanking patron Juan Benet of Protocol Labs, who's making some",
+    "start": "44:33.04"
+  },
+  {
+    "text": "pretty cool distributed and decentralized tech. Thank you, Juan, for everything. And thank you to",
+    "start": "44:42.16"
+  },
+  {
+    "text": "all of my wonderful patrons - all of these amazing people here. It really means a lot that you stuck",
+    "start": "44:46.72"
+  },
+  {
+    "text": "with me through this. You know, although I found it very hard to make main channel videos, I've",
+    "start": "44:51.92"
+  },
+  {
+    "text": "been doing other things that you may want to check out. I'm launching Rob's Reading",
+    "start": "44:56.36"
+  },
+  {
+    "text": "List, a podcast and YouTube channel where I read out things I was going to read anyway. Currently",
+    "start": "44:59.76"
+  },
+  {
+    "text": "I've got stuff from this video, Yudkowsky's piece in Time, Ian Hogarth's FT article, the Bletchley Declaration",
+    "start": "45:04.20"
+  },
+  {
+    "text": "from the AI Safety Summit, and more coming soon. There's the AI Safety Talks channel for high-quality",
+    "start": "45:09.80"
+  },
+  {
+    "text": "talks and presentations. I recently made some recording kits for AI researchers so they",
+    "start": "45:14.84"
+  },
+  {
+    "text": "can easily record for the channel, so look out for new videos there. And of course, if you'd like",
+    "start": "45:19.76"
+  },
+  {
+    "text": "to know more about AI safety, we've answered hundreds of the most common questions",
+    "start": "45:24.08"
+  },
+  {
+    "text": "at aisafety.info. It's like an FAQ, except it's good. Come check it out: aisafety.info.",
+    "start": "45:27.96"
+  },
+  {
+    "text": "The major redesign we've been working on might even be live by now. So yeah, go and subscribe to",
+    "start": "45:34.48"
+  },
+  {
+    "text": "those channels and podcasts, and hit the bell and all of that. And thanks for watching. I'll",
+    "start": "45:38.88"
+  },
+  {
+    "text": "see you soon. [Music] This is probably the single dumbest thing I've ever done on camera in my life.",
+    "start": "45:43.84"
+  },
+  {
+    "text": "But deliberate.",
+    "start": "45:57.08"
+  }
+]

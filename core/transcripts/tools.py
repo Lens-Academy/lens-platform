@@ -32,16 +32,34 @@ from pathlib import Path
 TRANSCRIPTS_DIR = Path(__file__).parent.parent.parent / "educational_content" / "video_transcripts"
 
 
-def find_transcript(video_id: str, search_dir: Path | str | None = None) -> Path:
+def _parse_timestamp(value: str | float | int) -> float:
+    """Parse a timestamp to seconds.
+
+    Accepts:
+    - str "M:SS.ms" (e.g., "2:52.25")
+    - float/int seconds (for backwards compat during migration)
+
+    Returns:
+        Time in seconds as float
     """
-    Find .corrected.json file for a video ID.
+    if isinstance(value, (int, float)):
+        return float(value)
+    parts = value.split(":")
+    minutes = int(parts[0])
+    seconds = float(parts[1])
+    return minutes * 60 + seconds
+
+
+def find_transcript_timestamps(video_id: str, search_dir: Path | str | None = None) -> Path:
+    """
+    Find .timestamps.json file for a video ID.
 
     Args:
         video_id: YouTube video ID (e.g., "pYXy-A4siMw")
         search_dir: Directory to search (default: educational_content/video_transcripts/)
 
     Returns:
-        Path to the .corrected.json file
+        Path to the .timestamps.json file
 
     Raises:
         FileNotFoundError: If no matching transcript found
@@ -51,12 +69,12 @@ def find_transcript(video_id: str, search_dir: Path | str | None = None) -> Path
     else:
         search_dir = Path(search_dir)
 
-    # Find files matching video_id prefix
-    pattern = f"{video_id}*.corrected.json"
+    # Find files matching video_id prefix with .timestamps.json extension
+    pattern = f"{video_id}*.timestamps.json"
     matches = list(search_dir.glob(pattern))
 
     if not matches:
-        raise FileNotFoundError(f"No transcript found for video ID: {video_id}")
+        raise FileNotFoundError(f"No transcript timestamps found for video ID: {video_id}")
 
     return matches[0]
 
@@ -81,13 +99,13 @@ def get_text_at_time(
     """
     import json
 
-    transcript_path = find_transcript(video_id, search_dir)
-    data = json.loads(transcript_path.read_text())
+    timestamps_path = find_transcript_timestamps(video_id, search_dir)
+    words = json.loads(timestamps_path.read_text())
 
     words_in_range = [
         w["text"]
-        for w in data["words"]
-        if start <= w["start"] <= end
+        for w in words
+        if start <= _parse_timestamp(w["start"]) <= end
     ]
 
     return " ".join(words_in_range)
@@ -112,7 +130,7 @@ def flatten_transcript(words: list[dict]) -> list[dict]:
     result = []
     for seg_idx, entry in enumerate(words):
         text = entry["text"]
-        start = entry["start"]
+        start = _parse_timestamp(entry["start"])
 
         # Split into individual words
         tokens = text.split()
@@ -204,11 +222,11 @@ def get_time_from_text(
     """
     import json
 
-    transcript_path = find_transcript(video_id, search_dir)
-    data = json.loads(transcript_path.read_text())
+    timestamps_path = find_transcript_timestamps(video_id, search_dir)
+    timestamps = json.loads(timestamps_path.read_text())
 
     # Flatten to word-level for searching
-    words = flatten_transcript(data["words"])
+    words = flatten_transcript(timestamps)
 
     # Find first_words anchor (start of quote)
     start_idx = find_anchor_position(words, first_words)

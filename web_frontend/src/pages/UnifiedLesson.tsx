@@ -359,7 +359,7 @@ export default function UnifiedLesson() {
             isReviewing={isReviewing}
             previousArticle={session.previous_article}
             previousStage={session.previous_stage}
-            includePreviousContent={session.include_previous_content}
+            showUserPreviousContent={session.show_user_previous_content}
           />
         </div>
       </div>

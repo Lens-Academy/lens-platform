@@ -4,7 +4,7 @@
 
 export type ArticleStage = {
   type: "article";
-  source_url: string;
+  source: string;
   from: string | null;
   to: string | null;
 };
@@ -18,8 +18,9 @@ export type VideoStage = {
 
 export type ChatStage = {
   type: "chat";
-  context: string;
-  includePreviousContent: boolean;
+  instructions: string;
+  showUserPreviousContent: boolean;
+  showTutorPreviousContent: boolean;
 };
 
 export type Stage = ArticleStage | VideoStage | ChatStage;
@@ -75,5 +76,5 @@ export type SessionState = {
   // For chat stages: previous content to display (blurred or visible)
   previous_article: ArticleData | null;
   previous_stage: PreviousStageInfo | null;
-  include_previous_content: boolean;
+  show_user_previous_content: boolean;
 };

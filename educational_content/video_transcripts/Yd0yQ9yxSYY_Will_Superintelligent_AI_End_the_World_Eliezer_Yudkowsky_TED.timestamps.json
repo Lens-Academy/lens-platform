@@ -1,0 +1,834 @@
+[
+  {
+    "text": "Since 2001, I have been working on what we would now call",
+    "start": "0:04.33"
+  },
+  {
+    "text": "the problem of aligning artificial general intelligence:",
+    "start": "0:07.88"
+  },
+  {
+    "text": "how to shape the preferences and behavior",
+    "start": "0:11.55"
+  },
+  {
+    "text": "of a powerful artificial mind such that it does not kill everyone.",
+    "start": "0:13.68"
+  },
+  {
+    "text": "I more or less founded the field two decades ago,",
+    "start": "0:19.22"
+  },
+  {
+    "text": "when nobody else considered it rewarding enough to work on.",
+    "start": "0:22.35"
+  },
+  {
+    "text": "I tried to get this very important project started early",
+    "start": "0:25.15"
+  },
+  {
+    "text": "so we'd be in less of a drastic rush later.",
+    "start": "0:27.90"
+  },
+  {
+    "text": "I consider myself to have failed.",
+    "start": "0:31.07"
+  },
+  {
+    "text": "[Laughter]",
+    "start": "0:33.15"
+  },
+  {
+    "text": "Nobody understands how modern AI systems do what they do.",
+    "start": "0:34.20"
+  },
+  {
+    "text": "They are giant, inscrutable matrices of floating point numbers",
+    "start": "0:37.58"
+  },
+  {
+    "text": "that we nudge in the direction of better performance",
+    "start": "0:40.58"
+  },
+  {
+    "text": "until they inexplicably start working.",
+    "start": "0:43.04"
+  },
+  {
+    "text": "At some point, the companies rushing headlong to scale AI",
+    "start": "0:45.08"
+  },
+  {
+    "text": "will cough out something that's smarter than humanity.",
+    "start": "0:48.46"
+  },
+  {
+    "text": "Nobody knows how to calculate when that will happen.",
+    "start": "0:51.13"
+  },
+  {
+    "text": "My wild guess is that it will happen after zero to two more breakthroughs",
+    "start": "0:53.67"
+  },
+  {
+    "text": "the size of transformers.",
+    "start": "0:57.43"
+  },
+  {
+    "text": "What happens if we build something smarter than us",
+    "start": "0:59.14"
+  },
+  {
+    "text": "that we understand that poorly?",
+    "start": "1:01.52"
+  },
+  {
+    "text": "Some people find it obvious that building something smarter than us",
+    "start": "1:03.94"
+  },
+  {
+    "text": "that we don't understand might go badly.",
+    "start": "1:07.11"
+  },
+  {
+    "text": "Others come in with a very wide range of hopeful thoughts",
+    "start": "1:09.44"
+  },
+  {
+    "text": "about how it might possibly go well.",
+    "start": "1:13.36"
+  },
+  {
+    "text": "Even if I had 20 minutes for this talk and months to prepare it,",
+    "start": "1:16.28"
+  },
+  {
+    "text": "I would not be able to refute all the ways people find to imagine",
+    "start": "1:19.66"
+  },
+  {
+    "text": "that things might go well.",
+    "start": "1:22.75"
+  },
+  {
+    "text": "But I will say that there is no standard scientific consensus",
+    "start": "1:24.46"
+  },
+  {
+    "text": "for how things will go well.",
+    "start": "1:29.04"
+  },
+  {
+    "text": "There is no hope that has been widely persuasive",
+    "start": "1:30.71"
+  },
+  {
+    "text": "and stood up to skeptical examination.",
+    "start": "1:33.01"
+  },
+  {
+    "text": "There is nothing resembling a real engineering plan for us surviving",
+    "start": "1:35.59"
+  },
+  {
+    "text": "that I could critique.",
+    "start": "1:40.01"
+  },
+  {
+    "text": "This is not a good place in which to find ourselves.",
+    "start": "1:41.77"
+  },
+  {
+    "text": "If I had more time,",
+    "start": "1:44.52"
+  },
+  {
+    "text": "I'd try to tell you about the predictable reasons",
+    "start": "1:45.73"
+  },
+  {
+    "text": "why the current paradigm will not work",
+    "start": "1:48.06"
+  },
+  {
+    "text": "to build a superintelligence that likes you",
+    "start": "1:50.06"
+  },
+  {
+    "text": "or is friends with you, or that just follows orders.",
+    "start": "1:52.57"
+  },
+  {
+    "text": "Why, if you press \"thumbs up\" when humans think that things went right",
+    "start": "1:56.61"
+  },
+  {
+    "text": "or \"thumbs down\" when another AI system thinks that they went wrong,",
+    "start": "2:01.03"
+  },
+  {
+    "text": "you do not get a mind that wants nice things",
+    "start": "2:04.79"
+  },
+  {
+    "text": "in a way that generalizes well outside the training distribution",
+    "start": "2:08.29"
+  },
+  {
+    "text": "to where the AI is smarter than the trainers.",
+    "start": "2:12.34"
+  },
+  {
+    "text": "You can search for \"Yudkowsky list of lethalities\" for more.",
+    "start": "2:15.67"
+  },
+  {
+    "text": "[Laughter]",
+    "start": "2:20.80"
+  },
+  {
+    "text": "But to worry, you do not need to believe me",
+    "start": "2:22.60"
+  },
+  {
+    "text": "about exact predictions of exact disasters.",
+    "start": "2:24.81"
+  },
+  {
+    "text": "You just need to expect that things are not going to work great",
+    "start": "2:27.73"
+  },
+  {
+    "text": "on the first really serious, really critical try",
+    "start": "2:30.73"
+  },
+  {
+    "text": "because an AI system smart enough to be truly dangerous",
+    "start": "2:33.82"
+  },
+  {
+    "text": "was meaningfully different from AI systems stupider than that.",
+    "start": "2:37.36"
+  },
+  {
+    "text": "My prediction is that this ends up with us facing down something smarter than us",
+    "start": "2:40.91"
+  },
+  {
+    "text": "that does not want what we want,",
+    "start": "2:45.95"
+  },
+  {
+    "text": "that does not want anything we recognize as valuable or meaningful.",
+    "start": "2:47.71"
+  },
+  {
+    "text": "I cannot predict exactly how a conflict between humanity and a smarter AI would go",
+    "start": "2:52.25"
+  },
+  {
+    "text": "for the same reason I can't predict exactly how you would lose a chess game",
+    "start": "2:56.88"
+  },
+  {
+    "text": "to one of the current top AI chess programs, let's say Stockfish.",
+    "start": "3:00.76"
+  },
+  {
+    "text": "If I could predict exactly where Stockfish could move,",
+    "start": "3:04.97"
+  },
+  {
+    "text": "I could play chess that well myself.",
+    "start": "3:08.56"
+  },
+  {
+    "text": "I can't predict exactly how you'll lose to Stockfish,",
+    "start": "3:11.15"
+  },
+  {
+    "text": "but I can predict who wins the game.",
+    "start": "3:13.65"
+  },
+  {
+    "text": "I do not expect something actually smart to attack us with marching robot armies",
+    "start": "3:16.40"
+  },
+  {
+    "text": "with glowing red eyes",
+    "start": "3:20.86"
+  },
+  {
+    "text": "where there could be a fun movie about us fighting them.",
+    "start": "3:22.41"
+  },
+  {
+    "text": "I expect an actually smarter and uncaring entity",
+    "start": "3:25.53"
+  },
+  {
+    "text": "will figure out strategies and technologies",
+    "start": "3:28.08"
+  },
+  {
+    "text": "that can kill us quickly and reliably and then kill us.",
+    "start": "3:30.12"
+  },
+  {
+    "text": "I am not saying that the problem of aligning superintelligence",
+    "start": "3:34.46"
+  },
+  {
+    "text": "is unsolvable in principle.",
+    "start": "3:37.42"
+  },
+  {
+    "text": "I expect we could figure it out with unlimited time and unlimited retries,",
+    "start": "3:39.17"
+  },
+  {
+    "text": "which the usual process of science assumes that we have.",
+    "start": "3:44.09"
+  },
+  {
+    "text": "The problem here is the part where we don't get to say,",
+    "start": "3:48.31"
+  },
+  {
+    "text": "\"Ha ha, whoops, that sure didn't work.",
+    "start": "3:51.19"
+  },
+  {
+    "text": "That clever idea that used to work on earlier systems",
+    "start": "3:53.52"
+  },
+  {
+    "text": "sure broke down when the AI got smarter, smarter than us.\"",
+    "start": "3:57.36"
+  },
+  {
+    "text": "We do not get to learn from our mistakes and try again",
+    "start": "4:01.57"
+  },
+  {
+    "text": "because everyone is already dead.",
+    "start": "4:04.16"
+  },
+  {
+    "text": "It is a large ask",
+    "start": "4:07.08"
+  },
+  {
+    "text": "to get an unprecedented scientific and engineering challenge",
+    "start": "4:09.70"
+  },
+  {
+    "text": "correct on the first critical try.",
+    "start": "4:12.71"
+  },
+  {
+    "text": "Humanity is not approaching this issue with remotely",
+    "start": "4:15.08"
+  },
+  {
+    "text": "the level of seriousness that would be required.",
+    "start": "4:18.17"
+  },
+  {
+    "text": "Some of the people leading these efforts",
+    "start": "4:20.92"
+  },
+  {
+    "text": "have spent the last decade not denying",
+    "start": "4:22.88"
+  },
+  {
+    "text": "that creating a superintelligence might kill everyone,",
+    "start": "4:25.39"
+  },
+  {
+    "text": "but joking about it.",
+    "start": "4:28.31"
+  },
+  {
+    "text": "We are very far behind.",
+    "start": "4:30.18"
+  },
+  {
+    "text": "This is not a gap we can overcome in six months,",
+    "start": "4:32.10"
+  },
+  {
+    "text": "given a six-month moratorium.",
+    "start": "4:34.44"
+  },
+  {
+    "text": "If we actually try to do this in real life,",
+    "start": "4:36.69"
+  },
+  {
+    "text": "we are all going to die.",
+    "start": "4:39.23"
+  },
+  {
+    "text": "People say to me at this point, what's your ask?",
+    "start": "4:41.40"
+  },
+  {
+    "text": "I do not have any realistic plan,",
+    "start": "4:44.70"
+  },
+  {
+    "text": "which is why I spent the last two decades",
+    "start": "4:46.32"
+  },
+  {
+    "text": "trying and failing to end up anywhere but here.",
+    "start": "4:48.33"
+  },
+  {
+    "text": "My best bad take is that we need an international coalition",
+    "start": "4:51.91"
+  },
+  {
+    "text": "banning large AI training runs,",
+    "start": "4:55.62"
+  },
+  {
+    "text": "including extreme and extraordinary measures",
+    "start": "4:57.88"
+  },
+  {
+    "text": "to have that ban be actually and universally effective,",
+    "start": "5:01.26"
+  },
+  {
+    "text": "like tracking all GPU sales,",
+    "start": "5:04.51"
+  },
+  {
+    "text": "monitoring all the data centers,",
+    "start": "5:06.93"
+  },
+  {
+    "text": "being willing to risk a shooting conflict between nations",
+    "start": "5:09.06"
+  },
+  {
+    "text": "in order to destroy an unmonitored data center",
+    "start": "5:11.81"
+  },
+  {
+    "text": "in a non-signatory country.",
+    "start": "5:14.56"
+  },
+  {
+    "text": "I say this, not expecting that to actually happen.",
+    "start": "5:17.48"
+  },
+  {
+    "text": "I say this expecting that we all just die.",
+    "start": "5:21.11"
+  },
+  {
+    "text": "But it is not my place to just decide on my own",
+    "start": "5:24.78"
+  },
+  {
+    "text": "that humanity will choose to die,",
+    "start": "5:28.07"
+  },
+  {
+    "text": "to the point of not bothering to warn anyone.",
+    "start": "5:30.33"
+  },
+  {
+    "text": "I have heard that people outside the tech industry",
+    "start": "5:33.20"
+  },
+  {
+    "text": "are getting this point faster than people inside it.",
+    "start": "5:35.58"
+  },
+  {
+    "text": "Maybe humanity wakes up one morning and decides to live.",
+    "start": "5:38.25"
+  },
+  {
+    "text": "Thank you for coming to my brief TED talk.",
+    "start": "5:43.01"
+  },
+  {
+    "text": "[Laughter]",
+    "start": "5:45.05"
+  },
+  {
+    "text": "[Applause]",
+    "start": "5:46.68"
+  },
+  {
+    "text": "Chris Anderson: So, Eliezer, thank you for coming and giving that.",
+    "start": "5:56.10"
+  },
+  {
+    "text": "It seems like what you're raising the alarm about is that like,",
+    "start": "6:00.52"
+  },
+  {
+    "text": "for this to happen, for an AI to basically destroy humanity,",
+    "start": "6:04.53"
+  },
+  {
+    "text": "it has to break out, escape controls of the internet and, you know,",
+    "start": "6:08.49"
+  },
+  {
+    "text": "start commanding actual real-world resources.",
+    "start": "6:13.66"
+  },
+  {
+    "text": "You say you can't predict how that will happen,",
+    "start": "6:16.58"
+  },
+  {
+    "text": "but just paint one or two possibilities.",
+    "start": "6:18.83"
+  },
+  {
+    "text": "Eliezer Yudkowsky: OK, so why is this hard?",
+    "start": "6:22.34"
+  },
+  {
+    "text": "First, because you can't predict exactly where a smarter chess program will move.",
+    "start": "6:25.13"
+  },
+  {
+    "text": "Maybe even more importantly than that,",
+    "start": "6:28.97"
+  },
+  {
+    "text": "imagine sending the design for an air conditioner",
+    "start": "6:30.89"
+  },
+  {
+    "text": "back to the 11th century.",
+    "start": "6:33.72"
+  },
+  {
+    "text": "Even if they -- if it's enough detail for them to build it,",
+    "start": "6:35.64"
+  },
+  {
+    "text": "they will be surprised when cold air comes out",
+    "start": "6:38.81"
+  },
+  {
+    "text": "because the air conditioner will use the temperature-pressure relation",
+    "start": "6:41.56"
+  },
+  {
+    "text": "and they don't know about that law of nature.",
+    "start": "6:45.28"
+  },
+  {
+    "text": "So if you want me to sketch what a superintelligence might do,",
+    "start": "6:47.78"
+  },
+  {
+    "text": "I can go deeper and deeper into places",
+    "start": "6:52.45"
+  },
+  {
+    "text": "where we think there are predictable technological advancements",
+    "start": "6:54.83"
+  },
+  {
+    "text": "that we haven't figured out yet.",
+    "start": "6:57.79"
+  },
+  {
+    "text": "And as I go deeper, it will get harder and harder to follow.",
+    "start": "6:59.42"
+  },
+  {
+    "text": "It could be super persuasive.",
+    "start": "7:02.25"
+  },
+  {
+    "text": "That's relatively easy to understand.",
+    "start": "7:04.25"
+  },
+  {
+    "text": "We do not understand exactly how the brain works,",
+    "start": "7:06.13"
+  },
+  {
+    "text": "so it's a great place to exploit laws of nature that we do not know about.",
+    "start": "7:08.72"
+  },
+  {
+    "text": "Rules of the environment,",
+    "start": "7:12.26"
+  },
+  {
+    "text": "invent new technologies beyond that.",
+    "start": "7:13.81"
+  },
+  {
+    "text": "Can you build a synthetic virus that gives humans a cold",
+    "start": "7:16.81"
+  },
+  {
+    "text": "and then a bit of neurological change and they're easier to persuade?",
+    "start": "7:20.73"
+  },
+  {
+    "text": "Can you build your own synthetic biology,",
+    "start": "7:24.94"
+  },
+  {
+    "text": "synthetic cyborgs?",
+    "start": "7:28.32"
+  },
+  {
+    "text": "Can you blow straight past that",
+    "start": "7:29.95"
+  },
+  {
+    "text": "to covalently bonded equivalents of biology,",
+    "start": "7:31.99"
+  },
+  {
+    "text": "where instead of proteins that fold up and are held together by static cling,",
+    "start": "7:36.04"
+  },
+  {
+    "text": "you've got things that go down much sharper potential energy gradients",
+    "start": "7:39.79"
+  },
+  {
+    "text": "and are bonded together?",
+    "start": "7:43.21"
+  },
+  {
+    "text": "People have done advanced design work about this sort of thing",
+    "start": "7:44.58"
+  },
+  {
+    "text": "for artificial red blood cells that could hold 100 times as much oxygen",
+    "start": "7:48.17"
+  },
+  {
+    "text": "if they were using tiny sapphire vessels to store the oxygen.",
+    "start": "7:52.09"
+  },
+  {
+    "text": "There's lots and lots of room above biology,",
+    "start": "7:55.89"
+  },
+  {
+    "text": "but it gets harder and harder to understand.",
+    "start": "7:58.47"
+  },
+  {
+    "text": "Chris Anderson: So what I hear you saying",
+    "start": "8:01.52"
+  },
+  {
+    "text": "is that these terrifying possibilities there",
+    "start": "8:03.10"
+  },
+  {
+    "text": "but your real guess is that AIs will work out something more devious than that.",
+    "start": "8:05.44"
+  },
+  {
+    "text": "Is that really a likely pathway in your mind?",
+    "start": "8:10.57"
+  },
+  {
+    "text": "Eliezer Yudkowsky: Which part?",
+    "start": "8:14.41"
+  },
+  {
+    "text": "That they're smarter than I am? Absolutely.",
+    "start": "8:15.62"
+  },
+  {
+    "text": "Chris Anderson: Not that they're smarter,",
+    "start": "8:17.66"
+  },
+  {
+    "text": "but why would they want to go in that direction?",
+    "start": "8:19.08"
+  },
+  {
+    "text": "Like, AIs don't have our feelings of sort of envy and jealousy and anger",
+    "start": "8:22.12"
+  },
+  {
+    "text": "and so forth.",
+    "start": "8:27.59"
+  },
+  {
+    "text": "So why might they go in that direction?",
+    "start": "8:28.75"
+  },
+  {
+    "text": "Eliezer Yudkowsky: Because it's convergently implied by almost any of the strange,",
+    "start": "8:31.21"
+  },
+  {
+    "text": "inscrutable things that they might end up wanting",
+    "start": "8:35.51"
+  },
+  {
+    "text": "as a result of gradient descent",
+    "start": "8:38.93"
+  },
+  {
+    "text": "on these \"thumbs up\" and \"thumbs down\" things internally.",
+    "start": "8:40.68"
+  },
+  {
+    "text": "If all you want is to make tiny little molecular squiggles",
+    "start": "8:44.60"
+  },
+  {
+    "text": "or that's like, one component of what you want,",
+    "start": "8:48.57"
+  },
+  {
+    "text": "but it's a component that never saturates, you just want more and more of it,",
+    "start": "8:51.07"
+  },
+  {
+    "text": "the same way that we would want more and more galaxies filled with life",
+    "start": "8:54.70"
+  },
+  {
+    "text": "and people living happily ever after.",
+    "start": "8:58.03"
+  },
+  {
+    "text": "Anything that just keeps going,",
+    "start": "8:59.87"
+  },
+  {
+    "text": "you just want to use more and more material for that,",
+    "start": "9:01.54"
+  },
+  {
+    "text": "that could kill everyone on Earth as a side effect.",
+    "start": "9:04.62"
+  },
+  {
+    "text": "It could kill us because it doesn't want us making other superintelligences",
+    "start": "9:07.29"
+  },
+  {
+    "text": "to compete with it.",
+    "start": "9:10.88"
+  },
+  {
+    "text": "It could kill us because it's using up all the chemical energy on Earth",
+    "start": "9:12.05"
+  },
+  {
+    "text": "and we contain some chemical potential energy.",
+    "start": "9:16.47"
+  },
+  {
+    "text": "Chris Anderson: So some people in the AI world worry that your views are strong enough",
+    "start": "9:19.05"
+  },
+  {
+    "text": "and they would say extreme enough",
+    "start": "9:25.31"
+  },
+  {
+    "text": "that you're willing to advocate extreme responses to it.",
+    "start": "9:26.90"
+  },
+  {
+    "text": "And therefore, they worry that you could be, you know,",
+    "start": "9:30.07"
+  },
+  {
+    "text": "in one sense, a very destructive figure.",
+    "start": "9:33.53"
+  },
+  {
+    "text": "Do you draw the line yourself in terms of the measures",
+    "start": "9:35.49"
+  },
+  {
+    "text": "that we should take to stop this happening?",
+    "start": "9:38.70"
+  },
+  {
+    "text": "Or is actually anything justifiable to stop",
+    "start": "9:41.49"
+  },
+  {
+    "text": "the scenarios you're talking about happening?",
+    "start": "9:44.75"
+  },
+  {
+    "text": "Eliezer Yudkowsky: I don't think that \"anything\" works.",
+    "start": "9:47.83"
+  },
+  {
+    "text": "I think that this takes state actors",
+    "start": "9:51.09"
+  },
+  {
+    "text": "and international agreements",
+    "start": "9:55.51"
+  },
+  {
+    "text": "and all international agreements by their nature,",
+    "start": "9:58.30"
+  },
+  {
+    "text": "tend to ultimately be backed by force",
+    "start": "10:01.56"
+  },
+  {
+    "text": "on the signatory countries and on the non-signatory countries,",
+    "start": "10:03.47"
+  },
+  {
+    "text": "which is a more extreme measure.",
+    "start": "10:06.89"
+  },
+  {
+    "text": "I have not proposed that individuals run out and use violence,",
+    "start": "10:09.86"
+  },
+  {
+    "text": "and I think that the killer argument for that is that it would not work.",
+    "start": "10:12.86"
+  },
+  {
+    "text": "Chris Anderson: Well, you are definitely not the only person to propose",
+    "start": "10:18.49"
+  },
+  {
+    "text": "that what we need is some kind of international reckoning here",
+    "start": "10:21.45"
+  },
+  {
+    "text": "on how to manage this going forward.",
+    "start": "10:25.50"
+  },
+  {
+    "text": "Thank you so much for coming here to TED, Eliezer.",
+    "start": "10:27.54"
+  },
+  {
+    "text": "[Applause]",
+    "start": "10:30.00"
+  }
+]

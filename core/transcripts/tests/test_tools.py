@@ -4,32 +4,32 @@
 import json
 import pytest
 from pathlib import Path
-from core.transcripts import find_transcript, get_text_at_time, get_time_from_text
+from core.transcripts import find_transcript_timestamps, get_text_at_time, get_time_from_text
 
 
-class TestFindTranscript:
-    """Test finding transcript files by video ID."""
+class TestFindTranscriptTimestamps:
+    """Test finding transcript timestamp files by video ID."""
 
-    def test_finds_transcript_by_video_id(self, tmp_path):
-        """Finds .corrected.json file matching video ID prefix."""
-        # Create a test transcript file
-        transcript = {"video_id": "abc123", "words": []}
-        test_file = tmp_path / "abc123_Test_Video.corrected.json"
-        test_file.write_text(json.dumps(transcript))
+    def test_finds_timestamps_by_video_id(self, tmp_path):
+        """Finds .timestamps.json file matching video ID prefix."""
+        # Create a test timestamps file
+        timestamps = [{"text": "hello", "start": 0.0}]
+        test_file = tmp_path / "abc123_Test_Video.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
 
-        result = find_transcript("abc123", search_dir=tmp_path)
+        result = find_transcript_timestamps("abc123", search_dir=tmp_path)
 
         assert result == test_file
 
-    def test_raises_when_transcript_not_found(self, tmp_path):
-        """Raises FileNotFoundError when no matching transcript."""
+    def test_raises_when_timestamps_not_found(self, tmp_path):
+        """Raises FileNotFoundError when no matching timestamps file."""
         with pytest.raises(FileNotFoundError):
-            find_transcript("nonexistent", search_dir=tmp_path)
+            find_transcript_timestamps("nonexistent", search_dir=tmp_path)
 
-    def test_finds_transcript_in_default_dir(self):
-        """Finds real transcript in educational_content/video_transcripts/."""
+    def test_finds_timestamps_in_default_dir(self):
+        """Finds real timestamps in educational_content/video_transcripts/."""
         # Use a real transcript we know exists
-        result = find_transcript("pYXy-A4siMw")
+        result = find_transcript_timestamps("pYXy-A4siMw")
 
         assert result.exists()
         assert "pYXy-A4siMw" in result.name
@@ -40,18 +40,15 @@ class TestGetTextAtTime:
 
     def test_returns_text_between_timestamps(self, tmp_path):
         """Returns words that fall within the time range."""
-        transcript = {
-            "video_id": "test123",
-            "words": [
-                {"text": "Hello", "start": 1.0},
-                {"text": "world", "start": 2.0},
-                {"text": "how", "start": 3.0},
-                {"text": "are", "start": 4.0},
-                {"text": "you", "start": 5.0},
-            ]
-        }
-        test_file = tmp_path / "test123_Test.corrected.json"
-        test_file.write_text(json.dumps(transcript))
+        timestamps = [
+            {"text": "Hello", "start": 1.0},
+            {"text": "world", "start": 2.0},
+            {"text": "how", "start": 3.0},
+            {"text": "are", "start": 4.0},
+            {"text": "you", "start": 5.0},
+        ]
+        test_file = tmp_path / "test123_Test.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
 
         result = get_text_at_time("test123", start=2.0, end=4.5, search_dir=tmp_path)
 
@@ -59,16 +56,13 @@ class TestGetTextAtTime:
 
     def test_includes_words_at_exact_boundaries(self, tmp_path):
         """Words at exact start/end times are included."""
-        transcript = {
-            "video_id": "test123",
-            "words": [
-                {"text": "one", "start": 1.0},
-                {"text": "two", "start": 2.0},
-                {"text": "three", "start": 3.0},
-            ]
-        }
-        test_file = tmp_path / "test123_Test.corrected.json"
-        test_file.write_text(json.dumps(transcript))
+        timestamps = [
+            {"text": "one", "start": 1.0},
+            {"text": "two", "start": 2.0},
+            {"text": "three", "start": 3.0},
+        ]
+        test_file = tmp_path / "test123_Test.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
 
         result = get_text_at_time("test123", start=1.0, end=3.0, search_dir=tmp_path)
 
@@ -76,15 +70,12 @@ class TestGetTextAtTime:
 
     def test_returns_empty_for_no_words_in_range(self, tmp_path):
         """Returns empty string when no words fall in range."""
-        transcript = {
-            "video_id": "test123",
-            "words": [
-                {"text": "early", "start": 1.0},
-                {"text": "late", "start": 10.0},
-            ]
-        }
-        test_file = tmp_path / "test123_Test.corrected.json"
-        test_file.write_text(json.dumps(transcript))
+        timestamps = [
+            {"text": "early", "start": 1.0},
+            {"text": "late", "start": 10.0},
+        ]
+        test_file = tmp_path / "test123_Test.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
 
         result = get_text_at_time("test123", start=5.0, end=8.0, search_dir=tmp_path)
 
@@ -116,19 +107,16 @@ class TestGetTimeFromText:
 
     def test_finds_timestamps_for_quote(self, tmp_path):
         """Finds start and end timestamps for a quote identified by first/last words."""
-        transcript = {
-            "video_id": "test123",
-            "words": [
-                {"text": "Hello", "start": 1.0},
-                {"text": "world", "start": 2.0},
-                {"text": "how", "start": 3.0},
-                {"text": "are", "start": 4.0},
-                {"text": "you", "start": 5.0},
-                {"text": "today", "start": 6.0},
-            ]
-        }
-        test_file = tmp_path / "test123_Test.corrected.json"
-        test_file.write_text(json.dumps(transcript))
+        timestamps = [
+            {"text": "Hello", "start": 1.0},
+            {"text": "world", "start": 2.0},
+            {"text": "how", "start": 3.0},
+            {"text": "are", "start": 4.0},
+            {"text": "you", "start": 5.0},
+            {"text": "today", "start": 6.0},
+        ]
+        test_file = tmp_path / "test123_Test.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
 
         # Quote is "world how are you" - provide first 2 and last 2 words
         result = get_time_from_text(
@@ -143,18 +131,15 @@ class TestGetTimeFromText:
 
     def test_handles_punctuation_differences(self, tmp_path):
         """Matches despite punctuation differences."""
-        transcript = {
-            "video_id": "test123",
-            "words": [
-                {"text": "Hello,", "start": 1.0},
-                {"text": "world!", "start": 2.0},
-                {"text": "How", "start": 3.0},
-                {"text": "are", "start": 4.0},
-                {"text": "you?", "start": 5.0},
-            ]
-        }
-        test_file = tmp_path / "test123_Test.corrected.json"
-        test_file.write_text(json.dumps(transcript))
+        timestamps = [
+            {"text": "Hello,", "start": 1.0},
+            {"text": "world!", "start": 2.0},
+            {"text": "How", "start": 3.0},
+            {"text": "are", "start": 4.0},
+            {"text": "you?", "start": 5.0},
+        ]
+        test_file = tmp_path / "test123_Test.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
 
         # Quote without punctuation
         result = get_time_from_text(
@@ -169,16 +154,13 @@ class TestGetTimeFromText:
 
     def test_handles_case_differences(self, tmp_path):
         """Matches despite case differences."""
-        transcript = {
-            "video_id": "test123",
-            "words": [
-                {"text": "HELLO", "start": 1.0},
-                {"text": "World", "start": 2.0},
-                {"text": "how", "start": 3.0},
-            ]
-        }
-        test_file = tmp_path / "test123_Test.corrected.json"
-        test_file.write_text(json.dumps(transcript))
+        timestamps = [
+            {"text": "HELLO", "start": 1.0},
+            {"text": "World", "start": 2.0},
+            {"text": "how", "start": 3.0},
+        ]
+        test_file = tmp_path / "test123_Test.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
 
         result = get_time_from_text(
             "test123",
@@ -192,12 +174,9 @@ class TestGetTimeFromText:
 
     def test_raises_when_first_words_not_found(self, tmp_path):
         """Raises ValueError when first_words can't be found."""
-        transcript = {
-            "video_id": "test123",
-            "words": [{"text": "hello", "start": 1.0}]
-        }
-        test_file = tmp_path / "test123_Test.corrected.json"
-        test_file.write_text(json.dumps(transcript))
+        timestamps = [{"text": "hello", "start": 1.0}]
+        test_file = tmp_path / "test123_Test.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
 
         with pytest.raises(ValueError, match="first"):
             get_time_from_text(
@@ -209,12 +188,9 @@ class TestGetTimeFromText:
 
     def test_raises_when_last_words_not_found(self, tmp_path):
         """Raises ValueError when last_words can't be found."""
-        transcript = {
-            "video_id": "test123",
-            "words": [{"text": "hello", "start": 1.0}]
-        }
-        test_file = tmp_path / "test123_Test.corrected.json"
-        test_file.write_text(json.dumps(transcript))
+        timestamps = [{"text": "hello", "start": 1.0}]
+        test_file = tmp_path / "test123_Test.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
 
         with pytest.raises(ValueError, match="last"):
             get_time_from_text(
