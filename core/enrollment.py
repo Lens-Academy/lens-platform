@@ -5,14 +5,10 @@ Converts user data to Person objects for scheduling algorithm.
 User profile functions are in core/users.py.
 """
 
-import json
-
-import cohort_scheduler
-
+from .availability import availability_json_to_intervals
 from .database import get_connection
 from .queries import users as user_queries
 from .scheduling import Person
-from .constants import DAY_CODES
 
 
 async def get_people_for_scheduling() -> tuple[list[Person], dict[str, dict]]:
@@ -39,40 +35,15 @@ async def get_people_for_scheduling() -> tuple[list[Person], dict[str, dict]]:
         if not discord_id:
             continue
 
-        # Parse availability from JSON strings
+        # Parse availability from JSON strings using shared helper
         availability_str = user.get("availability_utc")
         if_needed_str = user.get("if_needed_availability_utc")
 
-        availability = json.loads(availability_str) if availability_str else {}
-        if_needed = json.loads(if_needed_str) if if_needed_str else {}
+        intervals = availability_json_to_intervals(availability_str)
+        if_needed_intervals = availability_json_to_intervals(if_needed_str)
 
-        if not availability and not if_needed:
+        if not intervals and not if_needed_intervals:
             continue
-
-        # Convert availability dict to interval strings, then parse to tuples
-        interval_strs = []
-        for day, slots in availability.items():
-            day_code = DAY_CODES.get(day, day[0])
-            for slot in sorted(slots):
-                hour = int(slot.split(":")[0])
-                end_hour = hour + 1
-                interval_str = f"{day_code}{slot} {day_code}{end_hour:02d}:00"
-                interval_strs.append(interval_str)
-
-        # Parse interval strings to (start_minutes, end_minutes) tuples
-        intervals = cohort_scheduler.parse_interval_string(", ".join(interval_strs)) if interval_strs else []
-
-        # Convert if_needed dict to interval strings, then parse to tuples
-        if_needed_strs = []
-        for day, slots in if_needed.items():
-            day_code = DAY_CODES.get(day, day[0])
-            for slot in sorted(slots):
-                hour = int(slot.split(":")[0])
-                end_hour = hour + 1
-                interval_str = f"{day_code}{slot} {day_code}{end_hour:02d}:00"
-                if_needed_strs.append(interval_str)
-
-        if_needed_intervals = cohort_scheduler.parse_interval_string(", ".join(if_needed_strs)) if if_needed_strs else []
 
         # Get name
         name = user.get("nickname") or user.get("discord_username") or f"User_{discord_id[:8]}"

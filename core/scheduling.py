@@ -10,6 +10,7 @@ from sqlalchemy import select, update
 
 import cohort_scheduler
 
+from .availability import availability_json_to_intervals
 from .database import get_transaction
 from .queries.cohorts import get_cohort_by_id
 from .queries.groups import create_group, add_user_to_group
@@ -117,9 +118,9 @@ async def schedule_cohort(
             discord_id = row["discord_id"]
             user_id_map[discord_id] = row["user_id"]
 
-            # Parse availability
-            intervals = cohort_scheduler.parse_interval_string(row["availability_utc"] or "")
-            if_needed = cohort_scheduler.parse_interval_string(row["if_needed_availability_utc"] or "")
+            # Parse availability from JSON format
+            intervals = availability_json_to_intervals(row["availability_utc"])
+            if_needed = availability_json_to_intervals(row["if_needed_availability_utc"])
 
             if not intervals and not if_needed:
                 continue  # Skip users with no availability

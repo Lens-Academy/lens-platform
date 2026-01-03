@@ -47,6 +47,13 @@ from .cohorts import (
     find_availability_overlap, format_local_time, get_timezone_abbrev
 )
 
+# Availability format conversion
+from .availability import (
+    merge_adjacent_slots,
+    availability_json_to_intervals,
+    availability_json_to_interval_string,
+)
+
 # Auth (Discord-to-Web flow)
 from .auth import create_auth_code, get_or_create_user, validate_and_use_auth_code
 
@@ -81,6 +88,8 @@ __all__ = [
     'get_people_for_scheduling',
     # Cohorts / Availability
     'find_availability_overlap', 'format_local_time', 'get_timezone_abbrev',
+    # Availability format conversion
+    'merge_adjacent_slots', 'availability_json_to_intervals', 'availability_json_to_interval_string',
     # Auth
     'create_auth_code', 'get_or_create_user', 'validate_and_use_auth_code',
     # Stampy

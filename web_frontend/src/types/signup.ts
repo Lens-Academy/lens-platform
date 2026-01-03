@@ -41,9 +41,21 @@ export const EMPTY_AVAILABILITY: AvailabilityData = {
 };
 
 export function formatTimeSlot(slot: number): TimeSlot {
-  const hour = Math.floor(slot);
-  const minutes = slot % 1 >= 0.5 ? "30" : "00";
-  return `${hour.toString().padStart(2, "0")}:${minutes}`;
+  const startHour = Math.floor(slot);
+  const startMin = slot % 1 >= 0.5 ? "30" : "00";
+  const endSlot = slot + 0.5;
+  const endHour = Math.floor(endSlot);
+  const endMin = endSlot % 1 >= 0.5 ? "30" : "00";
+  const start = `${startHour.toString().padStart(2, "0")}:${startMin}`;
+  const end = `${endHour.toString().padStart(2, "0")}:${endMin}`;
+  return `${start}-${end}`;
+}
+
+export function parseTimeSlot(slot: TimeSlot): number {
+  // Parse "HH:MM-HH:MM" back to slot number (uses start time)
+  const start = slot.split("-")[0];
+  const [hour, min] = start.split(":").map(Number);
+  return hour + (min >= 30 ? 0.5 : 0);
 }
 
 export function getBrowserTimezone(): string {
