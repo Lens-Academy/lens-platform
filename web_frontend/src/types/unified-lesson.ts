@@ -44,6 +44,8 @@ export type PendingMessage = {
 export type PreviousStageInfo = {
   type: "article" | "video";
   videoId?: string;
+  from?: number;
+  to?: number | null;
 };
 
 export type ArticleMetadata = {

@@ -312,7 +312,15 @@ async def get_session_state(
         "previous_stage": (
             {
                 "type": previous_stage.type,
-                **({"videoId": get_video_info(previous_stage)["video_id"]} if previous_stage.type == "video" else {}),
+                **(
+                    {
+                        "videoId": get_video_info(previous_stage)["video_id"],
+                        "from": previous_stage.from_seconds,
+                        "to": previous_stage.to_seconds,
+                    }
+                    if previous_stage.type == "video"
+                    else {}
+                ),
             }
             if previous_stage
             else None

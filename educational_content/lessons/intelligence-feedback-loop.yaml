@@ -36,7 +36,7 @@ stages:
       The user just watched a Kurzgesagt video about AI and intelligence explosion.
       Quiz them on the key concepts without providing hints.
       Test their understanding of the feedback loop dynamics.
-    showUserPreviousContent: false
+    showUserPreviousContent: true
     showTutorPreviousContent: true
 
   - type: article
