@@ -57,7 +57,7 @@ async def create_test_user(
     conn: AsyncConnection,
     cohort_id: int,
     discord_id: str,
-    availability: str = "M09:00 M10:00",
+    availability: str = '{"Monday": ["09:00-09:30", "09:30-10:00"]}',
     cohort_role: str = "participant",
     course_id: int = None,
 ) -> dict:
@@ -68,7 +68,7 @@ async def create_test_user(
         conn: Database connection
         cohort_id: Cohort to enroll user in
         discord_id: Discord ID (should be unique per test)
-        availability: Availability string in day-time format
+        availability: Availability JSON string (e.g., '{"Monday": ["09:00-09:30"]}')
         cohort_role: "participant" or "facilitator"
         course_id: Course ID (required for courses_users, will be fetched from cohort if not provided)
 

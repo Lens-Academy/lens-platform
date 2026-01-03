@@ -11,13 +11,103 @@ This ensures DST changes are handled correctly (user's "9am" stays 9am local).
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 import pytz
 import cohort_scheduler
 
 from .constants import DAY_CODES, DAY_NAMES
+
+
+def get_dst_transitions(timezone_str: str, weeks_ahead: int = 12) -> list[datetime]:
+    """
+    Find DST transitions for a timezone in the next N weeks.
+
+    Args:
+        timezone_str: Timezone string (e.g., "America/New_York")
+        weeks_ahead: How many weeks to look ahead (default 12)
+
+    Returns:
+        List of datetime objects when DST transitions occur
+    """
+    try:
+        tz = pytz.timezone(timezone_str)
+    except pytz.UnknownTimeZoneError:
+        return []
+
+    # Get transition times from pytz
+    if not hasattr(tz, '_utc_transition_times') or not tz._utc_transition_times:
+        return []  # No DST for this timezone
+
+    now = datetime.now(pytz.UTC)
+    end_date = now + timedelta(weeks=weeks_ahead)
+
+    transitions = []
+    for transition_time in tz._utc_transition_times:
+        if transition_time is None:
+            continue
+        # Make timezone-aware
+        transition_dt = pytz.UTC.localize(transition_time)
+        if now <= transition_dt <= end_date:
+            transitions.append(transition_dt)
+
+    return transitions
+
+
+def check_dst_warnings(
+    timezones: list[str],
+    weeks_ahead: int = 12,
+) -> list[str]:
+    """
+    Check for upcoming DST transitions across multiple timezones.
+
+    Args:
+        timezones: List of timezone strings
+        weeks_ahead: How many weeks to look ahead
+
+    Returns:
+        List of warning messages about DST transitions
+    """
+    warnings = []
+    tz_transitions: dict[str, list[datetime]] = {}
+
+    for tz_str in set(timezones):
+        if not tz_str or tz_str == "UTC":
+            continue
+        transitions = get_dst_transitions(tz_str, weeks_ahead)
+        if transitions:
+            tz_transitions[tz_str] = transitions
+
+    if not tz_transitions:
+        return []
+
+    # Group timezones by transition date
+    date_to_timezones: dict[str, list[str]] = {}
+    for tz_str, transitions in tz_transitions.items():
+        for dt in transitions:
+            date_str = dt.strftime("%B %d, %Y")
+            if date_str not in date_to_timezones:
+                date_to_timezones[date_str] = []
+            date_to_timezones[date_str].append(tz_str)
+
+    # Generate warnings
+    for date_str, affected_tzs in sorted(date_to_timezones.items()):
+        if len(affected_tzs) == 1:
+            warnings.append(
+                f"DST transition on {date_str} for {affected_tzs[0]}. "
+                f"Meeting times will shift by 1 hour for users in this timezone."
+            )
+        else:
+            tz_list = ", ".join(affected_tzs[:3])
+            if len(affected_tzs) > 3:
+                tz_list += f" and {len(affected_tzs) - 3} more"
+            warnings.append(
+                f"DST transition on {date_str} for {tz_list}. "
+                f"Meeting times will shift by 1 hour for affected users."
+            )
+
+    return warnings
 
 # Reverse mapping: day code -> day name
 DAY_CODE_TO_NAME = {v: k for k, v in DAY_CODES.items()}

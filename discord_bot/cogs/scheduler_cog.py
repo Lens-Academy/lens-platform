@@ -127,6 +127,15 @@ class SchedulerCog(commands.Cog):
                 inline=True
             )
 
+        # Show DST warnings if any
+        if result.warnings:
+            warnings_text = "\n".join(f"⚠️ {w}" for w in result.warnings)
+            embed.add_field(
+                name="⏰ DST Warnings",
+                value=warnings_text,
+                inline=False
+            )
+
         embed.set_footer(text="Use /realize-groups to create Discord channels")
 
         await progress_msg.edit(content=None, embed=embed)

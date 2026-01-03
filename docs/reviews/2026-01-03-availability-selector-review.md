@@ -32,7 +32,7 @@ JSON.stringify() → '{"Monday":["08:00-08:30","08:30-09:00"],...}'
     ↓
 PATCH /api/users/me
     ↓
-Database: users.availability_utc (TEXT column, JSON string)
+Database: users.availability_local (TEXT column, JSON string)
     ↓
 core/scheduling.py: schedule_cohort()
     ↓
@@ -103,5 +103,35 @@ Production uses `schedule_cohort()` which is now fixed.
 2. ~~Extract shared helper~~ ✅
 3. ~~Fix 30-minute handling~~ ✅
 4. ~~Rename column~~ ✅ → `availability_local` with UTC conversion at scheduling time
-5. **Add integration test**: Full flow from API to scheduler
+5. ~~Add integration test~~ ✅ → `discord_bot/tests/test_availability_integration.py`
 6. ~~Audit code paths~~ ✅
+7. ~~Add DST transition warnings~~ ✅
+
+---
+
+## Additional Features Added
+
+### DST Transition Warnings
+
+Added warnings when scheduling cohorts where members may be affected by Daylight Saving Time transitions during the cohort period.
+
+**Files:**
+- `core/availability.py` - `get_dst_transitions()`, `check_dst_warnings()`
+- `core/scheduling.py` - `CohortSchedulingResult.warnings` field, integration in `schedule_cohort()`
+- `discord_bot/cogs/scheduler_cog.py` - Display warnings in embed
+
+**How it works:**
+1. Collects timezones from all users being scheduled
+2. Checks for DST transitions in the next 12 weeks
+3. Returns warning messages grouped by transition date
+4. Displays warnings in Discord scheduling result embed
+
+---
+
+## Completed Actions
+
+### ✅ Database Migration Applied
+
+Migration `a1b2c3d4e5f6_rename_availability_utc_to_local.py` applied:
+- Renamed `availability_utc` → `availability_local`
+- Renamed `if_needed_availability_utc` → `if_needed_availability_local`

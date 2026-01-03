@@ -10,7 +10,7 @@ from sqlalchemy import select, update
 
 import cohort_scheduler
 
-from .availability import availability_json_to_intervals
+from .availability import availability_json_to_intervals, check_dst_warnings
 from .database import get_transaction
 from .queries.cohorts import get_cohort_by_id
 from .queries.groups import create_group, add_user_to_group
@@ -40,6 +40,7 @@ class CohortSchedulingResult:
     users_grouped: int
     users_ungroupable: int
     groups: list  # list of dicts with group_id, group_name, member_count, meeting_time
+    warnings: list = field(default_factory=list)  # DST warnings, etc.
 
 
 def calculate_total_available_time(person: Person) -> int:
@@ -113,6 +114,7 @@ async def schedule_cohort(
         people = []
         user_id_map = {}  # discord_id -> user_id for later
         facilitator_ids = set()
+        user_timezones = []  # Collect for DST warning check
 
         for row in user_rows:
             discord_id = row["discord_id"]
@@ -135,6 +137,7 @@ async def schedule_cohort(
                 timezone=user_timezone,
             )
             people.append(person)
+            user_timezones.append(user_timezone)
 
             if row["cohort_role"] == "facilitator":
                 facilitator_ids.add(discord_id)
@@ -148,6 +151,9 @@ async def schedule_cohort(
                 users_ungroupable=len(user_rows),
                 groups=[],
             )
+
+        # Check for DST transitions that may affect scheduled meetings
+        dst_warnings = check_dst_warnings(user_timezones)
 
         # Run scheduling algorithm
         scheduling_result = cohort_scheduler.schedule(
@@ -225,4 +231,5 @@ async def schedule_cohort(
             users_grouped=len(grouped_user_ids),
             users_ungroupable=len(ungroupable_user_ids),
             groups=created_groups,
+            warnings=dst_warnings,
         )

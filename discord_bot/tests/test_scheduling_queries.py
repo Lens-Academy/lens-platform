@@ -282,7 +282,7 @@ class TestScheduleCohort:
                 conn,
                 cohort["cohort_id"],
                 discord_id=f"sched_test_{i}",
-                availability="M09:00 M10:00",
+                availability='{"Monday": ["09:00-09:30", "09:30-10:00"]}',
             )
             user_ids.append(user["user_id"])
 
@@ -354,7 +354,7 @@ class TestScheduleCohort:
             conn,
             cohort["cohort_id"],
             discord_id="fac_test_facilitator",
-            availability="M09:00 M10:00",
+            availability='{"Monday": ["09:00-09:30", "09:30-10:00"]}',
             cohort_role="facilitator",
         )
         user_ids.append(facilitator["user_id"])
@@ -365,7 +365,7 @@ class TestScheduleCohort:
                 conn,
                 cohort["cohort_id"],
                 discord_id=f"fac_test_participant_{i}",
-                availability="M09:00 M10:00",
+                availability='{"Monday": ["09:00-09:30", "09:30-10:00"]}',
             )
             user_ids.append(user["user_id"])
 
