@@ -88,8 +88,8 @@ async def schedule_cohort(
                 users.c.nickname,
                 users.c.discord_username,
                 users.c.timezone,
-                users.c.availability_utc,
-                users.c.if_needed_availability_utc,
+                users.c.availability_local,
+                users.c.if_needed_availability_local,
                 courses_users.c.cohort_role,
             )
             .join(courses_users, users.c.user_id == courses_users.c.user_id)
@@ -117,10 +117,11 @@ async def schedule_cohort(
         for row in user_rows:
             discord_id = row["discord_id"]
             user_id_map[discord_id] = row["user_id"]
+            user_timezone = row["timezone"] or "UTC"
 
-            # Parse availability from JSON format
-            intervals = availability_json_to_intervals(row["availability_utc"])
-            if_needed = availability_json_to_intervals(row["if_needed_availability_utc"])
+            # Parse availability from JSON format, converting from local to UTC
+            intervals = availability_json_to_intervals(row["availability_local"], user_timezone)
+            if_needed = availability_json_to_intervals(row["if_needed_availability_local"], user_timezone)
 
             if not intervals and not if_needed:
                 continue  # Skip users with no availability
@@ -131,7 +132,7 @@ async def schedule_cohort(
                 name=name,
                 intervals=intervals,
                 if_needed_intervals=if_needed,
-                timezone=row["timezone"] or "UTC",
+                timezone=user_timezone,
             )
             people.append(person)
 

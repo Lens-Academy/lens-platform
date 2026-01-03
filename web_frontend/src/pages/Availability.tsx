@@ -25,9 +25,9 @@ export default function Availability() {
   // Load existing data when user is authenticated
   useEffect(() => {
     if (user) {
-      if (user.availability_utc) {
+      if (user.availability_local) {
         try {
-          setAvailability(JSON.parse(user.availability_utc));
+          setAvailability(JSON.parse(user.availability_local));
         } catch {
           // Keep default empty
         }
@@ -48,7 +48,7 @@ export default function Availability() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           timezone: timezone,
-          availability_utc: JSON.stringify(availability),
+          availability_local: JSON.stringify(availability),
         }),
       });
       if (!response.ok) throw new Error("Failed to save");

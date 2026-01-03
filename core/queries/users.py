@@ -116,7 +116,7 @@ async def save_user_profile(
     Save or update a user's profile.
 
     Creates user if they don't exist, otherwise updates.
-    Supported fields: nickname, timezone, availability_utc, if_needed_availability_utc
+    Supported fields: nickname, timezone, availability_local, if_needed_availability_local
     """
     existing = await get_user_by_discord_id(conn, discord_id)
 
@@ -125,8 +125,8 @@ async def save_user_profile(
         valid_fields = {
             k: v for k, v in fields.items()
             if k in (
-                "nickname", "timezone", "availability_utc",
-                "if_needed_availability_utc", "email", "discord_username"
+                "nickname", "timezone", "availability_local",
+                "if_needed_availability_local", "email", "discord_username"
             )
         }
         if valid_fields:
@@ -148,12 +148,12 @@ async def get_all_users_with_availability(
     """
     Get all users who have set availability.
 
-    Returns list of user dicts where availability_utc or if_needed_availability_utc is set.
+    Returns list of user dicts where availability_local or if_needed_availability_local is set.
     """
     result = await conn.execute(
         select(users).where(
-            (users.c.availability_utc.isnot(None)) |
-            (users.c.if_needed_availability_utc.isnot(None))
+            (users.c.availability_local.isnot(None)) |
+            (users.c.if_needed_availability_local.isnot(None))
         )
     )
     return [dict(row) for row in result.mappings()]

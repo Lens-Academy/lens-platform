@@ -9,7 +9,7 @@ export interface User {
   nickname: string | null;
   email: string | null;
   timezone: string | null;
-  availability_utc: string | null;
+  availability_local: string | null;
 }
 
 export interface AuthState {

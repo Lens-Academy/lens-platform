@@ -27,7 +27,7 @@ class UserProfileUpdate(BaseModel):
     nickname: str | None = None
     email: str | None = None
     timezone: str | None = None
-    availability_utc: str | None = None
+    availability_local: str | None = None
 
 
 @router.patch("/me")
@@ -38,7 +38,7 @@ async def update_my_profile(
     """
     Update the current user's profile.
 
-    Only allows updating specific fields: nickname, email, timezone, availability_utc.
+    Only allows updating specific fields: nickname, email, timezone, availability_local.
     If email is changed, clears email_verified_at (handled in core).
     """
     discord_id = user["sub"]
@@ -49,7 +49,7 @@ async def update_my_profile(
         nickname=updates.nickname,
         email=updates.email,
         timezone_str=updates.timezone,
-        availability_utc=updates.availability_utc,
+        availability_local=updates.availability_local,
     )
 
     if not updated_user:

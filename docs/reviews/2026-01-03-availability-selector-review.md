@@ -54,13 +54,11 @@ Fixed by using `availability_json_to_intervals()` helper.
 
 ---
 
-### 2. ⚠️ OPEN: Misleading Column Name
+### 2. ✅ RESOLVED: Column Renamed + UTC Conversion Added
 
-**Location:** `core/tables.py:58`
+Column renamed from `availability_utc` to `availability_local` to accurately reflect that times are stored in user's local timezone.
 
-The column `availability_utc` stores times in the **user's local timezone**, not UTC. The actual timezone is stored separately in the `timezone` column.
-
-**Recommendation:** Rename to `availability_local` or `availability_json` to avoid confusion.
+UTC conversion now happens at scheduling time via `availability_json_to_intervals(json_str, timezone_str)` using pytz for proper DST handling.
 
 ---
 
@@ -104,6 +102,6 @@ Production uses `schedule_cohort()` which is now fixed.
 1. ~~Fix `scheduling.py`~~ ✅
 2. ~~Extract shared helper~~ ✅
 3. ~~Fix 30-minute handling~~ ✅
-4. **Rename column**: `availability_utc` → `availability_json` (low priority)
+4. ~~Rename column~~ ✅ → `availability_local` with UTC conversion at scheduling time
 5. **Add integration test**: Full flow from API to scheduler
 6. ~~Audit code paths~~ ✅

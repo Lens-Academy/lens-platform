@@ -33,9 +33,9 @@ export default function SignupWizard() {
         let availability = prev.availability;
         let timezone = prev.timezone;
 
-        if (user?.availability_utc) {
+        if (user?.availability_local) {
           try {
-            availability = JSON.parse(user.availability_utc);
+            availability = JSON.parse(user.availability_local);
           } catch {
             // Keep existing
           }
@@ -83,7 +83,7 @@ export default function SignupWizard() {
           nickname: formData.displayName || null,
           email: formData.email || null,
           timezone: formData.timezone,
-          availability_utc: JSON.stringify(formData.availability),
+          availability_local: JSON.stringify(formData.availability),
         }),
       });
 

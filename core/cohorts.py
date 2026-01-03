@@ -42,8 +42,8 @@ async def find_availability_overlap(
             continue
 
         # Parse availability from JSON strings
-        availability_str = user.get("availability_utc")
-        if_needed_str = user.get("if_needed_availability_utc")
+        availability_str = user.get("availability_local")
+        if_needed_str = user.get("if_needed_availability_local")
 
         availability = json.loads(availability_str) if availability_str else {}
         if_needed = json.loads(if_needed_str) if if_needed_str else {}

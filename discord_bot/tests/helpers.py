@@ -83,7 +83,7 @@ async def create_test_user(
         .values(
             discord_id=discord_id,
             discord_username=f"testuser_{discord_id}",
-            availability_utc=availability,
+            availability_local=availability,
             timezone="UTC",
         )
         .returning(users)

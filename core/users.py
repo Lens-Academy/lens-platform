@@ -31,8 +31,8 @@ async def save_user_profile(
     discord_id: str,
     nickname: str = None,
     timezone_str: str = None,
-    availability_utc: str = None,
-    if_needed_availability_utc: str = None,
+    availability_local: str = None,
+    if_needed_availability_local: str = None,
 ) -> dict[str, Any]:
     """
     Save or update a user's profile (create or upsert).
@@ -41,8 +41,8 @@ async def save_user_profile(
         discord_id: Discord user ID
         nickname: Display name
         timezone_str: Timezone string (e.g., "America/New_York")
-        availability_utc: JSON string of day -> list of time slots (in UTC)
-        if_needed_availability_utc: JSON string of if-needed slots (in UTC)
+        availability_local: JSON string of day -> list of time slots (in user's local timezone)
+        if_needed_availability_local: JSON string of if-needed slots (in user's local timezone)
 
     Returns:
         Updated user profile
@@ -52,10 +52,10 @@ async def save_user_profile(
         fields["nickname"] = nickname
     if timezone_str is not None:
         fields["timezone"] = timezone_str
-    if availability_utc is not None:
-        fields["availability_utc"] = availability_utc
-    if if_needed_availability_utc is not None:
-        fields["if_needed_availability_utc"] = if_needed_availability_utc
+    if availability_local is not None:
+        fields["availability_local"] = availability_local
+    if if_needed_availability_local is not None:
+        fields["if_needed_availability_local"] = if_needed_availability_local
 
     async with get_transaction() as conn:
         return await user_queries.save_user_profile(conn, discord_id, **fields)
@@ -66,7 +66,7 @@ async def update_user_profile(
     nickname: str = None,
     email: str = None,
     timezone_str: str = None,
-    availability_utc: str = None,
+    availability_local: str = None,
 ) -> dict[str, Any] | None:
     """
     Update a user's profile with email verification handling.
@@ -78,7 +78,7 @@ async def update_user_profile(
         nickname: Display name
         email: Email address (clears verification if changed)
         timezone_str: Timezone string
-        availability_utc: JSON string of day -> list of time slots (in UTC)
+        availability_local: JSON string of day -> list of time slots (in user's local timezone)
 
     Returns:
         Updated user profile dict or None if user not found
@@ -89,8 +89,8 @@ async def update_user_profile(
         update_data["nickname"] = nickname
     if timezone_str is not None:
         update_data["timezone"] = timezone_str
-    if availability_utc is not None:
-        update_data["availability_utc"] = availability_utc
+    if availability_local is not None:
+        update_data["availability_local"] = availability_local
 
     async with get_transaction() as conn:
         # If email is being updated, check if it changed and clear verification
