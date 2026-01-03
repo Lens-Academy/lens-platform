@@ -1,7 +1,7 @@
 // web_frontend/src/pages/UnifiedLesson.tsx
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
-import type { SessionState, PendingMessage } from "../types/unified-lesson";
+import type { SessionState, PendingMessage, ArticleData } from "../types/unified-lesson";
 import { createSession, getSession, advanceStage, sendMessage } from "../api/lessons";
 import ChatPanel from "../components/unified-lesson/ChatPanel";
 import ContentPanel from "../components/unified-lesson/ContentPanel";
@@ -19,6 +19,8 @@ export default function UnifiedLesson() {
   const [error, setError] = useState<string | null>(null);
   const [lastInitiatedStage, setLastInitiatedStage] = useState<number | null>(null);
   const [viewingStageIndex, setViewingStageIndex] = useState<number | null>(null);
+  // Cache for viewed stage content - prevents overwriting current stage's article
+  const [viewedContentCache, setViewedContentCache] = useState<Record<number, ArticleData>>({});
 
   // Messages derived from session (server is source of truth)
   const messages = session?.messages ?? [];
@@ -201,6 +203,14 @@ export default function UnifiedLesson() {
     return session.current_stage;
   }, [session?.stages, session?.current_stage, viewingStageIndex]);
 
+  // Get the article to display - from cache when reviewing, from session otherwise
+  const articleToDisplay = useMemo(() => {
+    if (viewingStageIndex !== null) {
+      return viewedContentCache[viewingStageIndex] ?? null;
+    }
+    return session?.article ?? null;
+  }, [viewingStageIndex, viewedContentCache, session?.article]);
+
   // Auto-initiate AI when entering any chat stage (initial load or after advancing)
   useEffect(() => {
     if (!sessionId || !session) return;
@@ -218,9 +228,15 @@ export default function UnifiedLesson() {
   useEffect(() => {
     if (!sessionId || viewingStageIndex === null) return;
 
-    let completed = false;
+    // Check if we already have this content cached
+    if (viewedContentCache[viewingStageIndex]) {
+      return;
+    }
+
+    let isCurrent = true; // Track if this request is still relevant
+
     const timeoutId = setTimeout(() => {
-      if (!completed) {
+      if (isCurrent) {
         console.warn(`[UnifiedLesson] Content fetch taking >3s for stage ${viewingStageIndex}`, {
           sessionId,
           viewingStageIndex,
@@ -232,22 +248,32 @@ export default function UnifiedLesson() {
       const startTime = Date.now();
       try {
         const state = await getSession(sessionId!, viewingStageIndex!);
-        completed = true;
         clearTimeout(timeoutId);
-        console.log(`[UnifiedLesson] Fetched stage ${viewingStageIndex} in ${Date.now() - startTime}ms`);
-        // Update article data
-        setSession(prev => prev ? { ...prev, article: state.article } : null);
+
+        // Only update if this request is still relevant (user hasn't navigated away)
+        if (isCurrent && state.article) {
+          console.log(`[UnifiedLesson] Fetched stage ${viewingStageIndex} in ${Date.now() - startTime}ms`);
+          // Store in cache instead of overwriting session.article
+          setViewedContentCache(prev => ({
+            ...prev,
+            [viewingStageIndex!]: state.article!
+          }));
+        }
       } catch (e) {
-        completed = true;
         clearTimeout(timeoutId);
-        console.error(`[UnifiedLesson] Failed to fetch stage ${viewingStageIndex} after ${Date.now() - startTime}ms:`, e);
+        if (isCurrent) {
+          console.error(`[UnifiedLesson] Failed to fetch stage ${viewingStageIndex} after ${Date.now() - startTime}ms:`, e);
+        }
       }
     }
 
     fetchViewedContent();
 
-    return () => clearTimeout(timeoutId);
-  }, [sessionId, viewingStageIndex]);
+    return () => {
+      isCurrent = false; // Mark as stale on cleanup
+      clearTimeout(timeoutId);
+    };
+  }, [sessionId, viewingStageIndex, viewedContentCache]);
 
   // Reset viewingStageIndex when advancing to new stage
   useEffect(() => {
@@ -354,7 +380,7 @@ export default function UnifiedLesson() {
           )}
           <ContentPanel
             stage={displayedStage}
-            article={session.article}
+            article={articleToDisplay}
             onVideoEnded={handleAdvanceStage}
             onNextClick={handleAdvanceStage}
             isReviewing={isReviewing}
