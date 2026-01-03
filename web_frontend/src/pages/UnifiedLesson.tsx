@@ -83,12 +83,18 @@ export default function UnifiedLesson() {
         }
       }
 
-      // Success: clear pending message and fetch fresh session from server
+      // Success: streaming response confirms server received user message
+      // Optimistically append both messages to local state (no refetch needed)
+      setSession(prev => prev ? {
+        ...prev,
+        messages: [
+          ...prev.messages,
+          ...(content ? [{ role: "user" as const, content }] : []),
+          { role: "assistant" as const, content: assistantContent }
+        ]
+      } : prev);
       setPendingMessage(null);
       setStreamingContent("");
-
-      const freshSession = await getSession(sessionId);
-      setSession(freshSession);
 
       if (shouldTransition) {
         setPendingTransition(true);
