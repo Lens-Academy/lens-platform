@@ -36,7 +36,8 @@ export default function ArticlePanel({
   }, [onScrolledToBottom, content]);
 
   return (
-    <div ref={containerRef} className="h-full overflow-y-auto relative">
+    <div className="h-full relative">
+      <div ref={containerRef} className="h-full overflow-y-auto">
       <article className={`prose prose-gray max-w-[620px] mx-auto p-6 ${blurred ? "blur-sm select-none" : ""}`}>
         {title && <h1 className="text-2xl font-bold mb-2">{title}</h1>}
         {isExcerpt && (
@@ -117,6 +118,7 @@ export default function ArticlePanel({
           {content}
         </ReactMarkdown>
       </article>
+      </div>
 
       {blurred && (
         <div className="absolute inset-0 flex items-center justify-center z-20">
