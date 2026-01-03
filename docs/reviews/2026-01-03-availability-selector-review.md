@@ -17,53 +17,44 @@ Critical format mismatch bug found in `core/scheduling.py`. The `schedule_cohort
    - `merge_adjacent_slots()` - merges adjacent time slots for efficiency
    - `availability_json_to_intervals()` - converts JSON to scheduler tuples
 3. Fixed `core/scheduling.py` to use the new helper
-4. Refactored `core/enrollment.py` to use the shared helper (DRY)
-5. Added migration support in frontend for legacy format data
+4. Deleted dead code `core/enrollment.py` (was never called)
 
 ---
 
-## Data Flow Overview
+## Data Flow (After Fix)
 
 ```
 Frontend (React)
     ↓
-AvailabilityData: { "Monday": ["08:00", "08:30"], ... }
+AvailabilityData: { "Monday": ["08:00-08:30", "08:30-09:00"], ... }
     ↓
-JSON.stringify() → '{"Monday":["08:00","08:30"],...}'
+JSON.stringify() → '{"Monday":["08:00-08:30","08:30-09:00"],...}'
     ↓
 PATCH /api/users/me
     ↓
 Database: users.availability_utc (TEXT column, JSON string)
     ↓
-Scheduler reads from DB
+core/scheduling.py: schedule_cohort()
     ↓
-cohort_scheduler.parse_interval_string() expects: "M09:00 M10:00, T14:00 T15:00"
+core/availability.py: availability_json_to_intervals()
+    - Parses JSON
+    - Merges adjacent slots: ["08:00-08:30", "08:30-09:00"] → ("08:00", "09:00")
+    - Converts to scheduler format: "M08:00 M09:00"
+    ↓
+cohort_scheduler.parse_interval_string() → [(480, 540)]
 ```
 
 ---
 
 ## Issues Found
 
-### 1. CRITICAL: Format Mismatch in `scheduling.py`
+### 1. ✅ RESOLVED: Format Mismatch in `scheduling.py`
 
-**Location:** `core/scheduling.py:121-122`
-
-```python
-intervals = cohort_scheduler.parse_interval_string(row["availability_utc"] or "")
-if_needed = cohort_scheduler.parse_interval_string(row["if_needed_availability_utc"] or "")
-```
-
-**Problem:** Passes JSON string directly to parser that expects interval format.
-
-- **Input:** `'{"Monday":["09:00","09:30"]}'`
-- **Expected:** `"M09:00 M10:00, T14:00 T15:00"`
-- **Result:** `parse_interval_string()` returns `[]` - all users appear to have no availability
-
-**Correct implementation exists in:** `core/enrollment.py:43-75`
+Fixed by using `availability_json_to_intervals()` helper.
 
 ---
 
-### 2. Misleading Column Name
+### 2. ⚠️ OPEN: Misleading Column Name
 
 **Location:** `core/tables.py:58`
 
@@ -73,67 +64,46 @@ The column `availability_utc` stores times in the **user's local timezone**, not
 
 ---
 
-### 3. Half-Hour Slots Treated as 1-Hour Blocks
+### 3. ✅ RESOLVED: Half-Hour Slots Treated as 1-Hour Blocks
 
-**Location:** `core/enrollment.py:57-59`
-
-```python
-hour = int(slot.split(":")[0])
-end_hour = hour + 1  # Always adds 1 hour, ignores minutes
-interval_str = f"{day_code}{slot} {day_code}{end_hour:02d}:00"
-```
-
-**Problem:** The `:30` portion of time slots is ignored.
-
-- User selects "08:00" → Interval: 8:00-9:00 ✓
-- User selects "08:30" → Interval: 8:00-9:00 ✗ (should be 8:30-9:30 or 8:30-9:00)
-
-The frontend grid has 30-minute slots, but conversion treats each as a 1-hour block starting at the hour.
+Fixed by using explicit `"08:00-08:30"` format in frontend.
 
 ---
 
-### 4. Duplicate Conversion Logic
+### 4. ✅ RESOLVED: Duplicate Conversion Logic
 
-**Locations:**
-- `core/enrollment.py:52-63` (availability conversion)
-- `core/enrollment.py:66-75` (if_needed conversion)
-- `discord_bot/tests/test_scheduler.py:466-476` (test helper)
-
-**Recommendation:** Extract to shared helper function.
+Fixed by creating shared `core/availability.py` module.
 
 ---
 
-### 5. Two Separate Scheduling Code Paths
+### 5. ✅ RESOLVED: Two Separate Scheduling Code Paths
 
-- `core/enrollment.py:get_people_for_scheduling()` - Works correctly with JSON
-- `core/scheduling.py:schedule_cohort()` - Broken, skips JSON parsing
-
-Unclear which is used in production. May indicate dead code or incomplete migration.
+Audited: `get_people_for_scheduling()` was dead code (never called). Deleted.
+Production uses `schedule_cohort()` which is now fixed.
 
 ---
 
 ## File Reference
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `web_frontend/src/types/signup.ts` | 1-47 | Type definitions, `formatTimeSlot()` |
-| `web_frontend/src/components/schedule/ScheduleSelector.tsx` | 1-188 | Visual grid component |
-| `web_frontend/src/components/schedule/useScheduleSelection.ts` | 1-276 | Drag selection logic |
-| `web_frontend/src/pages/Availability.tsx` | 1-169 | Standalone availability editor |
-| `web_api/routes/users.py` | 34-62 | `PATCH /api/users/me` endpoint |
-| `core/users.py` | 64-114 | `update_user_profile()` |
-| `core/enrollment.py` | 18-97 | `get_people_for_scheduling()` - correct conversion |
-| `core/scheduling.py` | 54-226 | `schedule_cohort()` - broken conversion |
-| `core/cohorts.py` | 15-83 | `find_availability_overlap()` - uses JSON correctly |
-| `core/tables.py` | 47-77 | Database schema |
+| File | Purpose |
+|------|---------|
+| `web_frontend/src/types/signup.ts` | Type definitions, `formatTimeSlot()` |
+| `web_frontend/src/components/schedule/ScheduleSelector.tsx` | Visual grid component |
+| `web_frontend/src/components/schedule/useScheduleSelection.ts` | Drag selection logic |
+| `web_frontend/src/pages/Availability.tsx` | Standalone availability editor |
+| `web_api/routes/users.py` | `PATCH /api/users/me` endpoint |
+| `core/availability.py` | **NEW** - `availability_json_to_intervals()`, `merge_adjacent_slots()` |
+| `core/scheduling.py` | `schedule_cohort()` - fixed to use helper |
+| `core/cohorts.py` | `find_availability_overlap()` |
+| `core/tables.py` | Database schema |
 
 ---
 
-## Recommendations
+## Remaining Recommendations
 
-1. **Fix `scheduling.py`**: Add JSON parsing and format conversion
-2. **Extract shared helper**: `availability_json_to_intervals(json_str) -> list[tuple]`
-3. **Fix 30-minute handling**: Respect the `:30` portion of time slots
-4. **Rename column**: `availability_utc` → `availability_json` or similar
+1. ~~Fix `scheduling.py`~~ ✅
+2. ~~Extract shared helper~~ ✅
+3. ~~Fix 30-minute handling~~ ✅
+4. **Rename column**: `availability_utc` → `availability_json` (low priority)
 5. **Add integration test**: Full flow from API to scheduler
-6. **Audit code paths**: Determine if `enrollment.py` or `scheduling.py` is the active path
+6. ~~Audit code paths~~ ✅

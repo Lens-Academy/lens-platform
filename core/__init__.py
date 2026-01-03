@@ -39,9 +39,6 @@ from .users import (
 # Nickname sync (async functions)
 from .nickname import get_user_nickname, update_user_nickname
 
-# Enrollment/scheduling helpers (async)
-from .enrollment import get_people_for_scheduling
-
 # Cohorts / Availability
 from .cohorts import (
     find_availability_overlap, format_local_time, get_timezone_abbrev
@@ -84,8 +81,6 @@ __all__ = [
     'get_users_with_availability', 'get_facilitators', 'toggle_facilitator', 'is_facilitator',
     # Nickname sync (async)
     'get_user_nickname', 'update_user_nickname',
-    # Enrollment/scheduling (async)
-    'get_people_for_scheduling',
     # Cohorts / Availability
     'find_availability_overlap', 'format_local_time', 'get_timezone_abbrev',
     # Availability format conversion
