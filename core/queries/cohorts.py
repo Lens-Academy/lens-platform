@@ -109,3 +109,66 @@ async def save_cohort_category_id(
             updated_at=datetime.now(timezone.utc),
         )
     )
+
+
+async def get_available_cohorts(
+    conn: AsyncConnection,
+    user_id: int | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """
+    Get future cohorts, separated into enrolled and available.
+
+    Args:
+        conn: Database connection
+        user_id: If provided, check enrollment status for this user
+
+    Returns:
+        {"enrolled": [...], "available": [...]}
+    """
+    from datetime import date
+
+    today = date.today()
+
+    # Get all future active cohorts
+    query = (
+        select(
+            cohorts.c.cohort_id,
+            cohorts.c.cohort_name,
+            cohorts.c.cohort_start_date,
+            courses.c.course_id,
+            courses.c.course_name,
+        )
+        .join(courses, cohorts.c.course_id == courses.c.course_id)
+        .where(cohorts.c.cohort_start_date > today)
+        .where(cohorts.c.status == "active")
+        .order_by(cohorts.c.cohort_start_date)
+    )
+
+    result = await conn.execute(query)
+    all_cohorts = [dict(row) for row in result.mappings()]
+
+    if not user_id:
+        return {"enrolled": [], "available": all_cohorts}
+
+    # Get user's enrollments
+    enrollment_query = (
+        select(
+            courses_users.c.cohort_id,
+            courses_users.c.role_in_cohort,
+        )
+        .where(courses_users.c.user_id == user_id)
+    )
+    enrollment_result = await conn.execute(enrollment_query)
+    enrollments = {row["cohort_id"]: row["role_in_cohort"] for row in enrollment_result.mappings()}
+
+    enrolled = []
+    available = []
+
+    for cohort in all_cohorts:
+        if cohort["cohort_id"] in enrollments:
+            cohort["role"] = enrollments[cohort["cohort_id"]].value
+            enrolled.append(cohort)
+        else:
+            available.append(cohort)
+
+    return {"enrolled": enrolled, "available": available}

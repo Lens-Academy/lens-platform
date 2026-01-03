@@ -197,13 +197,24 @@ async def is_facilitator(
     conn: AsyncConnection,
     discord_id: str,
 ) -> bool:
-    """Check if a user is a facilitator."""
+    """Check if a user is a facilitator by discord_id."""
     user = await get_user_by_discord_id(conn, discord_id)
     if not user:
         return False
 
     result = await conn.execute(
         select(facilitators).where(facilitators.c.user_id == user["user_id"])
+    )
+    return result.first() is not None
+
+
+async def is_facilitator_by_user_id(
+    conn: AsyncConnection,
+    user_id: int,
+) -> bool:
+    """Check if a user is a facilitator by user_id."""
+    result = await conn.execute(
+        select(facilitators).where(facilitators.c.user_id == user_id)
     )
     return result.first() is not None
 

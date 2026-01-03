@@ -91,7 +91,7 @@ async def schedule_cohort(
                 users.c.timezone,
                 users.c.availability_local,
                 users.c.if_needed_availability_local,
-                courses_users.c.cohort_role,
+                courses_users.c.role_in_cohort,
             )
             .join(courses_users, users.c.user_id == courses_users.c.user_id)
             .where(courses_users.c.cohort_id == cohort_id)
@@ -139,7 +139,7 @@ async def schedule_cohort(
             people.append(person)
             user_timezones.append(user_timezone)
 
-            if row["cohort_role"] == "facilitator":
+            if row["role_in_cohort"] == "facilitator":
                 facilitator_ids.add(discord_id)
 
         if not people:

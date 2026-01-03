@@ -58,7 +58,7 @@ async def create_test_user(
     cohort_id: int,
     discord_id: str,
     availability: str = '{"Monday": ["09:00-09:30", "09:30-10:00"]}',
-    cohort_role: str = "participant",
+    role_in_cohort: str = "participant",
     course_id: int = None,
 ) -> dict:
     """
@@ -69,7 +69,7 @@ async def create_test_user(
         cohort_id: Cohort to enroll user in
         discord_id: Discord ID (should be unique per test)
         availability: Availability JSON string (e.g., '{"Monday": ["09:00-09:30"]}')
-        cohort_role: "participant" or "facilitator"
+        role_in_cohort: "participant" or "facilitator"
         course_id: Course ID (required for courses_users, will be fetched from cohort if not provided)
 
     Returns:
@@ -98,7 +98,7 @@ async def create_test_user(
         course_id = cohort_result.scalar_one()
 
     # Map string role to enum
-    role_enum = CohortRole.facilitator if cohort_role == "facilitator" else CohortRole.participant
+    role_enum = CohortRole.facilitator if role_in_cohort == "facilitator" else CohortRole.participant
 
     # Enroll in cohort (courses_users requires course_id)
     await conn.execute(
@@ -108,7 +108,7 @@ async def create_test_user(
             course_id=course_id,
             cohort_id=cohort_id,
             grouping_status=GroupingStatus.awaiting_grouping,
-            cohort_role=role_enum,
+            role_in_cohort=role_enum,
         )
     )
 

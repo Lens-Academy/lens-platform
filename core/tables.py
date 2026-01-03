@@ -276,7 +276,7 @@ courses_users = Table(
         Integer,
         ForeignKey("cohorts.cohort_id", ondelete="SET NULL"),
     ),
-    Column("cohort_role", cohort_role_enum, nullable=False),
+    Column("role_in_cohort", cohort_role_enum, nullable=False),
     Column("grouping_status", grouping_status_enum, server_default="awaiting_grouping"),
     Column("grouping_attempt_count", Integer, server_default="0"),
     Column("last_grouping_attempt_at", TIMESTAMP(timezone=True)),

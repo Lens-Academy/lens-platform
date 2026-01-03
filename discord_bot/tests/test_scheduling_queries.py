@@ -355,7 +355,7 @@ class TestScheduleCohort:
             cohort["cohort_id"],
             discord_id="fac_test_facilitator",
             availability='{"Monday": ["09:00-09:30", "09:30-10:00"]}',
-            cohort_role="facilitator",
+            role_in_cohort="facilitator",
         )
         user_ids.append(facilitator["user_id"])
 
@@ -385,5 +385,5 @@ class TestScheduleCohort:
         assert result.users_ungroupable == 0
 
         # Verify facilitator role is preserved in groups_users
-        # (schedule_cohort checks cohort_role and sets role accordingly)
+        # (schedule_cohort checks role_in_cohort and sets role accordingly)
         assert len(result.groups) >= 1
