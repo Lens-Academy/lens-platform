@@ -234,3 +234,122 @@ class TestBecomeFacilitator:
         result = await become_facilitator("nonexistent_user_12345")
 
         assert result is False
+
+
+from core.users import enroll_in_cohort
+
+
+class TestEnrollInCohort:
+    """Tests for enroll_in_cohort function."""
+
+    @pytest.mark.asyncio
+    async def test_creates_enrollment_record(self, db_conn):
+        """Should create courses_users record."""
+        # Setup
+        course_result = await db_conn.execute(
+            insert(courses).values(course_name="Test Course").returning(courses)
+        )
+        course = dict(course_result.mappings().first())
+
+        cohort_result = await db_conn.execute(
+            insert(cohorts).values(
+                cohort_name="Test Cohort",
+                course_id=course["course_id"],
+                cohort_start_date=date.today() + timedelta(days=30),
+                duration_days=56,
+                number_of_group_meetings=8,
+            ).returning(cohorts)
+        )
+        cohort = dict(cohort_result.mappings().first())
+
+        user_result = await db_conn.execute(
+            insert(users).values(
+                discord_id="enroll_user",
+                discord_username="enrolluser",
+            ).returning(users)
+        )
+        await db_conn.commit()
+
+        # Act
+        result = await enroll_in_cohort("enroll_user", cohort["cohort_id"], "participant")
+
+        # Assert
+        assert result is not None
+        assert result["cohort_id"] == cohort["cohort_id"]
+        assert result["role_in_cohort"] == "participant"
+        assert result["grouping_status"] == "awaiting_grouping"
+
+    @pytest.mark.asyncio
+    async def test_enrolls_as_facilitator(self, db_conn):
+        """Should create enrollment record with facilitator role."""
+        # Setup
+        course_result = await db_conn.execute(
+            insert(courses).values(course_name="Facilitator Course").returning(courses)
+        )
+        course = dict(course_result.mappings().first())
+
+        cohort_result = await db_conn.execute(
+            insert(cohorts).values(
+                cohort_name="Facilitator Cohort",
+                course_id=course["course_id"],
+                cohort_start_date=date.today() + timedelta(days=30),
+                duration_days=56,
+                number_of_group_meetings=8,
+            ).returning(cohorts)
+        )
+        cohort = dict(cohort_result.mappings().first())
+
+        await db_conn.execute(
+            insert(users).values(
+                discord_id="fac_enroll_user",
+                discord_username="facenrolluser",
+            ).returning(users)
+        )
+        await db_conn.commit()
+
+        # Act
+        result = await enroll_in_cohort("fac_enroll_user", cohort["cohort_id"], "facilitator")
+
+        # Assert
+        assert result is not None
+        assert result["role_in_cohort"] == "facilitator"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_invalid_cohort(self, db_conn):
+        """Should return None if cohort doesn't exist."""
+        await db_conn.execute(
+            insert(users).values(
+                discord_id="bad_cohort_user",
+                discord_username="badcohort",
+            ).returning(users)
+        )
+        await db_conn.commit()
+
+        result = await enroll_in_cohort("bad_cohort_user", 99999, "participant")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_invalid_user(self, db_conn):
+        """Should return None if user doesn't exist."""
+        # Setup - create a cohort but no user
+        course_result = await db_conn.execute(
+            insert(courses).values(course_name="No User Course").returning(courses)
+        )
+        course = dict(course_result.mappings().first())
+
+        cohort_result = await db_conn.execute(
+            insert(cohorts).values(
+                cohort_name="No User Cohort",
+                course_id=course["course_id"],
+                cohort_start_date=date.today() + timedelta(days=30),
+                duration_days=56,
+                number_of_group_meetings=8,
+            ).returning(cohorts)
+        )
+        cohort = dict(cohort_result.mappings().first())
+        await db_conn.commit()
+
+        result = await enroll_in_cohort("nonexistent_discord_id_12345", cohort["cohort_id"], "participant")
+
+        assert result is None

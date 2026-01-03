@@ -192,3 +192,54 @@ async def become_facilitator(discord_id: str) -> bool:
             insert(facilitators).values(user_id=user["user_id"])
         )
         return True
+
+
+async def enroll_in_cohort(
+    discord_id: str,
+    cohort_id: int,
+    role_in_cohort: str,
+) -> dict[str, Any] | None:
+    """
+    Enroll a user in a cohort.
+
+    Args:
+        discord_id: User's Discord ID
+        cohort_id: Cohort to enroll in
+        role_in_cohort: "participant" or "facilitator"
+
+    Returns:
+        The created enrollment record (with enums converted to strings), or None if user/cohort not found.
+    """
+    from .queries.cohorts import get_cohort_by_id
+    from .tables import courses_users
+    from .enums import CohortRole, GroupingStatus
+    from sqlalchemy import insert
+
+    async with get_transaction() as conn:
+        user = await user_queries.get_user_by_discord_id(conn, discord_id)
+        if not user:
+            return None
+
+        cohort = await get_cohort_by_id(conn, cohort_id)
+        if not cohort:
+            return None
+
+        role_enum = CohortRole.facilitator if role_in_cohort == "facilitator" else CohortRole.participant
+
+        result = await conn.execute(
+            insert(courses_users)
+            .values(
+                user_id=user["user_id"],
+                course_id=cohort["course_id"],
+                cohort_id=cohort_id,
+                role_in_cohort=role_enum,
+                grouping_status=GroupingStatus.awaiting_grouping,
+            )
+            .returning(courses_users)
+        )
+        row = result.mappings().first()
+        enrollment = dict(row)
+        # Convert enums to strings for JSON serialization
+        enrollment["role_in_cohort"] = enrollment["role_in_cohort"].value
+        enrollment["grouping_status"] = enrollment["grouping_status"].value
+        return enrollment
