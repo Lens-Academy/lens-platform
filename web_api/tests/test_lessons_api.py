@@ -156,3 +156,69 @@ def test_get_session_forbidden_for_wrong_user():
 
                 # Should fail - not owner's session
                 assert response.status_code == 403
+
+
+# --- Task 6: Anonymous Session Creation Tests ---
+
+
+def test_create_anonymous_session():
+    """Can create a session without authentication."""
+    with patch("web_api.routes.lessons.get_optional_user") as mock_auth:
+        mock_auth.return_value = None  # Not authenticated
+
+        with patch("web_api.routes.lessons.create_session") as mock_create:
+            mock_create.return_value = {
+                "session_id": 123,
+                "user_id": None,
+                "lesson_id": "intro-to-ai-safety",
+                "messages": [],
+            }
+
+            with patch("web_api.routes.lessons.load_lesson") as mock_lesson:
+                from unittest.mock import MagicMock
+                mock_lesson_obj = MagicMock()
+                mock_lesson_obj.stages = []  # No stages = no started message
+                mock_lesson.return_value = mock_lesson_obj
+
+                response = client.post(
+                    "/api/lesson-sessions",
+                    json={"lesson_id": "intro-to-ai-safety"}
+                )
+
+                assert response.status_code == 200
+                assert response.json()["session_id"] == 123
+                # Verify create_session was called with user_id=None
+                mock_create.assert_called_once_with(None, "intro-to-ai-safety")
+
+
+def test_create_authenticated_session():
+    """Authenticated user creates session with their user_id."""
+    with patch("web_api.routes.lessons.get_optional_user") as mock_auth:
+        mock_auth.return_value = {"sub": "test_discord_123", "username": "testuser"}
+
+        with patch("web_api.routes.lessons.get_or_create_user") as mock_get_user:
+            mock_get_user.return_value = {"user_id": 42, "discord_id": "test_discord_123"}
+
+            with patch("web_api.routes.lessons.create_session") as mock_create:
+                mock_create.return_value = {
+                    "session_id": 456,
+                    "user_id": 42,
+                    "lesson_id": "intro-to-ai-safety",
+                    "messages": [],
+                }
+
+                with patch("web_api.routes.lessons.load_lesson") as mock_lesson:
+                    from unittest.mock import MagicMock
+                    mock_lesson_obj = MagicMock()
+                    mock_lesson_obj.stages = []
+                    mock_lesson.return_value = mock_lesson_obj
+
+                    response = client.post(
+                        "/api/lesson-sessions",
+                        json={"lesson_id": "intro-to-ai-safety"}
+                    )
+
+                    assert response.status_code == 200
+                    assert response.json()["session_id"] == 456
+                    # Verify create_session was called with actual user_id
+                    mock_create.assert_called_once_with(42, "intro-to-ai-safety")

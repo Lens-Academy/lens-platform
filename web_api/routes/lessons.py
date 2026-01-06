@@ -184,8 +184,15 @@ class CreateSessionRequest(BaseModel):
 async def start_session(
     request_body: CreateSessionRequest, request: Request
 ):
-    """Start a new lesson session."""
-    user_id = await get_user_id_for_lesson(request)
+    """Start a new lesson session. Can be anonymous (no auth required)."""
+    user_jwt = await get_optional_user(request)
+
+    if user_jwt:
+        discord_id = user_jwt["sub"]
+        user = await get_or_create_user(discord_id)
+        user_id = user["user_id"]
+    else:
+        user_id = None  # Anonymous session
 
     try:
         lesson = load_lesson(request_body.lesson_id)
