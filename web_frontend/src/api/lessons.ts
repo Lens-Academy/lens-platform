@@ -112,6 +112,19 @@ export async function getNextLesson(
   return res.json();
 }
 
+export async function claimSession(sessionId: number): Promise<{ claimed: boolean }> {
+  const res = await fetch(`${API_BASE}/api/lesson-sessions/${sessionId}/claim`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    if (res.status === 403) throw new Error("Session already claimed");
+    if (res.status === 404) throw new Error("Session not found");
+    throw new Error("Failed to claim session");
+  }
+  return res.json();
+}
+
 export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   const formData = new FormData();
   formData.append("audio", audioBlob, "recording.webm");
