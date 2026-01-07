@@ -104,6 +104,32 @@ def is_configured() -> bool:
     return bool(os.environ.get("DATABASE_URL"))
 
 
+async def check_connection() -> tuple[bool, str]:
+    """
+    Test database connectivity. Returns (success, message).
+
+    Call this at startup to warn developers if the database is unreachable.
+    """
+    if not is_configured():
+        return False, "DATABASE_URL not set"
+
+    try:
+        from sqlalchemy import text
+        async with get_connection() as conn:
+            await conn.execute(text("SELECT 1"))
+        return True, "Connected"
+    except Exception as e:
+        error_msg = str(e)
+        # Simplify common error messages
+        if "Connection refused" in error_msg:
+            return False, "Connection refused - is the database running?"
+        if "timeout" in error_msg.lower():
+            return False, "Connection timeout - check database host/port"
+        if "authentication" in error_msg.lower() or "password" in error_msg.lower():
+            return False, "Authentication failed - check credentials"
+        return False, f"Connection failed: {error_msg[:100]}"
+
+
 def get_sync_database_url() -> str:
     """
     Get synchronous database URL for Alembic migrations.

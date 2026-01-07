@@ -1,5 +1,5 @@
 // web_frontend/src/components/unified-lesson/ChatPanel.tsx
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react";
 import type { ChatMessage, Stage, PendingMessage } from "../../types/unified-lesson";
 import { transcribeAudio } from "../../api/lessons";
 import { Tooltip } from "../Tooltip";
@@ -42,6 +42,12 @@ export default function ChatPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Infinite canvas scrolling refs
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastUserMessageRef = useRef<HTMLDivElement>(null);
+  const aiResponseRef = useRef<HTMLDivElement>(null);
+  const [spacerHeight, setSpacerHeight] = useState(0);
+
   // Recording state
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [recordingTime, setRecordingTime] = useState(0);
@@ -67,9 +73,74 @@ export default function ChatPanel({
   const WARNING_TIME = 60; // Show warning after 1 minute
   const MIN_RECORDING_TIME = 0.5; // seconds
 
+  // Scroll user message to TOP when they send it
+  // Don't scroll during streaming - let user read at their own pace
+  useLayoutEffect(() => {
+    if (pendingMessage) {
+      // Small delay to ensure ref is attached after render
+      requestAnimationFrame(() => {
+        lastUserMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, [pendingMessage]);
+
+  // Track whether spacer should be active (activated when user sends message)
+  const [spacerActive, setSpacerActive] = useState(false);
+
+  // Activate spacer when user sends a message
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent, pendingMessage]);
+    if (pendingMessage) {
+      setSpacerActive(true);
+    }
+  }, [pendingMessage]);
+
+  // Calculate spacer height for infinite canvas scrolling
+  // Spacer allows user message to scroll to top, shrinks as AI content grows
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !spacerActive) {
+      return;
+    }
+
+    const calculateSpacer = () => {
+      const containerHeight = container.clientHeight;
+
+      // Find the last user message (either pending or the last one in messages)
+      const userMsg = lastUserMessageRef.current;
+      const userMsgHeight = userMsg?.offsetHeight || 0;
+
+      // Find AI response - either streaming or the last assistant message
+      const aiResponse = aiResponseRef.current;
+      const aiResponseHeight = aiResponse?.offsetHeight || 0;
+
+      // Spacer fills remaining viewport after user message + AI response
+      // This allows user message to scroll to top of viewport
+      const contentHeight = userMsgHeight + aiResponseHeight + 24; // 24px for gap
+      const remaining = Math.max(0, containerHeight - contentHeight);
+
+      // If content fills the space, deactivate spacer entirely
+      if (remaining === 0) {
+        setSpacerActive(false);
+        setSpacerHeight(0);
+      } else {
+        setSpacerHeight(remaining);
+      }
+    };
+
+    calculateSpacer();
+
+    // Use ResizeObserver for responsive updates during streaming
+    const resizeObserver = new ResizeObserver(calculateSpacer);
+    resizeObserver.observe(container);
+
+    // Observe user message and AI response for size changes
+    const userMsg = lastUserMessageRef.current;
+    const aiResponse = aiResponseRef.current;
+    if (userMsg) resizeObserver.observe(userMsg);
+    if (aiResponse) resizeObserver.observe(aiResponse);
+
+    return () => resizeObserver.disconnect();
+  }, [spacerActive, streamingContent, messages]);
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -338,10 +409,15 @@ export default function ChatPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4">
         <div className="max-w-[620px] mx-auto space-y-3">
-        {messages.map((msg, i) =>
-          msg.role === "system" ? (
+        {messages.map((msg, i) => {
+          // Check if this is the last assistant message (for spacer calculation)
+          const isLastAssistant = msg.role === "assistant" &&
+            !isLoading &&
+            i === messages.length - 1;
+
+          return msg.role === "system" ? (
             <div key={i} className="flex justify-center my-3">
               <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
                 {msg.icon && <StageIcon type={msg.icon} small />}
@@ -351,6 +427,7 @@ export default function ChatPanel({
           ) : (
             <div
               key={i}
+              ref={isLastAssistant ? aiResponseRef : undefined}
               className={`p-3 rounded-lg ${
                 msg.role === "assistant"
                   ? "bg-blue-50 text-gray-800"
@@ -362,16 +439,19 @@ export default function ChatPanel({
               </div>
               <div className="whitespace-pre-wrap">{msg.content}</div>
             </div>
-          )
-        )}
+          );
+        })}
 
         {/* Pending user message (optimistic) */}
         {pendingMessage && (
-          <div className={`p-3 rounded-lg ml-8 ${
-            pendingMessage.status === "failed"
-              ? "bg-red-50 border border-red-200"
-              : "bg-gray-100"
-          }`}>
+          <div
+            ref={lastUserMessageRef}
+            className={`p-3 rounded-lg ml-8 ${
+              pendingMessage.status === "failed"
+                ? "bg-red-50 border border-red-200"
+                : "bg-gray-100"
+            }`}
+          >
             <div className="text-xs text-gray-500 mb-1 flex items-center justify-between">
               <span>You</span>
               {pendingMessage.status === "sending" && (
@@ -392,7 +472,7 @@ export default function ChatPanel({
 
         {/* Streaming message */}
         {isLoading && streamingContent && (
-          <div className="bg-blue-50 p-3 rounded-lg">
+          <div ref={aiResponseRef} className="bg-blue-50 p-3 rounded-lg">
             <div className="text-xs text-gray-500 mb-1">Tutor</div>
             <div className="whitespace-pre-wrap">{streamingContent}</div>
           </div>
@@ -400,7 +480,7 @@ export default function ChatPanel({
 
         {/* Loading indicator */}
         {isLoading && !streamingContent && (
-          <div className="bg-blue-50 p-3 rounded-lg">
+          <div ref={aiResponseRef} className="bg-blue-50 p-3 rounded-lg">
             <div className="text-xs text-gray-500 mb-1">Tutor</div>
             <div className="text-gray-800">Thinking...</div>
           </div>
@@ -428,6 +508,16 @@ export default function ChatPanel({
         )}
 
         <div ref={messagesEndRef} />
+
+        {/* Dynamic spacer for infinite canvas scrolling */}
+        {/* Allows user message to scroll to top, shrinks as AI content grows */}
+        {spacerHeight > 0 && (
+          <div
+            aria-hidden="true"
+            style={{ height: spacerHeight }}
+            className="shrink-0"
+          />
+        )}
         </div>
       </div>
 

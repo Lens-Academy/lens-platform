@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
 from fastapi import FastAPI
 
-from core.database import close_engine
+from core.database import close_engine, check_connection
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -177,6 +177,14 @@ async def lifespan(app: FastAPI):
     They run concurrently with FastAPI in the same event loop.
     """
     global _bot_task
+
+    # Check database connection
+    db_ok, db_msg = await check_connection()
+    if db_ok:
+        print(f"✓ Database: {db_msg}")
+    else:
+        print(f"✗ Database: {db_msg}")
+        print("  └─ API will fail on database operations until this is fixed")
 
     # Start peer services as background tasks
     print("Starting Discord bot...")
