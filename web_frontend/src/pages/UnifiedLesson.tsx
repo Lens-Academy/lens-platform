@@ -9,7 +9,7 @@ import ChatPanel from "../components/unified-lesson/ChatPanel";
 import ContentPanel from "../components/unified-lesson/ContentPanel";
 import StageProgressBar from "../components/unified-lesson/StageProgressBar";
 import LessonCompleteModal from "../components/unified-lesson/LessonCompleteModal";
-import AuthStatusBanner from "../components/unified-lesson/AuthStatusBanner";
+import HeaderAuthStatus from "../components/unified-lesson/HeaderAuthStatus";
 import AuthPromptModal from "../components/unified-lesson/AuthPromptModal";
 
 export default function UnifiedLesson() {
@@ -368,7 +368,7 @@ export default function UnifiedLesson() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-4 relative">
+      <header className="bg-white border-b border-gray-200 px-4 py-4 relative z-40">
         {/* Title - left aligned */}
         <h1 className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-semibold text-gray-900">
           {session.lesson_title}
@@ -386,8 +386,8 @@ export default function UnifiedLesson() {
             canGoNext={canGoForward}
           />
         </div>
-        {/* Skip/return button - absolute right */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+        {/* Right side: Skip button + Auth status */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
           {isReviewing ? (
             <button
               onClick={handleReturnToCurrent}
@@ -400,14 +400,12 @@ export default function UnifiedLesson() {
               onClick={handleAdvanceStage}
               className="text-gray-500 hover:text-gray-700 text-sm cursor-pointer"
             >
-              Skip section →
+              Skip section
             </button>
           )}
+          <HeaderAuthStatus onLoginClick={handleLoginClick} />
         </div>
       </header>
-
-      {/* Auth status banner */}
-      <AuthStatusBanner onLoginClick={handleLoginClick} />
 
       {/* Main content - split panel */}
       <div className="flex-1 flex overflow-hidden">
