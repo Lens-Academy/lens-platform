@@ -1,0 +1,92 @@
+"""SendGrid email delivery channel."""
+
+import os
+from dataclasses import dataclass
+
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
+
+SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
+FROM_EMAIL = os.environ.get("FROM_EMAIL", "noreply@aisafetycourse.com")
+
+_client: SendGridAPIClient | None = None
+
+
+@dataclass
+class EmailMessage:
+    """Email message data."""
+
+    to_email: str
+    subject: str
+    body: str
+    calendar_ics: str | None = None
+
+
+def _get_sendgrid_client() -> SendGridAPIClient | None:
+    """Get or create SendGrid client singleton."""
+    global _client
+    if _client is None and SENDGRID_API_KEY:
+        _client = SendGridAPIClient(SENDGRID_API_KEY)
+    return _client
+
+
+def send_email(
+    to_email: str,
+    subject: str,
+    body: str,
+    calendar_ics: str | None = None,
+) -> bool:
+    """
+    Send an email via SendGrid.
+
+    Args:
+        to_email: Recipient email address
+        subject: Email subject line
+        body: Plain text email body
+        calendar_ics: Optional iCal data for calendar invite
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    client = _get_sendgrid_client()
+    if not client:
+        print("Warning: SendGrid not configured (SENDGRID_API_KEY not set)")
+        return False
+
+    try:
+        message = Mail(
+            from_email=FROM_EMAIL,
+            to_emails=to_email,
+            subject=subject,
+            plain_text_content=body,
+        )
+
+        # Add calendar invite if provided
+        if calendar_ics:
+            from sendgrid.helpers.mail import (
+                Attachment,
+                ContentId,
+                Disposition,
+                FileContent,
+                FileName,
+                FileType,
+            )
+            import base64
+
+            encoded = base64.b64encode(calendar_ics.encode()).decode()
+            attachment = Attachment(
+                FileContent(encoded),
+                FileName("invite.ics"),
+                FileType("text/calendar; method=REQUEST"),
+                Disposition("attachment"),
+                ContentId("calendar-invite"),
+            )
+            message.add_attachment(attachment)
+
+        response = client.send(message)
+        return response.status_code in (200, 201, 202)
+
+    except Exception as e:
+        print(f"Failed to send email to {to_email}: {e}")
+        return False
