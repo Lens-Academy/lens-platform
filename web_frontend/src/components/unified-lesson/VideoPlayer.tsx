@@ -8,6 +8,10 @@ type VideoPlayerProps = {
   onEnded: () => void;
   /** Hide the continue button (for reviewing previous videos) */
   hideControls?: boolean;
+  /** Activity tracking callbacks */
+  onPlay?: () => void;
+  onPause?: () => void;
+  onTimeUpdate?: (currentTime: number) => void;
 };
 
 // Extend JSX to include the youtube-video custom element (React 19 style)
@@ -33,6 +37,9 @@ export default function VideoPlayer({
   end,
   onEnded,
   hideControls = false,
+  onPlay: onPlayCallback,
+  onPause: onPauseCallback,
+  onTimeUpdate: onTimeUpdateCallback,
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -72,8 +79,17 @@ export default function VideoPlayer({
       video.play();
     };
 
-    const handlePlay = () => setIsPaused(false);
-    const handlePause = () => setIsPaused(true);
+    const handlePlay = () => {
+      setIsPaused(false);
+      onPlayCallback?.();
+    };
+    const handlePause = () => {
+      setIsPaused(true);
+      onPauseCallback?.();
+    };
+    const handleTimeUpdate = () => {
+      onTimeUpdateCallback?.(video.currentTime);
+    };
 
     // Track volume changes from user
     const handleVolumeChange = () => {
@@ -85,15 +101,17 @@ export default function VideoPlayer({
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
+    video.addEventListener("timeupdate", handleTimeUpdate);
     video.addEventListener("volumechange", handleVolumeChange);
 
     return () => {
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
       video.removeEventListener("volumechange", handleVolumeChange);
     };
-  }, [start]);
+  }, [start, onPlayCallback, onPauseCallback, onTimeUpdateCallback]);
 
   // High-frequency polling for smooth progress and fade timing
   useEffect(() => {

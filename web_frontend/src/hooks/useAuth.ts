@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { API_URL } from "../config";
+import { identifyUser, resetUser, hasConsent } from "../analytics";
+import { identifySentryUser, resetSentryUser, isSentryInitialized } from "../errorTracking";
 
 export interface User {
   user_id: number;
@@ -72,6 +74,24 @@ export function useAuth(): UseAuthReturn {
           discordUsername: data.discord_username,
           discordAvatarUrl: data.discord_avatar_url,
         });
+
+        // Identify user for analytics and error tracking
+        const user = data.user;
+        if (user && hasConsent()) {
+          identifyUser(user.user_id, {
+            discord_id: user.discord_id,
+            discord_username: user.discord_username,
+            email: user.email,
+            nickname: user.nickname,
+          });
+        }
+        if (user && isSentryInitialized()) {
+          identifySentryUser(user.user_id, {
+            discord_id: user.discord_id,
+            discord_username: user.discord_username,
+            email: user.email,
+          });
+        }
       } else {
         setState({
           isAuthenticated: false,
@@ -112,6 +132,11 @@ export function useAuth(): UseAuthReturn {
         method: "POST",
         credentials: "include",
       });
+
+      // Reset analytics and error tracking identity
+      resetUser();
+      resetSentryUser();
+
       setState({
         isAuthenticated: false,
         isLoading: false,

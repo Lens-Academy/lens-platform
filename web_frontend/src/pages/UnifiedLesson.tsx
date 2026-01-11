@@ -1,16 +1,24 @@
 // web_frontend/src/pages/UnifiedLesson.tsx
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import type { SessionState, PendingMessage, ArticleData } from "../types/unified-lesson";
 import { createSession, getSession, advanceStage, sendMessage, claimSession } from "../api/lessons";
 import { useAuth } from "../hooks/useAuth";
 import { useAnonymousSession } from "../hooks/useAnonymousSession";
+import { useActivityTracker } from "../hooks/useActivityTracker";
+import { useVideoActivityTracker } from "../hooks/useVideoActivityTracker";
 import ChatPanel from "../components/unified-lesson/ChatPanel";
 import ContentPanel from "../components/unified-lesson/ContentPanel";
 import StageProgressBar from "../components/unified-lesson/StageProgressBar";
 import LessonCompleteModal from "../components/unified-lesson/LessonCompleteModal";
 import HeaderAuthStatus from "../components/unified-lesson/HeaderAuthStatus";
 import AuthPromptModal from "../components/unified-lesson/AuthPromptModal";
+import {
+  trackLessonStarted,
+  trackLessonCompleted,
+  trackChatOpened,
+  trackChatMessageSent,
+} from "../analytics";
 
 export default function UnifiedLesson() {
   const { courseId: _courseId, lessonId } = useParams<{ courseId?: string; lessonId: string }>();
@@ -26,6 +34,9 @@ export default function UnifiedLesson() {
   // Cache for viewed stage content - prevents overwriting current stage's article
   const [viewedContentCache, setViewedContentCache] = useState<Record<number, ArticleData>>({});
 
+  // Analytics tracking refs
+  const hasTrackedLessonStart = useRef(false);
+
   // Anonymous session flow
   const { isAuthenticated, login } = useAuth();
   const { getStoredSessionId, storeSessionId, clearSessionId } = useAnonymousSession(lessonId!);
@@ -34,6 +45,39 @@ export default function UnifiedLesson() {
 
   // Messages derived from session (server is source of truth)
   const messages = session?.messages ?? [];
+
+  // Derive current stage info for activity tracking
+  const currentStageType = session?.current_stage?.type;
+  const stageIndexForTracking = session?.current_stage_index ?? 0;
+  const isViewingCurrentStage = viewingStageIndex === null;
+
+  // Activity tracking for article stages (3 min inactivity timeout)
+  useActivityTracker({
+    sessionId: sessionId ?? 0,
+    lessonId: lessonId ?? "",
+    stageIndex: stageIndexForTracking,
+    stageType: "article",
+    inactivityTimeout: 180_000, // 3 minutes
+    enabled: !!sessionId && !!lessonId && currentStageType === "article" && isViewingCurrentStage,
+  });
+
+  // Activity tracking for video stages
+  const videoTracker = useVideoActivityTracker({
+    sessionId: sessionId ?? 0,
+    lessonId: lessonId ?? "",
+    stageIndex: stageIndexForTracking,
+    enabled: !!sessionId && !!lessonId && currentStageType === "video" && isViewingCurrentStage,
+  });
+
+  // Activity tracking for chat stages (5 min inactivity timeout)
+  const { triggerActivity: triggerChatActivity } = useActivityTracker({
+    sessionId: sessionId ?? 0,
+    lessonId: lessonId ?? "",
+    stageIndex: stageIndexForTracking,
+    stageType: "chat",
+    inactivityTimeout: 300_000, // 5 minutes
+    enabled: !!sessionId && !!lessonId && currentStageType === "chat" && isViewingCurrentStage,
+  });
 
   // Initialize session
   useEffect(() => {
@@ -80,6 +124,12 @@ export default function UnifiedLesson() {
         clearTimeout(timeoutId);
         console.log(`[UnifiedLesson] Session initialized in ${Date.now() - startTime}ms`);
         setSession(state);
+
+        // Track lesson start (only for new sessions)
+        if (!hasTrackedLessonStart.current) {
+          hasTrackedLessonStart.current = true;
+          trackLessonStarted(lessonId!, state.lesson_title);
+        }
       } catch (e) {
         completed = true;
         clearTimeout(timeoutId);
@@ -96,9 +146,16 @@ export default function UnifiedLesson() {
   const handleSendMessage = useCallback(async (content: string) => {
     if (!sessionId) return;
 
+    // Trigger activity tracking for chat stage
+    triggerChatActivity();
+
     // For user messages (non-empty), set pending message for optimistic UI
     if (content) {
       setPendingMessage({ content, status: "sending" });
+      // Track chat message sent
+      if (lessonId) {
+        trackChatMessageSent(lessonId, content.length);
+      }
     }
     setIsLoading(true);
     setStreamingContent("");
@@ -142,7 +199,7 @@ export default function UnifiedLesson() {
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, triggerChatActivity]);
 
   const handleRetryMessage = useCallback(() => {
     if (!pendingMessage) return;
@@ -287,10 +344,15 @@ export default function UnifiedLesson() {
     if (currentStageIndex === null) return;
     if (lastInitiatedStage === currentStageIndex) return; // Already initiated for this stage
 
+    // Track chat opened
+    if (lessonId) {
+      trackChatOpened(lessonId);
+    }
+
     // Mark this stage as initiated and trigger AI to speak first
     setLastInitiatedStage(currentStageIndex);
     handleSendMessage("");
-  }, [sessionId, session, currentStageIndex, isChatStage, isLoading, lastInitiatedStage, handleSendMessage]);
+  }, [sessionId, session, currentStageIndex, isChatStage, isLoading, lastInitiatedStage, handleSendMessage, lessonId]);
 
   // Fetch content for viewed stage when reviewing
   useEffect(() => {
@@ -347,6 +409,13 @@ export default function UnifiedLesson() {
   useEffect(() => {
     setViewingStageIndex(null);
   }, [session?.current_stage_index]);
+
+  // Track lesson completion
+  useEffect(() => {
+    if (session?.completed && lessonId) {
+      trackLessonCompleted(lessonId);
+    }
+  }, [session?.completed, lessonId]);
 
   if (error) {
     return (
@@ -432,6 +501,9 @@ export default function UnifiedLesson() {
             previousArticle={session.previous_article}
             previousStage={session.previous_stage}
             showUserPreviousContent={session.show_user_previous_content}
+            onVideoPlay={videoTracker.onPlay}
+            onVideoPause={videoTracker.onPause}
+            onVideoTimeUpdate={videoTracker.onTimeUpdate}
           />
         </div>
 

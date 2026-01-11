@@ -8,6 +8,8 @@ Endpoints:
 - GET /api/lesson-sessions/{id} - Get session state
 - POST /api/lesson-sessions/{id}/message - Send message (SSE streaming)
 - POST /api/lesson-sessions/{id}/advance - Move to next stage
+- POST /api/lesson-sessions/{id}/claim - Claim anonymous session
+- POST /api/lesson-sessions/{id}/heartbeat - Record activity heartbeat
 """
 
 import json
@@ -17,6 +19,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy import insert
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -40,6 +43,10 @@ from core.lessons import (
     load_video_transcript_with_metadata,
 )
 from core import get_or_create_user
+from core.database import get_connection
+from core.tables import content_events
+from core.enums import ContentEventType
+from core.queries.users import get_user_by_discord_id
 from web_api.auth import get_optional_user, get_current_user
 
 
@@ -200,6 +207,14 @@ async def get_lesson(lesson_id: str):
 
 class CreateSessionRequest(BaseModel):
     lesson_id: str
+
+
+class HeartbeatRequest(BaseModel):
+    """Request body for heartbeat tracking."""
+    stage_index: int
+    stage_type: str  # "article", "video", "chat"
+    scroll_depth: float | None = None
+    video_time: int | None = None
 
 
 @router.post("/lesson-sessions")
@@ -505,3 +520,53 @@ async def claim_session_endpoint(session_id: int, request: Request):
         raise HTTPException(status_code=403, detail="Session already claimed")
 
     return {"claimed": True}
+
+
+@router.post("/lesson-sessions/{session_id}/heartbeat", status_code=204)
+async def record_heartbeat(
+    session_id: int,
+    request_body: HeartbeatRequest,
+    request: Request,
+):
+    """
+    Record an activity heartbeat for time tracking.
+
+    Fire-and-forget from frontend - returns 204 No Content.
+    """
+    user = await get_optional_user(request)
+
+    async with get_connection() as conn:
+        # Get session to verify it exists and get lesson_id
+        session = await get_session(session_id)
+        if not session:
+            raise HTTPException(404, "Session not found")
+
+        # Get user_id if authenticated
+        user_id = None
+        if user:
+            db_user = await get_user_by_discord_id(conn, user["sub"])
+            if db_user:
+                user_id = db_user["user_id"]
+
+        # Build metadata
+        metadata = {}
+        if request_body.scroll_depth is not None:
+            metadata["scroll_depth"] = request_body.scroll_depth
+        if request_body.video_time is not None:
+            metadata["video_time"] = request_body.video_time
+
+        # Insert heartbeat
+        await conn.execute(
+            insert(content_events).values(
+                user_id=user_id,
+                session_id=session_id,
+                lesson_id=session["lesson_id"],
+                stage_index=request_body.stage_index,
+                stage_type=request_body.stage_type,
+                event_type=ContentEventType.heartbeat,
+                metadata=metadata if metadata else None,
+            )
+        )
+        await conn.commit()
+
+    return None  # 204 No Content

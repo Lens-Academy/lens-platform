@@ -79,6 +79,18 @@ class DeliveryStatus(str, enum.Enum):
     failed = "failed"
 
 
+class StageType(str, enum.Enum):
+    article = "article"
+    video = "video"
+    chat = "chat"
+
+
+class ContentEventType(str, enum.Enum):
+    heartbeat = "heartbeat"
+    start = "start"
+    complete = "complete"
+
+
 # =====================================================
 # SQLAlchemy Enum Types
 # These reference existing PostgreSQL types (create_type=False)

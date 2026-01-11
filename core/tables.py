@@ -16,7 +16,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
 
+from sqlalchemy import Enum as SQLEnum
+
 from .enums import (
+    ContentEventType,
+    StageType,
     cohort_role_enum,
     cohort_status_enum,
     delivery_method_enum,
@@ -441,4 +445,44 @@ lesson_sessions = Table(
     Column("completed_at", TIMESTAMP(timezone=True)),
     Index("idx_lesson_sessions_user_id", "user_id"),
     Index("idx_lesson_sessions_lesson_id", "lesson_id"),
+)
+
+
+# =====================================================
+# 15. CONTENT_EVENTS
+# =====================================================
+content_events = Table(
+    "content_events",
+    metadata,
+    Column("event_id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "user_id",
+        Integer,
+        ForeignKey("users.user_id", ondelete="SET NULL"),
+        nullable=True,  # Anonymous sessions allowed
+    ),
+    Column(
+        "session_id",
+        Integer,
+        ForeignKey("lesson_sessions.session_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("lesson_id", Text, nullable=False),
+    Column("stage_index", Integer, nullable=False),
+    Column(
+        "stage_type",
+        SQLEnum(StageType, name="stage_type_enum", create_type=True),
+        nullable=False,
+    ),
+    Column(
+        "event_type",
+        SQLEnum(ContentEventType, name="content_event_type_enum", create_type=True),
+        nullable=False,
+    ),
+    Column("timestamp", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column("metadata", JSONB, nullable=True),  # scroll_depth, video_time, etc.
+    Index("idx_content_events_user_id", "user_id"),
+    Index("idx_content_events_session_id", "session_id"),
+    Index("idx_content_events_lesson_id", "lesson_id"),
+    Index("idx_content_events_timestamp", "timestamp"),
 )

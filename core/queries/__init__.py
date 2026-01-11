@@ -15,6 +15,17 @@ from .groups import (
     save_discord_channel_ids,
     get_group_welcome_data,
 )
+from .facilitator import (
+    is_admin,
+    get_facilitator_group_ids,
+    get_accessible_groups,
+    can_access_group,
+)
+from .progress import (
+    get_group_members_summary,
+    get_user_progress_for_group,
+    get_user_chat_sessions,
+)
 
 __all__ = [
     # Users
@@ -36,4 +47,13 @@ __all__ = [
     "get_cohort_groups_for_realization",
     "save_discord_channel_ids",
     "get_group_welcome_data",
+    # Facilitator
+    "is_admin",
+    "get_facilitator_group_ids",
+    "get_accessible_groups",
+    "can_access_group",
+    # Progress
+    "get_group_members_summary",
+    "get_user_progress_for_group",
+    "get_user_chat_sessions",
 ]

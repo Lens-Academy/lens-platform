@@ -7,6 +7,11 @@ import AvailabilityStep from "./AvailabilityStep";
 import SuccessMessage from "./SuccessMessage";
 import { useAuth } from "../../hooks/useAuth";
 import { API_URL } from "../../config";
+import {
+  trackSignupStarted,
+  trackSignupStepCompleted,
+  trackSignupCompleted,
+} from "../../analytics";
 
 type Step = 1 | 2 | 3 | "complete";
 
@@ -32,6 +37,11 @@ export default function SignupWizard() {
   const [enrolledCohorts, setEnrolledCohorts] = useState<Cohort[]>([]);
   const [availableCohorts, setAvailableCohorts] = useState<Cohort[]>([]);
   const [isFacilitator, setIsFacilitator] = useState(false);
+
+  // Track signup started on mount
+  useEffect(() => {
+    trackSignupStarted();
+  }, []);
 
   // Sync auth state with form data
   useEffect(() => {
@@ -141,6 +151,7 @@ export default function SignupWizard() {
         throw new Error("Failed to update profile");
       }
 
+      trackSignupCompleted();
       setCurrentStep("complete");
     } catch (error) {
       console.error("Failed to submit:", error);
@@ -177,7 +188,10 @@ export default function SignupWizard() {
             setFormData((prev) => ({ ...prev, email: value }))
           }
           onDiscordConnect={handleDiscordConnect}
-          onNext={() => setCurrentStep(2)}
+          onNext={() => {
+            trackSignupStepCompleted("personal_info");
+            setCurrentStep(2);
+          }}
         />
       )}
 
@@ -199,7 +213,10 @@ export default function SignupWizard() {
             setFormData((prev) => ({ ...prev, selectedRole: role }))
           }
           onBecomeFacilitator={handleBecomeFacilitator}
-          onNext={() => setCurrentStep(3)}
+          onNext={() => {
+            trackSignupStepCompleted("cohort_role");
+            setCurrentStep(3);
+          }}
           onBack={() => setCurrentStep(1)}
         />
       )}

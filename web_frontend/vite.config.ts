@@ -28,7 +28,13 @@ function serveLandingPage(): Plugin {
 
 const apiPort = process.env.API_PORT || '8000'
 
+// Auto-version from Railway git SHA, or 'dev' for local development
+const appVersion = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || 'dev'
+
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+  },
   plugins: [serveLandingPage(), react(), tailwindcss()],
   server: {
     proxy: {

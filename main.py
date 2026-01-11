@@ -29,11 +29,24 @@ sys.path.insert(0, str(project_root))
 sys.path.append(str(project_root / "discord_bot"))
 
 from dotenv import load_dotenv
+import sentry_sdk
 
 # Load .env.local first (if exists), then .env as fallback
 # .env.local is gitignored and used for local dev overrides
 load_dotenv(project_root / ".env.local")  # Local overrides (gitignored)
 load_dotenv()  # Fallback to .env
+
+# Initialize Sentry for error tracking
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        environment=os.getenv("ENVIRONMENT", "development"),
+        traces_sample_rate=0.1,  # 10% of transactions for performance monitoring
+    )
+    print("✓ Sentry error tracking initialized")
+else:
+    print("Note: SENTRY_DSN not set, error tracking disabled")
 
 # Parse --dev flag early so DEV_MODE is set before importing auth routes
 # (auth.py computes DISCORD_REDIRECT_URI based on DEV_MODE at import time)
@@ -71,6 +84,7 @@ from web_api.routes.lessons import router as lessons_router
 from web_api.routes.speech import router as speech_router
 from web_api.routes.cohorts import router as cohorts_router
 from web_api.routes.courses import router as courses_router
+from web_api.routes.facilitator import router as facilitator_router
 
 # Track bot task for cleanup
 _bot_task: asyncio.Task | None = None
@@ -232,6 +246,7 @@ app.include_router(lessons_router)
 app.include_router(speech_router)
 app.include_router(cohorts_router)
 app.include_router(courses_router)
+app.include_router(facilitator_router)
 
 
 # New paths for static files

@@ -62,6 +62,10 @@ type ContentPanelProps = {
   previousArticle?: ArticleData | null;
   previousStage?: PreviousStageInfo | null;
   showUserPreviousContent?: boolean;
+  // Video activity tracking callbacks
+  onVideoPlay?: () => void;
+  onVideoPause?: () => void;
+  onVideoTimeUpdate?: (currentTime: number) => void;
 };
 
 export default function ContentPanel({
@@ -75,6 +79,9 @@ export default function ContentPanel({
   previousArticle,
   previousStage,
   showUserPreviousContent = true,
+  onVideoPlay,
+  onVideoPause,
+  onVideoTimeUpdate,
 }: ContentPanelProps) {
   // Track if user has scrolled to bottom of article
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
@@ -254,6 +261,9 @@ export default function ContentPanel({
             end={videoEnd}
             onEnded={isVideoStage && isCurrentStage ? onVideoEnded : () => {}}
             hideControls={isChatAfterVideo}
+            onPlay={isVideoStage && isCurrentStage ? onVideoPlay : undefined}
+            onPause={isVideoStage && isCurrentStage ? onVideoPause : undefined}
+            onTimeUpdate={isVideoStage && isCurrentStage ? onVideoTimeUpdate : undefined}
           />
         </div>
       );
