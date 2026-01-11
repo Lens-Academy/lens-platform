@@ -9,6 +9,11 @@ from pathlib import Path
 # Path to content files (educational_content at project root)
 CONTENT_DIR = Path(__file__).parent.parent.parent / "educational_content"
 
+# In-memory cache for stage durations (calculated once per server process)
+# Key: (source, from_text/from_seconds, to_text/to_seconds)
+# Value: duration string like "5 min" or "3 min"
+_duration_cache: dict[tuple, str] = {}
+
 
 @dataclass
 class ArticleMetadata:
@@ -291,3 +296,97 @@ def get_stage_title(stage) -> str:
         except FileNotFoundError:
             return "Video"
     return "Discussion"
+
+
+# Average reading speed in words per minute
+WORDS_PER_MINUTE = 200
+
+
+def _count_words(text: str) -> int:
+    """Count words in text, ignoring markdown syntax."""
+    # Remove markdown links [text](url) -> text
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+    # Remove markdown images ![alt](url)
+    text = re.sub(r'!\[[^\]]*\]\([^)]+\)', '', text)
+    # Remove markdown formatting characters
+    text = re.sub(r'[#*_`~>\-|]', ' ', text)
+    # Split on whitespace and count non-empty tokens
+    return len([w for w in text.split() if w])
+
+
+def _calculate_article_duration(stage) -> str:
+    """Calculate reading time for an article stage."""
+    from .types import ArticleStage
+
+    if not isinstance(stage, ArticleStage):
+        return ""
+
+    try:
+        result = load_article_with_metadata(
+            stage.source,
+            stage.from_text,
+            stage.to_text,
+        )
+        word_count = _count_words(result.content)
+        minutes = max(1, round(word_count / WORDS_PER_MINUTE))
+        return f"{minutes} min"
+    except FileNotFoundError:
+        return ""
+
+
+def _calculate_video_duration(stage) -> str:
+    """Calculate duration for a video stage from timestamps."""
+    from .types import VideoStage
+
+    if not isinstance(stage, VideoStage):
+        return ""
+
+    from_sec = stage.from_seconds or 0
+    to_sec = stage.to_seconds
+
+    if to_sec is None:
+        # Unknown end time - can't calculate
+        return ""
+
+    duration_sec = to_sec - from_sec
+    if duration_sec <= 0:
+        return ""
+
+    minutes = max(1, round(duration_sec / 60))
+    return f"{minutes} min"
+
+
+def get_stage_duration(stage) -> str:
+    """Get duration string for a stage, with caching.
+
+    Args:
+        stage: A stage object (ArticleStage, VideoStage, or ChatStage)
+
+    Returns:
+        Duration string like "5 min", or empty string if not applicable
+    """
+    from .types import ArticleStage, VideoStage, ChatStage
+
+    if isinstance(stage, ChatStage):
+        return ""  # Chat stages have no fixed duration
+
+    # Build cache key based on stage type
+    if isinstance(stage, ArticleStage):
+        cache_key = ("article", stage.source, stage.from_text, stage.to_text)
+    elif isinstance(stage, VideoStage):
+        cache_key = ("video", stage.source, stage.from_seconds, stage.to_seconds)
+    else:
+        return ""
+
+    # Check cache
+    if cache_key in _duration_cache:
+        return _duration_cache[cache_key]
+
+    # Calculate and cache
+    if isinstance(stage, ArticleStage):
+        duration = _calculate_article_duration(stage)
+    else:
+        duration = _calculate_video_duration(stage)
+
+    _duration_cache[cache_key] = duration
+    return duration

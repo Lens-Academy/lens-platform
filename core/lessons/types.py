@@ -14,6 +14,7 @@ class ArticleStage:
     from_text: str | None = None  # None means full article
     to_text: str | None = None
     optional: bool = False  # Whether this stage can be skipped
+    minutes: int | None = None  # Manual override for reading time (auto-calculated if None)
 
 
 @dataclass

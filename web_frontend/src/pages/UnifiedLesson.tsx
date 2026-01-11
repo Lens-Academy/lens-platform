@@ -1,7 +1,8 @@
 // web_frontend/src/pages/UnifiedLesson.tsx
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
-import type { SessionState, PendingMessage, ArticleData } from "../types/unified-lesson";
+import type { SessionState, PendingMessage, ArticleData, Stage } from "../types/unified-lesson";
+import type { StageInfo } from "../types/course";
 import { createSession, getSession, advanceStage, sendMessage, claimSession } from "../api/lessons";
 import { useAuth } from "../hooks/useAuth";
 import { useAnonymousSession } from "../hooks/useAnonymousSession";
@@ -11,6 +12,7 @@ import StageProgressBar from "../components/unified-lesson/StageProgressBar";
 import LessonCompleteModal from "../components/unified-lesson/LessonCompleteModal";
 import HeaderAuthStatus from "../components/unified-lesson/HeaderAuthStatus";
 import AuthPromptModal from "../components/unified-lesson/AuthPromptModal";
+import LessonDrawer, { LessonDrawerToggle } from "../components/unified-lesson/LessonDrawer";
 
 export default function UnifiedLesson() {
   const { courseId: _courseId, lessonId } = useParams<{ courseId?: string; lessonId: string }>();
@@ -31,6 +33,9 @@ export default function UnifiedLesson() {
   const { getStoredSessionId, storeSessionId, clearSessionId } = useAnonymousSession(lessonId!);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [hasPromptedAuth, setHasPromptedAuth] = useState(false);
+
+  // Lesson drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Messages derived from session (server is source of truth)
   const messages = session?.messages ?? [];
@@ -279,6 +284,17 @@ export default function UnifiedLesson() {
     return session?.article ?? null;
   }, [viewingStageIndex, viewedContentCache, session?.article]);
 
+  // Convert session stages to StageInfo format for the drawer
+  const stagesForDrawer: StageInfo[] = useMemo(() => {
+    if (!session?.stages) return [];
+    return session.stages.map((s: Stage & { title?: string; duration?: string }) => ({
+      type: s.type,
+      title: s.title ?? (s.type === "chat" ? "Discussion" : s.type.charAt(0).toUpperCase() + s.type.slice(1)),
+      duration: s.duration || null,  // Backend provides calculated duration
+      optional: ("optional" in s && s.optional) ?? false,
+    }));
+  }, [session?.stages]);
+
   // Auto-initiate AI when entering any chat stage (initial load or after advancing)
   useEffect(() => {
     if (!sessionId || !session) return;
@@ -388,7 +404,7 @@ export default function UnifiedLesson() {
             canGoNext={canGoForward}
           />
         </div>
-        {/* Right side: Skip button + Auth status */}
+        {/* Right side: Skip button + Drawer toggle + Auth status */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
           {isViewingOther ? (
             <button
@@ -405,6 +421,7 @@ export default function UnifiedLesson() {
               Skip section
             </button>
           )}
+          <LessonDrawerToggle onClick={() => setDrawerOpen(true)} />
           <HeaderAuthStatus onLoginClick={handleLoginClick} />
         </div>
       </header>
@@ -472,6 +489,18 @@ export default function UnifiedLesson() {
         isOpen={showAuthPrompt}
         onLogin={handleLoginClick}
         onDismiss={handleAuthDismiss}
+      />
+
+      <LessonDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        lessonTitle={session.lesson_title}
+        stages={stagesForDrawer}
+        currentStageIndex={session.current_stage_index}
+        viewedStageIndex={currentViewing}
+        onStageClick={(index) => {
+          handleStageClick(index);
+        }}
       />
     </div>
   );

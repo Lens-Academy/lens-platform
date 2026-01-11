@@ -387,3 +387,240 @@ class TestScheduleCohort:
         # Verify facilitator role is preserved in groups_users
         # (schedule_cohort checks role_in_cohort and sets role accordingly)
         assert len(result.groups) >= 1
+
+    @pytest.mark.asyncio
+    async def test_schedule_cohort_more_students_than_facilitator_capacity(self, committed_db_conn):
+        """When students exceed facilitator capacity, excess are marked ungroupable."""
+        conn, course_ids, user_ids, cohort_ids, commit = committed_db_conn
+
+        course = await create_test_course(conn, "Capacity Test Course")
+        course_ids.append(course["course_id"])
+
+        cohort = await create_test_cohort(conn, course["course_id"], "Capacity Test Cohort")
+        cohort_ids.append(cohort["cohort_id"])
+
+        # Create 1 facilitator (can only lead 1 group of max 5)
+        facilitator = await create_test_user(
+            conn,
+            cohort["cohort_id"],
+            discord_id="capacity_facilitator",
+            availability='{"Monday": ["09:00-09:30", "09:30-10:00"]}',
+            role_in_cohort="facilitator",
+        )
+        user_ids.append(facilitator["user_id"])
+
+        # Create 10 participants - more than 1 facilitator can handle
+        for i in range(10):
+            user = await create_test_user(
+                conn,
+                cohort["cohort_id"],
+                discord_id=f"capacity_participant_{i}",
+                availability='{"Monday": ["09:00-09:30", "09:30-10:00"]}',
+            )
+            user_ids.append(user["user_id"])
+
+        await commit()
+
+        # Execute with facilitator constraint (1 facilitator = 1 group max)
+        # Note: schedule_cohort currently doesn't pass facilitator_max_groups,
+        # so this test documents current behavior (all students grouped if possible)
+        result = await schedule_cohort(
+            cohort_id=cohort["cohort_id"],
+            min_people=4,
+            max_people=5,
+        )
+
+        # Current behavior: facilitator can be in multiple groups
+        # This test documents the behavior and will change when we add max_groups support
+        assert result.groups_created >= 1
+
+    @pytest.mark.asyncio
+    async def test_schedule_cohort_facilitator_no_overlap_with_students(self, committed_db_conn):
+        """When facilitator availability doesn't overlap with students, no groups form."""
+        conn, course_ids, user_ids, cohort_ids, commit = committed_db_conn
+
+        course = await create_test_course(conn, "No Overlap Test Course")
+        course_ids.append(course["course_id"])
+
+        cohort = await create_test_cohort(conn, course["course_id"], "No Overlap Test Cohort")
+        cohort_ids.append(cohort["cohort_id"])
+
+        # Facilitator available Tuesday
+        facilitator = await create_test_user(
+            conn,
+            cohort["cohort_id"],
+            discord_id="nooverlap_facilitator",
+            availability='{"Tuesday": ["09:00-09:30", "09:30-10:00"]}',
+            role_in_cohort="facilitator",
+        )
+        user_ids.append(facilitator["user_id"])
+
+        # Students available Monday only - no overlap with facilitator
+        for i in range(6):
+            user = await create_test_user(
+                conn,
+                cohort["cohort_id"],
+                discord_id=f"nooverlap_student_{i}",
+                availability='{"Monday": ["09:00-09:30", "09:30-10:00"]}',
+            )
+            user_ids.append(user["user_id"])
+
+        await commit()
+
+        result = await schedule_cohort(
+            cohort_id=cohort["cohort_id"],
+            min_people=4,
+            max_people=6,
+        )
+
+        # No groups should form - facilitator can't meet with any students
+        assert result.groups_created == 0
+        assert result.users_grouped == 0
+        # All 7 users (1 facilitator + 6 students) should be ungroupable
+        assert result.users_ungroupable == 7
+
+    @pytest.mark.asyncio
+    async def test_schedule_cohort_no_facilitators_creates_groups(self, committed_db_conn):
+        """When no facilitators exist, groups form without facilitator constraint."""
+        conn, course_ids, user_ids, cohort_ids, commit = committed_db_conn
+
+        course = await create_test_course(conn, "No Fac Test Course")
+        course_ids.append(course["course_id"])
+
+        cohort = await create_test_cohort(conn, course["course_id"], "No Fac Test Cohort")
+        cohort_ids.append(cohort["cohort_id"])
+
+        # Create 10 students, no facilitators (10 = 2 groups of 5)
+        for i in range(10):
+            user = await create_test_user(
+                conn,
+                cohort["cohort_id"],
+                discord_id=f"nofac_student_{i}",
+                availability='{"Monday": ["09:00-09:30", "09:30-10:00"]}',
+                role_in_cohort="participant",  # Explicitly participant
+            )
+            user_ids.append(user["user_id"])
+
+        await commit()
+
+        result = await schedule_cohort(
+            cohort_id=cohort["cohort_id"],
+            min_people=4,
+            max_people=5,
+        )
+
+        # Groups should form without facilitator requirement
+        # 10 students with 4-5 per group = 2 groups
+        assert result.groups_created == 2
+        assert result.users_grouped == 10
+        assert result.users_ungroupable == 0
+
+    @pytest.mark.asyncio
+    async def test_schedule_cohort_verifies_facilitator_in_groups_users(self, committed_db_conn):
+        """Verify groups_users table has correct role for facilitator."""
+        conn, course_ids, user_ids, cohort_ids, commit = committed_db_conn
+
+        course = await create_test_course(conn, "Role Verify Course")
+        course_ids.append(course["course_id"])
+
+        cohort = await create_test_cohort(conn, course["course_id"], "Role Verify Cohort")
+        cohort_ids.append(cohort["cohort_id"])
+
+        facilitator = await create_test_user(
+            conn,
+            cohort["cohort_id"],
+            discord_id="role_verify_facilitator",
+            availability='{"Monday": ["09:00-09:30", "09:30-10:00"]}',
+            role_in_cohort="facilitator",
+        )
+        user_ids.append(facilitator["user_id"])
+
+        for i in range(3):
+            user = await create_test_user(
+                conn,
+                cohort["cohort_id"],
+                discord_id=f"role_verify_participant_{i}",
+                availability='{"Monday": ["09:00-09:30", "09:30-10:00"]}',
+            )
+            user_ids.append(user["user_id"])
+
+        await commit()
+
+        result = await schedule_cohort(
+            cohort_id=cohort["cohort_id"],
+            min_people=4,
+            max_people=8,
+        )
+
+        assert result.groups_created == 1
+
+        # Verify roles in groups_users by querying the database
+        from sqlalchemy import select
+        group_id = result.groups[0]["group_id"]
+
+        role_query = (
+            select(groups_users.c.user_id, groups_users.c.role)
+            .where(groups_users.c.group_id == group_id)
+        )
+        role_result = await conn.execute(role_query)
+        roles = {row.user_id: row.role for row in role_result.fetchall()}
+
+        # Facilitator should have facilitator role
+        assert roles[facilitator["user_id"]].value == "facilitator"
+
+        # Participants should have participant role
+        for user_id in user_ids[1:]:  # Skip facilitator
+            if user_id in roles:
+                assert roles[user_id].value == "participant"
+
+    @pytest.mark.asyncio
+    async def test_schedule_cohort_returns_ungroupable_details(self, committed_db_conn):
+        """Ungroupable users should have diagnostic details explaining why."""
+        conn, course_ids, user_ids, cohort_ids, commit = committed_db_conn
+
+        course = await create_test_course(conn, "Diagnostics Test Course")
+        course_ids.append(course["course_id"])
+
+        cohort = await create_test_cohort(conn, course["course_id"], "Diagnostics Test Cohort")
+        cohort_ids.append(cohort["cohort_id"])
+
+        # Facilitator available Tuesday
+        facilitator = await create_test_user(
+            conn,
+            cohort["cohort_id"],
+            discord_id="diag_facilitator",
+            availability='{"Tuesday": ["09:00-09:30", "09:30-10:00"]}',
+            role_in_cohort="facilitator",
+        )
+        user_ids.append(facilitator["user_id"])
+
+        # Students available Monday only - no overlap with facilitator
+        for i in range(6):
+            user = await create_test_user(
+                conn,
+                cohort["cohort_id"],
+                discord_id=f"diag_student_{i}",
+                availability='{"Monday": ["09:00-09:30", "09:30-10:00"]}',
+            )
+            user_ids.append(user["user_id"])
+
+        await commit()
+
+        result = await schedule_cohort(
+            cohort_id=cohort["cohort_id"],
+            min_people=4,
+            max_people=6,
+        )
+
+        # No groups should form
+        assert result.groups_created == 0
+        assert result.users_ungroupable == 7
+
+        # Should have diagnostic details for each ungroupable user
+        assert len(result.ungroupable_details) == 7
+
+        # Check that reasons are populated
+        from core.scheduling import UngroupableReason
+        reasons = {d.reason for d in result.ungroupable_details}
+        # Students should have NO_FACILITATOR_OVERLAP reason
+        assert UngroupableReason.NO_FACILITATOR_OVERLAP in reasons

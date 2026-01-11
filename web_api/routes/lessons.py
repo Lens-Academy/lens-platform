@@ -39,6 +39,7 @@ from core.lessons import (
     load_article_with_metadata,
     load_video_transcript_with_metadata,
     get_stage_title,
+    get_stage_duration,
 )
 from core import get_or_create_user
 from core.notifications import schedule_trial_nudge, cancel_trial_nudge
@@ -359,6 +360,8 @@ async def get_session_state(
         "stages": [
             {
                 "type": s.type,
+                "title": get_stage_title(s),
+                "duration": get_stage_duration(s),
                 **({"source": s.source, "optional": s.optional} if s.type == "article" else {}),
                 **(serialize_video_stage(s) if s.type == "video" else {}),
             }

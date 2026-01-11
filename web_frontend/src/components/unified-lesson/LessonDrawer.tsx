@@ -4,8 +4,8 @@
  */
 
 import { useEffect } from "react";
-import { X, List } from "lucide-react";
-import type { StageInfo, LessonStatus } from "../../types/course";
+import { List, PanelRightClose } from "lucide-react";
+import type { StageInfo } from "../../types/course";
 import LessonOverview from "../course/LessonOverview";
 
 type LessonDrawerProps = {
@@ -14,6 +14,7 @@ type LessonDrawerProps = {
   lessonTitle: string;
   stages: StageInfo[];
   currentStageIndex: number;
+  viewedStageIndex?: number;
   onStageClick: (index: number) => void;
 };
 
@@ -23,6 +24,7 @@ export default function LessonDrawer({
   lessonTitle,
   stages,
   currentStageIndex,
+  viewedStageIndex,
   onStageClick,
 }: LessonDrawerProps) {
   // Close on escape
@@ -37,18 +39,18 @@ export default function LessonDrawer({
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Invisible click area to close drawer */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-40 transition-opacity"
+          className="fixed inset-0 z-40"
           onClick={onClose}
         />
       )}
 
-      {/* Drawer */}
+      {/* Drawer - no backdrop, just left shadow */}
       <div
-        className={`fixed top-0 right-0 h-full w-[40%] max-w-md bg-white shadow-xl z-50 transform transition-transform duration-300 ease-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
+        className={`fixed top-0 right-0 h-full w-[40%] max-w-md bg-white z-50 transform transition-transform duration-300 ease-out ${
+          isOpen ? "translate-x-0 shadow-[-8px_0_30px_-5px_rgba(0,0,0,0.2)]" : "translate-x-full"
         }`}
       >
         {/* Header */}
@@ -56,9 +58,10 @@ export default function LessonDrawer({
           <h3 className="text-lg font-medium text-slate-900">Lesson Overview</h3>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            title="Close sidebar"
           >
-            <X className="w-5 h-5 text-slate-500" />
+            <PanelRightClose className="w-5 h-5 text-slate-500" />
           </button>
         </div>
 
@@ -69,6 +72,7 @@ export default function LessonDrawer({
             stages={stages}
             status="in_progress"
             currentStageIndex={currentStageIndex}
+            viewedStageIndex={viewedStageIndex}
             onStageClick={onStageClick}
             showActions={false}
           />

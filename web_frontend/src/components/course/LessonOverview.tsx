@@ -11,6 +11,7 @@ type LessonOverviewProps = {
   stages: StageInfo[];
   status: LessonStatus;
   currentStageIndex: number | null;
+  viewedStageIndex?: number | null; // Which stage is currently being viewed (for selection ring)
   onStageClick?: (index: number) => void;
   onStartLesson?: () => void;
   showActions?: boolean;
@@ -21,11 +22,13 @@ export default function LessonOverview({
   stages,
   status,
   currentStageIndex,
+  viewedStageIndex,
   onStageClick,
   onStartLesson,
   showActions = true,
 }: LessonOverviewProps) {
   const effectiveCurrentIndex = currentStageIndex ?? -1;
+  const effectiveViewedIndex = viewedStageIndex ?? effectiveCurrentIndex;
 
   const getStageState = (index: number) => {
     if (status === "completed") return "completed";
@@ -47,61 +50,52 @@ export default function LessonOverview({
 
       {/* Stage list */}
       <div className="flex-1 overflow-y-auto">
-        <div className="relative">
-          {/* Progress line */}
-          <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-slate-200" />
+        {/* pl-1 gives space for the selection ring to not be cut off */}
+        <div className="relative pl-1">
+          {/* Continuous progress line - left-[1.125rem] = pl-1 (4px) + half of w-7 (14px) = 18px */}
+          <div className="absolute left-[1.125rem] top-5 bottom-5 w-0.5 -translate-x-1/2 bg-slate-200" />
           {status !== "not_started" && (
             <div
-              className="absolute left-4 top-4 w-0.5 bg-blue-500 transition-all duration-300"
+              className="absolute left-[1.125rem] top-5 w-0.5 -translate-x-1/2 bg-blue-500 transition-all duration-300"
               style={{
                 height: status === "completed"
-                  ? "calc(100% - 2rem)"
-                  : `calc(${((effectiveCurrentIndex + 0.5) / stages.length) * 100}% - 1rem)`,
+                  ? "calc(100% - 2.5rem)"
+                  : `calc(${((effectiveCurrentIndex + 0.5) / stages.length) * 100}% - 1.25rem)`,
               }}
             />
           )}
 
           {/* Stages */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             {stages.map((stage, index) => {
               const state = getStageState(index);
               const isClickable = onStageClick && stage.type !== "chat";
+              const isViewed = index === effectiveViewedIndex;
 
               return (
                 <div
                   key={index}
-                  className={`relative flex items-start gap-4 pl-2 ${
-                    isClickable ? "cursor-pointer hover:bg-slate-50 rounded-lg p-2 -ml-2" : "p-2 -ml-2"
+                  className={`flex items-center gap-4 py-2 rounded-lg ${
+                    isClickable ? "cursor-pointer hover:bg-slate-50" : ""
                   }`}
                   onClick={() => isClickable && onStageClick(index)}
                 >
-                  {/* Progress dot */}
+                  {/* Circle - ring shows for viewed stage, dashed border for optional */}
                   <div
-                    className={`relative z-10 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      state === "completed"
+                    className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      stage.optional
+                        ? "bg-white border-2 border-dashed border-slate-400 text-slate-400"
+                        : state === "completed" || state === "current"
                         ? "bg-blue-500 text-white"
-                        : state === "current"
-                        ? "bg-blue-500 text-white ring-4 ring-blue-100"
-                        : "bg-slate-200 text-slate-400"
-                    }`}
+                        : "bg-slate-300 text-slate-500"
+                    } ${isViewed ? "ring-2 ring-offset-2 ring-blue-500" : ""}`}
                   >
-                    {state === "completed" ? (
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    ) : (
-                      <div className="w-2 h-2 rounded-full bg-current" />
-                    )}
+                    <StageIcon type={stage.type} small />
                   </div>
 
-                  {/* Stage info */}
+                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <StageIcon type={stage.type} small />
                       <span
                         className={`font-medium ${
                           state === "future" ? "text-slate-400" : "text-slate-900"

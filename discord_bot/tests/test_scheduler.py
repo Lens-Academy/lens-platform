@@ -664,6 +664,360 @@ class TestFacilitatorMode:
             facilitators_in_group = [p for p in group.people if p.id in facilitator_ids]
             assert len(facilitators_in_group) == 1
 
+    def test_more_students_than_facilitator_capacity(self):
+        """When students exceed facilitator capacity, excess students are unassigned."""
+        # 2 facilitators, each can lead 1 group of max 5 people = 8 students max
+        facilitators = [
+            Person(id="f1", name="F1", intervals=[(540, 720)]),
+            Person(id="f2", name="F2", intervals=[(540, 720)]),
+        ]
+        # 15 students - more than 2 facilitators can handle
+        students = [
+            Person(id=f"s{i}", name=f"S{i}", intervals=[(540, 720)])
+            for i in range(15)
+        ]
+
+        all_people = facilitators + students
+        facilitator_ids = {"f1", "f2"}
+
+        result = cohort_scheduler.schedule(
+            all_people,
+            meeting_length=60,
+            min_people=4,
+            max_people=5,
+            num_iterations=100,
+            facilitator_ids=facilitator_ids,
+            facilitator_max_cohorts={"f1": 1, "f2": 1},
+        )
+
+        # Should create exactly 2 groups (one per facilitator)
+        assert len(result.groups) == 2
+
+        # Each group should have exactly one facilitator
+        for group in result.groups:
+            facs_in_group = [p for p in group.people if p.id in facilitator_ids]
+            assert len(facs_in_group) == 1
+
+        # Some students should be unassigned
+        total_grouped = sum(len(g.people) for g in result.groups)
+        assert total_grouped <= 10  # 2 groups * 5 max
+        assert len(result.unassigned) >= 7  # At least 15 + 2 - 10 = 7 unassigned
+
+        # Unassigned should be students, not facilitators
+        unassigned_ids = {p.id for p in result.unassigned}
+        assert "f1" not in unassigned_ids
+        assert "f2" not in unassigned_ids
+
+    def test_facilitator_no_overlap_with_students(self):
+        """When facilitator availability doesn't overlap with students, no groups form."""
+        # Facilitator available Tuesday
+        facilitator = Person(id="f1", name="F1", intervals=[(1980, 2160)])  # Tue 9am-12pm
+        # Students available Monday only
+        students = [
+            Person(id=f"s{i}", name=f"S{i}", intervals=[(540, 720)])  # Mon 9am-12pm
+            for i in range(6)
+        ]
+
+        all_people = [facilitator] + students
+        facilitator_ids = {"f1"}
+
+        result = cohort_scheduler.schedule(
+            all_people,
+            meeting_length=60,
+            min_people=4,
+            max_people=6,
+            num_iterations=100,
+            facilitator_ids=facilitator_ids,
+        )
+
+        # No groups should be created - facilitator can't meet with students
+        assert len(result.groups) == 0
+        # Everyone should be unassigned
+        assert len(result.unassigned) == 7
+
+    def test_excess_facilitators_unassigned(self):
+        """When there are more facilitators than needed, excess are unassigned."""
+        # 5 facilitators but only 8 students (enough for ~2 groups)
+        facilitators = [
+            Person(id=f"f{i}", name=f"F{i}", intervals=[(540, 720)])
+            for i in range(5)
+        ]
+        students = [
+            Person(id=f"s{i}", name=f"S{i}", intervals=[(540, 720)])
+            for i in range(8)
+        ]
+
+        all_people = facilitators + students
+        facilitator_ids = {f"f{i}" for i in range(5)}
+
+        result = cohort_scheduler.schedule(
+            all_people,
+            meeting_length=60,
+            min_people=4,
+            max_people=5,
+            num_iterations=100,
+            facilitator_ids=facilitator_ids,
+            facilitator_max_cohorts={f"f{i}": 1 for i in range(5)},
+        )
+
+        # Should create 2-3 groups max (13 people / 4-5 per group)
+        assert len(result.groups) >= 2
+        assert len(result.groups) <= 3
+
+        # Each group has exactly one facilitator
+        used_facilitators = set()
+        for group in result.groups:
+            facs_in_group = [p for p in group.people if p.id in facilitator_ids]
+            assert len(facs_in_group) == 1
+            used_facilitators.add(facs_in_group[0].id)
+
+        # Some facilitators should be unassigned
+        unassigned_facs = [p for p in result.unassigned if p.id in facilitator_ids]
+        assert len(unassigned_facs) >= 2  # At least 5 - 3 = 2 unused facilitators
+
+    def test_partial_facilitator_overlap(self):
+        """Some facilitators overlap with students, others don't."""
+        # F1 available Monday (overlaps with students)
+        # F2 available Tuesday (no overlap)
+        facilitator1 = Person(id="f1", name="F1", intervals=[(540, 720)])  # Mon
+        facilitator2 = Person(id="f2", name="F2", intervals=[(1980, 2160)])  # Tue
+
+        students = [
+            Person(id=f"s{i}", name=f"S{i}", intervals=[(540, 720)])  # Mon only
+            for i in range(6)
+        ]
+
+        all_people = [facilitator1, facilitator2] + students
+        facilitator_ids = {"f1", "f2"}
+
+        result = cohort_scheduler.schedule(
+            all_people,
+            meeting_length=60,
+            min_people=4,
+            max_people=6,
+            num_iterations=100,
+            facilitator_ids=facilitator_ids,
+        )
+
+        # Should create 1 group with f1
+        assert len(result.groups) == 1
+        group = result.groups[0]
+        facs_in_group = [p for p in group.people if p.id in facilitator_ids]
+        assert len(facs_in_group) == 1
+        assert facs_in_group[0].id == "f1"
+
+        # f2 should be unassigned (no overlap with students)
+        unassigned_ids = {p.id for p in result.unassigned}
+        assert "f2" in unassigned_ids
+
+    def test_facilitator_max_groups_respected(self):
+        """Facilitator max_groups limit is respected even when more students available."""
+        # 1 facilitator who can lead max 2 groups
+        facilitator = Person(id="f1", name="F1", intervals=[(540, 720)])
+        # 20 students - could form 4-5 groups but facilitator limited to 2
+        students = [
+            Person(id=f"s{i}", name=f"S{i}", intervals=[(540, 720)])
+            for i in range(20)
+        ]
+
+        all_people = [facilitator] + students
+        facilitator_ids = {"f1"}
+
+        result = cohort_scheduler.schedule(
+            all_people,
+            meeting_length=60,
+            min_people=4,
+            max_people=6,
+            num_iterations=100,
+            facilitator_ids=facilitator_ids,
+            facilitator_max_cohorts={"f1": 2},  # Can lead max 2 groups
+        )
+
+        # Should create exactly 2 groups (facilitator limit)
+        assert len(result.groups) == 2
+
+        # Facilitator should be in both groups
+        for group in result.groups:
+            facs_in_group = [p for p in group.people if p.id in facilitator_ids]
+            assert len(facs_in_group) == 1
+            assert facs_in_group[0].id == "f1"
+
+        # Many students should be unassigned
+        assert len(result.unassigned) >= 9  # 20 - (2 groups * ~5.5 students)
+
+    def test_no_facilitators_in_cohort(self):
+        """When no facilitators exist, scheduler runs without facilitator constraint."""
+        # Use 10 students so they can form 2 groups of 5
+        students = [
+            Person(id=f"s{i}", name=f"S{i}", intervals=[(540, 720)])
+            for i in range(10)
+        ]
+
+        # Empty facilitator_ids - scheduler should NOT enforce facilitator constraint
+        result = cohort_scheduler.schedule(
+            students,
+            meeting_length=60,
+            min_people=4,
+            max_people=5,
+            num_iterations=100,
+            facilitator_ids=None,  # No facilitator mode
+        )
+
+        # Groups should form without facilitators
+        assert len(result.groups) == 2
+        total_grouped = sum(len(g.people) for g in result.groups)
+        assert total_grouped == 10  # All students grouped
+
+    def test_empty_facilitator_set_same_as_none(self):
+        """Empty facilitator set should behave same as None (no constraint)."""
+        students = [
+            Person(id=f"s{i}", name=f"S{i}", intervals=[(540, 720)])
+            for i in range(10)
+        ]
+
+        # Empty set should also disable facilitator mode
+        result = cohort_scheduler.schedule(
+            students,
+            meeting_length=60,
+            min_people=4,
+            max_people=5,
+            num_iterations=100,
+            facilitator_ids=set(),  # Empty set
+        )
+
+        # Groups should form without facilitators
+        assert len(result.groups) == 2
+        total_grouped = sum(len(g.people) for g in result.groups)
+        assert total_grouped == 10
+
+
+class TestAnalyzeUngroupableUsers:
+    """Tests for analyze_ungroupable_users function."""
+
+    def test_no_availability_reason(self):
+        """Users with no availability should get NO_AVAILABILITY reason."""
+        from core.scheduling import analyze_ungroupable_users, UngroupableReason
+
+        # Person with no intervals
+        person = Person(id="p1", name="NoAvail", intervals=[], if_needed_intervals=[])
+
+        details = analyze_ungroupable_users(
+            unassigned=[person],
+            all_people=[person],
+            facilitator_ids=set(),
+            facilitator_max_groups={},
+            groups_created=0,
+            meeting_length=60,
+            min_people=4,
+            user_id_map={"p1": 1},
+        )
+
+        assert len(details) == 1
+        assert details[0].reason == UngroupableReason.NO_AVAILABILITY
+
+    def test_no_facilitator_overlap_reason(self):
+        """Users whose availability doesn't overlap with facilitators."""
+        from core.scheduling import analyze_ungroupable_users, UngroupableReason
+
+        # Facilitator available Tuesday
+        facilitator = Person(id="f1", name="Fac", intervals=[(1980, 2160)])  # Tue
+
+        # Student available Monday
+        student = Person(id="s1", name="Student", intervals=[(540, 720)])  # Mon
+
+        details = analyze_ungroupable_users(
+            unassigned=[student],
+            all_people=[facilitator, student],
+            facilitator_ids={"f1"},
+            facilitator_max_groups={"f1": 2},
+            groups_created=0,
+            meeting_length=60,
+            min_people=4,
+            user_id_map={"f1": 1, "s1": 2},
+        )
+
+        assert len(details) == 1
+        assert details[0].reason == UngroupableReason.NO_FACILITATOR_OVERLAP
+
+    def test_facilitator_capacity_reason(self):
+        """Users who overlap with facilitators but all are at capacity."""
+        from core.scheduling import analyze_ungroupable_users, UngroupableReason
+
+        # Facilitator available and at capacity
+        facilitator = Person(id="f1", name="Fac", intervals=[(540, 720)])
+
+        # Student overlaps with facilitator
+        student = Person(id="s1", name="Student", intervals=[(540, 720)])
+
+        details = analyze_ungroupable_users(
+            unassigned=[student],
+            all_people=[facilitator, student],
+            facilitator_ids={"f1"},
+            facilitator_max_groups={"f1": 1},  # Max 1 group
+            groups_created=1,  # Already created 1 group
+            meeting_length=60,
+            min_people=4,
+            user_id_map={"f1": 1, "s1": 2},
+        )
+
+        assert len(details) == 1
+        assert details[0].reason == UngroupableReason.FACILITATOR_CAPACITY
+
+    def test_insufficient_group_size_reason(self):
+        """Users who can't form a group due to not enough overlapping people."""
+        from core.scheduling import analyze_ungroupable_users, UngroupableReason
+
+        # Two students with same availability but min_people=4
+        student1 = Person(id="s1", name="Student1", intervals=[(540, 720)])
+        student2 = Person(id="s2", name="Student2", intervals=[(540, 720)])
+
+        # No facilitators (facilitator mode disabled)
+        details = analyze_ungroupable_users(
+            unassigned=[student1, student2],
+            all_people=[student1, student2],
+            facilitator_ids=set(),  # No facilitator constraint
+            facilitator_max_groups={},
+            groups_created=0,
+            meeting_length=60,
+            min_people=4,  # Need 4 people
+            user_id_map={"s1": 1, "s2": 2},
+        )
+
+        assert len(details) == 2
+        for detail in details:
+            assert detail.reason == UngroupableReason.INSUFFICIENT_GROUP_SIZE
+            assert detail.details["overlapping_users"] == 2
+            assert detail.details["min_required"] == 4
+
+    def test_multiple_reasons_in_cohort(self):
+        """Different users can have different reasons."""
+        from core.scheduling import analyze_ungroupable_users, UngroupableReason
+
+        # Facilitator available Tuesday
+        facilitator = Person(id="f1", name="Fac", intervals=[(1980, 2160)])
+
+        # Student 1: No availability
+        student1 = Person(id="s1", name="NoAvail", intervals=[])
+
+        # Student 2: Available Monday (no facilitator overlap)
+        student2 = Person(id="s2", name="Monday", intervals=[(540, 720)])
+
+        details = analyze_ungroupable_users(
+            unassigned=[student1, student2],
+            all_people=[facilitator, student1, student2],
+            facilitator_ids={"f1"},
+            facilitator_max_groups={"f1": 2},
+            groups_created=0,
+            meeting_length=60,
+            min_people=4,
+            user_id_map={"f1": 1, "s1": 2, "s2": 3},
+        )
+
+        assert len(details) == 2
+        reasons = {d.discord_id: d.reason for d in details}
+        assert reasons["s1"] == UngroupableReason.NO_AVAILABILITY
+        assert reasons["s2"] == UngroupableReason.NO_FACILITATOR_OVERLAP
+
 
 class TestFindCohortTimeOptionsExtended:
     """Extended tests for find_meeting_times."""

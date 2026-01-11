@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { getCourseProgress } from "../api/lessons";
 import type { CourseProgress, LessonInfo } from "../types/course";
@@ -99,9 +99,9 @@ export default function CourseOverview() {
     <div className="h-screen flex flex-col bg-white">
       {/* Breadcrumb */}
       <div className="border-b border-slate-200 px-6 py-3 flex items-center gap-2 text-sm">
-        <Link to="/" className="text-slate-500 hover:text-slate-700">
+        <a href="/" className="text-slate-500 hover:text-slate-700">
           Home
-        </Link>
+        </a>
         <ChevronRight className="w-4 h-4 text-slate-400" />
         <span className="text-slate-700 font-medium">{courseProgress.course.title}</span>
         {selectedModule && (

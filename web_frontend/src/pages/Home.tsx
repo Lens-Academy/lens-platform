@@ -1,33 +1,29 @@
-import { Link } from "react-router-dom";
-
 export default function Home() {
   return (
     <div className="py-16 max-w-2xl mx-auto text-center">
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">
-        AI Safety Course Platform
+      <h1 className="text-4xl font-bold text-red-600 mb-4">
+        404 - Something Went Wrong
       </h1>
       <p className="text-xl text-gray-600 mb-8">
-        Learn about AI safety and alignment through interactive lessons.
+        You reached the React Home component instead of the static landing page.
       </p>
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Link
-          to="/lesson/intelligence-feedback-loop"
-          className="bg-indigo-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
-        >
-          Start Learning
-        </Link>
-        <Link
-          to="/signup"
-          className="bg-white text-indigo-600 border-2 border-indigo-600 px-8 py-3 rounded-lg font-medium hover:bg-indigo-50 transition-colors"
-        >
-          Sign Up
-        </Link>
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-left mb-8">
+        <h2 className="font-bold text-yellow-800 mb-2">Diagnostic Info:</h2>
+        <ul className="text-sm text-yellow-700 space-y-2">
+          <li><strong>Issue:</strong> Two different homepages exist</li>
+          <li><strong>Static landing:</strong> web_frontend/static/landing.html (served on hard refresh)</li>
+          <li><strong>React component:</strong> web_frontend/src/pages/Home.tsx (served on client-side navigation)</li>
+          <li><strong>How you got here:</strong> Likely clicked a React Router Link to "/" instead of hard navigating</li>
+        </ul>
       </div>
 
-      <p className="text-sm text-gray-500 mt-6">
-        Try our intro lesson first, or sign up directly for the full course.
-      </p>
+      <a
+        href="/"
+        className="text-indigo-600 underline"
+      >
+        Hard refresh to see the real landing page
+      </a>
     </div>
   );
 }

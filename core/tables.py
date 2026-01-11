@@ -27,6 +27,7 @@ from .enums import (
     group_user_status_enum,
     grouping_status_enum,
     rsvp_status_enum,
+    ungroupable_reason_enum,
     user_role_enum,
 )
 
@@ -279,6 +280,7 @@ courses_users = Table(
     ),
     Column("role_in_cohort", cohort_role_enum, nullable=False),
     Column("grouping_status", grouping_status_enum, server_default="awaiting_grouping"),
+    Column("ungroupable_reason", ungroupable_reason_enum),  # Why user couldn't be grouped (if ungroupable)
     Column("grouping_attempt_count", Integer, server_default="0"),
     Column("last_grouping_attempt_at", TIMESTAMP(timezone=True)),
     Column("is_course_committee_member", Boolean, server_default="false"),

@@ -23,6 +23,7 @@ from .content import (
     VideoTranscriptContent,
     VideoTranscriptMetadata,
     get_stage_title,
+    get_stage_duration,
 )
 from .sessions import (
     create_session,
@@ -63,6 +64,7 @@ __all__ = [
     "VideoTranscriptContent",
     "VideoTranscriptMetadata",
     "get_stage_title",
+    "get_stage_duration",
     "create_session",
     "get_session",
     "get_user_sessions",

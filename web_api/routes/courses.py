@@ -13,26 +13,13 @@ from core.lessons import (
     load_lesson,
     get_user_lesson_progress,
     get_stage_title,
+    get_stage_duration,
     LessonNotFoundError,
 )
 from web_api.auth import get_optional_user
 from core import get_or_create_user
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
-
-
-def get_stage_duration_estimate(stage) -> str | None:
-    """Estimate duration for a stage."""
-    if stage.type == "article":
-        return "5 min read"
-    elif stage.type == "video":
-        if stage.to_seconds and stage.from_seconds:
-            minutes = (stage.to_seconds - stage.from_seconds) // 60
-            return f"{max(1, minutes)} min"
-        return "Video"
-    elif stage.type == "chat":
-        return None
-    return None
 
 
 @router.get("/{course_id}/next-lesson")
@@ -103,7 +90,7 @@ async def get_course_progress(course_id: str, request: Request):
                 stages.append({
                     "type": stage.type,
                     "title": get_stage_title(stage),
-                    "duration": get_stage_duration_estimate(stage),
+                    "duration": get_stage_duration(stage) or None,
                     "optional": getattr(stage, "optional", False),
                 })
 
