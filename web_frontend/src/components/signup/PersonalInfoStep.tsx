@@ -35,10 +35,10 @@ export default function PersonalInfoStep({
         type="button"
         onClick={onDiscordConnect}
         disabled={discordConnected}
-        className={`flex items-center justify-center gap-3 w-full px-6 py-4 rounded-lg font-medium text-lg transition-colors ${
+        className={`flex items-center justify-center gap-3 w-full px-6 py-4 rounded-lg font-medium text-lg transition-colors disabled:cursor-default ${
           discordConnected
-            ? "bg-green-100 text-green-800 cursor-default"
-            : "bg-[#5865F2] hover:bg-[#4752C4] text-white cursor-pointer"
+            ? "bg-green-100 text-green-800"
+            : "bg-[#5865F2] hover:bg-[#4752C4] text-white"
         }`}
       >
         <svg className="w-6 h-6" viewBox="0 0 71 55" fill="currentColor">
@@ -104,10 +104,10 @@ export default function PersonalInfoStep({
           type="button"
           onClick={onNext}
           disabled={!discordConnected}
-          className={`w-full px-4 py-3 font-medium rounded-lg transition-colors ${
+          className={`w-full px-4 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
             discordConnected
               ? "bg-blue-500 hover:bg-blue-600 text-white"
-              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-gray-200 text-gray-400"
           }`}
         >
           Continue to Cohort Selection

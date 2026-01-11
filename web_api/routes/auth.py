@@ -21,7 +21,7 @@ from fastapi.responses import RedirectResponse
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core import get_or_create_user, get_user_profile, validate_and_use_auth_code
-from web_api.auth import create_jwt, get_current_user, set_session_cookie
+from web_api.auth import create_jwt, get_optional_user, set_session_cookie
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -290,14 +290,20 @@ async def get_me(request: Request):
     """
     Get current authenticated user info.
 
-    Returns the user's Discord ID, username, avatar URL, and profile from the database.
+    Returns 200 always:
+    - If authenticated: { authenticated: true, discord_id, discord_username, discord_avatar_url, user }
+    - If not authenticated: { authenticated: false }
     """
-    user = await get_current_user(request)
+    user = await get_optional_user(request)
+
+    if not user:
+        return {"authenticated": False}
 
     db_user = await get_user_profile(user["sub"])
 
     if not db_user:
-        raise HTTPException(404, "User not found in database")
+        # User has valid token but no DB record - treat as unauthenticated
+        return {"authenticated": False}
 
     avatar_url = _get_discord_avatar_url(
         user["sub"],
@@ -305,6 +311,7 @@ async def get_me(request: Request):
     )
 
     return {
+        "authenticated": True,
         "discord_id": user["sub"],
         "discord_username": user["username"],
         "discord_avatar_url": avatar_url,

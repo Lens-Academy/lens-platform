@@ -149,9 +149,9 @@ describe("Anonymous Session Flow", () => {
 
     renderWithRouter("test");
 
-    // Wait for the component to load - look for the "I've read the article" button which shows on article stage
+    // Wait for the component to load - look for the "Done reading" button which shows on article stage
     await waitFor(() => {
-      expect(screen.getByText(/I've read the article/i)).toBeInTheDocument();
+      expect(screen.getByTestId("done-reading-button")).toBeInTheDocument();
     });
 
     // Find and click the skip/done button (the header has "Skip section" button)

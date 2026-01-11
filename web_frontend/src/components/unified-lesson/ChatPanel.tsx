@@ -613,7 +613,7 @@ export default function ChatPanel({
                 type="button"
                 onClick={handleMicClick}
                 disabled={recordingState === "transcribing"}
-                className="p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-gray-100 text-gray-600 hover:bg-gray-200"
+                className="p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-default bg-gray-100 text-gray-600 hover:bg-gray-200"
               >
                 {recordingState === "transcribing" ? (
                   // Spinner
@@ -659,7 +659,7 @@ export default function ChatPanel({
               <button
                 type="submit"
                 disabled={isLoading || !input.trim() || recordingState !== "idle"}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[70px]"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-default min-w-[70px]"
               >
                 Send
               </button>

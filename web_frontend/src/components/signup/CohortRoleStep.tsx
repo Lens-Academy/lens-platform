@@ -182,10 +182,10 @@ export default function CohortRoleStep({
           type="button"
           onClick={onNext}
           disabled={!canProceed}
-          className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors ${
+          className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
             canProceed
               ? "bg-blue-500 hover:bg-blue-600 text-white"
-              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-gray-200 text-gray-400"
           }`}
         >
           Continue to Availability

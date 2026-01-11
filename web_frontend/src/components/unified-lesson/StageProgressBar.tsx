@@ -90,7 +90,7 @@ export default function StageProgressBar({
         <button
           onClick={onPrevious}
           disabled={!canGoPrevious}
-          className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -132,20 +132,19 @@ export default function StageProgressBar({
                   disabled={stage.type === "chat" && index !== currentStageIndex && index !== viewingIndex}
                   className={`
                     relative w-7 h-7 rounded-full flex items-center justify-center
-                    transition-all duration-150
+                    transition-all duration-150 disabled:cursor-default
                     ${isOptional
-                      ? "bg-transparent text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500 cursor-pointer"
+                      ? "bg-transparent text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500"
                       : isReached
                         ? isClickable
-                          ? "bg-blue-500 text-white hover:bg-blue-600 cursor-pointer"
-                          : "bg-blue-500 text-white cursor-default"
+                          ? "bg-blue-500 text-white hover:bg-blue-600"
+                          : "bg-blue-500 text-white"
                         : canPreview
-                          ? "bg-gray-300 text-gray-500 hover:bg-gray-400 cursor-pointer"
-                          : "bg-gray-300 text-gray-500 cursor-default"
+                          ? "bg-gray-300 text-gray-500 hover:bg-gray-400"
+                          : "bg-gray-300 text-gray-500"
                     }
                     ${isViewing ? "ring-2 ring-offset-2 ring-blue-500" : ""}
                     ${isFuture ? "opacity-50" : ""}
-                    ${!isFuture && isClickable ? "cursor-pointer" : ""}
                   `}
                 >
                   <StageIcon type={stage.type} small />
@@ -161,7 +160,7 @@ export default function StageProgressBar({
         <button
           onClick={onNext}
           disabled={!canGoNext}
-          className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

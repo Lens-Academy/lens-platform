@@ -78,9 +78,9 @@ export default function AvailabilityStep({
           type="button"
           onClick={onSubmit}
           disabled={totalSlots === 0}
-          className={`flex-1 px-6 py-3 font-medium rounded-lg transition-colors ${
+          className={`flex-1 px-6 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
             totalSlots === 0
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              ? "bg-gray-300 text-gray-500"
               : "bg-blue-500 hover:bg-blue-600 text-white"
           }`}
         >

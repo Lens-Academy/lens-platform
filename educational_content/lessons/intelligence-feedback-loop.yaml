@@ -3,6 +3,9 @@ title: Intelligence Feedback Loop
 
 stages:
   - type: article
+    source: articles/intelligence-feedback-loop-lesson-intro.md
+
+  - type: article
     source: articles/karnofsky-most-important-century.md
     from: "## The long-run future could come much faster than we think"
     to: "quickly go sideways.)"
@@ -46,7 +49,7 @@ stages:
 
   - type: article
     source: articles/urban-ai-revolution-superintelligence.md
-    
+
 
   - type: chat
     instructions: >

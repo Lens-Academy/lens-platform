@@ -51,8 +51,22 @@ export function useAuth(): UseAuthReturn {
         credentials: "include", // Include cookies
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (!response.ok) {
+        // Server error - treat as not authenticated
+        setState({
+          isAuthenticated: false,
+          isLoading: false,
+          user: null,
+          discordId: null,
+          discordUsername: null,
+          discordAvatarUrl: null,
+        });
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.authenticated) {
         setState({
           isAuthenticated: true,
           isLoading: false,

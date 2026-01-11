@@ -411,7 +411,31 @@ export default function UnifiedLesson() {
 
       {/* Main content - split panel */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Chat panel - left */}
+        {/* Content panel - left */}
+        <div className={`w-1/2 relative ${
+          !isChatStage || isViewingOther
+            ? "bg-white z-30"
+            : "bg-gray-50"
+        }`}>
+          {/* Dimming overlay when not focused */}
+          {(isChatStage && !isViewingOther) && (
+            <div className="absolute inset-0 bg-gray-50/25 pointer-events-none z-10" />
+          )}
+          <ContentPanel
+            stage={displayedStage}
+            article={articleToDisplay}
+            onVideoEnded={handleAdvanceStage}
+            onNextClick={handleAdvanceStage}
+            onSkipOptional={handleAdvanceStage}
+            isReviewing={isReviewing}
+            isPreviewing={isPreviewing}
+            previousArticle={session.previous_article}
+            previousStage={session.previous_stage}
+            showUserPreviousContent={session.show_user_previous_content}
+          />
+        </div>
+
+        {/* Chat panel - right */}
         <div className={`w-1/2 relative ${
           isChatStage && !isViewingOther
             ? "bg-white z-30"
@@ -435,30 +459,6 @@ export default function UnifiedLesson() {
             showDisclaimer={!isChatStage || isViewingOther}
             isReviewing={isReviewing}
             isPreviewing={isPreviewing}
-          />
-        </div>
-
-        {/* Content panel - right */}
-        <div className={`w-1/2 relative ${
-          !isChatStage || isViewingOther
-            ? "bg-white z-30"
-            : "bg-gray-50"
-        }`}>
-          {/* Dimming overlay when not focused */}
-          {(isChatStage && !isViewingOther) && (
-            <div className="absolute inset-0 bg-gray-50/25 pointer-events-none z-10" />
-          )}
-          <ContentPanel
-            stage={displayedStage}
-            article={articleToDisplay}
-            onVideoEnded={handleAdvanceStage}
-            onNextClick={handleAdvanceStage}
-            onSkipOptional={handleAdvanceStage}
-            isReviewing={isReviewing}
-            isPreviewing={isPreviewing}
-            previousArticle={session.previous_article}
-            previousStage={session.previous_stage}
-            showUserPreviousContent={session.show_user_previous_content}
           />
         </div>
       </div>
