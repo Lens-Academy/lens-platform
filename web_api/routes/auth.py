@@ -12,6 +12,7 @@ Endpoints:
 import os
 import secrets
 import sys
+import time
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -79,6 +80,16 @@ def _validate_origin(origin: str | None) -> str:
 # In-memory state storage for OAuth CSRF protection
 # In production, use Redis or database
 _oauth_states: dict[str, dict] = {}
+STATE_TTL_SECONDS = 600  # 10 minutes - states expire after this
+
+
+def _cleanup_expired_oauth_states():
+    """Remove OAuth states older than TTL. Called before adding new states."""
+    cutoff = time.time() - STATE_TTL_SECONDS
+    # Build list of keys to remove (can't modify dict during iteration)
+    expired = [k for k, v in _oauth_states.items() if v.get("created_at", 0) < cutoff]
+    for key in expired:
+        del _oauth_states[key]
 
 
 @router.get("/discord")
@@ -102,8 +113,9 @@ async def discord_oauth_start(
     validated_origin = _validate_origin(origin)
 
     # Generate state for CSRF protection
+    _cleanup_expired_oauth_states()  # Prevent memory leak
     state = secrets.token_urlsafe(32)
-    _oauth_states[state] = {"next": next, "origin": validated_origin}
+    _oauth_states[state] = {"next": next, "origin": validated_origin, "created_at": time.time()}
 
     # Build Discord OAuth URL
     params = {
@@ -240,7 +252,7 @@ async def validate_auth_code_endpoint(
 
 
 @router.post("/code")
-async def validate_auth_code_api(code: str, next: str = "/", response: Response = None):
+async def validate_auth_code_api(response: Response, code: str, next: str = "/"):
     """
     Validate a temporary auth code from the Discord bot (API version).
 

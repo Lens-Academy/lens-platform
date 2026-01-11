@@ -34,10 +34,15 @@ class TestBotManager:
             client = discord.Client(intents=intents)
             ready_event = asyncio.Event()
 
-            @client.event
-            async def on_ready(c=client, idx=i, evt=ready_event):
-                print(f"    Test bot {idx + 1} connected: {c.user}")
-                evt.set()
+            def make_on_ready(c: discord.Client, idx: int, evt: asyncio.Event):
+                """Factory to create on_ready with proper closure capture."""
+                @c.event
+                async def on_ready():
+                    print(f"    Test bot {idx + 1} connected: {c.user}")
+                    evt.set()
+                return on_ready
+
+            make_on_ready(client, i, ready_event)
 
             self.bots.append(client)
             self._ready_events.append(ready_event)
