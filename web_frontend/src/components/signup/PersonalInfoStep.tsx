@@ -6,8 +6,10 @@ interface PersonalInfoStepProps {
   email: string;
   discordConnected: boolean;
   discordUsername?: string;
+  termsAccepted: boolean;
   onDisplayNameChange: (value: string) => void;
   onEmailChange: (value: string) => void;
+  onTermsAcceptedChange: (value: boolean) => void;
   onDiscordConnect: () => void;
   onNext: () => void;
 }
@@ -17,8 +19,10 @@ export default function PersonalInfoStep({
   email,
   discordConnected,
   discordUsername,
+  termsAccepted,
   onDisplayNameChange,
   onEmailChange,
+  onTermsAcceptedChange,
   onDiscordConnect,
   onNext,
 }: PersonalInfoStepProps) {
@@ -94,6 +98,38 @@ export default function PersonalInfoStep({
               This will be set as your nickname in the Lens Academy Discord server, visible to all members.
             </p>
           </div>
+
+          {/* Terms acceptance */}
+          <div className="pt-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => onTermsAcceptedChange(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
+              />
+              <span className="text-sm text-gray-600">
+                I agree to the{" "}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 underline"
+                >
+                  Terms of Service
+                </a>{" "}
+                and{" "}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 underline"
+                >
+                  Privacy Policy
+                </a>
+              </span>
+            </label>
+          </div>
         </div>
       )}
 
@@ -102,9 +138,9 @@ export default function PersonalInfoStep({
         <button
           type="button"
           onClick={onNext}
-          disabled={!discordConnected}
+          disabled={!discordConnected || !termsAccepted}
           className={`w-full px-4 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
-            discordConnected
+            discordConnected && termsAccepted
               ? "bg-blue-500 hover:bg-blue-600 text-white"
               : "bg-gray-200 text-gray-400"
           }`}

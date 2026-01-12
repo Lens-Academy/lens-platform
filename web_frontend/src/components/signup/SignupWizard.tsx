@@ -25,6 +25,7 @@ export default function SignupWizard() {
     email: "",
     discordConnected: false,
     discordUsername: undefined,
+    termsAccepted: false,
     availability: { ...EMPTY_AVAILABILITY },
     timezone: getBrowserTimezone(),
     selectedCohortId: null,
@@ -144,6 +145,7 @@ export default function SignupWizard() {
           availability_local: JSON.stringify(formData.availability),
           cohort_id: formData.selectedCohortId,
           role: formData.selectedRole,
+          tos_accepted: formData.termsAccepted,
         }),
       });
 
@@ -181,11 +183,15 @@ export default function SignupWizard() {
           email={formData.email}
           discordConnected={formData.discordConnected}
           discordUsername={formData.discordUsername}
+          termsAccepted={formData.termsAccepted}
           onDisplayNameChange={(value) =>
             setFormData((prev) => ({ ...prev, displayName: value }))
           }
           onEmailChange={(value) =>
             setFormData((prev) => ({ ...prev, email: value }))
+          }
+          onTermsAcceptedChange={(value) =>
+            setFormData((prev) => ({ ...prev, termsAccepted: value }))
           }
           onDiscordConnect={handleDiscordConnect}
           onNext={() => {

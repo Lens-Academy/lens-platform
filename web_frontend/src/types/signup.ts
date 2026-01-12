@@ -24,6 +24,7 @@ export interface SignupFormData {
   email: string;
   discordConnected: boolean;
   discordUsername?: string;
+  termsAccepted: boolean;
   availability: AvailabilityData;
   timezone: string;
   selectedCohortId: number | null;

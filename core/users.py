@@ -68,6 +68,7 @@ async def update_user_profile(
     email: str | None = None,
     timezone_str: str | None = None,
     availability_local: str | None = None,
+    tos_accepted: bool | None = None,
 ) -> dict[str, Any] | None:
     """
     Update a user's profile with email verification handling.
@@ -81,6 +82,7 @@ async def update_user_profile(
         email: Email address (clears verification if changed)
         timezone_str: Timezone string
         availability_local: JSON string of day -> list of time slots (in user's local timezone)
+        tos_accepted: If True, sets tos_accepted_at to current time (only if not already set)
 
     Returns:
         Updated user profile dict or None if user not found
@@ -96,6 +98,8 @@ async def update_user_profile(
     if availability_local is not None:
         update_data["availability_local"] = availability_local
         update_data["availability_last_updated_at"] = datetime.now(timezone.utc)
+    if tos_accepted:
+        update_data["tos_accepted_at"] = datetime.now(timezone.utc)
 
     async with get_transaction() as conn:
         # If email is being updated, check if it changed and clear verification

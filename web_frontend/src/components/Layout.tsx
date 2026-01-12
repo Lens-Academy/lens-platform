@@ -46,6 +46,8 @@ export default function Layout() {
           <div className="flex items-center justify-center gap-4 text-sm text-slate-500">
             <a href="/privacy" className="hover:text-slate-700">Privacy Policy</a>
             <span>·</span>
+            <a href="/terms" className="hover:text-slate-700">Terms of Service</a>
+            <span>·</span>
             <button
               onClick={() => setShowCookieSettings(true)}
               className="hover:text-slate-700"

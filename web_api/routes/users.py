@@ -35,6 +35,7 @@ class UserProfileUpdate(BaseModel):
     availability_local: str | None = None
     cohort_id: int | None = None
     role: str | None = None  # "participant" or "facilitator" for cohort enrollment
+    tos_accepted: bool | None = None
 
 
 @router.patch("/me")
@@ -58,6 +59,7 @@ async def update_my_profile(
         email=updates.email,
         timezone_str=updates.timezone,
         availability_local=updates.availability_local,
+        tos_accepted=updates.tos_accepted,
     )
 
     if not updated_user:
