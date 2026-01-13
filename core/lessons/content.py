@@ -9,6 +9,33 @@ from pathlib import Path
 # Path to content files (educational_content at project root)
 CONTENT_DIR = Path(__file__).parent.parent.parent / "educational_content"
 
+
+def extract_video_id_from_url(url: str) -> str:
+    """
+    Extract YouTube video ID from a YouTube URL.
+
+    Supported formats:
+    - https://www.youtube.com/watch?v=VIDEO_ID
+    - https://youtube.com/watch?v=VIDEO_ID
+    - https://youtu.be/VIDEO_ID
+    - https://www.youtube.com/embed/VIDEO_ID
+
+    Args:
+        url: YouTube URL
+
+    Returns:
+        Video ID string
+
+    Raises:
+        ValueError: If URL format is not recognized
+    """
+    # Pattern for youtube.com/watch?v=ID
+    match = re.search(r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([a-zA-Z0-9_-]+)', url)
+    if match:
+        return match.group(1)
+
+    raise ValueError(f"Could not extract video ID from URL: {url}")
+
 # In-memory cache for stage durations (calculated once per server process)
 # Key: (source, from_text/from_seconds, to_text/to_seconds)
 # Value: duration string like "5 min" or "3 min"
@@ -207,23 +234,33 @@ def parse_video_frontmatter(text: str) -> tuple[VideoTranscriptMetadata, str]:
     """
     Parse YAML frontmatter from video transcript markdown.
 
+    The video_id is derived from the url field, not stored separately.
+
     Args:
         text: Full markdown text, possibly with frontmatter
 
     Returns:
         Tuple of (metadata, transcript_without_frontmatter)
+
+    Raises:
+        ValueError: If url is missing or cannot be parsed for video ID
     """
     field_mapping = {
-        "video_id": "video_id",
         "title": "title",
         "url": "url",
     }
     raw_metadata, content = _parse_frontmatter_generic(text, field_mapping)
 
+    url = raw_metadata.get("url")
+    if not url:
+        raise ValueError("Video transcript frontmatter missing required 'url' field")
+
+    video_id = extract_video_id_from_url(url)
+
     return VideoTranscriptMetadata(
-        video_id=raw_metadata.get("video_id"),
+        video_id=video_id,
         title=raw_metadata.get("title"),
-        url=raw_metadata.get("url"),
+        url=url,
     ), content
 
 

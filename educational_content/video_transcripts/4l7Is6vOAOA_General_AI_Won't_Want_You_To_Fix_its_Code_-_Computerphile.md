@@ -1,5 +1,4 @@
 ---
-video_id: "4l7Is6vOAOA"
 title: "General AI Won't Want You To Fix its Code - Computerphile"
 url: "https://www.youtube.com/watch?v=4l7Is6vOAOA"
 ---

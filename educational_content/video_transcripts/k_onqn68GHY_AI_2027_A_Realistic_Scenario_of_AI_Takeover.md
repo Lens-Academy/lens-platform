@@ -1,5 +1,4 @@
 ---
-video_id: "k_onqn68GHY"
 title: "AI 2027: A Realistic Scenario of AI Takeover"
 url: "https://www.youtube.com/watch?v=k_onqn68GHY"
 ---

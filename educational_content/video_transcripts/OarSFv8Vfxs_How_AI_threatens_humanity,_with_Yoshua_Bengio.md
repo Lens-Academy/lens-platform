@@ -1,5 +1,4 @@
 ---
-video_id: "OarSFv8Vfxs"
 title: "How AI threatens humanity, with Yoshua Bengio"
 url: "https://www.youtube.com/watch?v=OarSFv8Vfxs"
 ---

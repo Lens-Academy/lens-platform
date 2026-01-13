@@ -1,5 +1,4 @@
 ---
-video_id: "hEUO6pjwFOo"
 title: "Intelligence and Stupidity: The Orthogonality Thesis"
 url: "https://www.youtube.com/watch?v=hEUO6pjwFOo"
 ---

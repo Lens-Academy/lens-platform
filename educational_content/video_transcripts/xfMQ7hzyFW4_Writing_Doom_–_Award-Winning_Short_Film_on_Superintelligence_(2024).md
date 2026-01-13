@@ -1,5 +1,4 @@
 ---
-video_id: "xfMQ7hzyFW4"
 title: "Writing Doom – Award-Winning Short Film on Superintelligence (2024)"
 url: "https://www.youtube.com/watch?v=xfMQ7hzyFW4"
 ---

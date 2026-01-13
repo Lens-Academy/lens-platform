@@ -1,0 +1,51 @@
+id: introduction
+title: Introduction
+
+stages:
+  # Core reading 1: Video - A.I. ‐ Humanity's Final Invention?
+  - type: video
+    source: video_transcripts/fa8k8IQ1_X0_A.I._‐_Humanity's_Final_Invention.md
+
+  - type: chat
+    instructions: >
+      The user just watched the opening of "A.I. ‐ Humanity's Final Invention?"
+      Ask them what stood out most. Check their understanding of why AI might pose
+      existential risks. Keep the conversation exploratory - this is their introduction.
+    showUserPreviousContent: true
+    showTutorPreviousContent: true
+
+  # Core reading 2: Wikipedia article on existential risk
+  - type: article
+    source: articles/wikipedia-existential-risk-ai.md
+    from: "Existential risk from artificial intelligence"
+    to: "Two sources of concern stem from the problems of AI control and alignment."
+
+  - type: chat
+    instructions: >
+      The user just read the Wikipedia overview of existential risk from AI.
+      Ask them what they found surprising or new. Check if they understand the
+      distinction between AGI and superintelligence, and why alignment matters.
+    showUserPreviousContent: true
+    showTutorPreviousContent: true
+
+  # Core reading 3: Video - 10 Reasons to Ignore AI Safety
+  - type: video
+    source: video_transcripts/9i1WlcCudpU_10_Reasons_to_Ignore_AI_Safety.md
+
+  - type: chat
+    instructions: >
+      The user watched "10 Reasons to Ignore AI Safety" which presents common
+      objections to AI safety concerns and then refutes them. Ask which argument
+      they found most compelling (either for or against). Explore their reasoning.
+    showUserPreviousContent: true
+    showTutorPreviousContent: true
+
+  # Additional reading 1: Four background claims - MIRI (Soares)
+  - type: article
+    source: articles/four-background-claims.md
+    optional: true
+
+  # Additional reading 2: Worst-case thinking - Buck Shlegeris
+  - type: article
+    source: articles/shlegeris-worst-case-thinking.md
+    optional: true

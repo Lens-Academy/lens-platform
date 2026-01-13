@@ -1,5 +1,4 @@
 ---
-video_id: "2ziuPUeewK0"
 title: "AI Ruined My Year"
 url: "https://www.youtube.com/watch?v=2ziuPUeewK0"
 ---

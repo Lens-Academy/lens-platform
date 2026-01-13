@@ -1,5 +1,4 @@
 ---
-video_id: "U1eyUjVRir4"
 title: "Don't Look Up - The Documentary: The Case For AI As An Existential Threat"
 url: "https://www.youtube.com/watch?v=U1eyUjVRir4"
 ---

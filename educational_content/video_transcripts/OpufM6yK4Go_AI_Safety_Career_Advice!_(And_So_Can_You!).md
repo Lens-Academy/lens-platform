@@ -1,5 +1,4 @@
 ---
-video_id: "OpufM6yK4Go"
 title: "AI Safety Career Advice! (And So Can You!)"
 url: "https://www.youtube.com/watch?v=OpufM6yK4Go"
 ---

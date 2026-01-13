@@ -1,5 +1,4 @@
 ---
-video_id: "9i1WlcCudpU"
 title: "10 Reasons to Ignore AI Safety"
 url: "https://www.youtube.com/watch?v=9i1WlcCudpU"
 ---

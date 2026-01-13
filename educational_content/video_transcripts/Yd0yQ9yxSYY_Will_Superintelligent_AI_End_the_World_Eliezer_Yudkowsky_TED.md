@@ -1,5 +1,4 @@
 ---
-video_id: "Yd0yQ9yxSYY"
 title: "Will Superintelligent AI End the World? | Eliezer Yudkowsky | TED"
 url: "https://www.youtube.com/watch?v=Yd0yQ9yxSYY"
 ---

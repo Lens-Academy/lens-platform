@@ -1,5 +1,4 @@
 ---
-video_id: "zeabrXV8zNE"
 title: "How To Prevent The AI Apocalypse"
 url: "https://www.youtube.com/watch?v=zeabrXV8zNE"
 ---

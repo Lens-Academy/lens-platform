@@ -1,5 +1,4 @@
 ---
-video_id: "xFj73CVrTYI"
 title: "What Comes After the Human Era?"
 url: "https://www.youtube.com/watch?v=xFj73CVrTYI"
 ---

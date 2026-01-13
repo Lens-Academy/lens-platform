@@ -1,5 +1,4 @@
 ---
-video_id: "VBcr6_HsfE8"
 title: "AI Chatbots Could Kill Us All"
 url: "https://www.youtube.com/watch?v=VBcr6_HsfE8"
 ---

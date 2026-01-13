@@ -1,5 +1,4 @@
 ---
-video_id: "pYXy-A4siMw"
 title: "Intro to AI Safety, Remastered"
 url: "https://www.youtube.com/watch?v=pYXy-A4siMw"
 ---

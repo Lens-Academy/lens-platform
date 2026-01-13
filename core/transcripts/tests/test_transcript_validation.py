@@ -6,10 +6,12 @@ import pytest
 from pathlib import Path
 import yaml
 
+from core.lessons.content import extract_video_id_from_url
+
 
 TRANSCRIPTS_DIR = Path(__file__).parent.parent.parent.parent / "educational_content" / "video_transcripts"
 
-REQUIRED_FRONTMATTER_FIELDS = ["video_id", "title", "url"]
+REQUIRED_FRONTMATTER_FIELDS = ["title", "url"]
 
 
 def get_transcript_md_files():
@@ -49,6 +51,32 @@ def test_transcript_has_valid_frontmatter(md_path: Path):
     for field in REQUIRED_FRONTMATTER_FIELDS:
         assert field in frontmatter, f"{md_path.name} is missing required field: {field}"
         assert frontmatter[field], f"{md_path.name} has empty {field} field"
+
+
+@pytest.mark.parametrize("md_path", get_transcript_md_files(), ids=lambda p: p.name)
+def test_transcript_url_is_parseable(md_path: Path):
+    """Each transcript URL must be in a format we can extract video ID from.
+
+    This ensures we catch unsupported URL formats at test time, not at runtime.
+    If this test fails, either fix the URL or add support for the new format
+    in extract_video_id_from_url().
+    """
+    content = md_path.read_text()
+    frontmatter = parse_frontmatter(content)
+
+    if frontmatter is None or "url" not in frontmatter:
+        pytest.skip(f"{md_path.name} has no URL (will be caught by other tests)")
+
+    url = frontmatter["url"]
+    try:
+        video_id = extract_video_id_from_url(url)
+        assert video_id, f"{md_path.name} URL parsed to empty video ID"
+    except ValueError as e:
+        pytest.fail(
+            f"{md_path.name} has unparseable URL format: {url}\n"
+            f"Error: {e}\n"
+            f"Either fix the URL or add support for this format in extract_video_id_from_url()"
+        )
 
 
 @pytest.mark.parametrize("md_path", get_transcript_md_files(), ids=lambda p: p.name)

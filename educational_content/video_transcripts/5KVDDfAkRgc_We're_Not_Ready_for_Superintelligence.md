@@ -1,5 +1,4 @@
 ---
-video_id: "5KVDDfAkRgc"
 title: "We're Not Ready for Superintelligence"
 url: "https://www.youtube.com/watch?v=5KVDDfAkRgc"
 ---

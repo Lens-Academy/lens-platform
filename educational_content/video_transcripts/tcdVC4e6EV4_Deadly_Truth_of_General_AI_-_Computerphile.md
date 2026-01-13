@@ -1,5 +1,4 @@
 ---
-video_id: "tcdVC4e6EV4"
 title: "Deadly Truth of General AI? - Computerphile"
 url: "https://www.youtube.com/watch?v=tcdVC4e6EV4"
 ---

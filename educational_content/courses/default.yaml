@@ -7,5 +7,6 @@ modules:
     title: Foundations
     due_by_meeting: 1
     lessons:
+      - introduction
       - intro-to-ai-safety
       - intelligence-feedback-loop

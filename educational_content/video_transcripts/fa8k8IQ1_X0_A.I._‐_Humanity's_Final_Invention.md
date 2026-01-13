@@ -1,5 +1,4 @@
 ---
-video_id: "fa8k8IQ1_X0"
 title: "A.I. ‐ Humanity's Final Invention?"
 url: "https://www.youtube.com/watch?v=fa8k8IQ1_X0"
 ---
