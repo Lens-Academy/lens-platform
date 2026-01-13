@@ -7,8 +7,10 @@ from fastapi.responses import Response
 from core.lessons.course_loader import (
     load_course,
     get_next_lesson,
+    get_lessons,
     CourseNotFoundError,
 )
+from core.lessons.types import LessonRef, Meeting
 from core.lessons import (
     load_lesson,
     get_user_lesson_progress,
@@ -68,17 +70,29 @@ async def get_course_progress(course_slug: str, request: Request):
     # Get user's progress
     progress = await get_user_lesson_progress(user_id)
 
-    # Build response with progress merged
-    modules = []
-    for module in course.modules:
-        lessons = []
-        for lesson_slug in module.lessons:
+    # Build units by splitting progression on Meeting objects
+    units = []
+    current_lessons = []
+    current_meeting_number = None
+
+    for item in course.progression:
+        if isinstance(item, Meeting):
+            # When we hit a meeting, save the current unit if it has lessons
+            if current_lessons:
+                units.append({
+                    "meetingNumber": item.number,
+                    "lessons": current_lessons,
+                })
+                current_lessons = []
+            current_meeting_number = item.number
+        elif isinstance(item, LessonRef):
+            # Load lesson details
             try:
-                lesson = load_lesson(lesson_slug)
+                lesson = load_lesson(item.slug)
             except LessonNotFoundError:
                 continue
 
-            lesson_progress = progress.get(lesson_slug, {
+            lesson_progress = progress.get(item.slug, {
                 "status": "not_started",
                 "current_stage_index": None,
                 "session_id": None,
@@ -94,19 +108,23 @@ async def get_course_progress(course_slug: str, request: Request):
                     "optional": getattr(stage, "optional", False),
                 })
 
-            lessons.append({
+            current_lessons.append({
                 "slug": lesson.slug,
                 "title": lesson.title,
+                "optional": item.optional,
                 "stages": stages,
                 "status": lesson_progress["status"],
                 "currentStageIndex": lesson_progress["current_stage_index"],
                 "sessionId": lesson_progress["session_id"],
             })
 
-        modules.append({
-            "id": module.id,
-            "title": module.title,
-            "lessons": lessons,
+    # Handle any remaining lessons after the last meeting (or if no meetings)
+    if current_lessons:
+        # If there were no meetings at all, use meeting number 1 as default
+        meeting_num = (current_meeting_number + 1) if current_meeting_number else 1
+        units.append({
+            "meetingNumber": meeting_num,
+            "lessons": current_lessons,
         })
 
     return {
@@ -114,5 +132,5 @@ async def get_course_progress(course_slug: str, request: Request):
             "slug": course.slug,
             "title": course.title,
         },
-        "modules": modules,
+        "units": units,
     }

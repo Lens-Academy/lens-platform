@@ -34,3 +34,36 @@ def test_get_next_lesson_invalid_course():
     """Should return 404 for invalid course."""
     response = client.get("/api/courses/nonexistent/next-lesson?current=intro-to-ai-safety")
     assert response.status_code == 404
+
+
+def test_get_course_progress_returns_units():
+    """Should return course progress with units instead of modules."""
+    response = client.get("/api/courses/default/progress")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should have course info
+    assert "course" in data
+    assert data["course"]["slug"] == "default"
+    assert data["course"]["title"] == "AI Safety Fundamentals"
+
+    # Should have units, not modules
+    assert "units" in data
+    assert "modules" not in data
+
+    # Should have at least one unit
+    assert len(data["units"]) >= 1
+
+    # First unit should have meetingNumber and lessons
+    unit = data["units"][0]
+    assert "meetingNumber" in unit
+    assert unit["meetingNumber"] == 1
+    assert "lessons" in unit
+    assert len(unit["lessons"]) >= 1
+
+    # Each lesson should have optional field
+    lesson = unit["lessons"][0]
+    assert "slug" in lesson
+    assert "title" in lesson
+    assert "optional" in lesson
+    assert isinstance(lesson["optional"], bool)
