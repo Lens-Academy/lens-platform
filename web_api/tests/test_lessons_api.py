@@ -36,7 +36,7 @@ def test_claim_session_success():
                 mock_claim.return_value = {
                     "session_id": 1,
                     "user_id": 42,
-                    "lesson_id": "test",
+                    "lesson_slug": "test",
                     "messages": [],
                 }
 
@@ -106,7 +106,7 @@ def test_get_anonymous_session_by_id():
             mock_get.return_value = {
                 "session_id": 1,
                 "user_id": None,  # Anonymous
-                "lesson_id": "intro-to-ai-safety",
+                "lesson_slug": "intro-to-ai-safety",
                 "current_stage_index": 0,
                 "messages": [],
                 "completed_at": None,
@@ -146,7 +146,7 @@ def test_get_session_forbidden_for_wrong_user():
                 mock_get.return_value = {
                     "session_id": 1,
                     "user_id": 999,  # Different user
-                    "lesson_id": "test",
+                    "lesson_slug": "test",
                     "current_stage_index": 0,
                     "messages": [],
                     "completed_at": None,
@@ -170,7 +170,7 @@ def test_create_anonymous_session():
             mock_create.return_value = {
                 "session_id": 123,
                 "user_id": None,
-                "lesson_id": "intro-to-ai-safety",
+                "lesson_slug": "intro-to-ai-safety",
                 "messages": [],
             }
 
@@ -182,7 +182,7 @@ def test_create_anonymous_session():
 
                 response = client.post(
                     "/api/lesson-sessions",
-                    json={"lesson_id": "intro-to-ai-safety"}
+                    json={"lesson_slug": "intro-to-ai-safety"}
                 )
 
                 assert response.status_code == 200
@@ -203,7 +203,7 @@ def test_create_authenticated_session():
                 mock_create.return_value = {
                     "session_id": 456,
                     "user_id": 42,
-                    "lesson_id": "intro-to-ai-safety",
+                    "lesson_slug": "intro-to-ai-safety",
                     "messages": [],
                 }
 
@@ -215,7 +215,7 @@ def test_create_authenticated_session():
 
                     response = client.post(
                         "/api/lesson-sessions",
-                        json={"lesson_id": "intro-to-ai-safety"}
+                        json={"lesson_slug": "intro-to-ai-safety"}
                     )
 
                     assert response.status_code == 200

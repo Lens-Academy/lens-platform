@@ -20,16 +20,14 @@ def test_get_next_lesson():
     response = client.get("/api/courses/default/next-lesson?current=intro-to-ai-safety")
     assert response.status_code == 200
     data = response.json()
-    assert data["nextLessonId"] == "intelligence-feedback-loop"
+    assert data["nextLessonSlug"] == "intelligence-feedback-loop"
     assert data["nextLessonTitle"] == "Intelligence Feedback Loop"
 
 
 def test_get_next_lesson_end_of_course():
-    """Should return null at end of course."""
+    """Should return 204 No Content at end of course."""
     response = client.get("/api/courses/default/next-lesson?current=intelligence-feedback-loop")
-    assert response.status_code == 200
-    data = response.json()
-    assert data is None
+    assert response.status_code == 204
 
 
 def test_get_next_lesson_invalid_course():

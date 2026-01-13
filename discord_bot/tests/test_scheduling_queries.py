@@ -85,6 +85,10 @@ class TestGetRealizableCohorts:
         cohort_ids = [c["cohort_id"] for c in result]
         assert cohort["cohort_id"] in cohort_ids
 
+        # Verify course_name is loaded from YAML (default.yaml -> "AI Safety Fundamentals")
+        matching = [c for c in result if c["cohort_id"] == cohort["cohort_id"]][0]
+        assert matching["course_name"] == "AI Safety Fundamentals"
+
     @pytest.mark.asyncio
     async def test_excludes_fully_realized_cohorts(self, db_conn):
         """Should not return cohorts where all groups have Discord channels."""
@@ -175,6 +179,8 @@ class TestGetCohortGroupsForRealization:
         assert result["cohort_id"] == cohort["cohort_id"]
         assert result["cohort_name"] == "Jan 2025"
         assert result["course_slug"] == "default"
+        # Verify course_name is loaded from YAML (default.yaml -> "AI Safety Fundamentals")
+        assert result["course_name"] == "AI Safety Fundamentals"
         assert result["number_of_group_meetings"] == 8
         assert len(result["groups"]) == 1
         assert result["groups"][0]["group_name"] == "Group 1"

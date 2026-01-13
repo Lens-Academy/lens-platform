@@ -33,6 +33,7 @@ from .helpers import (
 )
 from core.queries.groups import add_user_to_group
 from core.tables import cohorts, users, signups, groups, groups_users
+from core.lessons.course_loader import load_course
 
 
 # Load environment (.env first, then .env.local overrides)
@@ -104,10 +105,17 @@ async def test_channel(guild):
     return channel
 
 
+# Prefix for E2E test resources - used to identify and clean up test artifacts
+# Note: Avoid brackets as Discord strips them from channel names
+E2E_TEST_PREFIX = "E2E-Test"
+
+
 @pytest_asyncio.fixture
 async def cleanup_channels(guild):
     """
     Track and clean up Discord channels and events created during tests.
+
+    Also cleans up any leftover E2E test channels from previous runs at START.
 
     Usage:
         async def test_something(cleanup_channels):
@@ -116,6 +124,20 @@ async def cleanup_channels(guild):
             # ... test ...
             # category deleted automatically after test
     """
+    # FIRST: Clean up any leftover E2E test categories from previous runs
+    for category in guild.categories:
+        if E2E_TEST_PREFIX in category.name:
+            try:
+                # Delete child channels first
+                for ch in category.channels:
+                    await ch.delete(reason="E2E stale cleanup")
+                    await asyncio.sleep(0.3)
+                await category.delete(reason="E2E stale cleanup")
+                await asyncio.sleep(0.3)
+                print(f"Cleaned up stale E2E category: {category.name}")
+            except discord.HTTPException as e:
+                print(f"Warning: Could not clean up stale {category}: {e}")
+
     created = {
         "channels": [],
         "events": [],
@@ -230,10 +252,15 @@ class TestRealizeGroupsE2E:
         conn, user_ids, cohort_ids, commit = committed_db_conn
 
         # === SETUP ===
-        cohort = await create_test_cohort(conn, name="E2E Test Cohort", num_meetings=2)
+        # Use unique cohort name with E2E prefix for cleanup identification
+        import time
+        test_run_id = int(time.time() * 1000) % 100000  # Last 5 digits of ms timestamp
+        cohort_name = f"{E2E_TEST_PREFIX} Test {test_run_id}"
+        cohort = await create_test_cohort(conn, name=cohort_name, num_meetings=2)
         cohort_ids.append(cohort["cohort_id"])
 
-        group = await create_test_group(conn, cohort["cohort_id"], "Test Group")
+        group_name = f"{E2E_TEST_PREFIX} Group {test_run_id}"
+        group = await create_test_group(conn, cohort["cohort_id"], group_name)
         group_id = group["group_id"]
 
         # Create two test users (non-admin bots in the dev server)
@@ -254,27 +281,44 @@ class TestRealizeGroupsE2E:
         interaction = FakeInteraction(guild, test_channel)
         await cog.realize_groups.callback(cog, interaction, cohort["cohort_id"])
 
-        # === CLEANUP REGISTRATION (before assertions to avoid orphans) ===
-        category_name = "E2E Test Course - E2E Test Cohort"[:100]
-        category = discord.utils.get(guild.categories, name=category_name)
-        if category:
-            cleanup_channels["channels"].append(category)
-            for ch in category.channels:
-                cleanup_channels["channels"].append(ch)
-            # Also register scheduled events for cleanup
-            for event in guild.scheduled_events:
-                if event.channel_id and any(ch.id == event.channel_id for ch in category.channels):
-                    cleanup_channels["events"].append(event)
+        # === GET CREATED CATEGORY FROM DATABASE ===
+        # Fetch the category ID that realize_groups saved to DB, then get the Discord category
+        # This avoids issues with leftover categories from previous runs with the same name
+        from core.database import get_connection as get_conn_for_category
+        async with get_conn_for_category() as cat_conn:
+            result = await cat_conn.execute(
+                select(cohorts.c.discord_category_id).where(cohorts.c.cohort_id == cohort["cohort_id"])
+            )
+            row = result.first()
+            category_id = row[0] if row else None
 
-        # === VERIFY: Category created ===
-        assert category is not None, f"Category '{category_name}' not created"
+        assert category_id is not None, "Category ID not saved to cohort after realize_groups"
+        category = await guild.fetch_channel(int(category_id))
+        assert category is not None, f"Category with ID {category_id} not found on Discord"
+
+        # Expected category name format: "{course_name} - {cohort_name}"
+        course = load_course(cohort["course_slug"])
+        expected_category_name = f"{course.title} - {cohort['cohort_name']}"[:100]
+        assert category.name == expected_category_name, f"Category name mismatch: expected '{expected_category_name}', got '{category.name}'"
+
+        # === CLEANUP REGISTRATION (before assertions to avoid orphans) ===
+        cleanup_channels["channels"].append(category)
+        for ch in category.channels:
+            cleanup_channels["channels"].append(ch)
+        # Also register scheduled events for cleanup
+        for event in guild.scheduled_events:
+            if event.channel_id and any(ch.id == event.channel_id for ch in category.channels):
+                cleanup_channels["events"].append(event)
 
         # === VERIFY: Channels created ===
-        text_channel = discord.utils.get(guild.text_channels, name="test-group", category_id=category.id)
-        voice_channel = discord.utils.get(guild.voice_channels, name="Test Group Voice", category_id=category.id)
+        # Channel names are derived from group_name (see groups_cog.py)
+        expected_text_channel_name = group_name.lower().replace(" ", "-")
+        expected_voice_channel_name = f"{group_name} Voice"
+        text_channel = discord.utils.get(guild.text_channels, name=expected_text_channel_name, category_id=category.id)
+        voice_channel = discord.utils.get(guild.voice_channels, name=expected_voice_channel_name, category_id=category.id)
 
-        assert text_channel is not None, "Text channel 'test-group' not created"
-        assert voice_channel is not None, "Voice channel 'Test Group Voice' not created"
+        assert text_channel is not None, f"Text channel '{expected_text_channel_name}' not created"
+        assert voice_channel is not None, f"Voice channel '{expected_voice_channel_name}' not created"
 
         # === VERIFY: Permissions set correctly ===
         default_role = guild.default_role
@@ -333,22 +377,22 @@ class TestRealizeGroupsE2E:
         ]
         # At least 1 event should be created (some may be skipped if in the past)
         assert len(scheduled_events) >= 1, "No scheduled events created for group"
-        # Verify event naming convention
-        assert any("Test Group" in event.name for event in scheduled_events), \
-            "Scheduled event doesn't have expected group name"
+        # Verify event naming convention (event name should contain the group name)
+        assert any(group_name in event.name for event in scheduled_events), \
+            f"Scheduled event doesn't contain group name '{group_name}'"
 
         # === VERIFY: Idempotency (running again doesn't create duplicates) ===
         await cog.realize_groups.callback(cog, interaction, cohort["cohort_id"])
 
         # Check no duplicate categories
-        matching_categories = [c for c in guild.categories if c.name == category_name]
+        matching_categories = [c for c in guild.categories if c.name == expected_category_name]
         assert len(matching_categories) == 1, f"Idempotency failed: expected 1 category, found {len(matching_categories)}"
 
         # Check no duplicate channels
         text_channels = [ch for ch in guild.text_channels
-                        if ch.name == "test-group" and ch.category_id == category.id]
+                        if ch.name == expected_text_channel_name and ch.category_id == category.id]
         voice_channels = [ch for ch in guild.voice_channels
-                         if ch.name == "Test Group Voice" and ch.category_id == category.id]
+                         if ch.name == expected_voice_channel_name and ch.category_id == category.id]
 
         assert len(text_channels) == 1, f"Idempotency failed: expected 1 text channel, found {len(text_channels)}"
         assert len(voice_channels) == 1, f"Idempotency failed: expected 1 voice channel, found {len(voice_channels)}"

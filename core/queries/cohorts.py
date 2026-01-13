@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from ..lessons.course_loader import load_course
 from ..tables import cohorts, signups
 
 
@@ -53,6 +54,7 @@ async def get_realizable_cohorts(
     Get cohorts that have groups without Discord channels.
 
     Returns cohorts where at least one group has NULL discord_text_channel_id.
+    Each cohort includes course_name loaded from YAML.
     """
     from ..tables import groups
 
@@ -76,7 +78,13 @@ async def get_realizable_cohorts(
     )
 
     result = await conn.execute(query)
-    return [dict(row) for row in result.mappings()]
+    cohort_list = []
+    for row in result.mappings():
+        cohort = dict(row)
+        course = load_course(cohort["course_slug"])
+        cohort["course_name"] = course.title
+        cohort_list.append(cohort)
+    return cohort_list
 
 
 async def get_cohort_by_id(

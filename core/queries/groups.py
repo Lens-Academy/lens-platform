@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from ..lessons.course_loader import load_course
 from ..tables import cohorts, groups, groups_users, users
 
 
@@ -69,6 +70,7 @@ async def get_cohort_groups_for_realization(
         {
             "cohort_id": 1,
             "cohort_name": "AI Safety - Jan 2025",
+            "course_name": "AI Safety Fundamentals",
             "course_slug": "default",
             "cohort_start_date": date,
             "number_of_group_meetings": 8,
@@ -143,9 +145,13 @@ async def get_cohort_groups_for_realization(
             "members": members,
         })
 
+    # Load course name from YAML
+    course = load_course(cohort_row["course_slug"])
+
     return {
         "cohort_id": cohort_row["cohort_id"],
         "cohort_name": cohort_row["cohort_name"],
+        "course_name": course.title,
         "course_slug": cohort_row["course_slug"],
         "cohort_start_date": cohort_row["cohort_start_date"],
         "number_of_group_meetings": cohort_row["number_of_group_meetings"],
