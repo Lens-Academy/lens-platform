@@ -1,6 +1,6 @@
 -- Add Google Calendar and meeting number fields to meetings table
 ALTER TABLE meetings
-ADD COLUMN IF NOT EXISTS meeting_number INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN IF NOT EXISTS meeting_number INTEGER,
 ADD COLUMN IF NOT EXISTS google_calendar_event_id TEXT,
 ADD COLUMN IF NOT EXISTS calendar_invite_sent_at TIMESTAMP WITH TIME ZONE;
 

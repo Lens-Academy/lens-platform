@@ -222,7 +222,7 @@ meetings = Table(
         ForeignKey("cohorts.cohort_id", ondelete="CASCADE"),
     ),
     Column("scheduled_at", TIMESTAMP(timezone=True), nullable=False),
-    Column("meeting_number", Integer, nullable=False, server_default="1"),
+    Column("meeting_number", Integer),
     Column("discord_event_id", Text),
     Column("discord_voice_channel_id", Text),
     Column("google_calendar_event_id", Text),
