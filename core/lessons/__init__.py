@@ -42,6 +42,9 @@ from .course_loader import (
     load_course,
     get_next_lesson,
     get_all_lesson_slugs,
+    get_lessons,
+    get_required_lessons,
+    get_due_by_meeting,
     CourseNotFoundError,
 )
 
@@ -80,5 +83,8 @@ __all__ = [
     "load_course",
     "get_next_lesson",
     "get_all_lesson_slugs",
+    "get_lessons",
+    "get_required_lessons",
+    "get_due_by_meeting",
     "CourseNotFoundError",
 ]

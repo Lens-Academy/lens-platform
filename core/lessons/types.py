@@ -48,12 +48,19 @@ class Lesson:
 
 
 @dataclass
-class Module:
-    """A module within a course."""
-    id: str
-    title: str
-    lessons: list[str]  # List of lesson slugs
-    due_by_meeting: int | None = None  # Which meeting this module should be completed by
+class LessonRef:
+    """Reference to a lesson in a course progression."""
+    slug: str
+    optional: bool = False
+
+
+@dataclass
+class Meeting:
+    """A meeting marker in the course progression."""
+    number: int
+
+
+ProgressionItem = LessonRef | Meeting
 
 
 @dataclass
@@ -61,7 +68,7 @@ class Course:
     """A complete course definition."""
     slug: str
     title: str
-    modules: list[Module]
+    progression: list[ProgressionItem]
 
 
 @dataclass
@@ -69,3 +76,13 @@ class NextLesson:
     """Information about the next lesson."""
     lesson_slug: str
     lesson_title: str
+
+
+# DEPRECATED: Keep Module for backward compatibility until other code is updated
+@dataclass
+class Module:
+    """A module within a course. DEPRECATED - use progression instead."""
+    id: str
+    title: str
+    lessons: list[str]  # List of lesson slugs
+    due_by_meeting: int | None = None  # Which meeting this module should be completed by

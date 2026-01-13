@@ -4,7 +4,7 @@
 import yaml
 from pathlib import Path
 
-from .types import Course, Module, NextLesson
+from .types import Course, Module, NextLesson, LessonRef, Meeting
 from .loader import load_lesson, LessonNotFoundError
 
 
@@ -75,3 +75,54 @@ def get_next_lesson(course_slug: str, current_lesson_slug: str) -> NextLesson | 
         )
     except LessonNotFoundError:
         return None
+
+
+def get_lessons(course: Course) -> list[LessonRef]:
+    """Get all lesson references from a course, excluding meetings.
+
+    Args:
+        course: The course to get lessons from.
+
+    Returns:
+        List of LessonRef objects in progression order.
+    """
+    return [item for item in course.progression if isinstance(item, LessonRef)]
+
+
+def get_required_lessons(course: Course) -> list[LessonRef]:
+    """Get only required (non-optional) lesson references from a course.
+
+    Args:
+        course: The course to get required lessons from.
+
+    Returns:
+        List of non-optional LessonRef objects in progression order.
+    """
+    return [
+        item for item in course.progression
+        if isinstance(item, LessonRef) and not item.optional
+    ]
+
+
+def get_due_by_meeting(course: Course, lesson_slug: str) -> int | None:
+    """Get the meeting number by which a lesson should be completed.
+
+    Lessons are due by the next meeting that follows them in the progression.
+    If there is no meeting after a lesson, returns None.
+
+    Args:
+        course: The course containing the lesson.
+        lesson_slug: The slug of the lesson to check.
+
+    Returns:
+        Meeting number if there's a following meeting, None otherwise.
+    """
+    found_lesson = False
+
+    for item in course.progression:
+        if isinstance(item, LessonRef) and item.slug == lesson_slug:
+            found_lesson = True
+        elif found_lesson and isinstance(item, Meeting):
+            return item.number
+
+    return None

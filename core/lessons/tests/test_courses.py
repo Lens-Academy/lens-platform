@@ -6,8 +6,12 @@ from core.lessons.course_loader import (
     load_course,
     get_next_lesson,
     get_all_lesson_slugs,
+    get_lessons,
+    get_required_lessons,
+    get_due_by_meeting,
     CourseNotFoundError,
 )
+from core.lessons.types import Course, LessonRef, Meeting
 
 
 def test_load_existing_course():
@@ -87,3 +91,90 @@ def test_course_manifest_references_existing_lessons():
                     f"Course 'default' references non-existent lesson: '{lesson_slug}' "
                     f"in module '{module.id}'"
                 )
+
+
+# --- Tests for new helper functions (Task 2) ---
+
+
+def test_get_lessons():
+    """get_lessons should return all LessonRefs excluding Meetings."""
+    course = Course(
+        slug="test",
+        title="Test Course",
+        progression=[
+            LessonRef(slug="lesson-1"),
+            LessonRef(slug="lesson-2", optional=True),
+            Meeting(number=1),
+            LessonRef(slug="lesson-3"),
+        ]
+    )
+    lessons = get_lessons(course)
+    assert len(lessons) == 3
+    assert lessons[0].slug == "lesson-1"
+    assert lessons[1].slug == "lesson-2"
+    assert lessons[2].slug == "lesson-3"
+
+
+def test_get_required_lessons():
+    """get_required_lessons should return only non-optional LessonRefs."""
+    course = Course(
+        slug="test",
+        title="Test Course",
+        progression=[
+            LessonRef(slug="lesson-1"),
+            LessonRef(slug="lesson-2", optional=True),
+            Meeting(number=1),
+            LessonRef(slug="lesson-3"),
+            LessonRef(slug="lesson-4", optional=True),
+        ]
+    )
+    required = get_required_lessons(course)
+    assert len(required) == 2
+    assert required[0].slug == "lesson-1"
+    assert required[1].slug == "lesson-3"
+
+
+def test_get_due_by_meeting():
+    """get_due_by_meeting should return the meeting number following a lesson."""
+    course = Course(
+        slug="test",
+        title="Test Course",
+        progression=[
+            LessonRef(slug="lesson-1"),
+            LessonRef(slug="lesson-2"),
+            Meeting(number=1),
+            LessonRef(slug="lesson-3"),
+            Meeting(number=2),
+        ]
+    )
+    assert get_due_by_meeting(course, "lesson-1") == 1
+    assert get_due_by_meeting(course, "lesson-2") == 1
+    assert get_due_by_meeting(course, "lesson-3") == 2
+
+
+def test_get_due_by_meeting_no_following_meeting():
+    """Lessons after the last meeting should return None for due_by_meeting."""
+    course = Course(
+        slug="test",
+        title="Test Course",
+        progression=[
+            LessonRef(slug="lesson-1"),
+            Meeting(number=1),
+            LessonRef(slug="lesson-2"),
+        ]
+    )
+    assert get_due_by_meeting(course, "lesson-1") == 1
+    assert get_due_by_meeting(course, "lesson-2") is None
+
+
+def test_get_due_by_meeting_unknown_lesson():
+    """Unknown lesson slugs should return None for due_by_meeting."""
+    course = Course(
+        slug="test",
+        title="Test Course",
+        progression=[
+            LessonRef(slug="lesson-1"),
+            Meeting(number=1),
+        ]
+    )
+    assert get_due_by_meeting(course, "nonexistent-lesson") is None
