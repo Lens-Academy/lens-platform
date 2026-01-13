@@ -67,7 +67,6 @@ async def send_notification(
     message_type: str,
     context: dict,
     channel_id: str | None = None,
-    calendar_ics: str | None = None,
 ) -> dict:
     """
     Send a notification to a user via their preferred channels.
@@ -77,7 +76,6 @@ async def send_notification(
         message_type: Message type key from messages.yaml (e.g., "welcome")
         context: Template variables
         channel_id: Optional Discord channel ID (for channel messages instead of DMs)
-        calendar_ics: Optional calendar invite to attach to email
 
     Returns:
         Dict with delivery status: {"email": bool, "discord": bool}
@@ -108,7 +106,6 @@ async def send_notification(
                 to_email=user["email"],
                 subject=subject,
                 body=body,
-                calendar_ics=calendar_ics,
             )
             await log_notification(
                 user_id=user_id,

@@ -29,7 +29,6 @@ psycopg2-binary>=2.9.9
 sendgrid>=6.11.0
 apscheduler>=3.10.0
 PyYAML>=6.0
-icalendar>=5.0.0
 
 # Google Calendar API
 google-api-python-client>=2.100.0

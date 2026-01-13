@@ -2,15 +2,13 @@
 High-level notification actions.
 
 These functions are called by business logic (cogs, routes) to send notifications.
-They handle building context, generating calendar invites, and scheduling reminders.
+They handle building context and scheduling reminders.
 """
 
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
 
 from core.notifications.dispatcher import send_notification
 from core.notifications.scheduler import schedule_reminder, cancel_reminders
-from core.notifications.channels.calendar import create_calendar_invite
 from core.notifications.urls import (
     build_profile_url,
     build_discord_channel_url,
@@ -45,14 +43,11 @@ async def notify_group_assigned(
     meeting_time_utc: str,
     member_names: list[str],
     discord_channel_id: str,
-    meeting_id: int,
-    meeting_datetime: datetime | None = None,
-    recurrence_weeks: int = 8,
 ) -> dict:
     """
     Send notification when user is assigned to a group.
 
-    Also schedules meeting reminders.
+    Calendar invites are now sent via Google Calendar API, not email attachments.
 
     Args:
         user_id: Database user ID
@@ -60,29 +55,7 @@ async def notify_group_assigned(
         meeting_time_utc: Human-readable meeting time (e.g., "Wednesday 15:00 UTC")
         member_names: List of group member names
         discord_channel_id: Discord channel ID for the group
-        meeting_id: Database meeting ID (for scheduling reminders)
-        meeting_datetime: First meeting datetime (for calendar invite)
-        recurrence_weeks: Number of weeks for recurring meetings
     """
-    from core.notifications.dispatcher import get_user_by_id
-
-    user = await get_user_by_id(user_id)
-    if not user:
-        return {"email": False, "discord": False}
-
-    # Generate calendar invite if we have meeting datetime
-    calendar_ics = None
-    if meeting_datetime and user.get("email"):
-        calendar_ics = create_calendar_invite(
-            title=f"AI Safety Study Group: {group_name}",
-            description=f"Weekly study group meeting.\nGroup members: {', '.join(member_names)}",
-            start=meeting_datetime,
-            end=meeting_datetime + timedelta(hours=1),
-            attendee_emails=[user["email"]],
-            organizer_email="noreply@aisafetycourse.com",
-            recurrence_weeks=recurrence_weeks,
-        )
-
     return await send_notification(
         user_id=user_id,
         message_type="group_assigned",
@@ -92,7 +65,6 @@ async def notify_group_assigned(
             "member_names": ", ".join(member_names),
             "discord_channel_url": build_discord_channel_url(channel_id=discord_channel_id),
         },
-        calendar_ics=calendar_ics,
     )
 
 

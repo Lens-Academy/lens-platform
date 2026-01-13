@@ -24,7 +24,10 @@ class TestSendNotification:
                     result = await send_notification(
                         user_id=1,
                         message_type="welcome",
-                        context={"profile_url": "https://example.com/profile"},
+                        context={
+                            "profile_url": "https://example.com/profile",
+                            "discord_invite_url": "https://discord.gg/test",
+                        },
                     )
 
         assert result["email"] is True
@@ -50,7 +53,10 @@ class TestSendNotification:
                     result = await send_notification(
                         user_id=1,
                         message_type="welcome",
-                        context={"profile_url": "https://example.com/profile"},
+                        context={
+                            "profile_url": "https://example.com/profile",
+                            "discord_invite_url": "https://discord.gg/test",
+                        },
                     )
 
         assert result["email"] is False
@@ -76,7 +82,10 @@ class TestSendNotification:
                     result = await send_notification(
                         user_id=1,
                         message_type="welcome",
-                        context={"profile_url": "https://example.com/profile"},
+                        context={
+                            "profile_url": "https://example.com/profile",
+                            "discord_invite_url": "https://discord.gg/test",
+                        },
                     )
 
         assert result["email"] is True

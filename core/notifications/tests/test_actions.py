@@ -8,35 +8,26 @@ from zoneinfo import ZoneInfo
 
 class TestNotifyGroupAssigned:
     @pytest.mark.asyncio
-    async def test_sends_notification_with_calendar(self):
+    async def test_sends_notification(self):
+        """Test that notify_group_assigned sends email and Discord notifications."""
         from core.notifications.actions import notify_group_assigned
 
         mock_send = AsyncMock(return_value={"email": True, "discord": True})
-        mock_schedule = MagicMock()
-        mock_user = {
-            "user_id": 1,
-            "email": "alice@example.com",
-            "discord_id": "123456",
-            "nickname": "Alice",
-        }
 
-        with patch("core.notifications.dispatcher.get_user_by_id", AsyncMock(return_value=mock_user)):
-            with patch("core.notifications.actions.send_notification", mock_send):
-                with patch("core.notifications.actions.schedule_reminder", mock_schedule):
-                    with patch("core.notifications.actions.create_calendar_invite", return_value="ICS_DATA"):
-                        await notify_group_assigned(
-                            user_id=1,
-                            group_name="Curious Capybaras",
-                            meeting_time_utc="Wednesday 15:00",
-                            member_names=["Alice", "Bob"],
-                            discord_channel_id="123456",
-                            meeting_id=42,
-                        )
+        with patch("core.notifications.actions.send_notification", mock_send):
+            result = await notify_group_assigned(
+                user_id=1,
+                group_name="Curious Capybaras",
+                meeting_time_utc="Wednesday 15:00",
+                member_names=["Alice", "Bob"],
+                discord_channel_id="123456",
+            )
 
         mock_send.assert_called_once()
         call_kwargs = mock_send.call_args[1]
         assert call_kwargs["message_type"] == "group_assigned"
-        assert "calendar_ics" in call_kwargs
+        assert call_kwargs["context"]["group_name"] == "Curious Capybaras"
+        assert result == {"email": True, "discord": True}
 
 
 class TestScheduleMeetingReminders:

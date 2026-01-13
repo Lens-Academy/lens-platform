@@ -20,7 +20,6 @@ class EmailMessage:
     to_email: str
     subject: str
     body: str
-    calendar_ics: str | None = None
 
 
 def _get_sendgrid_client() -> SendGridAPIClient | None:
@@ -35,7 +34,6 @@ def send_email(
     to_email: str,
     subject: str,
     body: str,
-    calendar_ics: str | None = None,
 ) -> bool:
     """
     Send an email via SendGrid.
@@ -44,7 +42,6 @@ def send_email(
         to_email: Recipient email address
         subject: Email subject line
         body: Plain text email body
-        calendar_ics: Optional iCal data for calendar invite
 
     Returns:
         True if sent successfully, False otherwise
@@ -61,28 +58,6 @@ def send_email(
             subject=subject,
             plain_text_content=body,
         )
-
-        # Add calendar invite if provided
-        if calendar_ics:
-            from sendgrid.helpers.mail import (
-                Attachment,
-                ContentId,
-                Disposition,
-                FileContent,
-                FileName,
-                FileType,
-            )
-            import base64
-
-            encoded = base64.b64encode(calendar_ics.encode()).decode()
-            attachment = Attachment(
-                FileContent(encoded),
-                FileName("invite.ics"),
-                FileType("text/calendar; method=REQUEST"),
-                Disposition("attachment"),
-                ContentId("calendar-invite"),
-            )
-            message.add_attachment(attachment)
 
         response = client.send(message)
         return response.status_code in (200, 201, 202)

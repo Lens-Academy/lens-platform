@@ -228,9 +228,7 @@ class GroupsCog(commands.Cog):
             asyncio.create_task(
                 self._send_group_notifications(
                     group_data,
-                    cohort_data,
                     str(text_channel.id),
-                    events,
                 )
             )
 
@@ -406,15 +404,14 @@ Questions? Ask in this channel. We're here to help each other learn!
     async def _send_group_notifications(
         self,
         group_data: dict,
-        cohort_data: dict,
         discord_channel_id: str,
-        events: list[discord.ScheduledEvent],
     ) -> None:
         """
         Send group assignment notifications to each member.
 
         Sends email/DM to each member about their group assignment.
-        Note: Meeting reminders are now scheduled by schedule_reminders_for_group().
+        Calendar invites are sent via Google Calendar API (see send_calendar_invites_for_group).
+        Meeting reminders are scheduled by schedule_reminders_for_group().
         """
         try:
             # Build member names list
@@ -425,13 +422,6 @@ Questions? Ask in this channel. We're here to help each other learn!
 
             # Get meeting time info
             meeting_time_utc = group_data.get("recurring_meeting_time_utc", "TBD")
-
-            # Get first meeting datetime from events (if available)
-            first_meeting_datetime = None
-            if events:
-                first_meeting_datetime = events[0].start_time
-
-            recurrence_weeks = cohort_data.get("number_of_group_meetings", 8)
 
             # Notify each member
             for member_data in group_data["members"]:
@@ -446,9 +436,6 @@ Questions? Ask in this channel. We're here to help each other learn!
                         meeting_time_utc=meeting_time_utc,
                         member_names=member_names,
                         discord_channel_id=discord_channel_id,
-                        meeting_id=group_data["group_id"],
-                        meeting_datetime=first_meeting_datetime,
-                        recurrence_weeks=recurrence_weeks,
                     )
                 except Exception as e:
                     print(f"[Notifications] Failed to notify user {user_id} of group assignment: {e}")
