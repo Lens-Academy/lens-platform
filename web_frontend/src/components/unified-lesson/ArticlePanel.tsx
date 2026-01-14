@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ArticleData } from "../../types/unified-lesson";
 
 type ArticlePanelProps = {
@@ -109,6 +110,7 @@ export default function ArticlePanel({
             </div>
           )}
           <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
             components={{
               // Style links
               a: ({ children, href }) => (
@@ -162,6 +164,29 @@ export default function ArticlePanel({
               ),
               // Style horizontal rules
               hr: () => <hr className="my-8 border-gray-300" />,
+              // Style tables (GFM)
+              table: ({ children }) => (
+                <div className="overflow-x-auto my-4">
+                  <table className="min-w-full border-collapse border border-gray-300">
+                    {children}
+                  </table>
+                </div>
+              ),
+              thead: ({ children }) => (
+                <thead className="bg-gray-100">{children}</thead>
+              ),
+              tbody: ({ children }) => <tbody>{children}</tbody>,
+              tr: ({ children }) => (
+                <tr className="border-b border-gray-300">{children}</tr>
+              ),
+              th: ({ children }) => (
+                <th className="px-4 py-2 text-left font-semibold border border-gray-300">
+                  {children}
+                </th>
+              ),
+              td: ({ children }) => (
+                <td className="px-4 py-2 border border-gray-300">{children}</td>
+              ),
             }}
           >
             {content}

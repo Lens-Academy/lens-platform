@@ -1,11 +1,11 @@
 ---
 title: "Worst-case thinking in AI alignment"
-author: Buck Shlegeris
+author: Buck
 date: 2021-12-23
 source_url: https://www.lesswrong.com/posts/yTvBSFrXhZfL8vr5a/worst-case-thinking-in-ai-alignment
 ---
 
-Alternative title: "When should you assume that what could go wrong, will go wrong?"
+**Alternative title: "When should you assume that what could go wrong, will go wrong?"**
 
 Thanks to Mary Phuong and Ryan Greenblatt for helpful suggestions and discussion, and Akash Wasil for some edits.
 
@@ -15,7 +15,8 @@ I think there are several distinct reasons that this might be the right assumpti
 
 Throughout this post, I give a bunch of specific arguments about AI alignment, including one argument that I think I was personally getting wrong until I noticed my mistake yesterday (which was my impetus for thinking about this topic more and then writing this post). I think I'm probably still thinking about some of my object level examples wrong, and hope that if so, commenters will point out my mistakes. But I think I'll stand by the claim that we should be attempting to distinguish between these classes of argument.
 
-## My list of reasons to maybe use worst-case thinking
+My list of reasons to maybe use worst-case thinking
+---------------------------------------------------
 
 Here's an attempt at describing some different classes situations where you might want to argue that something goes as badly as it could.
 
@@ -25,20 +26,20 @@ For example, if you've built an unaligned AI and you have a team of ten smart hu
 
 In situations like this, I think Eliezer's attitude is basically right: we're being optimized against and so we have to use worst-case thinking and search hard for systems which we can strongly argue are infallible.
 
-One minor disagreement: I'm less into hard takeoffs than he is, so I place less weight than he does on situations where your AI becomes superintelligent enough during training that it can exploit some kind of novel physics to jump an airgap or whatever. (Under my model, such a model probably just waits until it's deployed to the internet–which is one of the first things that AGI developers want to do with it, because that's how you make money with a powerful AI–and then kills everyone.)
+One minor disagreement: I'm less into hard takeoffs than he is, so I place less weight than he does on situations where your AI becomes superintelligent enough during training that it can exploit some kind of novel physics to jump an airgap or whatever. (Under my model, such a model probably just waits until it's deployed to the internet-which is one of the first things that AGI developers want to do with it, because that's how you make money with a powerful AI-and then kills everyone.)
 
 But I fundamentally agree with his rejection of arguments of the form "only a small part of the space of possible AI actions would be devastatingly bad, so things will probably be fine".
 
-Scott Garrabrant writes about an argument like this [here](/posts/zEvqFtT4AtTztfYC4/optimization-amplifies).
+Scott Garrabrant writes about an argument like this [here](https://www.lesswrong.com/posts/zEvqFtT4AtTztfYC4/optimization-amplifies).
 
 ### The space you're selecting over happens to mostly contain bad things
 
-When Hubinger et al argue in [section 4.4 of Risks from Learned Optimization](/s/r9tYkB2a8Fp4DN8yB/p/zthDPAjh9w6Ytbeks#4_4__Internalization_or_deception_after_extensive_training#4_4__Internalization_or_deception_after_extensive_training) that "there are more paths to deceptive alignment than to robust alignment," they aren't saying that you get a misaligned mesa-optimizer because the base optimizer is trying to produce an agent that is as misaligned as possible, they're saying that even though the base optimizer isn't trying to find a misaligned policy, most policies that it can find are misaligned and so you'll probably get one. But unlike the previous situation, if instead it was the case that 50% of the policies that SGD might find were aligned, then we'd have a 50% chance of surviving, because SGD isn't optimizing against us.
+When Hubinger et al argue in [section 4.4 of Risks from Learned Optimization](https://www.lesswrong.com/s/r9tYkB2a8Fp4DN8yB/p/zthDPAjh9w6Ytbeks#4_4__Internalization_or_deception_after_extensive_training#4_4__Internalization_or_deception_after_extensive_training) that "there are more paths to deceptive alignment than to robust alignment," they aren't saying that you get a misaligned mesa-optimizer because the base optimizer is trying to produce an agent that is as misaligned as possible, they're saying that even though the base optimizer isn't trying to find a misaligned policy, most policies that it can find are misaligned and so you'll probably get one. But unlike the previous situation, if instead it was the case that 50% of the policies that SGD might find were aligned, then we'd have a 50% chance of surviving, because SGD isn't optimizing against us.
 
 I think that AI alignment researchers often conflate these two classes of arguments. IMO, when you're training an AGI:
 
-- The AI will try to kill you if it's misaligned. So if you remove some but not all strategies that any unaligned AI could use to get through your training process, you haven't made much progress at all.
-- But SGD isn't trying to kill you, and so if there exist rare misaligned models in the model space that could make it through the training process and then kill you, what matters is how common they are, not whether they exist at all. If you never instantiate the model, it never gets a chance to pervert your optimization process (barring crazy scenarios with acausal threats or whatever).
+* The AI will try to kill you if it's misaligned. So if you remove some but not all strategies that any unaligned AI could use to get through your training process, you haven't made much progress at all.
+* But SGD isn't trying to kill you, and so if there exist rare misaligned models in the model space that could make it through the training process and then kill you, what matters is how common they are, not whether they exist at all. If you never instantiate the model, it never gets a chance to pervert your optimization process (barring crazy scenarios with acausal threats or whatever).
 
 (I noticed that I was making a mistake related to mixing up these two classes on Sunday; I then thought about this some more and wrote this post.)
 
@@ -78,17 +79,18 @@ Sometimes a problem involves a bunch of weird things that could go wrong, and in
 
 Ryan Greenblatt notes that you can also make a general reference class claim that people are too optimistic (planning fallacy etc.).
 
-## Differences between these arguments
+Differences between these arguments
+-----------------------------------
 
 Depending on which of these arguments you're making, you should respond very differently when someone says "the thing you're proposing is quite far fetched".
 
-- If the situation involves being optimized against, you say "I agree that that action would be quite a weird action among actions. But there's a powerful optimization process selecting for actions like that action. So I expect it to happen anyway. To persuade me otherwise, you need to either claim that there isn't adversarial selection, or that bad actions either don't exist or are so hard to find that an adversary won't possibly be able to find them."
-- If you think that the situation involves a random process selecting over a space that is almost all bad, then you should say "Actually I disagree, I think that in fact the situation we're talking about is probably about as bad as I'm saying; we should argue about what the distribution actually looks like."
-- If you are making worst-case assumptions as part of your problem-solving process, then you should say "I agree that this situation seems sort of surprisingly bad. But I think we should try to solve it anyway, because solving it gives us a solution that is likely to work no matter what the empirical situation turns out to be, and I haven't yet been convinced that my pessimistic assumptions make my problem impossible."
-- If you're making worst-case assumptions because you think that P(doom) is low and you are focusing on scenarios you agree are worse than expected, you should say "I agree that this situation seems sort of surprisingly bad. But I want to work on the situations where I can make the biggest difference, and I think that these surprisingly bad situations are the highest-leverage ones to work on."
-- If you're engaging in Murphyjitsu, you should say "Yeah this probably won't come up, but it still seems like a good idea to try and crush all these low-probability mechanisms by which something bad might happen."
+* If the situation involves being optimized against, you say "I agree that that action would be quite a weird action among actions. But there's a powerful optimization process selecting for actions like that action. So I expect it to happen anyway. To persuade me otherwise, you need to either claim that there isn't adversarial selection, or that bad actions either don't exist or are so hard to find that an adversary won't possibly be able to find them."
+* If you think that the situation involves a random process selecting over a space that is almost all bad, then you should say "Actually I disagree, I think that in fact the situation we're talking about is probably about as bad as I'm saying; we should argue about what the distribution actually looks like."
+* If you are making worst-case assumptions as part of your problem-solving process, then you should say "I agree that this situation seems sort of surprisingly bad. But I think we should try to solve it anyway, because solving it gives us a solution that is likely to work no matter what the empirical situation turns out to be, and I haven't yet been convinced that my pessimistic assumptions make my problem impossible."
+* If you're making worst-case assumptions because you think that P(doom) is low and you are focusing on scenarios you agree are worse than expected, you should say "I agree that this situation seems sort of surprisingly bad. But I want to work on the situations where I can make the biggest difference, and I think that these surprisingly bad situations are the highest-leverage ones to work on."
+* If you're engaging in Murphyjistu, you should say "Yeah this probably won't come up, but it still seems like a good idea to try and crush all these low-probability mechanisms by which something bad might happen."
 
 Mary Phuong proposes breaking this down into two questions:
 
-- When should you believe things will go badly, because they in fact will go badly? (you're being optimized against, or the probability of badness is high for some other reason)
-- When should you focus your efforts on worlds where things go badly? I.e. it's about which parts of the distribution you intervene on, rather than an argument about what the distribution looks like.
+* When should you believe things will go badly, because they in fact will go badly? (you're being optimized against, or the probability of badness is high for some other reason)
+* When should you focus your efforts on worlds where things go badly? I.e. it's about which parts of the distribution you intervene on, rather than an argument about what the distribution looks like.

@@ -47,5 +47,5 @@ stages:
 
   # Additional reading 2: Worst-case thinking - Buck Shlegeris
   - type: article
-    source: articles/shlegeris-worst-case-thinking-in-ai-alignment.md
+    source: articles/buck-worst-case-thinking-in-ai-alignment.md
     optional: true

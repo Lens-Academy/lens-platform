@@ -697,11 +697,12 @@ export default function UnifiedLesson() {
         {/* Desktop layout (>= md): absolute positioning for perfect centering */}
         <div className="hidden md:block relative">
           <div className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-4">
-            <a
-              href="/"
-              className="text-lg font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
-            >
-              Lens Academy
+            <a href="/" className="flex items-center">
+              <img
+                src="/assets/Logo plus name.png"
+                alt="Lens Academy"
+                className="h-7"
+              />
             </a>
             <span className="text-slate-300">|</span>
             <h1 className="text-lg font-semibold text-gray-900">

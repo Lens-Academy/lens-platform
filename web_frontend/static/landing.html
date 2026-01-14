@@ -8,6 +8,10 @@
       name="description"
       content="A free, high quality course on AI existential risk. No gatekeeping, no application process."
     />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body
@@ -19,8 +23,12 @@
     >
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
-          <a href="/" class="text-xl font-bold text-emerald-600">
-            Lens Academy
+          <a href="/" class="flex items-center">
+            <img
+              src="/assets/Logo plus name.png"
+              alt="Lens Academy"
+              class="h-10"
+            />
           </a>
           <div class="flex items-center gap-4">
             <a
@@ -35,8 +43,11 @@
             >
               Login
             </a>
+            <!-- Discord invite URL also defined in:
+                 - web_frontend/src/config.ts (React frontend)
+                 - core/notifications/urls.py (backend emails) -->
             <a
-              href="https://discord.gg/YOUR_INVITE"
+              href="https://discord.gg/nn7HrjFZ8E"
               class="px-5 py-2 rounded-full border-2 border-slate-200 text-slate-700 font-medium text-sm hover:border-slate-300 hover:bg-slate-50 transition-all duration-200"
             >
               Join Our Discord Server

@@ -12,7 +12,7 @@ stages:
     source: articles/paul-christiano-takeoff-speeds.md
 
   - type: article
-    source: articles/shlegeris-worst-case-thinking-in-ai-alignment.md
+    source: articles/buck-worst-case-thinking-in-ai-alignment.md
 
   - type: article
     source: articles/tim-urban-artificial-intelligence-revolution-1.md
