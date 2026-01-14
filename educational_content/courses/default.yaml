@@ -4,5 +4,12 @@ title: AI Safety Fundamentals
 
 progression:
   - lesson: intro-to-ai-safety
-  - lesson: intelligence-feedback-loop
   - meeting: 1
+  - lesson: intelligence-feedback-loop
+# - lesson: xxxx
+#   optional: true (this makes the above lesson optional)
+#   (note: you can also have optional articles/videos within lessons)
+# - meeting: 2
+# - lesson : yyyy
+# - meeting: 3
+# etc
