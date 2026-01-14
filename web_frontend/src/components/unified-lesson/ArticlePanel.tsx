@@ -89,7 +89,7 @@ export default function ArticlePanel({
                   href={sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                  className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600 inline-flex items-center gap-1"
                 >
                   Read original
                   <svg
@@ -118,7 +118,7 @@ export default function ArticlePanel({
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600"
                 >
                   {children}
                 </a>

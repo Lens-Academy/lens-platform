@@ -20,7 +20,8 @@ class PingCog(commands.Cog):
         latency = round(self.bot.latency * 1000)
         await interaction.response.send_message(f"Pong! Latency: {latency}ms")
 
-    @app_commands.command(name="embed", description="Test embed message")
+    @app_commands.command(name="test-embed", description="Test embed message")
+    @app_commands.checks.has_permissions(administrator=True)
     async def embed_test(self, interaction: discord.Interaction):
         """Send a test embed to see how embeds look."""
         embed = discord.Embed(
@@ -81,7 +82,8 @@ We believe that by bringing together motivated individuals from diverse backgrou
 
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="txt", description="Test text file attachment")
+    @app_commands.command(name="test-txt", description="Test text file attachment")
+    @app_commands.checks.has_permissions(administrator=True)
     async def txt_test(self, interaction: discord.Interaction):
         """Send a long text file as attachment to see how Discord collapses it."""
         content = """AI SAFETY FUNDAMENTALS COURSE
@@ -258,7 +260,8 @@ Sign up with /signup to join a cohort and start learning!
             "Here's the course information:", file=file
         )
 
-    @app_commands.command(name="spoiler", description="Test spoiler text")
+    @app_commands.command(name="test-spoiler", description="Test spoiler text")
+    @app_commands.checks.has_permissions(administrator=True)
     async def spoiler_test(self, interaction: discord.Interaction):
         """Send a long spoiler text to see how Discord handles it."""
         message = """**AI Safety Course - Click to reveal spoilers!**
@@ -288,8 +291,9 @@ Key concerns include:
         await interaction.response.send_message(message)
 
     @app_commands.command(
-        name="collapse", description="Test collapsible content with buttons"
+        name="test-collapse", description="Test collapsible content with buttons"
     )
+    @app_commands.checks.has_permissions(administrator=True)
     async def collapse_test(self, interaction: discord.Interaction):
         """Demonstrate expand/collapse behavior using buttons."""
         view = CollapseView()
@@ -300,6 +304,7 @@ Key concerns include:
     @app_commands.command(
         name="test-presence", description="Show your presence and user info"
     )
+    @app_commands.checks.has_permissions(administrator=True)
     async def test_presence(self, interaction: discord.Interaction):
         """Report all available information about the user including presence data."""
         user = interaction.user
@@ -413,6 +418,7 @@ Key concerns include:
     @app_commands.command(
         name="test-embed-simple", description="Test simple embed with just text"
     )
+    @app_commands.checks.has_permissions(administrator=True)
     async def test_embed_simple(self, interaction: discord.Interaction):
         """Send a simple embed with just description text, no fields."""
         embed = discord.Embed(
@@ -438,6 +444,7 @@ Researchers are pursuing many different technical approaches to AI safety, inclu
     @app_commands.command(
         name="test-linebreak", description="Test LINE SEPARATOR character"
     )
+    @app_commands.checks.has_permissions(administrator=True)
     async def test_linebreak(self, interaction: discord.Interaction):
         """Test if Unicode LINE SEPARATOR renders as line break but copies as space."""
         # \u2028 is LINE SEPARATOR
@@ -459,6 +466,7 @@ Researchers are pursuing many different technical approaches to AI safety, inclu
     @app_commands.command(
         name="test-spaces", description="Test trailing spaces preservation"
     )
+    @app_commands.checks.has_permissions(administrator=True)
     async def test_spaces(self, interaction: discord.Interaction):
         """Test if Discord preserves trailing spaces."""
         # Send multiple messages to test different space counts
@@ -487,8 +495,9 @@ Researchers are pursuing many different technical approaches to AI safety, inclu
         )
 
     @app_commands.command(
-        name="scrollingtext", description="Test streaming chain of thought display"
+        name="test-scrollingtext", description="Test streaming chain of thought display"
     )
+    @app_commands.checks.has_permissions(administrator=True)
     async def scrollingtext_test(self, interaction: discord.Interaction):
         """Simulate streaming chain of thought with cycling last 3 lines."""
         # Simulated chain of thought text (what Stampy might "think")

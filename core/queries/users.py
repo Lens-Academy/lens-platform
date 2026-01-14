@@ -6,7 +6,8 @@ from typing import Any
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from ..tables import facilitators, users
+from ..enums import GroupUserStatus
+from ..tables import facilitators, groups_users, signups, users
 
 
 async def get_user_by_discord_id(
@@ -276,3 +277,40 @@ async def toggle_facilitator(
         # Add facilitator status
         await conn.execute(insert(facilitators).values(user_id=user_id))
         return True
+
+
+async def get_user_enrollment_status(
+    conn: AsyncConnection,
+    user_id: int,
+) -> dict[str, bool]:
+    """
+    Get a user's enrollment status in the platform.
+
+    Args:
+        conn: Database connection
+        user_id: User's database ID
+
+    Returns:
+        Dict with:
+        - is_enrolled: True if user has any signup (enrolled in any cohort)
+        - in_active_group: True if user is in an active group (groups_users with status='active')
+    """
+    # Check if user has any signup
+    signup_exists = await conn.execute(
+        select(signups.c.signup_id).where(signups.c.user_id == user_id).limit(1)
+    )
+    is_enrolled = signup_exists.first() is not None
+
+    # Check if user is in an active group
+    active_group_exists = await conn.execute(
+        select(groups_users.c.group_user_id)
+        .where(groups_users.c.user_id == user_id)
+        .where(groups_users.c.status == GroupUserStatus.active)
+        .limit(1)
+    )
+    in_active_group = active_group_exists.first() is not None
+
+    return {
+        "is_enrolled": is_enrolled,
+        "in_active_group": in_active_group,
+    }

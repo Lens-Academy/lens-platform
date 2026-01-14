@@ -350,8 +350,9 @@ class BreakoutCog(commands.Cog):
         await self.run_collect(interaction)
 
     @app_commands.command(
-        name="joinvc", description="Have the bot join your voice channel"
+        name="test-joinvc", description="Have the bot join your voice channel"
     )
+    @app_commands.checks.has_permissions(administrator=True)
     async def joinvc(self, interaction: discord.Interaction):
         """Have the bot join the caller's voice channel (for testing)."""
         member = interaction.user
@@ -373,7 +374,8 @@ class BreakoutCog(commands.Cog):
             f"Joined **{channel.name}**", ephemeral=True
         )
 
-    @app_commands.command(name="leavevc", description="Have the bot leave voice")
+    @app_commands.command(name="test-leavevc", description="Have the bot leave voice")
+    @app_commands.checks.has_permissions(administrator=True)
     async def leavevc(self, interaction: discord.Interaction):
         """Have the bot leave voice channel."""
         if interaction.guild.voice_client:
@@ -387,8 +389,9 @@ class BreakoutCog(commands.Cog):
             )
 
     @app_commands.command(
-        name="voicebots", description="Control voice bots for breakout testing"
+        name="test-voicebots", description="Control voice bots for breakout testing"
     )
+    @app_commands.checks.has_permissions(administrator=True)
     @app_commands.describe(
         action="join or leave voice channel",
         count="Number of bots to join (for join action)",

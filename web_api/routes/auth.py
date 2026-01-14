@@ -23,6 +23,8 @@ from fastapi.responses import RedirectResponse
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core import get_or_create_user, get_user_profile, validate_and_use_auth_code
+from core.database import get_connection
+from core.queries.users import get_user_enrollment_status
 from core import (
     is_dev_mode,
     is_production,
@@ -302,7 +304,7 @@ async def get_me(request: Request):
     Get current authenticated user info.
 
     Returns 200 always:
-    - If authenticated: { authenticated: true, discord_id, discord_username, discord_avatar_url, user }
+    - If authenticated: { authenticated: true, discord_id, discord_username, discord_avatar_url, user, is_enrolled, in_active_group }
     - If not authenticated: { authenticated: false }
     """
     user = await get_optional_user(request)
@@ -318,10 +320,16 @@ async def get_me(request: Request):
 
     avatar_url = _get_discord_avatar_url(user["sub"], db_user.get("discord_avatar"))
 
+    # Get enrollment status
+    async with get_connection() as conn:
+        enrollment_status = await get_user_enrollment_status(conn, db_user["user_id"])
+
     return {
         "authenticated": True,
         "discord_id": user["sub"],
         "discord_username": user["username"],
         "discord_avatar_url": avatar_url,
         "user": db_user,
+        "is_enrolled": enrollment_status["is_enrolled"],
+        "in_active_group": enrollment_status["in_active_group"],
     }

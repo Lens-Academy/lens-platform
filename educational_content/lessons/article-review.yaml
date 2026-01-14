@@ -25,3 +25,4 @@ stages:
 
   - type: article
     source: articles/muehlhauser-salamon-intelligence-explosion.md
+    optional: true

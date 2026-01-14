@@ -199,6 +199,8 @@ export async function getNextLesson(
     `${API_BASE}/api/courses/${courseSlug}/next-lesson?current=${currentLessonSlug}`
   );
   if (!res.ok) throw new Error("Failed to fetch next lesson");
+  // 204 No Content means end of course
+  if (res.status === 204) return null;
   return res.json();
 }
 

@@ -26,14 +26,40 @@ export default function AvailabilityStep({
     0
   );
 
+  const formatDateRange = () => {
+    if (!cohort || !cohort.duration_days) return null;
+
+    const startDate = new Date(cohort.cohort_start_date);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + cohort.duration_days - 1);
+
+    const formatDate = (date: Date) =>
+      date.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+
+    return `${formatDate(startDate)} and ${formatDate(endDate)}`;
+  };
+
+  const dateRange = formatDateRange();
+
   return (
     <div className="max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-900 mb-2">
         Your Availability
       </h2>
       <p className="text-gray-600 mb-6">
-        Select the times when you're available to participate in course
-        sessions. This helps us match you with a group that fits your schedule.
+        {dateRange ? (
+          <>
+            Give us your weekly recurring availability between <strong>{dateRange}</strong>.
+            This helps us match you with a group that fits your schedule.
+            You will have a weekly group meeting at the same time each week.
+          </>
+        ) : (
+          <>
+            Give us your weekly recurring availability.
+            This helps us match you with a group that fits your schedule.
+            You will have a weekly group meeting at the same time each week.
+          </>
+        )}
       </p>
 
       <div className="mb-6">
