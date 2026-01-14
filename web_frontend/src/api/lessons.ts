@@ -4,31 +4,115 @@
 
 import type { Lesson, SessionState } from "../types/unified-lesson";
 import type { CourseProgress } from "../types/course";
+import { Sentry } from "../errorTracking";
 
 const API_BASE = "";
+
+// Default timeout for API requests (in milliseconds)
+const DEFAULT_TIMEOUT_MS = 10000;
+// Shorter timeout for content-heavy requests that should be fast
+const CONTENT_TIMEOUT_MS = 8000;
+
+/**
+ * Custom error class for request timeouts.
+ * Distinguishes timeouts from other network errors.
+ */
+export class RequestTimeoutError extends Error {
+  public readonly url: string;
+  public readonly timeoutMs: number;
+
+  constructor(url: string, timeoutMs: number) {
+    super(`Request timed out after ${timeoutMs / 1000}s`);
+    this.name = "RequestTimeoutError";
+    this.url = url;
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+/**
+ * Fetch with timeout and error tracking.
+ * - Aborts request after timeout
+ * - Logs timeout to console
+ * - Captures timeout in Sentry with context
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = DEFAULT_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  const startTime = Date.now();
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    const elapsed = Date.now() - startTime;
+
+    if (error instanceof Error && error.name === "AbortError") {
+      // Request was aborted due to timeout
+      const timeoutError = new RequestTimeoutError(url, timeoutMs);
+
+      console.error(
+        `[API] Request timeout after ${elapsed}ms:`,
+        url,
+        { timeoutMs, elapsed }
+      );
+
+      // Capture in Sentry with context
+      Sentry.captureException(timeoutError, {
+        tags: {
+          error_type: "request_timeout",
+          endpoint: new URL(url, window.location.origin).pathname,
+        },
+        extra: {
+          url,
+          timeoutMs,
+          elapsed,
+        },
+      });
+
+      throw timeoutError;
+    }
+
+    // Re-throw other errors (network failures, etc.)
+    throw error;
+  }
+}
 
 export async function listLessons(): Promise<
   { slug: string; title: string }[]
 > {
-  const res = await fetch(`${API_BASE}/api/lessons`);
+  const res = await fetchWithTimeout(`${API_BASE}/api/lessons`);
   if (!res.ok) throw new Error("Failed to fetch lessons");
   const data = await res.json();
   return data.lessons;
 }
 
 export async function getLesson(lessonSlug: string): Promise<Lesson> {
-  const res = await fetch(`${API_BASE}/api/lessons/${lessonSlug}`);
+  const res = await fetchWithTimeout(`${API_BASE}/api/lessons/${lessonSlug}`);
   if (!res.ok) throw new Error("Failed to fetch lesson");
   return res.json();
 }
 
 export async function createSession(lessonSlug: string): Promise<number> {
-  const res = await fetch(`${API_BASE}/api/lesson-sessions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ lesson_slug: lessonSlug }),
-  });
+  const res = await fetchWithTimeout(
+    `${API_BASE}/api/lesson-sessions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ lesson_slug: lessonSlug }),
+    },
+    CONTENT_TIMEOUT_MS
+  );
   if (!res.ok) throw new Error("Failed to create session");
   const data = await res.json();
   return data.session_id;
@@ -43,9 +127,11 @@ export async function getSession(
       ? `${API_BASE}/api/lesson-sessions/${sessionId}?view_stage=${viewStage}`
       : `${API_BASE}/api/lesson-sessions/${sessionId}`;
 
-  const res = await fetch(url, {
-    credentials: "include",
-  });
+  const res = await fetchWithTimeout(
+    url,
+    { credentials: "include" },
+    CONTENT_TIMEOUT_MS
+  );
   if (!res.ok) throw new Error("Failed to fetch session");
   return res.json();
 }
@@ -53,12 +139,13 @@ export async function getSession(
 export async function advanceStage(
   sessionId: number
 ): Promise<{ completed: boolean; new_stage_index?: number }> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${API_BASE}/api/lesson-sessions/${sessionId}/advance`,
     {
       method: "POST",
       credentials: "include",
-    }
+    },
+    CONTENT_TIMEOUT_MS
   );
   if (!res.ok) throw new Error("Failed to advance stage");
   return res.json();
@@ -108,7 +195,7 @@ export async function getNextLesson(
   courseSlug: string,
   currentLessonSlug: string
 ): Promise<{ nextLessonSlug: string; nextLessonTitle: string } | null> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${API_BASE}/api/courses/${courseSlug}/next-lesson?current=${currentLessonSlug}`
   );
   if (!res.ok) throw new Error("Failed to fetch next lesson");
@@ -118,7 +205,7 @@ export async function getNextLesson(
 export async function claimSession(
   sessionId: number
 ): Promise<{ claimed: boolean }> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${API_BASE}/api/lesson-sessions/${sessionId}/claim`,
     {
       method: "POST",
@@ -137,10 +224,15 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   const formData = new FormData();
   formData.append("audio", audioBlob, "recording.webm");
 
-  const res = await fetch(`${API_BASE}/api/transcribe`, {
-    method: "POST",
-    body: formData,
-  });
+  // Transcription can take a while, use longer timeout
+  const res = await fetchWithTimeout(
+    `${API_BASE}/api/transcribe`,
+    {
+      method: "POST",
+      body: formData,
+    },
+    30000 // 30 seconds for audio transcription
+  );
 
   if (!res.ok) {
     if (res.status === 413) throw new Error("Recording too large");
@@ -156,9 +248,10 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
 export async function getCourseProgress(
   courseSlug: string
 ): Promise<CourseProgress> {
-  const res = await fetch(`${API_BASE}/api/courses/${courseSlug}/progress`, {
-    credentials: "include",
-  });
+  const res = await fetchWithTimeout(
+    `${API_BASE}/api/courses/${courseSlug}/progress`,
+    { credentials: "include" }
+  );
   if (!res.ok) throw new Error("Failed to fetch course progress");
   return res.json();
 }

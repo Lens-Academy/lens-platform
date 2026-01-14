@@ -16,9 +16,9 @@ stages:
 
   # Core reading 2: Wikipedia article on existential risk
   - type: article
-    source: articles/wikipedia-existential-risk-ai.md
+    source: articles/wikipedia-existential-risk-from-ai.md
     from: "Existential risk from artificial intelligence"
-    to: "Two sources of concern stem from the problems of AI control and alignment."
+    to: "Two sources of concern stem from the problems of AI"
 
   - type: chat
     instructions: >
@@ -42,10 +42,10 @@ stages:
 
   # Additional reading 1: Four background claims - MIRI (Soares)
   - type: article
-    source: articles/four-background-claims.md
+    source: articles/nate-soares-four-background-claims.md
     optional: true
 
   # Additional reading 2: Worst-case thinking - Buck Shlegeris
   - type: article
-    source: articles/shlegeris-worst-case-thinking.md
+    source: articles/shlegeris-worst-case-thinking-in-ai-alignment.md
     optional: true

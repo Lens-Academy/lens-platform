@@ -183,25 +183,27 @@ def test_get_due_by_meeting_unknown_lesson():
 # --- Tests for course loader with progression format (Task 3) ---
 
 
-def test_load_course_with_progression():
-    """load_course should parse the new progression format from YAML."""
+def test_load_course_parses_progression_types():
+    """load_course should correctly parse LessonRefs and Meetings from YAML.
+
+    Tests parsing logic, not specific course content.
+    """
     course = load_course("default")
 
-    # Basic course properties
-    assert course.slug == "default"
-    assert course.title == "AI Safety Fundamentals"
+    # Should have a non-empty progression
+    assert len(course.progression) > 0
 
-    # Should have progression list (not modules)
-    assert len(course.progression) >= 3
+    # Progression should contain both LessonRefs and Meetings
+    lesson_refs = [item for item in course.progression if isinstance(item, LessonRef)]
+    meetings = [item for item in course.progression if isinstance(item, Meeting)]
 
-    # First item should be a LessonRef
-    assert isinstance(course.progression[0], LessonRef)
-    assert course.progression[0].slug == "intro-to-ai-safety"
+    assert len(lesson_refs) > 0, "Course should have at least one lesson"
+    assert len(meetings) > 0, "Course should have at least one meeting"
 
-    # Second item should be a LessonRef
-    assert isinstance(course.progression[1], LessonRef)
-    assert course.progression[1].slug == "intelligence-feedback-loop"
+    # Each LessonRef should have a slug
+    for ref in lesson_refs:
+        assert ref.slug, "LessonRef should have a non-empty slug"
 
-    # Third item should be a Meeting
-    assert isinstance(course.progression[2], Meeting)
-    assert course.progression[2].number == 1
+    # Each Meeting should have a number
+    for meeting in meetings:
+        assert meeting.number >= 1, "Meeting should have a positive number"

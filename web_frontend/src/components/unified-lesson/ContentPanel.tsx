@@ -80,6 +80,9 @@ type ContentPanelProps = {
   onVideoPlay?: () => void;
   onVideoPause?: () => void;
   onVideoTimeUpdate?: (currentTime: number) => void;
+  // Error state for content loading
+  contentError?: string | null;
+  onRetryContent?: () => void;
 };
 
 export default function ContentPanel({
@@ -96,6 +99,8 @@ export default function ContentPanel({
   onVideoPlay,
   onVideoPause,
   onVideoTimeUpdate,
+  contentError,
+  onRetryContent,
 }: ContentPanelProps) {
   // Track if user has scrolled to bottom of article
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
@@ -219,11 +224,13 @@ export default function ContentPanel({
   const isCurrentStage = !isReviewing && !isPreviewing;
 
   // Article-specific
+  // Show error state, loading state, or actual content
   const articleToShow = isArticleStage
-    ? (article ?? { content: "Loading..." })
+    ? (article ?? (contentError ? null : { content: "Loading..." }))
     : previousArticle;
   const articleBlurred = isChatAfterArticle && !showUserPreviousContent;
   const articleShowButton = isArticleStage && isCurrentStage;
+  const showContentError = isArticleStage && contentError && !article;
 
   // Video-specific
   const videoId = isVideoStage ? stage.videoId : previousStage?.videoId;
@@ -260,7 +267,28 @@ export default function ContentPanel({
   // Content area based on stage type
   let contentArea: React.ReactNode = null;
 
-  if (showArticleContent && articleToShow) {
+  // Show error state with retry button
+  if (showContentError) {
+    contentArea = (
+      <div className="h-full flex items-center justify-center bg-gray-50 p-8">
+        <div className="text-center max-w-md">
+          <div className="text-5xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            Content Failed to Load
+          </h2>
+          <p className="text-gray-600 mb-4">{contentError}</p>
+          {onRetryContent && (
+            <button
+              onClick={onRetryContent}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            >
+              Try Again
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  } else if (showArticleContent && articleToShow) {
     // Inline button for short articles
     const useInlineButton = articleShowButton && contentFits === true;
     const afterContent = useInlineButton ? (

@@ -3,14 +3,14 @@ title: Introduction to AI Safety
 
 stages:
   - type: article
-    source: articles/four-background-claims.md
+    source: articles/nate-soares-four-background-claims.md
     from: "MIRI's mission is to ensure"
     to: "build powerful generally intelligent AI systems."
 
   - type: article
-    source: articles/four-background-claims.md
+    source: articles/nate-soares-four-background-claims.md
     from: "build powerful generally intelligent AI systems."
-    to: "We call this the problem of AI alignment"
+    to: "AI matters."
     optional: true
 
   - type: chat
@@ -34,9 +34,9 @@ stages:
     showTutorPreviousContent: true
 
   - type: article
-    source: articles/four-background-claims.md
+    source: articles/nate-soares-four-background-claims.md
     from: "build powerful generally intelligent AI systems."
-    to: "We call this the problem of AI alignment"
+    to: "AI matters."
 
   - type: chat
     instructions: >

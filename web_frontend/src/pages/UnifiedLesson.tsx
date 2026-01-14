@@ -14,6 +14,7 @@ import {
   advanceStage,
   sendMessage,
   claimSession,
+  RequestTimeoutError,
 } from "../api/lessons";
 import { useAuth } from "../hooks/useAuth";
 import { useAnonymousSession } from "../hooks/useAnonymousSession";
@@ -34,6 +35,7 @@ import {
   trackChatOpened,
   trackChatMessageSent,
 } from "../analytics";
+import { Sentry } from "../errorTracking";
 
 export default function UnifiedLesson() {
   const { courseId: _courseId, lessonId } = useParams<{
@@ -59,6 +61,8 @@ export default function UnifiedLesson() {
   const [viewedContentCache, setViewedContentCache] = useState<
     Record<number, ArticleData>
   >({});
+  // Error state for viewed stage content fetch
+  const [viewedStageError, setViewedStageError] = useState<string | null>(null);
 
   // Analytics tracking refs
   const hasTrackedLessonStart = useRef(false);
@@ -169,7 +173,13 @@ export default function UnifiedLesson() {
         completed = true;
         clearTimeout(timeoutId);
         console.log(
-          `[UnifiedLesson] Session initialized in ${Date.now() - startTime}ms`
+          `[UnifiedLesson] Session initialized in ${Date.now() - startTime}ms`,
+          {
+            hasArticle: !!state.article,
+            articleContentLength: state.article?.content?.length ?? 0,
+            stageType: state.current_stage?.type,
+            stageIndex: state.current_stage_index,
+          }
         );
         setSession(state);
 
@@ -185,7 +195,14 @@ export default function UnifiedLesson() {
           `[UnifiedLesson] Session init failed after ${Date.now() - startTime}ms:`,
           e
         );
-        setError(e instanceof Error ? e.message : "Failed to start lesson");
+        // Provide user-friendly error messages
+        if (e instanceof RequestTimeoutError) {
+          setError(
+            "Content is taking too long to load. Please check your connection and try refreshing the page."
+          );
+        } else {
+          setError(e instanceof Error ? e.message : "Failed to start lesson");
+        }
       }
     }
 
@@ -422,6 +439,53 @@ export default function UnifiedLesson() {
     return session?.article ?? null;
   }, [viewingStageIndex, viewedContentCache, session?.article]);
 
+  // Detect missing content: article stage loaded but article is null
+  const [contentMissingError, setContentMissingError] = useState<string | null>(
+    null
+  );
+  useEffect(() => {
+    // Only check for current stage (not when reviewing)
+    if (viewingStageIndex !== null) return;
+    if (!session?.current_stage) return;
+
+    const isArticleStage = session.current_stage.type === "article";
+    const hasArticle = !!session.article?.content;
+
+    if (isArticleStage && !hasArticle) {
+      // Article stage but no content - set a timer to show error
+      const timeoutId = setTimeout(() => {
+        const errorContext = {
+          lessonId,
+          sessionId,
+          stageIndex: session.current_stage_index,
+          stageType: session.current_stage?.type,
+          hasArticle: !!session.article,
+        };
+        console.error(
+          "[UnifiedLesson] Article content missing after load",
+          errorContext
+        );
+        // Capture in Sentry
+        Sentry.captureMessage("Article content missing after session load", {
+          level: "error",
+          tags: {
+            error_type: "content_missing",
+            lesson_id: lessonId,
+          },
+          extra: errorContext,
+        });
+        setContentMissingError(
+          "Article content failed to load. Please try refreshing the page."
+        );
+      }, 3000); // 3 second grace period
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      // Content loaded or not an article stage - clear any error
+      setContentMissingError(null);
+    }
+  }, [session?.current_stage, session?.article, session?.current_stage_index, viewingStageIndex, lessonId, sessionId]);
+
   // Convert session stages to StageInfo format for the drawer
   const stagesForDrawer: StageInfo[] = useMemo(() => {
     if (!session?.stages) return [];
@@ -475,6 +539,9 @@ export default function UnifiedLesson() {
       return;
     }
 
+    // Clear any previous error when starting a new fetch
+    setViewedStageError(null);
+
     let isCurrent = true; // Track if this request is still relevant
 
     const timeoutId = setTimeout(() => {
@@ -513,6 +580,14 @@ export default function UnifiedLesson() {
             `[UnifiedLesson] Failed to fetch stage ${viewingStageIndex} after ${Date.now() - startTime}ms:`,
             e
           );
+          // Show user-friendly error
+          if (e instanceof RequestTimeoutError) {
+            setViewedStageError(
+              "Content is taking too long to load. Please try again."
+            );
+          } else {
+            setViewedStageError("Failed to load content. Please try again.");
+          }
         }
       }
     }
@@ -529,6 +604,18 @@ export default function UnifiedLesson() {
   useEffect(() => {
     setViewingStageIndex(null);
   }, [session?.current_stage_index]);
+
+  // Retry handler for viewed stage content
+  const handleRetryContent = useCallback(() => {
+    if (viewingStageIndex === null) return;
+    // Clear error and cached content to trigger re-fetch
+    setViewedStageError(null);
+    setViewedContentCache((prev) => {
+      const next = { ...prev };
+      delete next[viewingStageIndex];
+      return next;
+    });
+  }, [viewingStageIndex]);
 
   // Track lesson completion
   useEffect(() => {
@@ -685,6 +772,10 @@ export default function UnifiedLesson() {
             onVideoPlay={videoTracker.onPlay}
             onVideoPause={videoTracker.onPause}
             onVideoTimeUpdate={videoTracker.onTimeUpdate}
+            contentError={viewedStageError || contentMissingError}
+            onRetryContent={
+              viewedStageError ? handleRetryContent : () => window.location.reload()
+            }
           />
         </div>
 

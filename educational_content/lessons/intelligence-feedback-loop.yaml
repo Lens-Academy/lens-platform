@@ -8,7 +8,7 @@ stages:
   - type: article
     source: articles/karnofsky-most-important-century.md
     from: "## The long-run future could come much faster than we think"
-    to: "quickly go sideways.)"
+    to: "quickly go sideways."
 
   - type: chat
     instructions: >
@@ -19,7 +19,7 @@ stages:
     showTutorPreviousContent: true
 
   - type: article
-    source: articles/christiano-takeoff-speeds.md
+    source: articles/paul-christiano-takeoff-speeds.md
 
   - type: chat
     instructions: >
@@ -48,7 +48,7 @@ stages:
     optional: true
 
   - type: article
-    source: articles/urban-ai-revolution-superintelligence.md
+    source: articles/tim-urban-artificial-intelligence-revolution-1.md
 
 
   - type: chat

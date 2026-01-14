@@ -127,9 +127,17 @@ def test_timestamps_file_has_valid_format(md_path: Path):
         assert isinstance(entry["text"], str), (
             f"{timestamps_path.name} entry {i} 'text' should be string"
         )
-        assert isinstance(entry["start"], (int, float)), (
-            f"{timestamps_path.name} entry {i} 'start' should be number"
+        # start can be either "M:SS.ms" string format or numeric (for backwards compat)
+        assert isinstance(entry["start"], (int, float, str)), (
+            f"{timestamps_path.name} entry {i} 'start' should be string or number"
         )
+        # If string, validate format "M:SS.ms" or "MM:SS.ms"
+        if isinstance(entry["start"], str):
+            import re
+            assert re.match(r"^\d+:\d{2}\.\d+$", entry["start"]), (
+                f"{timestamps_path.name} entry {i} 'start' has invalid format: {entry['start']} "
+                f"(expected M:SS.ms like '2:52.25')"
+            )
 
 
 def test_transcripts_directory_exists():
