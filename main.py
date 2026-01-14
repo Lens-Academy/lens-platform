@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
 from fastapi import FastAPI
 
-from core.database import close_engine, check_connection, reset_engine
+from core.database import close_engine, check_connection
 from core import get_allowed_origins, is_dev_mode
 from core.config import check_required_env_vars
 from core.notifications import init_scheduler, shutdown_scheduler
@@ -205,15 +205,19 @@ async def lifespan(app: FastAPI):
     """
     global _bot_task
 
-    # IMPORTANT: Reset the database engine singleton to ensure it's created in
-    # uvicorn's event loop. This prevents "attached to a different loop" errors
-    # that occur when the engine was created in a different context (e.g., during
-    # pre-startup checks with asyncio.run(), or when running with uvicorn directly).
-    # Use sync reset to avoid trying to close connections from wrong event loop.
-    reset_engine()
-
-    # Database was already checked before uvicorn started (unless --no-db)
     skip_db = os.getenv("SKIP_DB_CHECK", "").lower() in ("true", "1", "yes")
+
+    # Check database connection (runs in uvicorn's event loop - no issues)
+    if not skip_db:
+        print("Checking database connection...")
+        db_ok, db_msg = await check_connection()
+        if not db_ok:
+            print(f"✗ Database: {db_msg}")
+            print("  └─ Server cannot start without database. Use --no-db to skip.")
+            sys.exit(1)
+        print(f"✓ Database: {db_msg}")
+    else:
+        print("Running in --no-db mode (database operations will fail)")
 
     # Initialize notification scheduler (skip if no database)
     scheduler = None
@@ -438,22 +442,6 @@ if __name__ == "__main__":
         os.environ["API_PORT"] = str(args.port)  # For Vite proxy
         print(f"Dev mode enabled - Vite will run on port {args.vite_port}")
         print(f"Access frontend at: http://localhost:{args.vite_port}")
-
-    # Check database before starting (unless --no-db)
-    if not args.no_db:
-        print("Checking database connection...")
-        db_ok, db_msg = asyncio.run(check_connection())
-        # IMPORTANT: Reset engine after check_connection creates it in asyncio.run()'s
-        # event loop. Otherwise uvicorn's event loop will get "attached to different loop"
-        # errors when trying to use the singleton engine created in the wrong loop.
-        # Use sync reset (not async close) to avoid event loop issues.
-        reset_engine()
-        if db_ok:
-            print(f"✓ Database: {db_msg}")
-        else:
-            print(f"✗ Database: {db_msg}")
-            print("  └─ Server cannot start without database. Use --no-db to skip.")
-            sys.exit(1)
 
     # Check required environment variables
     print("Checking environment variables...")
