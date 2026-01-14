@@ -95,15 +95,23 @@ async def discord_oauth_start(
     Redirects user to Discord's authorization page.
     Stores the 'next' URL and origin in state for redirect after auth.
 
+    If user is already authenticated, redirects to /course instead.
+
     Args:
         next: Path to redirect to after auth (default: "/")
         origin: Frontend origin URL (validated against whitelist)
     """
-    if not DISCORD_CLIENT_ID:
-        raise HTTPException(500, "Discord OAuth not configured")
-
     # Validate origin against whitelist
     validated_origin = _validate_origin(origin)
+
+    # Check if user is already authenticated
+    existing_user = await get_optional_user(request)
+    if existing_user:
+        # Already signed in - redirect to course page
+        return RedirectResponse(url=f"{validated_origin}/course")
+
+    if not DISCORD_CLIENT_ID:
+        raise HTTPException(500, "Discord OAuth not configured")
 
     # Generate state for CSRF protection
     _cleanup_expired_oauth_states()  # Prevent memory leak

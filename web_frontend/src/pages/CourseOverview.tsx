@@ -11,11 +11,14 @@ import type { CourseProgress, LessonInfo } from "../types/course";
 import CourseSidebar from "../components/course/CourseSidebar";
 import LessonOverview from "../components/course/LessonOverview";
 import ContentPreviewModal from "../components/course/ContentPreviewModal";
+import HeaderAuthStatus from "../components/unified-lesson/HeaderAuthStatus";
+import { useAuth } from "../hooks/useAuth";
 import { DISCORD_INVITE_URL } from "../config";
 
 export default function CourseOverview() {
   const { courseId = "default" } = useParams();
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
     null
@@ -132,6 +135,7 @@ export default function CourseOverview() {
             >
               Join Our Discord Server
             </a>
+            <HeaderAuthStatus onLoginClick={login} />
           </div>
         </div>
       </nav>
