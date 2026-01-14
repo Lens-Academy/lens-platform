@@ -134,7 +134,7 @@ export default function CourseOverview() {
               href={DISCORD_INVITE_URL}
               className="px-5 py-2 rounded-full border-2 border-slate-200 text-slate-700 font-medium text-sm hover:border-slate-300 hover:bg-slate-50 transition-all duration-200"
             >
-              Join Our Discord Server
+              Join us on Discord
             </a>
             <HeaderAuthStatus onLoginClick={login} />
           </div>

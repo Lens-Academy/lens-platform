@@ -35,7 +35,7 @@ export default function SuccessMessage() {
         className="inline-flex items-center justify-center gap-3 px-6 py-4 bg-[#5865F2] hover:bg-[#4752C4] text-white font-medium text-lg rounded-lg transition-colors"
       >
         <DiscordIconLarge className="w-6 h-6" />
-        Join Our Discord
+        Join us on Discord
       </a>
     </div>
   );
