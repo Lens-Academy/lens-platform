@@ -15,7 +15,7 @@ export default function IntroductionBlock({ text }: IntroductionBlockProps) {
           alt="Lens Academy"
           className="w-5 h-5"
         />
-        <span className="text-sm font-medium" style={{ color: '#0d5a6a' }}>Context</span>
+        <span className="text-sm font-medium" style={{ color: '#0d5a6a' }}>Info before reading/watching</span>
       </div>
       <p className="text-gray-700 leading-relaxed text-[15px]">{text}</p>
     </div>

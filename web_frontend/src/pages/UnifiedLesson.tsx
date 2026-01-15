@@ -70,7 +70,7 @@ export default function UnifiedLesson() {
   const hasTrackedLessonStart = useRef(false);
 
   // Anonymous session flow
-  const { isAuthenticated, isInSignupsTable, login } = useAuth();
+  const { isAuthenticated, isInSignupsTable, isInActiveGroup, login } = useAuth();
   const { getStoredSessionId, storeSessionId, clearSessionId } =
     useAnonymousSession(lessonId!);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
@@ -852,6 +852,7 @@ export default function UnifiedLesson() {
             lessonTitle={session.lesson_title}
             courseId={courseId}
             isInSignupsTable={isInSignupsTable}
+            isInActiveGroup={isInActiveGroup}
             nextLesson={nextLesson}
             completedUnit={completedUnit}
             onClose={() => setCompletionModalDismissed(true)}

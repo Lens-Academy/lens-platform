@@ -603,12 +603,12 @@ export default function ChatPanel({
       {/* Skip chat button - shown in active chat stage */}
       {!showDisclaimer && !pendingTransition && onSkipChat && (
         <div className="px-4 py-3 border-t border-gray-100">
-          <div className="max-w-[620px] mx-auto flex justify-center">
+          <div className="max-w-[620px] mx-auto flex justify-end">
             <button
               onClick={onSkipChat}
-              className="text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors"
+              className="text-sm text-white bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded-lg transition-colors"
             >
-              I'm done chatting
+              Done chatting. Move to next article/video
             </button>
           </div>
         </div>
