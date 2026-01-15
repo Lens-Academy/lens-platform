@@ -1,6 +1,6 @@
 # educational_content/courses/default.yaml
 slug: default
-title: AI Safety Fundamentals
+title: AI Safety Course
 
 progression:
   - lesson: introduction

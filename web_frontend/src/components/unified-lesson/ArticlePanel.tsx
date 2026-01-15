@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import type { ArticleData } from "../../types/unified-lesson";
 import IntroductionBlock from "./IntroductionBlock";
 
@@ -118,6 +119,7 @@ export default function ArticlePanel({
           )}
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw]}
             components={{
               // Style links
               a: ({ children, href }) => (

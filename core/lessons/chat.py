@@ -52,7 +52,7 @@ def _build_system_prompt(
         previous_content: Content from previous stage (for chat stages, if showTutorPreviousContent)
     """
 
-    base = """You are a tutor helping someone learn about AI safety. Each piece of content (article, video) has different topics and learning objectives. Overall, the goal is to help the student understand that AI is a large existential threat to humanity.
+    base = """You are a tutor helping someone learn about AI safety. Each piece of content (article, video) has different topics and learning objectives.
 """
 
     if isinstance(current_stage, ChatStage):
@@ -70,8 +70,7 @@ def _build_system_prompt(
             else "watching a video"
         )
         prompt = base + f"""
-The user is currently {content_type}. Keep responses brief - the user should focus on the content.
-Answer questions if asked, but don't initiate lengthy discussion.
+The user is currently {content_type}. Answer the student's questions to help them understand the content, but don't lengthen the conversation. There will be more time for chatting after they are done reading/watching.
 """
         if current_content:
             prompt += f"\n\nContent the user is viewing:\n---\n{current_content}\n---"

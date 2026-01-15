@@ -10,6 +10,7 @@ interface Props {
   lessonTitle?: string;
   courseId?: string; // Present when in /course/:courseId/lesson/:lessonId context
   isInSignupsTable?: boolean; // User has signed up for a cohort
+  isInActiveGroup?: boolean; // User is in an active cohort group
   nextLesson?: NextLesson | null; // Next lesson in course, null if last lesson
   completedUnit?: number | null; // Unit number if just completed a unit
   onClose?: () => void; // Called when user clicks outside modal
@@ -28,6 +29,7 @@ export default function LessonCompleteModal({
   lessonTitle,
   courseId,
   isInSignupsTable = false,
+  isInActiveGroup = false,
   nextLesson,
   completedUnit,
   onClose,
@@ -37,16 +39,18 @@ export default function LessonCompleteModal({
   const isInCourseContext = !!courseId;
   const hasNextLesson = !!nextLesson;
   const hasCompletedUnit = completedUnit != null;
+  const isEnrolled = isInSignupsTable || isInActiveGroup;
 
   // Determine CTAs based on context
   // Standalone lesson (/lesson/:id):
-  //   - Not in signups: "Join Full Course" → /signup, "View Course" → /course
-  //   - In signups: "View Course" → /course
+  //   - Not enrolled: "Join Full Course" → /signup, "View Course" → /course
+  //   - Enrolled: "View Course" → /course
   // Course lesson (/course/:id/lesson/:lid):
-  //   - Unit complete: "Return to Course" → /course/:id (no secondary CTA)
-  //   - Not in signups: "Join Full Course" → /signup, "Return to Course" → /course/:id
-  //   - In signups + has next: "Next Lesson" → next lesson URL, "Return to Course" → /course/:id
-  //   - In signups + no next: "Return to Course" → /course/:id
+  //   - Unit complete + not enrolled: "Join Full Course" → /signup, "Return to Course" → /course/:id
+  //   - Unit complete + enrolled: "Return to Course" → /course/:id (no secondary CTA)
+  //   - Not enrolled: "Join Full Course" → /signup, "Return to Course" → /course/:id
+  //   - Enrolled + has next: "Next Lesson" → next lesson URL, "Return to Course" → /course/:id
+  //   - Enrolled + no next: "Return to Course" → /course/:id
 
   let primaryCta: { label: string; to: string };
   let secondaryCta: { label: string; to: string } | null = null;
@@ -57,7 +61,7 @@ export default function LessonCompleteModal({
     completionMessage = lessonTitle
       ? `You've finished "${lessonTitle}".`
       : "Great work!";
-    if (!isInSignupsTable) {
+    if (!isEnrolled) {
       primaryCta = { label: "Join the Full Course", to: "/signup" };
       secondaryCta = { label: "View Course", to: "/course" };
     } else {
@@ -67,12 +71,17 @@ export default function LessonCompleteModal({
     // Course lesson context
     const courseUrl = `/course/${courseId}`;
 
-    if (hasCompletedUnit) {
-      // Unit completion - show special message, only "Return to Course" button
+    if (hasCompletedUnit && !isEnrolled) {
+      // Unit completion + not enrolled - prompt to join
+      completionMessage = `This was the last lesson of Unit ${completedUnit}.`;
+      primaryCta = { label: "Join the Full Course", to: "/signup" };
+      secondaryCta = { label: "Return to Course", to: courseUrl };
+    } else if (hasCompletedUnit) {
+      // Unit completion + enrolled - just show return
       completionMessage = `This was the last lesson of Unit ${completedUnit}.`;
       primaryCta = { label: "Return to Course", to: courseUrl };
       // No secondary CTA - don't prompt them to go to next unit yet
-    } else if (!isInSignupsTable) {
+    } else if (!isEnrolled) {
       completionMessage = lessonTitle
         ? `You've finished "${lessonTitle}".`
         : "Great work!";

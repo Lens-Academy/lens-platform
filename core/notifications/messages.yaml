@@ -6,7 +6,7 @@
 #   {lesson_url}, {discord_channel_url}, {profile_url}
 
 welcome:
-  email_subject: Welcome to the AI Safety Course
+  email_subject: Welcome to the Lens Academy AI Safety Course
   email_body: |
     Hi {name},
 
@@ -16,13 +16,14 @@ welcome:
     - We'll match you with a study group based on your availability
     - You'll receive an email with your group details and calendar invite
 
-    Join our Discord server to chat with your group:
+    Join our Discord server to chat with the other people who enrolled, as well as the team behind Lens Academy.
     {discord_invite_url}
 
-    Questions? Reply to this email.
+    Questions? Ask us on the Discord server.
 
     Best,
-    The AI Safety Course Team
+    Luc
+    Founder of Lens Academy
   discord: |
     Welcome {name}! Thanks for enrolling.
     We'll match you with a study group soon based on your availability.
@@ -43,12 +44,13 @@ group_assigned:
     A calendar invite is attached.
 
     Best,
-    The AI Safety Course Team
+    Luc
+    Founder of Lens Academy
   discord: |
     You've been assigned to **{group_name}**!
     Meeting time: {meeting_time}
     Check your email for the calendar invite.
-  calendar_title: "AI Safety Study Group: {group_name}"
+  calendar_title: "Lens Academy Study Group: {group_name}"
   calendar_description: |
     Weekly study group meeting.
     Group members: {member_names}
@@ -68,7 +70,8 @@ meeting_reminder_24h:
     Questions? Chat with your group: {discord_channel_url}
 
     Best,
-    The AI Safety Course Team
+    Luc
+    Founder of Lens Academy
   discord_channel: |
     Reminder: Meeting tomorrow at {meeting_time}!
 
@@ -84,7 +87,8 @@ meeting_reminder_1h:
     See you there!
 
     Best,
-    The AI Safety Course Team
+    Luc
+    Founder of Lens Academy
   discord_channel: |
     Meeting starting in 1 hour!
 
@@ -103,7 +107,8 @@ lesson_nudge:
     Questions for your group? {discord_channel_url}
 
     Best,
-    The AI Safety Course Team
+    Luc
+    Founder of Lens Academy
   discord: |
     Heads up! You have {lessons_remaining} lessons to finish before
     your meeting on {meeting_date}. Continue here: {lesson_url}
@@ -117,7 +122,8 @@ trial_nudge:
     Pick up where you left off: {lesson_url}
 
     Best,
-    The AI Safety Course Team
+    Luc
+    Founder of Lens Academy
   discord: |
     Hey {name}! You started the trial lesson yesterday.
     Want to finish it? {lesson_url}

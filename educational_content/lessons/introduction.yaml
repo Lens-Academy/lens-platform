@@ -64,9 +64,10 @@ stages:
   # Core reading 3: Video - 10 Reasons to Ignore AI Safety
   - type: video
     source: video_transcripts/9i1WlcCudpU_10_Reasons_to_Ignore_AI_Safety.md
-    introduction: >
-      This video reviews the main objections to AI Safety
-      and the responses to them.
+    # introduction: >
+    #   This video reviews the main objections to AI Safety
+    #   and the responses to them.
+    to: "14:48" # Afterwards is just sponsorship
 
   - type: chat
     instructions: >
