@@ -14,6 +14,7 @@ import CourseOverview from "./pages/CourseOverview";
 import Facilitator from "./pages/Facilitator";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import PrototypeLessonPage from "./pages/PrototypeLessonPage";
 import { initPostHog, capturePageView, hasConsent } from "./analytics";
 import { initSentry } from "./errorTracking";
 
@@ -48,6 +49,7 @@ function App() {
         />
         <Route path="/course/:courseId" element={<CourseOverview />} />
         <Route path="/course" element={<CourseOverview />} />
+        <Route path="/prototype/:prototype?" element={<PrototypeLessonPage />} />
 
         {/* Standard pages with Layout */}
         <Route element={<Layout />}>
