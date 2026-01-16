@@ -1,0 +1,72 @@
+# educational_content/lessons/narrative-test.yaml
+# Note: Segment types must match TypeScript definitions exactly
+format: narrative
+slug: narrative-test
+title: "Test Narrative Lesson"
+
+sections:
+  - type: article
+    source: articles/tim-urban-artificial-intelligence-revolution-1.md
+    label: "The AI Revolution"
+    segments:
+      - type: text
+        content: |
+          Welcome to this lesson on the AI Revolution.
+
+          We'll be reading Tim Urban's famous essay from Wait But Why.
+          Pay attention to the concept of "Die Progress Units" - it's a
+          memorable way to think about accelerating change.
+
+      - type: article-excerpt
+        from: "What does it feel like to stand here?"
+        to: "## The Far Future—Coming Soon"
+
+      - type: text
+        content: |
+          **Reflection question:**
+
+          Urban describes bringing someone from 1750 to today. What do you
+          think would shock them most - and what might they adapt to quickly?
+
+      - type: chat
+
+      - type: article-excerpt
+        from: "## The Far Future—Coming Soon"
+        to: "## What Is AI?"
+
+      - type: text
+        content: |
+          Urban introduces the idea of **exponential thinking** vs **linear thinking**.
+
+          This is one of the most common mistakes people make when predicting
+          the future of AI. Let's make sure you understand it.
+
+      - type: chat
+
+  - type: video
+    videoId: "pYXy-A4siMw"
+    label: "AI Explained"
+    segments:
+      - type: text
+        content: |
+          Now let's watch a video that covers similar ground with some
+          additional visual explanations.
+
+      - type: video-excerpt
+        from: 0
+        to: 180
+
+      - type: text
+        content: |
+          **Quick check:** What's the key difference between ANI and AGI?
+
+      - type: chat
+
+      - type: text
+        content: |
+          ## Summary
+
+          Key takeaways from this lesson:
+          - Progress is exponential, not linear
+          - We're currently in the ANI era
+          - The AGI → ASI transition could be rapid
