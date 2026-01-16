@@ -1,0 +1,147 @@
+name: Railway Preview Deployment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - prototypes
+
+permissions:
+  contents: read
+  pull-requests: write
+  deployments: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event.action != 'closed'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate environment name
+        id: env_name
+        run: |
+          # Sanitize PR title: lowercase, replace non-alphanumeric with dashes, truncate
+          TITLE="${{ github.event.pull_request.title }}"
+          SANITIZED=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-30)
+          echo "name=pr-${{ github.event.pull_request.number }}-${SANITIZED}" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Railway
+        id: deploy
+        uses: ayungavis/railway-preview-deploy@v1.0.2
+        with:
+          railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
+          project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
+          environment_name: 'prototypes'
+          preview_environment_name: ${{ steps.env_name.outputs.name }}
+          branch_name: ${{ github.head_ref }}
+
+      - name: Debug outputs
+        run: |
+          echo "service_domain: ${{ steps.deploy.outputs.service_domain }}"
+          echo "All outputs: ${{ toJSON(steps.deploy.outputs) }}"
+
+      - name: Comment with preview URL
+        uses: actions/github-script@v7
+        env:
+          ENV_NAME: ${{ steps.env_name.outputs.name }}
+        with:
+          script: |
+            const marker = '<!-- railway-preview -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+
+            // Use action output if available, otherwise construct from env name
+            const serviceDomain = '${{ steps.deploy.outputs.service_domain }}' || `lensacademy-${process.env.ENV_NAME}.up.railway.app`;
+
+            const body = [
+              marker,
+              '🚀 **Preview deployed!**',
+              '',
+              `🔗 https://${serviceDomain}`
+            ].join('\n');
+
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                comment_id: existing.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body
+              });
+            }
+
+      - name: Wait for Railway deployment to complete
+        run: sleep 90
+
+      - name: Create deployment with correct URL
+        uses: actions/github-script@v7
+        env:
+          ENV_NAME: ${{ steps.env_name.outputs.name }}
+        with:
+          script: |
+            const serviceDomain = '${{ steps.deploy.outputs.service_domain }}' || `lensacademy-${process.env.ENV_NAME}.up.railway.app`;
+            const environmentUrl = `https://${serviceDomain}`;
+            const envName = `preview-${process.env.ENV_NAME}`;
+
+            // Create our own deployment using the PR head commit (not the merge commit)
+            const { data: deployment } = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.payload.pull_request.head.sha,
+              environment: envName,
+              auto_merge: false,
+              required_contexts: [],
+              description: 'Preview deployment'
+            });
+
+            // Set it to success with correct URL
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.id,
+              state: 'success',
+              environment_url: environmentUrl,
+              description: 'Preview deployment ready'
+            });
+
+            console.log(`Created deployment ${deployment.id} (${envName}) with URL: ${environmentUrl}`);
+
+  cleanup:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate environment name
+        id: env_name
+        run: |
+          # Sanitize PR title: lowercase, replace non-alphanumeric with dashes, truncate
+          TITLE="${{ github.event.pull_request.title }}"
+          SANITIZED=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-30)
+          echo "name=pr-${{ github.event.pull_request.number }}-${SANITIZED}" >> $GITHUB_OUTPUT
+
+      - name: Cleanup Railway Environment
+        uses: ayungavis/railway-preview-deploy@v1.0.2
+        with:
+          railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
+          project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
+          environment_name: 'prototypes'
+          preview_environment_name: ${{ steps.env_name.outputs.name }}
+          branch_name: ${{ github.head_ref }}
+          cleanup: 'true'
