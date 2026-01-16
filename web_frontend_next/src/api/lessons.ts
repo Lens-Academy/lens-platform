@@ -6,7 +6,7 @@ import type { Lesson, SessionState } from "../types/unified-lesson";
 import type { CourseProgress } from "../types/course";
 import { Sentry } from "../errorTracking";
 
-const API_BASE = "";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 // Default timeout for API requests (in milliseconds)
 const DEFAULT_TIMEOUT_MS = 10000;

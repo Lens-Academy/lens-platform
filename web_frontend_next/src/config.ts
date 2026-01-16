@@ -1,7 +1,7 @@
 // Centralized configuration for the web frontend
 
-// API_URL: Empty string for same-origin requests, or set VITE_API_URL for dev mode
-export const API_URL = import.meta.env.VITE_API_URL ?? "";
+// API_URL: Empty string for same-origin requests, or set NEXT_PUBLIC_API_URL for dev mode
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 // Discord invite link for joining the course server
 // NOTE: Also defined in:
