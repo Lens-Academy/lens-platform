@@ -6,6 +6,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **NEVER push directly to `main` or `staging` branches.** These are production/staging servers used by real people. All changes must go through pull requests with CI checks. Always ask the user before pushing to any shared branch.
 
+**Before pushing ANY code to GitHub**, run these checks:
+
+```bash
+# Frontend (from web_frontend/)
+cd web_frontend
+npm run lint          # ESLint
+npm run build         # TypeScript type check + Vite build
+npx prettier --check src/  # Prettier formatting check
+
+# Backend (from repo root)
+ruff check .          # Python linting
+ruff format --check . # Python formatting check
+pytest                # Run tests
+```
+
+Fix any errors before pushing. CI will run these same checks.
+
 ## Commands
 
 Run the server: `python main.py --dev`. This is a unified backend (FastAPI + Discord Bot) that also serves the frontend.
@@ -16,6 +33,8 @@ Options:
 --no-db (skip database check - for frontend-only development)
 --port (defaults to API_PORT env var, or 8000)
 --vite-port (defaults to VITE_PORT env var, or 5173)
+
+**Database connection failures:** If the database connection fails, ask the user to start the database (Docker). Never use `--no-db` without explicit permission from the user.
 
 **Tests:**
 

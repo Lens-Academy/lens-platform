@@ -1,13 +1,9 @@
 ---
 title: "Existential risk from artificial intelligence"
-author: Unknown
+author: Wikipedia
 date: 2015-05-01
 source_url: https://en.wikipedia.org/wiki/Existential_risk_from_artificial_intelligence
 ---
-
-*Lens Academy: We continue with an overview of the main concepts regarding AI as a source of existential threat: what capabilities of this technology are considered first and foremost, and why the task of eliminating AI risks differs from similar tasks for other impressive technologies created by humanity.*
-
-# Existential risk from artificial intelligence
 
 **Existential risk from artificial intelligence**, or **AI x-risk**, refers to the idea that substantial progress in [artificial general intelligence](https://en.wikipedia.org/wiki/Artificial_general_intelligence "Artificial general intelligence") (AGI) could lead to [human extinction](https://en.wikipedia.org/wiki/Human_extinction "Human extinction") or an irreversible [global catastrophe](https://en.wikipedia.org/wiki/Global_catastrophic_risk "Global catastrophic risk").<sup>[[1]](https://en.wikipedia.org/wiki/Existential_risk_from_artificial_intelligence#cite_note-aima-1)</sup><sup>[[2]](https://en.wikipedia.org/wiki/Existential_risk_from_artificial_intelligence#cite_note-2)</sup><sup>[[3]](https://en.wikipedia.org/wiki/Existential_risk_from_artificial_intelligence#cite_note-auto1-3)</sup><sup>[[4]](https://en.wikipedia.org/wiki/Existential_risk_from_artificial_intelligence#cite_note-4)</sup>
 
