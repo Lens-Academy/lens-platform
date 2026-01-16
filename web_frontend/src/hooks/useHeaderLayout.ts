@@ -1,5 +1,5 @@
 import { useMeasure } from 'react-use';
-import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState, type RefCallback } from 'react';
 
 const MIN_GAP = 24; // Minimum gap between sections (in pixels)
 
@@ -9,10 +9,10 @@ interface HeaderLayoutState {
 }
 
 interface HeaderLayoutRefs {
-  containerRef: (element: HTMLElement | null) => void;
-  leftRef: (element: HTMLElement | null) => void;
-  centerRef: (element: HTMLElement | null) => void;
-  rightRef: (element: HTMLElement | null) => void;
+  containerRef: RefCallback<HTMLElement>;
+  leftRef: RefCallback<HTMLElement>;
+  centerRef: RefCallback<HTMLElement>;
+  rightRef: RefCallback<HTMLElement>;
 }
 
 export function useHeaderLayout(): [HeaderLayoutState, HeaderLayoutRefs] {
@@ -22,7 +22,7 @@ export function useHeaderLayout(): [HeaderLayoutState, HeaderLayoutRefs] {
   const [rightRef, rightBounds] = useMeasure<HTMLElement>();
 
   const [state, setState] = useState<HeaderLayoutState>({
-    needsTwoRows: false,
+    needsTwoRows: true,  // Default to two rows until measured (prevents flash)
     needsTruncation: false,
   });
 

@@ -8,7 +8,7 @@ interface LessonHeaderProps {
   lessonTitle: string;
   stages: Stage[];
   currentStageIndex: number;
-  viewingStageIndex: number;
+  viewingStageIndex: number | null;
   isViewingOther: boolean;
   canGoPrevious: boolean;
   canGoNext: boolean;
