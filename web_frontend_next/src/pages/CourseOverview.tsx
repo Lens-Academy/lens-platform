@@ -1,10 +1,13 @@
+"use client";
+
 /**
  * Course overview page with two-panel layout.
  * Sidebar shows units/lessons, main panel shows selected lesson details.
  */
 
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { getCourseProgress } from "../api/lessons";
 import type { CourseProgress, LessonInfo } from "../types/course";
@@ -15,9 +18,12 @@ import HeaderAuthStatus from "../components/unified-lesson/HeaderAuthStatus";
 import { useAuth } from "../hooks/useAuth";
 import { DISCORD_INVITE_URL } from "../config";
 
-export default function CourseOverview() {
-  const { courseId = "default" } = useParams();
-  const navigate = useNavigate();
+interface CourseOverviewProps {
+  courseId?: string;
+}
+
+export default function CourseOverview({ courseId = "default" }: CourseOverviewProps) {
+  const router = useRouter();
   const { login } = useAuth();
 
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
@@ -70,7 +76,7 @@ export default function CourseOverview() {
 
   const handleStartLesson = () => {
     if (!selectedLesson) return;
-    navigate(`/course/${courseId}/lesson/${selectedLesson.slug}`);
+    router.push(`/course/${courseId}/lesson/${selectedLesson.slug}`);
   };
 
   const handleStageClick = (index: number) => {
@@ -125,7 +131,7 @@ export default function CourseOverview() {
           </a>
           <div className="flex items-center gap-4">
             <Link
-              to="/course"
+              href="/course"
               className="text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200"
             >
               Course
