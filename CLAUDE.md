@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Critical Rules
+
+**NEVER push directly to `main` or `staging` branches.** These are production/staging servers used by real people. All changes must go through pull requests with CI checks. Always ask the user before pushing to any shared branch.
+
 ## Commands
 
 Run the server: `python main.py --dev`. This is a unified backend (FastAPI + Discord Bot) that also serves the frontend.
