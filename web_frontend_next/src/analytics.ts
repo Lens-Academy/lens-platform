@@ -1,13 +1,12 @@
-// web_frontend/src/analytics.ts
 import posthog from "posthog-js";
 
-const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY;
+const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST =
-  import.meta.env.VITE_POSTHOG_HOST || "https://eu.posthog.com";
+  process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://eu.posthog.com";
 const CONSENT_KEY = "analytics-consent";
 
 // PostHog only runs in production to keep analytics clean
-const IS_PRODUCTION = import.meta.env.PROD;
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 let initialized = false;
 
@@ -28,7 +27,7 @@ export function initPostHog(): void {
       console.log("[analytics] Skipping PostHog in development mode");
     } else if (!POSTHOG_KEY) {
       console.warn(
-        "[analytics] VITE_POSTHOG_KEY not set, skipping PostHog init"
+        "[analytics] NEXT_PUBLIC_POSTHOG_KEY not set, skipping PostHog init"
       );
     }
     return;

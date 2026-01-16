@@ -1,8 +1,7 @@
-// web_frontend/src/errorTracking.ts
 import * as Sentry from "@sentry/react";
 
-const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
-const APP_VERSION = import.meta.env.VITE_APP_VERSION || "unknown";
+const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "unknown";
 
 let initialized = false;
 
@@ -14,7 +13,7 @@ export function initSentry(): void {
   if (initialized || !SENTRY_DSN) {
     if (!SENTRY_DSN) {
       console.warn(
-        "[errorTracking] VITE_SENTRY_DSN not set, skipping Sentry init"
+        "[errorTracking] NEXT_PUBLIC_SENTRY_DSN not set, skipping Sentry init"
       );
     }
     return;
@@ -22,7 +21,7 @@ export function initSentry(): void {
 
   Sentry.init({
     dsn: SENTRY_DSN,
-    environment: import.meta.env.MODE,
+    environment: process.env.NODE_ENV,
     release: `ai-safety-course@${APP_VERSION}`,
     integrations: [
       Sentry.browserTracingIntegration(),
