@@ -1,4 +1,4 @@
-// web_frontend/src/pages/Terms.tsx
+"use client";
 
 export default function Terms() {
   return (

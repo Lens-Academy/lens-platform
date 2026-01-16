@@ -1,4 +1,4 @@
-// web_frontend/src/pages/Privacy.tsx
+"use client";
 
 export default function Privacy() {
   return (

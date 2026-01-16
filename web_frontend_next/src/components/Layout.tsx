@@ -1,10 +1,11 @@
-// web_frontend/src/components/Layout.tsx
+"use client";
+
 import { useState } from "react";
-import { Link, Outlet } from "react-router-dom";
+import Link from "next/link";
 import { DISCORD_INVITE_URL } from "../config";
 import CookieSettings from "./CookieSettings";
 
-export default function Layout() {
+export default function Layout({ children }: { children: React.ReactNode }) {
   const [showCookieSettings, setShowCookieSettings] = useState(false);
 
   return (
@@ -12,17 +13,17 @@ export default function Layout() {
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-stone-50/70 border-b border-slate-200/50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <a href="/" className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2">
               <img
                 src="/assets/Logo only.png"
                 alt="Lens Academy"
                 className="h-8"
               />
               <span className="text-xl font-semibold text-slate-800">Lens Academy</span>
-            </a>
+            </Link>
             <div className="flex items-center gap-4">
               <Link
-                to="/course"
+                href="/course"
                 className="text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200"
               >
                 Course
@@ -38,18 +39,18 @@ export default function Layout() {
         </div>
       </nav>
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 flex-1">
-        <Outlet />
+        {children}
       </main>
       <footer className="border-t border-slate-200 py-6 mt-auto">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center gap-4 text-sm text-slate-500">
-            <a href="/privacy" className="hover:text-slate-700">
+            <Link href="/privacy" className="hover:text-slate-700">
               Privacy Policy
-            </a>
+            </Link>
             <span>·</span>
-            <a href="/terms" className="hover:text-slate-700">
+            <Link href="/terms" className="hover:text-slate-700">
               Terms of Service
-            </a>
+            </Link>
             <span>·</span>
             <button
               onClick={() => setShowCookieSettings(true)}

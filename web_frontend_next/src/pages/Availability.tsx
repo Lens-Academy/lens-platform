@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import ScheduleSelector from "../components/schedule/ScheduleSelector";
