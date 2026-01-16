@@ -76,6 +76,8 @@ def set_session_cookie(response: Response, token: str) -> None:
         token: The JWT token to store
     """
     is_production = bool(os.environ.get("RAILWAY_ENVIRONMENT"))
+    cookie_domain = os.environ.get("COOKIE_DOMAIN")  # e.g., ".lensacademy.org"
+
     response.set_cookie(
         key="session",
         value=token,
@@ -83,6 +85,7 @@ def set_session_cookie(response: Response, token: str) -> None:
         secure=is_production,
         samesite="lax",
         max_age=60 * 60 * 24,  # 24 hours
+        domain=cookie_domain if is_production else None,
     )
 
 

@@ -49,11 +49,15 @@ def get_allowed_origins() -> list[str]:
         "http://localhost:8001",
         "http://localhost:8002",
         "http://localhost:8003",
+        "http://localhost:3000",  # Next.js dev
+        "http://localhost:3001",  # Next.js dev (alternate port)
         "http://127.0.0.1:5173",
         "http://127.0.0.1:8000",
         "http://127.0.0.1:8001",
         "http://127.0.0.1:8002",
         "http://127.0.0.1:8003",
+        "http://127.0.0.1:3000",  # Next.js dev
+        "http://127.0.0.1:3001",  # Next.js dev (alternate port)
     ]
 
     # Add production frontend URL if not already in list
