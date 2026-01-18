@@ -7,16 +7,20 @@ from fastapi.responses import Response
 from core.lessons.course_loader import (
     load_course,
     get_next_lesson,
-    get_lessons,
     CourseNotFoundError,
+    _extract_slug_from_path,
 )
-from core.lessons.types import LessonRef, Meeting
+from core.lessons.markdown_parser import LessonRef, MeetingMarker
 from core.lessons import (
     load_lesson,
     get_user_lesson_progress,
-    get_stage_title,
-    get_stage_duration,
     LessonNotFoundError,
+)
+from core.lessons.markdown_parser import (
+    VideoSection,
+    ArticleSection,
+    TextSection,
+    ChatSection,
 )
 from web_api.auth import get_optional_user
 from core import get_or_create_user
@@ -77,13 +81,13 @@ async def get_course_progress(course_slug: str, request: Request):
     # Get user's progress
     progress = await get_user_lesson_progress(user_id)
 
-    # Build units by splitting progression on Meeting objects
+    # Build units by splitting progression on MeetingMarker objects
     units = []
     current_lessons = []
     current_meeting_number = None
 
     for item in course.progression:
-        if isinstance(item, Meeting):
+        if isinstance(item, MeetingMarker):
             # When we hit a meeting, save the current unit if it has lessons
             if current_lessons:
                 units.append(
@@ -95,14 +99,17 @@ async def get_course_progress(course_slug: str, request: Request):
                 current_lessons = []
             current_meeting_number = item.number
         elif isinstance(item, LessonRef):
+            # Extract lesson slug from path (e.g., "lessons/introduction" -> "introduction")
+            lesson_slug = _extract_slug_from_path(item.path)
+
             # Load lesson details
             try:
-                lesson = load_lesson(item.slug)
+                lesson = load_lesson(lesson_slug)
             except LessonNotFoundError:
                 continue
 
             lesson_progress = progress.get(
-                item.slug,
+                lesson_slug,
                 {
                     "status": "not_started",
                     "current_stage_index": None,
@@ -110,15 +117,30 @@ async def get_course_progress(course_slug: str, request: Request):
                 },
             )
 
-            # Build stages info
+            # Build sections info (named "stages" for API compatibility)
             stages = []
-            for stage in lesson.stages:
+            for section in lesson.sections:
+                # Get section title based on type
+                if isinstance(section, (VideoSection, ArticleSection)):
+                    title = (
+                        section.source.split("/")[-1]
+                        .replace(".md", "")
+                        .replace("-", " ")
+                        .title()
+                    )
+                elif isinstance(section, TextSection):
+                    title = "Text"
+                elif isinstance(section, ChatSection):
+                    title = "Discussion"
+                else:
+                    title = section.type.title()
+
                 stages.append(
                     {
-                        "type": stage.type,
-                        "title": get_stage_title(stage),
-                        "duration": get_stage_duration(stage) or None,
-                        "optional": getattr(stage, "optional", False),
+                        "type": section.type,
+                        "title": title,
+                        "duration": None,  # Duration calculation not available for new format
+                        "optional": getattr(section, "optional", False),
                     }
                 )
 

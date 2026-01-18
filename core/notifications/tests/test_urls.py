@@ -1,6 +1,5 @@
 """Tests for URL builder utilities."""
 
-import pytest
 from unittest.mock import patch
 
 

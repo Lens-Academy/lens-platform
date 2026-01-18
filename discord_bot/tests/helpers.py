@@ -12,8 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.tables import cohorts, users, signups, groups, groups_users
-from core.enums import CohortRole, GroupUserRole, GroupUserStatus
+from core.tables import cohorts, users, signups, groups
+from core.enums import CohortRole
 
 
 async def create_test_cohort(

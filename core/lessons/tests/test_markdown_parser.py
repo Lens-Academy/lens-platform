@@ -1,12 +1,9 @@
 # core/lessons/tests/test_markdown_parser.py
 """Tests for the Markdown lesson/course parser."""
 
-import pytest
 from core.lessons.markdown_parser import (
     parse_lesson,
     parse_course,
-    ParsedLesson,
-    ParsedCourse,
     VideoSection,
     ArticleSection,
     TextSection,
@@ -56,7 +53,7 @@ content::
         assert len(lesson.sections) == 1
         section = lesson.sections[0]
         assert isinstance(section, TextSection)
-        assert section.title == "Summary"
+        # Note: title field was removed from TextSection dataclass
         assert "# Key Takeaways" in section.content  # ! should be unescaped
         assert "!#" not in section.content
 
@@ -80,7 +77,7 @@ Topics:
         assert len(lesson.sections) == 1
         section = lesson.sections[0]
         assert isinstance(section, ChatSection)
-        assert section.title == "Discussion"
+        # Note: title field was removed from ChatSection dataclass
         assert section.show_user_previous_content is False
         assert "Ask the user" in section.instructions
 
@@ -116,7 +113,7 @@ Discuss the video.
         section = lesson.sections[0]
 
         assert isinstance(section, VideoSection)
-        assert section.title == "Test Video"
+        # Note: title field was removed from VideoSection dataclass
         assert section.source == "video_transcripts/test-video"
         assert len(section.segments) == 3
 
@@ -169,11 +166,11 @@ What did you learn?
         assert section.source == "articles/test-article"
         assert len(section.segments) == 3
 
-        # Article excerpt segment
+        # Article excerpt segment - quotes are now stripped
         seg1 = section.segments[1]
         assert isinstance(seg1, ArticleExcerptSegment)
-        assert seg1.from_text == '"Start here"'
-        assert seg1.to_text == '"End here"'
+        assert seg1.from_text == "Start here"
+        assert seg1.to_text == "End here"
 
 
 class TestParseMultipleSections:
@@ -207,14 +204,15 @@ The end.
         lesson = parse_lesson(text)
         assert len(lesson.sections) == 3
 
+        # Note: title field was removed from all section dataclasses
         assert isinstance(lesson.sections[0], VideoSection)
-        assert lesson.sections[0].title == "First Video"
+        assert lesson.sections[0].source == "video_transcripts/vid1"
 
         assert isinstance(lesson.sections[1], ArticleSection)
-        assert lesson.sections[1].title == "First Article"
+        assert lesson.sections[1].source == "articles/art1"
 
         assert isinstance(lesson.sections[2], TextSection)
-        assert lesson.sections[2].title == "Summary"
+        assert lesson.sections[2].content == "The end."
 
 
 class TestParseCourse:
@@ -263,6 +261,125 @@ optional:: true
         item3 = course.progression[3]
         assert isinstance(item3, MeetingMarker)
         assert item3.number == 2
+
+
+class TestRealLessonParsing:
+    """Test parsing with real lesson fixture from GitHub."""
+
+    def test_parse_introduction_sample(self):
+        """Should parse the introduction sample matching expected output."""
+        import json
+        from pathlib import Path
+
+        fixtures_dir = Path(__file__).parent / "fixtures"
+
+        # Load markdown input
+        md_path = fixtures_dir / "introduction_sample.md"
+        md_content = md_path.read_text()
+
+        # Load expected output
+        json_path = fixtures_dir / "introduction_sample_expected.json"
+        expected = json.loads(json_path.read_text())
+
+        # Parse
+        lesson = parse_lesson(md_content)
+
+        # Verify basic fields
+        assert lesson.slug == expected["slug"]
+        assert lesson.title == expected["title"]
+        assert len(lesson.sections) == len(expected["sections"]), (
+            f"Expected {len(expected['sections'])} sections, got {len(lesson.sections)}"
+        )
+
+        # Verify each section
+        for i, (actual, exp) in enumerate(zip(lesson.sections, expected["sections"])):
+            assert actual.type == exp["type"], (
+                f"Section {i} type mismatch: {actual.type} != {exp['type']}"
+            )
+
+            # Verify sections don't have title attribute in serialization
+            assert (
+                not hasattr(actual, "title")
+                or getattr(actual, "title", None) is None
+                or "title" not in exp
+            ), f"Section {i} should not have title field"
+
+            if exp["type"] == "video":
+                assert actual.source == exp["source"], f"Section {i} source mismatch"
+                assert len(actual.segments) == len(exp["segments"]), (
+                    f"Section {i} segment count: {len(actual.segments)} != {len(exp['segments'])}"
+                )
+                # Check optional field
+                if "optional" in exp:
+                    assert actual.optional == exp["optional"], (
+                        f"Section {i} optional mismatch"
+                    )
+                else:
+                    assert actual.optional is False, (
+                        f"Section {i} optional should default to False"
+                    )
+
+                # Verify segments
+                for j, (actual_seg, exp_seg) in enumerate(
+                    zip(actual.segments, exp["segments"])
+                ):
+                    assert actual_seg.type == exp_seg["type"], (
+                        f"Section {i} segment {j} type mismatch"
+                    )
+                    if exp_seg["type"] == "video-excerpt":
+                        assert actual_seg.from_time == exp_seg["from_time"], (
+                            f"Section {i} segment {j} from_time: {actual_seg.from_time} != {exp_seg['from_time']}"
+                        )
+                        assert actual_seg.to_time == exp_seg["to_time"], (
+                            f"Section {i} segment {j} to_time: {actual_seg.to_time} != {exp_seg['to_time']}"
+                        )
+                    elif exp_seg["type"] == "text":
+                        assert actual_seg.content == exp_seg["content"], (
+                            f"Section {i} segment {j} content mismatch"
+                        )
+
+            elif exp["type"] == "article":
+                assert actual.source == exp["source"], f"Section {i} source mismatch"
+                assert len(actual.segments) == len(exp["segments"]), (
+                    f"Section {i} segment count: {len(actual.segments)} != {len(exp['segments'])}"
+                )
+                # Check optional field
+                if "optional" in exp:
+                    assert actual.optional == exp["optional"], (
+                        f"Section {i} optional mismatch"
+                    )
+                else:
+                    assert actual.optional is False, (
+                        f"Section {i} optional should default to False"
+                    )
+
+                # Verify article-excerpt segments have stripped quotes
+                for j, (actual_seg, exp_seg) in enumerate(
+                    zip(actual.segments, exp["segments"])
+                ):
+                    assert actual_seg.type == exp_seg["type"], (
+                        f"Section {i} segment {j} type mismatch"
+                    )
+                    if exp_seg["type"] == "article-excerpt":
+                        assert actual_seg.from_text == exp_seg["from_text"], (
+                            f"Section {i} segment {j} from_text: {actual_seg.from_text!r} != {exp_seg['from_text']!r}"
+                        )
+                        assert actual_seg.to_text == exp_seg["to_text"], (
+                            f"Section {i} segment {j} to_text: {actual_seg.to_text!r} != {exp_seg['to_text']!r}"
+                        )
+
+            elif exp["type"] == "chat":
+                assert (
+                    actual.show_user_previous_content
+                    == exp["show_user_previous_content"]
+                ), f"Section {i} show_user_previous_content mismatch"
+                assert (
+                    actual.show_tutor_previous_content
+                    == exp["show_tutor_previous_content"]
+                ), f"Section {i} show_tutor_previous_content mismatch"
+                assert actual.instructions == exp["instructions"], (
+                    f"Section {i} instructions mismatch"
+                )
 
 
 class TestContentHeaderUnescaping:

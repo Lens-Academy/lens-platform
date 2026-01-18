@@ -195,7 +195,6 @@ class TestBecomeFacilitator:
     @pytest.mark.asyncio
     async def test_adds_user_to_facilitators(self, db_conn):
         """Should add user to facilitators table."""
-        from core.tables import facilitators
 
         user_result = await db_conn.execute(
             insert(users)

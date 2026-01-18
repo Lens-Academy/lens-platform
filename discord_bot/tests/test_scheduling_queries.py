@@ -15,7 +15,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.queries.cohorts import (
     get_schedulable_cohorts,
     get_realizable_cohorts,
-    get_cohort_by_id,
 )
 from core.queries.groups import (
     create_group,

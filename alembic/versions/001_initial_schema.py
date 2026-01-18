@@ -12,8 +12,6 @@ For new databases, this creates all tables from SQLAlchemy models.
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "001"

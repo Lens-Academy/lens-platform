@@ -1,11 +1,9 @@
 # core/lessons/course_loader.py
-"""Load course definitions from YAML files."""
+"""Load course definitions from cache."""
 
-import yaml
-from pathlib import Path
-
-from .types import Course, Module, LessonRef, Meeting
-from .loader import load_lesson, LessonNotFoundError
+from core.content import get_cache
+from core.lessons.markdown_parser import ParsedCourse, LessonRef, MeetingMarker
+from .loader import load_narrative_lesson, LessonNotFoundError
 
 
 class CourseNotFoundError(Exception):
@@ -14,43 +12,29 @@ class CourseNotFoundError(Exception):
     pass
 
 
-COURSES_DIR = Path(__file__).parent.parent.parent / "educational_content" / "courses"
+def load_course(course_slug: str) -> ParsedCourse:
+    """Load a course by slug from the cache."""
+    cache = get_cache()
 
-
-def load_course(course_slug: str) -> Course:
-    """Load a course by slug from the courses directory."""
-    course_path = COURSES_DIR / f"{course_slug}.yaml"
-
-    if not course_path.exists():
+    if course_slug not in cache.courses:
         raise CourseNotFoundError(f"Course not found: {course_slug}")
 
-    with open(course_path) as f:
-        data = yaml.safe_load(f)
+    return cache.courses[course_slug]
 
-    # Parse progression items from YAML
-    progression: list[LessonRef | Meeting] = []
-    for item in data["progression"]:
-        if "lesson" in item:
-            progression.append(
-                LessonRef(
-                    slug=item["lesson"],
-                    optional=item.get("optional", False),
-                )
-            )
-        elif "meeting" in item:
-            progression.append(Meeting(number=item["meeting"]))
 
-    return Course(
-        slug=data["slug"],
-        title=data["title"],
-        progression=progression,
-    )
+def _extract_slug_from_path(path: str) -> str:
+    """Extract lesson slug from path like 'lessons/introduction' -> 'introduction'."""
+    return path.split("/")[-1]
 
 
 def get_all_lesson_slugs(course_slug: str) -> list[str]:
     """Get flat list of all lesson slugs in course order."""
     course = load_course(course_slug)
-    return [item.slug for item in course.progression if isinstance(item, LessonRef)]
+    return [
+        _extract_slug_from_path(item.path)
+        for item in course.progression
+        if isinstance(item, LessonRef)
+    ]
 
 
 def get_next_lesson(course_slug: str, current_lesson_slug: str) -> dict | None:
@@ -66,9 +50,12 @@ def get_next_lesson(course_slug: str, current_lesson_slug: str) -> dict | None:
     # Find the current lesson's index in progression
     current_index = None
     for i, item in enumerate(course.progression):
-        if isinstance(item, LessonRef) and item.slug == current_lesson_slug:
-            current_index = i
-            break
+        if isinstance(item, LessonRef):
+            # Extract slug from path (e.g., "lessons/introduction" -> "introduction")
+            item_slug = _extract_slug_from_path(item.path)
+            if item_slug == current_lesson_slug:
+                current_index = i
+                break
 
     if current_index is None:
         return None  # Lesson not in this course
@@ -80,15 +67,16 @@ def get_next_lesson(course_slug: str, current_lesson_slug: str) -> dict | None:
 
     next_item = course.progression[next_index]
 
-    if isinstance(next_item, Meeting):
+    if isinstance(next_item, MeetingMarker):
         return {"type": "unit_complete", "unit_number": next_item.number}
 
     if isinstance(next_item, LessonRef):
+        next_slug = _extract_slug_from_path(next_item.path)
         try:
-            next_lesson = load_lesson(next_item.slug)
+            next_lesson = load_narrative_lesson(next_slug)
             return {
                 "type": "lesson",
-                "slug": next_item.slug,
+                "slug": next_slug,
                 "title": next_lesson.title,
             }
         except LessonNotFoundError:
@@ -97,7 +85,7 @@ def get_next_lesson(course_slug: str, current_lesson_slug: str) -> dict | None:
     return None
 
 
-def get_lessons(course: Course) -> list[LessonRef]:
+def get_lessons(course: ParsedCourse) -> list[LessonRef]:
     """Get all lesson references from a course, excluding meetings.
 
     Args:
@@ -109,7 +97,7 @@ def get_lessons(course: Course) -> list[LessonRef]:
     return [item for item in course.progression if isinstance(item, LessonRef)]
 
 
-def get_required_lessons(course: Course) -> list[LessonRef]:
+def get_required_lessons(course: ParsedCourse) -> list[LessonRef]:
     """Get only required (non-optional) lesson references from a course.
 
     Args:
@@ -125,7 +113,7 @@ def get_required_lessons(course: Course) -> list[LessonRef]:
     ]
 
 
-def get_due_by_meeting(course: Course, lesson_slug: str) -> int | None:
+def get_due_by_meeting(course: ParsedCourse, lesson_slug: str) -> int | None:
     """Get the meeting number by which a lesson should be completed.
 
     Lessons are due by the next meeting that follows them in the progression.
@@ -141,9 +129,11 @@ def get_due_by_meeting(course: Course, lesson_slug: str) -> int | None:
     found_lesson = False
 
     for item in course.progression:
-        if isinstance(item, LessonRef) and item.slug == lesson_slug:
-            found_lesson = True
-        elif found_lesson and isinstance(item, Meeting):
+        if isinstance(item, LessonRef):
+            item_slug = _extract_slug_from_path(item.path)
+            if item_slug == lesson_slug:
+                found_lesson = True
+        elif found_lesson and isinstance(item, MeetingMarker):
             return item.number
 
     return None

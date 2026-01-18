@@ -78,6 +78,7 @@ from fastapi import FastAPI
 from core.database import close_engine, check_connection
 from core import get_allowed_origins, is_dev_mode
 from core.config import check_required_env_vars
+from core.content import initialize_cache, ContentBranchNotConfiguredError
 from core.notifications import init_scheduler, shutdown_scheduler
 from core.calendar.rsvp import sync_upcoming_meeting_rsvps
 from core.notifications.channels.discord import set_bot as set_notification_bot
@@ -97,6 +98,7 @@ from web_api.routes.speech import router as speech_router
 from web_api.routes.cohorts import router as cohorts_router
 from web_api.routes.courses import router as courses_router
 from web_api.routes.facilitator import router as facilitator_router
+from web_api.routes.content import router as content_router
 
 # Track bot task for cleanup
 _bot_task: asyncio.Task | None = None
@@ -207,6 +209,18 @@ async def lifespan(app: FastAPI):
 
     skip_db = os.getenv("SKIP_DB_CHECK", "").lower() in ("true", "1", "yes")
 
+    # Initialize educational content cache from GitHub
+    try:
+        await initialize_cache()
+    except ContentBranchNotConfiguredError as e:
+        print(f"✗ Content cache: {e}")
+        print("  └─ Set EDUCATIONAL_CONTENT_BRANCH=staging (or main for production)")
+        sys.exit(1)
+    except Exception as e:
+        print(f"✗ Content cache failed: {e}")
+        print("  └─ Check GITHUB_TOKEN and network connectivity")
+        sys.exit(1)
+
     # Check database connection (runs in uvicorn's event loop - no issues)
     if not skip_db:
         print("Checking database connection...")
@@ -295,6 +309,7 @@ app.include_router(speech_router)
 app.include_router(cohorts_router)
 app.include_router(courses_router)
 app.include_router(facilitator_router)
+app.include_router(content_router)
 
 
 # New paths for static files

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from ..tables import (
@@ -11,7 +11,6 @@ from ..tables import (
     groups_users,
     users,
     lesson_sessions,
-    cohorts,
 )
 from ..enums import ContentEventType
 

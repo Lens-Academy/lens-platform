@@ -11,7 +11,7 @@ This file is intentionally duplicated across two repositories:
 
 1. ai-safety-course-platform/core/transcripts/tools.py (THIS FILE)
    - Production lookups for serving lessons
-   - Points to educational_content/video_transcripts/
+   - Points to educational_content_deprecated/video_transcripts/
 
 2. youtube-transcripts/transcript_tools.py
    - Verification during transcript correction workflow
@@ -30,9 +30,12 @@ import json
 import re
 
 
-# Default directory for transcript files (educational_content/video_transcripts/)
+# Default directory for transcript files (educational_content_deprecated/video_transcripts/)
+# NOTE: This is the deprecated local content directory. Video transcripts are now
+# loaded from GitHub and cached in memory via core/content/. This path is kept
+# for backwards compatibility with timestamp lookup tools.
 TRANSCRIPTS_DIR = (
-    Path(__file__).parent.parent.parent / "educational_content" / "video_transcripts"
+    Path(__file__).parent.parent.parent / "educational_content_deprecated" / "video_transcripts"
 )
 
 
@@ -62,7 +65,7 @@ def find_transcript_timestamps(
 
     Args:
         video_id: YouTube video ID (e.g., "pYXy-A4siMw")
-        search_dir: Directory to search (default: educational_content/video_transcripts/)
+        search_dir: Directory to search (default: educational_content_deprecated/video_transcripts/)
 
     Returns:
         Path to the .timestamps.json file
@@ -100,7 +103,7 @@ def get_text_at_time(
         video_id: YouTube video ID
         start: Start time in seconds
         end: End time in seconds
-        search_dir: Directory to search (default: educational_content/video_transcripts/)
+        search_dir: Directory to search (default: educational_content_deprecated/video_transcripts/)
 
     Returns:
         Text spoken between start and end times
@@ -211,7 +214,7 @@ def get_time_from_text(
         video_id: YouTube video ID
         first_words: First ~5 words of the quote
         last_words: Last ~5 words of the quote
-        search_dir: Directory to search (default: educational_content/video_transcripts/)
+        search_dir: Directory to search (default: educational_content_deprecated/video_transcripts/)
 
     Returns:
         {"start": float, "end": float}

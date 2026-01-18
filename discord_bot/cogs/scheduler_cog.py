@@ -13,7 +13,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core import (
     schedule_cohort,
-    CohortSchedulingResult,
 )
 from core.database import get_connection
 from core.queries.cohorts import get_schedulable_cohorts

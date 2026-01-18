@@ -5,7 +5,7 @@ Tests the full conversion pipeline WITHOUT running the actual scheduler.
 """
 
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import insert
 
 import sys
 from pathlib import Path

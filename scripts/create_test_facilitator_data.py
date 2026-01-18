@@ -25,7 +25,7 @@ from dotenv import load_dotenv
 
 load_dotenv(".env.local")
 
-from sqlalchemy import insert, text
+from sqlalchemy import insert
 from core.database import get_connection
 from core.tables import (
     users,
@@ -229,8 +229,8 @@ async def create_test_data():
 
         await conn.commit()
         print("\nTest data created successfully!")
-        print(f"\nTo view: http://localhost:5174/facilitator")
-        print(f"To delete: python scripts/delete_test_facilitator_data.py")
+        print("\nTo view: http://localhost:5174/facilitator")
+        print("To delete: python scripts/delete_test_facilitator_data.py")
 
 
 async def create_user_progress(conn, user):

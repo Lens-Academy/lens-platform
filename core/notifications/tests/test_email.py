@@ -1,6 +1,5 @@
 """Tests for email channel."""
 
-import pytest
 from unittest.mock import patch, MagicMock
 
 from core.notifications.channels.email import send_email, EmailMessage

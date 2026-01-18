@@ -339,7 +339,7 @@ class BreakoutCog(commands.Cog):
             )
         else:
             await interaction.followup.send(
-                f"Breakout rooms deleted. Could not move users (original channel not found)."
+                "Breakout rooms deleted. Could not move users (original channel not found)."
             )
 
     @app_commands.command(

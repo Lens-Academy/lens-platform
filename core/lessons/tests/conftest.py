@@ -98,19 +98,33 @@ def fixtures_courses_dir():
 
 @pytest.fixture
 def patch_lessons_dir(monkeypatch, fixtures_lessons_dir):
-    """Patch LESSONS_DIR to use test fixtures."""
-    import core.lessons.loader as loader_module
-    monkeypatch.setattr(loader_module, "LESSONS_DIR", fixtures_lessons_dir)
+    """Patch LESSONS_DIR to use test fixtures.
+
+    NOTE: With the cache-based loader, this fixture is mostly obsolete.
+    Use cache fixtures instead (see test_courses.py for examples).
+    """
+    # This fixture is kept for backward compatibility but may not work
+    # since loaders now use cache instead of filesystem
+    pass
 
 
 @pytest.fixture
 def patch_courses_dir(monkeypatch, fixtures_courses_dir):
-    """Patch COURSES_DIR to use test fixtures."""
-    import core.lessons.course_loader as course_loader_module
-    monkeypatch.setattr(course_loader_module, "COURSES_DIR", fixtures_courses_dir)
+    """Patch COURSES_DIR to use test fixtures.
+
+    NOTE: DEPRECATED - course_loader.py no longer uses COURSES_DIR.
+    Use cache fixtures instead (see test_courses.py for examples).
+    """
+    # This fixture is kept for backward compatibility but no longer works
+    # since course_loader.py now uses cache instead of filesystem
+    pass
 
 
 @pytest.fixture
 def patch_all_dirs(patch_lessons_dir, patch_courses_dir):
-    """Patch both LESSONS_DIR and COURSES_DIR to use test fixtures."""
-    pass  # Just combines the two patches
+    """Patch both LESSONS_DIR and COURSES_DIR to use test fixtures.
+
+    NOTE: DEPRECATED - loaders now use cache instead of filesystem.
+    Use cache fixtures instead (see test_courses.py for examples).
+    """
+    pass  # No longer patches anything - use cache fixtures
