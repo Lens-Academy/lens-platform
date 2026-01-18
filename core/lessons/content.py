@@ -435,3 +435,123 @@ def get_stage_duration(stage) -> str:
 
     _duration_cache[cache_key] = duration
     return duration
+
+
+def bundle_narrative_lesson(lesson) -> dict:
+    """
+    Bundle a narrative lesson with all content extracted.
+
+    Resolves all article excerpts and video transcripts inline.
+
+    Args:
+        lesson: NarrativeLesson dataclass
+
+    Returns:
+        Dict ready for JSON serialization
+    """
+    from .types import (
+        TextSection,
+        ArticleSection,
+        VideoSection,
+        TextSegment,
+        ArticleExcerptSegment,
+        VideoExcerptSegment,
+        ChatSegment,
+    )
+    from core.transcripts import get_text_at_time
+
+    def bundle_segment(segment, section) -> dict:
+        """Bundle a single segment with content."""
+        if isinstance(segment, TextSegment):
+            return {"type": "text", "content": segment.content}
+
+        elif isinstance(segment, ArticleExcerptSegment):
+            # Extract content from parent article
+            if isinstance(section, ArticleSection):
+                result = load_article_with_metadata(
+                    section.source,
+                    segment.from_text,
+                    segment.to_text,
+                )
+                return {"type": "article-excerpt", "content": result.content}
+            return {"type": "article-excerpt", "content": ""}
+
+        elif isinstance(segment, VideoExcerptSegment):
+            # Extract transcript from parent video
+            if isinstance(section, VideoSection):
+                video_result = load_video_transcript_with_metadata(section.source)
+                video_id = video_result.metadata.video_id
+                try:
+                    transcript = get_text_at_time(
+                        video_id,
+                        segment.from_seconds,
+                        segment.to_seconds,
+                    )
+                except FileNotFoundError:
+                    transcript = ""
+                return {
+                    "type": "video-excerpt",
+                    "from": segment.from_seconds,
+                    "to": segment.to_seconds,
+                    "transcript": transcript,
+                }
+            return {"type": "video-excerpt", "from": 0, "to": 0, "transcript": ""}
+
+        elif isinstance(segment, ChatSegment):
+            return {
+                "type": "chat",
+                "instructions": segment.instructions,
+                "showUserPreviousContent": segment.show_user_previous_content,
+                "showTutorPreviousContent": segment.show_tutor_previous_content,
+            }
+
+        return {}
+
+    def bundle_section(section) -> dict:
+        """Bundle a single section with metadata and content."""
+        if isinstance(section, TextSection):
+            return {"type": "text", "content": section.content}
+
+        elif isinstance(section, ArticleSection):
+            # Load article metadata
+            try:
+                result = load_article_with_metadata(section.source)
+                meta = {
+                    "title": result.metadata.title,
+                    "author": result.metadata.author,
+                    "sourceUrl": result.metadata.source_url,
+                }
+            except FileNotFoundError:
+                meta = {"title": None, "author": None, "sourceUrl": None}
+
+            segments = [bundle_segment(s, section) for s in section.segments]
+            return {"type": "article", "meta": meta, "segments": segments}
+
+        elif isinstance(section, VideoSection):
+            # Load video metadata
+            try:
+                result = load_video_transcript_with_metadata(section.source)
+                video_id = result.metadata.video_id
+                meta = {
+                    "title": result.metadata.title,
+                    "channel": None,  # Not in current frontmatter
+                }
+            except FileNotFoundError:
+                video_id = None
+                meta = {"title": None, "channel": None}
+
+            segments = [bundle_segment(s, section) for s in section.segments]
+            return {
+                "type": "video",
+                "videoId": video_id,
+                "meta": meta,
+                "segments": segments,
+            }
+
+        return {}
+
+    return {
+        "slug": lesson.slug,
+        "title": lesson.title,
+        "sections": [bundle_section(s) for s in lesson.sections],
+    }
