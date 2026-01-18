@@ -44,6 +44,8 @@ from core.lessons import (
     get_stage_title,
     get_stage_duration,
 )
+from core.lessons.loader import load_narrative_lesson
+from core.lessons.content import bundle_narrative_lesson
 from core import get_or_create_user
 from core.notifications import schedule_trial_nudge, cancel_trial_nudge
 from core.notifications.urls import build_lesson_url
@@ -157,7 +159,15 @@ def serialize_video_stage(s: VideoStage) -> dict:
 
 @router.get("/lessons/{lesson_slug}")
 async def get_lesson(lesson_slug: str):
-    """Get a lesson definition."""
+    """Get a lesson definition (supports both staged and narrative formats)."""
+    # First try loading as narrative lesson
+    try:
+        lesson = load_narrative_lesson(lesson_slug)
+        return bundle_narrative_lesson(lesson)
+    except (LessonNotFoundError, KeyError):
+        pass  # Not a narrative lesson or missing 'sections' key
+
+    # Fall back to staged lesson format
     try:
         lesson = load_lesson(lesson_slug)
         return {
@@ -390,7 +400,11 @@ async def get_session_state(
                 "title": get_stage_title(s),
                 "duration": get_stage_duration(s),
                 **(
-                    {"source": s.source, "optional": s.optional, "introduction": s.introduction}
+                    {
+                        "source": s.source,
+                        "optional": s.optional,
+                        "introduction": s.introduction,
+                    }
                     if s.type == "article"
                     else {}
                 ),
