@@ -7,103 +7,24 @@ import Link from "next/link";
 import NarrativeLesson from "@/views/NarrativeLesson";
 import type { NarrativeLesson as NarrativeLessonType } from "@/types/narrative-lesson";
 
-// Hardcoded test lesson for development
-const TEST_LESSON: NarrativeLessonType = {
-  format: "narrative",
-  slug: "narrative-test",
-  title: "Test Narrative Lesson",
-  sections: [
-    {
-      type: "article",
-      source: "articles/tim-urban-artificial-intelligence-revolution-1.md",
-      label: "The AI Revolution",
-      segments: [
-        {
-          type: "text",
-          content: `Welcome to this lesson on the AI Revolution.
-
-We'll be reading Tim Urban's famous essay from Wait But Why.
-Pay attention to the concept of "Die Progress Units" - it's a
-memorable way to think about accelerating change.`,
-        },
-        {
-          type: "article-excerpt",
-          from: "What does it feel like to stand here?",
-          to: "## The Far Future—Coming Soon",
-        },
-        {
-          type: "text",
-          content: `**Reflection question:**
-
-Urban describes bringing someone from 1750 to today. What do you
-think would shock them most - and what might they adapt to quickly?`,
-        },
-        {
-          type: "chat",
-        },
-        {
-          type: "article-excerpt",
-          from: "## The Far Future—Coming Soon",
-          to: "## What Is AI?",
-        },
-        {
-          type: "text",
-          content: `Urban introduces the idea of **exponential thinking** vs **linear thinking**.
-
-This is one of the most common mistakes people make when predicting
-the future of AI. Let's make sure you understand it.`,
-        },
-        {
-          type: "chat",
-        },
-      ],
-    },
-    {
-      type: "video",
-      videoId: "pYXy-A4siMw",
-      label: "AI Explained",
-      segments: [
-        {
-          type: "text",
-          content: `Now let's watch a video that covers similar ground with some
-additional visual explanations.`,
-        },
-        {
-          type: "video-excerpt",
-          from: 0,
-          to: 180,
-        },
-        {
-          type: "text",
-          content: `**Quick check:** What's the key difference between ANI and AGI?`,
-        },
-        {
-          type: "chat",
-        },
-        {
-          type: "text",
-          content: `## Summary
-
-Key takeaways from this lesson:
-- Progress is exponential, not linear
-- We're currently in the ANI era
-- The AGI → ASI transition could be rapid`,
-        },
-      ],
-    },
-  ],
-};
-
-// TODO: Replace with actual API call
 async function fetchNarrativeLesson(
   slug: string,
 ): Promise<NarrativeLessonType | null> {
-  // Return hardcoded test lesson for development
-  if (slug === "narrative-test") {
-    return TEST_LESSON;
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const response = await fetch(`${apiBase}/api/lessons/${slug}`);
+
+  if (!response.ok) {
+    return null;
   }
-  console.log("Fetching narrative lesson:", slug);
-  return null;
+
+  const data = await response.json();
+
+  // Check if this is a narrative lesson (has sections, not stages)
+  if (!data.sections) {
+    return null;
+  }
+
+  return data as NarrativeLessonType;
 }
 
 export default function NarrativeLessonPage() {
