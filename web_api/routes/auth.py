@@ -25,11 +25,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core import get_or_create_user, get_user_profile, validate_and_use_auth_code
 from core.database import get_connection
 from core.queries.users import get_user_enrollment_status
-from core import (
+from core.config import (
     is_dev_mode,
     is_production,
     get_api_port,
-    get_vite_port,
+    get_frontend_port,
     get_allowed_origins,
 )
 from web_api.auth import create_jwt, get_optional_user, set_session_cookie
@@ -42,12 +42,11 @@ DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET")
 
 # Compute URLs based on mode - using centralized config
 _api_port = get_api_port()
-_vite_port = get_vite_port()
 
 if is_dev_mode():
-    # Dev mode: Vite runs on separate port
+    # Dev mode: Next.js runs on separate port (auto-assigned by workspace)
     DISCORD_REDIRECT_URI = f"http://localhost:{_api_port}/auth/discord/callback"
-    FRONTEND_URL = f"http://localhost:{_vite_port}"
+    FRONTEND_URL = f"http://localhost:{get_frontend_port()}"
 elif is_production():
     # Production: use explicit env vars
     DISCORD_REDIRECT_URI = os.environ.get(

@@ -52,21 +52,26 @@ else:
 # (auth.py computes DISCORD_REDIRECT_URI based on DEV_MODE at import time)
 if __name__ == "__main__":
     import argparse
+    import re
+
+    # Extract workspace number from directory name (e.g., "platform-ws2" → 2)
+    # Used to auto-assign ports: ws1 gets 8000/3000, ws2 gets 8001/3001, etc.
+    _workspace_match = re.search(r"-ws(\d+)$", Path.cwd().name)
+    _ws_num = int(_workspace_match.group(1)) if _workspace_match else 1
+    _default_api_port = 8000 + (_ws_num - 1)
+    _default_frontend_port = 3000 + (_ws_num - 1)
 
     _early_parser = argparse.ArgumentParser(add_help=False)
     _early_parser.add_argument("--dev", action="store_true")
     _early_parser.add_argument("--no-db", action="store_true")
     _early_parser.add_argument(
-        "--port", type=int, default=int(os.getenv("API_PORT", "8000"))
-    )
-    _early_parser.add_argument(
-        "--vite-port", type=int, default=int(os.getenv("VITE_PORT", "5173"))
+        "--port", type=int, default=int(os.getenv("API_PORT", str(_default_api_port)))
     )
     _early_args, _ = _early_parser.parse_known_args()
     if _early_args.dev:
         os.environ["DEV_MODE"] = "true"
         os.environ["API_PORT"] = str(_early_args.port)
-        os.environ["VITE_PORT"] = str(_early_args.vite_port)
+        os.environ["FRONTEND_PORT"] = str(_default_frontend_port)
     else:
         # Production single-service mode: frontend served from same port as API
         os.environ["API_PORT"] = str(_early_args.port)
@@ -102,7 +107,6 @@ from web_api.routes.content import router as content_router
 
 # Track bot task for cleanup
 _bot_task: asyncio.Task | None = None
-_vite_process: asyncio.subprocess.Process | None = None
 
 
 async def start_bot():
@@ -136,74 +140,13 @@ async def stop_bot():
         print("Discord bot stopped")
 
 
-async def start_vite_dev():
-    """
-    Start Vite dev server as subprocess.
-
-    Only runs when DEV_MODE is enabled (via --dev flag).
-    The Vite server provides HMR for frontend development.
-    Port is read from VITE_PORT env var (default: 5173).
-    """
-    global _vite_process
-
-    if os.getenv("DEV_MODE", "").lower() not in ("true", "1", "yes"):
-        return
-
-    port = int(os.getenv("VITE_PORT", "5173"))
-
-    try:
-        _vite_process = await asyncio.create_subprocess_exec(
-            "npm",
-            "run",
-            "dev",
-            "--",
-            "--port",
-            str(port),
-            "--strictPort",  # Fail if port is busy instead of auto-escalating
-            cwd=project_root / "web_frontend",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-        )
-        print(f"Vite dev server started on port {port} (PID {_vite_process.pid})")
-
-        # Stream Vite output (don't await - let it run in background)
-        asyncio.create_task(_stream_vite_output())
-    except Exception as e:
-        print(f"Failed to start Vite dev server: {e}")
-
-
-async def _stream_vite_output():
-    """Stream Vite subprocess output to console."""
-    if _vite_process and _vite_process.stdout:
-        async for line in _vite_process.stdout:
-            print(f"[vite] {line.decode().rstrip()}")
-
-
-async def stop_vite_dev():
-    """Stop Vite dev server gracefully."""
-    global _vite_process
-
-    if _vite_process:
-        try:
-            _vite_process.terminate()
-            await asyncio.wait_for(_vite_process.wait(), timeout=5.0)
-            print("Vite dev server stopped")
-        except ProcessLookupError:
-            # Process already exited
-            print("Vite dev server already stopped")
-        except asyncio.TimeoutError:
-            _vite_process.kill()
-            print("Vite dev server killed (timeout)")
-        _vite_process = None
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     FastAPI lifespan context manager.
 
-    Starts peer services (Discord bot, Vite dev server) as background tasks.
-    They run concurrently with FastAPI in the same event loop.
+    Starts the Discord bot as a background task.
+    It runs concurrently with FastAPI in the same event loop.
     """
     global _bot_task
 
@@ -266,14 +209,10 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(on_bot_ready())
 
-    # Start Vite dev server if in dev mode
-    await start_vite_dev()
-
     yield  # FastAPI runs here, bot runs alongside it
 
     # Graceful shutdown of all peer services
     print("Shutting down peer services...")
-    await stop_vite_dev()
     shutdown_scheduler()
     await stop_bot()
     await close_engine()  # Close database connections
@@ -325,7 +264,7 @@ async def root():
     if is_dev_mode():
         return {
             "status": "ok",
-            "message": "API-only mode. Access frontend at Vite dev server.",
+            "message": "API-only mode. Run Next.js frontend separately.",
             "bot_ready": bot.is_ready() if bot else False,
         }
     landing_file = static_path / "landing.html"
@@ -385,7 +324,15 @@ if spa_path.exists() and not is_dev_mode():
 
 if __name__ == "__main__":
     import argparse
+    import re
     import uvicorn
+
+    # Extract workspace number from directory name (e.g., "platform-ws2" → 2)
+    # Used to auto-assign ports: ws1 gets 8000/3000, ws2 gets 8001/3001, etc.
+    workspace_match = re.search(r"-ws(\d+)$", Path.cwd().name)
+    ws_num = int(workspace_match.group(1)) if workspace_match else 1
+    default_api_port = 8000 + (ws_num - 1)
+    default_frontend_port = 3000 + (ws_num - 1)
 
     parser = argparse.ArgumentParser(description="AI Safety Course Platform Server")
     parser.add_argument(
@@ -396,19 +343,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--port",
         type=int,
-        default=int(os.getenv("API_PORT", "8000")),
-        help="Port for API server (default: from API_PORT env or 8000)",
+        default=int(os.getenv("API_PORT", str(default_api_port))),
+        help=f"Port for API server (default: {default_api_port} for ws{ws_num})",
     )
     parser.add_argument(
         "--dev",
         action="store_true",
-        help="Enable dev mode: spawns Vite dev server with HMR",
-    )
-    parser.add_argument(
-        "--vite-port",
-        type=int,
-        default=int(os.getenv("VITE_PORT", "5173")),
-        help="Port for Vite dev server (default: from VITE_PORT env or 5173)",
+        help="Enable dev mode (API returns JSON at /, doesn't serve SPA)",
     )
     parser.add_argument(
         "--no-db",
@@ -416,16 +357,6 @@ if __name__ == "__main__":
         help="Skip database connection check (for frontend-only development)",
     )
     args = parser.parse_args()
-
-    # Log when using default ports (helps Claude understand port configuration)
-    api_port_from_env = os.getenv("API_PORT")
-    vite_port_from_env = os.getenv("VITE_PORT")
-    if not api_port_from_env or not vite_port_from_env:
-        print("Note: Ports not fully configured in .env.local")
-        if not api_port_from_env:
-            print(f"  API_PORT not set, using default: {args.port}")
-        if not vite_port_from_env:
-            print(f"  VITE_PORT not set, using default: {args.vite_port}")
 
     # Set WORKSPACE from directory name (for server identification across workspaces)
     workspace_name = Path.cwd().name
@@ -444,7 +375,7 @@ if __name__ == "__main__":
                 "pid": os.getpid(),
                 "workspace": workspace_name,
                 "api_port": args.port,
-                "vite_port": args.vite_port if args.dev else None,
+                "frontend_port": default_frontend_port if args.dev else None,
             }
         )
     )
@@ -459,10 +390,9 @@ if __name__ == "__main__":
         os.environ["DISABLE_DISCORD_BOT"] = "true"
     if args.dev:
         os.environ["DEV_MODE"] = "true"
-        os.environ["VITE_PORT"] = str(args.vite_port)
-        os.environ["API_PORT"] = str(args.port)  # For Vite proxy
-        print(f"Dev mode enabled - Vite will run on port {args.vite_port}")
-        print(f"Access frontend at: http://localhost:{args.vite_port}")
+        os.environ["API_PORT"] = str(args.port)
+        os.environ["FRONTEND_PORT"] = str(default_frontend_port)
+        print(f"Dev mode enabled (ws{ws_num}): API :{args.port}, Next.js :{default_frontend_port}")
 
     # Check required environment variables
     print("Checking environment variables...")

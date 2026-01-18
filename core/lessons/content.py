@@ -518,7 +518,7 @@ def bundle_narrative_lesson(lesson) -> dict:
     Returns:
         Dict ready for JSON serialization
     """
-    from .types import (
+    from .markdown_parser import (
         TextSection,
         ArticleSection,
         VideoSection,
@@ -528,6 +528,21 @@ def bundle_narrative_lesson(lesson) -> dict:
         ChatSegment,
     )
     from core.transcripts import get_text_at_time
+
+    def _parse_time_to_seconds(time_str: str) -> int:
+        """Convert time string (e.g., '1:30' or '1:30:45') to seconds."""
+        parts = time_str.split(":")
+        if len(parts) == 2:
+            # MM:SS format
+            minutes, seconds = int(parts[0]), int(parts[1])
+            return minutes * 60 + seconds
+        elif len(parts) == 3:
+            # HH:MM:SS format
+            hours, minutes, seconds = int(parts[0]), int(parts[1]), int(parts[2])
+            return hours * 3600 + minutes * 60 + seconds
+        else:
+            # Single number assumed to be seconds
+            return int(time_str)
 
     def bundle_segment(segment, section) -> dict:
         """Bundle a single segment with content."""
@@ -547,24 +562,29 @@ def bundle_narrative_lesson(lesson) -> dict:
 
         elif isinstance(segment, VideoExcerptSegment):
             # Extract transcript from parent video
+            # Convert time strings (e.g., "1:30") to seconds
+            from_seconds = _parse_time_to_seconds(segment.from_time) if segment.from_time else 0
+            # Use a large value for "until the end" when to_time is not specified
+            to_seconds = _parse_time_to_seconds(segment.to_time) if segment.to_time else 99999
+
             if isinstance(section, VideoSection):
                 video_result = load_video_transcript_with_metadata(section.source)
                 video_id = video_result.metadata.video_id
                 try:
                     transcript = get_text_at_time(
                         video_id,
-                        segment.from_seconds,
-                        segment.to_seconds,
+                        from_seconds,
+                        to_seconds,
                     )
                 except FileNotFoundError:
                     transcript = ""
                 return {
                     "type": "video-excerpt",
-                    "from": segment.from_seconds,
-                    "to": segment.to_seconds,
+                    "from": from_seconds,
+                    "to": to_seconds if segment.to_time else None,
                     "transcript": transcript,
                 }
-            return {"type": "video-excerpt", "from": 0, "to": 0, "transcript": ""}
+            return {"type": "video-excerpt", "from": 0, "to": None, "transcript": ""}
 
         elif isinstance(segment, ChatSegment):
             return {
