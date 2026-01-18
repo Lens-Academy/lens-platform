@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react
 import type { ChatMessage, PendingMessage } from "@/types/unified-lesson";
 import { transcribeAudio } from "@/api/lessons";
 import { Tooltip } from "@/components/Tooltip";
+import { StageIcon } from "@/components/unified-lesson/StageProgressBar";
 
 type NarrativeChatSectionProps = {
   messages: ChatMessage[];
@@ -32,8 +33,11 @@ export default function NarrativeChatSection({
   // Local state - component stays mounted so no need for parent sync
   const [input, setInput] = useState("");
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [currentExchangeStartIndex, setCurrentExchangeStartIndex] = useState(0);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [scrollContainerHeight, setScrollContainerHeight] = useState(0);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const currentExchangeRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,31 +62,26 @@ export default function NarrativeChatSection({
   const recordingTimeRef = useRef(0);
   const smoothedVolumeRef = useRef(0);
   const pcmDataRef = useRef<Float32Array<ArrayBuffer> | null>(null);
-  const prevMessageCountRef = useRef(messages.length);
-  const isInitialRenderRef = useRef(true);
 
   const MAX_RECORDING_TIME = 120;
   const WARNING_TIME = 60;
   const MIN_RECORDING_TIME = 0.5;
 
-  // Auto-scroll to bottom only when new messages arrive (not on initial render)
+  // Scroll user's new message to top when they send
   useLayoutEffect(() => {
-    // Skip scrolling on initial render
-    if (isInitialRenderRef.current) {
-      isInitialRenderRef.current = false;
-      prevMessageCountRef.current = messages.length;
-      return;
-    }
+    // Need scrollContainerHeight > 0 so minHeight is applied before scrolling
+    if (pendingMessage && currentExchangeRef.current && scrollContainerRef.current && scrollContainerHeight > 0) {
+      const container = scrollContainerRef.current;
+      const element = currentExchangeRef.current;
+      const elementTop = element.offsetTop;
 
-    // Only scroll if messages were added or streaming content changed
-    if (messages.length > prevMessageCountRef.current || streamingContent) {
-      // Scroll within the local container, not the global viewport
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-      }
+      // Scroll the container (not the viewport) to show the element at the top
+      container.scrollTo({
+        top: elementTop - 24, // 24px matches the scrollMarginTop
+        behavior: "instant",
+      });
     }
-    prevMessageCountRef.current = messages.length;
-  }, [messages, streamingContent]);
+  }, [pendingMessage, scrollContainerHeight]);
 
   // Scroll chat container into view when user first interacts
   useEffect(() => {
@@ -128,6 +127,25 @@ export default function NarrativeChatSection({
       return () => clearTimeout(timer);
     }
   }, [errorMessage]);
+
+  // Track scroll container height for min-height calculation
+  useLayoutEffect(() => {
+    if (!scrollContainerRef.current || !hasInteracted) return;
+
+    const container = scrollContainerRef.current;
+
+    // Set initial height immediately (fixes first-message scroll issue)
+    setScrollContainerHeight(container.clientHeight);
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setScrollContainerHeight(entry.contentRect.height);
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [hasInteracted]);
 
   // Volume meter
   const lastUpdateRef = useRef(0);
@@ -328,6 +346,9 @@ export default function NarrativeChatSection({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
+      // Set split point before sending - current messages become "previous"
+      setCurrentExchangeStartIndex(messages.length);
+      setShowScrollButton(false); // Reset scroll button when sending new message
       setHasInteracted(true);
       onSendMessage(input.trim());
       setInput("");
@@ -341,88 +362,154 @@ export default function NarrativeChatSection({
     }
   };
 
-  // Filter out system messages
-  const visibleMessages = messages.filter((m) => m.role !== "system");
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const isAtBottom = distanceFromBottom < 50;
+    setShowScrollButton(!isAtBottom);
+  };
+
+  const scrollToBottom = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  };
 
   return (
     <div className="max-w-[700px] mx-auto py-4 px-4">
       <div
         ref={containerRef}
-        className="border border-gray-200 rounded-lg bg-white shadow-sm flex flex-col scroll-mb-8"
+        className="border border-gray-200 rounded-lg bg-white shadow-sm flex flex-col scroll-mb-8 relative"
         style={hasInteracted
           ? { height: "85vh" }  // Fixed height when interacted to prevent jitter during streaming
           : { maxHeight: "85vh", minHeight: "180px" }
         }
       >
-        {/* Messages area - only show when user has interacted */}
+        {/* Messages area */}
         <div
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto p-4"
+          onScroll={handleScroll}
         >
           {hasInteracted ? (
-            <div className="space-y-3">
-              {visibleMessages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`p-3 rounded-lg ${
-                    msg.role === "assistant"
-                      ? "bg-blue-50 text-gray-800"
-                      : "bg-gray-100 text-gray-800 ml-8"
-                  }`}
-                >
-                  <div className="text-xs text-gray-500 mb-1">
-                    {msg.role === "assistant" ? "Tutor" : "You"}
-                  </div>
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
-                </div>
-              ))}
-
-              {/* Pending user message */}
-              {pendingMessage && (
-                <div
-                  className={`p-3 rounded-lg ml-8 ${
-                    pendingMessage.status === "failed"
-                      ? "bg-red-50 border border-red-200"
-                      : "bg-gray-100"
-                  }`}
-                >
-                  <div className="text-xs text-gray-500 mb-1 flex items-center justify-between">
-                    <span>You</span>
-                    {pendingMessage.status === "sending" && (
-                      <span className="text-gray-400">Sending...</span>
-                    )}
-                    {pendingMessage.status === "failed" && onRetryMessage && (
-                      <button
-                        onClick={onRetryMessage}
-                        className="text-red-600 hover:text-red-700 text-xs focus:outline-none focus:underline"
+            <div className="max-w-[620px] mx-auto">
+              {/* Previous messages - natural height */}
+              {currentExchangeStartIndex > 0 && (
+                <div className="space-y-3 pb-3">
+                  {messages.slice(0, currentExchangeStartIndex).map((msg, i) =>
+                    msg.role === "system" ? (
+                      <div key={i} className="flex justify-center my-3">
+                        <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
+                          {msg.icon && <StageIcon type={msg.icon} small />}
+                          {msg.content}
+                        </span>
+                      </div>
+                    ) : (
+                      <div
+                        key={i}
+                        className={`p-3 rounded-lg ${
+                          msg.role === "assistant"
+                            ? "bg-blue-50 text-gray-800"
+                            : "bg-gray-100 text-gray-800 ml-8"
+                        }`}
                       >
-                        Failed - Click to retry
-                      </button>
-                    )}
-                  </div>
-                  <div className="whitespace-pre-wrap text-gray-800">
-                    {pendingMessage.content}
-                  </div>
+                        <div className="text-xs text-gray-500 mb-1">
+                          {msg.role === "assistant" ? "Tutor" : "You"}
+                        </div>
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                      </div>
+                    )
+                  )}
                 </div>
               )}
 
-              {/* Streaming response */}
-              {isLoading && streamingContent && (
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <div className="text-xs text-gray-500 mb-1">Tutor</div>
-                  <div className="whitespace-pre-wrap">{streamingContent}</div>
-                </div>
-              )}
+              {/* Current exchange - min height with spacer */}
+              <div
+                ref={currentExchangeRef}
+                className="flex flex-col"
+                style={{
+                  scrollMarginTop: "24px",
+                  minHeight: scrollContainerHeight > 0 ? `${scrollContainerHeight}px` : undefined,
+                }}
+              >
+                <div className="space-y-3">
+                  {/* Current exchange messages */}
+                  {messages.slice(currentExchangeStartIndex).map((msg, i) =>
+                    msg.role === "system" ? (
+                      <div key={`current-${i}`} className="flex justify-center my-3">
+                        <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
+                          {msg.icon && <StageIcon type={msg.icon} small />}
+                          {msg.content}
+                        </span>
+                      </div>
+                    ) : (
+                      <div
+                        key={`current-${i}`}
+                        className={`p-3 rounded-lg ${
+                          msg.role === "assistant"
+                            ? "bg-blue-50 text-gray-800"
+                            : "bg-gray-100 text-gray-800 ml-8"
+                        }`}
+                      >
+                        <div className="text-xs text-gray-500 mb-1">
+                          {msg.role === "assistant" ? "Tutor" : "You"}
+                        </div>
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                      </div>
+                    )
+                  )}
 
-              {/* Loading indicator */}
-              {isLoading && !streamingContent && (
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <div className="text-xs text-gray-500 mb-1">Tutor</div>
-                  <div className="text-gray-800">Thinking...</div>
-                </div>
-              )}
+                  {/* Pending user message */}
+                  {pendingMessage && (
+                    <div
+                      className={`p-3 rounded-lg ml-8 ${
+                        pendingMessage.status === "failed"
+                          ? "bg-red-50 border border-red-200"
+                          : "bg-gray-100"
+                      }`}
+                    >
+                      <div className="text-xs text-gray-500 mb-1 flex items-center justify-between">
+                        <span>You</span>
+                        {pendingMessage.status === "sending" && (
+                          <span className="text-gray-400">Sending...</span>
+                        )}
+                        {pendingMessage.status === "failed" && onRetryMessage && (
+                          <button
+                            onClick={onRetryMessage}
+                            className="text-red-600 hover:text-red-700 text-xs focus:outline-none focus:underline"
+                          >
+                            Failed - Click to retry
+                          </button>
+                        )}
+                      </div>
+                      <div className="whitespace-pre-wrap text-gray-800">
+                        {pendingMessage.content}
+                      </div>
+                    </div>
+                  )}
 
-              <div ref={messagesEndRef} />
+                  {/* Streaming response */}
+                  {isLoading && streamingContent && (
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className="text-xs text-gray-500 mb-1">Tutor</div>
+                      <div className="whitespace-pre-wrap">{streamingContent}</div>
+                    </div>
+                  )}
+
+                  {/* Loading indicator */}
+                  {isLoading && !streamingContent && (
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className="text-xs text-gray-500 mb-1">Tutor</div>
+                      <div className="text-gray-800">Thinking...</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Spacer - fills remaining viewport space */}
+                <div className="flex-grow" />
+              </div>
             </div>
           ) : (
             // Empty state before first interaction
@@ -444,6 +531,31 @@ export default function NarrativeChatSection({
             </div>
           )}
         </div>
+
+        {/* Scroll to bottom button */}
+        {showScrollButton && hasInteracted && (
+          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10">
+            <button
+              onClick={scrollToBottom}
+              className="bg-white border border-gray-300 rounded-full p-2 shadow-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Scroll to bottom"
+            >
+              <svg
+                className="w-5 h-5 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Error message */}
         {errorMessage && (

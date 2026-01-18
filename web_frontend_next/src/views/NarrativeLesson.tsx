@@ -26,6 +26,13 @@ type NarrativeLessonProps = {
   lesson: NarrativeLessonType;
 };
 
+function getSectionLabel(section: NarrativeSection, index: number): string {
+  if (section.type === "text") {
+    return `Section ${index + 1}`;
+  }
+  return section.meta.title || `${section.type} ${index + 1}`;
+}
+
 /**
  * Main view for NarrativeLesson format.
  *
@@ -308,15 +315,22 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
         </Link>
       </header>
 
+      {/* Sticky section title */}
+      <div className="sticky top-[57px] z-40 bg-gray-50 border-b border-gray-200 px-6 py-2">
+        <span className="text-sm font-medium text-gray-600">
+          {lesson.sections[currentSectionIndex] &&
+            getSectionLabel(lesson.sections[currentSectionIndex], currentSectionIndex)}
+        </span>
+      </div>
+
       {/* Progress sidebar */}
       <ProgressSidebar
         sections={lesson.sections}
-        currentSectionIndex={currentSectionIndex}
-        scrollProgress={scrollProgress}
+        sectionRefs={sectionRefs}
         onSectionClick={handleSectionClick}
       />
 
-      {/* Main content - pl-20 provides left padding for the sidebar */}
+      {/* Main content */}
       <main className="pl-20">
         {lesson.sections.map((section, sectionIndex) => (
           <div
