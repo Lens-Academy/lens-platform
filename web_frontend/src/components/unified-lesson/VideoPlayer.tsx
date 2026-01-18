@@ -57,6 +57,9 @@ export default function VideoPlayer({
   const [isHovering, setIsHovering] = useState(false);
   const [isPaused, setIsPaused] = useState(true);
   const [isFullVideo, setIsFullVideo] = useState(false);
+  // Playback warning state (used by VPN warning feature)
+  const [showPlaybackWarning, setShowPlaybackWarning] = useState(false);
+  const playCheckTimeoutRef = useRef<number | null>(null);
 
   // Keep ref in sync with state for event callbacks
   useEffect(() => {
@@ -84,11 +87,70 @@ export default function VideoPlayer({
 
     const handlePlay = () => {
       setIsPaused(false);
+      setShowPlaybackWarning(false); // Reset warning when video actually starts
       onPlayCallback?.();
+      // Don't clear the timeout here - let it run and check currentTime
+      // This way we detect if YouTube blocks playback despite firing play event
     };
+
+    // Detect when user clicks into the YouTube iframe by polling for focus
+    // (Click events don't bubble out of cross-origin iframes)
+    // Note: The youtube-video element creates the iframe in its shadow DOM,
+    // so we need to look inside the shadow root
+    const container = containerRef.current;
+    let lastActiveWasIframe = false;
+    let iframeFocusCheckInterval: number | null = null;
+    let currentIframe: HTMLIFrameElement | null = null;
+
+    const ytVideo = container.querySelector("youtube-video");
+
+    iframeFocusCheckInterval = window.setInterval(() => {
+      // Check if iframe exists - youtube-video puts it in shadow DOM
+      if (!currentIframe) {
+        const shadowRoot = ytVideo?.shadowRoot;
+        currentIframe = shadowRoot?.querySelector("iframe") ?? null;
+      }
+
+      if (!currentIframe) return; // Still waiting for iframe
+
+      // Check if youtube-video element is active (not the inner iframe - shadow DOM boundary)
+      const isIframeActive = document.activeElement === ytVideo;
+
+      // Detect transition: user just clicked into the video player
+      if (isIframeActive && !lastActiveWasIframe) {
+        // Skip if video is already playing (time is advancing)
+        if (!video.paused && video.currentTime > start + 0.5) {
+          lastActiveWasIframe = isIframeActive;
+          return;
+        }
+
+        // User clicked into iframe, likely to play - start monitoring
+        if (playCheckTimeoutRef.current) {
+          clearTimeout(playCheckTimeoutRef.current);
+        }
+        setShowPlaybackWarning(false);
+
+        // Capture current time to check if it advances
+        const startTime = video.currentTime;
+
+        playCheckTimeoutRef.current = window.setTimeout(() => {
+          // If currentTime hasn't advanced, video is stuck (likely VPN/bot block)
+          const currentTime = video.currentTime;
+          if (Math.abs(currentTime - startTime) < 0.5) {
+            setShowPlaybackWarning(true);
+          }
+        }, 2000);
+      }
+
+      lastActiveWasIframe = isIframeActive;
+    }, 200);
     const handlePause = () => {
       setIsPaused(true);
       onPauseCallback?.();
+      // Clear playback check - user paused intentionally
+      if (playCheckTimeoutRef.current) {
+        clearTimeout(playCheckTimeoutRef.current);
+      }
     };
     const handleTimeUpdate = () => {
       onTimeUpdateCallback?.(video.currentTime);
@@ -113,6 +175,14 @@ export default function VideoPlayer({
       video.removeEventListener("pause", handlePause);
       video.removeEventListener("timeupdate", handleTimeUpdate);
       video.removeEventListener("volumechange", handleVolumeChange);
+      // Clear iframe focus polling interval
+      if (iframeFocusCheckInterval) {
+        clearInterval(iframeFocusCheckInterval);
+      }
+      // Clear playback check timeout on unmount
+      if (playCheckTimeoutRef.current) {
+        clearTimeout(playCheckTimeoutRef.current);
+      }
     };
   }, [start, onPlayCallback, onPauseCallback, onTimeUpdateCallback]);
 
@@ -139,6 +209,11 @@ export default function VideoPlayer({
         setProgress(Math.min(elapsed / duration, 1));
       }
 
+      // Clear playback warning when video actually advances past start
+      if (showPlaybackWarning && currentTime > start + 0.5) {
+        setShowPlaybackWarning(false);
+      }
+
       // Start fading audio 500ms before end
       const fadeStart = end - 0.5;
 
@@ -148,7 +223,15 @@ export default function VideoPlayer({
     }, 50);
 
     return () => clearInterval(pollInterval);
-  }, [start, end, duration, isFullVideo, fragmentEnded, isFading]);
+  }, [
+    start,
+    end,
+    duration,
+    isFullVideo,
+    fragmentEnded,
+    isFading,
+    showPlaybackWarning,
+  ]);
 
   // Handle fade effect separately - triggered by isFading state
   useEffect(() => {
@@ -277,6 +360,24 @@ export default function VideoPlayer({
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">
+      {/* Playback warning - shown when video appears stuck */}
+      {showPlaybackWarning && (
+        <div className="w-full mb-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 flex items-center gap-2">
+          <span>
+            Video not playing? If YouTube is asking to "Sign in to confirm
+            you're not a robot", it could be that you have a VPN enabled. Try
+            disabling that and reloading the page.
+          </span>
+          <button
+            onClick={() => setShowPlaybackWarning(false)}
+            className="ml-auto text-amber-400 hover:text-amber-600"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Video + progress bar container with hover detection */}
       <div
         className="w-full"
@@ -285,11 +386,7 @@ export default function VideoPlayer({
       >
         {/* Video with native YouTube controls */}
         <div ref={containerRef} className="w-full aspect-video relative">
-          <youtube-video
-            src={youtubeUrl}
-            controls
-            className="w-full h-full"
-          />
+          <youtube-video src={youtubeUrl} controls className="w-full h-full" />
 
           {/* End-of-clip overlay (only in clip mode) */}
           {fragmentEnded && !isFullVideo && (

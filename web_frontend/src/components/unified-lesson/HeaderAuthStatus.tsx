@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { Popover } from "../Popover";
 
@@ -31,15 +32,24 @@ export default function HeaderAuthStatus({ onLoginClick }: Props) {
     <Popover
       placement="bottom-end"
       content={(close) => (
-        <button
-          onClick={() => {
-            logout();
-            close();
-          }}
-          className="w-full text-left text-sm text-gray-700 hover:text-gray-900"
-        >
-          Sign out
-        </button>
+        <div className="flex flex-col gap-2">
+          <Link
+            to="/availability"
+            onClick={close}
+            className="text-sm text-gray-700 hover:text-gray-900"
+          >
+            Edit Availability
+          </Link>
+          <button
+            onClick={() => {
+              logout();
+              close();
+            }}
+            className="w-full text-left text-sm text-gray-700 hover:text-gray-900"
+          >
+            Sign out
+          </button>
+        </div>
       )}
     >
       <button className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900">
