@@ -1,13 +1,10 @@
 # educational_content/lessons/narrative-test.yaml
-# Note: Segment types must match TypeScript definitions exactly
-format: narrative
 slug: narrative-test
 title: "Test Narrative Lesson"
 
 sections:
   - type: article
     source: articles/tim-urban-artificial-intelligence-revolution-1.md
-    label: "The AI Revolution"
     segments:
       - type: text
         content: |
@@ -29,6 +26,13 @@ sections:
           think would shock them most - and what might they adapt to quickly?
 
       - type: chat
+        instructions: |
+          The user just read about the accelerating pace of change and "Die Progress Units."
+
+          Ask what they found most surprising about the time-travel thought experiment.
+          Help them articulate the difference between linear and exponential thinking.
+        showUserPreviousContent: true
+        showTutorPreviousContent: true
 
       - type: article-excerpt
         from: "## The Far Future—Coming Soon"
@@ -42,10 +46,16 @@ sections:
           the future of AI. Let's make sure you understand it.
 
       - type: chat
+        instructions: |
+          Check the user's understanding of exponential vs linear thinking.
+
+          Ask them to explain it in their own words. If they struggle,
+          use concrete examples like rice on a chessboard or compound interest.
+        showUserPreviousContent: true
+        showTutorPreviousContent: true
 
   - type: video
-    videoId: "pYXy-A4siMw"
-    label: "AI Explained"
+    source: video_transcripts/fa8k8IQ1_X0_A.I._‐_Humanity's_Final_Invention.md
     segments:
       - type: text
         content: |
@@ -61,6 +71,13 @@ sections:
           **Quick check:** What's the key difference between ANI and AGI?
 
       - type: chat
+        instructions: |
+          The user just watched the first 3 minutes about AI history and capabilities.
+
+          Check if they understand the ANI vs AGI distinction.
+          Ask them to give examples of each type.
+        showUserPreviousContent: true
+        showTutorPreviousContent: true
 
       - type: text
         content: |
