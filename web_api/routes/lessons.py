@@ -45,8 +45,6 @@ from core.lessons import (
     get_stage_duration,
 )
 from core import get_or_create_user
-from core.notifications import schedule_trial_nudge, cancel_trial_nudge
-from core.notifications.urls import build_lesson_url
 from core.database import get_connection
 from core.tables import content_events
 from core.enums import ContentEventType
@@ -240,19 +238,6 @@ async def start_session(request_body: CreateSessionRequest, request: Request):
                 "system",
                 started_msg["content"],
                 started_msg.get("icon"),
-            )
-
-    # Schedule trial nudge for logged-in users (24h reminder to complete)
-    if user_id is not None:
-        try:
-            schedule_trial_nudge(
-                session_id=session["session_id"],
-                user_id=user_id,
-                lesson_url=build_lesson_url(request_body.lesson_slug),
-            )
-        except Exception as e:
-            print(
-                f"[Notifications] Failed to schedule trial nudge for session {session['session_id']}: {e}"
             )
 
     return {"session_id": session["session_id"]}
@@ -504,14 +489,6 @@ async def advance_session(session_id: int, request: Request):
                 session_id, "system", finished_msg["content"], finished_msg.get("icon")
             )
         await complete_session(session_id)
-
-        # Cancel any scheduled trial nudge since user completed the lesson
-        try:
-            cancel_trial_nudge(session_id)
-        except Exception as e:
-            print(
-                f"[Notifications] Failed to cancel trial nudge for session {session_id}: {e}"
-            )
 
         return {"completed": True}
 

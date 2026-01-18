@@ -5,7 +5,7 @@ These functions are called by business logic (cogs, routes) to send notification
 They handle building context and scheduling reminders.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from core.notifications.dispatcher import send_notification
 from core.notifications.scheduler import schedule_reminder, cancel_reminders
@@ -178,23 +178,3 @@ def reschedule_meeting_reminders(
         group_name=group_name,
         discord_channel_id=discord_channel_id,
     )
-
-
-def schedule_trial_nudge(session_id: int, user_id: int, lesson_url: str) -> None:
-    """
-    Schedule a nudge for incomplete trial lesson.
-
-    Sends 24h after user started trial lesson.
-    """
-    schedule_reminder(
-        job_id=f"trial_{session_id}_nudge",
-        run_at=datetime.now(timezone.utc) + timedelta(hours=24),
-        message_type="trial_nudge",
-        user_ids=[user_id],
-        context={"lesson_url": lesson_url},
-    )
-
-
-def cancel_trial_nudge(session_id: int) -> int:
-    """Cancel trial nudge (e.g., when user completes lesson or signs up)."""
-    return cancel_reminders(f"trial_{session_id}_nudge")
