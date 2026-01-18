@@ -26,27 +26,6 @@ type NarrativeLessonProps = {
 };
 
 /**
- * Extract content between two text markers.
- * Returns full content if markers not found.
- */
-function extractExcerpt(content: string, from: string, to: string): string {
-  const fromIndex = content.indexOf(from);
-  const toIndex = content.indexOf(to);
-
-  if (fromIndex === -1) {
-    console.warn(`Excerpt marker not found: "${from.substring(0, 50)}..."`);
-    return content;
-  }
-
-  if (toIndex === -1 || toIndex <= fromIndex) {
-    // Return from 'from' to end
-    return content.substring(fromIndex);
-  }
-
-  return content.substring(fromIndex, toIndex);
-}
-
-/**
  * Main view for NarrativeLesson format.
  *
  * Renders a continuous vertical scroll with:
