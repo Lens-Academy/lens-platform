@@ -16,7 +16,7 @@ import json
 import sys
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import insert
@@ -39,7 +39,6 @@ from core.lessons import (
     get_stage_content,
     ArticleStage,
     VideoStage,
-    load_article_with_metadata,
     load_video_transcript_with_metadata,
     get_stage_title,
     get_stage_duration,
@@ -417,6 +416,86 @@ async def get_session_state(
 
 class SendMessageRequest(BaseModel):
     content: str
+    section_index: int | None = None  # For narrative lessons
+    segment_index: int | None = None  # For narrative lessons
+
+
+def get_narrative_chat_context(
+    lesson,
+    section_index: int,
+    segment_index: int,
+) -> tuple[str, str | None]:
+    """
+    Get chat instructions and previous content for a narrative lesson position.
+
+    Args:
+        lesson: NarrativeLesson dataclass
+        section_index: Section index (0-based)
+        segment_index: Segment index within section (0-based)
+
+    Returns:
+        Tuple of (instructions, previous_content or None)
+    """
+    from core.lessons.types import (
+        ArticleSection,
+        VideoSection,
+        ChatSegment,
+        ArticleExcerptSegment,
+        VideoExcerptSegment,
+    )
+    from core.lessons.content import (
+        load_article_with_metadata,
+        load_video_transcript_with_metadata,
+    )
+    from core.transcripts import get_text_at_time
+
+    section = lesson.sections[section_index]
+
+    # Only article/video sections have segments
+    if not hasattr(section, "segments"):
+        return "", None
+
+    segment = section.segments[segment_index]
+
+    if not isinstance(segment, ChatSegment):
+        return "", None
+
+    instructions = segment.instructions
+    previous_content = None
+
+    # Get previous content if enabled
+    if segment.show_tutor_previous_content and segment_index > 0:
+        # Look back for the most recent content segment
+        for i in range(segment_index - 1, -1, -1):
+            prev_seg = section.segments[i]
+
+            if isinstance(prev_seg, ArticleExcerptSegment) and isinstance(
+                section, ArticleSection
+            ):
+                result = load_article_with_metadata(
+                    section.source,
+                    prev_seg.from_text,
+                    prev_seg.to_text,
+                )
+                previous_content = result.content
+                break
+
+            elif isinstance(prev_seg, VideoExcerptSegment) and isinstance(
+                section, VideoSection
+            ):
+                video_result = load_video_transcript_with_metadata(section.source)
+                video_id = video_result.metadata.video_id
+                try:
+                    previous_content = get_text_at_time(
+                        video_id,
+                        prev_seg.from_seconds,
+                        prev_seg.to_seconds,
+                    )
+                except FileNotFoundError:
+                    pass
+                break
+
+    return instructions, previous_content
 
 
 @router.post("/lesson-sessions/{session_id}/message")
@@ -426,6 +505,8 @@ async def send_message_endpoint(
     request: Request,
 ):
     """Send a message and stream the response."""
+    from core.lessons.types import ChatStage
+
     user_id = await get_user_id_for_lesson(request)
 
     try:
@@ -435,25 +516,51 @@ async def send_message_endpoint(
 
     check_session_access(session, user_id)
 
-    # Load lesson and current stage
-    lesson = load_lesson(session["lesson_slug"])
-    stage_index = session["current_stage_index"]
-    current_stage = lesson.stages[stage_index]
-    previous_stage = lesson.stages[stage_index - 1] if stage_index > 0 else None
+    # Check if this is a narrative lesson with position info
+    is_narrative = (
+        request_body.section_index is not None
+        and request_body.segment_index is not None
+    )
 
-    # Get content for AI context
-    current_content = None
-    previous_content = None
+    if is_narrative:
+        # Handle narrative lesson chat
+        try:
+            narrative_lesson = load_narrative_lesson(session["lesson_slug"])
+            instructions, previous_content = get_narrative_chat_context(
+                narrative_lesson,
+                request_body.section_index,
+                request_body.segment_index,
+            )
+            # For narrative lessons, we use a simplified chat stage
+            current_stage = ChatStage(
+                type="chat",
+                instructions=instructions,
+                show_user_previous_content=True,
+                show_tutor_previous_content=True,
+            )
+            current_content = None  # Not used for narrative chat
+        except (LessonNotFoundError, IndexError):
+            raise HTTPException(status_code=400, detail="Invalid lesson or position")
+    else:
+        # Existing staged lesson logic
+        lesson = load_lesson(session["lesson_slug"])
+        stage_index = session["current_stage_index"]
+        current_stage = lesson.stages[stage_index]
+        previous_stage = lesson.stages[stage_index - 1] if stage_index > 0 else None
 
-    if current_stage.type in ("article", "video"):
-        # For article/video stages: always provide current content to tutor
-        result = get_stage_content(current_stage)
-        current_content = result.content if result else None
-    elif current_stage.type == "chat" and previous_stage:
-        # For chat stages: provide previous content if showTutorPreviousContent
-        if current_stage.show_tutor_previous_content:
-            prev_result = get_stage_content(previous_stage)
-            previous_content = prev_result.content if prev_result else None
+        # Get content for AI context
+        current_content = None
+        previous_content = None
+
+        if current_stage.type in ("article", "video"):
+            # For article/video stages: always provide current content to tutor
+            result = get_stage_content(current_stage)
+            current_content = result.content if result else None
+        elif current_stage.type == "chat" and previous_stage:
+            # For chat stages: provide previous content if showTutorPreviousContent
+            if current_stage.show_tutor_previous_content:
+                prev_result = get_stage_content(previous_stage)
+                previous_content = prev_result.content if prev_result else None
 
     # Add user message to session (skip empty messages - used for AI auto-initiation)
     if request_body.content:
