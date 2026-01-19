@@ -2,37 +2,24 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { ArticleSection, ArticleExcerptSegment } from "@/types/module";
-import { extractHeadings } from "@/utils/extractHeadings";
-import ArticleTOC from "./ArticleTOC";
 import { ArticleSectionProvider } from "./ArticleSectionContext";
 
 type ArticleSectionWrapperProps = {
-  section: ArticleSection;
   children: React.ReactNode;
 };
 
 /**
- * Wrapper for article sections that adds the TOC sidebar.
- * Tracks scroll position to highlight current heading in TOC.
+ * Context provider for article sections.
+ * Tracks scroll position to highlight headings in TOC.
+ * The actual TOC is rendered by ArticleExcerptGroup.
  */
 export default function ArticleSectionWrapper({
-  section,
   children,
 }: ArticleSectionWrapperProps) {
   const [passedHeadingIds, setPassedHeadingIds] = useState<Set<string>>(
     new Set(),
   );
   const headingElementsRef = useRef<Map<string, HTMLElement>>(new Map());
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  // Extract all headings from all article-excerpt segments
-  const allHeadings = useMemo(() => {
-    const excerpts = section.segments.filter(
-      (s): s is ArticleExcerptSegment => s.type === "article-excerpt",
-    );
-    return excerpts.flatMap((excerpt) => extractHeadings(excerpt.content));
-  }, [section.segments]);
 
   // Track heading elements as they render
   const handleHeadingRender = useCallback(
@@ -80,7 +67,7 @@ export default function ArticleSectionWrapper({
       clearTimeout(timeout);
       window.removeEventListener("scroll", handleScroll);
     };
-  }, [allHeadings]);
+  }, []);
 
   const handleHeadingClick = useCallback((id: string) => {
     const element = headingElementsRef.current.get(id);
@@ -90,31 +77,17 @@ export default function ArticleSectionWrapper({
   }, []);
 
   const contextValue = useMemo(
-    () => ({ onHeadingRender: handleHeadingRender }),
-    [handleHeadingRender],
+    () => ({
+      onHeadingRender: handleHeadingRender,
+      passedHeadingIds,
+      onHeadingClick: handleHeadingClick,
+    }),
+    [handleHeadingRender, passedHeadingIds, handleHeadingClick],
   );
 
   return (
     <ArticleSectionProvider value={contextValue}>
-      <div className="relative">
-        {/* Content area - full width, TOC overlaid */}
-        <div ref={contentRef} className="w-full">
-          {children}
-        </div>
-
-        {/* TOC Sidebar - sticky, positioned to left of content */}
-        <div className="hidden lg:block absolute left-0 top-0 w-[280px] -translate-x-full pr-8">
-          <div className="sticky top-20">
-            <ArticleTOC
-              title={section.meta.title}
-              author={section.meta.author}
-              headings={allHeadings}
-              passedHeadingIds={passedHeadingIds}
-              onHeadingClick={handleHeadingClick}
-            />
-          </div>
-        </div>
-      </div>
+      {children}
     </ArticleSectionProvider>
   );
 }

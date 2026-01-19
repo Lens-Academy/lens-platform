@@ -34,6 +34,7 @@ import NarrativeChatSection from "@/components/module/NarrativeChatSection";
 import MarkCompleteButton from "@/components/module/MarkCompleteButton";
 import SectionDivider from "@/components/module/SectionDivider";
 import ArticleSectionWrapper from "@/components/module/ArticleSectionWrapper";
+import ArticleExcerptGroup from "@/components/module/ArticleExcerptGroup";
 import { ModuleHeader } from "@/components/ModuleHeader";
 import ModuleDrawer from "@/components/module/ModuleDrawer";
 import ModuleCompleteModal from "@/components/module/ModuleCompleteModal";
@@ -660,10 +661,64 @@ export default function Module({ module, courseContext }: ModuleProps) {
             ) : section.type === "article" ? (
               <>
                 <SectionDivider type="article" />
-                <ArticleSectionWrapper section={section}>
-                  {section.segments?.map((segment, segmentIndex) =>
-                    renderSegment(segment, section, sectionIndex, segmentIndex),
-                  )}
+                <ArticleSectionWrapper>
+                  {(() => {
+                    // Split segments into pre-excerpt, excerpt, post-excerpt groups
+                    const segments = section.segments ?? [];
+                    const firstExcerptIdx = segments.findIndex(
+                      (s) => s.type === "article-excerpt",
+                    );
+                    const lastExcerptIdx = segments.reduceRight(
+                      (found, s, i) =>
+                        found === -1 && s.type === "article-excerpt" ? i : found,
+                      -1,
+                    );
+
+                    // If no excerpts, render all segments normally
+                    if (firstExcerptIdx === -1) {
+                      return segments.map((segment, segmentIndex) =>
+                        renderSegment(segment, section, sectionIndex, segmentIndex),
+                      );
+                    }
+
+                    const preExcerpt = segments.slice(0, firstExcerptIdx);
+                    const excerpts = segments.slice(
+                      firstExcerptIdx,
+                      lastExcerptIdx + 1,
+                    );
+                    const postExcerpt = segments.slice(lastExcerptIdx + 1);
+
+                    return (
+                      <>
+                        {/* Pre-excerpt content (intro, setup) */}
+                        {preExcerpt.map((segment, i) =>
+                          renderSegment(segment, section, sectionIndex, i),
+                        )}
+
+                        {/* Excerpt group with sticky TOC */}
+                        <ArticleExcerptGroup section={section}>
+                          {excerpts.map((segment, i) =>
+                            renderSegment(
+                              segment,
+                              section,
+                              sectionIndex,
+                              firstExcerptIdx + i,
+                            ),
+                          )}
+                        </ArticleExcerptGroup>
+
+                        {/* Post-excerpt content (reflection, chat) */}
+                        {postExcerpt.map((segment, i) =>
+                          renderSegment(
+                            segment,
+                            section,
+                            sectionIndex,
+                            lastExcerptIdx + 1 + i,
+                          ),
+                        )}
+                      </>
+                    );
+                  })()}
                 </ArticleSectionWrapper>
               </>
             ) : (

@@ -45,14 +45,8 @@ export default function ArticleExcerptGroup({
             title={section.meta.title}
             author={section.meta.author}
             headings={allHeadings}
-            passedHeadingIds={
-              (context as { passedHeadingIds?: Set<string> } | null)
-                ?.passedHeadingIds ?? new Set()
-            }
-            onHeadingClick={
-              (context as { onHeadingClick?: (id: string) => void } | null)
-                ?.onHeadingClick ?? (() => {})
-            }
+            passedHeadingIds={context?.passedHeadingIds ?? new Set()}
+            onHeadingClick={context?.onHeadingClick ?? (() => {})}
           />
         </div>
       </div>
