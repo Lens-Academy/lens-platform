@@ -560,11 +560,12 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
 
   return (
     <div className="min-h-screen bg-white">
-      <LessonHeader
+      <div className="sticky top-0 z-50 bg-white">
+        <LessonHeader
         lessonTitle={lesson.title}
         stages={stages}
         currentStageIndex={furthestCompletedIndex + 1}
-        viewingStageIndex={viewingStageIndex}
+        viewingStageIndex={viewingStageIndex ?? currentSectionIndex}
         isViewingOther={
           viewingStageIndex !== null &&
           viewingStageIndex !== currentSectionIndex
@@ -579,6 +580,7 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
         onDrawerOpen={() => setDrawerOpen(true)}
         onLoginClick={handleLoginClick}
       />
+      </div>
 
       {/* Main content */}
       <main>
@@ -619,10 +621,7 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
         stages={stagesForDrawer}
         currentStageIndex={furthestCompletedIndex + 1}
         viewedStageIndex={viewingStageIndex ?? currentSectionIndex}
-        onStageClick={(index) => {
-          handleStageClick(index);
-          setDrawerOpen(false);
-        }}
+        onStageClick={handleStageClick}
       />
 
       <LessonCompleteModal
