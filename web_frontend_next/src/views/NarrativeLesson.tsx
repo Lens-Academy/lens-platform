@@ -24,6 +24,8 @@ import type { LessonCompletionResult } from "@/api/lessons";
 // Note: getNextLesson can be imported when courseId is available in props
 import { useAnonymousSession } from "@/hooks/useAnonymousSession";
 import { useAuth } from "@/hooks/useAuth";
+import { useActivityTracker } from "@/hooks/useActivityTracker";
+import { useVideoActivityTracker } from "@/hooks/useVideoActivityTracker";
 import AuthoredText from "@/components/narrative-lesson/AuthoredText";
 import ArticleEmbed from "@/components/narrative-lesson/ArticleEmbed";
 import VideoEmbed from "@/components/narrative-lesson/VideoEmbed";
@@ -151,6 +153,40 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
   // Derived value for lesson completion
   const isLessonComplete = completedSections.size === lesson.sections.length;
 
+  // Activity tracking for current section
+  const currentSection = lesson.sections[currentSectionIndex];
+  const currentSectionType =
+    currentSection?.type === "text" ? "article" : currentSection?.type;
+
+  // Article/text activity tracking (3 min inactivity timeout)
+  useActivityTracker({
+    sessionId: sessionId ?? 0,
+    stageIndex: currentSectionIndex,
+    stageType: "article",
+    inactivityTimeout: 180_000,
+    enabled:
+      !!sessionId &&
+      (currentSectionType === "article" || currentSection?.type === "text"),
+  });
+
+  // Video activity tracking
+  const videoTracker = useVideoActivityTracker({
+    sessionId: sessionId ?? 0,
+    stageIndex: currentSectionIndex,
+    enabled: !!sessionId && currentSectionType === "video",
+  });
+
+  // Chat activity tracking (5 min inactivity timeout)
+  // Chat segments can appear within any section type, so we keep the tracker
+  // ready and trigger it manually via triggerChatActivity() in handleSendMessage
+  const { triggerActivity: triggerChatActivity } = useActivityTracker({
+    sessionId: sessionId ?? 0,
+    stageIndex: currentSectionIndex,
+    stageType: "chat",
+    inactivityTimeout: 300_000,
+    enabled: !!sessionId,
+  });
+
   // Fetch next lesson info when lesson completes
   useEffect(() => {
     if (!isLessonComplete) return;
@@ -204,6 +240,9 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
     async (content: string, sectionIndex: number, segmentIndex: number) => {
       if (!sessionId) return;
 
+      // Track chat activity on message send
+      triggerChatActivity();
+
       // Store position for potential retry
       setLastPosition({ sectionIndex, segmentIndex });
 
@@ -243,7 +282,7 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
         setIsLoading(false);
       }
     },
-    [sessionId],
+    [sessionId, triggerChatActivity],
   );
 
   const handleRetryMessage = useCallback(() => {
@@ -429,6 +468,9 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
             videoId={section.videoId}
             start={segment.from}
             end={segment.to}
+            onPlay={videoTracker.onPlay}
+            onPause={videoTracker.onPause}
+            onTimeUpdate={videoTracker.onTimeUpdate}
           />
         );
 

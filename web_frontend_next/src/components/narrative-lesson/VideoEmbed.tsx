@@ -9,6 +9,9 @@ type VideoEmbedProps = {
   start: number;
   end: number;
   onEnded?: () => void;
+  onPlay?: () => void;
+  onPause?: () => void;
+  onTimeUpdate?: (currentTime: number) => void;
 };
 
 /**
@@ -20,6 +23,9 @@ export default function VideoEmbed({
   start,
   end,
   onEnded,
+  onPlay,
+  onPause,
+  onTimeUpdate,
 }: VideoEmbedProps) {
   const [isActivated, setIsActivated] = useState(false);
 
@@ -42,6 +48,9 @@ export default function VideoEmbed({
             end={end}
             autoplay
             onEnded={onEnded ?? (() => {})}
+            onPlay={onPlay}
+            onPause={onPause}
+            onTimeUpdate={onTimeUpdate}
           />
         ) : (
           <button
