@@ -312,10 +312,10 @@ auth_codes = Table(
 
 
 # =====================================================
-# 11. MODULE_SESSIONS (table still named lesson_sessions in DB)
+# 11. MODULE_SESSIONS
 # =====================================================
 module_sessions = Table(
-    "lesson_sessions",  # TODO: migrate DB table name to module_sessions
+    "module_sessions",
     metadata,
     Column("session_id", Integer, primary_key=True, autoincrement=True),
     Column(
@@ -324,14 +324,14 @@ module_sessions = Table(
         ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=True,
     ),
-    Column("lesson_slug", Text, nullable=False, key="module_slug"),  # DB column: lesson_slug, Python: module_slug
+    Column("module_slug", Text, nullable=False),
     Column("current_stage_index", Integer, server_default="0"),
     Column("messages", JSONB, server_default="[]"),
     Column("started_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("last_active_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("completed_at", TIMESTAMP(timezone=True)),
-    Index("idx_lesson_sessions_user_id", "user_id"),
-    Index("idx_lesson_sessions_module_slug", "module_slug"),
+    Index("idx_module_sessions_user_id", "user_id"),
+    Index("idx_module_sessions_module_slug", "module_slug"),
 )
 
 
@@ -351,7 +351,7 @@ content_events = Table(
     Column(
         "session_id",
         Integer,
-        ForeignKey("lesson_sessions.session_id", ondelete="CASCADE"),
+        ForeignKey("module_sessions.session_id", ondelete="CASCADE"),
         nullable=False,
     ),
     Column("module_slug", Text, nullable=False),

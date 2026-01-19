@@ -9,10 +9,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Before pushing ANY code to GitHub**, run these checks:
 
 ```bash
-# Frontend (from web_frontend/)
-cd web_frontend
+# Frontend (from web_frontend_next/)
+cd web_frontend_next
 npm run lint          # ESLint
-npm run build         # TypeScript type check + Vite build
+npm run build         # TypeScript type check + Next.js build
 npx prettier --check src/  # Prettier formatting check
 
 # Backend (from repo root)
@@ -123,7 +123,7 @@ ai-safety-course-platform/
 │       ├── auth.py             # /auth/* - Discord OAuth, session management
 │       └── users.py            # /api/users/* - User profile endpoints
 │
-├── web_frontend/               # Layer 3: React frontend
+├── web_frontend_next/          # Layer 3: Next.js frontend (React + App Router)
 └── activities/                 # Discord Activities (vanilla JS)
 ```
 
@@ -147,6 +147,12 @@ Layer 2a (Discord adapter) and 2b (FastAPI) should never communicate directly. I
 - `scheduler_cog.py` - `/schedule`, `/list-users` commands
 - `enrollment_cog.py` - `/signup` flow with Views/Buttons/Selects
 - `groups_cog.py` - `/group` command, channel/event creation (needs refactor)
+
+### Frontend (`web_frontend_next/`)
+
+Next.js 16 app using App Router, TypeScript, and Tailwind CSS. Run with `npm run dev` from the directory.
+
+Note: `web_frontend_deprecated/` contains an old Vite+React setup - do not use.
 
 ### Activities (`activities/`)
 

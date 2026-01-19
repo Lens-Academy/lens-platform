@@ -417,3 +417,106 @@ Even more.
 
         # None should have the ! prefix
         assert "!#" not in section.content
+
+
+class TestSegmentTitles:
+    """Test that segments can have optional titles like ## Chat: Discussion Title."""
+
+    def test_chat_segment_with_title_is_parsed(self):
+        """Chat segment with title should be parsed correctly."""
+        text = """---
+slug: test
+title: Test
+---
+
+# Video: Test Video
+source:: [[video_transcripts/test]]
+
+## Text
+content::
+What did you think?
+
+## Chat: Discussion on the Video
+instructions::
+Discuss what the user just watched.
+"""
+        module = parse_module(text)
+        section = module.sections[0]
+        assert isinstance(section, VideoSection)
+        assert len(section.segments) == 2
+
+        # First segment: Text without title
+        seg0 = section.segments[0]
+        assert isinstance(seg0, TextSegment)
+        assert "What did you think?" in seg0.content
+
+        # Second segment: Chat with title
+        seg1 = section.segments[1]
+        assert isinstance(seg1, ChatSegment)
+        assert "Discuss what the user just watched" in seg1.instructions
+
+    def test_text_segment_with_title_is_parsed(self):
+        """Text segment with title should be parsed correctly."""
+        text = """---
+slug: test
+title: Test
+---
+
+# Video: Test Video
+source:: [[video_transcripts/test]]
+
+## Text: Key Takeaways
+content::
+Here are the main points.
+
+## Video-excerpt
+"""
+        module = parse_module(text)
+        section = module.sections[0]
+        assert isinstance(section, VideoSection)
+        assert len(section.segments) == 2
+
+        # First segment: Text with title
+        seg0 = section.segments[0]
+        assert isinstance(seg0, TextSegment)
+        assert "Here are the main points" in seg0.content
+
+    def test_multiple_titled_segments(self):
+        """Multiple segments with titles should all be parsed."""
+        text = """---
+slug: test
+title: Test
+---
+
+# Video: Test Video
+source:: [[video_transcripts/test]]
+
+## Text: Introduction
+content::
+Watch this video about AI safety.
+
+## Video-excerpt: Key Segment
+from:: 1:00
+to:: 5:00
+
+## Chat: Discussion Questions
+showUserPreviousContent:: false
+instructions::
+Ask what stood out to the user.
+"""
+        module = parse_module(text)
+        section = module.sections[0]
+        assert isinstance(section, VideoSection)
+        assert len(section.segments) == 3
+
+        seg0 = section.segments[0]
+        assert isinstance(seg0, TextSegment)
+
+        seg1 = section.segments[1]
+        assert isinstance(seg1, VideoExcerptSegment)
+        assert seg1.from_time == "1:00"
+        assert seg1.to_time == "5:00"
+
+        seg2 = section.segments[2]
+        assert isinstance(seg2, ChatSegment)
+        assert seg2.show_user_previous_content is False

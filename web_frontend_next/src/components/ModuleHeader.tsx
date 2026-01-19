@@ -1,6 +1,5 @@
 import { useHeaderLayout } from "../hooks/useHeaderLayout";
 import StageProgressBar from "./module/StageProgressBar";
-import { ModuleDrawerToggle } from "./module/ModuleDrawer";
 import HeaderAuthStatus from "./module/HeaderAuthStatus";
 import type { Stage } from "../types/module";
 
@@ -17,7 +16,6 @@ interface ModuleHeaderProps {
   onNext: () => void;
   onReturnToCurrent: () => void;
   onSkipSection: () => void;
-  onDrawerOpen: () => void;
   onLoginClick: () => void;
 }
 
@@ -34,7 +32,6 @@ export function ModuleHeader({
   onNext,
   onReturnToCurrent,
   onSkipSection,
-  onDrawerOpen,
   onLoginClick,
 }: ModuleHeaderProps) {
   const [
@@ -105,22 +102,24 @@ export function ModuleHeader({
 
           {/* Right section: Controls */}
           <div ref={rightRef} className="flex items-center gap-4">
-            {isViewingOther ? (
-              <button
-                onClick={onReturnToCurrent}
-                className="text-emerald-600 hover:text-emerald-700 text-sm font-medium whitespace-nowrap"
-              >
-                Return to current →
-              </button>
-            ) : (
-              <button
-                onClick={onSkipSection}
-                className="text-gray-500 hover:text-gray-700 text-sm cursor-pointer whitespace-nowrap"
-              >
-                Skip section
-              </button>
-            )}
-            <ModuleDrawerToggle onClick={onDrawerOpen} />
+            {/* Fixed width container to prevent layout shift when text changes */}
+            <div className="w-[120px] flex justify-end">
+              {isViewingOther ? (
+                <button
+                  onClick={onReturnToCurrent}
+                  className="text-emerald-600 hover:text-emerald-700 text-sm font-medium whitespace-nowrap"
+                >
+                  Return to current →
+                </button>
+              ) : (
+                <button
+                  onClick={onSkipSection}
+                  className="text-gray-500 hover:text-gray-700 text-sm cursor-pointer whitespace-nowrap"
+                >
+                  Skip section
+                </button>
+              )}
+            </div>
             <HeaderAuthStatus onLoginClick={onLoginClick} />
           </div>
         </div>

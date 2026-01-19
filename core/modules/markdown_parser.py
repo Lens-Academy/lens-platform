@@ -170,8 +170,8 @@ def _parse_fields(text: str) -> dict[str, str]:
     current_value_lines = []
 
     for line in lines:
-        # Stop at segment headers (## SegmentType)
-        if re.match(r"^## \S+\s*$", line):
+        # Stop at segment headers (## SegmentType or ## SegmentType: Title)
+        if re.match(r"^## \S+(?::\s*.+)?$", line):
             if current_key is not None:
                 fields[current_key] = "\n".join(current_value_lines).strip()
                 current_key = None
@@ -289,8 +289,8 @@ def _parse_segment(segment_type: str, content: str) -> Segment:
 
 def _split_into_segments(content: str) -> list[tuple[str, str]]:
     """Split section content into (segment_type, segment_content) tuples."""
-    # Pattern for ## SegmentType
-    pattern = r"^## (\S+)\s*$"
+    # Pattern for ## SegmentType or ## SegmentType: Title
+    pattern = r"^## (\S+)(?::\s*.+)?$"
 
     segments = []
     current_type = None

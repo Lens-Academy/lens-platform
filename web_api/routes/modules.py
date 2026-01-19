@@ -441,26 +441,69 @@ class SendMessageRequest(BaseModel):
     segment_index: int | None = None  # For narrative modules
 
 
-def get_narrative_chat_context(
-    module,
-    section_index: int,
-    segment_index: int,
-) -> tuple[str, str | None]:
+def _parse_time_to_seconds(time_str: str | None) -> int:
     """
-    Get chat instructions and previous content for a narrative module position.
+    Convert time string (e.g., '1:30' or '1:30:45') to seconds.
 
     Args:
-        module: NarrativeModule dataclass
-        section_index: Section index (0-based)
-        segment_index: Segment index within section (0-based)
+        time_str: Time in format "MM:SS" or "HH:MM:SS", or None
 
     Returns:
-        Tuple of (instructions, previous_content or None)
+        Time in seconds (0 if None or invalid)
     """
-    from core.modules.types import (
+    if time_str is None:
+        return 0
+    # Strip any extra content (defensive - content parsing issue)
+    time_str = time_str.strip().split("\n")[0].strip()
+    try:
+        parts = time_str.split(":")
+        if len(parts) == 2:
+            # MM:SS format
+            minutes, seconds = int(parts[0]), int(parts[1])
+            return minutes * 60 + seconds
+        elif len(parts) == 3:
+            # HH:MM:SS format
+            hours, minutes, seconds = int(parts[0]), int(parts[1]), int(parts[2])
+            return hours * 3600 + minutes * 60 + seconds
+        else:
+            # Single number assumed to be seconds
+            return int(time_str)
+    except ValueError:
+        # If parsing fails, return 0 as fallback
+        return 0
+
+
+def _format_time_range(from_seconds: int, to_seconds: int) -> str:
+    """Format a time range for display (e.g., '1:30 - 3:45')."""
+
+    def fmt(s: int) -> str:
+        minutes, secs = divmod(s, 60)
+        return f"{minutes}:{secs:02d}"
+
+    return f"{fmt(from_seconds)} - {fmt(to_seconds)}"
+
+
+def _format_segment_for_llm(
+    segment,
+    section,
+    is_last: bool,
+) -> str | None:
+    """
+    Format a single segment's content for LLM context.
+
+    Args:
+        segment: The segment to format (TextSegment, ArticleExcerptSegment, or VideoExcerptSegment)
+        section: Parent section (ArticleSection or VideoSection)
+        is_last: Whether this is the most recent segment before the chat
+
+    Returns:
+        Formatted string, or None if content couldn't be loaded
+    """
+    # IMPORTANT: Use markdown_parser types for narrative modules
+    from core.modules.markdown_parser import (
         ArticleSection,
         VideoSection,
-        ChatSegment,
+        TextSegment,
         ArticleExcerptSegment,
         VideoExcerptSegment,
     )
@@ -470,9 +513,83 @@ def get_narrative_chat_context(
     )
     from core.transcripts import get_text_at_time
 
+    prefix = "The user read last:" if is_last else "The user read earlier:"
+
+    if isinstance(segment, TextSegment):
+        return f"{prefix}\n{segment.content}"
+
+    elif isinstance(segment, ArticleExcerptSegment) and isinstance(
+        section, ArticleSection
+    ):
+        try:
+            result = load_article_with_metadata(
+                section.source,
+                segment.from_text,
+                segment.to_text,
+            )
+            return f"{prefix}\n{result.content}"
+        except FileNotFoundError:
+            return None
+
+    elif isinstance(segment, VideoExcerptSegment) and isinstance(section, VideoSection):
+        try:
+            video_result = load_video_transcript_with_metadata(section.source)
+            video_id = video_result.metadata.video_id
+            video_title = video_result.metadata.title or "Video"
+
+            # VideoExcerptSegment uses from_time/to_time STRINGS, not integers
+            from_seconds = _parse_time_to_seconds(segment.from_time)
+            to_seconds = (
+                _parse_time_to_seconds(segment.to_time) if segment.to_time else 99999
+            )
+
+            transcript = get_text_at_time(
+                video_id,
+                from_seconds,
+                to_seconds,
+            )
+
+            # Format with metadata
+            time_range = _format_time_range(from_seconds, to_seconds)
+            return f"{prefix}\n[Video: {video_title}, {time_range}]\n{transcript}"
+        except FileNotFoundError:
+            return None
+
+    return None
+
+
+def get_narrative_chat_context(
+    module,
+    section_index: int,
+    segment_index: int,
+) -> tuple[str, str | None]:
+    """
+    Get chat instructions and previous content for a narrative module position.
+
+    Accumulates ALL segments before the chat segment within the current section,
+    including TextSegment, ArticleExcerptSegment, and VideoExcerptSegment.
+    Content is ordered earliest-to-latest, with the last segment marked specially.
+
+    Note: This is section-scoped only. A standalone ChatSection will not receive
+    content from a previous section. This can lead to unexpected behavior if
+    module authors expect cross-section context inheritance.
+
+    Args:
+        module: NarrativeModule dataclass
+        section_index: Section index (0-based)
+        segment_index: Segment index within section (0-based)
+
+    Returns:
+        Tuple of (instructions, previous_content or None)
+    """
+    # IMPORTANT: Use markdown_parser types for narrative modules
+    from core.modules.markdown_parser import ChatSegment
+
     section = module.sections[section_index]
 
-    # Only article/video sections have segments
+    # Note: Standalone ChatSection does not inherit content from previous sections.
+    # This is intentional but can lead to unexpected behavior if authors expect
+    # cross-section context. Consider adding cross-section support in the future.
     if not hasattr(section, "segments"):
         return "", None
 
@@ -482,40 +599,24 @@ def get_narrative_chat_context(
         return "", None
 
     instructions = segment.instructions
-    previous_content = None
 
-    # Get previous content if enabled
-    if segment.show_tutor_previous_content and segment_index > 0:
-        # Look back for the most recent content segment
-        for i in range(segment_index - 1, -1, -1):
-            prev_seg = section.segments[i]
+    if not segment.show_tutor_previous_content or segment_index == 0:
+        return instructions, None
 
-            if isinstance(prev_seg, ArticleExcerptSegment) and isinstance(
-                section, ArticleSection
-            ):
-                result = load_article_with_metadata(
-                    section.source,
-                    prev_seg.from_text,
-                    prev_seg.to_text,
-                )
-                previous_content = result.content
-                break
+    # Accumulate all previous segments in order
+    accumulated_parts: list[str] = []
 
-            elif isinstance(prev_seg, VideoExcerptSegment) and isinstance(
-                section, VideoSection
-            ):
-                video_result = load_video_transcript_with_metadata(section.source)
-                video_id = video_result.metadata.video_id
-                try:
-                    previous_content = get_text_at_time(
-                        video_id,
-                        prev_seg.from_seconds,
-                        prev_seg.to_seconds,
-                    )
-                except FileNotFoundError:
-                    pass
-                break
+    for i in range(segment_index):
+        prev_seg = section.segments[i]
+        is_last = i == segment_index - 1
+        content_part = _format_segment_for_llm(prev_seg, section, is_last)
+        if content_part:
+            accumulated_parts.append(content_part)
 
+    if not accumulated_parts:
+        return instructions, None
+
+    previous_content = "\n\n".join(accumulated_parts)
     return instructions, previous_content
 
 

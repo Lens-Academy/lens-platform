@@ -2,10 +2,55 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { transcribeAudio } from "@/api/modules";
 import { Tooltip } from "@/components/Tooltip";
 import { StageIcon } from "@/components/module/StageProgressBar";
+
+// Minimal markdown for chat - just inline formatting, no block elements
+function ChatMarkdown({ children }: { children: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        // Inline formatting
+        strong: ({ children }) => (
+          <strong className="font-semibold">{children}</strong>
+        ),
+        em: ({ children }) => <em className="italic">{children}</em>,
+        // Render paragraphs as spans to avoid block-level spacing
+        p: ({ children }) => <span>{children}</span>,
+        // Links
+        a: ({ href, children }) => (
+          <a
+            href={href}
+            className="text-blue-600 underline hover:text-blue-800"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {children}
+          </a>
+        ),
+        // Disable block elements - render as plain text
+        h1: ({ children }) => <span>{children}</span>,
+        h2: ({ children }) => <span>{children}</span>,
+        h3: ({ children }) => <span>{children}</span>,
+        blockquote: ({ children }) => <span>{children}</span>,
+        ul: ({ children }) => <span>{children}</span>,
+        ol: ({ children }) => <span>{children}</span>,
+        li: ({ children }) => <span>{children} </span>,
+        pre: ({ children }) => <span>{children}</span>,
+        code: ({ children }) => (
+          <code className="bg-gray-100 px-1 rounded text-sm">{children}</code>
+        ),
+      }}
+    >
+      {children}
+    </ReactMarkdown>
+  );
+}
 
 type NarrativeChatSectionProps = {
   messages: ChatMessage[];
@@ -419,7 +464,13 @@ export default function NarrativeChatSection({
                         <div className="text-xs text-gray-500 mb-1">
                           {msg.role === "assistant" ? "Tutor" : "You"}
                         </div>
-                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                        <div className="whitespace-pre-wrap">
+                          {msg.role === "assistant" ? (
+                            <ChatMarkdown>{msg.content}</ChatMarkdown>
+                          ) : (
+                            msg.content
+                          )}
+                        </div>
                       </div>
                     )
                   )}
@@ -457,7 +508,13 @@ export default function NarrativeChatSection({
                         <div className="text-xs text-gray-500 mb-1">
                           {msg.role === "assistant" ? "Tutor" : "You"}
                         </div>
-                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                        <div className="whitespace-pre-wrap">
+                          {msg.role === "assistant" ? (
+                            <ChatMarkdown>{msg.content}</ChatMarkdown>
+                          ) : (
+                            msg.content
+                          )}
+                        </div>
                       </div>
                     )
                   )}
@@ -495,7 +552,9 @@ export default function NarrativeChatSection({
                   {isLoading && streamingContent && (
                     <div className="bg-blue-50 p-3 rounded-lg">
                       <div className="text-xs text-gray-500 mb-1">Tutor</div>
-                      <div className="whitespace-pre-wrap">{streamingContent}</div>
+                      <div className="whitespace-pre-wrap">
+                        <ChatMarkdown>{streamingContent}</ChatMarkdown>
+                      </div>
                     </div>
                   )}
 
