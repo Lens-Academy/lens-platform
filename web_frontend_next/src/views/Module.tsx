@@ -532,19 +532,30 @@ export default function Module({ module, courseContext }: ModuleProps) {
         );
       }
 
-      case "video-excerpt":
+      case "video-excerpt": {
         if (section.type !== "video") return null;
+
+        // Count how many video-excerpt segments came before this one in this section
+        // Note: All video-excerpts in a video section share the same videoId,
+        // so "Continue video" makes sense for subsequent clips.
+        const videoExcerptsBefore = section.segments
+          .slice(0, segmentIndex)
+          .filter((s) => s.type === "video-excerpt").length;
+        const isFirstVideoExcerpt = videoExcerptsBefore === 0;
+
         return (
           <VideoEmbed
             key={`video-${keyPrefix}`}
             videoId={section.videoId}
             start={segment.from}
             end={segment.to}
+            isFirstInSection={isFirstVideoExcerpt}
             onPlay={videoTracker.onPlay}
             onPause={videoTracker.onPause}
             onTimeUpdate={videoTracker.onTimeUpdate}
           />
         );
+      }
 
       case "chat":
         // Chat components stay mounted (no lazy loading) to preserve local state
