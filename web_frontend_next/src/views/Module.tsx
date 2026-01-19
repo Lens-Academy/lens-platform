@@ -119,12 +119,8 @@ export default function Module({ module }: ModuleProps) {
   // Error state
   const [error, setError] = useState<string | null>(null);
 
-  // View mode state
-  const [viewMode, setViewMode] = useState<ViewMode>("continuous");
-
-  const handleViewModeChange = useCallback((mode: ViewMode) => {
-    setViewMode(mode);
-  }, []);
+  // View mode state (default to paginated)
+  const [viewMode] = useState<ViewMode>("paginated");
 
   // Derive furthest completed index for progress bar display
   // Progress bar shows stages as "reached" based on this, not scroll position
@@ -596,8 +592,6 @@ export default function Module({ module }: ModuleProps) {
           }
           canGoPrevious={currentSectionIndex > 0}
           canGoNext={currentSectionIndex < module.sections.length - 1}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
           onStageClick={handleStageClick}
           onPrevious={handlePrevious}
           onNext={handleNext}

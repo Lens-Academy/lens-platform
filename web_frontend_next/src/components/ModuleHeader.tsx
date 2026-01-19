@@ -1,9 +1,7 @@
 import { useHeaderLayout } from "../hooks/useHeaderLayout";
 import StageProgressBar from "./module/StageProgressBar";
 import HeaderAuthStatus from "./module/HeaderAuthStatus";
-import ViewModeToggle from "./module/ViewModeToggle";
 import type { Stage } from "../types/module";
-import type { ViewMode } from "../types/viewMode";
 
 interface ModuleHeaderProps {
   moduleTitle: string;
@@ -13,8 +11,6 @@ interface ModuleHeaderProps {
   isViewingOther: boolean;
   canGoPrevious: boolean;
   canGoNext: boolean;
-  viewMode: ViewMode;
-  onViewModeChange: (mode: ViewMode) => void;
   onStageClick: (index: number) => void;
   onPrevious: () => void;
   onNext: () => void;
@@ -31,8 +27,6 @@ export function ModuleHeader({
   isViewingOther,
   canGoPrevious,
   canGoNext,
-  viewMode,
-  onViewModeChange,
   onStageClick,
   onPrevious,
   onNext,
@@ -108,22 +102,24 @@ export function ModuleHeader({
 
           {/* Right section: Controls */}
           <div ref={rightRef} className="flex items-center gap-4">
-            <ViewModeToggle viewMode={viewMode} onChange={onViewModeChange} />
-            {isViewingOther ? (
-              <button
-                onClick={onReturnToCurrent}
-                className="text-emerald-600 hover:text-emerald-700 text-sm font-medium whitespace-nowrap"
-              >
-                Return to current →
-              </button>
-            ) : (
-              <button
-                onClick={onSkipSection}
-                className="text-gray-500 hover:text-gray-700 text-sm cursor-pointer whitespace-nowrap"
-              >
-                Skip section
-              </button>
-            )}
+            {/* Fixed width container to prevent layout shift when text changes */}
+            <div className="w-[120px] flex justify-end">
+              {isViewingOther ? (
+                <button
+                  onClick={onReturnToCurrent}
+                  className="text-emerald-600 hover:text-emerald-700 text-sm font-medium whitespace-nowrap"
+                >
+                  Return to current →
+                </button>
+              ) : (
+                <button
+                  onClick={onSkipSection}
+                  className="text-gray-500 hover:text-gray-700 text-sm cursor-pointer whitespace-nowrap"
+                >
+                  Skip section
+                </button>
+              )}
+            </div>
             <HeaderAuthStatus onLoginClick={onLoginClick} />
           </div>
         </div>

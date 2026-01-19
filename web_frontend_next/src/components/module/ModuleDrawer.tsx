@@ -44,7 +44,7 @@ export default function ModuleDrawer({
       {/* Floating toggle - always mounted, hidden via CSS when drawer is open */}
       <button
         onMouseDown={handleOpen}
-        className={`fixed left-0 top-16 z-40 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-md px-1.5 py-3 hover:bg-gray-50 transition-colors ${
+        className={`fixed left-0 top-16 z-50 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-md px-1.5 py-3 hover:bg-gray-50 transition-colors ${
           isOpen ? "opacity-0 pointer-events-none" : ""
         }`}
         title="Module Overview"
