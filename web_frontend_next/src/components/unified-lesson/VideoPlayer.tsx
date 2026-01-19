@@ -8,7 +8,7 @@ type VideoPlayerProps = {
   onEnded: () => void;
   /** Hide the continue button (for reviewing previous videos) */
   hideControls?: boolean;
-  /** Auto-play video when loaded */
+  /** Auto-play video when loaded (passed to youtube-video element) */
   autoplay?: boolean;
   /** Activity tracking callbacks */
   onPlay?: () => void;
@@ -81,10 +81,8 @@ export default function VideoPlayer({
     videoRef.current = video;
 
     const handleLoadedMetadata = () => {
-      video.currentTime = start;
-      if (autoplay) {
-        video.play();
-      }
+      // Start time is handled by &t= in the URL
+      // Don't seek here - it would pause the video that YouTube auto-started
     };
 
     const handlePlay = () => {
@@ -119,7 +117,7 @@ export default function VideoPlayer({
       video.removeEventListener("timeupdate", handleTimeUpdate);
       video.removeEventListener("volumechange", handleVolumeChange);
     };
-  }, [start, autoplay, onPlayCallback, onPauseCallback, onTimeUpdateCallback]);
+  }, [start, onPlayCallback, onPauseCallback, onTimeUpdateCallback]);
 
   // High-frequency polling for smooth progress and fade timing
   useEffect(() => {
@@ -295,6 +293,7 @@ export default function VideoPlayer({
           <youtube-video
             src={youtubeUrl}
             controls
+            autoplay={autoplay}
             className="w-full h-full"
           />
 
