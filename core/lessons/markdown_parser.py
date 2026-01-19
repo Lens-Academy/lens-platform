@@ -38,7 +38,7 @@ class VideoExcerptSegment:
     """A video excerpt segment with timestamps."""
 
     type: str = "video-excerpt"
-    from_time: str = "0:00"
+    from_time: str | None = None
     to_time: str | None = None
 
 
@@ -59,9 +59,9 @@ class VideoSection:
     """A video-based section with source and segments."""
 
     type: str = "video"
-    title: str = ""
     source: str = ""
     segments: list[Segment] = field(default_factory=list)
+    optional: bool = False
 
 
 @dataclass
@@ -69,9 +69,9 @@ class ArticleSection:
     """An article-based section with source and segments."""
 
     type: str = "article"
-    title: str = ""
     source: str = ""
     segments: list[Segment] = field(default_factory=list)
+    optional: bool = False
 
 
 @dataclass
@@ -79,7 +79,6 @@ class TextSection:
     """A standalone text section (no child segments)."""
 
     type: str = "text"
-    title: str = ""
     content: str = ""
 
 
@@ -88,7 +87,6 @@ class ChatSection:
     """A standalone chat section (no child segments)."""
 
     type: str = "chat"
-    title: str = ""
     instructions: str = ""
     show_user_previous_content: bool = True
     show_tutor_previous_content: bool = True
@@ -164,7 +162,7 @@ def _parse_fields(text: str) -> dict[str, str]:
     Parse key:: value fields from text.
 
     Single-line: key:: value
-    Multi-line: key:: followed by lines until next key:: or end
+    Multi-line: key:: followed by lines until next key::, segment header (## ), or end
     """
     fields = {}
     lines = text.split("\n")
@@ -172,6 +170,14 @@ def _parse_fields(text: str) -> dict[str, str]:
     current_value_lines = []
 
     for line in lines:
+        # Stop at segment headers (## SegmentType)
+        if re.match(r"^## \S+\s*$", line):
+            if current_key is not None:
+                fields[current_key] = "\n".join(current_value_lines).strip()
+                current_key = None
+                current_value_lines = []
+            continue
+
         # Check for new field
         field_match = re.match(r"^(\w+)::\s*(.*)?$", line)
 
@@ -219,6 +225,18 @@ def _parse_bool(value: str) -> bool:
     return value.lower() in ("true", "yes", "1")
 
 
+def _strip_quotes(value: str | None) -> str | None:
+    """Strip outer quotes from a value."""
+    if value is None:
+        return None
+    value = value.strip()
+    if (value.startswith('"') and value.endswith('"')) or (
+        value.startswith("'") and value.endswith("'")
+    ):
+        return value[1:-1]
+    return value
+
+
 # -----------------------------------------------------------------------------
 # Segment parsing
 # -----------------------------------------------------------------------------
@@ -247,15 +265,17 @@ def _parse_segment(segment_type: str, content: str) -> Segment:
         )
 
     elif segment_type_lower == "video-excerpt":
+        # from_time is null if not specified (not default "0:00")
         return VideoExcerptSegment(
-            from_time=fields.get("from", "0:00"),
+            from_time=fields.get("from"),
             to_time=fields.get("to"),
         )
 
     elif segment_type_lower == "article-excerpt":
+        # Strip outer quotes from from/to values
         return ArticleExcerptSegment(
-            from_text=fields.get("from"),
-            to_text=fields.get("to"),
+            from_text=_strip_quotes(fields.get("from")),
+            to_text=_strip_quotes(fields.get("to")),
         )
 
     else:
@@ -300,15 +320,18 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
     fields = _parse_fields(content)
     section_type_lower = section_type.lower()
 
+    # Parse optional flag (default False)
+    optional = _parse_bool(fields.get("optional", "false"))
+
     if section_type_lower == "video":
         source = _extract_wiki_link(fields.get("source", ""))
         segment_data = _split_into_segments(content)
         segments = [_parse_segment(stype, scontent) for stype, scontent in segment_data]
 
         return VideoSection(
-            title=title,
             source=source,
             segments=segments,
+            optional=optional,
         )
 
     elif section_type_lower == "article":
@@ -317,21 +340,19 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
         segments = [_parse_segment(stype, scontent) for stype, scontent in segment_data]
 
         return ArticleSection(
-            title=title,
             source=source,
             segments=segments,
+            optional=optional,
         )
 
     elif section_type_lower == "text":
         raw_content = fields.get("content", "")
         return TextSection(
-            title=title,
             content=_unescape_content_headers(raw_content),
         )
 
     elif section_type_lower == "chat":
         return ChatSection(
-            title=title,
             instructions=fields.get("instructions", ""),
             show_user_previous_content=_parse_bool(
                 fields.get("showUserPreviousContent", "true")

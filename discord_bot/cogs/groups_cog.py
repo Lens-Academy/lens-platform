@@ -20,10 +20,8 @@ from core.queries.cohorts import get_realizable_cohorts, save_cohort_category_id
 from core.queries.groups import (
     get_cohort_groups_for_realization,
     save_discord_channel_ids,
-    get_group_welcome_data,
     get_realized_groups_for_discord_user,
 )
-from core.cohorts import format_local_time
 from core.notifications import notify_group_assigned
 from core.meetings import (
     create_meetings_for_group,

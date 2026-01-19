@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import cohort_scheduler
-from core import Person, DAY_MAP, calculate_total_available_time
+from core import Person, calculate_total_available_time
 
 # Aliases for cohort_scheduler functions
 parse_interval_string = cohort_scheduler.parse_interval_string

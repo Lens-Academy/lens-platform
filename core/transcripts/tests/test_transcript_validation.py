@@ -11,7 +11,7 @@ from core.lessons.content import extract_video_id_from_url
 
 TRANSCRIPTS_DIR = (
     Path(__file__).parent.parent.parent.parent
-    / "educational_content"
+    / "educational_content_deprecated"
     / "video_transcripts"
 )
 

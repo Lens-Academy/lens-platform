@@ -1,0 +1,125 @@
+{
+  "slug": "introduction",
+  "title": "Introduction",
+  "sections": [
+    {
+      "type": "video",
+      "source": "video_transcripts/kurzgesagt-ai-humanitys-final-invention",
+      "segments": [
+        {
+          "type": "text",
+          "content": "We begin by examining the potential of AI and the risks and opportunities that the characteristics of this technology present to humanity.\n\n## Key Concepts\n\nThis section covers:\n\n- Intelligence as problem-solving ability\n- The development of neural networks\n\n### Why This Matters\n\nUnderstanding these basics is essential for the discussions ahead."
+        },
+        {
+          "type": "video-excerpt",
+          "from_time": "0:00",
+          "to_time": null
+        }
+      ]
+    },
+    {
+      "type": "chat",
+      "instructions": "TLDR of what the user just watched:\nHumans dominate Earth because general intelligence enabled cumulative knowledge.\nModern AI evolved from narrow tools into opaque \"black box\" learning systems.\nAGI matters because digital minds can run faster, scale, and be copied—potentially\noutcompeting humans and concentrating power. An intelligence explosion could lead\nto superintelligence with uncertain outcomes.\n\nDiscussion topics to explore:\n- What is intelligence as \"problem-solving ability\" and why is it a source of power?\n- Why are neural networks called \"black boxes\"?\n- What's the difference between narrow AI (like ChatGPT) and AGI?\n- How could an \"intelligence explosion\" happen through recursive self-improvement?\n\nStart by asking what stood out or surprised them. Use Socratic questioning to\ncheck their understanding of these concepts. Don't lecture—help them articulate\ntheir own thinking.",
+      "show_user_previous_content": true,
+      "show_tutor_previous_content": false
+    },
+    {
+      "type": "article",
+      "source": "articles/wikipedia-existential-risk-from-ai",
+      "segments": [
+        {
+          "type": "text",
+          "content": "We continue with an overview of the main concepts regarding AI as a source of existential threat: what capabilities of this technology are considered first and foremost, and why the task of eliminating AI risks differs from similar tasks for other impressive technologies created by humanity."
+        },
+        {
+          "type": "article-excerpt",
+          "from_text": "Existential risk from artificial general intelligence",
+          "to_text": "the hypothesis that substantial progress"
+        }
+      ]
+    },
+    {
+      "type": "chat",
+      "instructions": "TLDR of what the user just read:\nAI x-risk is the hypothesis that AGI/superintelligence could cause human extinction\nor irreversible collapse. The risk combines: capability advantages, recursive\nself-improvement, and emerging dangerous capabilities (manipulation, cyberattacks,\nbioweapons)—amplified by competitive \"race to the bottom\" dynamics. The core crux\nis alignment: specifying goals, ensuring corrigibility, handling instrumental\nconvergence. Intelligence and values are orthogonal—moral behavior isn't automatic.\n\nDiscussion topics to explore:\n- What is \"instrumental convergence\"? Why would any smart AI seek self-preservation and resources?\n- What is the \"Gorilla Problem\" (Stuart Russell's analogy)?\n- How do \"Monkey's Paw\" or \"King Midas\" effects apply to goal specification?\n- What do skeptics like Yann LeCun argue, and what are the counter-arguments?\n- Why might \"kill switches\" fail against superintelligence?\n\nAsk what they found surprising or new. Check if they can explain instrumental\nconvergence in their own words—it's a key concept.",
+      "show_user_previous_content": false,
+      "show_tutor_previous_content": true
+    },
+    {
+      "type": "video",
+      "source": "video_transcripts/robertmiles-10-reasons-to-ignore-ai-safety",
+      "segments": [
+        {
+          "type": "video-excerpt",
+          "from_time": "0:00",
+          "to_time": "14:48"
+        }
+      ]
+    },
+    {
+      "type": "chat",
+      "instructions": "TLDR of what the user just watched:\nThe video presents 10 common objections to AI safety concerns and refutes each one.\nKey rebuttals include: instrumental convergence explains why \"just don't add bad goals\"\nfails; implicit goals make systems LESS safe; the \"asteroid analogy\" shows why early\npreparation matters; being \"for AI safety\" is not the same as being \"against AI.\"\n\nDiscussion topics to explore:\n- Which objection did they find most initially convincing? Did their view change?\n- How does instrumental convergence counter \"just don't put in bad goals\"?\n- Why do implicit goals make systems less safe, not more?\n- What's the flaw in \"human-AI teams will keep things safe\"?\n- How does the video respond to the \"overpopulation on Mars\" analogy?\n\nThis is a good stage to surface any remaining skepticism they have. Engage with\ntheir doubts constructively rather than dismissing them.",
+      "show_user_previous_content": false,
+      "show_tutor_previous_content": false
+    },
+    {
+      "type": "chat",
+      "instructions": "Ask the user to reflect on what they've learned so far.\n\nDiscussion topics:\n- What concept was most surprising?\n- What questions remain?",
+      "show_user_previous_content": true,
+      "show_tutor_previous_content": true
+    },
+    {
+      "type": "chat",
+      "instructions": "Brief closing discussion.",
+      "show_user_previous_content": true,
+      "show_tutor_previous_content": true
+    },
+    {
+      "type": "video",
+      "source": "video_transcripts/bonus-clip",
+      "segments": [
+        {
+          "type": "video-excerpt",
+          "from_time": null,
+          "to_time": "2:30"
+        },
+        {
+          "type": "video-excerpt",
+          "from_time": null,
+          "to_time": null
+        }
+      ]
+    },
+    {
+      "type": "article",
+      "source": "articles/nate-soares-four-background-claims",
+      "optional": true,
+      "segments": [
+        {
+          "type": "text",
+          "content": "This text explains exactly how the emergence of AI smarter than humans could become an event with enormous stakes, and why, in the author's opinion, there is already meaningful work being done today that increases the chance of a positive outcome. The author identifies four key premises that underpin his entire perspective on the prospects of AI."
+        },
+        {
+          "type": "article-excerpt",
+          "from_text": null,
+          "to_text": null
+        }
+      ]
+    },
+    {
+      "type": "article",
+      "source": "articles/buck-worst-case-thinking-in-ai-alignment",
+      "optional": true,
+      "segments": [
+        {
+          "type": "text",
+          "content": "In discussions of AI safety, people often propose the assumption that something will go as badly as possible. Different people may do this for different reasons; in this essay, the author reviews some of the most common reasons and writes about how this difference might manifest itself and what it means."
+        },
+        {
+          "type": "article-excerpt",
+          "from_text": null,
+          "to_text": null
+        }
+      ]
+    }
+  ]
+}

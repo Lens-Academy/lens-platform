@@ -15,8 +15,8 @@ sys.path.insert(0, str(project_root))
 import pytest
 from fastapi.testclient import TestClient
 from main import app
-from core.lessons.course_loader import load_course, get_all_lesson_slugs
-from core.lessons.types import LessonRef, Meeting
+from core.lessons.course_loader import load_course, _extract_slug_from_path
+from core.lessons.markdown_parser import LessonRef, MeetingMarker
 
 client = TestClient(app)
 
@@ -28,8 +28,10 @@ def get_first_lesson_before_meeting(course_slug: str) -> str | None:
     """Find first lesson that's followed by a meeting."""
     course = load_course(course_slug)
     for i, item in enumerate(course.progression[:-1]):
-        if isinstance(item, LessonRef) and isinstance(course.progression[i + 1], Meeting):
-            return item.slug
+        if isinstance(item, LessonRef) and isinstance(
+            course.progression[i + 1], MeetingMarker
+        ):
+            return _extract_slug_from_path(item.path)
     return None
 
 
@@ -37,8 +39,10 @@ def get_first_lesson_before_lesson(course_slug: str) -> str | None:
     """Find first lesson that's followed by another lesson."""
     course = load_course(course_slug)
     for i, item in enumerate(course.progression[:-1]):
-        if isinstance(item, LessonRef) and isinstance(course.progression[i + 1], LessonRef):
-            return item.slug
+        if isinstance(item, LessonRef) and isinstance(
+            course.progression[i + 1], LessonRef
+        ):
+            return _extract_slug_from_path(item.path)
     return None
 
 
@@ -47,7 +51,7 @@ def get_last_lesson(course_slug: str) -> str | None:
     course = load_course(course_slug)
     for item in reversed(course.progression):
         if isinstance(item, LessonRef):
-            return item.slug
+            return _extract_slug_from_path(item.path)
     return None
 
 
@@ -83,15 +87,14 @@ def test_get_next_lesson_returns_lesson():
 
 
 def test_get_next_lesson_end_of_course():
-    """Should return appropriate response for last lesson."""
+    """Should return 204 No Content for the last lesson in course."""
     last_lesson = get_last_lesson("default")
     if last_lesson is None:
         pytest.skip("No lessons found in default course")
 
     response = client.get(f"/api/courses/default/next-lesson?current={last_lesson}")
-    assert response.status_code == 200
-    # Last lesson returns either unit_complete (if followed by meeting)
-    # or could potentially return null/empty for course end
+    # End of course returns 204 No Content
+    assert response.status_code == 204
 
 
 def test_get_next_lesson_invalid_course():

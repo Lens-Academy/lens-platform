@@ -25,14 +25,13 @@ Fix any errors before pushing. CI will run these same checks.
 
 ## Commands
 
-Run the server: `python main.py --dev`. This is a unified backend (FastAPI + Discord Bot) that also serves the frontend.
+Run the server: `python main.py`. This is a unified backend (FastAPI + Discord Bot) that also serves the frontend.
 
 Options:
---dev (runs Vite dev server. Without --dev, FastAPI serves the compiled frontend.)
+--dev (enables dev mode - API returns JSON at /, run Next.js frontend separately)
 --no-bot (without Discord bot)
 --no-db (skip database check - for frontend-only development)
 --port (defaults to API_PORT env var, or 8000)
---vite-port (defaults to VITE_PORT env var, or 5173)
 
 **Database connection failures:** If the database connection fails, ask the user to start the database (Docker). Never use `--no-db` without explicit permission from the user.
 
@@ -51,13 +50,12 @@ cd web_api && python main.py      # FastAPI only
 
 ## Dev Server Management
 
-Ports are configured via `.env.local` (gitignored):
-```bash
-API_PORT=8001
-VITE_PORT=5174
-```
+Ports are auto-assigned based on workspace number:
+- `ws1` → API :8000, Frontend :3000
+- `ws2` → API :8001, Frontend :3001
+- etc.
 
-If not set, defaults to 8000/5173. The server prints a note when using defaults.
+Override via `.env.local` (gitignored) or CLI `--port`.
 
 **Before killing any server, always list first:**
 ```bash

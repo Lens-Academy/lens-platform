@@ -363,27 +363,27 @@ Key concerns include:
                     )
 
                     if isinstance(activity, discord.Spotify):
-                        lines.append(f"    (Spotify)")
+                        lines.append("    (Spotify)")
                         lines.append(f"    Title: {activity.title}")
                         lines.append(f"    Artist: {activity.artist}")
                         lines.append(f"    Album: {activity.album}")
                         lines.append(f"    Duration: {activity.duration}")
                         lines.append(f"    Track ID: {activity.track_id}")
                     elif isinstance(activity, discord.Game):
-                        lines.append(f"    (Game)")
+                        lines.append("    (Game)")
                         lines.append(f"    Start: {activity.start}")
                         lines.append(f"    End: {activity.end}")
                     elif isinstance(activity, discord.Streaming):
-                        lines.append(f"    (Streaming)")
+                        lines.append("    (Streaming)")
                         lines.append(f"    URL: {activity.url}")
                         lines.append(f"    Platform: {activity.platform}")
                         lines.append(f"    Game: {activity.game}")
                     elif isinstance(activity, discord.CustomActivity):
-                        lines.append(f"    (Custom)")
+                        lines.append("    (Custom)")
                         lines.append(f"    State: {activity.state}")
                         lines.append(f"    Emoji: {activity.emoji}")
                     elif isinstance(activity, discord.Activity):
-                        lines.append(f"    (Activity)")
+                        lines.append("    (Activity)")
                         if hasattr(activity, "details"):
                             lines.append(f"    Details: {activity.details}")
                         if hasattr(activity, "state"):
@@ -463,9 +463,9 @@ Researchers are pursuing many different technical approaches to AI safety, inclu
             "Line 2\n"
             "Line 3\n\n"
             "LINE SEPARATOR (\\u2028):\n"
-            f"Line A\u2028Line B\u2028Line C\n\n"
+            "Line A\u2028Line B\u2028Line C\n\n"
             "PARAGRAPH SEPARATOR (\\u2029):\n"
-            f"Para X\u2029Para Y\u2029Para Z\n\n"
+            "Para X\u2029Para Y\u2029Para Z\n\n"
             "Copy each section and paste somewhere to see what gets copied!"
         )
         await interaction.response.send_message(test_message)

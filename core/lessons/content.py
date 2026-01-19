@@ -3,11 +3,6 @@
 
 import re
 from dataclasses import dataclass
-from pathlib import Path
-
-
-# Path to content files (educational_content at project root)
-CONTENT_DIR = Path(__file__).parent.parent.parent / "educational_content"
 
 
 def extract_video_id_from_url(url: str) -> str:
@@ -143,48 +138,64 @@ def parse_frontmatter(text: str) -> tuple[ArticleMetadata, str]:
     ), content
 
 
-def load_article(source_url: str) -> str:
+def load_article(source_path: str) -> str:
     """
-    Load article content from file (without metadata).
+    Load article content from cache (without metadata).
 
     Args:
-        source_url: Relative path from content directory (e.g., "articles/foo.md")
+        source_path: Path like "articles/foo" (without .md extension)
 
     Returns:
         Full markdown content as string (frontmatter stripped)
     """
-    article_path = CONTENT_DIR / source_url
+    from core.content import get_cache
 
-    if not article_path.exists():
-        raise FileNotFoundError(f"Article not found: {source_url}")
+    cache = get_cache()
 
-    raw_text = article_path.read_text()
+    # Normalize path - add .md if needed, ensure articles/ prefix
+    if not source_path.endswith(".md"):
+        source_path = f"{source_path}.md"
+    if not source_path.startswith("articles/"):
+        source_path = f"articles/{source_path}"
+
+    if source_path not in cache.articles:
+        raise FileNotFoundError(f"Article not found in cache: {source_path}")
+
+    raw_text = cache.articles[source_path]
     _, content = parse_frontmatter(raw_text)
     return content
 
 
 def load_article_with_metadata(
-    source_url: str,
+    source_path: str,
     from_text: str | None = None,
     to_text: str | None = None,
 ) -> ArticleContent:
     """
-    Load article content with metadata.
+    Load article content with metadata from cache.
 
     Args:
-        source_url: Relative path from content directory
+        source_path: Path like "articles/foo" (without .md extension)
         from_text: Starting anchor phrase (inclusive), or None for start
         to_text: Ending anchor phrase (inclusive), or None for end
 
     Returns:
         ArticleContent with metadata and content
     """
-    article_path = CONTENT_DIR / source_url
+    from core.content import get_cache
 
-    if not article_path.exists():
-        raise FileNotFoundError(f"Article not found: {source_url}")
+    cache = get_cache()
 
-    raw_text = article_path.read_text()
+    # Normalize path - add .md if needed, ensure articles/ prefix
+    if not source_path.endswith(".md"):
+        source_path = f"{source_path}.md"
+    if not source_path.startswith("articles/"):
+        source_path = f"articles/{source_path}"
+
+    if source_path not in cache.articles:
+        raise FileNotFoundError(f"Article not found in cache: {source_path}")
+
+    raw_text = cache.articles[source_path]
     metadata, full_content = parse_frontmatter(raw_text)
 
     # Check if we're extracting an excerpt
@@ -314,42 +325,58 @@ def parse_video_frontmatter(text: str) -> tuple[VideoTranscriptMetadata, str]:
     ), content
 
 
-def load_video_transcript(source_url: str) -> str:
+def load_video_transcript(source_path: str) -> str:
     """
-    Load video transcript from file (without metadata).
+    Load video transcript from cache (without metadata).
 
     Args:
-        source_url: Relative path from content directory
+        source_path: Path like "video_transcripts/foo" (without .md extension)
 
     Returns:
         Full transcript as string (frontmatter stripped)
     """
-    transcript_path = CONTENT_DIR / source_url
+    from core.content import get_cache
 
-    if not transcript_path.exists():
-        raise FileNotFoundError(f"Transcript not found: {source_url}")
+    cache = get_cache()
 
-    raw_text = transcript_path.read_text()
+    # Normalize path - add .md if needed, ensure video_transcripts/ prefix
+    if not source_path.endswith(".md"):
+        source_path = f"{source_path}.md"
+    if not source_path.startswith("video_transcripts/"):
+        source_path = f"video_transcripts/{source_path}"
+
+    if source_path not in cache.video_transcripts:
+        raise FileNotFoundError(f"Transcript not found in cache: {source_path}")
+
+    raw_text = cache.video_transcripts[source_path]
     _, transcript = parse_video_frontmatter(raw_text)
     return transcript
 
 
-def load_video_transcript_with_metadata(source_url: str) -> VideoTranscriptContent:
+def load_video_transcript_with_metadata(source_path: str) -> VideoTranscriptContent:
     """
-    Load video transcript with metadata.
+    Load video transcript with metadata from cache.
 
     Args:
-        source_url: Relative path from content directory
+        source_path: Path like "video_transcripts/foo" (without .md extension)
 
     Returns:
         VideoTranscriptContent with metadata and transcript
     """
-    transcript_path = CONTENT_DIR / source_url
+    from core.content import get_cache
 
-    if not transcript_path.exists():
-        raise FileNotFoundError(f"Transcript not found: {source_url}")
+    cache = get_cache()
 
-    raw_text = transcript_path.read_text()
+    # Normalize path - add .md if needed, ensure video_transcripts/ prefix
+    if not source_path.endswith(".md"):
+        source_path = f"{source_path}.md"
+    if not source_path.startswith("video_transcripts/"):
+        source_path = f"video_transcripts/{source_path}"
+
+    if source_path not in cache.video_transcripts:
+        raise FileNotFoundError(f"Transcript not found in cache: {source_path}")
+
+    raw_text = cache.video_transcripts[source_path]
     metadata, transcript = parse_video_frontmatter(raw_text)
 
     return VideoTranscriptContent(
@@ -491,7 +518,7 @@ def bundle_narrative_lesson(lesson) -> dict:
     Returns:
         Dict ready for JSON serialization
     """
-    from .types import (
+    from .markdown_parser import (
         TextSection,
         ArticleSection,
         VideoSection,
@@ -501,6 +528,21 @@ def bundle_narrative_lesson(lesson) -> dict:
         ChatSegment,
     )
     from core.transcripts import get_text_at_time
+
+    def _parse_time_to_seconds(time_str: str) -> int:
+        """Convert time string (e.g., '1:30' or '1:30:45') to seconds."""
+        parts = time_str.split(":")
+        if len(parts) == 2:
+            # MM:SS format
+            minutes, seconds = int(parts[0]), int(parts[1])
+            return minutes * 60 + seconds
+        elif len(parts) == 3:
+            # HH:MM:SS format
+            hours, minutes, seconds = int(parts[0]), int(parts[1]), int(parts[2])
+            return hours * 3600 + minutes * 60 + seconds
+        else:
+            # Single number assumed to be seconds
+            return int(time_str)
 
     def bundle_segment(segment, section) -> dict:
         """Bundle a single segment with content."""
@@ -520,24 +562,29 @@ def bundle_narrative_lesson(lesson) -> dict:
 
         elif isinstance(segment, VideoExcerptSegment):
             # Extract transcript from parent video
+            # Convert time strings (e.g., "1:30") to seconds
+            from_seconds = _parse_time_to_seconds(segment.from_time) if segment.from_time else 0
+            # Use a large value for "until the end" when to_time is not specified
+            to_seconds = _parse_time_to_seconds(segment.to_time) if segment.to_time else 99999
+
             if isinstance(section, VideoSection):
                 video_result = load_video_transcript_with_metadata(section.source)
                 video_id = video_result.metadata.video_id
                 try:
                     transcript = get_text_at_time(
                         video_id,
-                        segment.from_seconds,
-                        segment.to_seconds,
+                        from_seconds,
+                        to_seconds,
                     )
                 except FileNotFoundError:
                     transcript = ""
                 return {
                     "type": "video-excerpt",
-                    "from": segment.from_seconds,
-                    "to": segment.to_seconds,
+                    "from": from_seconds,
+                    "to": to_seconds if segment.to_time else None,
                     "transcript": transcript,
                 }
-            return {"type": "video-excerpt", "from": 0, "to": 0, "transcript": ""}
+            return {"type": "video-excerpt", "from": 0, "to": None, "transcript": ""}
 
         elif isinstance(segment, ChatSegment):
             return {

@@ -77,13 +77,16 @@ def set_session_cookie(response: Response, token: str) -> None:
     """
     is_production = bool(os.environ.get("RAILWAY_ENVIRONMENT"))
     cookie_domain = os.environ.get("COOKIE_DOMAIN")  # e.g., ".lensacademy.org"
+    # Use "none" for cross-origin staging (requires user to allow third-party cookies)
+    # Use "lax" for same-origin or production with shared domain
+    samesite = os.environ.get("COOKIE_SAMESITE", "lax")
 
     response.set_cookie(
         key="session",
         value=token,
         httponly=True,
-        secure=is_production,
-        samesite="lax",
+        secure=is_production or samesite == "none",  # Secure required for SameSite=None
+        samesite=samesite,
         max_age=60 * 60 * 24,  # 24 hours
         domain=cookie_domain if is_production else None,
     )

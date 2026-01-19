@@ -23,15 +23,16 @@ def get_api_port() -> int:
     return int(os.getenv("API_PORT", "8000"))
 
 
-def get_vite_port() -> int:
-    """Get Vite dev server port from env or default."""
-    return int(os.getenv("VITE_PORT", "5173"))
+def get_frontend_port() -> int:
+    """Get frontend dev server port from env or default."""
+    return int(os.getenv("FRONTEND_PORT", "3000"))
 
 
 def get_frontend_url() -> str:
     """Get frontend URL based on mode."""
     if is_dev_mode():
-        return f"http://localhost:{get_vite_port()}"
+        # Next.js dev server runs on separate port (auto-assigned by workspace)
+        return f"http://localhost:{get_frontend_port()}"
     if is_production():
         return os.environ.get("FRONTEND_URL", f"http://localhost:{get_api_port()}")
     return f"http://localhost:{get_api_port()}"
@@ -78,7 +79,11 @@ def get_allowed_origins() -> list[str]:
 REQUIRED_ENV_VARS = [
     ("DATABASE_URL", "PostgreSQL connection string", True),
     ("JWT_SECRET", "Secret key for JWT tokens", True),
-    ("DISCORD_SERVER_ID", "Discord server ID for notifications and nickname sync", False),
+    (
+        "DISCORD_SERVER_ID",
+        "Discord server ID for notifications and nickname sync",
+        False,
+    ),
     ("DISCORD_BOT_TOKEN", "Discord bot token", False),
 ]
 

@@ -23,7 +23,7 @@ from core.tables import (
     lesson_sessions,
     content_events,
 )
-from core.enums import GroupUserRole, GroupUserStatus, StageType, ContentEventType
+from core.enums import ContentEventType
 from core.queries.facilitator import (
     is_admin,
     get_facilitator_group_ids,

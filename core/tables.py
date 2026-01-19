@@ -1,11 +1,9 @@
 """SQLAlchemy Core table definitions for the database schema."""
 
 from sqlalchemy import (
-    ARRAY,
     Boolean,
     Column,
     Date,
-    Float,
     ForeignKey,
     Index,
     Integer,

@@ -19,7 +19,6 @@ from core.queries.meetings import (
 from core.calendar import (
     create_meeting_event,
     update_meeting_event,
-    cancel_meeting_event,
     is_calendar_configured,
 )
 from core.notifications.actions import (

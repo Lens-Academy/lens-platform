@@ -3,7 +3,6 @@
 
 import json
 import pytest
-from pathlib import Path
 from core.transcripts import (
     find_transcript_timestamps,
     get_text_at_time,
@@ -31,7 +30,7 @@ class TestFindTranscriptTimestamps:
             find_transcript_timestamps("nonexistent", search_dir=tmp_path)
 
     def test_finds_timestamps_in_default_dir(self):
-        """Finds real timestamps in educational_content/video_transcripts/."""
+        """Finds real timestamps in educational_content_deprecated/video_transcripts/."""
         # Use a real transcript we know exists
         result = find_transcript_timestamps("pYXy-A4siMw")
 
@@ -86,7 +85,7 @@ class TestGetTextAtTime:
         assert result == ""
 
     def test_works_with_real_transcript(self):
-        """Works with real transcript from educational_content/video_transcripts/."""
+        """Works with real transcript from educational_content_deprecated/video_transcripts/."""
         # Get text from known timestamp range in real transcript
         result = get_text_at_time("pYXy-A4siMw", start=0.0, end=2.0)
 
@@ -205,7 +204,7 @@ class TestGetTimeFromText:
             )
 
     def test_works_with_real_transcript(self):
-        """Works with real transcript from educational_content/video_transcripts/."""
+        """Works with real transcript from educational_content_deprecated/video_transcripts/."""
         # Quote: "Hi. This video is a remaster of" - first 4 and last 4 words
         result = get_time_from_text(
             "pYXy-A4siMw",

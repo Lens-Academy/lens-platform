@@ -4,7 +4,6 @@ APScheduler-based job scheduler for notifications.
 Jobs are persisted to PostgreSQL so they survive restarts.
 """
 
-import asyncio
 import fnmatch
 import os
 from datetime import datetime
@@ -73,7 +72,7 @@ def init_scheduler(skip_if_db_unavailable: bool = True) -> AsyncIOScheduler | No
         if skip_if_db_unavailable and "timeout" in str(e).lower():
             # Database unavailable - fall back to in-memory scheduler
             print(
-                f"Warning: Could not connect to database for scheduler: timeout expired"
+                "Warning: Could not connect to database for scheduler: timeout expired"
             )
             print("  └─ Scheduler running in memory-only mode (jobs won't persist)")
             _scheduler = AsyncIOScheduler(

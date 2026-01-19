@@ -1,7 +1,6 @@
 # core/lessons/tests/test_content.py
 """Tests for content extraction."""
 
-import pytest
 from pathlib import Path
 from core.lessons.content import extract_article_section, parse_frontmatter
 

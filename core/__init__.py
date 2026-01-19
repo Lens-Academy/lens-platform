@@ -80,7 +80,7 @@ from .config import (
     is_dev_mode,
     is_production,
     get_api_port,
-    get_vite_port,
+    get_frontend_port,
     get_frontend_url,
     get_allowed_origins,
 )
@@ -165,7 +165,7 @@ __all__ = [
     "is_dev_mode",
     "is_production",
     "get_api_port",
-    "get_vite_port",
+    "get_frontend_port",
     "get_frontend_url",
     "get_allowed_origins",
     # Notifications

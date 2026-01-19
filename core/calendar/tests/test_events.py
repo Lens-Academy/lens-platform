@@ -9,8 +9,6 @@ from unittest.mock import Mock, patch
 
 from core.calendar.events import (
     create_meeting_event,
-    update_meeting_event,
-    cancel_meeting_event,
     get_event_rsvps,
 )
 

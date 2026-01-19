@@ -1,46 +1,78 @@
 # core/lessons/tests/test_loader.py
-"""Tests for lesson loader logic.
+"""Tests for lesson loader.
 
-These tests use fixtures to test the loading logic without depending on real content.
+These tests verify that the loader retrieves lessons from the cache.
 """
 
 import pytest
+from datetime import datetime
+
+from core.content import ContentCache, set_cache, clear_cache
 from core.lessons.loader import (
-    load_lesson,
-    get_available_lessons,
+    load_narrative_lesson,
     LessonNotFoundError,
+    get_available_lessons,
 )
+from core.lessons.markdown_parser import ParsedLesson, ChatSection
 
 
-def test_load_existing_lesson(patch_lessons_dir):
-    """Should load a lesson from YAML file."""
-    lesson = load_lesson("test-basic")
-    assert lesson.slug == "test-basic"
-    assert lesson.title == "Test Basic Lesson"
-    assert len(lesson.stages) == 2
-    assert lesson.stages[0].type == "article"
-    assert lesson.stages[1].type == "chat"
+class TestLoadNarrativeLessonFromCache:
+    """Test loading narrative lessons from cache."""
 
+    def setup_method(self):
+        """Set up test cache."""
+        # Create a minimal parsed lesson
+        test_lesson = ParsedLesson(
+            slug="test-lesson",
+            title="Test Lesson",
+            sections=[
+                ChatSection(
+                    instructions="Test instructions",
+                    show_user_previous_content=True,
+                    show_tutor_previous_content=True,
+                )
+            ],
+        )
 
-def test_load_nonexistent_lesson():
-    """Should raise LessonNotFoundError for unknown lesson."""
-    with pytest.raises(LessonNotFoundError):
-        load_lesson("nonexistent-lesson")
+        another_lesson = ParsedLesson(
+            slug="another-lesson",
+            title="Another Lesson",
+            sections=[],
+        )
 
+        cache = ContentCache(
+            courses={},
+            lessons={
+                "test-lesson": test_lesson,
+                "another-lesson": another_lesson,
+            },
+            articles={},
+            video_transcripts={},
+            last_refreshed=datetime.now(),
+        )
+        set_cache(cache)
 
-def test_get_available_lessons(patch_lessons_dir):
-    """Should return list of available lesson slugs."""
-    lessons = get_available_lessons()
-    assert isinstance(lessons, list)
-    assert len(lessons) >= 1
-    assert "test-basic" in lessons
+    def teardown_method(self):
+        """Clear cache after test."""
+        clear_cache()
 
+    def test_load_lesson_from_cache(self):
+        """Should load lesson from cache."""
+        lesson = load_narrative_lesson("test-lesson")
+        assert lesson.slug == "test-lesson"
+        assert lesson.title == "Test Lesson"
+        assert len(lesson.sections) == 1
+        assert lesson.sections[0].type == "chat"
 
-def test_parse_optional_stages(patch_lessons_dir):
-    """Should parse optional field on article and video stages."""
-    lesson = load_lesson("test-optional-stages")
+    def test_load_lesson_not_found(self):
+        """Should raise error for missing lesson."""
+        with pytest.raises(LessonNotFoundError):
+            load_narrative_lesson("nonexistent")
 
-    assert lesson.stages[0].optional is False  # default
-    assert lesson.stages[1].optional is True   # explicit article
-    assert lesson.stages[2].optional is True   # explicit video
-    assert not hasattr(lesson.stages[3], "optional")  # chat has no optional
+    def test_get_available_lessons(self):
+        """Should return list of lesson slugs from cache."""
+        lessons = get_available_lessons()
+        assert isinstance(lessons, list)
+        assert "test-lesson" in lessons
+        assert "another-lesson" in lessons
+        assert len(lessons) == 2

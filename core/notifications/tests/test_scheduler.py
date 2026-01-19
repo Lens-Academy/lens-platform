@@ -1,13 +1,12 @@
 """Tests for notification scheduler."""
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 
 
 class TestScheduleReminder:
     def test_schedules_job(self):
-        from core.notifications.scheduler import schedule_reminder, _scheduler
+        from core.notifications.scheduler import schedule_reminder
 
         mock_scheduler = MagicMock()
 

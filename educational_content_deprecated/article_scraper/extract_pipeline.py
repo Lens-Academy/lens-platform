@@ -719,7 +719,7 @@ async def process_url(
     slug = url_to_slug(url)
 
     if verbose:
-        print(f"  Fetching...", end=" ", flush=True)
+        print("  Fetching...", end=" ", flush=True)
 
     # === PDF Handling ===
     if is_pdf:
@@ -1171,12 +1171,12 @@ def main():
         if result.success:
             if args.dual:
                 print("\nExtractions saved. Next steps:")
-                print(f"  1. Compare: select-extraction skill on:")
+                print("  1. Compare: select-extraction skill on:")
                 if result.traf_path:
                     print(f"       - {result.traf_path}")
                 if result.read_path:
                     print(f"       - {result.read_path}")
-                print(f"  2. Cleanup: cleanup-extraction skill on selected file")
+                print("  2. Cleanup: cleanup-extraction skill on selected file")
             elif output_path:
                 print(f"Saved to {output_path}")
             else:

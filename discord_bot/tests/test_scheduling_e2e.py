@@ -440,7 +440,7 @@ class TestRealizeGroupsE2E:
             "Voice channel ID should be numeric string"
         )
 
-        assert updated_cohort is not None, f"Cohort not found in database"
+        assert updated_cohort is not None, "Cohort not found in database"
         assert updated_cohort["discord_category_id"] is not None, (
             "Category ID not saved to cohort"
         )
