@@ -28,6 +28,7 @@ import SectionDivider from "@/components/unified-lesson/SectionDivider";
 import { LessonHeader } from "@/components/LessonHeader";
 import LessonDrawer from "@/components/unified-lesson/LessonDrawer";
 import LessonCompleteModal from "@/components/unified-lesson/LessonCompleteModal";
+import AuthPromptModal from "@/components/unified-lesson/AuthPromptModal";
 
 type NarrativeLessonProps = {
   lesson: NarrativeLessonType;
@@ -94,6 +95,10 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
     useState<LessonCompletionResult>(null);
   const [completionModalDismissed, setCompletionModalDismissed] =
     useState(false);
+
+  // Auth prompt modal state
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [hasPromptedAuth, setHasPromptedAuth] = useState(false);
 
   // Derive furthest completed index for progress bar display
   // Progress bar shows stages as "reached" based on this, not scroll position
@@ -341,13 +346,26 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
     handleStageClick(nextIndex);
   }, [currentSectionIndex, lesson.sections.length, handleStageClick]);
 
-  const handleMarkComplete = useCallback((sectionIndex: number) => {
-    setCompletedSections((prev) => {
-      const next = new Set(prev);
-      next.add(sectionIndex);
-      return next;
-    });
-  }, []);
+  const handleMarkComplete = useCallback(
+    (sectionIndex: number) => {
+      // Check if this is the first completion (for auth prompt)
+      // Must check BEFORE updating state
+      const isFirstCompletion = completedSections.size === 0;
+
+      setCompletedSections((prev) => {
+        const next = new Set(prev);
+        next.add(sectionIndex);
+        return next;
+      });
+
+      // Prompt for auth after first section completion (if anonymous)
+      if (isFirstCompletion && !isAuthenticated && !hasPromptedAuth) {
+        setShowAuthPrompt(true);
+        setHasPromptedAuth(true);
+      }
+    },
+    [completedSections.size, isAuthenticated, hasPromptedAuth],
+  );
 
   const handleSkipSection = useCallback(() => {
     // Mark current as complete and go to next
@@ -508,6 +526,12 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
             : null
         }
         onClose={() => setCompletionModalDismissed(true)}
+      />
+
+      <AuthPromptModal
+        isOpen={showAuthPrompt}
+        onLogin={handleLoginClick}
+        onDismiss={() => setShowAuthPrompt(false)}
       />
     </div>
   );
