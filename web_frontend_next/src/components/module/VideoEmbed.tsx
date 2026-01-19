@@ -1,13 +1,16 @@
-// web_frontend_next/src/components/narrative-lesson/VideoEmbed.tsx
+// web_frontend_next/src/components/module/VideoEmbed.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import VideoPlayer from "@/components/module/VideoPlayer";
+import ContinueVideoButton from "@/components/module/ContinueVideoButton";
+import { formatDuration } from "@/utils/formatDuration";
 
 type VideoEmbedProps = {
   videoId: string;
   start: number;
   end: number;
+  isFirstInSection?: boolean; // defaults to true for backward compat
   onEnded?: () => void;
   onPlay?: () => void;
   onPause?: () => void;
@@ -22,24 +25,29 @@ export default function VideoEmbed({
   videoId,
   start,
   end,
+  isFirstInSection,
   onEnded,
   onPlay,
   onPause,
   onTimeUpdate,
 }: VideoEmbedProps) {
   const [isActivated, setIsActivated] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isFirst = isFirstInSection ?? true;
 
   // YouTube thumbnail URL (hqdefault is always available)
   const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
+  // Scroll into view when video is activated (for continue button clicks)
+  // VideoPlayer manages its own dimensions, so scroll position is correct immediately
+  useEffect(() => {
+    if (isActivated && !isFirst && containerRef.current) {
+      containerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [isActivated, isFirst]);
 
   return (
-    <div className="w-[80%] max-w-[900px] mx-auto py-4">
+    <div ref={containerRef} className="w-[80%] max-w-[900px] mx-auto py-4 scroll-mt-20">
       <div className="bg-stone-100 rounded-lg overflow-hidden shadow-sm">
         {isActivated ? (
           <VideoPlayer
@@ -52,7 +60,7 @@ export default function VideoEmbed({
             onPause={onPause}
             onTimeUpdate={onTimeUpdate}
           />
-        ) : (
+        ) : isFirst ? (
           <button
             onClick={() => setIsActivated(true)}
             className="relative w-full aspect-video group cursor-pointer"
@@ -83,9 +91,14 @@ export default function VideoEmbed({
 
             {/* Duration badge */}
             <div className="absolute bottom-3 right-3 bg-black/80 text-white text-sm px-2 py-1 rounded">
-              {formatTime(end - start)}
+              {formatDuration(end - start)}
             </div>
           </button>
+        ) : (
+          <ContinueVideoButton
+            durationSeconds={end - start}
+            onClick={() => setIsActivated(true)}
+          />
         )}
       </div>
     </div>
