@@ -41,6 +41,8 @@ import {
   trackLessonCompleted,
   trackChatMessageSent,
 } from "@/analytics";
+import { Sentry } from "@/errorTracking";
+import { RequestTimeoutError } from "@/api/lessons";
 
 type NarrativeLessonProps = {
   lesson: NarrativeLessonType;
@@ -114,6 +116,9 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
 
   // Analytics tracking ref
   const hasTrackedLessonStart = useRef(false);
+
+  // Error state
+  const [error, setError] = useState<string | null>(null);
 
   // Derive furthest completed index for progress bar display
   // Progress bar shows stages as "reached" based on this, not scroll position
@@ -214,36 +219,51 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
   // Initialize session
   useEffect(() => {
     async function init() {
-      const storedId = getStoredSessionId();
-      if (storedId) {
-        try {
-          const state = await getSession(storedId);
-          setSessionId(storedId);
-          setMessages(state.messages);
+      try {
+        const storedId = getStoredSessionId();
+        if (storedId) {
+          try {
+            const state = await getSession(storedId);
+            setSessionId(storedId);
+            setMessages(state.messages);
 
-          // If user is now authenticated, try to claim the session
-          if (isAuthenticated) {
-            try {
-              await claimSession(storedId);
-            } catch {
-              // Session already claimed or other error - ignore
+            // If user is now authenticated, try to claim the session
+            if (isAuthenticated) {
+              try {
+                await claimSession(storedId);
+              } catch {
+                // Session already claimed or other error - ignore
+              }
             }
+            return;
+          } catch {
+            clearSessionId();
           }
-          return;
-        } catch {
-          clearSessionId();
         }
-      }
 
-      // Create new session
-      const sid = await createSession(lesson.slug);
-      storeSessionId(sid);
-      setSessionId(sid);
+        // Create new session
+        const sid = await createSession(lesson.slug);
+        storeSessionId(sid);
+        setSessionId(sid);
 
-      // Track lesson start (only for new sessions)
-      if (!hasTrackedLessonStart.current) {
-        hasTrackedLessonStart.current = true;
-        trackLessonStarted(lesson.slug, lesson.title);
+        // Track lesson start (only for new sessions)
+        if (!hasTrackedLessonStart.current) {
+          hasTrackedLessonStart.current = true;
+          trackLessonStarted(lesson.slug, lesson.title);
+        }
+      } catch (e) {
+        console.error("[NarrativeLesson] Session init failed:", e);
+        if (e instanceof RequestTimeoutError) {
+          setError(
+            "Content is taking too long to load. Please check your connection and try refreshing the page.",
+          );
+        } else {
+          setError(e instanceof Error ? e.message : "Failed to start lesson");
+        }
+
+        Sentry.captureException(e, {
+          tags: { error_type: "session_init_failed", lesson_slug: lesson.slug },
+        });
       }
     }
 
@@ -523,6 +543,19 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
         return null;
     }
   };
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <a href="/" className="text-emerald-600 hover:underline">
+            Go home
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
