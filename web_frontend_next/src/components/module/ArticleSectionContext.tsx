@@ -5,6 +5,8 @@ import { createContext, useContext } from "react";
 
 type ArticleSectionContextValue = {
   onHeadingRender: (id: string, element: HTMLElement) => void;
+  passedHeadingIds: Set<string>;
+  onHeadingClick: (id: string) => void;
 };
 
 const ArticleSectionContext = createContext<ArticleSectionContextValue | null>(
