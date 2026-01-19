@@ -24,6 +24,7 @@ export default function ArticleSectionWrapper({
     new Set(),
   );
   const headingElementsRef = useRef<Map<string, HTMLElement>>(new Map());
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Extract all headings from all article-excerpt segments
   const allHeadings = useMemo(() => {
@@ -32,11 +33,6 @@ export default function ArticleSectionWrapper({
     );
     return excerpts.flatMap((excerpt) => extractHeadings(excerpt.content));
   }, [section.segments]);
-
-  // Clear heading refs when content changes
-  useEffect(() => {
-    headingElementsRef.current.clear();
-  }, [allHeadings]);
 
   // Track heading elements as they render
   const handleHeadingRender = useCallback(
@@ -76,8 +72,8 @@ export default function ArticleSectionWrapper({
       }
     };
 
-    // Initial calculation
-    const timeout = setTimeout(calculatePassedHeadings, 100);
+    // Initial calculation after a delay to let headings register
+    const timeout = setTimeout(calculatePassedHeadings, 200);
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
@@ -100,20 +96,24 @@ export default function ArticleSectionWrapper({
 
   return (
     <ArticleSectionProvider value={contextValue}>
-      <div className="flex max-w-[1100px] mx-auto px-4">
-        {/* TOC Sidebar - hidden on mobile */}
-        <div className="hidden lg:block">
-          <ArticleTOC
-            title={section.meta.title}
-            author={section.meta.author}
-            headings={allHeadings}
-            passedHeadingIds={passedHeadingIds}
-            onHeadingClick={handleHeadingClick}
-          />
+      <div className="relative">
+        {/* Content area - full width, TOC overlaid */}
+        <div ref={contentRef} className="w-full">
+          {children}
         </div>
 
-        {/* Content area */}
-        <div className="flex-1 min-w-0">{children}</div>
+        {/* TOC Sidebar - sticky, positioned to left of content */}
+        <div className="hidden lg:block absolute left-0 top-0 w-[280px] -translate-x-full pr-8">
+          <div className="sticky top-20">
+            <ArticleTOC
+              title={section.meta.title}
+              author={section.meta.author}
+              headings={allHeadings}
+              passedHeadingIds={passedHeadingIds}
+              onHeadingClick={handleHeadingClick}
+            />
+          </div>
+        </div>
       </div>
     </ArticleSectionProvider>
   );

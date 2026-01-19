@@ -10,6 +10,8 @@ type VideoEmbedProps = {
   start: number;
   end: number;
   excerptNumber?: number; // 1-indexed, defaults to 1 (first clip)
+  title?: string;
+  channel?: string | null;
   onEnded?: () => void;
   onPlay?: () => void;
   onPause?: () => void;
@@ -25,6 +27,8 @@ export default function VideoEmbed({
   start,
   end,
   excerptNumber = 1,
+  title,
+  channel,
   onEnded,
   onPlay,
   onPause,
@@ -37,16 +41,23 @@ export default function VideoEmbed({
   // YouTube thumbnail URL (hqdefault is always available)
   const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
-  // Scroll into view when video is activated (for non-first clips)
-  // VideoPlayer manages its own dimensions, so scroll position is correct immediately
+  // Scroll into view when video is activated
   useEffect(() => {
-    if (isActivated && !isFirst && containerRef.current) {
+    if (isActivated && containerRef.current) {
       containerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [isActivated, isFirst]);
+  }, [isActivated]);
+
+  // All clips start compact, expand when activated
+  const containerClasses = isActivated
+    ? "w-[90%] max-w-[1100px] mx-auto py-4 scroll-mt-20 transition-all duration-300"
+    : "w-[50%] max-w-[500px] mx-auto py-4 scroll-mt-20 transition-all duration-300";
+
+  // Label: "Watch" for first clip, "Watch Part N" for subsequent
+  const label = isFirst ? "Watch" : `Watch Part ${excerptNumber}`;
 
   return (
-    <div ref={containerRef} className="w-[80%] max-w-[900px] mx-auto py-4 scroll-mt-20">
+    <div ref={containerRef} className={containerClasses}>
       <div className="bg-stone-100 rounded-lg overflow-hidden shadow-sm">
         {isActivated ? (
           <VideoPlayer
@@ -59,46 +70,11 @@ export default function VideoEmbed({
             onPause={onPause}
             onTimeUpdate={onTimeUpdate}
           />
-        ) : isFirst ? (
-          <button
-            onClick={() => setIsActivated(true)}
-            className="relative w-full aspect-video group cursor-pointer"
-            aria-label="Play video"
-          >
-            {/* Thumbnail */}
-            <img
-              src={thumbnailUrl}
-              alt="Video thumbnail"
-              className="w-full h-full object-cover"
-            />
-
-            {/* Dark overlay on hover */}
-            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
-
-            {/* Play button */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                <svg
-                  className="w-8 h-8 text-white ml-1"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Duration badge */}
-            <div className="absolute bottom-3 right-3 bg-black/80 text-white text-sm px-2 py-1 rounded">
-              {formatDuration(end - start)}
-            </div>
-          </button>
         ) : (
-          // Subsequent clips: smaller thumbnail with "Watch Part N" overlay
           <button
             onClick={() => setIsActivated(true)}
-            className="relative w-full aspect-video group cursor-pointer max-w-[50%] mx-auto"
-            aria-label={`Watch part ${excerptNumber}`}
+            className="relative block w-full aspect-video group cursor-pointer"
+            aria-label={label}
           >
             {/* Thumbnail */}
             <img
@@ -110,10 +86,10 @@ export default function VideoEmbed({
             {/* Dark overlay */}
             <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
 
-            {/* Watch Part N text */}
+            {/* Label text */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-white text-lg font-medium bg-black/60 px-4 py-2 rounded-lg group-hover:scale-105 transition-transform">
-                Watch Part {excerptNumber}
+                {label}
               </div>
             </div>
 
@@ -122,6 +98,22 @@ export default function VideoEmbed({
               {formatDuration(end - start)}
             </div>
           </button>
+        )}
+
+        {/* Title and channel below thumbnail (YouTube style) */}
+        {!isActivated && (title || channel) && (
+          <div className="px-3 py-2">
+            {title && (
+              <div className="text-sm font-medium text-stone-800 line-clamp-2">
+                {title}
+              </div>
+            )}
+            {channel && (
+              <div className="text-xs text-stone-500 mt-0.5">
+                {channel}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

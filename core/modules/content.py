@@ -57,6 +57,7 @@ class VideoTranscriptMetadata:
     video_id: str | None = None
     title: str | None = None
     url: str | None = None  # YouTube URL
+    channel: str | None = None
 
 
 @dataclass
@@ -315,6 +316,7 @@ def parse_video_frontmatter(text: str) -> tuple[VideoTranscriptMetadata, str]:
     field_mapping = {
         "title": "title",
         "url": "url",
+        "channel": "channel",
     }
     raw_metadata, content = _parse_frontmatter_generic(text, field_mapping)
 
@@ -328,6 +330,7 @@ def parse_video_frontmatter(text: str) -> tuple[VideoTranscriptMetadata, str]:
         video_id=video_id,
         title=raw_metadata.get("title"),
         url=url,
+        channel=raw_metadata.get("channel"),
     ), content
 
 
@@ -350,7 +353,9 @@ def load_video_transcript(source_path: str) -> str:
         source_path = f"{source_path}.md"
     # Handle relative paths like ../video_transcripts/...
     if "../video_transcripts/" in source_path:
-        source_path = "video_transcripts/" + source_path.split("../video_transcripts/")[-1]
+        source_path = (
+            "video_transcripts/" + source_path.split("../video_transcripts/")[-1]
+        )
     elif not source_path.startswith("video_transcripts/"):
         source_path = f"video_transcripts/{source_path}"
 
@@ -381,7 +386,9 @@ def load_video_transcript_with_metadata(source_path: str) -> VideoTranscriptCont
         source_path = f"{source_path}.md"
     # Handle relative paths like ../video_transcripts/...
     if "../video_transcripts/" in source_path:
-        source_path = "video_transcripts/" + source_path.split("../video_transcripts/")[-1]
+        source_path = (
+            "video_transcripts/" + source_path.split("../video_transcripts/")[-1]
+        )
     elif not source_path.startswith("video_transcripts/"):
         source_path = f"video_transcripts/{source_path}"
 
@@ -582,9 +589,13 @@ def bundle_narrative_module(module) -> dict:
         elif isinstance(segment, VideoExcerptSegment):
             # Extract transcript from parent video
             # Convert time strings (e.g., "1:30") to seconds
-            from_seconds = _parse_time_to_seconds(segment.from_time) if segment.from_time else 0
+            from_seconds = (
+                _parse_time_to_seconds(segment.from_time) if segment.from_time else 0
+            )
             # Use a large value for "until the end" when to_time is not specified
-            to_seconds = _parse_time_to_seconds(segment.to_time) if segment.to_time else 99999
+            to_seconds = (
+                _parse_time_to_seconds(segment.to_time) if segment.to_time else 99999
+            )
 
             if isinstance(section, VideoSection):
                 video_result = load_video_transcript_with_metadata(section.source)
@@ -642,7 +653,7 @@ def bundle_narrative_module(module) -> dict:
                 video_id = result.metadata.video_id
                 meta = {
                     "title": result.metadata.title,
-                    "channel": None,  # Not in current frontmatter
+                    "channel": result.metadata.channel,
                 }
             except FileNotFoundError:
                 video_id = None

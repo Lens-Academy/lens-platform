@@ -560,6 +560,8 @@ export default function Module({ module, courseContext }: ModuleProps) {
             start={segment.from}
             end={segment.to}
             excerptNumber={excerptNumber}
+            title={section.meta.title}
+            channel={section.meta.channel}
             onPlay={videoTracker.onPlay}
             onPause={videoTracker.onPause}
             onTimeUpdate={videoTracker.onTimeUpdate}
