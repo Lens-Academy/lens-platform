@@ -137,7 +137,8 @@ def _parse_fields_for_validation(text: str) -> dict[str, str]:
 
     for line in lines:
         # Stop at segment headers - don't parse fields inside segments
-        if re.match(r"^## \S+\s*$", line):
+        # Segment headers can have optional titles: ## Type or ## Type: Title
+        if re.match(r"^## \S+(?::\s*.+)?$", line):
             if current_key is not None:
                 fields[current_key] = "\n".join(current_value_lines).strip()
             break
@@ -317,8 +318,8 @@ def _validate_segments(
     """Validate segments within a Video or Article section."""
     errors: list[ValidationError] = []
 
-    # Find all segment headers
-    segment_pattern = r"^## (\S+)\s*$"
+    # Find all segment headers - allow optional title after colon (## Type or ## Type: Title)
+    segment_pattern = r"^## (\S+)(?::\s*.+)?$"
     lines = section_content.split("\n")
 
     segments: list[tuple[int, str, str]] = []  # (relative_line, type, content)

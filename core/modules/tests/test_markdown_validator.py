@@ -608,6 +608,86 @@ notallowed:: here
         assert "notallowed::" in errors[0].message
 
 
+class TestSegmentTitles:
+    """Test that segments can have optional titles like ## Chat: Discussion Title."""
+
+    def test_chat_segment_with_title_is_valid(self):
+        """Chat segment with title should be valid."""
+        text = """---
+slug: test
+title: Test
+---
+
+# Video: Test Video
+source:: [[video_transcripts/test]]
+
+## Text
+content::
+What did you think?
+
+## Chat: Discussion on the Video
+instructions::
+Discuss what the user just watched.
+"""
+        errors = validate_lesson(text)
+        assert errors == [], f"Expected no errors but got: {errors}"
+
+    def test_text_segment_with_title_is_valid(self):
+        """Text segment with title should be valid."""
+        text = """---
+slug: test
+title: Test
+---
+
+# Video: Test Video
+source:: [[video_transcripts/test]]
+
+## Text: Key Takeaways
+content::
+Here are the main points.
+
+## Video-excerpt
+"""
+        errors = validate_lesson(text)
+        assert errors == [], f"Expected no errors but got: {errors}"
+
+    def test_chat_segment_with_title_validates_fields(self):
+        """Chat segment with title should still validate its fields."""
+        text = """---
+slug: test
+title: Test
+---
+
+# Video: Test Video
+source:: [[video_transcripts/test]]
+
+## Chat: Discussion Title
+showUserPreviousContent:: true
+showTutorPreviousContent:: false
+instructions::
+Ask the user about the video.
+"""
+        errors = validate_lesson(text)
+        assert errors == [], f"Expected no errors but got: {errors}"
+
+    def test_chat_segment_with_title_missing_instructions_errors(self):
+        """Chat segment with title but missing instructions should error."""
+        text = """---
+slug: test
+title: Test
+---
+
+# Video: Test Video
+source:: [[video_transcripts/test]]
+
+## Chat: Discussion Title
+showUserPreviousContent:: true
+"""
+        errors = validate_lesson(text)
+        assert len(errors) == 1
+        assert "instructions" in errors[0].message
+
+
 class TestValidateLessonMultipleErrors:
     """Test that multiple errors are collected."""
 

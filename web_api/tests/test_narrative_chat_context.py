@@ -133,7 +133,9 @@ class TestGetNarrativeChatContext:
             type="video",
             source="video_transcripts/test.md",
             segments=[
-                VideoExcerptSegment(type="video-excerpt", from_time="1:00", to_time="2:00"),
+                VideoExcerptSegment(
+                    type="video-excerpt", from_time="1:00", to_time="2:00"
+                ),
                 ChatSegment(
                     type="chat",
                     instructions="Discuss the video.",
@@ -145,7 +147,9 @@ class TestGetNarrativeChatContext:
         module = MockModule(sections=[section])
 
         # Mock the content loading - use the actual import paths
-        with patch("core.modules.content.load_video_transcript_with_metadata") as mock_video:
+        with patch(
+            "core.modules.content.load_video_transcript_with_metadata"
+        ) as mock_video:
             with patch("core.transcripts.get_text_at_time") as mock_transcript:
                 mock_video.return_value = MagicMock(
                     metadata=MagicMock(video_id="abc123", title="Test Video")
@@ -261,7 +265,9 @@ class TestGetNarrativeChatContext:
             source="video_transcripts/test.md",
             segments=[
                 TextSegment(type="text", content="Watch this important clip."),
-                VideoExcerptSegment(type="video-excerpt", from_time="0:00", to_time="1:30"),
+                VideoExcerptSegment(
+                    type="video-excerpt", from_time="0:00", to_time="1:30"
+                ),
                 TextSegment(type="text", content="Now consider what you saw."),
                 ChatSegment(
                     type="chat",
@@ -273,7 +279,9 @@ class TestGetNarrativeChatContext:
         )
         module = MockModule(sections=[section])
 
-        with patch("core.modules.content.load_video_transcript_with_metadata") as mock_video:
+        with patch(
+            "core.modules.content.load_video_transcript_with_metadata"
+        ) as mock_video:
             with patch("core.transcripts.get_text_at_time") as mock_transcript:
                 mock_video.return_value = MagicMock(
                     metadata=MagicMock(video_id="xyz789", title="Important Video")
