@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import Link from "next/link";
 import type {
   ChatMessage,
   PendingMessage,
@@ -549,9 +550,9 @@ export default function NarrativeLesson({ lesson }: NarrativeLessonProps) {
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
-          <a href="/" className="text-emerald-600 hover:underline">
+          <Link href="/" className="text-emerald-600 hover:underline">
             Go home
-          </a>
+          </Link>
         </div>
       </div>
     );
