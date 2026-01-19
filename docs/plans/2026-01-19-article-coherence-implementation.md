@@ -12,7 +12,7 @@
 
 ## Task 1: Create Heading Extraction Utility
 
-Extract h2 and h3 headings from markdown content for the TOC.
+Extract h2 and h3 headings from markdown content for the TOC. Also export the ID generation function for use in ArticleEmbed.
 
 **Files:**
 - Create: `web_frontend_next/src/utils/extractHeadings.ts`
@@ -29,6 +29,19 @@ export type HeadingItem = {
 };
 
 /**
+ * Generate a URL-safe ID from heading text.
+ * Exported for use in both TOC extraction and heading rendering.
+ */
+export function generateHeadingId(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 50);
+}
+
+/**
  * Extract h2 and h3 headings from markdown content.
  * Generates stable IDs from heading text for anchor linking.
  */
@@ -42,13 +55,9 @@ export function extractHeadings(markdown: string): HeadingItem[] {
     if (match) {
       const level = match[1].length as 2 | 3;
       const text = match[2].trim();
-      // Generate URL-safe ID from text
-      const id = text
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .slice(0, 50);
+      // Skip empty headings
+      if (!text) continue;
+      const id = generateHeadingId(text);
       headings.push({ id, text, level });
     }
   }
@@ -106,7 +115,7 @@ export default function ArticleTOC({
   onHeadingClick,
 }: ArticleTOCProps) {
   return (
-    <nav className="w-[280px] flex-shrink-0 pr-6">
+    <nav className="w-[280px] flex-shrink-0 pr-6" aria-label="Article table of contents">
       <div className="sticky top-20">
         {/* Article title */}
         <h2 className="text-base font-semibold text-gray-900 leading-snug">
@@ -122,7 +131,7 @@ export default function ArticleTOC({
         <hr className="my-4 border-gray-200" />
 
         {/* Headings list */}
-        <ul className="space-y-2">
+        <ul className="space-y-2" role="list">
           {headings.map((heading) => {
             const isPassed = passedHeadingIds.has(heading.id);
             return (
@@ -161,85 +170,85 @@ jj desc -m "feat: add ArticleTOC component for sidebar navigation"
 
 ---
 
-## Task 3: Update ArticleEmbed for First vs Subsequent Excerpts
+## Task 3: Create ArticleSectionContext for Heading Registration
 
-Add `isFirstExcerpt` prop and change styling: warm background, different markers.
+Context to pass heading registration callback to ArticleEmbed children.
+
+**Files:**
+- Create: `web_frontend_next/src/components/module/ArticleSectionContext.tsx`
+
+**Step 1: Create the context**
+
+```typescript
+// web_frontend_next/src/components/module/ArticleSectionContext.tsx
+"use client";
+
+import { createContext, useContext } from "react";
+
+type ArticleSectionContextValue = {
+  onHeadingRender: (id: string, element: HTMLElement) => void;
+};
+
+const ArticleSectionContext = createContext<ArticleSectionContextValue | null>(
+  null
+);
+
+export function useArticleSectionContext() {
+  return useContext(ArticleSectionContext);
+}
+
+export const ArticleSectionProvider = ArticleSectionContext.Provider;
+```
+
+**Step 2: Verify it compiles**
+
+Run: `cd web_frontend_next && npx tsc --noEmit`
+Expected: No errors
+
+**Step 3: Commit**
+
+```bash
+jj desc -m "feat: add ArticleSectionContext for heading registration"
+```
+
+---
+
+## Task 4: Update ArticleEmbed for First vs Subsequent Excerpts
+
+Add `isFirstExcerpt` prop and change styling: warm background, different markers. Use shared `generateHeadingId` from utility and context for heading registration.
 
 **Files:**
 - Modify: `web_frontend_next/src/components/module/ArticleEmbed.tsx`
 
-**Step 1: Update props type (around line 10)**
+**Step 1: Replace the entire file contents**
 
-Change:
 ```typescript
-type ArticleEmbedProps = {
-  article: ArticleData;
-  /** Show article header (title, author, source link) */
-  showHeader?: boolean;
-  /** Start collapsed (default: false) */
-  defaultCollapsed?: boolean;
-};
-```
+// web_frontend_next/src/components/module/ArticleEmbed.tsx
+"use client";
 
-To:
-```typescript
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import type { ArticleData } from "@/types/module";
+import { generateHeadingId } from "@/utils/extractHeadings";
+import { useArticleSectionContext } from "./ArticleSectionContext";
+
 type ArticleEmbedProps = {
   article: ArticleData;
   /** Whether this is the first excerpt in the section (shows full attribution) */
   isFirstExcerpt?: boolean;
-  /** Callback when a heading is rendered (for TOC tracking) */
-  onHeadingRender?: (id: string, element: HTMLElement) => void;
 };
-```
 
-**Step 2: Update component signature and remove collapse state (lines 25-31)**
-
-Change:
-```typescript
-export default function ArticleEmbed({
-  article,
-  showHeader = true,
-  defaultCollapsed = false,
-}: ArticleEmbedProps) {
-  const { content, title, author, sourceUrl, isExcerpt } = article;
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
-```
-
-To:
-```typescript
+/**
+ * Renders article content with warm background.
+ * First excerpt shows full attribution; subsequent show muted marker.
+ */
 export default function ArticleEmbed({
   article,
   isFirstExcerpt = true,
-  onHeadingRender,
 }: ArticleEmbedProps) {
   const { content, title, author, sourceUrl } = article;
-```
-
-**Step 3: Remove getPreview function (lines 33-38)**
-
-Delete:
-```typescript
-  // Get a preview of the content (first ~100 chars of plain text)
-  const getPreview = () => {
-    const plainText = content.replace(/[#*_`\[\]]/g, "").trim();
-    if (plainText.length <= 120) return plainText;
-    return plainText.slice(0, 120).trim() + "...";
-  };
-```
-
-**Step 4: Replace entire return statement (lines 40-197)**
-
-Replace with:
-```typescript
-  // Generate stable ID from heading text
-  const generateHeadingId = (text: string) => {
-    return text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .slice(0, 50);
-  };
+  const sectionContext = useArticleSectionContext();
 
   return (
     <div className="py-4">
@@ -329,7 +338,7 @@ Replace with:
                   return (
                     <h2
                       id={id}
-                      ref={(el) => el && onHeadingRender?.(id, el)}
+                      ref={(el) => el && sectionContext?.onHeadingRender(id, el)}
                       className="text-xl font-bold mt-6 mb-3 scroll-mt-24"
                     >
                       {children}
@@ -342,7 +351,7 @@ Replace with:
                   return (
                     <h3
                       id={id}
-                      ref={(el) => el && onHeadingRender?.(id, el)}
+                      ref={(el) => el && sectionContext?.onHeadingRender(id, el)}
                       className="text-lg font-bold mt-5 mb-2 scroll-mt-24"
                     >
                       {children}
@@ -409,24 +418,12 @@ Replace with:
 }
 ```
 
-**Step 5: Remove unused useState import**
-
-Change line 4:
-```typescript
-import { useState } from "react";
-```
-
-To:
-```typescript
-// (remove this line entirely - useState no longer used)
-```
-
-**Step 6: Verify it compiles**
+**Step 2: Verify it compiles**
 
 Run: `cd web_frontend_next && npx tsc --noEmit`
 Expected: No errors
 
-**Step 7: Commit**
+**Step 3: Commit**
 
 ```bash
 jj desc -m "feat: update ArticleEmbed for first vs subsequent excerpt markers"
@@ -434,9 +431,9 @@ jj desc -m "feat: update ArticleEmbed for first vs subsequent excerpt markers"
 
 ---
 
-## Task 4: Create ArticleSectionWrapper Component
+## Task 5: Create ArticleSectionWrapper Component
 
-Wrapper that combines TOC sidebar with article content area.
+Wrapper that combines TOC sidebar with article content area and provides context.
 
 **Files:**
 - Create: `web_frontend_next/src/components/module/ArticleSectionWrapper.tsx`
@@ -448,9 +445,10 @@ Wrapper that combines TOC sidebar with article content area.
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { ArticleSection, ModuleSegment } from "@/types/module";
+import type { ArticleSection, ArticleExcerptSegment } from "@/types/module";
 import { extractHeadings } from "@/utils/extractHeadings";
 import ArticleTOC from "./ArticleTOC";
+import { ArticleSectionProvider } from "./ArticleSectionContext";
 
 type ArticleSectionWrapperProps = {
   section: ArticleSection;
@@ -473,11 +471,15 @@ export default function ArticleSectionWrapper({
   // Extract all headings from all article-excerpt segments
   const allHeadings = useMemo(() => {
     const excerpts = section.segments.filter(
-      (s): s is ModuleSegment & { type: "article-excerpt" } =>
-        s.type === "article-excerpt"
+      (s): s is ArticleExcerptSegment => s.type === "article-excerpt"
     );
     return excerpts.flatMap((excerpt) => extractHeadings(excerpt.content));
   }, [section.segments]);
+
+  // Clear heading refs when content changes
+  useEffect(() => {
+    headingElementsRef.current.clear();
+  }, [allHeadings]);
 
   // Track heading elements as they render
   const handleHeadingRender = useCallback((id: string, element: HTMLElement) => {
@@ -531,283 +533,67 @@ export default function ArticleSectionWrapper({
     }
   }, []);
 
-  // Clone children to inject onHeadingRender prop to ArticleEmbed components
-  // This is done via context instead for cleaner implementation
-
-  return (
-    <div className="flex">
-      {/* TOC Sidebar */}
-      <ArticleTOC
-        title={section.meta.title}
-        author={section.meta.author}
-        headings={allHeadings}
-        passedHeadingIds={passedHeadingIds}
-        onHeadingClick={handleHeadingClick}
-      />
-
-      {/* Content area */}
-      <div className="flex-1 min-w-0">{children}</div>
-    </div>
-  );
-}
-```
-
-**Step 2: Verify it compiles**
-
-Run: `cd web_frontend_next && npx tsc --noEmit`
-Expected: No errors
-
-**Step 3: Commit**
-
-```bash
-jj desc -m "feat: add ArticleSectionWrapper with TOC sidebar"
-```
-
----
-
-## Task 5: Create ArticleSectionContext for Heading Registration
-
-Context to pass heading registration callback to ArticleEmbed children.
-
-**Files:**
-- Create: `web_frontend_next/src/components/module/ArticleSectionContext.tsx`
-
-**Step 1: Create the context**
-
-```typescript
-// web_frontend_next/src/components/module/ArticleSectionContext.tsx
-"use client";
-
-import { createContext, useContext } from "react";
-
-type ArticleSectionContextValue = {
-  onHeadingRender: (id: string, element: HTMLElement) => void;
-  /** Track which excerpt index we're at (0-based) */
-  excerptIndex: number;
-  setExcerptIndex: (index: number) => void;
-};
-
-const ArticleSectionContext = createContext<ArticleSectionContextValue | null>(
-  null
-);
-
-export function useArticleSectionContext() {
-  return useContext(ArticleSectionContext);
-}
-
-export const ArticleSectionProvider = ArticleSectionContext.Provider;
-```
-
-**Step 2: Verify it compiles**
-
-Run: `cd web_frontend_next && npx tsc --noEmit`
-Expected: No errors
-
-**Step 3: Commit**
-
-```bash
-jj desc -m "feat: add ArticleSectionContext for heading registration"
-```
-
----
-
-## Task 6: Update ArticleSectionWrapper to Provide Context
-
-Wire up the context provider in ArticleSectionWrapper.
-
-**Files:**
-- Modify: `web_frontend_next/src/components/module/ArticleSectionWrapper.tsx`
-
-**Step 1: Add import for context (after line 6)**
-
-Add:
-```typescript
-import { ArticleSectionProvider } from "./ArticleSectionContext";
-```
-
-**Step 2: Add state for excerpt index tracking (after line 22)**
-
-Add:
-```typescript
-  const [currentExcerptIndex, setCurrentExcerptIndex] = useState(0);
-```
-
-**Step 3: Wrap children with provider (replace the return statement)**
-
-Change:
-```typescript
-  return (
-    <div className="flex">
-      {/* TOC Sidebar */}
-      <ArticleTOC
-        title={section.meta.title}
-        author={section.meta.author}
-        headings={allHeadings}
-        passedHeadingIds={passedHeadingIds}
-        onHeadingClick={handleHeadingClick}
-      />
-
-      {/* Content area */}
-      <div className="flex-1 min-w-0">{children}</div>
-    </div>
-  );
-```
-
-To:
-```typescript
   const contextValue = useMemo(
-    () => ({
-      onHeadingRender: handleHeadingRender,
-      excerptIndex: currentExcerptIndex,
-      setExcerptIndex: setCurrentExcerptIndex,
-    }),
-    [handleHeadingRender, currentExcerptIndex]
+    () => ({ onHeadingRender: handleHeadingRender }),
+    [handleHeadingRender]
   );
 
   return (
     <ArticleSectionProvider value={contextValue}>
-      <div className="flex">
-        {/* TOC Sidebar */}
-        <ArticleTOC
-          title={section.meta.title}
-          author={section.meta.author}
-          headings={allHeadings}
-          passedHeadingIds={passedHeadingIds}
-          onHeadingClick={handleHeadingClick}
-        />
+      <div className="flex max-w-[1100px] mx-auto px-4">
+        {/* TOC Sidebar - hidden on mobile */}
+        <div className="hidden lg:block">
+          <ArticleTOC
+            title={section.meta.title}
+            author={section.meta.author}
+            headings={allHeadings}
+            passedHeadingIds={passedHeadingIds}
+            onHeadingClick={handleHeadingClick}
+          />
+        </div>
 
         {/* Content area */}
         <div className="flex-1 min-w-0">{children}</div>
       </div>
     </ArticleSectionProvider>
   );
+}
 ```
 
-**Step 4: Verify it compiles**
+**Step 2: Verify it compiles**
 
 Run: `cd web_frontend_next && npx tsc --noEmit`
 Expected: No errors
 
-**Step 5: Commit**
+**Step 3: Commit**
 
 ```bash
-jj desc -m "feat: wire up ArticleSectionContext in wrapper"
+jj desc -m "feat: add ArticleSectionWrapper with TOC sidebar and context"
 ```
 
 ---
 
-## Task 7: Update ArticleEmbed to Use Context
-
-Connect ArticleEmbed to the context for heading registration.
-
-**Files:**
-- Modify: `web_frontend_next/src/components/module/ArticleEmbed.tsx`
-
-**Step 1: Add import for context (after line 7)**
-
-Add:
-```typescript
-import { useArticleSectionContext } from "./ArticleSectionContext";
-```
-
-**Step 2: Use context in component (after the props destructuring)**
-
-Add after the props destructuring:
-```typescript
-  const sectionContext = useArticleSectionContext();
-
-  // Use context callback if available, otherwise use prop
-  const headingRenderCallback = sectionContext?.onHeadingRender ?? onHeadingRender;
-```
-
-**Step 3: Update h2 and h3 refs to use the callback**
-
-In the h2 component:
-```typescript
-                h2: ({ children }) => {
-                  const text = String(children);
-                  const id = generateHeadingId(text);
-                  return (
-                    <h2
-                      id={id}
-                      ref={(el) => el && headingRenderCallback?.(id, el)}
-                      className="text-xl font-bold mt-6 mb-3 scroll-mt-24"
-                    >
-                      {children}
-                    </h2>
-                  );
-                },
-```
-
-In the h3 component:
-```typescript
-                h3: ({ children }) => {
-                  const text = String(children);
-                  const id = generateHeadingId(text);
-                  return (
-                    <h3
-                      id={id}
-                      ref={(el) => el && headingRenderCallback?.(id, el)}
-                      className="text-lg font-bold mt-5 mb-2 scroll-mt-24"
-                    >
-                      {children}
-                    </h3>
-                  );
-                },
-```
-
-**Step 4: Verify it compiles**
-
-Run: `cd web_frontend_next && npx tsc --noEmit`
-Expected: No errors
-
-**Step 5: Commit**
-
-```bash
-jj desc -m "feat: connect ArticleEmbed to section context"
-```
-
----
-
-## Task 8: Update Module.tsx to Use ArticleSectionWrapper
+## Task 6: Update Module.tsx to Use ArticleSectionWrapper
 
 Integrate the wrapper for article sections and track excerpt indices.
+
+**Depends on:** Tasks 1-5 must be complete.
 
 **Files:**
 - Modify: `web_frontend_next/src/views/Module.tsx`
 
-**Step 1: Add import for ArticleSectionWrapper (around line 31)**
+**Step 1: Add import for ArticleSectionWrapper**
 
-Add:
+Find the imports section (around line 30-40) and add:
+
 ```typescript
 import ArticleSectionWrapper from "@/components/module/ArticleSectionWrapper";
 ```
 
-**Step 2: Update the article-excerpt case in renderSegment (lines 516-532)**
+**Step 2: Update the article-excerpt case in renderSegment**
 
-Change:
-```typescript
-      case "article-excerpt": {
-        // Content is now bundled directly in the segment
-        const articleMeta = section.type === "article" ? section.meta : null;
-        const excerptData: ArticleData = {
-          content: segment.content,
-          title: articleMeta?.title ?? null,
-          author: articleMeta?.author ?? null,
-          sourceUrl: articleMeta?.sourceUrl ?? null,
-          isExcerpt: true,
-        };
-        return (
-          <ArticleEmbed
-            key={`article-${keyPrefix}`}
-            article={excerptData}
-            showHeader
-          />
-        );
-      }
-```
+Find the `case "article-excerpt":` block in the `renderSegment` function and replace it:
 
-To:
 ```typescript
       case "article-excerpt": {
         // Content is now bundled directly in the segment
@@ -838,9 +624,11 @@ To:
       }
 ```
 
-**Step 3: Update section rendering to wrap article sections (lines 637-643)**
+**Step 3: Update section rendering to wrap article sections**
 
-Find this block:
+Find the section rendering block in the main return statement (inside `module.sections.map`). Look for the final `else` branch that handles article and video sections with segments.
+
+Find:
 ```typescript
             ) : (
               <>
@@ -891,60 +679,7 @@ jj desc -m "feat: integrate ArticleSectionWrapper in Module view"
 
 ---
 
-## Task 9: Add Responsive Behavior for TOC
-
-Hide TOC sidebar on smaller screens.
-
-**Files:**
-- Modify: `web_frontend_next/src/components/module/ArticleSectionWrapper.tsx`
-
-**Step 1: Update the flex container class**
-
-Find:
-```typescript
-      <div className="flex">
-```
-
-Change to:
-```typescript
-      <div className="flex max-w-[1100px] mx-auto px-4">
-```
-
-**Step 2: Update ArticleTOC wrapper to hide on mobile**
-
-Find:
-```typescript
-      {/* TOC Sidebar */}
-      <ArticleTOC
-```
-
-Change to:
-```typescript
-      {/* TOC Sidebar - hidden on mobile */}
-      <div className="hidden lg:block">
-        <ArticleTOC
-```
-
-And add closing div:
-```typescript
-        />
-      </div>
-```
-
-**Step 3: Verify it compiles**
-
-Run: `cd web_frontend_next && npx tsc --noEmit`
-Expected: No errors
-
-**Step 4: Commit**
-
-```bash
-jj desc -m "feat: hide TOC sidebar on smaller screens"
-```
-
----
-
-## Task 10: Manual Testing
+## Task 7: Manual Testing
 
 **Files:** None (testing only)
 
@@ -965,7 +700,7 @@ Find or use a module that has an article section with multiple article-excerpt s
 - [ ] Headings start light gray, turn dark gray as you scroll past
 - [ ] Clicking a TOC heading scrolls to that heading
 - [ ] First excerpt shows full attribution (title, author, "Read original" link)
-- [ ] Subsequent excerpts show right-aligned muted "📄 from [Title]" marker
+- [ ] Subsequent excerpts show right-aligned muted marker with document icon and "from [Title]"
 - [ ] Article content has warm cream background (bg-amber-50/50)
 - [ ] TOC hides on mobile/smaller screens (< lg breakpoint)
 - [ ] Non-article sections (video, chat, text) render without TOC sidebar
@@ -991,8 +726,8 @@ jj desc -m "feat: article coherence - TOC sidebar and refined excerpt markers
 **Created:**
 - `web_frontend_next/src/utils/extractHeadings.ts`
 - `web_frontend_next/src/components/module/ArticleTOC.tsx`
-- `web_frontend_next/src/components/module/ArticleSectionWrapper.tsx`
 - `web_frontend_next/src/components/module/ArticleSectionContext.tsx`
+- `web_frontend_next/src/components/module/ArticleSectionWrapper.tsx`
 
 **Modified:**
 - `web_frontend_next/src/components/module/ArticleEmbed.tsx`
