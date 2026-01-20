@@ -1,13 +1,10 @@
-"use client";
-
 /**
  * Course overview page with two-panel layout.
  * Sidebar shows units/modules, main panel shows selected module details.
  */
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { navigate } from "vike/client/router";
 import { ChevronRight } from "lucide-react";
 import { getCourseProgress } from "../api/modules";
 import type { CourseProgress, ModuleInfo } from "../types/course";
@@ -21,8 +18,6 @@ interface CourseOverviewProps {
 }
 
 export default function CourseOverview({ courseId = "default" }: CourseOverviewProps) {
-  const router = useRouter();
-
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
     null
   );
@@ -73,7 +68,7 @@ export default function CourseOverview({ courseId = "default" }: CourseOverviewP
 
   const handleStartModule = () => {
     if (!selectedModule) return;
-    router.push(`/course/${courseId}/module/${selectedModule.slug}`);
+    navigate(`/course/${courseId}/module/${selectedModule.slug}`);
   };
 
   const handleStageClick = (index: number) => {
@@ -127,12 +122,12 @@ export default function CourseOverview({ courseId = "default" }: CourseOverviewP
             <span className="text-lg font-semibold text-slate-800">Lens Academy</span>
           </a>
           <div className="flex items-center gap-4">
-            <Link
+            <a
               href="/course"
               className="text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200"
             >
               Course
-            </Link>
+            </a>
             <DiscordInviteButton />
             <UserMenu />
           </div>
