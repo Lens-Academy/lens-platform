@@ -1,17 +1,15 @@
-"use client";
-
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePageContext } from "vike-react/usePageContext";
 import { initPostHog, capturePageView, hasConsent } from "@/analytics";
 import { initSentry } from "@/errorTracking";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pageContext = usePageContext();
+  const pathname = pageContext?.urlPathname ?? "";
 
-  // Add environment label prefix to document title (e.g., "dev2 - Lens Academy")
-  // Re-runs on pathname change and uses MutationObserver for async title updates
+  // Add environment label prefix to document title
   useEffect(() => {
-    const envLabel = process.env.NEXT_PUBLIC_ENV_LABEL;
+    const envLabel = import.meta.env.VITE_ENV_LABEL;
     if (!envLabel || typeof document === "undefined") return;
 
     const prefixTitle = () => {
@@ -21,11 +19,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Prefix immediately and after a short delay (for async title updates)
     prefixTitle();
     const timeoutId = setTimeout(prefixTitle, 100);
 
-    // Watch for title changes (Next.js metadata updates title after render)
     const titleElement = document.querySelector("title");
     let observer: MutationObserver | null = null;
     if (titleElement) {
