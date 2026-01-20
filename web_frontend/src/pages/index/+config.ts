@@ -1,3 +1,4 @@
 export default {
-  prerender: false,
+  prerender: true,
+  ssr: true, // Need SSR for prerendering to work
 };

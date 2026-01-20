@@ -260,20 +260,19 @@ spa_path = project_root / "web_frontend" / "dist"  # React SPA build
 
 @app.get("/")
 async def root():
-    """Serve landing page if it exists, otherwise return API status."""
+    """Serve landing page or API status."""
     if is_dev_mode():
         return {
             "status": "ok",
-            "message": "API-only mode. Run Next.js frontend separately.",
+            "message": "API-only mode. Run Vite frontend separately.",
             "bot_ready": bot.is_ready() if bot else False,
         }
-    landing_file = static_path / "landing.html"
+    # In production, the catch-all route also handles the root path
+    # This route takes precedence over the catch-all, but keep for clarity
+    landing_file = spa_path / "client" / "index.html"
     if landing_file.exists():
         return FileResponse(landing_file)
-    return {
-        "status": "ok",
-        "bot_ready": bot.is_ready() if bot else False,
-    }
+    return {"status": "ok", "bot_ready": bot.is_ready() if bot else False}
 
 
 @app.get("/api/status")
@@ -295,31 +294,74 @@ async def health():
     }
 
 
-# SPA catch-all - serve React app for frontend routes (only in production, not dev mode)
+# Vike SSG + SPA static file serving (only in production, not dev mode)
 if spa_path.exists() and not is_dev_mode():
-    # Mount static assets from built SPA first (before catch-all)
-    assets_path = spa_path / "assets"
+    # Mount static assets from built frontend
+    assets_path = spa_path / "client" / "assets"
     if assets_path.exists():
         app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
 
     @app.get("/{full_path:path}")
     async def spa_catchall(full_path: str):
-        """Serve React SPA for all frontend routes.
+        """Serve Vike SSG pages or SPA fallback.
 
+        For SSG pages: Serve pre-rendered HTML directly
+        For SPA pages: Serve 200.html (Vike's SPA fallback) or index.html
         API routes (/api/*, /auth/*) are excluded - they 404 if no match.
-        Static files (favicon, images, etc.) are served directly.
-        Everything else serves index.html and React Router handles it.
         """
         # Don't catch API routes - let them 404 properly
         if full_path.startswith("api/") or full_path.startswith("auth/"):
             raise HTTPException(status_code=404, detail="Not found")
 
-        # Serve static files from dist if they exist (favicon, images, etc.)
-        static_file = spa_path / full_path
+        client_path = spa_path / "client"
+        client_path_resolved = client_path.resolve()
+
+        def is_safe_path(path: Path) -> bool:
+            """Verify path is within client_path to prevent path traversal attacks."""
+            try:
+                resolved = path.resolve()
+                return resolved.is_relative_to(client_path_resolved)
+            except (ValueError, RuntimeError):
+                return False
+
+        # Try exact file match first (for static assets like favicon, images)
+        static_file = client_path / full_path
+        if not is_safe_path(static_file):
+            raise HTTPException(status_code=404, detail="Not found")
         if static_file.exists() and static_file.is_file():
             return FileResponse(static_file)
 
-        return FileResponse(spa_path / "index.html")
+        # Try SSG pre-rendered HTML (e.g., /course/default -> /course/default/index.html)
+        # Handle both with and without trailing slash
+        path_to_check = full_path.rstrip("/")
+        if path_to_check == "":
+            path_to_check = "index"
+
+        ssg_file = client_path / path_to_check / "index.html"
+        if not is_safe_path(ssg_file):
+            raise HTTPException(status_code=404, detail="Not found")
+        if ssg_file.exists():
+            return FileResponse(ssg_file)
+
+        # Check for direct .html file (e.g., /404 -> /404.html)
+        direct_html = client_path / f"{path_to_check}.html"
+        if not is_safe_path(direct_html):
+            raise HTTPException(status_code=404, detail="Not found")
+        if direct_html.exists():
+            return FileResponse(direct_html)
+
+        # SPA fallback - serve 200/index.html (our pre-rendered SPA shell)
+        # or root index.html if 200 doesn't exist
+        spa_fallback = client_path / "200" / "index.html"
+        if spa_fallback.exists():
+            return FileResponse(spa_fallback)
+
+        # Fallback to root index.html (SSG landing page as last resort)
+        index_fallback = client_path / "index.html"
+        if index_fallback.exists():
+            return FileResponse(index_fallback)
+
+        raise HTTPException(status_code=404, detail="Not found")
 
 
 if __name__ == "__main__":
@@ -392,7 +434,9 @@ if __name__ == "__main__":
         os.environ["DEV_MODE"] = "true"
         os.environ["API_PORT"] = str(args.port)
         os.environ["FRONTEND_PORT"] = str(default_frontend_port)
-        print(f"Dev mode enabled (ws{ws_num}): API :{args.port}, Next.js :{default_frontend_port}")
+        print(
+            f"Dev mode enabled (ws{ws_num}): API :{args.port}, Next.js :{default_frontend_port}"
+        )
 
     # Check required environment variables
     print("Checking environment variables...")

@@ -7,7 +7,9 @@ export default defineConfig({
   plugins: [
     react(),
     vike({
-      prerender: false,
+      prerender: {
+        partial: true,
+      },
     }),
   ],
   resolve: {
@@ -32,7 +34,6 @@ export default defineConfig({
     target: "esnext",
   },
   ssr: {
-    // react-use has ESM export issues, mark it as noExternal to bundle it
     noExternal: ["react-use"],
   },
 });
