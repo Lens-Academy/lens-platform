@@ -504,6 +504,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     };
   }, [module, viewMode]);
 
+  // Reset scroll position when navigating to a new section (paginated mode)
+  useEffect(() => {
+    if (viewMode === "paginated") {
+      window.scrollTo(0, 0);
+    }
+  }, [currentSectionIndex, viewMode]);
+
   const handleLoginClick = useCallback(() => {
     sessionStorage.setItem("returnToModule", moduleId);
     login();
