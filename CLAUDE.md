@@ -51,8 +51,9 @@ cd web_api && python main.py      # FastAPI only
 ## Dev Server Management
 
 Ports are auto-assigned based on workspace number:
-- `ws1` → API :8000, Frontend :3000
-- `ws2` → API :8001, Frontend :3001
+- No suffix → API :8000, Frontend :3000
+- `ws1` → API :8001, Frontend :3001
+- `ws2` → API :8002, Frontend :3002
 - etc.
 
 Override via `.env.local` (gitignored) or CLI `--port`.

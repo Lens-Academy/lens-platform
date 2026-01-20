@@ -55,11 +55,12 @@ if __name__ == "__main__":
     import re
 
     # Extract workspace number from directory name (e.g., "platform-ws2" → 2)
-    # Used to auto-assign ports: ws1 gets 8000/3000, ws2 gets 8001/3001, etc.
+    # Used to auto-assign ports: ws1 gets 8001/3001, ws2 gets 8002/3002, etc.
+    # No workspace suffix → 8000/3000 (default)
     _workspace_match = re.search(r"-ws(\d+)$", Path.cwd().name)
-    _ws_num = int(_workspace_match.group(1)) if _workspace_match else 1
-    _default_api_port = 8000 + (_ws_num - 1)
-    _default_frontend_port = 3000 + (_ws_num - 1)
+    _ws_num = int(_workspace_match.group(1)) if _workspace_match else 0
+    _default_api_port = 8000 + _ws_num
+    _default_frontend_port = 3000 + _ws_num
 
     _early_parser = argparse.ArgumentParser(add_help=False)
     _early_parser.add_argument("--dev", action="store_true")
