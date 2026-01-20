@@ -567,15 +567,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         setShowAuthPrompt(true);
         setHasPromptedAuth(true);
       }
+
+      // Navigate to next section
+      if (module && sectionIndex < module.sections.length - 1) {
+        const nextIndex = sectionIndex + 1;
+        if (viewMode === "continuous") {
+          handleStageClick(nextIndex);
+        } else {
+          setCurrentSectionIndex(nextIndex);
+          setViewingStageIndex(null);
+        }
+      }
     },
-    [completedSections.size, isAuthenticated, hasPromptedAuth],
+    [completedSections.size, isAuthenticated, hasPromptedAuth, module, viewMode, handleStageClick],
   );
 
   const handleSkipSection = useCallback(() => {
-    // Mark current as complete and go to next
+    // Mark current as complete (which also navigates to next)
     handleMarkComplete(currentSectionIndex);
-    handleNext();
-  }, [currentSectionIndex, handleMarkComplete, handleNext]);
+  }, [currentSectionIndex, handleMarkComplete]);
 
   // Render a segment (sectionIndex included for unique keys)
   const renderSegment = (

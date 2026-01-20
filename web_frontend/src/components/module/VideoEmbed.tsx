@@ -7,7 +7,7 @@ import { formatDuration } from "@/utils/formatDuration";
 type VideoEmbedProps = {
   videoId: string;
   start: number;
-  end: number;
+  end: number | null; // null = play to end of video
   excerptNumber?: number; // 1-indexed, defaults to 1 (first clip)
   title?: string;
   channel?: string | null;
@@ -92,10 +92,12 @@ export default function VideoEmbed({
               </div>
             </div>
 
-            {/* Duration badge */}
-            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-              {formatDuration(end - start)}
-            </div>
+            {/* Duration badge (only show when end time is specified) */}
+            {end !== null && (
+              <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+                {formatDuration(end - start)}
+              </div>
+            )}
           </button>
         )}
 
