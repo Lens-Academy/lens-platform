@@ -1,4 +1,3 @@
-"use client";
 
 import Privacy from "@/views/Privacy";
 

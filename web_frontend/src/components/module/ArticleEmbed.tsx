@@ -1,5 +1,4 @@
 // web_frontend_next/src/components/module/ArticleEmbed.tsx
-"use client";
 
 import { useRef } from "react";
 import ReactMarkdown from "react-markdown";

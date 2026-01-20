@@ -1,5 +1,4 @@
 // web_frontend_next/src/components/narrative-lesson/AuthoredText.tsx
-"use client";
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";

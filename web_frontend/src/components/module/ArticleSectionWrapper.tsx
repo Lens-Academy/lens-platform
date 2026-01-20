@@ -1,5 +1,4 @@
 // web_frontend_next/src/components/module/ArticleSectionWrapper.tsx
-"use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ArticleSectionProvider } from "./ArticleSectionContext";

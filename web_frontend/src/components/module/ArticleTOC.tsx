@@ -1,5 +1,4 @@
 // web_frontend_next/src/components/module/ArticleTOC.tsx
-"use client";
 
 import type { HeadingItem } from "@/utils/extractHeadings";
 

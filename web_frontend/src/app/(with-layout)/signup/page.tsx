@@ -1,4 +1,3 @@
-"use client";
 
 import Signup from "@/views/Signup";
 

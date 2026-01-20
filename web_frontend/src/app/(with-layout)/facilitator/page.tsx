@@ -1,4 +1,3 @@
-"use client";
 
 import Facilitator from "@/views/Facilitator";
 

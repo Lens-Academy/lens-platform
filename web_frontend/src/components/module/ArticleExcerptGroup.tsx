@@ -1,5 +1,4 @@
 // web_frontend_next/src/components/module/ArticleExcerptGroup.tsx
-"use client";
 
 import { useMemo } from "react";
 import type { ArticleSection, ArticleExcerptSegment } from "@/types/module";

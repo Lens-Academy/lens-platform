@@ -1,5 +1,4 @@
 // web_frontend_next/src/components/module/ArticleSectionContext.tsx
-"use client";
 
 import { createContext, useContext } from "react";
 

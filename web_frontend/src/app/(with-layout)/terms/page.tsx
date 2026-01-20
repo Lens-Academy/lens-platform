@@ -1,4 +1,3 @@
-"use client";
 
 import Terms from "@/views/Terms";
 

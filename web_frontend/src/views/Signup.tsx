@@ -1,4 +1,3 @@
-"use client";
 
 import SignupWizard from "../components/signup/SignupWizard";
 

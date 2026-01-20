@@ -1,4 +1,3 @@
-"use client";
 
 import Availability from "@/views/Availability";
 

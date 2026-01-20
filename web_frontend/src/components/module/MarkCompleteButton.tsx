@@ -1,5 +1,4 @@
 // web_frontend_next/src/components/narrative-lesson/MarkCompleteButton.tsx
-"use client";
 
 type MarkCompleteButtonProps = {
   isCompleted: boolean;

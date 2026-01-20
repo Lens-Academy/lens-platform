@@ -1,5 +1,4 @@
 // web_frontend_next/src/components/module/ContinueVideoButton.tsx
-"use client";
 
 import { formatDuration } from "@/utils/formatDuration";
 

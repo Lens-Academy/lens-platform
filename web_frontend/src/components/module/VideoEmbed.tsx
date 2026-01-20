@@ -1,5 +1,4 @@
 // web_frontend_next/src/components/module/VideoEmbed.tsx
-"use client";
 
 import { useState, useRef, useEffect } from "react";
 import VideoPlayer from "@/components/module/VideoPlayer";

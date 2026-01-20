@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useSyncExternalStore, useCallback } from "react";
 import { optIn, optOut, hasConsent } from "../analytics";

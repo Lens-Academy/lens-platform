@@ -1,5 +1,4 @@
 // web_frontend_next/src/components/narrative-lesson/NarrativeChatSection.tsx
-"use client";
 
 import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react";
 import ReactMarkdown from "react-markdown";
