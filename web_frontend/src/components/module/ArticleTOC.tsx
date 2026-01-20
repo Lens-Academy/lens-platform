@@ -39,8 +39,13 @@ export default function ArticleTOC({
 
       {/* Headings list */}
       <ul className="space-y-2" role="list">
-        {headings.map((heading) => {
+        {headings.map((heading, index) => {
           const isPassed = passedHeadingIds.has(heading.id);
+          // Current = last passed heading (most recent one scrolled to)
+          const nextHeading = headings[index + 1];
+          const isCurrent =
+            isPassed && (!nextHeading || !passedHeadingIds.has(nextHeading.id));
+
           return (
             <li
               key={heading.id}
@@ -49,7 +54,11 @@ export default function ArticleTOC({
               <button
                 onClick={() => onHeadingClick(heading.id)}
                 className={`text-left text-sm leading-snug transition-colors hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded ${
-                  isPassed ? "text-gray-700" : "text-gray-400"
+                  isCurrent
+                    ? "text-gray-900 font-semibold"
+                    : isPassed
+                      ? "text-gray-700"
+                      : "text-gray-400"
                 }`}
               >
                 {heading.text}

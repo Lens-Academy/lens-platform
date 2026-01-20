@@ -70,7 +70,9 @@ export default function ArticleSectionWrapper({
   useEffect(() => {
     const calculatePassedHeadings = () => {
       const passed = new Set<string>();
-      const offset = 100; // Account for sticky header
+      // Trigger when heading reaches upper-third of viewport
+      // This better reflects where people are actually reading
+      const offset = window.innerHeight * 0.35;
 
       headingElementsRef.current.forEach((element, id) => {
         const top = element.getBoundingClientRect().top;
