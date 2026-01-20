@@ -1,8 +1,8 @@
 // web_frontend/src/components/module/ArticleExcerptGroup.tsx
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type { ArticleSection, ArticleExcerptSegment } from "@/types/module";
-import { extractHeadings } from "@/utils/extractHeadings";
+import { extractAllHeadings } from "@/utils/extractHeadings";
 import ArticleTOC from "./ArticleTOC";
 import { useArticleSectionContext } from "./ArticleSectionContext";
 
@@ -23,14 +23,23 @@ export default function ArticleExcerptGroup({
   children,
 }: ArticleExcerptGroupProps) {
   const context = useArticleSectionContext();
+  const lastRegisteredRef = useRef<string | null>(null);
 
-  // Extract headings from all article-excerpt segments
+  // Extract headings from all article-excerpt segments with shared counter
   const allHeadings = useMemo(() => {
-    const excerpts = section.segments.filter(
-      (s): s is ArticleExcerptSegment => s.type === "article-excerpt",
-    );
-    return excerpts.flatMap((excerpt) => extractHeadings(excerpt.content));
+    const excerptContents = section.segments
+      .filter((s): s is ArticleExcerptSegment => s.type === "article-excerpt")
+      .map((s) => s.content);
+    return extractAllHeadings(excerptContents);
   }, [section.segments]);
+
+  // Register heading IDs with context before children render
+  // Uses a ref to avoid duplicate registrations for same headings
+  const headingsKey = allHeadings.map((h) => h.id).join(",");
+  if (context?.registerHeadingIds && lastRegisteredRef.current !== headingsKey) {
+    context.registerHeadingIds(allHeadings);
+    lastRegisteredRef.current = headingsKey;
+  }
 
   return (
     <div>

@@ -1,6 +1,5 @@
 // web_frontend/src/components/module/ArticleEmbed.tsx
 
-import { useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -30,17 +29,14 @@ export default function ArticleEmbed({
   const { content, title, author, sourceUrl } = article;
   const sectionContext = useArticleSectionContext();
 
-  // Track seen IDs to handle duplicates (matching extractHeadings behavior)
-  // Reset on each render to ensure consistency
-  const seenIdsRef = useRef<Map<string, number>>(new Map());
-  seenIdsRef.current = new Map();
-
-  const getUniqueHeadingId = (text: string): string => {
-    const baseId = generateHeadingId(text);
-    const count = seenIdsRef.current.get(baseId) || 0;
-    const id = count > 0 ? `${baseId}-${count}` : baseId;
-    seenIdsRef.current.set(baseId, count + 1);
-    return id;
+  // Get heading ID - uses shared counter from context if available,
+  // falls back to local generation for standalone use
+  const getHeadingId = (text: string): string => {
+    if (sectionContext?.getHeadingId) {
+      return sectionContext.getHeadingId(text);
+    }
+    // Fallback for when rendered outside ArticleSectionWrapper
+    return generateHeadingId(text);
   };
 
   return (
@@ -134,7 +130,7 @@ export default function ArticleEmbed({
                 ),
                 h2: ({ children }) => {
                   const text = String(children);
-                  const id = getUniqueHeadingId(text);
+                  const id = getHeadingId(text);
                   return (
                     <h2
                       id={id}
@@ -149,7 +145,7 @@ export default function ArticleEmbed({
                 },
                 h3: ({ children }) => {
                   const text = String(children);
-                  const id = getUniqueHeadingId(text);
+                  const id = getHeadingId(text);
                   return (
                     <h3
                       id={id}

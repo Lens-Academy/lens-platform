@@ -1,8 +1,12 @@
-// web_frontend_next/src/components/module/ArticleSectionContext.tsx
+// web_frontend/src/components/module/ArticleSectionContext.tsx
 
 import { createContext, useContext } from "react";
 
 type ArticleSectionContextValue = {
+  /** Get unique heading ID - shared counter across all ArticleEmbed instances */
+  getHeadingId: (text: string) => string;
+  /** Register pre-computed heading IDs from extractAllHeadings */
+  registerHeadingIds: (headings: Array<{ id: string; text: string }>) => void;
   onHeadingRender: (id: string, element: HTMLElement) => void;
   passedHeadingIds: Set<string>;
   onHeadingClick: (id: string) => void;
