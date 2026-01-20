@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "tsx server/index.ts",
+    "build": "vite build && tsc -p server/tsconfig.json",
     "preview": "vite preview",
-    "start": "tsx server/index.ts",
+    "start": "node server/dist/index.js",
     "lint": "eslint"
   },
   "dependencies": {
@@ -26,7 +26,9 @@
     "vike": "^0.4.252",
     "vike-react": "^0.6.18",
     "vite": "^7.3.1",
-    "youtube-video-element": "^1.8.1"
+    "youtube-video-element": "^1.8.1",
+    "http-proxy-middleware": "^3.0.5",
+    "sirv": "^3.0.2"
   },
   "devDependencies": {
     "@sentry/vite-plugin": "^4.7.0",
@@ -38,8 +40,6 @@
     "eslint": "^9",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "http-proxy-middleware": "^3.0.5",
-    "sirv": "^3.0.2",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",

@@ -10,9 +10,9 @@ const apiUrl = process.env.API_URL || "http://localhost:8000";
 async function startServer() {
   const app = express();
 
-  // API proxy
+  // API and auth proxy
   app.use(
-    "/api",
+    ["/api", "/auth"],
     createProxyMiddleware({
       target: apiUrl,
       changeOrigin: true,
@@ -32,7 +32,7 @@ async function startServer() {
   }
 
   // Vike middleware - handle all other routes
-  app.get("*", async (req: Request, res: Response, next: NextFunction) => {
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
     const pageContext = await renderPage({ urlOriginal: req.originalUrl });
     const { httpResponse } = pageContext;
 

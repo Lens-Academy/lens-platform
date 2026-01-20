@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     vike({
-      prerender: true,
+      prerender: false,
     }),
   ],
   resolve: {
