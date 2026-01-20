@@ -1,4 +1,4 @@
-import "../app/globals.css";
+import "../styles/globals.css";
 import { Providers } from "@/components/Providers";
 import { GlobalComponents } from "@/components/GlobalComponents";
 
