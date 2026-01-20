@@ -6,7 +6,9 @@ import type { Module } from "../types/module";
 import type { CourseProgress } from "../types/course";
 import { Sentry } from "../errorTracking";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+import { API_URL } from "../config";
+
+const API_BASE = API_URL;
 
 // Default timeout for API requests (in milliseconds)
 const DEFAULT_TIMEOUT_MS = 10000;
