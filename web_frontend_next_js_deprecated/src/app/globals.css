@@ -1,0 +1,47 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+:root {
+  --background: #fafaf9; /* stone-50 */
+  --foreground: #0f172a; /* slate-900 */
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+}
+
+/* Animations for unified lesson components */
+@keyframes mic-pulse {
+  0%,
+  100% {
+    stroke: #4b5563;
+  }
+  50% {
+    stroke: #000000;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
