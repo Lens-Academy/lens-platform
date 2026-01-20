@@ -20,6 +20,9 @@ export default function ArticleSectionWrapper({
     new Set(),
   );
   const headingElementsRef = useRef<Map<string, HTMLElement>>(new Map());
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  // Track passed headings in a ref to avoid stale closure issues in observer callback
+  const passedHeadingIdsRef = useRef<Set<string>>(new Set());
 
   // Pre-computed heading IDs from extractAllHeadings, keyed by text
   // Maps text → array of IDs (for duplicate headings)
@@ -58,58 +61,73 @@ export default function ArticleSectionWrapper({
     return generateHeadingId(text);
   }, []);
 
-  // Track heading elements as they render
+  // Track heading elements as they render and observe them
   const handleHeadingRender = useCallback(
     (id: string, element: HTMLElement) => {
-      headingElementsRef.current.set(id, element);
+      const existing = headingElementsRef.current.get(id);
+      if (existing !== element) {
+        headingElementsRef.current.set(id, element);
+        // Observe with IntersectionObserver if available
+        if (observerRef.current) {
+          observerRef.current.observe(element);
+        }
+      }
     },
     [],
   );
 
-  // Scroll tracking for headings
+  // IntersectionObserver for tracking which headings have been scrolled past
+  // rootMargin "-35% 0px -65% 0px" creates an observation zone in top 35% of viewport
   useEffect(() => {
-    const calculatePassedHeadings = () => {
-      const passed = new Set<string>();
-      // Trigger when heading reaches upper-third of viewport
-      // This better reflects where people are actually reading
-      const offset = window.innerHeight * 0.35;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        let changed = false;
+        const currentPassed = passedHeadingIdsRef.current;
 
-      headingElementsRef.current.forEach((element, id) => {
-        const top = element.getBoundingClientRect().top;
-        if (top < offset) {
-          passed.add(id);
+        for (const entry of entries) {
+          const id = entry.target.id;
+          if (!id) continue;
+
+          // isIntersecting means the heading is in the top 35% zone
+          // When scrolling down, headings enter this zone → they're "passed"
+          // When scrolling up, headings leave this zone → they're no longer "passed"
+          if (entry.isIntersecting) {
+            if (!currentPassed.has(id)) {
+              currentPassed.add(id);
+              changed = true;
+            }
+          } else {
+            // Check if element is above or below the observation zone
+            // If boundingClientRect.top > 0, element is below the zone (not passed yet)
+            // If boundingClientRect.top < 0, element is above the zone (still passed)
+            if (entry.boundingClientRect.top > 0 && currentPassed.has(id)) {
+              currentPassed.delete(id);
+              changed = true;
+            }
+          }
         }
-      });
 
-      // Only update state if the set actually changed
-      setPassedHeadingIds((prev) => {
-        if (prev.size !== passed.size) return passed;
-        for (const id of passed) {
-          if (!prev.has(id)) return passed;
+        if (changed) {
+          setPassedHeadingIds(new Set(currentPassed));
         }
-        return prev; // No change, return same reference
-      });
-    };
-
-    // Throttle scroll handler with requestAnimationFrame
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(() => {
-          calculatePassedHeadings();
-          ticking = false;
-        });
-        ticking = true;
+      },
+      {
+        // Top 35% of viewport is the observation zone
+        rootMargin: "0px 0px -65% 0px",
+        threshold: 0,
       }
-    };
+    );
 
-    // Initial calculation after a delay to let headings register
-    const timeout = setTimeout(calculatePassedHeadings, 100);
+    observerRef.current = observer;
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    // Observe any elements already registered
+    headingElementsRef.current.forEach((element) => {
+      observer.observe(element);
+    });
+
     return () => {
-      clearTimeout(timeout);
-      window.removeEventListener("scroll", handleScroll);
+      observer.disconnect();
+      observerRef.current = null;
     };
   }, []);
 
