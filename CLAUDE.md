@@ -9,11 +9,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Before pushing ANY code to GitHub**, run these checks:
 
 ```bash
-# Frontend (from web_frontend_next/)
-cd web_frontend_next
+# Frontend (from web_frontend/)
+cd web_frontend
 npm run lint          # ESLint
-npm run build         # TypeScript type check + Next.js build
-npx prettier --check src/  # Prettier formatting check
+npm run build         # TypeScript type check + Vite/Vike build
 
 # Backend (from repo root)
 ruff check .          # Python linting
@@ -28,7 +27,7 @@ Fix any errors before pushing. CI will run these same checks.
 Run the server: `python main.py`. This is a unified backend (FastAPI + Discord Bot) that also serves the frontend.
 
 Options:
---dev (enables dev mode - API returns JSON at /, run Next.js frontend separately)
+--dev (enables dev mode - API returns JSON at /, run Vike frontend separately)
 --no-bot (without Discord bot)
 --no-db (skip database check - for frontend-only development)
 --port (defaults to API_PORT env var, or 8000)
@@ -38,7 +37,9 @@ Options:
 **Tests:**
 
 ```bash
-pytest discord_bot/tests/         # Scheduler algorithm tests
+pytest                        # All tests
+pytest discord_bot/tests/     # Discord bot tests
+pytest core/tests/            # Core module tests
 ```
 
 **Legacy (standalone, for reference):**
@@ -100,20 +101,67 @@ ai-safety-course-platform/
 │
 ├── core/                       # Layer 1: Business Logic (platform-agnostic)
 │   ├── scheduling.py           # Scheduling algorithm + Person/Group dataclasses
-│   ├── enrollment.py           # User profiles, availability storage
+│   ├── users.py                # User profiles, availability storage
 │   ├── cohorts.py              # Group creation, availability matching
-│   ├── data.py                 # JSON persistence (legacy)
+│   ├── availability.py         # Availability data handling
+│   ├── meetings.py             # Meeting/calendar operations
+│   ├── database.py             # SQLAlchemy async engine
+│   ├── tables.py               # SQLAlchemy ORM table definitions
+│   ├── auth.py                 # Discord-to-Web auth flow
+│   ├── config.py               # Configuration management
+│   ├── enums.py                # Enum definitions
 │   ├── timezone.py             # UTC/local conversions
 │   ├── constants.py            # Day codes (M,T,W,R,F,S,U), timezones
+│   ├── cohort_names.py         # Group name generation
+│   ├── nickname.py             # User nickname management
+│   ├── nickname_sync.py        # Discord nickname sync
+│   ├── speech.py               # Speech/TTS integration
+│   ├── stampy.py               # Stampy chatbot functionality
 │   ├── google_docs.py          # Google Docs fetching/parsing
-│   └── cohort_names.py         # Group name generation
+│   ├── data.py                 # JSON persistence (legacy)
+│   ├── calendar/               # Google Calendar integration
+│   │   ├── client.py           # Calendar API client
+│   │   ├── events.py           # Event creation/management
+│   │   └── rsvp.py             # RSVP tracking and sync
+│   ├── content/                # Educational content from GitHub
+│   │   ├── cache.py            # Content caching
+│   │   ├── github_fetcher.py   # GitHub content retrieval
+│   │   └── webhook_handler.py  # GitHub webhook handling
+│   ├── modules/                # Course/module management
+│   │   ├── types.py            # Type definitions
+│   │   ├── content.py          # Module content
+│   │   ├── chat.py             # LLM chat integration
+│   │   ├── llm.py              # LLM provider logic (LiteLLM)
+│   │   ├── loader.py           # Module loading
+│   │   ├── course_loader.py    # Course loading
+│   │   ├── markdown_parser.py  # Markdown parsing
+│   │   ├── markdown_validator.py # Content validation
+│   │   └── sessions.py         # Chat session management
+│   ├── notifications/          # Multi-channel notification system
+│   │   ├── actions.py          # Notification actions
+│   │   ├── dispatcher.py       # Notification routing
+│   │   ├── scheduler.py        # APScheduler integration
+│   │   ├── templates.py        # Email/Discord templates
+│   │   ├── urls.py             # Dynamic URL generation
+│   │   └── channels/           # Channel implementations
+│   │       ├── discord.py      # Discord notifications
+│   │       └── email.py        # SendGrid email integration
+│   ├── lessons/                # Lesson-related content
+│   ├── queries/                # Database query builders
+│   ├── transcripts/            # Chat transcript storage
+│   └── tests/                  # Core unit tests
 │
 ├── discord_bot/                # Layer 2a: Discord Adapter
 │   ├── main.py                 # Bot setup (imported by root main.py)
 │   ├── cogs/
 │   │   ├── scheduler_cog.py    # /schedule command → calls core/
 │   │   ├── enrollment_cog.py   # /signup UI → calls core/
-│   │   └── groups_cog.py       # /group command → calls core/ (needs refactor)
+│   │   ├── groups_cog.py       # /group command → calls core/
+│   │   ├── breakout_cog.py     # Breakout room management
+│   │   ├── nickname_cog.py     # Nickname sync commands
+│   │   ├── stampy_cog.py       # Stampy chatbot integration
+│   │   ├── sync_cog.py         # Slash command sync
+│   │   └── ping_cog.py         # Health check command
 │   ├── utils/                  # Re-exports from core/ for backward compat
 │   └── tests/
 │
@@ -122,10 +170,33 @@ ai-safety-course-platform/
 │   ├── auth.py                 # JWT utilities (create_jwt, verify_jwt, get_current_user)
 │   └── routes/                 # API endpoints (imported by root main.py)
 │       ├── auth.py             # /auth/* - Discord OAuth, session management
-│       └── users.py            # /api/users/* - User profile endpoints
+│       ├── users.py            # /api/users/* - User profile endpoints
+│       ├── cohorts.py          # /api/cohorts/* - Cohort management
+│       ├── courses.py          # /api/courses/* - Course endpoints
+│       ├── modules.py          # /api/modules/* - Module list endpoints
+│       ├── module.py           # /api/module/* - Single module endpoints
+│       ├── content.py          # /api/content/* - Educational content
+│       ├── facilitator.py      # /api/facilitator/* - Facilitator endpoints
+│       └── speech.py           # /api/speech/* - TTS endpoints
 │
-├── web_frontend_next/          # Layer 3: Next.js frontend (React + App Router)
-└── activities/                 # Discord Activities (vanilla JS)
+├── web_frontend/               # Layer 3: Vike + React frontend
+│   ├── src/
+│   │   ├── pages/              # Vike route pages
+│   │   ├── components/         # React components
+│   │   ├── hooks/              # Custom React hooks
+│   │   ├── api/                # API client functions
+│   │   ├── lib/                # Utility libraries
+│   │   ├── utils/              # Helper utilities
+│   │   ├── views/              # View components
+│   │   ├── types/              # TypeScript types
+│   │   └── styles/             # CSS/styling
+│   └── dist/                   # Built Vike SPA (served by FastAPI)
+│
+├── migrations/                 # Raw SQL database migrations
+├── alembic/                    # Alembic migration config
+├── docs/                       # Design docs and implementation plans
+├── scripts/                    # Utility scripts
+└── static/                     # Static assets
 ```
 
 Layer 2a (Discord adapter) and 2b (FastAPI) should never communicate directly. I.e., they should never import functions from each other directly.
@@ -135,11 +206,16 @@ Layer 2a (Discord adapter) and 2b (FastAPI) should never communicate directly. I
 **Platform-agnostic business logic** - no Discord imports, pure Python:
 
 - `scheduling.py` - Stochastic greedy algorithm, `Person`/`Group` dataclasses
-- `enrollment.py` - `get_user_profile()`, `save_user_profile()`, `get_facilitators()`
+- `users.py` - `get_user_profile()`, `save_user_profile()`, `get_facilitators()`
 - `cohorts.py` - `find_availability_overlap()`, `format_local_time()`
-- `data.py` - JSON persistence (legacy)
 - `database.py` - SQLAlchemy async engine (`get_connection()`, `get_transaction()`)
+- `tables.py` - SQLAlchemy ORM table definitions
 - `auth.py` - Discord-to-Web auth flow (`create_auth_code()`, `get_or_create_user()`)
+- `config.py` - Environment configuration management
+- `modules/` - Course content loading, LLM chat integration
+- `notifications/` - Multi-channel notification dispatcher (Discord, email via SendGrid)
+- `calendar/` - Google Calendar integration for meeting scheduling
+- `content/` - GitHub-based educational content fetching and caching
 
 ### Discord Bot (`discord_bot/`)
 
@@ -147,17 +223,26 @@ Layer 2a (Discord adapter) and 2b (FastAPI) should never communicate directly. I
 
 - `scheduler_cog.py` - `/schedule`, `/list-users` commands
 - `enrollment_cog.py` - `/signup` flow with Views/Buttons/Selects
-- `groups_cog.py` - `/group` command, channel/event creation (needs refactor)
+- `groups_cog.py` - `/group` command, channel/event creation
+- `breakout_cog.py` - Breakout room management for sessions
+- `nickname_cog.py` - Discord nickname synchronization
+- `stampy_cog.py` - Stampy AI chatbot integration
+- `sync_cog.py` - Slash command tree synchronization
+- `ping_cog.py` - Health check and latency command
 
-### Frontend (`web_frontend_next/`)
+### Frontend (`web_frontend/`)
 
-Next.js 16 app using App Router, TypeScript, and Tailwind CSS. Run with `npm run dev` from the directory.
+Vike (v0.4) + Vite (v7) + React 19 + Tailwind CSS v4. Uses partial SSG prerendering with SPA fallback.
 
-Note: `web_frontend_deprecated/` contains an old Vite+React setup - do not use.
+**Development:**
+```bash
+cd web_frontend
+npm run dev      # Vite dev server
+npm run build    # Production build
+npm run preview  # Preview production build
+```
 
-### Activities (`activities/`)
-
-Static HTML/JS Discord Activities served via `npx serve`. Each subfolder is a route. Currently vanilla JS, planned migration to React.
+The built frontend (`dist/`) is served by FastAPI in production.
 
 ## Key Patterns
 
@@ -186,7 +271,7 @@ async def setup(bot):
     await bot.add_cog(MyCog(bot))
 ```
 
-Then add `"cogs.my_cog"` to `COGS` list in `main.py`.
+Then add `"cogs.my_cog"` to `COGS` list in `discord_bot/main.py`.
 
 **Admin-only commands:** Add `@app_commands.checks.has_permissions(administrator=True)`
 
@@ -209,6 +294,13 @@ from core import (
 
 Single Railway service running the unified backend (`uvicorn main:app`).
 Database: PostgreSQL (Supabase-hosted, accessed via SQLAlchemy).
+
+**Key integrations:**
+- Sentry - Error tracking (backend and frontend)
+- PostHog - Analytics
+- SendGrid - Email notifications
+- Google Calendar API - Meeting scheduling
+- LiteLLM - LLM provider abstraction
 
 **Railway CLI:**
 

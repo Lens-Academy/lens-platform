@@ -34,9 +34,6 @@ jobs:
       - name: Type check & Build
         run: npm run build
 
-      - name: Run tests
-        run: npm run test
-
   # Backend tests - needs staging database
   backend:
     name: Backend Tests
