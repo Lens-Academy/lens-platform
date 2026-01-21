@@ -204,7 +204,7 @@ class TestBecomeFacilitator:
             )
             .returning(users)
         )
-        user = dict(user_result.mappings().first())
+        dict(user_result.mappings().first())
 
         # Commit so become_facilitator can see the user
         await db_conn.commit()
@@ -308,7 +308,7 @@ class TestEnrollInCohort:
         )
         cohort = dict(cohort_result.mappings().first())
 
-        user_result = await db_conn.execute(
+        await db_conn.execute(
             insert(users)
             .values(
                 discord_id="enroll_user",

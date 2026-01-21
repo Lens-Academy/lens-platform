@@ -222,8 +222,8 @@ async def _check_condition(condition: dict, user_ids: list[int]) -> bool:
 
     if condition_type == "module_progress":
         # Check if user hasn't completed required modules
-        meeting_id = condition.get("meeting_id")
-        threshold = condition.get("threshold", 1.0)  # 1.0 = 100%
+        condition.get("meeting_id")
+        condition.get("threshold", 1.0)  # 1.0 = 100%
         # TODO: Implement module progress check
         # For now, always return True
         return True

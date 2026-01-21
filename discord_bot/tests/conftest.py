@@ -2,9 +2,44 @@
 Pytest fixtures for scheduler tests.
 """
 
+import pytest
 import pytest_asyncio
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine
+
+
+@pytest.fixture(autouse=True)
+def init_content_cache():
+    """Initialize a minimal content cache for tests that need course data.
+
+    This is autouse=True so it runs before every test. Tests that call
+    load_course("default") will find the mock course in the cache.
+    """
+    from core.content.cache import set_cache, clear_cache, ContentCache
+    from core.modules.markdown_parser import ParsedCourse
+
+    # Create minimal cache with "default" course
+    test_cache = ContentCache(
+        courses={
+            "default": ParsedCourse(
+                slug="default",
+                title="AI Safety Course",
+                progression=[],
+            )
+        },
+        modules={},
+        articles={},
+        video_transcripts={},
+        last_refreshed=datetime.now(timezone.utc),
+        last_commit_sha=None,
+    )
+    set_cache(test_cache)
+
+    yield
+
+    # Clean up after test
+    clear_cache()
 
 
 @pytest_asyncio.fixture

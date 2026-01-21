@@ -241,10 +241,8 @@ async def start_session(request_body: CreateSessionRequest, request: Request):
 
     # Try loading as narrative module first, then staged module
     module = None
-    is_narrative = False
     try:
-        narrative_module = load_narrative_module(request_body.module_slug)
-        is_narrative = True
+        load_narrative_module(request_body.module_slug)
     except (ModuleNotFoundError, KeyError):
         # Not a narrative module or missing 'sections' - try staged format
         try:

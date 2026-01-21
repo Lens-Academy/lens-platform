@@ -385,7 +385,7 @@ class TestRealizeGroupsE2E:
         assert default_role in category_overwrites, (
             "Category: @everyone not in permission overwrites"
         )
-        assert category_overwrites[default_role].view_channel == False, (
+        assert not category_overwrites[default_role].view_channel, (
             "Category: @everyone can still view"
         )
 
