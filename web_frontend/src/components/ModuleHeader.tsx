@@ -15,7 +15,6 @@ interface ModuleHeaderProps {
   onPrevious: () => void;
   onNext: () => void;
   onReturnToCurrent: () => void;
-  onSkipSection: () => void;
 }
 
 export function ModuleHeader({
@@ -30,7 +29,6 @@ export function ModuleHeader({
   onPrevious,
   onNext,
   onReturnToCurrent,
-  onSkipSection,
 }: ModuleHeaderProps) {
   const [
     { needsTwoRows, needsTruncation },
@@ -100,24 +98,14 @@ export function ModuleHeader({
 
           {/* Right section: Controls */}
           <div ref={rightRef} className="flex items-center gap-4">
-            {/* Fixed width container to prevent layout shift when text changes */}
-            <div className="w-[120px] flex justify-end">
-              {isViewingOther ? (
-                <button
-                  onClick={onReturnToCurrent}
-                  className="text-emerald-600 hover:text-emerald-700 text-sm font-medium whitespace-nowrap"
-                >
-                  Return to current →
-                </button>
-              ) : (
-                <button
-                  onClick={onSkipSection}
-                  className="text-gray-500 hover:text-gray-700 text-sm cursor-pointer whitespace-nowrap"
-                >
-                  Skip section
-                </button>
-              )}
-            </div>
+            {isViewingOther && (
+              <button
+                onClick={onReturnToCurrent}
+                className="text-emerald-600 hover:text-emerald-700 text-sm font-medium whitespace-nowrap"
+              >
+                Return to current →
+              </button>
+            )}
             <UserMenu />
           </div>
         </div>

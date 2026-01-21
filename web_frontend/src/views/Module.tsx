@@ -601,11 +601,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     ],
   );
 
-  const handleSkipSection = useCallback(() => {
-    // Mark current as complete (which also navigates to next)
-    handleMarkComplete(currentSectionIndex);
-  }, [currentSectionIndex, handleMarkComplete]);
-
   // Render a segment (sectionIndex included for unique keys)
   const renderSegment = (
     segment: ModuleSegment,
@@ -751,7 +746,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           onPrevious={handlePrevious}
           onNext={handleNext}
           onReturnToCurrent={() => setViewingStageIndex(null)}
-          onSkipSection={handleSkipSection}
         />
       </div>
 
