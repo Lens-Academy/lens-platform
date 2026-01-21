@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Critical Rules
 
-**NEVER push directly to `main` or `staging` branches.** These are production/staging servers used by real people. All changes must go through pull requests with CI checks. Always ask the user before pushing to any shared branch.
+**NEVER push directly to `main`** All changes must go through pull requests with CI checks. 
+
+Always ask the user before pushing to any shared branch, including `staging`.
 
 **Before pushing ANY code to GitHub**, run these checks:
 

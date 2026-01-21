@@ -129,7 +129,10 @@ __all__ = [
     "Person",
     "DAY_MAP",
     "CohortSchedulingResult",
+    "UngroupableReason",
+    "UngroupableDetail",
     "calculate_total_available_time",
+    "analyze_ungroupable_users",
     "schedule_cohort",
     # User management (async)
     "get_user_profile",

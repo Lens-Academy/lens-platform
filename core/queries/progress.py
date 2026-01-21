@@ -32,7 +32,6 @@ async def get_group_members_summary(
     group_row = group_result.first()
     if not group_row:
         return []
-    cohort_id = group_row.cohort_id
 
     # Subquery: count heartbeats per user
     heartbeat_counts = (

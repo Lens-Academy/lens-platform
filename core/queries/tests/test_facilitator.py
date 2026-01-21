@@ -524,7 +524,7 @@ class TestGetUserChatSessions:
             )
             .returning(module_sessions)
         )
-        session = dict(result.mappings().first())
+        dict(result.mappings().first())
 
         result = await get_user_chat_sessions(
             db_conn, user["user_id"], group["group_id"]

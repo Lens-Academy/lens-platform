@@ -1,8 +1,6 @@
 # core/modules/tests/test_markdown_validator.py
 """Tests for the Markdown module/course validator."""
 
-import pytest
-
 from core.modules.markdown_validator import (
     validate_lesson,
     validate_course,

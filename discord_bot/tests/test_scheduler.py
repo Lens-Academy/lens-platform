@@ -1113,7 +1113,9 @@ class TestFindCohortTimeOptionsExtended:
 
         options = find_meeting_times([person], meeting_length=60, time_increment=30)
         assert len(options) == 1
-        assert options[0] == (540, 600)
+        # Options are (start, end, score) tuples - check start/end match
+        assert options[0][0] == 540
+        assert options[0][1] == 600
 
 
 class TestMoreEdgeCases:

@@ -1,7 +1,19 @@
-# core/transcripts/tests/test_transcript_validation.py
-"""Tests for video transcript validation."""
+# core/modules/tests/test_transcript_validator.py
+"""
+Tests for video transcript validation.
+
+These tests validate transcript content files. They are designed to be run from
+the content repository, not from the platform repository CI.
+
+To run these tests, set the TRANSCRIPTS_DIR environment variable:
+    TRANSCRIPTS_DIR=/path/to/video_transcripts pytest core/modules/tests/test_transcript_validator.py
+
+Or run from a directory that contains video_transcripts/.
+"""
 
 import json
+import os
+import re
 import pytest
 from pathlib import Path
 import yaml
@@ -9,13 +21,23 @@ import yaml
 from core.modules.content import extract_video_id_from_url
 
 
-TRANSCRIPTS_DIR = (
-    Path(__file__).parent.parent.parent.parent
-    / "educational_content_deprecated"
-    / "video_transcripts"
-)
+def get_transcripts_dir() -> Path:
+    """Get transcripts directory from env var or default location."""
+    if env_dir := os.environ.get("TRANSCRIPTS_DIR"):
+        return Path(env_dir)
+    # Default: look relative to cwd
+    return Path.cwd() / "video_transcripts"
 
+
+TRANSCRIPTS_DIR = get_transcripts_dir()
 REQUIRED_FRONTMATTER_FIELDS = ["title", "url"]
+
+# Skip all tests in this module if transcripts directory doesn't exist
+pytestmark = pytest.mark.skipif(
+    not TRANSCRIPTS_DIR.exists(),
+    reason=f"Transcripts directory not found: {TRANSCRIPTS_DIR}. "
+    "Set TRANSCRIPTS_DIR env var or run from content repo.",
+)
 
 
 def get_transcript_md_files():
@@ -133,19 +155,10 @@ def test_timestamps_file_has_valid_format(md_path: Path):
         )
         # If string, validate format "M:SS.ms" or "MM:SS.ms"
         if isinstance(entry["start"], str):
-            import re
-
             assert re.match(r"^\d+:\d{2}\.\d+$", entry["start"]), (
                 f"{timestamps_path.name} entry {i} 'start' has invalid format: {entry['start']} "
                 f"(expected M:SS.ms like '2:52.25')"
             )
-
-
-def test_transcripts_directory_exists():
-    """Transcripts directory should exist."""
-    assert TRANSCRIPTS_DIR.exists(), (
-        f"Transcripts directory not found: {TRANSCRIPTS_DIR}"
-    )
 
 
 def test_at_least_one_transcript_exists():

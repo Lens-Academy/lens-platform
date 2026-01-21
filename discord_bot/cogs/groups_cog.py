@@ -400,7 +400,7 @@ class GroupsCog(commands.Cog):
         meeting_time = group_data.get("recurring_meeting_time_utc", "TBD")
 
         for member in group_data["members"]:
-            tz = member.get("timezone") or "UTC"
+            member.get("timezone") or "UTC"
             discord_id = member.get("discord_id")
 
             # TODO: Convert UTC time to local for each member
