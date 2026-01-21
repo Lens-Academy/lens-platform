@@ -21,8 +21,6 @@ export default function ArticleSectionWrapper({
   );
   const headingElementsRef = useRef<Map<string, HTMLElement>>(new Map());
   const observerRef = useRef<IntersectionObserver | null>(null);
-  // Track passed headings in a ref to avoid stale closure issues in observer callback
-  const passedHeadingIdsRef = useRef<Set<string>>(new Set());
 
   // Pre-computed heading IDs from extractAllHeadings, keyed by text
   // Maps text → array of IDs (for duplicate headings)
@@ -76,43 +74,40 @@ export default function ArticleSectionWrapper({
     [],
   );
 
-  // IntersectionObserver for tracking which headings have been scrolled past
-  // rootMargin "-35% 0px -65% 0px" creates an observation zone in top 35% of viewport
+  // Recalculate all passed headings based on current scroll position
+  // This is called when IntersectionObserver fires, ensuring consistency
+  const recalculatePassedHeadings = useCallback(() => {
+    const threshold = window.innerHeight * 0.35;
+    const passed = new Set<string>();
+
+    headingElementsRef.current.forEach((element, id) => {
+      const top = element.getBoundingClientRect().top;
+      if (top < threshold) {
+        passed.add(id);
+      }
+    });
+
+    // Only update if changed
+    setPassedHeadingIds((prev) => {
+      if (prev.size !== passed.size) return passed;
+      for (const id of passed) {
+        if (!prev.has(id)) return passed;
+      }
+      return prev;
+    });
+  }, []);
+
+  // IntersectionObserver triggers recalculation when any heading crosses the threshold
+  // This is more efficient than scroll events while being more reliable than
+  // tracking individual intersection events (which can miss fast scrolling)
   useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => {
-        let changed = false;
-        const currentPassed = passedHeadingIdsRef.current;
-
-        for (const entry of entries) {
-          const id = entry.target.id;
-          if (!id) continue;
-
-          // isIntersecting means the heading is in the top 35% zone
-          // When scrolling down, headings enter this zone → they're "passed"
-          // When scrolling up, headings leave this zone → they're no longer "passed"
-          if (entry.isIntersecting) {
-            if (!currentPassed.has(id)) {
-              currentPassed.add(id);
-              changed = true;
-            }
-          } else {
-            // Check if element is above or below the observation zone
-            // If boundingClientRect.top > 0, element is below the zone (not passed yet)
-            // If boundingClientRect.top < 0, element is above the zone (still passed)
-            if (entry.boundingClientRect.top > 0 && currentPassed.has(id)) {
-              currentPassed.delete(id);
-              changed = true;
-            }
-          }
-        }
-
-        if (changed) {
-          setPassedHeadingIds(new Set(currentPassed));
-        }
+      () => {
+        // Any intersection change triggers a full recalculation
+        recalculatePassedHeadings();
       },
       {
-        // Top 35% of viewport is the observation zone
+        // Observation zone is top 35% of viewport
         rootMargin: "0px 0px -65% 0px",
         threshold: 0,
       }
@@ -125,11 +120,14 @@ export default function ArticleSectionWrapper({
       observer.observe(element);
     });
 
+    // Initial calculation
+    recalculatePassedHeadings();
+
     return () => {
       observer.disconnect();
       observerRef.current = null;
     };
-  }, []);
+  }, [recalculatePassedHeadings]);
 
   const handleHeadingClick = useCallback((id: string) => {
     const element = headingElementsRef.current.get(id);
