@@ -14,7 +14,7 @@ from fastapi import APIRouter, Request, HTTPException, Header
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.content import refresh_cache
+from core.content import refresh_cache, get_cache, CacheNotInitializedError
 from core.content.github_fetcher import get_content_branch
 from core.content.webhook_handler import (
     handle_content_update,
@@ -67,10 +67,13 @@ async def github_webhook(
     ref = payload.get("ref", "")  # e.g., "refs/heads/staging"
     expected_branch = get_content_branch()
     if not ref.endswith(f"/{expected_branch}"):
+        print(f"Webhook ignored: push to '{ref}' (watching '{expected_branch}')")
         return {
             "status": "ignored",
             "message": f"Push to '{ref}' ignored (watching '{expected_branch}')",
         }
+
+    print(f"Webhook processing: push to '{ref}' with commit {commit_sha[:8]}")
 
     # Handle the update with fetch locking
     try:
@@ -99,3 +102,39 @@ async def manual_refresh():
     except Exception as e:
         logger.error(f"Cache refresh failed: {e}")
         raise HTTPException(status_code=500, detail=f"Cache refresh failed: {e}")
+
+
+@router.get("/cache-status")
+async def cache_status():
+    """
+    Get current cache status for debugging.
+
+    Returns commit SHA, last refresh time, item counts, and watched branch.
+    """
+    try:
+        branch = get_content_branch()
+    except Exception as e:
+        branch = f"ERROR: {e}"
+
+    try:
+        cache = get_cache()
+        return {
+            "status": "ok",
+            "watching_branch": branch,
+            "last_commit_sha": cache.last_commit_sha,
+            "last_refreshed": cache.last_refreshed.isoformat()
+            if cache.last_refreshed
+            else None,
+            "counts": {
+                "courses": len(cache.courses),
+                "modules": len(cache.modules),
+                "articles": len(cache.articles),
+                "video_transcripts": len(cache.video_transcripts),
+            },
+        }
+    except CacheNotInitializedError:
+        return {
+            "status": "not_initialized",
+            "watching_branch": branch,
+            "message": "Cache not yet initialized",
+        }

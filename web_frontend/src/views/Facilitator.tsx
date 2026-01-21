@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { API_URL } from "../config";
@@ -88,7 +87,7 @@ export default function Facilitator() {
       try {
         const res = await fetch(
           `${API_URL}/api/facilitator/groups/${selectedGroupId}/members`,
-          { credentials: "include" }
+          { credentials: "include" },
         );
         if (!res.ok) throw new Error("Failed to fetch members");
         const data = await res.json();
@@ -116,11 +115,11 @@ export default function Facilitator() {
         const [progressRes, chatsRes] = await Promise.all([
           fetch(
             `${API_URL}/api/facilitator/groups/${selectedGroupId}/users/${selectedUserId}/progress`,
-            { credentials: "include" }
+            { credentials: "include" },
           ),
           fetch(
             `${API_URL}/api/facilitator/groups/${selectedGroupId}/users/${selectedUserId}/chats`,
-            { credentials: "include" }
+            { credentials: "include" },
           ),
         ]);
 
@@ -264,7 +263,7 @@ export default function Facilitator() {
               <div className="space-y-3">
                 {userProgress.lessons.map((lesson) => {
                   const chatForLesson = userChats.find(
-                    (chat) => chat.lesson_slug === lesson.lesson_slug
+                    (chat) => chat.lesson_slug === lesson.lesson_slug,
                   );
                   return (
                     <details

@@ -16,7 +16,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 alt="Lens Academy"
                 className="h-8"
               />
-              <span className="text-xl font-semibold text-slate-800">Lens Academy</span>
+              <span className="text-xl font-semibold text-slate-800">
+                Lens Academy
+              </span>
             </a>
             <div className="flex items-center gap-4">
               <a

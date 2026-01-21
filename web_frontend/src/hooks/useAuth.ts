@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { API_URL } from "../config";
 import { identifyUser, resetUser, hasConsent } from "../analytics";

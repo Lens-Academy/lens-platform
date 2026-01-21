@@ -1,5 +1,6 @@
 """Fetch educational content from GitHub repository."""
 
+import base64
 import logging
 import os
 from dataclasses import dataclass
@@ -75,6 +76,20 @@ def _get_raw_url(path: str) -> str:
     """Get raw.githubusercontent.com URL for a file."""
     branch = get_content_branch()
     return f"https://raw.githubusercontent.com/{CONTENT_REPO}/{branch}/{path}"
+
+
+def _get_contents_api_url(path: str, ref: str | None = None) -> str:
+    """Get GitHub API URL for fetching file contents.
+
+    Uses the Contents API which properly respects the ref parameter,
+    avoiding CDN caching issues with raw.githubusercontent.com.
+
+    Args:
+        path: File path relative to repo root
+        ref: Commit SHA or branch name (defaults to configured branch)
+    """
+    ref = ref or get_content_branch()
+    return f"https://api.github.com/repos/{CONTENT_REPO}/contents/{path}?ref={ref}"
 
 
 def _get_api_url(path: str) -> str:
@@ -289,14 +304,42 @@ async def fetch_all_content() -> ContentCache:
         )
 
 
-async def _fetch_file_with_client(client: httpx.AsyncClient, path: str) -> str:
-    """Fetch a file using an existing client."""
-    url = _get_raw_url(path)
-    headers = _get_headers(for_api=False)
-    response = await client.get(url, headers=headers)
-    if response.status_code != 200:
-        raise GitHubFetchError(f"Failed to fetch {path}: HTTP {response.status_code}")
-    return response.text
+async def _fetch_file_with_client(
+    client: httpx.AsyncClient, path: str, ref: str | None = None
+) -> str:
+    """Fetch a file using an existing client.
+
+    Args:
+        client: HTTP client
+        path: File path relative to repo root
+        ref: Optional commit SHA - when provided, uses Contents API to avoid CDN cache
+
+    When ref is provided, uses GitHub Contents API which properly respects
+    the ref parameter. Without ref, uses raw.githubusercontent.com which is
+    faster but has a 5-minute CDN cache.
+    """
+    if ref:
+        # Use Contents API for specific commits (bypasses CDN cache)
+        url = _get_contents_api_url(path, ref=ref)
+        headers = _get_headers(for_api=True)
+        response = await client.get(url, headers=headers)
+        if response.status_code != 200:
+            raise GitHubFetchError(
+                f"Failed to fetch {path}: HTTP {response.status_code}"
+            )
+        data = response.json()
+        # Contents API returns base64-encoded content
+        return base64.b64decode(data["content"]).decode("utf-8")
+    else:
+        # Use raw URL for speed (e.g., during full refresh)
+        url = _get_raw_url(path)
+        headers = _get_headers(for_api=False)
+        response = await client.get(url, headers=headers)
+        if response.status_code != 200:
+            raise GitHubFetchError(
+                f"Failed to fetch {path}: HTTP {response.status_code}"
+            )
+        return response.text
 
 
 async def _list_directory_with_client(
@@ -372,7 +415,10 @@ def _get_tracked_directory(path: str) -> str | None:
 
 
 async def _apply_file_change(
-    client: httpx.AsyncClient, cache: ContentCache, change: ChangedFile
+    client: httpx.AsyncClient,
+    cache: ContentCache,
+    change: ChangedFile,
+    ref: str | None = None,
 ) -> None:
     """Apply a single file change to the cache.
 
@@ -380,6 +426,7 @@ async def _apply_file_change(
         client: HTTP client for fetching file content
         cache: The content cache to update
         change: The file change to apply
+        ref: Commit SHA for cache-busting when fetching files
 
     For modules and courses: parse and store by slug
     For articles and video_transcripts: store raw markdown by path
@@ -459,7 +506,7 @@ async def _apply_file_change(
             return
 
         try:
-            content = await _fetch_file_with_client(client, change.path)
+            content = await _fetch_file_with_client(client, change.path, ref=ref)
 
             if tracked_dir == "modules":
                 parsed = parse_module(content)
@@ -518,6 +565,7 @@ async def incremental_refresh(new_commit_sha: str) -> None:
 
     # Same commit, nothing to do
     if cache.last_commit_sha == new_commit_sha:
+        print(f"Cache already at commit {new_commit_sha[:8]}, skipping refresh")
         logger.info(f"Cache already at commit {new_commit_sha}, skipping refresh")
         return
 
@@ -533,6 +581,10 @@ async def incremental_refresh(new_commit_sha: str) -> None:
             return
 
         # Apply incremental changes
+        print(
+            f"Applying {len(comparison.files)} file changes "
+            f"({cache.last_commit_sha[:8]}...{new_commit_sha[:8]})"
+        )
         logger.info(
             f"Applying {len(comparison.files)} file changes "
             f"({cache.last_commit_sha[:8]}...{new_commit_sha[:8]})"
@@ -540,12 +592,13 @@ async def incremental_refresh(new_commit_sha: str) -> None:
 
         async with httpx.AsyncClient() as client:
             for change in comparison.files:
-                await _apply_file_change(client, cache, change)
+                await _apply_file_change(client, cache, change, ref=new_commit_sha)
 
         # Update cache metadata
         cache.last_commit_sha = new_commit_sha
         cache.last_refreshed = datetime.now()
 
+        print(f"Incremental refresh complete, now at commit {new_commit_sha[:8]}")
         logger.info(f"Incremental refresh complete, now at commit {new_commit_sha[:8]}")
 
     except Exception as e:

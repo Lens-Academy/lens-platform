@@ -29,13 +29,16 @@ export function generateHeadingId(text: string): string {
  */
 export function extractHeadings(
   markdown: string,
-  seenIds: Map<string, number> = new Map()
+  seenIds: Map<string, number> = new Map(),
 ): HeadingItem[] {
   const headings: HeadingItem[] = [];
   const lines = markdown.split("\n");
 
   // Debug: log the start of the content to see what we're receiving
-  console.log("[extractHeadings] Content preview (first 300 chars):", JSON.stringify(markdown.slice(0, 300)));
+  console.log(
+    "[extractHeadings] Content preview (first 300 chars):",
+    JSON.stringify(markdown.slice(0, 300)),
+  );
 
   for (const line of lines) {
     let level: 2 | 3 | null = null;
@@ -45,7 +48,14 @@ export function extractHeadings(
     const mdMatch = line.match(/^(#{2,3})\s+(.+)$/);
     // Debug: log when we find a potential heading
     if (line.startsWith("##")) {
-      console.log("[extractHeadings] Line starts with ##:", JSON.stringify(line.slice(0, 60)), "Match:", !!mdMatch, "Level:", mdMatch?.[1]?.length);
+      console.log(
+        "[extractHeadings] Line starts with ##:",
+        JSON.stringify(line.slice(0, 60)),
+        "Match:",
+        !!mdMatch,
+        "Level:",
+        mdMatch?.[1]?.length,
+      );
     }
     if (mdMatch) {
       level = mdMatch[1].length as 2 | 3;
@@ -72,7 +82,14 @@ export function extractHeadings(
     headings.push({ id, text, level });
   }
 
-  console.log("[extractHeadings] Found", headings.length, "headings. H2:", headings.filter(h => h.level === 2).length, "H3:", headings.filter(h => h.level === 3).length);
+  console.log(
+    "[extractHeadings] Found",
+    headings.length,
+    "headings. H2:",
+    headings.filter((h) => h.level === 2).length,
+    "H3:",
+    headings.filter((h) => h.level === 3).length,
+  );
   return headings;
 }
 
@@ -83,5 +100,7 @@ export function extractHeadings(
  */
 export function extractAllHeadings(markdownContents: string[]): HeadingItem[] {
   const seenIds = new Map<string, number>();
-  return markdownContents.flatMap((content) => extractHeadings(content, seenIds));
+  return markdownContents.flatMap((content) =>
+    extractHeadings(content, seenIds),
+  );
 }

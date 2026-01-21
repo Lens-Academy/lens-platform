@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import ScheduleSelector from "../components/schedule/ScheduleSelector";
@@ -19,7 +18,7 @@ export default function Availability() {
   const [timezone, setTimezone] = useState(getBrowserTimezone());
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
-    "idle"
+    "idle",
   );
 
   // Load existing data when user is authenticated
@@ -62,7 +61,7 @@ export default function Availability() {
 
   const totalSlots = Object.values(availability).reduce(
     (sum, slots) => sum + slots.length,
-    0
+    0,
   );
 
   if (isLoading) {
@@ -118,7 +117,7 @@ export default function Availability() {
           >
             {/* Include current timezone if not in common list */}
             {!COMMON_TIMEZONES.includes(
-              timezone as (typeof COMMON_TIMEZONES)[number]
+              timezone as (typeof COMMON_TIMEZONES)[number],
             ) && (
               <option value={timezone}>
                 {formatTimezoneDisplay(timezone)}

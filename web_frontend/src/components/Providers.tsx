@@ -26,7 +26,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     let observer: MutationObserver | null = null;
     if (titleElement) {
       observer = new MutationObserver(prefixTitle);
-      observer.observe(titleElement, { childList: true, characterData: true, subtree: true });
+      observer.observe(titleElement, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
     }
 
     return () => {

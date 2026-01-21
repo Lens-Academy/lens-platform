@@ -27,7 +27,7 @@ export function initPostHog(): void {
       console.log("[analytics] Skipping PostHog in development mode");
     } else if (!POSTHOG_KEY) {
       console.warn(
-        "[analytics] VITE_POSTHOG_KEY not set, skipping PostHog init"
+        "[analytics] VITE_POSTHOG_KEY not set, skipping PostHog init",
       );
     }
     return;
@@ -63,7 +63,7 @@ export function identifyUser(
     discord_username?: string;
     email?: string | null;
     nickname?: string | null;
-  }
+  },
 ): void {
   if (!isAnalyticsEnabled() || !initialized || !hasConsent()) return;
 
@@ -141,7 +141,7 @@ function shouldTrack(): boolean {
 // Module events
 export function trackModuleStarted(
   moduleId: string,
-  moduleTitle: string
+  moduleTitle: string,
 ): void {
   if (!shouldTrack()) return;
   posthog.capture("module_started", {
@@ -157,7 +157,7 @@ export function trackVideoStarted(moduleId: string): void {
 
 export function trackVideoCompleted(
   moduleId: string,
-  watchDuration: number
+  watchDuration: number,
 ): void {
   if (!shouldTrack()) return;
   posthog.capture("video_completed", {
@@ -168,7 +168,7 @@ export function trackVideoCompleted(
 
 export function trackArticleScrolled(
   moduleId: string,
-  percent: 25 | 50 | 75 | 100
+  percent: 25 | 50 | 75 | 100,
 ): void {
   if (!shouldTrack()) return;
   posthog.capture("article_scrolled", { module_id: moduleId, percent });
@@ -186,7 +186,7 @@ export function trackChatOpened(moduleId: string): void {
 
 export function trackChatMessageSent(
   moduleId: string,
-  messageLength: number
+  messageLength: number,
 ): void {
   if (!shouldTrack()) return;
   posthog.capture("chat_message_sent", {
@@ -198,7 +198,7 @@ export function trackChatMessageSent(
 export function trackChatSessionEnded(
   moduleId: string,
   messageCount: number,
-  durationSeconds: number
+  durationSeconds: number,
 ): void {
   if (!shouldTrack()) return;
   posthog.capture("chat_session_ended", {

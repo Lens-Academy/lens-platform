@@ -23,7 +23,7 @@ export type ArticleExcerptSegment = {
 export type VideoExcerptSegment = {
   type: "video-excerpt";
   from: number; // seconds
-  to: number; // seconds
+  to: number | null; // seconds (null = play to end)
   transcript: string; // Transcript text from API
 };
 

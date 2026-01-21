@@ -67,7 +67,9 @@ export default function ModuleDrawer({
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
-          <h3 className="text-lg font-medium text-slate-900">Module Overview</h3>
+          <h3 className="text-lg font-medium text-slate-900">
+            Module Overview
+          </h3>
           <button
             onMouseDown={handleClose}
             className="p-2 hover:bg-slate-100 rounded-lg transition-colors"

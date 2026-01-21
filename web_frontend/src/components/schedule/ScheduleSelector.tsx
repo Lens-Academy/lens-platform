@@ -84,7 +84,7 @@ export default function ScheduleSelector({
 }: ScheduleSelectorProps) {
   const slots = Array.from(
     { length: (endHour - startHour) * 2 },
-    (_, i) => startHour + i * 0.5
+    (_, i) => startHour + i * 0.5,
   );
 
   const {
@@ -102,7 +102,7 @@ export default function ScheduleSelector({
 
   const totalSelected = Object.values(value).reduce(
     (sum, slots) => sum + slots.length,
-    0
+    0,
   );
 
   return (

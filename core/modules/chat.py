@@ -67,9 +67,12 @@ def _build_system_prompt(
             if isinstance(current_stage, ArticleStage)
             else "watching a video"
         )
-        prompt = base + f"""
+        prompt = (
+            base
+            + f"""
 The user is currently {content_type}. Answer the student's questions to help them understand the content, but don't lengthen the conversation. There will be more time for chatting after they are done reading/watching.
 """
+        )
         if current_content:
             prompt += f"\n\nContent the user is viewing:\n---\n{current_content}\n---"
 

@@ -36,7 +36,10 @@ export default function ArticleExcerptGroup({
   // Register heading IDs with context before children render
   // Uses a ref to avoid duplicate registrations for same headings
   const headingsKey = allHeadings.map((h) => h.id).join(",");
-  if (context?.registerHeadingIds && lastRegisteredRef.current !== headingsKey) {
+  if (
+    context?.registerHeadingIds &&
+    lastRegisteredRef.current !== headingsKey
+  ) {
     context.registerHeadingIds(allHeadings);
     lastRegisteredRef.current = headingsKey;
   }
@@ -44,7 +47,7 @@ export default function ArticleExcerptGroup({
   return (
     <div>
       {/* Centered content with relative positioning for TOC */}
-      <div className="max-w-[750px] mx-auto relative">
+      <div className="max-w-content-padded mx-auto relative">
         {/* Content */}
         <div className="w-full">{children}</div>
 

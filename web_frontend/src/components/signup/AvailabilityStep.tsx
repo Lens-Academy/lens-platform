@@ -23,7 +23,7 @@ export default function AvailabilityStep({
 }: AvailabilityStepProps) {
   const totalSlots = Object.values(availability).reduce(
     (sum, slots) => sum + slots.length,
-    0
+    0,
   );
 
   const formatDateRange = () => {
@@ -49,15 +49,16 @@ export default function AvailabilityStep({
       <p className="text-gray-600 mb-6">
         {dateRange ? (
           <>
-            Give us your weekly recurring availability between <strong>{dateRange}</strong>.
-            This helps us match you with a group that fits your schedule.
-            You will have a weekly group meeting at the same time each week.
+            Give us your weekly recurring availability between{" "}
+            <strong>{dateRange}</strong>. This helps us match you with a group
+            that fits your schedule. You will have a weekly group meeting at the
+            same time each week.
           </>
         ) : (
           <>
-            Give us your weekly recurring availability.
-            This helps us match you with a group that fits your schedule.
-            You will have a weekly group meeting at the same time each week.
+            Give us your weekly recurring availability. This helps us match you
+            with a group that fits your schedule. You will have a weekly group
+            meeting at the same time each week.
           </>
         )}
       </p>
@@ -77,7 +78,7 @@ export default function AvailabilityStep({
         >
           {/* Include current timezone if not in common list */}
           {!COMMON_TIMEZONES.includes(
-            timezone as (typeof COMMON_TIMEZONES)[number]
+            timezone as (typeof COMMON_TIMEZONES)[number],
           ) && (
             <option value={timezone}>{formatTimezoneDisplay(timezone)}</option>
           )}

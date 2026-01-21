@@ -68,7 +68,9 @@ interface ModuleProps {
 export default function Module({ courseId, moduleId }: ModuleProps) {
   // Module data loading state
   const [module, setModule] = useState<ModuleType | null>(null);
-  const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(null);
+  const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
+    null,
+  );
   const [loadingModule, setLoadingModule] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -227,7 +229,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }, [module]);
 
   // Derived value for module completion
-  const isModuleComplete = module ? completedSections.size === module.sections.length : false;
+  const isModuleComplete = module
+    ? completedSections.size === module.sections.length
+    : false;
 
   // Activity tracking for current section
   const currentSection = module?.sections[currentSectionIndex];
@@ -276,7 +280,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     // Fetch next module from course
     async function fetchNext() {
       try {
-        const result = await getNextModule(courseContext!.courseId, module!.slug);
+        const result = await getNextModule(
+          courseContext!.courseId,
+          module!.slug,
+        );
         setModuleCompletionResult(result);
       } catch (e) {
         console.error("[Module] Failed to fetch next module:", e);
@@ -345,7 +352,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         }
 
         Sentry.captureException(e, {
-          tags: { error_type: "session_init_failed", module_slug: currentModule.slug },
+          tags: {
+            error_type: "session_init_failed",
+            module_slug: currentModule.slug,
+          },
         });
       }
     }
@@ -504,6 +514,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     };
   }, [module, viewMode]);
 
+  // Reset scroll position when navigating to a new section (paginated mode)
+  useEffect(() => {
+    if (viewMode === "paginated") {
+      window.scrollTo(0, 0);
+    }
+  }, [currentSectionIndex, viewMode]);
+
   const handleLoginClick = useCallback(() => {
     sessionStorage.setItem("returnToModule", moduleId);
     login();
@@ -567,15 +584,32 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         setShowAuthPrompt(true);
         setHasPromptedAuth(true);
       }
+
+      // Navigate to next section
+      if (module && sectionIndex < module.sections.length - 1) {
+        const nextIndex = sectionIndex + 1;
+        if (viewMode === "continuous") {
+          handleStageClick(nextIndex);
+        } else {
+          setCurrentSectionIndex(nextIndex);
+          setViewingStageIndex(null);
+        }
+      }
     },
-    [completedSections.size, isAuthenticated, hasPromptedAuth],
+    [
+      completedSections.size,
+      isAuthenticated,
+      hasPromptedAuth,
+      module,
+      viewMode,
+      handleStageClick,
+    ],
   );
 
   const handleSkipSection = useCallback(() => {
-    // Mark current as complete and go to next
+    // Mark current as complete (which also navigates to next)
     handleMarkComplete(currentSectionIndex);
-    handleNext();
-  }, [currentSectionIndex, handleMarkComplete, handleNext]);
+  }, [currentSectionIndex, handleMarkComplete]);
 
   // Render a segment (sectionIndex included for unique keys)
   const renderSegment = (

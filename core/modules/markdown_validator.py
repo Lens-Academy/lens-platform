@@ -269,7 +269,9 @@ def validate_lesson(text: str) -> list[ValidationError]:
             if not fields.get("source"):
                 errors.append(
                     ValidationError(
-                        "Missing required field: source::", line=line_num, context=context
+                        "Missing required field: source::",
+                        line=line_num,
+                        context=context,
                     )
                 )
             # Validate segments
@@ -282,7 +284,9 @@ def validate_lesson(text: str) -> list[ValidationError]:
             if not fields.get("source"):
                 errors.append(
                     ValidationError(
-                        "Missing required field: source::", line=line_num, context=context
+                        "Missing required field: source::",
+                        line=line_num,
+                        context=context,
                     )
                 )
             # Validate segments
@@ -295,7 +299,9 @@ def validate_lesson(text: str) -> list[ValidationError]:
             if not fields.get("content"):
                 errors.append(
                     ValidationError(
-                        "Missing required field: content::", line=line_num, context=context
+                        "Missing required field: content::",
+                        line=line_num,
+                        context=context,
                     )
                 )
 
@@ -452,9 +458,7 @@ def _extract_wiki_links(text: str) -> list[tuple[int, str]]:
     return links
 
 
-def _validate_wiki_links(
-    text: str, file_path: Path
-) -> list[ValidationError]:
+def _validate_wiki_links(text: str, file_path: Path) -> list[ValidationError]:
     """Validate that wiki-links point to existing files.
 
     Wiki-links must use relative paths from the file's location (starting with ../).

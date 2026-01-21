@@ -1,4 +1,3 @@
-
 // web_frontend/src/hooks/useAnonymousSession.ts
 import { useCallback } from "react";
 
@@ -18,7 +17,7 @@ export function useAnonymousSession(moduleId: string) {
     (sessionId: number) => {
       localStorage.setItem(storageKey, sessionId.toString());
     },
-    [storageKey]
+    [storageKey],
   );
 
   const clearSessionId = useCallback(() => {

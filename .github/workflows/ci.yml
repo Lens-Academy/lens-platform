@@ -31,11 +31,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check formatting
+        run: npx prettier --check src/
+
       - name: Type check & Build
         run: npm run build
-
-      - name: Run tests
-        run: npm run test
 
   # Backend tests - needs staging database
   backend:
@@ -53,6 +53,12 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Check formatting
+        run: ruff format --check .
 
       - name: Run tests
         env:

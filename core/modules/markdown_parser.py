@@ -373,8 +373,8 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
 
 def _split_into_sections(content: str) -> list[tuple[str, str, str]]:
     """Split content into (section_type, title, section_content) tuples."""
-    # Pattern for # SectionType: Title
-    pattern = r"^# (\w+):\s*(.+)$"
+    # Pattern for # SectionType or # SectionType: Title (title is optional)
+    pattern = r"^# (\w+)(?::\s*(.*))?$"
 
     sections = []
     current_type = None
@@ -389,7 +389,7 @@ def _split_into_sections(content: str) -> list[tuple[str, str, str]]:
                 sections.append((current_type, current_title, "\n".join(current_lines)))
 
             current_type = match.group(1)
-            current_title = match.group(2).strip()
+            current_title = (match.group(2) or "").strip()
             current_lines = []
         elif current_type is not None:
             current_lines.append(line)

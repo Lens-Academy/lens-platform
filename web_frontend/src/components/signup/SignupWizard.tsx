@@ -100,7 +100,7 @@ export default function SignupWizard() {
         `${API_URL}/api/users/me/facilitator-status`,
         {
           credentials: "include",
-        }
+        },
       );
       if (response.ok) {
         const data = await response.json();
@@ -244,7 +244,11 @@ export default function SignupWizard() {
           }
           onBack={() => setCurrentStep(2)}
           onSubmit={handleSubmit}
-          cohort={availableCohorts.find(c => c.cohort_id === formData.selectedCohortId) ?? null}
+          cohort={
+            availableCohorts.find(
+              (c) => c.cohort_id === formData.selectedCohortId,
+            ) ?? null
+          }
         />
       )}
     </div>

@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from "react";
 import MobileWarning from "./MobileWarning";
 import CookieBanner from "./CookieBanner";

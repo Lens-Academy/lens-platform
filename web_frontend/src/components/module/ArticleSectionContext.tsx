@@ -14,7 +14,7 @@ type ArticleSectionContextValue = {
 };
 
 const ArticleSectionContext = createContext<ArticleSectionContextValue | null>(
-  null
+  null,
 );
 
 export function useArticleSectionContext() {

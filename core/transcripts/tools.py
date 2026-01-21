@@ -35,7 +35,9 @@ import re
 # loaded from GitHub and cached in memory via core/content/. This path is kept
 # for backwards compatibility with timestamp lookup tools.
 TRANSCRIPTS_DIR = (
-    Path(__file__).parent.parent.parent / "educational_content_deprecated" / "video_transcripts"
+    Path(__file__).parent.parent.parent
+    / "educational_content_deprecated"
+    / "video_transcripts"
 )
 
 

@@ -45,9 +45,7 @@ export default function ArticleTOC({
       </h2>
 
       {/* Author */}
-      {author && (
-        <p className="text-sm text-gray-500 mt-1">by {author}</p>
-      )}
+      {author && <p className="text-sm text-gray-500 mt-1">by {author}</p>}
 
       {/* Divider */}
       <hr className="my-4 border-gray-200" />
@@ -55,10 +53,7 @@ export default function ArticleTOC({
       {/* Headings list */}
       <ul className="space-y-2" role="list">
         {headings.map((heading) => (
-          <li
-            key={heading.id}
-            className={heading.level === 3 ? "pl-4" : ""}
-          >
+          <li key={heading.id} className={heading.level === 3 ? "pl-4" : ""}>
             <button
               ref={(el) => {
                 if (el) {

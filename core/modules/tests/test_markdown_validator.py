@@ -842,7 +842,9 @@ class TestValidateWikiLinks:
         (tmp_path / "video_transcripts").mkdir()
 
         # Create the referenced video transcript
-        (tmp_path / "video_transcripts" / "intro.md").write_text("---\ntitle: Intro\n---\n")
+        (tmp_path / "video_transcripts" / "intro.md").write_text(
+            "---\ntitle: Intro\n---\n"
+        )
 
         # Create the lesson - uses relative path ../video_transcripts/intro
         lesson = tmp_path / "modules" / "lesson.md"
@@ -1012,4 +1014,3 @@ source:: [[../articles/missing2]]
         error_messages = [str(e) for e in result.errors]
         assert any("video_transcripts/missing1" in msg for msg in error_messages)
         assert any("articles/missing2" in msg for msg in error_messages)
-

@@ -7,7 +7,7 @@ import { formatDuration } from "@/utils/formatDuration";
 type VideoEmbedProps = {
   videoId: string;
   start: number;
-  end: number;
+  end: number | null; // null = play to end of video
   excerptNumber?: number; // 1-indexed, defaults to 1 (first clip)
   title?: string;
   channel?: string | null;
@@ -43,14 +43,17 @@ export default function VideoEmbed({
   // Scroll into view when video is activated
   useEffect(() => {
     if (isActivated && containerRef.current) {
-      containerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      containerRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     }
   }, [isActivated]);
 
   // All clips start compact, expand when activated
   const containerClasses = isActivated
     ? "w-[90%] max-w-[1100px] mx-auto py-4 scroll-mt-20 transition-all duration-300"
-    : "w-[50%] max-w-[500px] mx-auto py-4 scroll-mt-20 transition-all duration-300";
+    : "max-w-content mx-auto py-4 scroll-mt-20 transition-all duration-300";
 
   // Label: "Watch" for first clip, "Watch Part N" for subsequent
   const label = isFirst ? "Watch" : `Watch Part ${excerptNumber}`;
@@ -92,10 +95,12 @@ export default function VideoEmbed({
               </div>
             </div>
 
-            {/* Duration badge */}
-            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-              {formatDuration(end - start)}
-            </div>
+            {/* Duration badge (only show when end time is specified) */}
+            {end !== null && (
+              <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+                {formatDuration(end - start)}
+              </div>
+            )}
           </button>
         )}
 
@@ -108,9 +113,7 @@ export default function VideoEmbed({
               </div>
             )}
             {channel && (
-              <div className="text-xs text-stone-500 mt-0.5">
-                {channel}
-              </div>
+              <div className="text-xs text-stone-500 mt-0.5">{channel}</div>
             )}
           </div>
         )}

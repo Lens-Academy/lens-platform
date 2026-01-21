@@ -62,7 +62,7 @@ export function StageIcon({
 function getTooltipContent(
   stage: Stage,
   index: number,
-  currentStageIndex: number
+  currentStageIndex: number,
 ): string {
   const isFuture = index > currentStageIndex;
   const isPastChat = stage.type === "chat" && index < currentStageIndex;

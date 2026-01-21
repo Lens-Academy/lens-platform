@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+@theme {
+  --container-content: 640px;
+  --container-content-padded: calc(var(--container-content) + 128px);
+}
+
 :root {
   --background: #fafaf9; /* stone-50 */
   --foreground: #0f172a; /* slate-900 */

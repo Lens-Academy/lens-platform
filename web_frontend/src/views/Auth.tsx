@@ -16,10 +16,10 @@ export default function Auth() {
 
   // Derive initial state from whether code exists
   const [status, setStatus] = useState<AuthStatus>(() =>
-    code ? "loading" : "error"
+    code ? "loading" : "error",
   );
   const [errorMessage, setErrorMessage] = useState(() =>
-    code ? "" : "No authentication code provided."
+    code ? "" : "No authentication code provided.",
   );
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function Auth() {
       {
         method: "POST",
         credentials: "include",
-      }
+      },
     )
       .then((res) => {
         if (!res.ok) {
@@ -57,7 +57,7 @@ export default function Auth() {
           switch (data.error) {
             case "expired_code":
               setErrorMessage(
-                "This link has expired. Please request a new one or sign in with Discord."
+                "This link has expired. Please request a new one or sign in with Discord.",
               );
               break;
             case "invalid_code":

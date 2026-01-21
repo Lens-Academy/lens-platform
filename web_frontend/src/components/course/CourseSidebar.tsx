@@ -68,7 +68,7 @@ export default function CourseSidebar({
     // Only count required modules for progress
     const requiredModules = unit.modules.filter((m) => !m.optional);
     const completed = requiredModules.filter(
-      (m) => m.status === "completed"
+      (m) => m.status === "completed",
     ).length;
     return `${completed}/${requiredModules.length}`;
   };

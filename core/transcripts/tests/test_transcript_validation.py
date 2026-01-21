@@ -134,6 +134,7 @@ def test_timestamps_file_has_valid_format(md_path: Path):
         # If string, validate format "M:SS.ms" or "MM:SS.ms"
         if isinstance(entry["start"], str):
             import re
+
             assert re.match(r"^\d+:\d{2}\.\d+$", entry["start"]), (
                 f"{timestamps_path.name} entry {i} 'start' has invalid format: {entry['start']} "
                 f"(expected M:SS.ms like '2:52.25')"

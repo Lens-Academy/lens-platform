@@ -723,7 +723,7 @@ class TestIncrementalRefresh:
             "files": [{"filename": "modules/intro.md", "status": "modified"}]
         }
 
-        # Mock file fetch for the updated module
+        # Mock file fetch for the updated module (via Contents API)
         updated_module_md = """---
 slug: intro
 title: Updated Introduction
@@ -732,9 +732,13 @@ title: Updated Introduction
 # Chat: Welcome
 instructions:: Updated hello!
 """
+        import base64
+
         mock_file_response = MagicMock()
         mock_file_response.status_code = 200
-        mock_file_response.text = updated_module_md
+        mock_file_response.json.return_value = {
+            "content": base64.b64encode(updated_module_md.encode()).decode()
+        }
 
         def mock_get_side_effect(url, **kwargs):
             if "compare" in url:
@@ -770,9 +774,13 @@ instructions:: Updated hello!
         }
 
         new_article_content = "# New Article\nThis is new content."
+        import base64
+
         mock_file_response = MagicMock()
         mock_file_response.status_code = 200
-        mock_file_response.text = new_article_content
+        mock_file_response.json.return_value = {
+            "content": base64.b64encode(new_article_content.encode()).decode()
+        }
 
         def mock_get_side_effect(url, **kwargs):
             if "compare" in url:
@@ -975,9 +983,13 @@ instructions:: Updated hello!
         }
 
         new_content = "# Renamed Safety\nNew content."
+        import base64
+
         mock_file_response = MagicMock()
         mock_file_response.status_code = 200
-        mock_file_response.text = new_content
+        mock_file_response.json.return_value = {
+            "content": base64.b64encode(new_content.encode()).decode()
+        }
 
         def mock_get_side_effect(url, **kwargs):
             if "compare" in url:

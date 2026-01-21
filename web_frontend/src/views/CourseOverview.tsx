@@ -17,9 +17,11 @@ interface CourseOverviewProps {
   courseId?: string;
 }
 
-export default function CourseOverview({ courseId = "default" }: CourseOverviewProps) {
+export default function CourseOverview({
+  courseId = "default",
+}: CourseOverviewProps) {
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
-    null
+    null,
   );
   const [selectedModule, setSelectedModule] = useState<ModuleInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,7 +86,7 @@ export default function CourseOverview({ courseId = "default" }: CourseOverviewP
 
   // Find unit for breadcrumb
   const selectedUnit = courseProgress?.units.find((u) =>
-    u.modules.some((m) => m.slug === selectedModule?.slug)
+    u.modules.some((m) => m.slug === selectedModule?.slug),
   );
   const selectedUnitLabel = selectedUnit
     ? selectedUnit.meetingNumber !== null
@@ -119,7 +121,9 @@ export default function CourseOverview({ courseId = "default" }: CourseOverviewP
               alt="Lens Academy"
               className="h-7"
             />
-            <span className="text-lg font-semibold text-slate-800">Lens Academy</span>
+            <span className="text-lg font-semibold text-slate-800">
+              Lens Academy
+            </span>
           </a>
           <div className="flex items-center gap-4">
             <a

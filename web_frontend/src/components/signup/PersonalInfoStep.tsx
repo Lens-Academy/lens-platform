@@ -31,7 +31,9 @@ export default function PersonalInfoStep({
 
   return (
     <div className="w-full max-w-sm mx-auto">
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Join the AI Safety Course</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        Join the AI Safety Course
+      </h2>
       <p className="text-gray-600 mb-8">
         Connect your Discord account to get started.
       </p>
@@ -60,13 +62,20 @@ export default function PersonalInfoStep({
             <div className="overflow-hidden">
               <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 space-y-2">
                 <p>
-                  Discord is a platform where you can send messages and have calls. We use it as the main communication platform for our course. You can ask questions there and you will meet with your group there.
+                  Discord is a platform where you can send messages and have
+                  calls. We use it as the main communication platform for our
+                  course. You can ask questions there and you will meet with
+                  your group there.
                 </p>
                 <p>
-                  You don't have to install Discord—you can just use it from within the browser. We will also send you reminders via email so you won't miss anything important if you don't check out Discord often.
+                  You don't have to install Discord—you can just use it from
+                  within the browser. We will also send you reminders via email
+                  so you won't miss anything important if you don't check out
+                  Discord often.
                 </p>
                 <p>
-                  If you don't have an account yet, you can still click "Connect with Discord" and make an account in the next step.
+                  If you don't have an account yet, you can still click "Connect
+                  with Discord" and make an account in the next step.
                 </p>
               </div>
             </div>

@@ -4,7 +4,7 @@ import "youtube-video-element";
 type VideoPlayerProps = {
   videoId: string;
   start: number;
-  end: number;
+  end: number | null; // null = play to end of video (no clip mode)
   onEnded: () => void;
   /** Hide the continue button (for reviewing previous videos) */
   hideControls?: boolean;
@@ -59,14 +59,19 @@ export default function VideoPlayer({
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [isPaused, setIsPaused] = useState(true);
-  const [isFullVideo, setIsFullVideo] = useState(false);
+  // When end is null, we're in full video mode (no clipping)
+  const [isFullVideo, setIsFullVideo] = useState(end === null);
+
+  // Track if this is a clip (has explicit end time)
+  const isClip = end !== null;
 
   // Keep ref in sync with state for event callbacks
   useEffect(() => {
     isFadingRef.current = isFading;
   }, [isFading]);
 
-  const duration = end - start;
+  // Duration is only meaningful for clips (when end is specified)
+  const duration = isClip ? end - start : 0;
   const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}&t=${start}`;
 
   // Get video element reference from container (scoped query, not global)
@@ -74,7 +79,7 @@ export default function VideoPlayer({
     if (!containerRef.current) return;
 
     const video = containerRef.current.querySelector(
-      "youtube-video"
+      "youtube-video",
     ) as HTMLVideoElement | null;
     if (!video) return;
 
@@ -124,8 +129,8 @@ export default function VideoPlayer({
     const video = videoRef.current;
     if (!video) return;
 
-    // Skip polling entirely if in full video mode or already ended
-    if (isFullVideo || fragmentEnded) return;
+    // Skip polling entirely if in full video mode, no clip end, or already ended
+    if (isFullVideo || fragmentEnded || !isClip) return;
 
     const pollInterval = setInterval(() => {
       const currentTime = video.currentTime;
@@ -145,7 +150,8 @@ export default function VideoPlayer({
       // Start fading audio 500ms before end (or immediately if seeked past end)
       // Only check if we're past the start point (guards against incorrect
       // currentTime values during initial seek)
-      const fadeStart = end - 0.5;
+      // Note: end is guaranteed non-null here due to isClip check above
+      const fadeStart = (end as number) - 0.5;
 
       if (currentTime >= start && currentTime >= fadeStart && !isFading) {
         setIsFading(true);
@@ -153,7 +159,7 @@ export default function VideoPlayer({
     }, 50);
 
     return () => clearInterval(pollInterval);
-  }, [start, end, duration, isFullVideo, fragmentEnded, isFading]);
+  }, [start, end, duration, isFullVideo, fragmentEnded, isFading, isClip]);
 
   // Handle fade effect separately - triggered by isFading state
   useEffect(() => {
@@ -326,8 +332,8 @@ export default function VideoPlayer({
           )}
         </div>
 
-        {/* Custom fragment progress bar below video (hidden in full video mode) */}
-        {!isFullVideo && (
+        {/* Custom fragment progress bar below video (hidden when no clip or in full video mode) */}
+        {isClip && !isFullVideo && (
           <div
             className="flex items-center gap-3 pt-3 transition-opacity duration-200"
             style={{ opacity: showControls ? 1 : 0 }}
@@ -357,30 +363,31 @@ export default function VideoPlayer({
         )}
       </div>
 
-      {/* Clip info and controls */}
-      {!isFullVideo ? (
-        <div className="text-center text-xs text-gray-400">
-          Clip from {formatTime(start)} to {formatTime(end)}
-          <span className="mx-1">·</span>
-          <button
-            onClick={handleWatchFullVideo}
-            className="text-gray-400 hover:text-gray-600 underline"
-          >
-            Watch full video
-          </button>
-        </div>
-      ) : (
-        <div className="text-center text-xs text-gray-400">
-          Watching full video
-          <span className="mx-1">·</span>
-          <button
-            onClick={handleWatchClipOnly}
-            className="text-gray-400 hover:text-gray-600 underline"
-          >
-            Watch clip only
-          </button>
-        </div>
-      )}
+      {/* Clip info and controls (only shown when there's a clip end time) */}
+      {isClip &&
+        (!isFullVideo ? (
+          <div className="text-center text-xs text-gray-400">
+            Clip from {formatTime(start)} to {formatTime(end as number)}
+            <span className="mx-1">·</span>
+            <button
+              onClick={handleWatchFullVideo}
+              className="text-gray-400 hover:text-gray-600 underline"
+            >
+              Watch full video
+            </button>
+          </div>
+        ) : (
+          <div className="text-center text-xs text-gray-400">
+            Watching full video
+            <span className="mx-1">·</span>
+            <button
+              onClick={handleWatchClipOnly}
+              className="text-gray-400 hover:text-gray-600 underline"
+            >
+              Watch clip only
+            </button>
+          </div>
+        ))}
     </div>
   );
 }

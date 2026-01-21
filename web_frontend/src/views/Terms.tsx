@@ -1,4 +1,3 @@
-
 export default function Terms() {
   return (
     <div className="py-12 max-w-3xl mx-auto">
