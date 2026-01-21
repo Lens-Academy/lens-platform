@@ -5,5 +5,5 @@ export default function StandaloneModulePage() {
   const pageContext = usePageContext();
   const moduleId = pageContext.routeParams?.moduleId ?? "";
 
-  return <Module courseId="default" moduleId={moduleId} />;
+  return <Module key={moduleId} courseId="default" moduleId={moduleId} />;
 }

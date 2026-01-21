@@ -5,9 +5,6 @@ type VideoPlayerProps = {
   videoId: string;
   start: number;
   end: number | null; // null = play to end of video (no clip mode)
-  onEnded: () => void;
-  /** Hide the continue button (for reviewing previous videos) */
-  hideControls?: boolean;
   /** Auto-play video when loaded (passed to youtube-video element) */
   autoplay?: boolean;
   /** Activity tracking callbacks */
@@ -38,8 +35,6 @@ export default function VideoPlayer({
   videoId,
   start,
   end,
-  onEnded,
-  hideControls = false,
   autoplay = false,
   onPlay: onPlayCallback,
   onPause: onPauseCallback,
@@ -312,22 +307,12 @@ export default function VideoPlayer({
               }}
             >
               <p className="text-white text-lg font-medium">Clip finished</p>
-              <div className="flex gap-4">
-                <button
-                  onClick={handleReplay}
-                  className="bg-white/20 text-white px-6 py-2 rounded-lg hover:bg-white/30 border border-white/40"
-                >
-                  Replay
-                </button>
-                {!hideControls && (
-                  <button
-                    onClick={onEnded}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-                  >
-                    Continue
-                  </button>
-                )}
-              </div>
+              <button
+                onClick={handleReplay}
+                className="bg-white/20 text-white px-6 py-2 rounded-lg hover:bg-white/30 border border-white/40"
+              >
+                Replay
+              </button>
             </div>
           )}
         </div>

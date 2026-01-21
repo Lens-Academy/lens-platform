@@ -521,11 +521,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
   }, [currentSectionIndex, viewMode]);
 
-  const handleLoginClick = useCallback(() => {
-    sessionStorage.setItem("returnToModule", moduleId);
-    login();
-  }, [moduleId, login]);
-
   const handleStageClick = useCallback(
     (index: number) => {
       if (viewMode === "continuous") {
@@ -757,7 +752,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           onNext={handleNext}
           onReturnToCurrent={() => setViewingStageIndex(null)}
           onSkipSection={handleSkipSection}
-          onLoginClick={handleLoginClick}
         />
       </div>
 
@@ -921,7 +915,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
       <AuthPromptModal
         isOpen={showAuthPrompt}
-        onLogin={handleLoginClick}
+        onLogin={login}
         onDismiss={() => setShowAuthPrompt(false)}
       />
     </div>

@@ -1,17 +1,13 @@
 import { useAuth } from "../../hooks/useAuth";
 import { Popover } from "../Popover";
 
-interface UserMenuProps {
-  /** Where to redirect after sign in (default: /course) */
-  signInRedirect?: string;
-}
-
-export function UserMenu({ signInRedirect = "/course" }: UserMenuProps) {
+export function UserMenu() {
   const {
     isAuthenticated,
     isLoading,
     discordUsername,
     discordAvatarUrl,
+    login,
     logout,
   } = useAuth();
 
@@ -21,12 +17,12 @@ export function UserMenu({ signInRedirect = "/course" }: UserMenuProps) {
 
   if (!isAuthenticated) {
     return (
-      <a
-        href={`/auth/discord?next=${encodeURIComponent(signInRedirect)}`}
+      <button
+        onClick={login}
         className="text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200"
       >
         Sign in
-      </a>
+      </button>
     );
   }
 
@@ -34,15 +30,24 @@ export function UserMenu({ signInRedirect = "/course" }: UserMenuProps) {
     <Popover
       placement="bottom-end"
       content={(close) => (
-        <button
-          onClick={() => {
-            logout();
-            close();
-          }}
-          className="w-full text-left text-sm text-gray-700 hover:text-gray-900"
-        >
-          Sign out
-        </button>
+        <div className="flex flex-col gap-2">
+          <a
+            href="/availability"
+            className="text-sm text-gray-700 hover:text-gray-900"
+            onClick={close}
+          >
+            Edit Availability
+          </a>
+          <button
+            onClick={() => {
+              logout();
+              close();
+            }}
+            className="w-full text-left text-sm text-gray-700 hover:text-gray-900"
+          >
+            Sign out
+          </button>
+        </div>
       )}
     >
       <button className="flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900 transition-colors duration-200">

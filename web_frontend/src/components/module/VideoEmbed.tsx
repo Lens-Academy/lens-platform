@@ -11,7 +11,6 @@ type VideoEmbedProps = {
   excerptNumber?: number; // 1-indexed, defaults to 1 (first clip)
   title?: string;
   channel?: string | null;
-  onEnded?: () => void;
   onPlay?: () => void;
   onPause?: () => void;
   onTimeUpdate?: (currentTime: number) => void;
@@ -28,7 +27,6 @@ export default function VideoEmbed({
   excerptNumber = 1,
   title,
   channel,
-  onEnded,
   onPlay,
   onPause,
   onTimeUpdate,
@@ -67,7 +65,6 @@ export default function VideoEmbed({
             start={start}
             end={end}
             autoplay
-            onEnded={onEnded ?? (() => {})}
             onPlay={onPlay}
             onPause={onPause}
             onTimeUpdate={onTimeUpdate}

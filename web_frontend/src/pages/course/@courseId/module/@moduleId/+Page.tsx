@@ -6,5 +6,5 @@ export default function CourseModulePage() {
   const courseId = pageContext.routeParams?.courseId ?? "default";
   const moduleId = pageContext.routeParams?.moduleId ?? "";
 
-  return <Module courseId={courseId} moduleId={moduleId} />;
+  return <Module key={moduleId} courseId={courseId} moduleId={moduleId} />;
 }

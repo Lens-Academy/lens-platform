@@ -1,6 +1,6 @@
 import { useHeaderLayout } from "../hooks/useHeaderLayout";
 import StageProgressBar from "./module/StageProgressBar";
-import HeaderAuthStatus from "./module/HeaderAuthStatus";
+import { UserMenu } from "./nav/UserMenu";
 import type { Stage } from "../types/module";
 
 interface ModuleHeaderProps {
@@ -16,7 +16,6 @@ interface ModuleHeaderProps {
   onNext: () => void;
   onReturnToCurrent: () => void;
   onSkipSection: () => void;
-  onLoginClick: () => void;
 }
 
 export function ModuleHeader({
@@ -32,7 +31,6 @@ export function ModuleHeader({
   onNext,
   onReturnToCurrent,
   onSkipSection,
-  onLoginClick,
 }: ModuleHeaderProps) {
   const [
     { needsTwoRows, needsTruncation },
@@ -120,7 +118,7 @@ export function ModuleHeader({
                 </button>
               )}
             </div>
-            <HeaderAuthStatus onLoginClick={onLoginClick} />
+            <UserMenu />
           </div>
         </div>
 
