@@ -17,7 +17,7 @@ class CohortStatus(str, enum.Enum):
 
 
 class GroupStatus(str, enum.Enum):
-    forming = "forming"
+    preview = "preview"
     active = "active"
     completed = "completed"
     cancelled = "cancelled"

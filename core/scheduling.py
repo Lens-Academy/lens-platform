@@ -7,7 +7,7 @@ Main entry point: schedule_cohort() - loads users from DB, runs scheduling, pers
 from dataclasses import dataclass, field
 from enum import Enum
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import select, update
 
 import cohort_scheduler
 
@@ -16,7 +16,7 @@ from .database import get_transaction
 from .enums import UngroupableReason as DBUngroupableReason
 from .queries.cohorts import get_cohort_by_id
 from .queries.groups import create_group, add_user_to_group
-from .tables import signups, users, facilitators
+from .tables import signups, users, facilitators, groups, groups_users
 
 
 # Day code mapping (used by tests)
@@ -273,12 +273,12 @@ async def schedule_cohort(
     """
     Run scheduling for a specific cohort and persist results to database.
 
-    1. Load users from signups WHERE cohort_id=X (row exists = awaiting grouping)
+    1. Load users from signups WHERE cohort_id=X (excluding already-grouped users)
     2. Get their availability from users table
     3. Run scheduling algorithm
-    4. Insert groups into 'groups' table
+    4. Insert groups into 'groups' table (with status='preview')
     5. Insert memberships into 'groups_users' table
-    6. Delete signups for grouped users, set ungroupable_reason for others
+    6. Keep signups for all users, set ungroupable_reason for ungroupable users
 
     Returns: CohortSchedulingResult with summary
     """
@@ -290,6 +290,14 @@ async def schedule_cohort(
 
         # Load users awaiting grouping for this cohort
         # (row exists in signups = awaiting grouping, no ungroupable_reason = first attempt)
+
+        # Subquery: users already in groups for this cohort
+        already_grouped = (
+            select(groups_users.c.user_id)
+            .join(groups, groups_users.c.group_id == groups.c.group_id)
+            .where(groups.c.cohort_id == cohort_id)
+        )
+
         query = (
             select(
                 users.c.user_id,
@@ -306,6 +314,7 @@ async def schedule_cohort(
             .where(
                 signups.c.ungroupable_reason.is_(None)
             )  # Only users not yet marked ungroupable
+            .where(users.c.user_id.notin_(already_grouped))
         )
         result = await conn.execute(query)
         user_rows = [dict(row) for row in result.mappings()]
@@ -459,19 +468,11 @@ async def schedule_cohort(
                     }
                 )
 
-        # Update signups: delete grouped users, mark ungroupable users
+        # Mark ungroupable users (signups are kept for all users)
         all_user_ids = [row["user_id"] for row in user_rows]
         ungroupable_user_ids = [
             uid for uid in all_user_ids if uid not in grouped_user_ids
         ]
-
-        if grouped_user_ids:
-            # Delete signups for grouped users (they're now in groups_users)
-            await conn.execute(
-                delete(signups)
-                .where(signups.c.cohort_id == cohort_id)
-                .where(signups.c.user_id.in_(list(grouped_user_ids)))
-            )
 
         # Analyze why users couldn't be grouped (do this before updating DB)
         ungroupable_details = []

@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from ..enums import GroupStatus
 from ..modules.course_loader import load_course
 from ..tables import cohorts, signups
 
@@ -48,9 +49,9 @@ async def get_realizable_cohorts(
     conn: AsyncConnection,
 ) -> list[dict[str, Any]]:
     """
-    Get cohorts that have groups without Discord channels.
+    Get cohorts that have groups in preview status (not yet realized).
 
-    Returns cohorts where at least one group has NULL discord_text_channel_id.
+    Returns cohorts where at least one group has status='preview'.
     Each cohort includes course_name loaded from YAML.
     """
     from ..tables import groups
@@ -58,7 +59,7 @@ async def get_realizable_cohorts(
     # Subquery: cohorts with unrealized groups
     unrealized = (
         select(groups.c.cohort_id)
-        .where(groups.c.discord_text_channel_id.is_(None))
+        .where(groups.c.status == GroupStatus.preview)
         .distinct()
         .subquery()
     )

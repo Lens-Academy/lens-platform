@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from ..enums import GroupStatus
 from ..modules.course_loader import load_course
 from ..tables import cohorts, groups, groups_users, users
 
@@ -30,7 +31,7 @@ async def create_group(
             cohort_id=cohort_id,
             group_name=group_name,
             recurring_meeting_time_utc=recurring_meeting_time_utc,
-            status="forming",
+            status="preview",
         )
         .returning(groups)
     )
@@ -144,6 +145,7 @@ async def get_cohort_groups_for_realization(
                 "recurring_meeting_time_utc": group_data["recurring_meeting_time_utc"],
                 "discord_text_channel_id": group_data["discord_text_channel_id"],
                 "discord_voice_channel_id": group_data["discord_voice_channel_id"],
+                "status": group_data["status"],
                 "members": members,
             }
         )
@@ -169,13 +171,17 @@ async def save_discord_channel_ids(
     text_channel_id: str,
     voice_channel_id: str,
 ) -> None:
-    """Update group with Discord channel IDs after realization."""
+    """Update group with Discord channel IDs after realization.
+
+    Also sets the group status to 'active' to indicate it has been realized.
+    """
     await conn.execute(
         update(groups)
         .where(groups.c.group_id == group_id)
         .values(
             discord_text_channel_id=text_channel_id,
             discord_voice_channel_id=voice_channel_id,
+            status=GroupStatus.active,
             updated_at=datetime.now(timezone.utc),
         )
     )

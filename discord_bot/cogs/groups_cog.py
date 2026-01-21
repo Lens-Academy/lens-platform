@@ -142,8 +142,8 @@ class GroupsCog(commands.Cog):
         created_count = 0
         skipped_members = []  # Track members not in guild
         for group_data in cohort_data["groups"]:
-            # Skip if already realized
-            if group_data["discord_text_channel_id"]:
+            # Skip if already realized (not in preview status)
+            if group_data.get("status") != "preview":
                 continue
 
             await progress_msg.edit(

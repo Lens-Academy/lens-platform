@@ -49,7 +49,7 @@ async def get_accessible_groups(
             cohorts.c.cohort_start_date,
         )
         .join(cohorts, groups.c.cohort_id == cohorts.c.cohort_id)
-        .where(groups.c.status.in_(["forming", "active", "completed"]))
+        .where(groups.c.status.in_(["preview", "active", "completed"]))
         .order_by(cohorts.c.cohort_start_date.desc(), groups.c.group_name)
     )
 

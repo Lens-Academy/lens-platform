@@ -19,5 +19,5 @@ RUN npm ci && npm run build
 # Back to app root
 WORKDIR /app
 
-# Run the application (use PORT env var from Railway, default to 8000)
-CMD ["sh", "-c", "python main.py --port ${PORT:-8000}"]
+# Run migrations and start the application (use PORT env var from Railway, default to 8000)
+CMD ["sh", "-c", "alembic upgrade head && python main.py --port ${PORT:-8000}"]

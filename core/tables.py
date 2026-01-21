@@ -133,7 +133,7 @@ groups = Table(
     Column("discord_text_channel_id", Text),
     Column("discord_voice_channel_id", Text),
     Column("recurring_meeting_time_utc", Text),
-    Column("status", group_status_enum, server_default="forming"),
+    Column("status", group_status_enum, server_default="preview"),
     Column("start_date", Date),
     Column("expected_end_date", Date),
     Column("actual_end_date", Date),
