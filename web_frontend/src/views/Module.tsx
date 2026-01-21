@@ -700,7 +700,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Loading state
   if (loadingModule) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-dvh flex items-center justify-center">
         <p className="text-gray-500">Loading module...</p>
       </div>
     );
@@ -709,7 +709,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Error states
   if (loadError || !module) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+      <div className="min-h-dvh flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">{loadError ?? "Module not found"}</p>
           <a href="/" className="text-emerald-600 hover:underline">
@@ -722,7 +722,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+      <div className="min-h-dvh flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <a href="/" className="text-emerald-600 hover:underline">
@@ -734,7 +734,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-dvh bg-white">
       <div className="sticky top-0 z-50 bg-white">
         <ModuleHeader
           moduleTitle={module.title}

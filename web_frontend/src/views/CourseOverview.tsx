@@ -96,7 +96,7 @@ export default function CourseOverview({
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-dvh flex items-center justify-center">
         <div className="text-slate-500">Loading course...</div>
       </div>
     );
@@ -104,14 +104,14 @@ export default function CourseOverview({
 
   if (error || !courseProgress) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-dvh flex items-center justify-center">
         <div className="text-red-500">{error || "Course not found"}</div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-white">
+    <div className="h-dvh flex flex-col bg-white">
       {/* Nav Header */}
       <nav className="border-b border-slate-200/50 bg-stone-50">
         <div className="px-6 flex items-center justify-between h-14">

@@ -16,7 +16,7 @@ export default function SpaFallbackPage() {
   return (
     <div
       id="spa-loading"
-      className="flex items-center justify-center min-h-screen"
+      className="flex items-center justify-center min-h-dvh"
     >
       <div className="animate-pulse text-gray-500">Loading...</div>
     </div>
