@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import ScheduleSelector from "../components/schedule/ScheduleSelector";
-import type { AvailabilityData } from "../types/signup";
+import type { AvailabilityData } from "../types/enroll";
 import {
   COMMON_TIMEZONES,
   formatTimezoneDisplay,
   EMPTY_AVAILABILITY,
   getBrowserTimezone,
-} from "../types/signup";
+} from "../types/enroll";
 import { API_URL } from "../config";
 
 export default function Availability() {

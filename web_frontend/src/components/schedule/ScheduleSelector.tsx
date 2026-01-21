@@ -1,5 +1,5 @@
-import type { DayName, AvailabilityData } from "../../types/signup";
-import { DAY_NAMES } from "../../types/signup";
+import type { DayName, AvailabilityData } from "../../types/enroll";
+import { DAY_NAMES } from "../../types/enroll";
 import { useScheduleSelection } from "./useScheduleSelection";
 
 interface ScheduleSelectorProps {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Cohort } from "../../types/signup";
+import type { Cohort } from "../../types/enroll";
 
 interface CohortRoleStepProps {
   enrolledCohorts: Cohort[];
@@ -62,7 +62,7 @@ export default function CohortRoleStep({
       {enrolledCohorts.length > 0 && (
         <div className="mb-6">
           <h3 className="text-sm font-medium text-gray-700 mb-2">
-            You're signed up for:
+            You're enrolled in:
           </h3>
           <ul className="space-y-2">
             {enrolledCohorts.map((cohort) => (
@@ -111,7 +111,7 @@ export default function CohortRoleStep({
         </p>
       ) : (
         <p className="text-gray-600 mb-6">
-          No cohorts are currently available for signup.
+          No cohorts are currently available for enrollment.
         </p>
       )}
 

@@ -41,12 +41,12 @@ export default function ModuleCompleteModal({
 
   // Determine CTAs based on context
   // Standalone module (/module/:id):
-  //   - Not enrolled: "Join Full Course" → /signup, "View Course" → /course
+  //   - Not enrolled: "Join Full Course" → /enroll, "View Course" → /course
   //   - Enrolled: "View Course" → /course
   // Course module (/course/:id/module/:mid):
-  //   - Unit complete + not enrolled: "Join Full Course" → /signup, "Return to Course" → /course/:id
+  //   - Unit complete + not enrolled: "Join Full Course" → /enroll, "Return to Course" → /course/:id
   //   - Unit complete + enrolled: "Return to Course" → /course/:id (no secondary CTA)
-  //   - Not enrolled: "Join Full Course" → /signup, "Return to Course" → /course/:id
+  //   - Not enrolled: "Join Full Course" → /enroll, "Return to Course" → /course/:id
   //   - Enrolled + has next: "Next Module" → next module URL, "Return to Course" → /course/:id
   //   - Enrolled + no next: "Return to Course" → /course/:id
 
@@ -60,7 +60,7 @@ export default function ModuleCompleteModal({
       ? `You've finished "${moduleTitle}".`
       : "Great work!";
     if (!isEnrolled) {
-      primaryCta = { label: "Join the Full Course", href: "/signup" };
+      primaryCta = { label: "Join the Full Course", href: "/enroll" };
       secondaryCta = { label: "View Course", href: "/course" };
     } else {
       primaryCta = { label: "View Course", href: "/course" };
@@ -72,7 +72,7 @@ export default function ModuleCompleteModal({
     if (hasCompletedUnit && !isEnrolled) {
       // Unit completion + not enrolled - prompt to join
       completionMessage = `This was the last module of Unit ${completedUnit}.`;
-      primaryCta = { label: "Join the Full Course", href: "/signup" };
+      primaryCta = { label: "Join the Full Course", href: "/enroll" };
       secondaryCta = { label: "Return to Course", href: courseUrl };
     } else if (hasCompletedUnit) {
       // Unit completion + enrolled - just show return
@@ -83,7 +83,7 @@ export default function ModuleCompleteModal({
       completionMessage = moduleTitle
         ? `You've finished "${moduleTitle}".`
         : "Great work!";
-      primaryCta = { label: "Join the Full Course", href: "/signup" };
+      primaryCta = { label: "Join the Full Course", href: "/enroll" };
       secondaryCta = { label: "Return to Course", href: courseUrl };
     } else if (hasNextModule) {
       completionMessage = moduleTitle

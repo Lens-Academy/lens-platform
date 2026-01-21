@@ -213,20 +213,20 @@ export function trackModuleCompleted(moduleId: string): void {
   posthog.capture("module_completed", { module_id: moduleId });
 }
 
-// Signup events
-export function trackSignupStarted(): void {
+// Enrollment events
+export function trackEnrollmentStarted(): void {
   if (!shouldTrack()) return;
-  posthog.capture("signup_started");
+  posthog.capture("enrollment_started");
 }
 
-export function trackSignupStepCompleted(stepName: string): void {
+export function trackEnrollmentStepCompleted(stepName: string): void {
   if (!shouldTrack()) return;
-  posthog.capture("signup_step_completed", { step_name: stepName });
+  posthog.capture("enrollment_step_completed", { step_name: stepName });
 }
 
-export function trackSignupCompleted(): void {
+export function trackEnrollmentCompleted(): void {
   if (!shouldTrack()) return;
-  posthog.capture("signup_completed");
+  posthog.capture("enrollment_completed");
 }
 
 export { posthog };

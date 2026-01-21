@@ -1,7 +1,7 @@
 import { DISCORD_INVITE_URL } from "../../config";
 import { DiscordIconLarge } from "../icons/DiscordIcon";
 
-export default function SuccessMessage() {
+export default function EnrollSuccessMessage() {
   return (
     <div className="max-w-md mx-auto text-center">
       <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -21,10 +21,10 @@ export default function SuccessMessage() {
       </div>
 
       <h2 className="text-2xl font-bold text-gray-900 mb-2">
-        You're Signed Up!
+        You're Enrolled!
       </h2>
       <p className="text-gray-600 mb-8">
-        Your registration has been submitted successfully. Now join our Discord
+        Your enrollment has been submitted successfully. Now join our Discord
         server to connect with your cohort and get started.
       </p>
 

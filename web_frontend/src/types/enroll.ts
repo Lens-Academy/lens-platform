@@ -20,7 +20,7 @@ export interface Cohort {
   role?: string;
 }
 
-export interface SignupFormData {
+export interface EnrollFormData {
   displayName: string;
   email: string;
   discordConnected: boolean;

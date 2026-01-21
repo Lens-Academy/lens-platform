@@ -1,5 +1,5 @@
-import type { AvailabilityData } from "../../types/signup";
-import { COMMON_TIMEZONES, formatTimezoneDisplay } from "../../types/signup";
+import type { AvailabilityData } from "../../types/enroll";
+import { COMMON_TIMEZONES, formatTimezoneDisplay } from "../../types/enroll";
 import ScheduleSelector from "../schedule/ScheduleSelector";
 
 interface AvailabilityStepProps {
@@ -117,7 +117,7 @@ export default function AvailabilityStep({
         >
           {totalSlots === 0
             ? "Select at least one time slot"
-            : "Complete Signup"}
+            : "Complete Enrollment"}
         </button>
       </div>
     </div>

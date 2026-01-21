@@ -33,14 +33,14 @@ export default function LandingPage() {
               Start Learning
             </a>
             <a
-              href="/signup"
+              href="/enroll"
               className="w-full sm:w-auto px-8 py-3.5 rounded-full border-2 border-slate-200 text-slate-700 font-semibold text-lg hover:border-slate-300 hover:bg-slate-50 transition-all duration-200"
             >
-              Sign Up
+              Enroll
             </a>
           </div>
           <p className="text-sm text-slate-500 mt-6">
-            Try our intro module first, or sign up directly for the full course.
+            Try our intro module first, or enroll directly in the full course.
           </p>
         </div>
       </main>

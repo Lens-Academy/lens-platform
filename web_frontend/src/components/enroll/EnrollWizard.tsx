@@ -1,26 +1,26 @@
 import { useState, useEffect } from "react";
-import type { SignupFormData, Cohort } from "../../types/signup";
-import { EMPTY_AVAILABILITY, getBrowserTimezone } from "../../types/signup";
+import type { EnrollFormData, Cohort } from "../../types/enroll";
+import { EMPTY_AVAILABILITY, getBrowserTimezone } from "../../types/enroll";
 import PersonalInfoStep from "./PersonalInfoStep";
 import CohortRoleStep from "./CohortRoleStep";
 import AvailabilityStep from "./AvailabilityStep";
-import SuccessMessage from "./SuccessMessage";
+import EnrollSuccessMessage from "./EnrollSuccessMessage";
 import { useAuth } from "../../hooks/useAuth";
 import { API_URL } from "../../config";
 import {
-  trackSignupStarted,
-  trackSignupStepCompleted,
-  trackSignupCompleted,
+  trackEnrollmentStarted,
+  trackEnrollmentStepCompleted,
+  trackEnrollmentCompleted,
 } from "../../analytics";
 
 type Step = 1 | 2 | 3 | "complete";
 
-export default function SignupWizard() {
+export default function EnrollWizard() {
   const { isAuthenticated, isLoading, user, discordUsername, login } =
     useAuth();
 
   const [currentStep, setCurrentStep] = useState<Step>(1);
-  const [formData, setFormData] = useState<SignupFormData>({
+  const [formData, setFormData] = useState<EnrollFormData>({
     displayName: "",
     email: "",
     discordConnected: false,
@@ -39,9 +39,9 @@ export default function SignupWizard() {
   const [availableCohorts, setAvailableCohorts] = useState<Cohort[]>([]);
   const [isFacilitator, setIsFacilitator] = useState(false);
 
-  // Track signup started on mount
+  // Track enrollment started on mount
   useEffect(() => {
-    trackSignupStarted();
+    trackEnrollmentStarted();
   }, []);
 
   // Sync auth state with form data
@@ -156,7 +156,7 @@ export default function SignupWizard() {
         throw new Error("Failed to update profile");
       }
 
-      trackSignupCompleted();
+      trackEnrollmentCompleted();
       setCurrentStep("complete");
     } catch (error) {
       console.error("Failed to submit:", error);
@@ -175,7 +175,7 @@ export default function SignupWizard() {
   }
 
   if (currentStep === "complete") {
-    return <SuccessMessage />;
+    return <EnrollSuccessMessage />;
   }
 
   return (
@@ -198,7 +198,7 @@ export default function SignupWizard() {
           }
           onDiscordConnect={handleDiscordConnect}
           onNext={() => {
-            trackSignupStepCompleted("personal_info");
+            trackEnrollmentStepCompleted("personal_info");
             setCurrentStep(2);
           }}
         />
@@ -225,7 +225,7 @@ export default function SignupWizard() {
           }
           onBecomeFacilitator={handleBecomeFacilitator}
           onNext={() => {
-            trackSignupStepCompleted("cohort_role");
+            trackEnrollmentStepCompleted("cohort_role");
             setCurrentStep(3);
           }}
           onBack={() => setCurrentStep(1)}

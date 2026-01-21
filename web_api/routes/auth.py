@@ -151,15 +151,15 @@ async def discord_oauth_callback(
     """
     # Handle OAuth errors
     if error:
-        return RedirectResponse(url=f"{FRONTEND_URL}/signup?error={error}")
+        return RedirectResponse(url=f"{FRONTEND_URL}/enroll?error={error}")
 
     if not code or not state:
-        return RedirectResponse(url=f"{FRONTEND_URL}/signup?error=missing_params")
+        return RedirectResponse(url=f"{FRONTEND_URL}/enroll?error=missing_params")
 
     # Validate state (CSRF protection)
     state_data = _oauth_states.pop(state, None)
     if state_data is None:
-        return RedirectResponse(url=f"{FRONTEND_URL}/signup?error=invalid_state")
+        return RedirectResponse(url=f"{FRONTEND_URL}/enroll?error=invalid_state")
 
     # Extract origin and next path from state
     next_url = state_data.get("next", "/")
@@ -183,7 +183,7 @@ async def discord_oauth_callback(
         )
 
         if token_response.status_code != 200:
-            return RedirectResponse(url=f"{FRONTEND_URL}/signup?error=token_exchange")
+            return RedirectResponse(url=f"{FRONTEND_URL}/enroll?error=token_exchange")
 
         token_data = token_response.json()
         access_token = token_data["access_token"]
@@ -195,7 +195,7 @@ async def discord_oauth_callback(
         )
 
         if user_response.status_code != 200:
-            return RedirectResponse(url=f"{FRONTEND_URL}/signup?error=user_fetch")
+            return RedirectResponse(url=f"{FRONTEND_URL}/enroll?error=user_fetch")
 
         discord_user = user_response.json()
 
@@ -239,11 +239,11 @@ async def validate_auth_code_endpoint(
     redirect_base = _validate_origin(origin)
 
     if not code:
-        return RedirectResponse(url=f"{redirect_base}/signup?error=missing_code")
+        return RedirectResponse(url=f"{redirect_base}/enroll?error=missing_code")
 
     auth_code, error = await validate_and_use_auth_code(code)
     if error:
-        return RedirectResponse(url=f"{redirect_base}/signup?error={error}")
+        return RedirectResponse(url=f"{redirect_base}/enroll?error={error}")
 
     # Get or create user
     discord_id = auth_code["discord_id"]

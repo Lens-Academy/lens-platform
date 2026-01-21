@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { DayName, AvailabilityData } from "../../types/signup";
-import { DAY_NAMES, formatTimeSlot } from "../../types/signup";
+import type { DayName, AvailabilityData } from "../../types/enroll";
+import { DAY_NAMES, formatTimeSlot } from "../../types/enroll";
 
 interface CellPosition {
   day: DayName;
