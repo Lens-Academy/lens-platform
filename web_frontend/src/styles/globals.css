@@ -45,3 +45,17 @@ body {
     opacity: 1;
   }
 }
+
+/* ToC item styles - controlled via direct DOM manipulation for performance */
+.toc-current {
+  color: #111827; /* gray-900 */
+  font-weight: 600;
+}
+
+.toc-passed {
+  color: #374151; /* gray-700 */
+}
+
+.toc-future {
+  color: #9ca3af; /* gray-400 */
+}

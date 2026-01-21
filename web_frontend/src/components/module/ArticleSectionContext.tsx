@@ -8,8 +8,8 @@ type ArticleSectionContextValue = {
   /** Register pre-computed heading IDs from extractAllHeadings */
   registerHeadingIds: (headings: Array<{ id: string; text: string }>) => void;
   onHeadingRender: (id: string, element: HTMLElement) => void;
-  /** ID of the current heading (last one scrolled past the threshold) */
-  currentHeadingId: string | null;
+  /** Register a ToC item element for direct DOM updates (bypasses React re-renders) */
+  registerTocItem: (id: string, index: number, element: HTMLElement) => void;
   onHeadingClick: (id: string) => void;
 };
 

@@ -1,31 +1,41 @@
-// web_frontend_next/src/components/module/ArticleTOC.tsx
+// web_frontend/src/components/module/ArticleTOC.tsx
 
+import { useEffect, useRef } from "react";
 import type { HeadingItem } from "@/utils/extractHeadings";
 
 type ArticleTOCProps = {
   title: string;
   author: string | null;
   headings: HeadingItem[];
-  /** ID of the current heading (last one scrolled past threshold), or null */
-  currentHeadingId: string | null;
+  /** Register ToC item for direct DOM updates */
+  registerTocItem: (id: string, index: number, element: HTMLElement) => void;
   onHeadingClick: (id: string) => void;
 };
 
 /**
  * Table of contents sidebar for article sections.
  * Shows title, author, and nested headings with scroll progress.
+ * Uses direct DOM manipulation for highlighting (bypasses React re-renders).
  */
 export default function ArticleTOC({
   title,
   author,
   headings,
-  currentHeadingId,
+  registerTocItem,
   onHeadingClick,
 }: ArticleTOCProps) {
-  // Find the index of the current heading to derive passed/current status
-  const currentIndex = currentHeadingId
-    ? headings.findIndex((h) => h.id === currentHeadingId)
-    : -1;
+  // Store refs to all button elements
+  const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+
+  // Register all items after render
+  useEffect(() => {
+    buttonRefs.current.forEach((element, id) => {
+      const index = headings.findIndex((h) => h.id === id);
+      if (index !== -1) {
+        registerTocItem(id, index, element);
+      }
+    });
+  }, [headings, registerTocItem]);
 
   return (
     <nav aria-label="Article table of contents">
@@ -44,30 +54,26 @@ export default function ArticleTOC({
 
       {/* Headings list */}
       <ul className="space-y-2" role="list">
-        {headings.map((heading, index) => {
-          const isCurrent = index === currentIndex;
-          const isPassed = index < currentIndex;
-
-          return (
-            <li
-              key={heading.id}
-              className={heading.level === 3 ? "pl-4" : ""}
+        {headings.map((heading) => (
+          <li
+            key={heading.id}
+            className={heading.level === 3 ? "pl-4" : ""}
+          >
+            <button
+              ref={(el) => {
+                if (el) {
+                  buttonRefs.current.set(heading.id, el);
+                } else {
+                  buttonRefs.current.delete(heading.id);
+                }
+              }}
+              onClick={() => onHeadingClick(heading.id)}
+              className="toc-future text-left text-sm leading-snug transition-colors hover:text-gray-900 focus:outline-none"
             >
-              <button
-                onClick={() => onHeadingClick(heading.id)}
-                className={`text-left text-sm leading-snug transition-colors hover:text-gray-900 focus:outline-none ${
-                  isCurrent
-                    ? "text-gray-900 font-semibold"
-                    : isPassed
-                      ? "text-gray-700"
-                      : "text-gray-400"
-                }`}
-              >
-                {heading.text}
-              </button>
-            </li>
-          );
-        })}
+              {heading.text}
+            </button>
+          </li>
+        ))}
       </ul>
     </nav>
   );

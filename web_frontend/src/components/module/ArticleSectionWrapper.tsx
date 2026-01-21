@@ -1,6 +1,6 @@
 // web_frontend/src/components/module/ArticleSectionWrapper.tsx
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useEffect, useCallback, useMemo, useRef } from "react";
 import { ArticleSectionProvider } from "./ArticleSectionContext";
 import { generateHeadingId } from "@/utils/extractHeadings";
 
@@ -16,9 +16,11 @@ type ArticleSectionWrapperProps = {
 export default function ArticleSectionWrapper({
   children,
 }: ArticleSectionWrapperProps) {
-  const [currentHeadingId, setCurrentHeadingId] = useState<string | null>(null);
   const headingElementsRef = useRef<Map<string, HTMLElement>>(new Map());
   const observerRef = useRef<IntersectionObserver | null>(null);
+  // ToC items for direct DOM manipulation (bypasses React re-renders)
+  const tocItemsRef = useRef<Map<string, { index: number; element: HTMLElement }>>(new Map());
+  const currentHeadingIdRef = useRef<string | null>(null);
 
   // Pre-computed heading IDs from extractAllHeadings, keyed by text
   // Maps text → array of IDs (for duplicate headings)
@@ -72,6 +74,26 @@ export default function ArticleSectionWrapper({
     [],
   );
 
+  // Register a ToC item for direct DOM updates
+  const registerTocItem = useCallback(
+    (id: string, index: number, element: HTMLElement) => {
+      tocItemsRef.current.set(id, { index, element });
+    },
+    []
+  );
+
+  // Update ToC item styles directly in the DOM (no React re-render)
+  const updateTocStyles = useCallback((currentIndex: number) => {
+    tocItemsRef.current.forEach(({ index, element }) => {
+      const isCurrent = index === currentIndex;
+      const isPassed = index < currentIndex;
+
+      element.classList.toggle("toc-current", isCurrent);
+      element.classList.toggle("toc-passed", isPassed && !isCurrent);
+      element.classList.toggle("toc-future", !isPassed && !isCurrent);
+    });
+  }, []);
+
   // Find the current heading (last one above the threshold)
   // This is called when IntersectionObserver fires
   const recalculateCurrentHeading = useCallback(() => {
@@ -88,8 +110,16 @@ export default function ArticleSectionWrapper({
       }
     });
 
-    setCurrentHeadingId((prev) => (prev === currentId ? prev : currentId));
-  }, []);
+    // Only update if changed
+    if (currentId !== currentHeadingIdRef.current) {
+      currentHeadingIdRef.current = currentId;
+
+      // Find index of current heading and update DOM directly
+      const currentItem = currentId ? tocItemsRef.current.get(currentId) : null;
+      const currentIndex = currentItem ? currentItem.index : -1;
+      updateTocStyles(currentIndex);
+    }
+  }, [updateTocStyles]);
 
   // IntersectionObserver triggers recalculation when any heading crosses the threshold
   // This is more efficient than scroll events while being more reliable than
@@ -135,10 +165,10 @@ export default function ArticleSectionWrapper({
       getHeadingId,
       registerHeadingIds,
       onHeadingRender: handleHeadingRender,
-      currentHeadingId,
+      registerTocItem,
       onHeadingClick: handleHeadingClick,
     }),
-    [getHeadingId, registerHeadingIds, handleHeadingRender, currentHeadingId, handleHeadingClick],
+    [getHeadingId, registerHeadingIds, handleHeadingRender, registerTocItem, handleHeadingClick],
   );
 
   return (
