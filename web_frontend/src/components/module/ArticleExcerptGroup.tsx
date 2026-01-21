@@ -36,7 +36,10 @@ export default function ArticleExcerptGroup({
   // Register heading IDs with context before children render
   // Uses a ref to avoid duplicate registrations for same headings
   const headingsKey = allHeadings.map((h) => h.id).join(",");
-  if (context?.registerHeadingIds && lastRegisteredRef.current !== headingsKey) {
+  if (
+    context?.registerHeadingIds &&
+    lastRegisteredRef.current !== headingsKey
+  ) {
     context.registerHeadingIds(allHeadings);
     lastRegisteredRef.current = headingsKey;
   }

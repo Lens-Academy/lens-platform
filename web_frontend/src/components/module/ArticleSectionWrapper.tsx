@@ -50,7 +50,8 @@ export default function ArticleSectionWrapper({
     const registeredIds = registeredIdsRef.current.get(text);
     if (registeredIds && registeredIds.length > 0) {
       const count = renderCountsRef.current.get(text) || 0;
-      const id = registeredIds[count] || registeredIds[registeredIds.length - 1];
+      const id =
+        registeredIds[count] || registeredIds[registeredIds.length - 1];
       renderCountsRef.current.set(text, count + 1);
       return id;
     }
@@ -121,7 +122,13 @@ export default function ArticleSectionWrapper({
       passedHeadingIds,
       onHeadingClick: handleHeadingClick,
     }),
-    [getHeadingId, registerHeadingIds, handleHeadingRender, passedHeadingIds, handleHeadingClick],
+    [
+      getHeadingId,
+      registerHeadingIds,
+      handleHeadingRender,
+      passedHeadingIds,
+      handleHeadingClick,
+    ],
   );
 
   return (

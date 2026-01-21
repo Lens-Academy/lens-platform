@@ -11,7 +11,9 @@ let initialized = false;
 export function initSentry(): void {
   if (initialized || !SENTRY_DSN) {
     if (!SENTRY_DSN) {
-      console.warn("[errorTracking] VITE_SENTRY_DSN not set, skipping Sentry init");
+      console.warn(
+        "[errorTracking] VITE_SENTRY_DSN not set, skipping Sentry init",
+      );
     }
     return;
   }
@@ -45,7 +47,7 @@ export function identifySentryUser(
     discord_id?: string;
     discord_username?: string;
     email?: string | null;
-  }
+  },
 ): void {
   if (!initialized) return;
 

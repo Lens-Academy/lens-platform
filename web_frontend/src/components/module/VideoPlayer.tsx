@@ -79,7 +79,7 @@ export default function VideoPlayer({
     if (!containerRef.current) return;
 
     const video = containerRef.current.querySelector(
-      "youtube-video"
+      "youtube-video",
     ) as HTMLVideoElement | null;
     if (!video) return;
 
@@ -364,8 +364,8 @@ export default function VideoPlayer({
       </div>
 
       {/* Clip info and controls (only shown when there's a clip end time) */}
-      {isClip && (
-        !isFullVideo ? (
+      {isClip &&
+        (!isFullVideo ? (
           <div className="text-center text-xs text-gray-400">
             Clip from {formatTime(start)} to {formatTime(end as number)}
             <span className="mx-1">·</span>
@@ -387,8 +387,7 @@ export default function VideoPlayer({
               Watch clip only
             </button>
           </div>
-        )
-      )}
+        ))}
     </div>
   );
 }

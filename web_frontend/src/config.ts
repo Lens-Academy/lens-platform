@@ -10,8 +10,8 @@ const getDevApiUrl = () => {
   return `http://localhost:${apiPort}`;
 };
 
-export const API_URL = import.meta.env.VITE_API_URL ??
-  (import.meta.env.DEV ? getDevApiUrl() : "");
+export const API_URL =
+  import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? getDevApiUrl() : "");
 
 // Discord invite link for joining the course server
 // NOTE: Also defined in:

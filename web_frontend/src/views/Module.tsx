@@ -68,7 +68,9 @@ interface ModuleProps {
 export default function Module({ courseId, moduleId }: ModuleProps) {
   // Module data loading state
   const [module, setModule] = useState<ModuleType | null>(null);
-  const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(null);
+  const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
+    null,
+  );
   const [loadingModule, setLoadingModule] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -227,7 +229,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }, [module]);
 
   // Derived value for module completion
-  const isModuleComplete = module ? completedSections.size === module.sections.length : false;
+  const isModuleComplete = module
+    ? completedSections.size === module.sections.length
+    : false;
 
   // Activity tracking for current section
   const currentSection = module?.sections[currentSectionIndex];
@@ -276,7 +280,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     // Fetch next module from course
     async function fetchNext() {
       try {
-        const result = await getNextModule(courseContext!.courseId, module!.slug);
+        const result = await getNextModule(
+          courseContext!.courseId,
+          module!.slug,
+        );
         setModuleCompletionResult(result);
       } catch (e) {
         console.error("[Module] Failed to fetch next module:", e);
@@ -345,7 +352,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         }
 
         Sentry.captureException(e, {
-          tags: { error_type: "session_init_failed", module_slug: currentModule.slug },
+          tags: {
+            error_type: "session_init_failed",
+            module_slug: currentModule.slug,
+          },
         });
       }
     }
@@ -586,7 +596,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         }
       }
     },
-    [completedSections.size, isAuthenticated, hasPromptedAuth, module, viewMode, handleStageClick],
+    [
+      completedSections.size,
+      isAuthenticated,
+      hasPromptedAuth,
+      module,
+      viewMode,
+      handleStageClick,
+    ],
   );
 
   const handleSkipSection = useCallback(() => {

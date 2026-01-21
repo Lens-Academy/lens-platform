@@ -93,7 +93,12 @@ export function Tooltip({
       {childWithRef}
       {isOpen && (
         <FloatingPortal>
-          <div ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()} className="bg-gray-800 text-white text-xs px-2 py-1 rounded z-50">
+          <div
+            ref={refs.setFloating}
+            style={floatingStyles}
+            {...getFloatingProps()}
+            className="bg-gray-800 text-white text-xs px-2 py-1 rounded z-50"
+          >
             {content}
           </div>
         </FloatingPortal>

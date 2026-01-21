@@ -52,9 +52,7 @@ export default function ArticleEmbed({
                 <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
               )}
               <div className="flex items-center gap-3 mt-1">
-                {author && (
-                  <p className="text-sm text-gray-500">by {author}</p>
-                )}
+                {author && <p className="text-sm text-gray-500">by {author}</p>}
                 {author && sourceUrl && (
                   <span className="text-gray-400">|</span>
                 )}
@@ -204,7 +202,9 @@ export default function ArticleEmbed({
                   </th>
                 ),
                 td: ({ children }) => (
-                  <td className="px-4 py-2 border border-gray-300">{children}</td>
+                  <td className="px-4 py-2 border border-gray-300">
+                    {children}
+                  </td>
                 ),
               }}
             >

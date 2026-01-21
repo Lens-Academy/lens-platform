@@ -43,7 +43,10 @@ export default function VideoEmbed({
   // Scroll into view when video is activated
   useEffect(() => {
     if (isActivated && containerRef.current) {
-      containerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      containerRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     }
   }, [isActivated]);
 
@@ -110,9 +113,7 @@ export default function VideoEmbed({
               </div>
             )}
             {channel && (
-              <div className="text-xs text-stone-500 mt-0.5">
-                {channel}
-              </div>
+              <div className="text-xs text-stone-500 mt-0.5">{channel}</div>
             )}
           </div>
         )}

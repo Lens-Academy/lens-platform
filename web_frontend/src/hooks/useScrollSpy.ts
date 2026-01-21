@@ -17,7 +17,7 @@ export type ScrollSpyResult = {
     id: string,
     element: HTMLElement,
     text: string,
-    level: 2 | 3
+    level: 2 | 3,
   ) => void;
   unregisterHeading: (id: string) => void;
   scrollToHeading: (id: string) => void;
@@ -69,7 +69,7 @@ export function useScrollSpy(): ScrollSpyResult {
           // Trigger when heading enters top 30% of viewport
           // -80px accounts for sticky header
           rootMargin: "-80px 0px -70% 0px",
-        }
+        },
       );
     }
     return observerRef.current;
@@ -120,7 +120,7 @@ export function useScrollSpy(): ScrollSpyResult {
       getObserver().observe(element); // Lazy init - always works
       setHeadingsVersion((v) => v + 1);
     },
-    [getObserver]
+    [getObserver],
   );
 
   const unregisterHeading = useCallback((id: string) => {

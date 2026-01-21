@@ -83,7 +83,9 @@ async def test_stream_chat_uses_default_provider():
         return
         yield  # Make it a generator
 
-    with patch("core.modules.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+    with patch(
+        "core.modules.llm.acompletion", new_callable=AsyncMock
+    ) as mock_completion:
         # Make acompletion return an async generator
         async def empty_gen():
             return
@@ -120,7 +122,10 @@ async def test_stream_chat_passes_tools_to_provider():
         }
     ]
 
-    with patch("core.modules.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+    with patch(
+        "core.modules.llm.acompletion", new_callable=AsyncMock
+    ) as mock_completion:
+
         async def empty_gen():
             return
             yield

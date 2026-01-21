@@ -40,7 +40,7 @@ export class RequestTimeoutError extends Error {
 async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -62,11 +62,10 @@ async function fetchWithTimeout(
       // Request was aborted due to timeout
       const timeoutError = new RequestTimeoutError(url, timeoutMs);
 
-      console.error(
-        `[API] Request timeout after ${elapsed}ms:`,
-        url,
-        { timeoutMs, elapsed }
-      );
+      console.error(`[API] Request timeout after ${elapsed}ms:`, url, {
+        timeoutMs,
+        elapsed,
+      });
 
       // Capture in Sentry with context
       Sentry.captureException(timeoutError, {
@@ -113,7 +112,7 @@ export async function createSession(moduleSlug: string): Promise<number> {
       credentials: "include",
       body: JSON.stringify({ module_slug: moduleSlug }),
     },
-    CONTENT_TIMEOUT_MS
+    CONTENT_TIMEOUT_MS,
   );
   if (!res.ok) throw new Error("Failed to create session");
   const data = await res.json();
@@ -158,7 +157,7 @@ export interface SessionState {
 
 export async function getSession(
   sessionId: number,
-  viewStage?: number
+  viewStage?: number,
 ): Promise<SessionState> {
   const url =
     viewStage !== undefined
@@ -168,14 +167,14 @@ export async function getSession(
   const res = await fetchWithTimeout(
     url,
     { credentials: "include" },
-    CONTENT_TIMEOUT_MS
+    CONTENT_TIMEOUT_MS,
   );
   if (!res.ok) throw new Error("Failed to fetch session");
   return res.json();
 }
 
 export async function advanceStage(
-  sessionId: number
+  sessionId: number,
 ): Promise<{ completed: boolean; new_stage_index?: number }> {
   const res = await fetchWithTimeout(
     `${API_BASE}/api/module-sessions/${sessionId}/advance`,
@@ -183,7 +182,7 @@ export async function advanceStage(
       method: "POST",
       credentials: "include",
     },
-    CONTENT_TIMEOUT_MS
+    CONTENT_TIMEOUT_MS,
   );
   if (!res.ok) throw new Error("Failed to advance stage");
   return res.json();
@@ -192,7 +191,7 @@ export async function advanceStage(
 export async function* sendMessage(
   sessionId: number,
   content: string,
-  position?: { sectionIndex: number; segmentIndex: number }
+  position?: { sectionIndex: number; segmentIndex: number },
 ): AsyncGenerator<{ type: string; content?: string; name?: string }> {
   const body: Record<string, unknown> = { content };
   if (position) {
@@ -207,7 +206,7 @@ export async function* sendMessage(
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify(body),
-    }
+    },
   );
 
   if (!res.ok) throw new Error("Failed to send message");
@@ -252,10 +251,10 @@ export type ModuleCompletionResult =
 
 export async function getNextModule(
   courseSlug: string,
-  currentModuleSlug: string
+  currentModuleSlug: string,
 ): Promise<ModuleCompletionResult> {
   const res = await fetchWithTimeout(
-    `${API_BASE}/api/courses/${courseSlug}/next-module?current=${currentModuleSlug}`
+    `${API_BASE}/api/courses/${courseSlug}/next-module?current=${currentModuleSlug}`,
   );
   if (!res.ok) throw new Error("Failed to fetch next module");
   // 204 No Content means end of course
@@ -275,14 +274,14 @@ export async function getNextModule(
 }
 
 export async function claimSession(
-  sessionId: number
+  sessionId: number,
 ): Promise<{ claimed: boolean }> {
   const res = await fetchWithTimeout(
     `${API_BASE}/api/module-sessions/${sessionId}/claim`,
     {
       method: "POST",
       credentials: "include",
-    }
+    },
   );
   if (!res.ok) {
     if (res.status === 403) throw new Error("Session already claimed");
@@ -303,7 +302,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
       method: "POST",
       body: formData,
     },
-    30000 // 30 seconds for audio transcription
+    30000, // 30 seconds for audio transcription
   );
 
   if (!res.ok) {
@@ -318,11 +317,11 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
 }
 
 export async function getCourseProgress(
-  courseSlug: string
+  courseSlug: string,
 ): Promise<CourseProgress> {
   const res = await fetchWithTimeout(
     `${API_BASE}/api/courses/${courseSlug}/progress`,
-    { credentials: "include" }
+    { credentials: "include" },
   );
   if (!res.ok) throw new Error("Failed to fetch course progress");
   return res.json();

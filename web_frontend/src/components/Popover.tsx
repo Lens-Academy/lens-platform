@@ -64,7 +64,12 @@ export function Popover({
       {childWithRef}
       {isOpen && (
         <FloatingPortal>
-          <div ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()} className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50 max-w-xs">
+          <div
+            ref={refs.setFloating}
+            style={floatingStyles}
+            {...getFloatingProps()}
+            className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50 max-w-xs"
+          >
             {typeof content === "function" ? content(close) : content}
           </div>
         </FloatingPortal>

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 
 interface MobileWarningProps {
@@ -31,9 +30,8 @@ export default function MobileWarning({ onContinue }: MobileWarningProps) {
       <div className="max-w-md text-center">
         <h1 className="text-2xl font-bold text-white mb-4">Desktop Only</h1>
         <p className="text-gray-300 mb-6">
-          Lens Academy is currently only available on desktop
-          devices. Please visit on a desktop or laptop computer for the full
-          experience.
+          Lens Academy is currently only available on desktop devices. Please
+          visit on a desktop or laptop computer for the full experience.
         </p>
         <button
           onClick={onContinue}

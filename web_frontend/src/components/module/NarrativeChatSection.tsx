@@ -1,6 +1,12 @@
 // web_frontend_next/src/components/narrative-lesson/NarrativeChatSection.tsx
 
-import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useLayoutEffect,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatMessage, PendingMessage } from "@/types/module";
@@ -114,7 +120,12 @@ export default function NarrativeChatSection({
   // Scroll user's new message to top when they send
   useLayoutEffect(() => {
     // Need scrollContainerHeight > 0 so minHeight is applied before scrolling
-    if (pendingMessage && currentExchangeRef.current && scrollContainerRef.current && scrollContainerHeight > 0) {
+    if (
+      pendingMessage &&
+      currentExchangeRef.current &&
+      scrollContainerRef.current &&
+      scrollContainerHeight > 0
+    ) {
       const container = scrollContainerRef.current;
       const element = currentExchangeRef.current;
       const elementTop = element.offsetTop;
@@ -215,7 +226,7 @@ export default function NarrativeChatSection({
     const decay = 0.97;
     smoothedVolumeRef.current = Math.max(
       instantVolume,
-      smoothedVolumeRef.current * decay
+      smoothedVolumeRef.current * decay,
     );
 
     const now = performance.now();
@@ -343,7 +354,7 @@ export default function NarrativeChatSection({
       }
     } catch (err) {
       setErrorMessage(
-        err instanceof Error ? err.message : "Transcription failed"
+        err instanceof Error ? err.message : "Transcription failed",
       );
     } finally {
       cleanupRecording();
@@ -417,7 +428,8 @@ export default function NarrativeChatSection({
     e.preventDefault();
     e.stopPropagation();
     if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      scrollContainerRef.current.scrollTop =
+        scrollContainerRef.current.scrollHeight;
     }
   };
 
@@ -426,9 +438,10 @@ export default function NarrativeChatSection({
       <div
         ref={containerRef}
         className="max-w-content mx-auto border border-gray-200 rounded-lg bg-white shadow-sm flex flex-col scroll-mb-8 relative"
-        style={hasInteracted
-          ? { height: "85vh", overflowAnchor: "none" }  // Fixed height when interacted to prevent jitter during streaming
-          : { maxHeight: "85vh", minHeight: "180px", overflowAnchor: "none" }
+        style={
+          hasInteracted
+            ? { height: "85vh", overflowAnchor: "none" } // Fixed height when interacted to prevent jitter during streaming
+            : { maxHeight: "85vh", minHeight: "180px", overflowAnchor: "none" }
         }
       >
         {/* Messages area */}
@@ -471,7 +484,7 @@ export default function NarrativeChatSection({
                           )}
                         </div>
                       </div>
-                    )
+                    ),
                   )}
                 </div>
               )}
@@ -482,14 +495,20 @@ export default function NarrativeChatSection({
                 className="flex flex-col"
                 style={{
                   scrollMarginTop: "24px",
-                  minHeight: scrollContainerHeight > 0 ? `${scrollContainerHeight}px` : undefined,
+                  minHeight:
+                    scrollContainerHeight > 0
+                      ? `${scrollContainerHeight}px`
+                      : undefined,
                 }}
               >
                 <div className="space-y-3">
                   {/* Current exchange messages */}
                   {messages.slice(currentExchangeStartIndex).map((msg, i) =>
                     msg.role === "system" ? (
-                      <div key={`current-${i}`} className="flex justify-center my-3">
+                      <div
+                        key={`current-${i}`}
+                        className="flex justify-center my-3"
+                      >
                         <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
                           {msg.icon && <StageIcon type={msg.icon} small />}
                           {msg.content}
@@ -515,7 +534,7 @@ export default function NarrativeChatSection({
                           )}
                         </div>
                       </div>
-                    )
+                    ),
                   )}
 
                   {/* Pending user message */}
@@ -532,14 +551,15 @@ export default function NarrativeChatSection({
                         {pendingMessage.status === "sending" && (
                           <span className="text-gray-400">Sending...</span>
                         )}
-                        {pendingMessage.status === "failed" && onRetryMessage && (
-                          <button
-                            onClick={onRetryMessage}
-                            className="text-red-600 hover:text-red-700 text-xs focus:outline-none focus:underline"
-                          >
-                            Failed - Click to retry
-                          </button>
-                        )}
+                        {pendingMessage.status === "failed" &&
+                          onRetryMessage && (
+                            <button
+                              onClick={onRetryMessage}
+                              className="text-red-600 hover:text-red-700 text-xs focus:outline-none focus:underline"
+                            >
+                              Failed - Click to retry
+                            </button>
+                          )}
                       </div>
                       <div className="whitespace-pre-wrap text-gray-800">
                         {pendingMessage.content}
@@ -618,7 +638,10 @@ export default function NarrativeChatSection({
 
         {/* Error message */}
         {errorMessage && (
-          <div role="alert" className="px-4 py-2 bg-red-50 border-t border-red-100">
+          <div
+            role="alert"
+            className="px-4 py-2 bg-red-50 border-t border-red-100"
+          >
             <div className="text-sm text-red-600">{errorMessage}</div>
           </div>
         )}
@@ -684,7 +707,11 @@ export default function NarrativeChatSection({
                   type="button"
                   onClick={handleMicClick}
                   disabled={recordingState === "transcribing"}
-                  aria-label={recordingState === "recording" ? "Stop recording" : "Start voice recording"}
+                  aria-label={
+                    recordingState === "recording"
+                      ? "Stop recording"
+                      : "Start voice recording"
+                  }
                   className="p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-default bg-gray-100 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {recordingState === "transcribing" ? (
@@ -737,7 +764,11 @@ export default function NarrativeChatSection({
                     aria-label="Stop recording"
                     className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[70px] flex items-center justify-center"
                   >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-5 h-5"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <rect x="6" y="6" width="12" height="12" rx="1" />
                     </svg>
                   </button>
@@ -745,7 +776,9 @@ export default function NarrativeChatSection({
               ) : (
                 <button
                   type="submit"
-                  disabled={isLoading || !input.trim() || recordingState !== "idle"}
+                  disabled={
+                    isLoading || !input.trim() || recordingState !== "idle"
+                  }
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-default min-w-[70px]"
                 >
                   Send

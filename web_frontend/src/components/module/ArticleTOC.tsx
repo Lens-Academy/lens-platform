@@ -30,9 +30,7 @@ export default function ArticleTOC({
       </h2>
 
       {/* Author */}
-      {author && (
-        <p className="text-sm text-gray-500 mt-1">by {author}</p>
-      )}
+      {author && <p className="text-sm text-gray-500 mt-1">by {author}</p>}
 
       {/* Divider */}
       <hr className="my-4 border-gray-200" />
@@ -47,10 +45,7 @@ export default function ArticleTOC({
             isPassed && (!nextHeading || !passedHeadingIds.has(nextHeading.id));
 
           return (
-            <li
-              key={heading.id}
-              className={heading.level === 3 ? "pl-4" : ""}
-            >
+            <li key={heading.id} className={heading.level === 3 ? "pl-4" : ""}>
               <button
                 onClick={() => onHeadingClick(heading.id)}
                 className={`text-left text-sm leading-snug transition-colors hover:text-gray-900 focus:outline-none ${
