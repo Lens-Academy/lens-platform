@@ -6,8 +6,8 @@ type ArticleTOCProps = {
   title: string;
   author: string | null;
   headings: HeadingItem[];
-  /** IDs of headings that have been scrolled past or are current */
-  passedHeadingIds: Set<string>;
+  /** ID of the current heading (last one scrolled past threshold), or null */
+  currentHeadingId: string | null;
   onHeadingClick: (id: string) => void;
 };
 
@@ -19,9 +19,14 @@ export default function ArticleTOC({
   title,
   author,
   headings,
-  passedHeadingIds,
+  currentHeadingId,
   onHeadingClick,
 }: ArticleTOCProps) {
+  // Find the index of the current heading to derive passed/current status
+  const currentIndex = currentHeadingId
+    ? headings.findIndex((h) => h.id === currentHeadingId)
+    : -1;
+
   return (
     <nav aria-label="Article table of contents">
       {/* Article title */}
@@ -40,11 +45,8 @@ export default function ArticleTOC({
       {/* Headings list */}
       <ul className="space-y-2" role="list">
         {headings.map((heading, index) => {
-          const isPassed = passedHeadingIds.has(heading.id);
-          // Current = last passed heading (most recent one scrolled to)
-          const nextHeading = headings[index + 1];
-          const isCurrent =
-            isPassed && (!nextHeading || !passedHeadingIds.has(nextHeading.id));
+          const isCurrent = index === currentIndex;
+          const isPassed = index < currentIndex;
 
           return (
             <li

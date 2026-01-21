@@ -55,7 +55,7 @@ export default function ArticleExcerptGroup({
               title={section.meta.title}
               author={section.meta.author}
               headings={allHeadings}
-              passedHeadingIds={context?.passedHeadingIds ?? new Set()}
+              currentHeadingId={context?.currentHeadingId ?? null}
               onHeadingClick={context?.onHeadingClick ?? (() => {})}
             />
           </div>

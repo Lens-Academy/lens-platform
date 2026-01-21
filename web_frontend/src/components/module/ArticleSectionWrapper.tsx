@@ -16,9 +16,7 @@ type ArticleSectionWrapperProps = {
 export default function ArticleSectionWrapper({
   children,
 }: ArticleSectionWrapperProps) {
-  const [passedHeadingIds, setPassedHeadingIds] = useState<Set<string>>(
-    new Set(),
-  );
+  const [currentHeadingId, setCurrentHeadingId] = useState<string | null>(null);
   const headingElementsRef = useRef<Map<string, HTMLElement>>(new Map());
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -74,27 +72,23 @@ export default function ArticleSectionWrapper({
     [],
   );
 
-  // Recalculate all passed headings based on current scroll position
-  // This is called when IntersectionObserver fires, ensuring consistency
-  const recalculatePassedHeadings = useCallback(() => {
+  // Find the current heading (last one above the threshold)
+  // This is called when IntersectionObserver fires
+  const recalculateCurrentHeading = useCallback(() => {
     const threshold = window.innerHeight * 0.35;
-    const passed = new Set<string>();
+    let currentId: string | null = null;
+    let currentTop = -Infinity;
 
+    // Find the heading closest to (but above) the threshold
     headingElementsRef.current.forEach((element, id) => {
       const top = element.getBoundingClientRect().top;
-      if (top < threshold) {
-        passed.add(id);
+      if (top < threshold && top > currentTop) {
+        currentTop = top;
+        currentId = id;
       }
     });
 
-    // Only update if changed
-    setPassedHeadingIds((prev) => {
-      if (prev.size !== passed.size) return passed;
-      for (const id of passed) {
-        if (!prev.has(id)) return passed;
-      }
-      return prev;
-    });
+    setCurrentHeadingId((prev) => (prev === currentId ? prev : currentId));
   }, []);
 
   // IntersectionObserver triggers recalculation when any heading crosses the threshold
@@ -103,8 +97,8 @@ export default function ArticleSectionWrapper({
   useEffect(() => {
     const observer = new IntersectionObserver(
       () => {
-        // Any intersection change triggers a full recalculation
-        recalculatePassedHeadings();
+        // Any intersection change triggers a recalculation
+        recalculateCurrentHeading();
       },
       {
         // Observation zone is top 35% of viewport
@@ -121,13 +115,13 @@ export default function ArticleSectionWrapper({
     });
 
     // Initial calculation
-    recalculatePassedHeadings();
+    recalculateCurrentHeading();
 
     return () => {
       observer.disconnect();
       observerRef.current = null;
     };
-  }, [recalculatePassedHeadings]);
+  }, [recalculateCurrentHeading]);
 
   const handleHeadingClick = useCallback((id: string) => {
     const element = headingElementsRef.current.get(id);
@@ -141,10 +135,10 @@ export default function ArticleSectionWrapper({
       getHeadingId,
       registerHeadingIds,
       onHeadingRender: handleHeadingRender,
-      passedHeadingIds,
+      currentHeadingId,
       onHeadingClick: handleHeadingClick,
     }),
-    [getHeadingId, registerHeadingIds, handleHeadingRender, passedHeadingIds, handleHeadingClick],
+    [getHeadingId, registerHeadingIds, handleHeadingRender, currentHeadingId, handleHeadingClick],
   );
 
   return (

@@ -8,7 +8,8 @@ type ArticleSectionContextValue = {
   /** Register pre-computed heading IDs from extractAllHeadings */
   registerHeadingIds: (headings: Array<{ id: string; text: string }>) => void;
   onHeadingRender: (id: string, element: HTMLElement) => void;
-  passedHeadingIds: Set<string>;
+  /** ID of the current heading (last one scrolled past the threshold) */
+  currentHeadingId: string | null;
   onHeadingClick: (id: string) => void;
 };
 
