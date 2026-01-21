@@ -12,7 +12,7 @@ This roadmap transforms the AI Safety Course Platform from desktop-only to fully
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation & Typography** - Viewport units, safe areas, and mobile typography baseline
+- [x] **Phase 1: Foundation & Typography** - Viewport units, safe areas, and mobile typography baseline
 - [ ] **Phase 2: Responsive Layout** - Navigation collapse, drawer overlays, and layout structure
 - [ ] **Phase 3: Content Components** - Video embeds, article padding, and progress navigation
 - [ ] **Phase 4: Chat Interface** - Mobile chat with keyboard handling and touch gestures
@@ -33,8 +33,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans (Wave 1 parallel)
 
 Plans:
-- [ ] 01-01-PLAN.md — Remove mobile blocker and configure viewport foundations
-- [ ] 01-02-PLAN.md — Migrate viewport height units to dvh
+- [x] 01-01-PLAN.md — Remove mobile blocker and configure viewport foundations
+- [x] 01-02-PLAN.md — Migrate viewport height units to dvh
 
 ### Phase 2: Responsive Layout
 **Goal**: Students can navigate the app on mobile — header collapses to hamburger, drawers work as overlays, all touch targets are accessible
@@ -109,7 +109,7 @@ Note: Phases 2 and 3 can run in parallel after Phase 1 completes.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Typography | 0/2 | Not started | - |
+| 1. Foundation & Typography | 2/2 | Complete | 2026-01-21 |
 | 2. Responsive Layout | 0/3 | Not started | - |
 | 3. Content Components | 0/2 | Not started | - |
 | 4. Chat Interface | 0/2 | Not started | - |
