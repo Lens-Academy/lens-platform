@@ -58,7 +58,7 @@ export function MobileMenu({
         <div className="flex justify-end p-4">
           <button
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600 hover:text-slate-900"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600 hover:text-slate-900 transition-transform active:scale-95"
             aria-label="Close menu"
           >
             <X className="w-6 h-6" />
@@ -70,7 +70,7 @@ export function MobileMenu({
           <a
             href="/course"
             onClick={onClose}
-            className="text-lg font-medium text-slate-900 py-3"
+            className="text-lg font-medium text-slate-900 py-3 transition-transform active:scale-[0.97]"
           >
             Course
           </a>

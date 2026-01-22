@@ -56,7 +56,7 @@ export default function ModuleDrawer({
       {/* Floating toggle - always mounted, hidden via CSS when drawer is open */}
       <button
         onMouseDown={handleOpen}
-        className={`fixed left-0 z-50 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-md px-1.5 py-3 hover:bg-gray-50 transition-colors min-h-[44px] min-w-[44px] ${
+        className={`fixed left-0 z-50 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-md px-1.5 py-3 hover:bg-gray-50 transition-all active:scale-95 min-h-[44px] min-w-[44px] ${
           isOpen ? "opacity-0 pointer-events-none" : ""
         }`}
         style={{ top: "calc(4rem + var(--safe-top, 0px))" }}
@@ -96,7 +96,7 @@ export default function ModuleDrawer({
           </h3>
           <button
             onMouseDown={handleClose}
-            className="p-3 min-h-[44px] min-w-[44px] hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center"
+            className="p-3 min-h-[44px] min-w-[44px] hover:bg-slate-100 rounded-lg transition-all active:scale-95 flex items-center justify-center"
             title="Close sidebar"
           >
             <PanelLeftClose className="w-5 h-5 text-slate-500" />
