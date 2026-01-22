@@ -11,16 +11,16 @@ import ModuleOverview from "../course/ModuleOverview";
 type ModuleDrawerProps = {
   moduleTitle: string;
   stages: StageInfo[];
-  currentStageIndex: number;
-  viewedStageIndex?: number;
+  completedStages: Set<number>;
+  viewingIndex: number;
   onStageClick: (index: number) => void;
 };
 
 export default function ModuleDrawer({
   moduleTitle,
   stages,
-  currentStageIndex,
-  viewedStageIndex,
+  completedStages,
+  viewingIndex,
   onStageClick,
 }: ModuleDrawerProps) {
   // State is owned here - not in parent
@@ -85,8 +85,8 @@ export default function ModuleDrawer({
             moduleTitle={moduleTitle}
             stages={stages}
             status="in_progress"
-            currentStageIndex={currentStageIndex}
-            viewedStageIndex={viewedStageIndex}
+            completedStages={completedStages}
+            viewingIndex={viewingIndex}
             onStageClick={onStageClick}
             showActions={false}
           />

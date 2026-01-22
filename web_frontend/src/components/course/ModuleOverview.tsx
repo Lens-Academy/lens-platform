@@ -10,8 +10,8 @@ type ModuleOverviewProps = {
   moduleTitle: string;
   stages: StageInfo[];
   status: ModuleStatus;
-  currentStageIndex: number | null;
-  viewedStageIndex?: number | null; // Which stage is currently being viewed (for selection ring)
+  completedStages: Set<number>;
+  viewingIndex: number;
   onStageClick?: (index: number) => void;
   onStartModule?: () => void;
   showActions?: boolean;
@@ -21,21 +21,16 @@ export default function ModuleOverview({
   moduleTitle,
   stages,
   status,
-  currentStageIndex,
-  viewedStageIndex,
+  completedStages,
+  viewingIndex,
   onStageClick,
   onStartModule,
   showActions = true,
 }: ModuleOverviewProps) {
-  const effectiveCurrentIndex = currentStageIndex ?? -1;
-  const effectiveViewedIndex = viewedStageIndex ?? effectiveCurrentIndex;
-
-  const getStageState = (index: number) => {
-    if (status === "completed") return "completed";
-    if (index < effectiveCurrentIndex) return "completed";
-    if (index === effectiveCurrentIndex) return "current";
-    return "future";
-  };
+  // Calculate highest completed index for line coloring
+  const highestCompleted = completedStages.size > 0
+    ? Math.max(...completedStages)
+    : -1;
 
   const getActionLabel = () => {
     if (status === "completed") return "Review Module";
@@ -53,15 +48,35 @@ export default function ModuleOverview({
         {/* pl-1 gives space for the selection ring to not be cut off */}
         <div className="relative pl-1">
           {/* Continuous progress line - left-[1.125rem] = pl-1 (4px) + half of w-7 (14px) = 18px */}
-          <div className="absolute left-[1.125rem] top-5 bottom-5 w-0.5 -translate-x-1/2 bg-slate-200" />
-          {status !== "not_started" && (
+          {/* Base gray line */}
+          <div className="absolute left-[1.125rem] top-5 bottom-5 w-0.5 -translate-x-1/2 bg-gray-200" />
+          {/* Blue line: up to highest completed, or to viewing if adjacent to completed */}
+          {(() => {
+            const viewingIsAdjacent = completedStages.has(viewingIndex - 1);
+            const blueEndIndex = viewingIsAdjacent && viewingIndex > highestCompleted
+              ? viewingIndex
+              : highestCompleted;
+
+            if (blueEndIndex < 0) return null;
+
+            return (
+              <div
+                className="absolute left-[1.125rem] top-5 w-0.5 -translate-x-1/2 bg-blue-400 transition-all duration-300"
+                style={{
+                  height: `calc(${((blueEndIndex + 0.5) / stages.length) * 100}% - 1.25rem)`,
+                }}
+              />
+            );
+          })()}
+          {/* Dark gray line from blue end to viewing (if viewing is beyond and not adjacent) */}
+          {viewingIndex > highestCompleted && !completedStages.has(viewingIndex - 1) && (
             <div
-              className="absolute left-[1.125rem] top-5 w-0.5 -translate-x-1/2 bg-blue-500 transition-all duration-300"
+              className="absolute left-[1.125rem] w-0.5 -translate-x-1/2 bg-gray-400 transition-all duration-300"
               style={{
-                height:
-                  status === "completed"
-                    ? "calc(100% - 2.5rem)"
-                    : `calc(${((effectiveCurrentIndex + 0.5) / stages.length) * 100}% - 1.25rem)`,
+                top: highestCompleted >= 0
+                  ? `calc(${((highestCompleted + 0.5) / stages.length) * 100}%)`
+                  : '1.25rem',
+                height: `calc(${((viewingIndex - Math.max(highestCompleted, -0.5)) / stages.length) * 100}%)`,
               }}
             />
           )}
@@ -69,9 +84,33 @@ export default function ModuleOverview({
           {/* Stages */}
           <div className="space-y-2">
             {stages.map((stage, index) => {
-              const state = getStageState(index);
+              const isCompleted = completedStages.has(index);
+              const isViewing = index === viewingIndex;
               const isClickable = onStageClick && stage.type !== "chat";
-              const isViewed = index === effectiveViewedIndex;
+
+              // Circle fill color logic (matches horizontal bar)
+              const getCircleClasses = () => {
+                if (stage.optional) {
+                  return isCompleted
+                    ? "bg-transparent text-blue-500 border-2 border-dashed border-blue-400"
+                    : "bg-transparent text-gray-400 border-2 border-dashed border-gray-400";
+                }
+                if (isCompleted) {
+                  return "bg-blue-500 text-white";
+                }
+                if (isViewing) {
+                  return "bg-gray-500 text-white"; // Dark gray for viewing + not completed
+                }
+                return "bg-gray-200 text-gray-400"; // Light gray for not completed
+              };
+
+              // Ring color matches fill
+              const getRingClasses = () => {
+                if (!isViewing) return "";
+                return isCompleted
+                  ? "ring-2 ring-offset-2 ring-blue-500"
+                  : "ring-2 ring-offset-2 ring-gray-500";
+              };
 
               return (
                 <div
@@ -81,15 +120,9 @@ export default function ModuleOverview({
                   }`}
                   onClick={() => isClickable && onStageClick(index)}
                 >
-                  {/* Circle - ring shows for viewed stage, dashed border for optional */}
+                  {/* Circle */}
                   <div
-                    className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      stage.optional
-                        ? "bg-white border-2 border-dashed border-slate-400 text-slate-400"
-                        : state === "completed" || state === "current"
-                          ? "bg-blue-500 text-white"
-                          : "bg-slate-300 text-slate-500"
-                    } ${isViewed ? "ring-2 ring-offset-2 ring-blue-500" : ""}`}
+                    className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${getCircleClasses()} ${getRingClasses()}`}
                   >
                     <StageIcon type={stage.type} small />
                   </div>
@@ -99,9 +132,9 @@ export default function ModuleOverview({
                     <div className="flex items-center gap-2">
                       <span
                         className={`font-medium ${
-                          state === "future"
-                            ? "text-slate-400"
-                            : "text-slate-900"
+                          isCompleted || isViewing
+                            ? "text-slate-900"
+                            : "text-slate-400"
                         }`}
                       >
                         {stage.title}

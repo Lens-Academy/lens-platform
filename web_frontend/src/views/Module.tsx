@@ -183,16 +183,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // View mode state (default to paginated)
   const [viewMode] = useState<ViewMode>("paginated");
 
-  // Derive furthest completed index for progress bar display
-  // Progress bar shows stages as "reached" based on this, not scroll position
-  const furthestCompletedIndex = useMemo(() => {
-    let max = -1;
-    completedSections.forEach((idx) => {
-      if (idx > max) max = idx;
-    });
-    return max;
-  }, [completedSections]);
-
   // Convert sections to Stage format for progress bar
   // StageProgressBar only uses the `type` field for icon display
   const stages: Stage[] = useMemo(() => {
@@ -734,18 +724,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         <ModuleHeader
           moduleTitle={module.title}
           stages={stages}
-          currentStageIndex={furthestCompletedIndex + 1}
-          viewingStageIndex={viewingStageIndex ?? currentSectionIndex}
-          isViewingOther={
-            viewingStageIndex !== null &&
-            viewingStageIndex !== currentSectionIndex
-          }
+          completedStages={completedSections}
+          viewingIndex={viewingStageIndex ?? currentSectionIndex}
           canGoPrevious={currentSectionIndex > 0}
           canGoNext={currentSectionIndex < module.sections.length - 1}
           onStageClick={handleStageClick}
           onPrevious={handlePrevious}
           onNext={handleNext}
-          onReturnToCurrent={() => setViewingStageIndex(null)}
         />
       </div>
 
@@ -880,8 +865,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       <ModuleDrawer
         moduleTitle={module.title}
         stages={stagesForDrawer}
-        currentStageIndex={furthestCompletedIndex + 1}
-        viewedStageIndex={viewingStageIndex ?? currentSectionIndex}
+        completedStages={completedSections}
+        viewingIndex={viewingStageIndex ?? currentSectionIndex}
         onStageClick={handleStageClick}
       />
 

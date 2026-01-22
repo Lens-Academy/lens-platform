@@ -3,7 +3,7 @@
  * Sidebar shows units/modules, main panel shows selected module details.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { navigate } from "vike/client/router";
 import { ChevronRight } from "lucide-react";
 import { getCourseProgress } from "../api/modules";
@@ -83,6 +83,28 @@ export default function CourseOverview({
       sessionId: selectedModule.sessionId,
     });
   };
+
+  // Compute completedStages and viewingIndex for ModuleOverview
+  const { completedStages, viewingIndex } = useMemo(() => {
+    if (!selectedModule) {
+      return { completedStages: new Set<number>(), viewingIndex: 0 };
+    }
+    const completed = new Set<number>();
+    const currentIdx = selectedModule.currentStageIndex ?? 0;
+
+    if (selectedModule.status === "completed") {
+      // All stages completed
+      selectedModule.stages.forEach((_, i) => completed.add(i));
+    } else if (selectedModule.status === "in_progress") {
+      // Stages before current are completed
+      for (let i = 0; i < currentIdx; i++) {
+        completed.add(i);
+      }
+    }
+    // For "not_started", completed stays empty
+
+    return { completedStages: completed, viewingIndex: currentIdx };
+  }, [selectedModule]);
 
   // Find unit for breadcrumb
   const selectedUnit = courseProgress?.units.find((u) =>
@@ -180,7 +202,8 @@ export default function CourseOverview({
               moduleTitle={selectedModule.title}
               stages={selectedModule.stages}
               status={selectedModule.status}
-              currentStageIndex={selectedModule.currentStageIndex}
+              completedStages={completedStages}
+              viewingIndex={viewingIndex}
               onStageClick={handleStageClick}
               onStartModule={handleStartModule}
             />

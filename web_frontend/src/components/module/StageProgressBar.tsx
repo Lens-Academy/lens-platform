@@ -4,8 +4,8 @@ import { Tooltip } from "../Tooltip";
 
 type StageProgressBarProps = {
   stages: Stage[];
-  currentStageIndex: number; // Actual progress (rightmost reached)
-  viewingStageIndex: number | null; // What's being viewed (null = current)
+  completedStages: Set<number>; // Which stages are completed (can be non-contiguous)
+  viewingIndex: number; // What's currently being viewed
   onStageClick: (index: number) => void;
   onPrevious: () => void;
   onNext: () => void;
@@ -62,46 +62,49 @@ export function StageIcon({
 function getTooltipContent(
   stage: Stage,
   index: number,
-  currentStageIndex: number,
+  isCompleted: boolean,
+  isViewing: boolean,
 ): string {
-  const isFuture = index > currentStageIndex;
-  const isPastChat = stage.type === "chat" && index < currentStageIndex;
-  const isFutureChat = stage.type === "chat" && index > currentStageIndex;
-  const isCurrentChat = stage.type === "chat" && index === currentStageIndex;
   const isOptional = "optional" in stage && stage.optional === true;
   const optionalPrefix = isOptional ? "(Optional) " : "";
 
-  if (isFutureChat) return "Chat sections can't be previewed";
-  if (isFuture) return `${optionalPrefix}Preview ${stage.type} section`;
-  if (isPastChat) return "Chat sections can't be revisited";
-  if (isCurrentChat) return "Return to chat";
+  if (isViewing) {
+    return isCompleted ? "Currently viewing (completed)" : "Currently viewing";
+  }
+  if (isCompleted) {
+    return `${optionalPrefix}View ${stage.type} section (completed)`;
+  }
   return `${optionalPrefix}View ${stage.type} section`;
 }
 
 export default function StageProgressBar({
   stages,
-  currentStageIndex,
-  viewingStageIndex,
+  completedStages,
+  viewingIndex,
   onStageClick,
   onPrevious,
   onNext,
   canGoPrevious,
   canGoNext,
 }: StageProgressBarProps) {
-  const viewingIndex = viewingStageIndex ?? currentStageIndex;
+  // Calculate highest completed index for bar coloring
+  const highestCompleted = completedStages.size > 0
+    ? Math.max(...completedStages)
+    : -1;
 
-  const handleDotClick = (index: number, stage: Stage) => {
-    // Past chat stages can't be revisited
-    if (stage.type === "chat" && index < currentStageIndex) {
-      return;
-    }
+  // Bar color logic:
+  // - Blue up to highest completed
+  // - Blue to viewing if viewing is adjacent to a completed section
+  // - Dark gray to viewing if we skipped sections
+  // - Light gray beyond
+  const getBarColor = (index: number) => {
+    if (index <= highestCompleted) return "bg-blue-400";
+    if (index === viewingIndex && completedStages.has(index - 1)) return "bg-blue-400";
+    if (index <= viewingIndex) return "bg-gray-400";
+    return "bg-gray-200";
+  };
 
-    // Future chat stages can't be previewed (no content to show)
-    if (stage.type === "chat" && index > currentStageIndex) {
-      return;
-    }
-
-    // Navigate to stage (including future for preview)
+  const handleDotClick = (index: number) => {
     onStageClick(index);
   };
 
@@ -133,56 +136,50 @@ export default function StageProgressBar({
       {/* Stage dots */}
       <div className="flex items-center">
         {stages.map((stage, index) => {
-          const isReached = index <= currentStageIndex;
+          const isCompleted = completedStages.has(index);
           const isViewing = index === viewingIndex;
-          const isPastChat = stage.type === "chat" && index < currentStageIndex;
-          const isFutureChat =
-            stage.type === "chat" && index > currentStageIndex;
-          const isClickable = isReached && !isPastChat;
-          const isFuture = index > currentStageIndex;
           const isOptional = "optional" in stage && stage.optional === true;
-          const canPreview = isFuture && !isFutureChat; // Future non-chat stages can be previewed
+
+          // Determine fill color:
+          // - Completed: blue
+          // - Not completed + viewing: dark gray
+          // - Not completed + not viewing: light gray
+          const getFillClasses = () => {
+            if (isOptional) {
+              return isCompleted
+                ? "bg-transparent text-blue-500 border-2 border-dashed border-blue-400 hover:border-blue-500"
+                : "bg-transparent text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500";
+            }
+            if (isCompleted) {
+              return "bg-blue-500 text-white hover:bg-blue-600";
+            }
+            if (isViewing) {
+              return "bg-gray-500 text-white hover:bg-gray-600"; // Dark gray for viewing + not completed
+            }
+            return "bg-gray-200 text-gray-400 hover:bg-gray-300"; // Light gray for not completed
+          };
 
           return (
             <div key={index} className="flex items-center">
               {/* Connector line (except before first) */}
               {index > 0 && (
                 <div
-                  className={`w-4 h-0.5 ${
-                    index <= currentStageIndex ? "bg-blue-400" : "bg-gray-300"
-                  }`}
+                  className={`w-4 h-0.5 ${getBarColor(index)}`}
                 />
               )}
 
               {/* Dot */}
               <Tooltip
-                content={getTooltipContent(stage, index, currentStageIndex)}
+                content={getTooltipContent(stage, index, isCompleted, isViewing)}
                 placement="bottom"
-                persistOnClick={isPastChat}
               >
                 <button
-                  onClick={() => handleDotClick(index, stage)}
-                  disabled={
-                    stage.type === "chat" &&
-                    index !== currentStageIndex &&
-                    index !== viewingIndex
-                  }
+                  onClick={() => handleDotClick(index)}
                   className={`
                     relative w-7 h-7 rounded-full flex items-center justify-center
-                    transition-all duration-150 disabled:cursor-default
-                    ${
-                      isOptional
-                        ? "bg-transparent text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500"
-                        : isReached
-                          ? isClickable
-                            ? "bg-blue-500 text-white hover:bg-blue-600"
-                            : "bg-blue-500 text-white"
-                          : canPreview
-                            ? "bg-gray-300 text-gray-500 hover:bg-gray-400"
-                            : "bg-gray-300 text-gray-500"
-                    }
-                    ${isViewing ? "ring-2 ring-offset-2 ring-blue-500" : ""}
-                    ${isFuture ? "opacity-50" : ""}
+                    transition-all duration-150
+                    ${getFillClasses()}
+                    ${isViewing ? `ring-2 ring-offset-2 ${isCompleted ? "ring-blue-500" : "ring-gray-500"}` : ""}
                   `}
                 >
                   <StageIcon type={stage.type} small />

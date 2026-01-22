@@ -6,29 +6,25 @@ import type { Stage } from "../types/module";
 interface ModuleHeaderProps {
   moduleTitle: string;
   stages: Stage[];
-  currentStageIndex: number;
-  viewingStageIndex: number | null;
-  isViewingOther: boolean;
+  completedStages: Set<number>;
+  viewingIndex: number;
   canGoPrevious: boolean;
   canGoNext: boolean;
   onStageClick: (index: number) => void;
   onPrevious: () => void;
   onNext: () => void;
-  onReturnToCurrent: () => void;
 }
 
 export function ModuleHeader({
   moduleTitle,
   stages,
-  currentStageIndex,
-  viewingStageIndex,
-  isViewingOther,
+  completedStages,
+  viewingIndex,
   canGoPrevious,
   canGoNext,
   onStageClick,
   onPrevious,
   onNext,
-  onReturnToCurrent,
 }: ModuleHeaderProps) {
   const [
     { needsTwoRows, needsTruncation },
@@ -83,8 +79,8 @@ export function ModuleHeader({
           >
             <StageProgressBar
               stages={stages}
-              currentStageIndex={currentStageIndex}
-              viewingStageIndex={viewingStageIndex}
+              completedStages={completedStages}
+              viewingIndex={viewingIndex}
               onStageClick={onStageClick}
               onPrevious={onPrevious}
               onNext={onNext}
@@ -98,14 +94,6 @@ export function ModuleHeader({
 
           {/* Right section: Controls */}
           <div ref={rightRef} className="flex items-center gap-4">
-            {isViewingOther && (
-              <button
-                onClick={onReturnToCurrent}
-                className="text-emerald-600 hover:text-emerald-700 text-sm font-medium whitespace-nowrap"
-              >
-                Return to current →
-              </button>
-            )}
             <UserMenu />
           </div>
         </div>
@@ -115,8 +103,8 @@ export function ModuleHeader({
           <div className="flex justify-center">
             <StageProgressBar
               stages={stages}
-              currentStageIndex={currentStageIndex}
-              viewingStageIndex={viewingStageIndex}
+              completedStages={completedStages}
+              viewingIndex={viewingIndex}
               onStageClick={onStageClick}
               onPrevious={onPrevious}
               onNext={onNext}
