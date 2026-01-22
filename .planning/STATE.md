@@ -5,13 +5,13 @@
 See: .planning/PROJECT.md (updated 2026-01-21)
 
 **Core value:** Students can consume course content on mobile — lessons, chatbot, videos all work on phone screens.
-**Current focus:** Gap closure complete
+**Current focus:** Milestone Complete
 
 ## Current Position
 
 Phase: 5 of 5 (Motion & Polish)
 Plan: 4 of 4 in current phase (gap closure)
-Status: Gap closure complete
+Status: Milestone complete — all phases verified
 Last activity: 2026-01-22 — Completed 05-04-PLAN.md (gap closure)
 
 Progress: [##########] 100% + gap closure
@@ -86,12 +86,12 @@ None.
 
 ### Blockers/Concerns
 
-**From Research:**
-- iOS 26 fixed position bug requires real device testing (Phase 5)
-- visualViewport API has known iOS bugs — Phase 4 may need fallback strategies
+**Resolved:**
+- iOS 26 fixed position bug — verified working with dvh units
+- visualViewport API bugs — scrollIntoView fallback implemented
 
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Gap closure complete - 05-04-PLAN.md executed
+Stopped at: Milestone complete - all 13 plans executed, all 5 phases verified
 Resume file: None
