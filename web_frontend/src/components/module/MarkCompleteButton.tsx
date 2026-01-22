@@ -29,7 +29,7 @@ export default function MarkCompleteButton({
         {hasNext && onNext && (
           <button
             onClick={onNext}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
           >
             Next section
             <svg
@@ -55,7 +55,7 @@ export default function MarkCompleteButton({
     <div className="flex items-center justify-center py-6">
       <button
         onClick={onComplete}
-        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
       >
         <svg
           className="w-5 h-5"
