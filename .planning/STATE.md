@@ -2,19 +2,27 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-01-21)
+See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Students can consume course content on mobile — lessons, chatbot, videos all work on phone screens.
-**Current focus:** Milestone Complete
+**Current focus:** v1.0 shipped — ready for next milestone
 
 ## Current Position
 
-Phase: 5 of 5 (Motion & Polish)
-Plan: 4 of 4 in current phase (gap closure)
-Status: Milestone complete — all phases verified
-Last activity: 2026-01-22 — Completed 05-04-PLAN.md (gap closure)
+Phase: — (milestone complete)
+Plan: —
+Status: v1.0 shipped
+Last activity: 2026-01-22 — v1.0 Mobile Responsiveness milestone complete
 
-Progress: [##########] 100% + gap closure
+Progress: [##########] 100% — SHIPPED
+
+## Milestone Summary
+
+**v1.0 Mobile Responsiveness:**
+- 5 phases, 13 plans completed
+- 29/29 requirements satisfied
+- 2 days from start to ship
+- Tagged: v1.0
 
 ## Performance Metrics
 
@@ -33,52 +41,13 @@ Progress: [##########] 100% + gap closure
 | 04-chat-interface | 2 | ~5 min | ~2.5 min |
 | 05-motion-polish | 4 | ~9.5 min | ~2.4 min |
 
-**Recent Trend:**
-- Last 5 plans: 05-01 (2.5 min), 05-02 (3 min), 05-03 (2 min), 05-04 (2 min)
-- Trend: Consistent ~2-2.5 min execution
-
-*Updated after each plan completion*
-
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- 18px body text exceeds iOS 16px zoom threshold
-- Mobile-first typography scale with non-proportional desktop step-up
-- Safe area CSS variables defined in globals.css, consumed in Phase 2
-- Use Tailwind v4 built-in h-dvh/min-h-dvh utilities (no custom CSS needed)
-- dvh units for all full-height containers for iOS Safari compatibility
-- 100px threshold for scroll direction to prevent flickering (02-01)
-- Menu slides from right for natural mobile gesture flow (02-01)
-- z-50 for header, z-60 for menu overlay stacking (02-01)
-- 80% width on mobile for drawers (vs max-w-md) per CONTEXT.md guidance (02-02)
-- Semi-transparent backdrop (bg-black/50) for drawer visibility on mobile (02-02)
-- Body scroll lock only on mobile when drawer open (02-02)
-- Force two-row layout on mobile for ModuleHeader (02-03)
-- Hide "Lens Academy" text on mobile, show only logo (02-03)
-- Bottom nav with Home and Course items as primary mobile navigation (02-03)
-- whitespace-pre-wrap + break-words for code blocks (03-01)
-- negative margins (-mx-4) for image breakout on mobile (03-01)
-- blue-50 background with blue-400 border for blockquotes (03-01)
-- 10ms default haptic duration for subtle tap feedback (03-02)
-- 44px touch targets match iOS HIG minimum (03-02)
-- Haptic triggers on all taps for consistent tactile feedback (03-02)
-- 100ms delay on scrollIntoView for iOS keyboard animation (04-01)
-- space-y-4 (16px) for mobile message separation (04-01)
-- 44px minimum height for chat input buttons (04-02)
-- Haptic feedback on message send for tactile confirmation (04-02)
-- CSS linear() function for spring easing (05-01)
-- 300ms duration for drawer transitions with spring overshoot (05-01)
-- scale-95 for buttons, scale-[0.97] for nav items (05-01)
-- 200ms crossfade for view transitions (05-02)
-- Silent fallback for browsers without View Transitions API (05-02)
-- Skeleton variants: text/circular/rectangular (05-02)
-- Uniform active:scale-95 for all buttons (05-03)
-- All loading states use Skeleton components (05-04)
-- Stagger animation applied to loading skeleton cards (05-04)
+All v1.0 decisions are now archived in:
+- `.planning/milestones/v1.0-ROADMAP.md`
+- `.planning/PROJECT.md` Key Decisions table
 
 ### Pending Todos
 
@@ -86,12 +55,18 @@ None.
 
 ### Blockers/Concerns
 
-**Resolved:**
-- iOS 26 fixed position bug — verified working with dvh units
-- visualViewport API bugs — scrollIntoView fallback implemented
+None — milestone shipped cleanly.
 
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Milestone complete - all 13 plans executed, all 5 phases verified
+Stopped at: v1.0 milestone complete and archived
 Resume file: None
+
+## Next Steps
+
+Run `/gsd:new-milestone` to start the next milestone with:
+1. Questioning phase to gather context
+2. Research phase for domain exploration
+3. Requirements definition
+4. Roadmap creation
