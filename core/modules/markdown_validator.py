@@ -74,13 +74,13 @@ ALLOWED_SECTION_FIELDS = {
     "video": {"source", "optional"},
     "article": {"source", "optional"},
     "text": {"content"},
-    "chat": {"instructions", "showUserPreviousContent", "showTutorPreviousContent"},
+    "chat": {"instructions", "hidePreviousContentFromUser", "hidePreviousContentFromTutor"},
 }
 
 # Allowed fields per segment type
 ALLOWED_SEGMENT_FIELDS = {
     "text": {"content"},
-    "chat": {"instructions", "showUserPreviousContent", "showTutorPreviousContent"},
+    "chat": {"instructions", "hidePreviousContentFromUser", "hidePreviousContentFromTutor"},
     "video-excerpt": {"from", "to"},
     "article-excerpt": {"from", "to"},
 }

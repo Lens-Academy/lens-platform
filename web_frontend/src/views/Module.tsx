@@ -184,21 +184,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const [viewMode] = useState<ViewMode>("paginated");
 
   // Convert sections to Stage format for progress bar
-  // StageProgressBar only uses the `type` field for icon display
   const stages: Stage[] = useMemo(() => {
     if (!module) return [];
-    return module.sections.map((section): Stage => {
+    return module.sections.map((section, index): Stage => {
       const stageType = section.type === "text" ? "article" : section.type;
+      const title =
+        section.type === "text"
+          ? `Section ${index + 1}`
+          : section.meta?.title || `${section.type || "Section"} ${index + 1}`;
       if (stageType === "article") {
-        return { type: "article", source: "", from: null, to: null };
+        return { type: "article", source: "", from: null, to: null, title };
       } else if (stageType === "video" && section.type === "video") {
-        return { type: "video", videoId: section.videoId, from: 0, to: null };
+        return { type: "video", videoId: section.videoId, from: 0, to: null, title };
       } else {
         return {
           type: "chat",
           instructions: "",
-          showUserPreviousContent: false,
-          showTutorPreviousContent: false,
+          hidePreviousContentFromUser: false,
+          hidePreviousContentFromTutor: false,
+          title,
         };
       }
     });

@@ -20,8 +20,8 @@
     {
       "type": "chat",
       "instructions": "TLDR of what the user just watched:\nHumans dominate Earth because general intelligence enabled cumulative knowledge.\nModern AI evolved from narrow tools into opaque \"black box\" learning systems.\nAGI matters because digital minds can run faster, scale, and be copied—potentially\noutcompeting humans and concentrating power. An intelligence explosion could lead\nto superintelligence with uncertain outcomes.\n\nDiscussion topics to explore:\n- What is intelligence as \"problem-solving ability\" and why is it a source of power?\n- Why are neural networks called \"black boxes\"?\n- What's the difference between narrow AI (like ChatGPT) and AGI?\n- How could an \"intelligence explosion\" happen through recursive self-improvement?\n\nStart by asking what stood out or surprised them. Use Socratic questioning to\ncheck their understanding of these concepts. Don't lecture—help them articulate\ntheir own thinking.",
-      "show_user_previous_content": true,
-      "show_tutor_previous_content": false
+      "hide_previous_content_from_user": false,
+      "hide_previous_content_from_tutor": true
     },
     {
       "type": "article",
@@ -41,8 +41,8 @@
     {
       "type": "chat",
       "instructions": "TLDR of what the user just read:\nAI x-risk is the hypothesis that AGI/superintelligence could cause human extinction\nor irreversible collapse. The risk combines: capability advantages, recursive\nself-improvement, and emerging dangerous capabilities (manipulation, cyberattacks,\nbioweapons)—amplified by competitive \"race to the bottom\" dynamics. The core crux\nis alignment: specifying goals, ensuring corrigibility, handling instrumental\nconvergence. Intelligence and values are orthogonal—moral behavior isn't automatic.\n\nDiscussion topics to explore:\n- What is \"instrumental convergence\"? Why would any smart AI seek self-preservation and resources?\n- What is the \"Gorilla Problem\" (Stuart Russell's analogy)?\n- How do \"Monkey's Paw\" or \"King Midas\" effects apply to goal specification?\n- What do skeptics like Yann LeCun argue, and what are the counter-arguments?\n- Why might \"kill switches\" fail against superintelligence?\n\nAsk what they found surprising or new. Check if they can explain instrumental\nconvergence in their own words—it's a key concept.",
-      "show_user_previous_content": false,
-      "show_tutor_previous_content": true
+      "hide_previous_content_from_user": true,
+      "hide_previous_content_from_tutor": false
     },
     {
       "type": "video",
@@ -58,20 +58,20 @@
     {
       "type": "chat",
       "instructions": "TLDR of what the user just watched:\nThe video presents 10 common objections to AI safety concerns and refutes each one.\nKey rebuttals include: instrumental convergence explains why \"just don't add bad goals\"\nfails; implicit goals make systems LESS safe; the \"asteroid analogy\" shows why early\npreparation matters; being \"for AI safety\" is not the same as being \"against AI.\"\n\nDiscussion topics to explore:\n- Which objection did they find most initially convincing? Did their view change?\n- How does instrumental convergence counter \"just don't put in bad goals\"?\n- Why do implicit goals make systems less safe, not more?\n- What's the flaw in \"human-AI teams will keep things safe\"?\n- How does the video respond to the \"overpopulation on Mars\" analogy?\n\nThis is a good stage to surface any remaining skepticism they have. Engage with\ntheir doubts constructively rather than dismissing them.",
-      "show_user_previous_content": false,
-      "show_tutor_previous_content": false
+      "hide_previous_content_from_user": true,
+      "hide_previous_content_from_tutor": true
     },
     {
       "type": "chat",
       "instructions": "Ask the user to reflect on what they've learned so far.\n\nDiscussion topics:\n- What concept was most surprising?\n- What questions remain?",
-      "show_user_previous_content": true,
-      "show_tutor_previous_content": true
+      "hide_previous_content_from_user": false,
+      "hide_previous_content_from_tutor": false
     },
     {
       "type": "chat",
       "instructions": "Brief closing discussion.",
-      "show_user_previous_content": true,
-      "show_tutor_previous_content": true
+      "hide_previous_content_from_user": false,
+      "hide_previous_content_from_tutor": false
     },
     {
       "type": "video",

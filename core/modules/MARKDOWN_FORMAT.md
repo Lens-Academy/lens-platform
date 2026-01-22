@@ -157,15 +157,15 @@ The content goes here.
 # Chat: Title
 instructions::
 Instructions for the AI tutor.
-showUserPreviousContent:: true
-showTutorPreviousContent:: true
+hidePreviousContentFromUser:: true
+hidePreviousContentFromTutor:: true
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `instructions::` | Yes | Instructions for AI tutor |
-| `showUserPreviousContent::` | No | Boolean, default true |
-| `showTutorPreviousContent::` | No | Boolean, default true |
+| `hidePreviousContentFromUser::` | No | Boolean, default false (show previous content) |
+| `hidePreviousContentFromTutor::` | No | Boolean, default false (include previous content in tutor context) |
 
 **No other fields allowed.** Standalone (no child segments).
 
@@ -191,15 +191,15 @@ The content goes here.
 ## Chat
 instructions::
 Instructions for the AI tutor.
-showUserPreviousContent:: true
-showTutorPreviousContent:: false
+hidePreviousContentFromUser:: true
+hidePreviousContentFromTutor:: false
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `instructions::` | Yes | Instructions for AI tutor |
-| `showUserPreviousContent::` | No | Boolean, default true |
-| `showTutorPreviousContent::` | No | Boolean, default true |
+| `hidePreviousContentFromUser::` | No | Boolean, default false (show previous content) |
+| `hidePreviousContentFromTutor::` | No | Boolean, default false (include previous content in tutor context) |
 
 **No other fields allowed.**
 
@@ -240,8 +240,8 @@ Quotes around values are optional (stripped if present).
 Fields that accept boolean values:
 
 - `optional::`
-- `showUserPreviousContent::`
-- `showTutorPreviousContent::`
+- `hidePreviousContentFromUser::`
+- `hidePreviousContentFromTutor::`
 
 **Valid values (case-insensitive):**
 - True: `true`, `yes`, `1`

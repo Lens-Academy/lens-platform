@@ -47,7 +47,7 @@ def _build_system_prompt(
     Args:
         current_stage: The current module stage
         current_content: Content of current stage (for article/video stages)
-        previous_content: Content from previous stage (for chat stages, if showTutorPreviousContent)
+        previous_content: Content from previous stage (for chat stages, unless hidePreviousContentFromTutor)
     """
 
     base = """You are a tutor helping someone learn about AI safety. Each piece of content (article, video) has different topics and learning objectives.
@@ -57,7 +57,7 @@ def _build_system_prompt(
         # Active chat stage - use authored context
         prompt = base + f"\n\nInstructions:\n{current_stage.instructions}"
 
-        if current_stage.show_tutor_previous_content and previous_content:
+        if not current_stage.hide_previous_content_from_tutor and previous_content:
             prompt += f"\n\nThe user just engaged with this content:\n---\n{previous_content}\n---"
 
     elif isinstance(current_stage, (ArticleStage, VideoStage)):

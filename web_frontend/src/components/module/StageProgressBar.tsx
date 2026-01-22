@@ -1,6 +1,11 @@
 // web_frontend/src/components/unified-lesson/StageProgressBar.tsx
 import type { Stage } from "../../types/module";
 import { Tooltip } from "../Tooltip";
+import {
+  getHighestCompleted,
+  getCircleFillClasses,
+  getRingClasses,
+} from "../../utils/stageProgress";
 
 type StageProgressBarProps = {
   stages: Stage[];
@@ -59,6 +64,14 @@ export function StageIcon({
   );
 }
 
+function getStageTitle(stage: Stage): string {
+  if (stage.title) return stage.title;
+  // Fallback based on type
+  if (stage.type === "video") return "Video";
+  if (stage.type === "article") return "Article";
+  return "Discussion";
+}
+
 function getTooltipContent(
   stage: Stage,
   index: number,
@@ -67,14 +80,13 @@ function getTooltipContent(
 ): string {
   const isOptional = "optional" in stage && stage.optional === true;
   const optionalPrefix = isOptional ? "(Optional) " : "";
+  const completedSuffix = isCompleted ? " (completed)" : "";
+  const title = getStageTitle(stage);
 
   if (isViewing) {
-    return isCompleted ? "Currently viewing (completed)" : "Currently viewing";
+    return `${title}${completedSuffix}`;
   }
-  if (isCompleted) {
-    return `${optionalPrefix}View ${stage.type} section (completed)`;
-  }
-  return `${optionalPrefix}View ${stage.type} section`;
+  return `${optionalPrefix}${title}${completedSuffix}`;
 }
 
 export default function StageProgressBar({
@@ -88,9 +100,7 @@ export default function StageProgressBar({
   canGoNext,
 }: StageProgressBarProps) {
   // Calculate highest completed index for bar coloring
-  const highestCompleted = completedStages.size > 0
-    ? Math.max(...completedStages)
-    : -1;
+  const highestCompleted = getHighestCompleted(completedStages);
 
   // Bar color logic:
   // - Blue up to highest completed
@@ -140,24 +150,11 @@ export default function StageProgressBar({
           const isViewing = index === viewingIndex;
           const isOptional = "optional" in stage && stage.optional === true;
 
-          // Determine fill color:
-          // - Completed: blue
-          // - Not completed + viewing: dark gray
-          // - Not completed + not viewing: light gray
-          const getFillClasses = () => {
-            if (isOptional) {
-              return isCompleted
-                ? "bg-transparent text-blue-500 border-2 border-dashed border-blue-400 hover:border-blue-500"
-                : "bg-transparent text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500";
-            }
-            if (isCompleted) {
-              return "bg-blue-500 text-white hover:bg-blue-600";
-            }
-            if (isViewing) {
-              return "bg-gray-500 text-white hover:bg-gray-600"; // Dark gray for viewing + not completed
-            }
-            return "bg-gray-200 text-gray-400 hover:bg-gray-300"; // Light gray for not completed
-          };
+          const fillClasses = getCircleFillClasses(
+            { isCompleted, isViewing, isOptional },
+            { includeHover: true }
+          );
+          const ringClasses = getRingClasses(isViewing, isCompleted);
 
           return (
             <div key={index} className="flex items-center">
@@ -178,8 +175,8 @@ export default function StageProgressBar({
                   className={`
                     relative w-7 h-7 rounded-full flex items-center justify-center
                     transition-all duration-150
-                    ${getFillClasses()}
-                    ${isViewing ? `ring-2 ring-offset-2 ${isCompleted ? "ring-blue-500" : "ring-gray-500"}` : ""}
+                    ${fillClasses}
+                    ${ringClasses}
                   `}
                 >
                   <StageIcon type={stage.type} small />

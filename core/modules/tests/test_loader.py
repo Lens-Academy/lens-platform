@@ -28,8 +28,8 @@ class TestLoadNarrativeModuleFromCache:
             sections=[
                 ChatSection(
                     instructions="Test instructions",
-                    show_user_previous_content=True,
-                    show_tutor_previous_content=True,
+                    hide_previous_content_from_user=False,
+                    hide_previous_content_from_tutor=False,
                 )
             ],
         )

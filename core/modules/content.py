@@ -642,8 +642,8 @@ def bundle_narrative_module(module) -> dict:
             return {
                 "type": "chat",
                 "instructions": segment.instructions,
-                "showUserPreviousContent": segment.show_user_previous_content,
-                "showTutorPreviousContent": segment.show_tutor_previous_content,
+                "hidePreviousContentFromUser": segment.hide_previous_content_from_user,
+                "hidePreviousContentFromTutor": segment.hide_previous_content_from_tutor,
             }
 
         return {}
@@ -694,8 +694,8 @@ def bundle_narrative_module(module) -> dict:
                 "type": "chat",
                 "meta": {"title": "Discussion"},
                 "instructions": section.instructions,
-                "showUserPreviousContent": section.show_user_previous_content,
-                "showTutorPreviousContent": section.show_tutor_previous_content,
+                "hidePreviousContentFromUser": section.hide_previous_content_from_user,
+                "hidePreviousContentFromTutor": section.hide_previous_content_from_tutor,
             }
 
         return {}

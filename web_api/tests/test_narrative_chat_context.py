@@ -34,8 +34,8 @@ class TestGetNarrativeChatContext:
                 ChatSegment(
                     type="chat",
                     instructions="Discuss the text.",
-                    show_user_previous_content=True,
-                    show_tutor_previous_content=True,
+                    hide_previous_content_from_user=False,
+                    hide_previous_content_from_tutor=False,
                 ),
             ],
         )
@@ -67,8 +67,8 @@ class TestGetNarrativeChatContext:
                 ChatSegment(
                     type="chat",
                     instructions="Discuss all.",
-                    show_user_previous_content=True,
-                    show_tutor_previous_content=True,
+                    hide_previous_content_from_user=False,
+                    hide_previous_content_from_tutor=False,
                 ),
             ],
         )
@@ -102,8 +102,8 @@ class TestGetNarrativeChatContext:
                 ChatSegment(
                     type="chat",
                     instructions="Discuss.",
-                    show_user_previous_content=True,
-                    show_tutor_previous_content=True,
+                    hide_previous_content_from_user=False,
+                    hide_previous_content_from_tutor=False,
                 ),
             ],
         )
@@ -139,8 +139,8 @@ class TestGetNarrativeChatContext:
                 ChatSegment(
                     type="chat",
                     instructions="Discuss the video.",
-                    show_user_previous_content=True,
-                    show_tutor_previous_content=True,
+                    hide_previous_content_from_user=False,
+                    hide_previous_content_from_tutor=False,
                 ),
             ],
         )
@@ -186,8 +186,8 @@ class TestGetNarrativeChatContext:
                 ChatSegment(
                     type="chat",
                     instructions="Discuss the article.",
-                    show_user_previous_content=True,
-                    show_tutor_previous_content=True,
+                    hide_previous_content_from_user=False,
+                    hide_previous_content_from_tutor=False,
                 ),
             ],
         )
@@ -228,8 +228,8 @@ class TestGetNarrativeChatContext:
                 ChatSegment(
                     type="chat",
                     instructions="Discuss.",
-                    show_user_previous_content=True,
-                    show_tutor_previous_content=True,
+                    hide_previous_content_from_user=False,
+                    hide_previous_content_from_tutor=False,
                 ),
             ],
         )
@@ -272,8 +272,8 @@ class TestGetNarrativeChatContext:
                 ChatSegment(
                     type="chat",
                     instructions="Discuss the video.",
-                    show_user_previous_content=True,
-                    show_tutor_previous_content=True,
+                    hide_previous_content_from_user=False,
+                    hide_previous_content_from_tutor=False,
                 ),
             ],
         )
@@ -303,8 +303,8 @@ class TestGetNarrativeChatContext:
         reflection_pos = previous_content.find("Now consider what you saw.")
         assert intro_pos < video_pos < reflection_pos
 
-    def test_show_tutor_previous_content_false_returns_none(self):
-        """When showTutorPreviousContent is false, previous_content should be None."""
+    def test_hide_previous_content_from_tutor_true_returns_none(self):
+        """When hidePreviousContentFromTutor is true, previous_content should be None."""
         from web_api.routes.modules import get_narrative_chat_context
 
         @dataclass
@@ -319,8 +319,8 @@ class TestGetNarrativeChatContext:
                 ChatSegment(
                     type="chat",
                     instructions="Discuss.",
-                    show_user_previous_content=True,
-                    show_tutor_previous_content=False,  # Disabled!
+                    hide_previous_content_from_user=False,
+                    hide_previous_content_from_tutor=True,  # Hidden!
                 ),
             ],
         )
@@ -348,8 +348,8 @@ class TestGetNarrativeChatContext:
                 ChatSegment(
                     type="chat",
                     instructions="First segment is chat.",
-                    show_user_previous_content=True,
-                    show_tutor_previous_content=True,
+                    hide_previous_content_from_user=False,
+                    hide_previous_content_from_tutor=False,
                 ),
             ],
         )
@@ -384,8 +384,8 @@ class TestGetNarrativeChatContext:
                 ChatSegment(
                     type="chat",
                     instructions="Discuss.",
-                    show_user_previous_content=True,
-                    show_tutor_previous_content=True,
+                    hide_previous_content_from_user=False,
+                    hide_previous_content_from_tutor=False,
                 ),
             ],
         )

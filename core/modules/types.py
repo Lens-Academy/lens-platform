@@ -39,10 +39,8 @@ class ChatStage:
 
     type: Literal["chat"]
     instructions: str  # Instructions for the AI tutor
-    show_user_previous_content: bool = True  # Show previous article/video to user in UI
-    show_tutor_previous_content: bool = (
-        True  # Include previous content in tutor's context
-    )
+    hide_previous_content_from_user: bool = False  # Hide previous article/video from user in UI
+    hide_previous_content_from_tutor: bool = False  # Exclude previous content from tutor's context
 
 
 Stage = ArticleStage | VideoStage | ChatStage
@@ -83,8 +81,8 @@ class ChatSegment:
 
     type: Literal["chat"]
     instructions: str
-    show_user_previous_content: bool = True
-    show_tutor_previous_content: bool = True
+    hide_previous_content_from_user: bool = False
+    hide_previous_content_from_tutor: bool = False
 
 
 NarrativeSegment = (

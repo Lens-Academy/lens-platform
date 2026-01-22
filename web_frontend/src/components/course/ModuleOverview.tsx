@@ -5,6 +5,11 @@
 
 import type { StageInfo, ModuleStatus } from "../../types/course";
 import { StageIcon } from "../module/StageProgressBar";
+import {
+  getHighestCompleted,
+  getCircleFillClasses,
+  getRingClasses,
+} from "../../utils/stageProgress";
 
 type ModuleOverviewProps = {
   moduleTitle: string;
@@ -28,9 +33,7 @@ export default function ModuleOverview({
   showActions = true,
 }: ModuleOverviewProps) {
   // Calculate highest completed index for line coloring
-  const highestCompleted = completedStages.size > 0
-    ? Math.max(...completedStages)
-    : -1;
+  const highestCompleted = getHighestCompleted(completedStages);
 
   const getActionLabel = () => {
     if (status === "completed") return "Review Module";
@@ -88,29 +91,11 @@ export default function ModuleOverview({
               const isViewing = index === viewingIndex;
               const isClickable = onStageClick && stage.type !== "chat";
 
-              // Circle fill color logic (matches horizontal bar)
-              const getCircleClasses = () => {
-                if (stage.optional) {
-                  return isCompleted
-                    ? "bg-transparent text-blue-500 border-2 border-dashed border-blue-400"
-                    : "bg-transparent text-gray-400 border-2 border-dashed border-gray-400";
-                }
-                if (isCompleted) {
-                  return "bg-blue-500 text-white";
-                }
-                if (isViewing) {
-                  return "bg-gray-500 text-white"; // Dark gray for viewing + not completed
-                }
-                return "bg-gray-200 text-gray-400"; // Light gray for not completed
-              };
-
-              // Ring color matches fill
-              const getRingClasses = () => {
-                if (!isViewing) return "";
-                return isCompleted
-                  ? "ring-2 ring-offset-2 ring-blue-500"
-                  : "ring-2 ring-offset-2 ring-gray-500";
-              };
+              const fillClasses = getCircleFillClasses(
+                { isCompleted, isViewing, isOptional: stage.optional },
+                { includeHover: false }
+              );
+              const ringClasses = getRingClasses(isViewing, isCompleted);
 
               return (
                 <div
@@ -122,7 +107,7 @@ export default function ModuleOverview({
                 >
                   {/* Circle */}
                   <div
-                    className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${getCircleClasses()} ${getRingClasses()}`}
+                    className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${fillClasses} ${ringClasses}`}
                   >
                     <StageIcon type={stage.type} small />
                   </div>

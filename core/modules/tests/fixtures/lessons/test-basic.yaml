@@ -7,5 +7,5 @@ stages:
     source: articles/test.md
   - type: chat
     instructions: Test instructions
-    showUserPreviousContent: true
-    showTutorPreviousContent: true
+    hidePreviousContentFromUser: false
+    hidePreviousContentFromTutor: false

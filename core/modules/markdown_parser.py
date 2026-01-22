@@ -29,8 +29,8 @@ class ChatSegment:
 
     type: str = "chat"
     instructions: str = ""
-    show_user_previous_content: bool = True
-    show_tutor_previous_content: bool = True
+    hide_previous_content_from_user: bool = False
+    hide_previous_content_from_tutor: bool = False
 
 
 @dataclass
@@ -88,8 +88,8 @@ class ChatSection:
 
     type: str = "chat"
     instructions: str = ""
-    show_user_previous_content: bool = True
-    show_tutor_previous_content: bool = True
+    hide_previous_content_from_user: bool = False
+    hide_previous_content_from_tutor: bool = False
 
 
 Section = VideoSection | ArticleSection | TextSection | ChatSection
@@ -256,11 +256,11 @@ def _parse_segment(segment_type: str, content: str) -> Segment:
     elif segment_type_lower == "chat":
         return ChatSegment(
             instructions=fields.get("instructions", ""),
-            show_user_previous_content=_parse_bool(
-                fields.get("showUserPreviousContent", "true")
+            hide_previous_content_from_user=_parse_bool(
+                fields.get("hidePreviousContentFromUser", "false")
             ),
-            show_tutor_previous_content=_parse_bool(
-                fields.get("showTutorPreviousContent", "true")
+            hide_previous_content_from_tutor=_parse_bool(
+                fields.get("hidePreviousContentFromTutor", "false")
             ),
         )
 
@@ -354,11 +354,11 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
     elif section_type_lower == "chat":
         return ChatSection(
             instructions=fields.get("instructions", ""),
-            show_user_previous_content=_parse_bool(
-                fields.get("showUserPreviousContent", "true")
+            hide_previous_content_from_user=_parse_bool(
+                fields.get("hidePreviousContentFromUser", "false")
             ),
-            show_tutor_previous_content=_parse_bool(
-                fields.get("showTutorPreviousContent", "true")
+            hide_previous_content_from_tutor=_parse_bool(
+                fields.get("hidePreviousContentFromTutor", "false")
             ),
         )
 

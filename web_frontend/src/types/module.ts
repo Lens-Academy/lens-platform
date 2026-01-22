@@ -30,8 +30,8 @@ export type VideoExcerptSegment = {
 export type ChatSegment = {
   type: "chat";
   instructions: string;
-  showUserPreviousContent: boolean;
-  showTutorPreviousContent: boolean;
+  hidePreviousContentFromUser: boolean;
+  hidePreviousContentFromTutor: boolean;
 };
 
 export type ModuleSegment =
@@ -76,8 +76,8 @@ export type ChatSection = {
   type: "chat";
   meta: { title: string };
   instructions: string;
-  showUserPreviousContent: boolean;
-  showTutorPreviousContent: boolean;
+  hidePreviousContentFromUser: boolean;
+  hidePreviousContentFromTutor: boolean;
 };
 
 export type ModuleSection =
@@ -136,8 +136,8 @@ export type VideoStage = {
 export type ChatStage = {
   type: "chat";
   instructions: string;
-  showUserPreviousContent: boolean;
-  showTutorPreviousContent: boolean;
+  hidePreviousContentFromUser: boolean;
+  hidePreviousContentFromTutor: boolean;
   title?: string;
   optional?: boolean;
 };

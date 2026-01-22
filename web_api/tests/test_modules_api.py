@@ -130,8 +130,8 @@ def test_get_anonymous_session_by_id():
                 mock_stage = MagicMock()
                 mock_stage.type = "chat"
                 mock_stage.instructions = "hi"
-                mock_stage.show_user_previous_content = True
-                mock_stage.show_tutor_previous_content = True
+                mock_stage.hide_previous_content_from_user = False
+                mock_stage.hide_previous_content_from_tutor = False
 
                 mock_module_obj = MagicMock()
                 mock_module_obj.title = "Test Module"
