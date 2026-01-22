@@ -13,6 +13,7 @@ import CourseSidebar from "../components/course/CourseSidebar";
 import ModuleOverview from "../components/course/ModuleOverview";
 import ContentPreviewModal from "../components/course/ContentPreviewModal";
 import { DiscordInviteButton, UserMenu } from "../components/nav";
+import { Skeleton } from "../components/Skeleton";
 
 interface CourseOverviewProps {
   courseId?: string;
@@ -113,10 +114,22 @@ export default function CourseOverview({
       : "Additional Content"
     : null;
 
+  // Loading state - skeleton layout mirrors module cards
   if (loading) {
     return (
-      <div className="h-dvh flex items-center justify-center">
-        <div className="text-slate-500">Loading course...</div>
+      <div className="p-4 sm:p-6">
+        {/* Course title skeleton */}
+        <Skeleton className="h-8 w-64 mb-6" />
+        {/* Module cards skeleton */}
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="p-4 border border-slate-200 rounded-lg">
+              <Skeleton className="h-6 w-48 mb-2" />
+              <Skeleton className="h-4 w-full mb-1" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

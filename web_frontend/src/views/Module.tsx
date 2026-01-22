@@ -48,6 +48,7 @@ import {
 } from "@/analytics";
 import { Sentry } from "@/errorTracking";
 import { RequestTimeoutError } from "@/api/modules";
+import { Skeleton, SkeletonText } from "@/components/Skeleton";
 
 interface ModuleProps {
   courseId: string;
@@ -697,11 +698,21 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
   };
 
-  // Loading state
+  // Loading state - skeleton layout mirrors actual content structure
   if (loadingModule) {
     return (
-      <div className="min-h-dvh flex items-center justify-center">
-        <p className="text-gray-500">Loading module...</p>
+      <div className="min-h-dvh bg-stone-50 p-4 sm:p-6">
+        {/* Module header skeleton */}
+        <div className="mb-6">
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        {/* Content skeleton */}
+        <div className="max-w-2xl">
+          <SkeletonText lines={4} className="mb-6" />
+          <Skeleton className="h-48 w-full rounded-lg mb-6" variant="rectangular" />
+          <SkeletonText lines={3} />
+        </div>
       </div>
     );
   }
