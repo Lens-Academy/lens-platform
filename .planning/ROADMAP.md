@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation & Typography** - Viewport units, safe areas, and mobile typography baseline
 - [x] **Phase 2: Responsive Layout** - Navigation collapse, drawer overlays, and layout structure
 - [x] **Phase 3: Content Components** - Video embeds, article padding, and progress navigation
-- [ ] **Phase 4: Chat Interface** - Mobile chat with keyboard handling and touch gestures
+- [x] **Phase 4: Chat Interface** - Mobile chat with keyboard handling and touch gestures
 - [ ] **Phase 5: Motion & Polish** - Animations, visual consistency, and final testing
 
 ## Phase Details
@@ -81,8 +81,8 @@ Plans:
 **Plans**: 2 plans (Wave 1: 01; Wave 2: 02)
 
 Plans:
-- [ ] 04-01-PLAN.md — Chat container dvh, scrollIntoView keyboard handling, message spacing
-- [ ] 04-02-PLAN.md — 44px touch targets for send/mic buttons, haptic feedback on send
+- [x] 04-01-PLAN.md — Chat container dvh, scrollIntoView keyboard handling, message spacing
+- [x] 04-02-PLAN.md — 44px touch targets for send/mic buttons, haptic feedback on send
 
 ### Phase 5: Motion & Polish
 **Goal**: Mobile experience feels polished — smooth animations, consistent visual language, verified on real devices
@@ -111,5 +111,5 @@ Note: Phases 2 and 3 can run in parallel after Phase 1 completes.
 | 1. Foundation & Typography | 2/2 | Complete | 2026-01-21 |
 | 2. Responsive Layout | 3/3 | Complete | 2026-01-22 |
 | 3. Content Components | 2/2 | Complete | 2026-01-22 |
-| 4. Chat Interface | 0/2 | Not started | - |
+| 4. Chat Interface | 2/2 | Complete | 2026-01-22 |
 | 5. Motion & Polish | 0/2 | Not started | - |

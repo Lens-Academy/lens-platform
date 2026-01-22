@@ -35,10 +35,10 @@ Requirements for mobile-responsive release. Each maps to roadmap phases.
 
 ### Chat Interface
 
-- [ ] **CHAT-01**: NarrativeChatSection uses responsive height (dvh units)
-- [ ] **CHAT-02**: Chat input stays visible when mobile keyboard opens
-- [ ] **CHAT-03**: Send and microphone buttons are 44px minimum touch targets
-- [ ] **CHAT-04**: Swipe gestures navigate through chat history
+- [x] **CHAT-01**: NarrativeChatSection uses responsive height (dvh units)
+- [x] **CHAT-02**: Chat input stays visible when mobile keyboard opens
+- [x] **CHAT-03**: Send and microphone buttons are 44px minimum touch targets
+- ~~**CHAT-04**: Swipe gestures navigate through chat history~~ (Removed - user explicitly excluded from scope per CONTEXT.md)
 
 ### Progress & Stage Navigation
 
@@ -56,7 +56,7 @@ Requirements for mobile-responsive release. Each maps to roadmap phases.
 
 - [ ] **TYPE-01**: Body text optimized for mobile reading — 18px base, 1.6 line height, comfortable measure
 - [ ] **TYPE-02**: Heading hierarchy scales appropriately on mobile (not just smaller desktop)
-- [ ] **TYPE-03**: Chat messages have distinct, readable typography with proper bubble spacing
+- [x] **TYPE-03**: Chat messages have distinct, readable typography with proper bubble spacing
 
 ### Visual Consistency
 
@@ -111,11 +111,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONTENT-03 | Phase 3 | Complete |
 | PROG-01 | Phase 3 | Complete |
 | PROG-02 | Phase 3 | Complete |
-| CHAT-01 | Phase 4 | Pending |
-| CHAT-02 | Phase 4 | Pending |
-| CHAT-03 | Phase 4 | Pending |
-| CHAT-04 | Phase 4 | Pending |
-| TYPE-03 | Phase 4 | Pending |
+| CHAT-01 | Phase 4 | Complete |
+| CHAT-02 | Phase 4 | Complete |
+| CHAT-03 | Phase 4 | Complete |
+| CHAT-04 | Phase 4 | Removed |
+| TYPE-03 | Phase 4 | Complete |
 | MOTION-01 | Phase 5 | Pending |
 | MOTION-02 | Phase 5 | Pending |
 | MOTION-03 | Phase 5 | Pending |
@@ -135,7 +135,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Phase 1 | 6 | FOUND-01..04, TYPE-01..02 |
 | Phase 2 | 7 | NAV-01..04, LAYOUT-01..03 |
 | Phase 3 | 5 | CONTENT-01..03, PROG-01..02 |
-| Phase 4 | 5 | CHAT-01..04, TYPE-03 |
+| Phase 4 | 4 | CHAT-01..03, TYPE-03 (CHAT-04 removed) |
 | Phase 5 | 7 | MOTION-01..04, VISUAL-01..03 |
 
 ---
