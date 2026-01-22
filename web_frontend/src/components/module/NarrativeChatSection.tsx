@@ -440,8 +440,8 @@ export default function NarrativeChatSection({
         className="max-w-content mx-auto border border-gray-200 rounded-lg bg-white shadow-sm flex flex-col scroll-mb-8 relative"
         style={
           hasInteracted
-            ? { height: "85vh", overflowAnchor: "none" } // Fixed height when interacted to prevent jitter during streaming
-            : { maxHeight: "85vh", minHeight: "180px", overflowAnchor: "none" }
+            ? { height: "85dvh", overflowAnchor: "none" } // Fixed height when interacted to prevent jitter during streaming
+            : { maxHeight: "85dvh", minHeight: "180px", overflowAnchor: "none" }
         }
       >
         {/* Messages area */}
