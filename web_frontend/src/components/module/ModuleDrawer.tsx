@@ -56,13 +56,13 @@ export default function ModuleDrawer({
       {/* Floating toggle - always mounted, hidden via CSS when drawer is open */}
       <button
         onMouseDown={handleOpen}
-        className={`fixed left-0 z-50 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-md px-1.5 py-3 hover:bg-gray-50 transition-all active:scale-95 min-h-[44px] min-w-[44px] ${
+        className={`fixed left-0 z-50 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-sm px-1.5 py-2.5 hover:bg-gray-50 transition-all active:scale-95 ${
           isOpen ? "opacity-0 pointer-events-none" : ""
         }`}
         style={{ top: "calc(4rem + var(--safe-top, 0px))" }}
         title="Module Overview"
       >
-        <PanelLeftOpen className="w-5 h-5 text-slate-600" />
+        <PanelLeftOpen className="w-[18px] h-[18px] text-slate-500" />
       </button>
 
       {/* Backdrop to close drawer - dimmed on mobile */}

@@ -12,6 +12,7 @@ type StageProgressBarProps = {
   onNext: () => void;
   canGoPrevious: boolean;
   canGoNext: boolean;
+  compact?: boolean; // Smaller size for header use
 };
 
 export function StageIcon({
@@ -88,6 +89,7 @@ export default function StageProgressBar({
   onNext,
   canGoPrevious,
   canGoNext,
+  compact = false,
 }: StageProgressBarProps) {
   const viewingIndex = viewingStageIndex ?? currentStageIndex;
 
@@ -116,10 +118,14 @@ export default function StageProgressBar({
         <button
           onClick={onPrevious}
           disabled={!canGoPrevious}
-          className="min-w-[44px] min-h-[44px] p-2 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-all active:scale-95"
+          className={`rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default ${
+            compact
+              ? "p-1"
+              : "min-w-8 min-h-8 sm:min-w-[44px] sm:min-h-[44px] p-1.5 sm:p-2 transition-all active:scale-95 shrink-0"
+          }`}
         >
           <svg
-            className="w-5 h-5 sm:w-4 sm:h-4"
+            className={compact ? "w-4 h-4" : "w-4 h-4 sm:w-5 sm:h-5"}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -152,7 +158,7 @@ export default function StageProgressBar({
               {/* Connector line (except before first) */}
               {index > 0 && (
                 <div
-                  className={`w-2 h-0.5 ${
+                  className={`h-0.5 ${compact ? "w-4" : "w-2 sm:w-4"} ${
                     index <= currentStageIndex ? "bg-blue-400" : "bg-gray-300"
                   }`}
                 />
@@ -172,8 +178,14 @@ export default function StageProgressBar({
                     index !== viewingIndex
                   }
                   className={`
-                    relative min-w-[44px] min-h-[44px] w-11 h-11 rounded-full flex items-center justify-center
-                    transition-all duration-150 active:scale-95 disabled:cursor-default
+                    relative rounded-full flex items-center justify-center
+                    transition-all duration-150 disabled:cursor-default
+                    ${compact ? "" : "active:scale-95 shrink-0"}
+                    ${
+                      compact
+                        ? "w-7 h-7"
+                        : "min-w-8 min-h-8 w-8 h-8 sm:min-w-[44px] sm:min-h-[44px] sm:w-11 sm:h-11"
+                    }
                     ${
                       isOptional
                         ? "bg-transparent text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500"
@@ -185,11 +197,11 @@ export default function StageProgressBar({
                             ? "bg-gray-300 text-gray-500 hover:bg-gray-400"
                             : "bg-gray-300 text-gray-500"
                     }
-                    ${isViewing ? "ring-2 ring-offset-2 ring-blue-500" : ""}
+                    ${isViewing ? `ring-2 ring-offset-2 ring-blue-500` : ""}
                     ${isFuture ? "opacity-50" : ""}
                   `}
                 >
-                  <StageIcon type={stage.type} small />
+                  <StageIcon type={stage.type} small={compact} />
                 </button>
               </Tooltip>
             </div>
@@ -202,10 +214,14 @@ export default function StageProgressBar({
         <button
           onClick={onNext}
           disabled={!canGoNext}
-          className="min-w-[44px] min-h-[44px] p-2 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-all active:scale-95"
+          className={`rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default ${
+            compact
+              ? "p-1"
+              : "min-w-8 min-h-8 sm:min-w-[44px] sm:min-h-[44px] p-1.5 sm:p-2 transition-all active:scale-95 shrink-0"
+          }`}
         >
           <svg
-            className="w-5 h-5 sm:w-4 sm:h-4"
+            className={compact ? "w-4 h-4" : "w-4 h-4 sm:w-5 sm:h-5"}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
