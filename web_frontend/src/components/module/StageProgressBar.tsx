@@ -1,5 +1,6 @@
 // web_frontend/src/components/unified-lesson/StageProgressBar.tsx
 import type { Stage } from "../../types/module";
+import { triggerHaptic } from "@/utils/haptics";
 import { Tooltip } from "../Tooltip";
 
 type StageProgressBarProps = {
@@ -91,6 +92,9 @@ export default function StageProgressBar({
   const viewingIndex = viewingStageIndex ?? currentStageIndex;
 
   const handleDotClick = (index: number, stage: Stage) => {
+    // Trigger haptic on any tap (even if navigation is blocked)
+    triggerHaptic(10);
+
     // Past chat stages can't be revisited
     if (stage.type === "chat" && index < currentStageIndex) {
       return;
@@ -112,10 +116,10 @@ export default function StageProgressBar({
         <button
           onClick={onPrevious}
           disabled={!canGoPrevious}
-          className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default"
+          className="min-w-[44px] min-h-[44px] p-2 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default"
         >
           <svg
-            className="w-4 h-4"
+            className="w-5 h-5 sm:w-4 sm:h-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -148,7 +152,7 @@ export default function StageProgressBar({
               {/* Connector line (except before first) */}
               {index > 0 && (
                 <div
-                  className={`w-4 h-0.5 ${
+                  className={`w-2 h-0.5 ${
                     index <= currentStageIndex ? "bg-blue-400" : "bg-gray-300"
                   }`}
                 />
@@ -168,7 +172,7 @@ export default function StageProgressBar({
                     index !== viewingIndex
                   }
                   className={`
-                    relative w-7 h-7 rounded-full flex items-center justify-center
+                    relative min-w-[44px] min-h-[44px] w-11 h-11 rounded-full flex items-center justify-center
                     transition-all duration-150 disabled:cursor-default
                     ${
                       isOptional
@@ -198,10 +202,10 @@ export default function StageProgressBar({
         <button
           onClick={onNext}
           disabled={!canGoNext}
-          className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default"
+          className="min-w-[44px] min-h-[44px] p-2 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default"
         >
           <svg
-            className="w-4 h-4"
+            className="w-5 h-5 sm:w-4 sm:h-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
