@@ -46,12 +46,12 @@ Plans:
   3. Header hides when student scrolls down through lesson content, reappears when scrolling up
   4. ModuleDrawer opens as full-screen overlay on mobile (not partial slide-out)
   5. CourseSidebar slides in from edge as drawer on mobile, dismissible by tap outside
-**Plans**: TBD
+**Plans**: 3 plans (Wave 1: 01, 02 parallel; Wave 2: 03)
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md — Navigation foundation: useScrollDirection hook, MobileMenu, Layout/LandingNav mobile headers
+- [ ] 02-02-PLAN.md — Drawer components: ModuleDrawer 80% mobile width, CourseSidebar as mobile drawer
+- [ ] 02-03-PLAN.md — ModuleHeader mobile, BottomNav, touch target enforcement
 
 ### Phase 3: Content Components
 **Goal**: Lesson content displays optimally on mobile — videos fill width, articles have comfortable reading margins, progress navigation is touch-friendly
@@ -110,7 +110,7 @@ Note: Phases 2 and 3 can run in parallel after Phase 1 completes.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Typography | 2/2 | Complete | 2026-01-21 |
-| 2. Responsive Layout | 0/3 | Not started | - |
+| 2. Responsive Layout | 0/3 | Planned | - |
 | 3. Content Components | 0/2 | Not started | - |
 | 4. Chat Interface | 0/2 | Not started | - |
 | 5. Motion & Polish | 0/2 | Not started | - |
