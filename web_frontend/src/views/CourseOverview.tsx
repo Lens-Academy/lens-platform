@@ -4,8 +4,9 @@
  */
 
 import { useState, useEffect } from "react";
+import { useMedia } from "react-use";
 import { navigate } from "vike/client/router";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Menu, X } from "lucide-react";
 import { getCourseProgress } from "../api/modules";
 import type { CourseProgress, ModuleInfo } from "../types/course";
 import CourseSidebar from "../components/course/CourseSidebar";
@@ -31,6 +32,8 @@ export default function CourseOverview({
     stageIndex: number;
     sessionId: number | null;
   } | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useMedia("(max-width: 767px)", false);
 
   // Load course progress
   useEffect(() => {
@@ -84,6 +87,22 @@ export default function CourseOverview({
     });
   };
 
+  // Handle module selection (closes sidebar on mobile)
+  const handleModuleSelect = (module: ModuleInfo) => {
+    setSelectedModule(module);
+    if (isMobile) setSidebarOpen(false);
+  };
+
+  // Lock body scroll when sidebar drawer is open on mobile
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [isMobile, sidebarOpen]);
+
   // Find unit for breadcrumb
   const selectedUnit = courseProgress?.units.find((u) =>
     u.modules.some((m) => m.slug === selectedModule?.slug),
@@ -114,21 +133,33 @@ export default function CourseOverview({
     <div className="h-dvh flex flex-col bg-white">
       {/* Nav Header */}
       <nav className="border-b border-slate-200/50 bg-stone-50">
-        <div className="px-6 flex items-center justify-between h-14">
-          <a href="/" className="flex items-center gap-2">
-            <img
-              src="/assets/Logo only.png"
-              alt="Lens Academy"
-              className="h-7"
-            />
-            <span className="text-lg font-semibold text-slate-800">
-              Lens Academy
-            </span>
-          </a>
+        <div className="px-4 md:px-6 flex items-center justify-between h-14">
+          <div className="flex items-center gap-2">
+            {/* Mobile menu button */}
+            {isMobile && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 -ml-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-100 rounded-lg transition-colors"
+                aria-label="Open course menu"
+              >
+                <Menu className="w-5 h-5 text-slate-600" />
+              </button>
+            )}
+            <a href="/" className="flex items-center gap-2">
+              <img
+                src="/assets/Logo only.png"
+                alt="Lens Academy"
+                className="h-7"
+              />
+              <span className="text-lg font-semibold text-slate-800">
+                Lens Academy
+              </span>
+            </a>
+          </div>
           <div className="flex items-center gap-4">
             <a
               href="/course"
-              className="text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200"
+              className="text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200 hidden md:block"
             >
               Course
             </a>
@@ -162,19 +193,67 @@ export default function CourseOverview({
       </div>
 
       {/* Two-panel layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-72 flex-shrink-0">
-          <CourseSidebar
-            courseTitle={courseProgress.course.title}
-            units={courseProgress.units}
-            selectedModuleSlug={selectedModule?.slug ?? null}
-            onModuleSelect={setSelectedModule}
-          />
-        </div>
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Desktop: inline sidebar */}
+        {!isMobile && (
+          <div className="w-72 flex-shrink-0">
+            <CourseSidebar
+              courseTitle={courseProgress.course.title}
+              units={courseProgress.units}
+              selectedModuleSlug={selectedModule?.slug ?? null}
+              onModuleSelect={handleModuleSelect}
+            />
+          </div>
+        )}
+
+        {/* Mobile: drawer sidebar */}
+        {isMobile && (
+          <>
+            {/* Backdrop */}
+            {sidebarOpen && (
+              <div
+                className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-200"
+                onClick={() => setSidebarOpen(false)}
+              />
+            )}
+            {/* Drawer */}
+            <div
+              className={`fixed top-0 left-0 h-full w-[80%] max-w-sm z-50 bg-white transition-transform duration-300 ${
+                sidebarOpen ? "translate-x-0" : "-translate-x-full"
+              }`}
+              style={{
+                paddingTop: "var(--safe-top)",
+                paddingBottom: "var(--safe-bottom)",
+              }}
+            >
+              {/* Drawer header with close button */}
+              <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50">
+                <span className="font-semibold text-slate-800">
+                  Course Menu
+                </span>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-100 rounded-lg transition-colors"
+                  aria-label="Close menu"
+                >
+                  <X className="w-5 h-5 text-slate-600" />
+                </button>
+              </div>
+              {/* Sidebar content */}
+              <div className="h-[calc(100%-4rem)]">
+                <CourseSidebar
+                  courseTitle={courseProgress.course.title}
+                  units={courseProgress.units}
+                  selectedModuleSlug={selectedModule?.slug ?? null}
+                  onModuleSelect={handleModuleSelect}
+                />
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Main panel */}
-        <div className="flex-1 p-8 overflow-y-auto">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
           {selectedModule ? (
             <ModuleOverview
               moduleTitle={selectedModule.title}
