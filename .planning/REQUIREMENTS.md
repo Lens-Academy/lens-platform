@@ -29,9 +29,9 @@ Requirements for mobile-responsive release. Each maps to roadmap phases.
 
 ### Content Components
 
-- [ ] **CONTENT-01**: ArticleEmbed uses responsive padding (less on mobile)
-- [ ] **CONTENT-02**: VideoEmbed scales to full width on mobile
-- [ ] **CONTENT-03**: VideoPlayer controls are touch-friendly (44px minimum)
+- [x] **CONTENT-01**: ArticleEmbed uses responsive padding (less on mobile)
+- [x] **CONTENT-02**: VideoEmbed scales to full width on mobile
+- [x] **CONTENT-03**: VideoPlayer controls are touch-friendly (44px minimum)
 
 ### Chat Interface
 
@@ -42,8 +42,8 @@ Requirements for mobile-responsive release. Each maps to roadmap phases.
 
 ### Progress & Stage Navigation
 
-- [ ] **PROG-01**: StageProgressBar dots and arrows are 44px touch targets
-- [ ] **PROG-02**: Module stage navigation works correctly on touch devices
+- [x] **PROG-01**: StageProgressBar dots and arrows are 44px touch targets
+- [x] **PROG-02**: Module stage navigation works correctly on touch devices
 
 ### Motion & Transitions
 
@@ -106,11 +106,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LAYOUT-01 | Phase 2 | Complete |
 | LAYOUT-02 | Phase 2 | Complete |
 | LAYOUT-03 | Phase 2 | Complete |
-| CONTENT-01 | Phase 3 | Pending |
-| CONTENT-02 | Phase 3 | Pending |
-| CONTENT-03 | Phase 3 | Pending |
-| PROG-01 | Phase 3 | Pending |
-| PROG-02 | Phase 3 | Pending |
+| CONTENT-01 | Phase 3 | Complete |
+| CONTENT-02 | Phase 3 | Complete |
+| CONTENT-03 | Phase 3 | Complete |
+| PROG-01 | Phase 3 | Complete |
+| PROG-02 | Phase 3 | Complete |
 | CHAT-01 | Phase 4 | Pending |
 | CHAT-02 | Phase 4 | Pending |
 | CHAT-03 | Phase 4 | Pending |

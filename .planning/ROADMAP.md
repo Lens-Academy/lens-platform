@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Typography** - Viewport units, safe areas, and mobile typography baseline
 - [x] **Phase 2: Responsive Layout** - Navigation collapse, drawer overlays, and layout structure
-- [ ] **Phase 3: Content Components** - Video embeds, article padding, and progress navigation
+- [x] **Phase 3: Content Components** - Video embeds, article padding, and progress navigation
 - [ ] **Phase 4: Chat Interface** - Mobile chat with keyboard handling and touch gestures
 - [ ] **Phase 5: Motion & Polish** - Animations, visual consistency, and final testing
 
@@ -66,8 +66,8 @@ Plans:
 **Plans**: 2 plans (Wave 1 parallel)
 
 Plans:
-- [ ] 03-01-PLAN.md — Content display: VideoEmbed responsive container, ArticleEmbed mobile padding and typography
-- [ ] 03-02-PLAN.md — Progress navigation: haptics utility, StageProgressBar 44px touch targets
+- [x] 03-01-PLAN.md — Content display: VideoEmbed responsive container, ArticleEmbed mobile padding and typography
+- [x] 03-02-PLAN.md — Progress navigation: haptics utility, StageProgressBar 44px touch targets
 
 ### Phase 4: Chat Interface
 **Goal**: Students can use the AI chatbot on mobile — input visible above keyboard, messages readable, touch interactions smooth
@@ -111,6 +111,6 @@ Note: Phases 2 and 3 can run in parallel after Phase 1 completes.
 |-------|----------------|--------|-----------|
 | 1. Foundation & Typography | 2/2 | Complete | 2026-01-21 |
 | 2. Responsive Layout | 3/3 | Complete | 2026-01-22 |
-| 3. Content Components | 0/2 | Not started | - |
+| 3. Content Components | 2/2 | Complete | 2026-01-22 |
 | 4. Chat Interface | 0/2 | Not started | - |
 | 5. Motion & Polish | 0/2 | Not started | - |
