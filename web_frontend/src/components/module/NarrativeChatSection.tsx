@@ -721,7 +721,7 @@ export default function NarrativeChatSection({
                       ? "Stop recording"
                       : "Start voice recording"
                   }
-                  className="p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-default bg-gray-100 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="min-w-[44px] min-h-[44px] p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-default bg-gray-100 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {recordingState === "transcribing" ? (
                     <svg
@@ -771,7 +771,7 @@ export default function NarrativeChatSection({
                     type="button"
                     onClick={handleMicClick}
                     aria-label="Stop recording"
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[70px] flex items-center justify-center"
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[70px] min-h-[44px] flex items-center justify-center"
                   >
                     <svg
                       className="w-5 h-5"
@@ -788,7 +788,7 @@ export default function NarrativeChatSection({
                   disabled={
                     isLoading || !input.trim() || recordingState !== "idle"
                   }
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-default min-w-[70px]"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-default min-w-[70px] min-h-[44px]"
                 >
                   Send
                 </button>
