@@ -57,10 +57,7 @@ export function ModuleHeader({
       <div className="relative flex items-center justify-between px-4 py-3">
         {/* Left: Logo + Title */}
         <div className="flex items-center gap-2 min-w-0 flex-shrink-0">
-          <a
-            href="/"
-            className="min-h-[44px] flex items-center gap-2 shrink-0"
-          >
+          <a href="/" className="min-h-[44px] flex items-center gap-2 shrink-0">
             <img
               src="/assets/Logo only.png"
               alt="Lens Academy"

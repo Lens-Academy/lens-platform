@@ -192,9 +192,7 @@ export default function ArticleEmbed({
                     );
                   }
                   // Block code - handled by pre wrapper
-                  return (
-                    <code className="text-sm font-mono">{children}</code>
-                  );
+                  return <code className="text-sm font-mono">{children}</code>;
                 },
                 pre: ({ children }) => (
                   <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm overflow-x-auto my-4">
@@ -204,7 +202,7 @@ export default function ArticleEmbed({
                 img: ({ src, alt }) => (
                   <img
                     src={src}
-                    alt={alt || ''}
+                    alt={alt || ""}
                     className="w-full max-w-full my-4 sm:w-[calc(100%+2rem)] sm:max-w-none sm:-mx-4 sm:rounded-lg"
                   />
                 ),

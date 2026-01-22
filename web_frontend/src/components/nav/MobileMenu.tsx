@@ -49,7 +49,10 @@ export function MobileMenu({
           transition-transform duration-300 [transition-timing-function:var(--ease-spring)]
           ${isOpen ? "translate-x-0" : "translate-x-full"}
         `}
-        style={{ paddingTop: "var(--safe-top)", paddingBottom: "var(--safe-bottom)" }}
+        style={{
+          paddingTop: "var(--safe-top)",
+          paddingBottom: "var(--safe-bottom)",
+        }}
         role="dialog"
         aria-modal="true"
         aria-label="Mobile navigation menu"

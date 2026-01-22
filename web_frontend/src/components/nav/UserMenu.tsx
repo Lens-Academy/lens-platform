@@ -43,11 +43,7 @@ export function UserMenu({ signInRedirect }: UserMenuProps = {}) {
         className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200"
         aria-label="Sign in"
       >
-        {isMobile ? (
-          <User className="w-5 h-5" />
-        ) : (
-          "Sign in"
-        )}
+        {isMobile ? <User className="w-5 h-5" /> : "Sign in"}
       </button>
     );
   }

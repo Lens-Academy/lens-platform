@@ -710,7 +710,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         {/* Content skeleton */}
         <div className="max-w-2xl">
           <SkeletonText lines={4} className="mb-6" />
-          <Skeleton className="h-48 w-full rounded-lg mb-6" variant="rectangular" />
+          <Skeleton
+            className="h-48 w-full rounded-lg mb-6"
+            variant="rectangular"
+          />
           <SkeletonText lines={3} />
         </div>
       </div>
