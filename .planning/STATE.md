@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-21)
 
 **Core value:** Students can consume course content on mobile — lessons, chatbot, videos all work on phone screens.
-**Current focus:** Project Complete
+**Current focus:** Gap closure complete
 
 ## Current Position
 
 Phase: 5 of 5 (Motion & Polish)
-Plan: 2 of 2 in current phase
-Status: Project complete
-Last activity: 2026-01-22 — Completed 05-02-PLAN.md
+Plan: 3 of 3 in current phase (gap closure)
+Status: Gap closure complete
+Last activity: 2026-01-22 — Completed 05-03-PLAN.md (gap closure)
 
-Progress: [██████████] 100%
+Progress: [██████████] 100% + gap closure
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12 (11 original + 1 gap closure)
 - Average duration: ~2.8 min
-- Total execution time: ~32 min
+- Total execution time: ~34 min
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [██████████] 100%
 | 02-responsive-layout | 3 | ~10 min | ~3.3 min |
 | 03-content-components | 2 | ~5 min | ~2.5 min |
 | 04-chat-interface | 2 | ~5 min | ~2.5 min |
-| 05-motion-polish | 2 | ~5.5 min | ~2.75 min |
+| 05-motion-polish | 3 | ~7.5 min | ~2.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (3 min), 04-02 (2 min), 05-01 (2.5 min), 05-02 (3 min)
-- Trend: Consistent ~2.5-3 min execution
+- Last 5 plans: 04-02 (2 min), 05-01 (2.5 min), 05-02 (3 min), 05-03 (2 min)
+- Trend: Consistent ~2.5 min execution
 
 *Updated after each plan completion*
 
@@ -76,6 +76,7 @@ Recent decisions affecting current work:
 - 200ms crossfade for view transitions (05-02)
 - Silent fallback for browsers without View Transitions API (05-02)
 - Skeleton variants: text/circular/rectangular (05-02)
+- Uniform active:scale-95 for all buttons (05-03)
 
 ### Pending Todos
 
@@ -90,5 +91,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Project complete - all 11 plans executed
+Stopped at: Gap closure complete - 05-03-PLAN.md executed
 Resume file: None
