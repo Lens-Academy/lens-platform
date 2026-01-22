@@ -13,7 +13,7 @@ This roadmap transforms the AI Safety Course Platform from desktop-only to fully
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Typography** - Viewport units, safe areas, and mobile typography baseline
-- [ ] **Phase 2: Responsive Layout** - Navigation collapse, drawer overlays, and layout structure
+- [x] **Phase 2: Responsive Layout** - Navigation collapse, drawer overlays, and layout structure
 - [ ] **Phase 3: Content Components** - Video embeds, article padding, and progress navigation
 - [ ] **Phase 4: Chat Interface** - Mobile chat with keyboard handling and touch gestures
 - [ ] **Phase 5: Motion & Polish** - Animations, visual consistency, and final testing
@@ -49,9 +49,9 @@ Plans:
 **Plans**: 3 plans (Wave 1: 01, 02 parallel; Wave 2: 03)
 
 Plans:
-- [ ] 02-01-PLAN.md — Navigation foundation: useScrollDirection hook, MobileMenu, Layout/LandingNav mobile headers
-- [ ] 02-02-PLAN.md — Drawer components: ModuleDrawer 80% mobile width, CourseSidebar as mobile drawer
-- [ ] 02-03-PLAN.md — ModuleHeader mobile, BottomNav, touch target enforcement
+- [x] 02-01-PLAN.md — Navigation foundation: useScrollDirection hook, MobileMenu, Layout/LandingNav mobile headers
+- [x] 02-02-PLAN.md — Drawer components: ModuleDrawer 80% mobile width, CourseSidebar as mobile drawer
+- [x] 02-03-PLAN.md — ModuleHeader mobile, BottomNav, touch target enforcement
 
 ### Phase 3: Content Components
 **Goal**: Lesson content displays optimally on mobile — videos fill width, articles have comfortable reading margins, progress navigation is touch-friendly
@@ -110,7 +110,7 @@ Note: Phases 2 and 3 can run in parallel after Phase 1 completes.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Typography | 2/2 | Complete | 2026-01-21 |
-| 2. Responsive Layout | 0/3 | Planned | - |
+| 2. Responsive Layout | 3/3 | Complete | 2026-01-22 |
 | 3. Content Components | 0/2 | Not started | - |
 | 4. Chat Interface | 0/2 | Not started | - |
 | 5. Motion & Polish | 0/2 | Not started | - |

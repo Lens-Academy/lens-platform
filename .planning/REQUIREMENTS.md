@@ -16,16 +16,16 @@ Requirements for mobile-responsive release. Each maps to roadmap phases.
 
 ### Navigation
 
-- [ ] **NAV-01**: Header collapses to hamburger menu on mobile screens
-- [ ] **NAV-02**: All navigation links have 44px minimum touch targets
-- [ ] **NAV-03**: Header hides on scroll down, reappears on scroll up
-- [ ] **NAV-04**: Bottom navigation bar for primary actions on mobile
+- [x] **NAV-01**: Header collapses to hamburger menu on mobile screens
+- [x] **NAV-02**: All navigation links have 44px minimum touch targets
+- [x] **NAV-03**: Header hides on scroll down, reappears on scroll up
+- [x] **NAV-04**: Bottom navigation bar for primary actions on mobile
 
 ### Layout Components
 
-- [ ] **LAYOUT-01**: ModuleDrawer displays as full-screen overlay on mobile
-- [ ] **LAYOUT-02**: ModuleHeader stacks vertically on mobile with responsive widths
-- [ ] **LAYOUT-03**: CourseSidebar becomes slide-out drawer on mobile
+- [x] **LAYOUT-01**: ModuleDrawer displays as full-screen overlay on mobile
+- [x] **LAYOUT-02**: ModuleHeader stacks vertically on mobile with responsive widths
+- [x] **LAYOUT-03**: CourseSidebar becomes slide-out drawer on mobile
 
 ### Content Components
 
@@ -99,13 +99,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-04 | Phase 1 | Complete |
 | TYPE-01 | Phase 1 | Complete |
 | TYPE-02 | Phase 1 | Complete |
-| NAV-01 | Phase 2 | Pending |
-| NAV-02 | Phase 2 | Pending |
-| NAV-03 | Phase 2 | Pending |
-| NAV-04 | Phase 2 | Pending |
-| LAYOUT-01 | Phase 2 | Pending |
-| LAYOUT-02 | Phase 2 | Pending |
-| LAYOUT-03 | Phase 2 | Pending |
+| NAV-01 | Phase 2 | Complete |
+| NAV-02 | Phase 2 | Complete |
+| NAV-03 | Phase 2 | Complete |
+| NAV-04 | Phase 2 | Complete |
+| LAYOUT-01 | Phase 2 | Complete |
+| LAYOUT-02 | Phase 2 | Complete |
+| LAYOUT-03 | Phase 2 | Complete |
 | CONTENT-01 | Phase 3 | Pending |
 | CONTENT-02 | Phase 3 | Pending |
 | CONTENT-03 | Phase 3 | Pending |
