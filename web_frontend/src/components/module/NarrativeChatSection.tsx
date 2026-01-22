@@ -13,6 +13,7 @@ import type { ChatMessage, PendingMessage } from "@/types/module";
 import { transcribeAudio } from "@/api/modules";
 import { Tooltip } from "@/components/Tooltip";
 import { StageIcon } from "@/components/module/StageProgressBar";
+import { triggerHaptic } from "@/utils/haptics";
 
 // Minimal markdown for chat - just inline formatting, no block elements
 function ChatMarkdown({ children }: { children: string }) {
@@ -401,6 +402,7 @@ export default function NarrativeChatSection({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
+      triggerHaptic(10); // Subtle haptic feedback on send
       // Set split point before sending - current messages become "previous"
       setCurrentExchangeStartIndex(messages.length);
       setShowScrollButton(false); // Reset scroll button when sending new message
