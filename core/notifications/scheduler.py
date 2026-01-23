@@ -205,6 +205,59 @@ async def _execute_reminder(
         )
 
 
+async def sync_meeting_reminders(meeting_id: int) -> None:
+    """
+    Sync reminder job's user_ids with current group membership from DB.
+
+    This is idempotent and self-healing - reads the source of truth (database)
+    and updates the APScheduler jobs to match.
+
+    Called when users join or leave a group.
+    """
+    if not _scheduler:
+        return
+
+    from core.database import get_connection
+    from core.tables import meetings, groups_users
+    from core.enums import GroupUserStatus
+    from sqlalchemy import select
+
+    # Get current active members for this meeting's group
+    async with get_connection() as conn:
+        # First get the group_id for this meeting
+        meeting_result = await conn.execute(
+            select(meetings.c.group_id).where(meetings.c.meeting_id == meeting_id)
+        )
+        meeting_row = meeting_result.mappings().first()
+        if not meeting_row:
+            return
+
+        group_id = meeting_row["group_id"]
+
+        # Get all active members of the group
+        members_result = await conn.execute(
+            select(groups_users.c.user_id)
+            .where(groups_users.c.group_id == group_id)
+            .where(groups_users.c.status == GroupUserStatus.active)
+        )
+        user_ids = [row["user_id"] for row in members_result.mappings()]
+
+    # Update all reminder jobs for this meeting
+    job_suffixes = ["reminder_24h", "reminder_1h", "module_nudge_3d", "module_nudge_1d"]
+
+    for suffix in job_suffixes:
+        job_id = f"meeting_{meeting_id}_{suffix}"
+        job = _scheduler.get_job(job_id)
+        if job:
+            if user_ids:
+                # Update with current members
+                new_kwargs = {**job.kwargs, "user_ids": user_ids}
+                _scheduler.modify_job(job_id, kwargs=new_kwargs)
+            else:
+                # No users left, remove the job
+                job.remove()
+
+
 async def _check_condition(condition: dict, user_ids: list[int]) -> bool:
     """
     Check if a reminder condition is met.

@@ -10,9 +10,8 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from .database import get_connection, get_transaction
 from .enums import GroupUserStatus
-from .tables import cohorts, groups, groups_users, meetings, users
+from .tables import cohorts, groups, groups_users, meetings
 
 
 # Constants for group size thresholds
@@ -21,7 +20,9 @@ MAX_BADGE_SIZE = 4
 MAX_JOINABLE_SIZE = 7  # Groups with 8+ members are hidden (8 is max capacity)
 
 
-def _calculate_next_meeting(recurring_time_utc: str, first_meeting_at: datetime | None) -> str | None:
+def _calculate_next_meeting(
+    recurring_time_utc: str, first_meeting_at: datetime | None
+) -> str | None:
     """
     Calculate the next meeting datetime as ISO string.
 
@@ -44,13 +45,23 @@ def _calculate_next_meeting(recurring_time_utc: str, first_meeting_at: datetime 
         day_name, time_str = recurring_time_utc.split(" ")
         hours, minutes = map(int, time_str.split(":"))
 
-        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        days = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
         target_day = days.index(day_name)
 
         now = datetime.now(timezone.utc)
         current_day = now.weekday()
         days_until = (target_day - current_day) % 7
-        if days_until == 0 and (now.hour > hours or (now.hour == hours and now.minute >= minutes)):
+        if days_until == 0 and (
+            now.hour > hours or (now.hour == hours and now.minute >= minutes)
+        ):
             days_until = 7  # Next week
 
         next_meeting = now.replace(
@@ -160,7 +171,9 @@ async def get_joinable_groups(
             first_meeting_subq.c.first_meeting_at,
         )
         .outerjoin(member_count_subq, groups.c.group_id == member_count_subq.c.group_id)
-        .outerjoin(first_meeting_subq, groups.c.group_id == first_meeting_subq.c.group_id)
+        .outerjoin(
+            first_meeting_subq, groups.c.group_id == first_meeting_subq.c.group_id
+        )
         .where(groups.c.cohort_id == cohort_id)
         .where(groups.c.status.in_(["preview", "active"]))
         # Filter: member count < 8 (8 is max capacity)
@@ -173,8 +186,8 @@ async def get_joinable_groups(
     # If user HAS a group, they can switch to any group (even after first meeting)
     if not user_current_group_id:
         query = query.where(
-            (first_meeting_subq.c.first_meeting_at.is_(None)) |
-            (first_meeting_subq.c.first_meeting_at > now)
+            (first_meeting_subq.c.first_meeting_at.is_(None))
+            | (first_meeting_subq.c.first_meeting_at > now)
         )
 
     result = await conn.execute(query)
@@ -191,7 +204,7 @@ async def get_joinable_groups(
             group["badge"] = None
 
         # Add is_current flag
-        group["is_current"] = (group["group_id"] == user_current_group_id)
+        group["is_current"] = group["group_id"] == user_current_group_id
 
         # Calculate next_meeting_at as ISO datetime string
         # (so frontend doesn't need to parse "Wednesday 15:00")
@@ -206,7 +219,9 @@ async def get_joinable_groups(
 
         # Add has_started for informational purposes
         if group["first_meeting_at"]:
-            group["has_started"] = datetime.fromisoformat(group["first_meeting_at"]) <= now
+            group["has_started"] = (
+                datetime.fromisoformat(group["first_meeting_at"]) <= now
+            )
         else:
             group["has_started"] = False
 
@@ -263,7 +278,17 @@ async def join_group(
     current_group = current_result.mappings().first()
     current_group = dict(current_group) if current_group else None
 
-    # Query 2: Get the target group with first meeting time
+    # Query 2: Get the target group with first meeting time and member count
+    member_count_subq = (
+        select(
+            groups_users.c.group_id,
+            func.count().label("member_count"),
+        )
+        .where(groups_users.c.status == GroupUserStatus.active)
+        .group_by(groups_users.c.group_id)
+        .subquery()
+    )
+
     first_meeting_subq = (
         select(
             meetings.c.group_id,
@@ -280,8 +305,12 @@ async def join_group(
             groups.c.group_name,
             groups.c.status,
             first_meeting_subq.c.first_meeting_at,
+            func.coalesce(member_count_subq.c.member_count, 0).label("member_count"),
         )
-        .outerjoin(first_meeting_subq, groups.c.group_id == first_meeting_subq.c.group_id)
+        .outerjoin(
+            first_meeting_subq, groups.c.group_id == first_meeting_subq.c.group_id
+        )
+        .outerjoin(member_count_subq, groups.c.group_id == member_count_subq.c.group_id)
         .where(groups.c.group_id == group_id)
     )
     group_result = await conn.execute(group_query)
@@ -289,6 +318,10 @@ async def join_group(
 
     if not target_group:
         return {"success": False, "error": "group_not_found"}
+
+    # Check if group is full (8 is max capacity)
+    if target_group["member_count"] >= 8:
+        return {"success": False, "error": "group_full"}
 
     first_meeting_at = target_group.get("first_meeting_at")
 
@@ -327,4 +360,54 @@ async def join_group(
         "success": True,
         "group_id": group_id,
         "previous_group_id": previous_group_id,
+    }
+
+
+async def get_user_group_info(
+    conn: AsyncConnection,
+    user_id: int,
+) -> dict[str, Any]:
+    """
+    Get user's cohort and group information for the /group page.
+
+    Returns:
+        {
+            "is_enrolled": bool,
+            "cohort_id": int | None,
+            "cohort_name": str | None,
+            "current_group": {...} | None,
+        }
+    """
+    from .tables import signups
+
+    # Get user's most recent signup
+    signup_query = (
+        select(signups, cohorts)
+        .join(cohorts, signups.c.cohort_id == cohorts.c.cohort_id)
+        .where(signups.c.user_id == user_id)
+        .order_by(cohorts.c.cohort_start_date.desc())
+        .limit(1)
+    )
+    result = await conn.execute(signup_query)
+    signup = result.mappings().first()
+
+    if not signup:
+        return {"is_enrolled": False}
+
+    cohort_id = signup["cohort_id"]
+
+    # Get current group if any
+    current_group = await get_user_current_group(conn, user_id, cohort_id)
+
+    return {
+        "is_enrolled": True,
+        "cohort_id": cohort_id,
+        "cohort_name": signup["cohort_name"],
+        "current_group": {
+            "group_id": current_group["group_id"],
+            "group_name": current_group["group_name"],
+            "recurring_meeting_time_utc": current_group["recurring_meeting_time_utc"],
+        }
+        if current_group
+        else None,
     }

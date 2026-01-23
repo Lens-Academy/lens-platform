@@ -7,6 +7,7 @@ They handle building context and scheduling reminders.
 
 from datetime import datetime, timedelta
 
+from core.enums import NotificationReferenceType
 from core.notifications.dispatcher import send_notification
 from core.notifications.scheduler import schedule_reminder, cancel_reminders
 from core.notifications.urls import (
@@ -43,6 +44,8 @@ async def notify_group_assigned(
     meeting_time_utc: str,
     member_names: list[str],
     discord_channel_id: str,
+    reference_type: NotificationReferenceType | None = None,
+    reference_id: int | None = None,
 ) -> dict:
     """
     Send notification when user is assigned to a group.
@@ -55,6 +58,8 @@ async def notify_group_assigned(
         meeting_time_utc: Human-readable meeting time (e.g., "Wednesday 15:00 UTC")
         member_names: List of group member names
         discord_channel_id: Discord channel ID for the group
+        reference_type: Type of entity this notification references (for deduplication)
+        reference_id: ID of the referenced entity (for deduplication)
     """
     return await send_notification(
         user_id=user_id,
@@ -67,6 +72,8 @@ async def notify_group_assigned(
                 channel_id=discord_channel_id
             ),
         },
+        reference_type=reference_type,
+        reference_id=reference_id,
     )
 
 

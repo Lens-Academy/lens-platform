@@ -101,6 +101,24 @@ from .meetings import (
     reschedule_meeting,
 )
 
+# Group joining
+from .group_joining import (
+    get_joinable_groups,
+    get_user_current_group,
+    join_group,
+    get_user_group_info,
+)
+
+# Lifecycle operations (sync functions for group membership changes)
+from .lifecycle import (
+    sync_group_discord_permissions,
+    sync_group_calendar,
+    sync_group_reminders,
+    sync_group_rsvps,
+    sync_meeting_calendar,
+)
+from .notifications.scheduler import sync_meeting_reminders
+
 __all__ = [
     # Database (SQLAlchemy)
     "get_connection",
@@ -181,4 +199,16 @@ __all__ = [
     "send_calendar_invites_for_group",
     "schedule_reminders_for_group",
     "reschedule_meeting",
+    # Group joining
+    "get_joinable_groups",
+    "get_user_current_group",
+    "join_group",
+    "get_user_group_info",
+    # Lifecycle operations (sync functions)
+    "sync_group_discord_permissions",
+    "sync_group_calendar",
+    "sync_group_reminders",
+    "sync_group_rsvps",
+    "sync_meeting_calendar",
+    "sync_meeting_reminders",
 ]

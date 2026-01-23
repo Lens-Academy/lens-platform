@@ -24,6 +24,7 @@ from .enums import (
     group_status_enum,
     group_user_role_enum,
     group_user_status_enum,
+    notification_reference_type_enum,
     rsvp_status_enum,
     ungroupable_reason_enum,
 )
@@ -283,8 +284,19 @@ notification_log = Table(
     Column("status", Text, nullable=False),  # "sent", "failed"
     Column("error_message", Text),  # Why it failed (if applicable)
     Column("sent_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    # New columns for notification deduplication
+    Column("reference_type", notification_reference_type_enum),
+    Column("reference_id", Integer),
     Index("idx_notification_log_user_id", "user_id"),
     Index("idx_notification_log_sent_at", "sent_at"),
+    # New index for deduplication queries
+    Index(
+        "idx_notification_log_dedup",
+        "user_id",
+        "message_type",
+        "reference_type",
+        "reference_id",
+    ),
 )
 
 

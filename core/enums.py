@@ -77,6 +77,15 @@ class ContentEventType(str, enum.Enum):
     complete = "complete"
 
 
+class NotificationReferenceType(str, enum.Enum):
+    """Types of entities that notifications can reference."""
+
+    group_id = "group_id"
+    meeting_id = "meeting_id"
+    cohort_id = "cohort_id"
+    user_id = "user_id"
+
+
 # =====================================================
 # SQLAlchemy Enum Types
 # These reference existing PostgreSQL types (create_type=False)
@@ -102,4 +111,10 @@ ungroupable_reason_enum = SQLEnum(
 )
 rsvp_status_enum = SQLEnum(
     RSVPStatus, name="rsvp_status", create_type=False, native_enum=True
+)
+notification_reference_type_enum = SQLEnum(
+    NotificationReferenceType,
+    name="notification_reference_type",
+    create_type=False,
+    native_enum=True,
 )

@@ -10,6 +10,7 @@ from core.group_joining import (
     assign_group_badge,
     get_joinable_groups,
     join_group,
+    get_user_group_info,
 )
 
 
@@ -212,13 +213,16 @@ class TestJoinGroup:
             "group_id": 5,
             "cohort_id": 10,
             "first_meeting_at": datetime.now(timezone.utc) + timedelta(days=7),
+            "member_count": 4,
         }
 
         # Mock: insert succeeds
         mock_insert = MagicMock()
         mock_insert.mappings.return_value.first.return_value = {"group_user_id": 99}
 
-        mock_conn.execute = AsyncMock(side_effect=[mock_no_group, mock_group, mock_insert])
+        mock_conn.execute = AsyncMock(
+            side_effect=[mock_no_group, mock_group, mock_insert]
+        )
 
         result = await join_group(mock_conn, user_id=1, group_id=5)
 
@@ -243,6 +247,7 @@ class TestJoinGroup:
             "group_id": 5,
             "cohort_id": 10,
             "first_meeting_at": datetime.now(timezone.utc) + timedelta(days=7),
+            "member_count": 4,
         }
 
         # Mock: update old group (mark as removed)
@@ -252,7 +257,9 @@ class TestJoinGroup:
         mock_insert = MagicMock()
         mock_insert.mappings.return_value.first.return_value = {"group_user_id": 99}
 
-        mock_conn.execute = AsyncMock(side_effect=[mock_current, mock_group, mock_update, mock_insert])
+        mock_conn.execute = AsyncMock(
+            side_effect=[mock_current, mock_group, mock_update, mock_insert]
+        )
 
         result = await join_group(mock_conn, user_id=1, group_id=5)
 
@@ -274,6 +281,7 @@ class TestJoinGroup:
             "group_id": 5,
             "cohort_id": 10,
             "first_meeting_at": datetime.now(timezone.utc) - timedelta(days=1),  # Past
+            "member_count": 4,
         }
 
         mock_conn.execute = AsyncMock(side_effect=[mock_no_group, mock_group])
@@ -282,3 +290,84 @@ class TestJoinGroup:
 
         assert result["success"] is False
         assert result["error"] == "group_already_started"
+
+    @pytest.mark.asyncio
+    async def test_rejects_nonexistent_group(self):
+        """Should return error when group doesn't exist."""
+        mock_conn = AsyncMock()
+        mock_no_group = MagicMock()
+        mock_no_group.mappings.return_value.first.return_value = None
+        mock_conn.execute = AsyncMock(return_value=mock_no_group)
+
+        result = await join_group(mock_conn, user_id=1, group_id=999)
+
+        assert result["success"] is False
+        assert result["error"] == "group_not_found"
+
+    @pytest.mark.asyncio
+    async def test_rejects_full_group(self):
+        """Should return error when group already has 8 or more members."""
+        mock_conn = AsyncMock()
+
+        # Mock: user has no current group
+        mock_no_group = MagicMock()
+        mock_no_group.mappings.return_value.first.return_value = None
+
+        # Mock: group is full (8 members)
+        mock_group = MagicMock()
+        mock_group.mappings.return_value.first.return_value = {
+            "group_id": 5,
+            "cohort_id": 10,
+            "first_meeting_at": datetime.now(timezone.utc) + timedelta(days=7),
+            "member_count": 8,
+        }
+
+        mock_conn.execute = AsyncMock(side_effect=[mock_no_group, mock_group])
+
+        result = await join_group(mock_conn, user_id=1, group_id=5)
+
+        assert result["success"] is False
+        assert result["error"] == "group_full"
+
+
+class TestGetUserGroupInfo:
+    """Test user group info retrieval."""
+
+    @pytest.mark.asyncio
+    async def test_returns_not_enrolled_when_no_signup(self):
+        """Should return is_enrolled=False when user has no signup."""
+        mock_conn = AsyncMock()
+
+        mock_result = MagicMock()
+        mock_result.mappings.return_value.first.return_value = None
+        mock_conn.execute = AsyncMock(return_value=mock_result)
+
+        result = await get_user_group_info(mock_conn, user_id=1)
+
+        assert result["is_enrolled"] is False
+        assert "cohort_id" not in result or result.get("cohort_id") is None
+
+    @pytest.mark.asyncio
+    async def test_returns_cohort_info_when_enrolled(self):
+        """Should return cohort info when user is enrolled."""
+        mock_conn = AsyncMock()
+
+        # First call: signup query
+        mock_signup = MagicMock()
+        mock_signup.mappings.return_value.first.return_value = {
+            "cohort_id": 10,
+            "cohort_name": "Test Cohort",
+        }
+
+        # Second call: current group query (no group)
+        mock_no_group = MagicMock()
+        mock_no_group.mappings.return_value.first.return_value = None
+
+        mock_conn.execute = AsyncMock(side_effect=[mock_signup, mock_no_group])
+
+        result = await get_user_group_info(mock_conn, user_id=1)
+
+        assert result["is_enrolled"] is True
+        assert result["cohort_id"] == 10
+        assert result["cohort_name"] == "Test Cohort"
+        assert result["current_group"] is None
