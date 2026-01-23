@@ -63,3 +63,27 @@ def _calculate_next_meeting(recurring_time_utc: str, first_meeting_at: datetime 
         return next_meeting.isoformat()
     except (ValueError, IndexError):
         return None
+
+
+async def get_user_current_group(
+    conn: AsyncConnection,
+    user_id: int,
+    cohort_id: int,
+) -> dict[str, Any] | None:
+    """Get user's current active group in a specific cohort, if any."""
+    query = (
+        select(
+            groups.c.group_id,
+            groups.c.group_name,
+            groups.c.recurring_meeting_time_utc,
+            groups_users.c.group_user_id,
+            groups_users.c.role,
+        )
+        .join(groups_users, groups.c.group_id == groups_users.c.group_id)
+        .where(groups_users.c.user_id == user_id)
+        .where(groups_users.c.status == GroupUserStatus.active)
+        .where(groups.c.cohort_id == cohort_id)
+    )
+    result = await conn.execute(query)
+    row = result.mappings().first()
+    return dict(row) if row else None
