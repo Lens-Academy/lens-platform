@@ -360,7 +360,7 @@ async def _execute_sync_retry(
     If sync fails again, schedules another retry.
     """
     import sentry_sdk
-    from core.lifecycle import (
+    from core.sync import (
         sync_group_calendar,
         sync_group_discord_permissions,
         sync_group_reminders,

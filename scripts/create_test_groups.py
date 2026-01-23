@@ -3,8 +3,11 @@
 Create test groups for testing the group selection UI.
 
 Creates groups with varying member counts to test badge logic and UI.
+Groups are created with status="preview" so they can be realized via
+the /realize_groups Discord command to create channels.
 
 Run locally:  python scripts/create_test_groups.py --cohort-id 1
+Realize:      Use /realize_groups in Discord (creates channels)
 Delete:       python scripts/delete_test_groups.py
 
 Groups created:
@@ -76,7 +79,7 @@ async def create_test_groups(cohort_id: int):
                     group_name=f"{PREFIX}{group_data['name']}",
                     cohort_id=cohort_id,
                     recurring_meeting_time_utc=group_data["time"],
-                    status="active",  # Active so they show up
+                    status="preview",  # Preview so they can be realized
                 )
                 .returning(groups)
             )
@@ -151,10 +154,11 @@ async def create_test_groups(cohort_id: int):
             )
 
         await conn.commit()
-        print(f"\nCreated {len(TEST_GROUPS)} test groups")
-        print("\nTo test the UI:")
-        print("  1. Sign in via Discord OAuth")
-        print("  2. Go to /group or enroll in the cohort")
+        print(f"\nCreated {len(TEST_GROUPS)} test groups (status=preview)")
+        print("\nNext steps:")
+        print("  1. Use /realize_groups in Discord to create channels")
+        print("  2. Sign in via Discord OAuth")
+        print("  3. Go to /group or enroll in the cohort")
         print("\nTo delete test data: python scripts/delete_test_groups.py")
 
 

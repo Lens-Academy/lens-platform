@@ -1,4 +1,4 @@
-"""Tests for lifecycle operations (TDD)."""
+"""Tests for sync operations (TDD)."""
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -95,7 +95,7 @@ class TestSyncGroupDiscordPermissions:
     @pytest.mark.asyncio
     async def test_returns_error_when_bot_unavailable(self):
         """Should return error dict if bot is not initialized."""
-        from core.lifecycle import sync_group_discord_permissions
+        from core.sync import sync_group_discord_permissions
 
         with patch("core.notifications.channels.discord._bot", None):
             result = await sync_group_discord_permissions(group_id=1)
@@ -105,7 +105,7 @@ class TestSyncGroupDiscordPermissions:
     @pytest.mark.asyncio
     async def test_returns_error_when_group_has_no_channel(self):
         """Should return error if group has no Discord channel."""
-        from core.lifecycle import sync_group_discord_permissions
+        from core.sync import sync_group_discord_permissions
 
         mock_conn = AsyncMock()
         mock_result = MagicMock()
@@ -127,7 +127,7 @@ class TestSyncGroupDiscordPermissions:
     @pytest.mark.asyncio
     async def test_returns_error_when_channel_not_found_in_discord(self):
         """Should return error if Discord channel is not found."""
-        from core.lifecycle import sync_group_discord_permissions
+        from core.sync import sync_group_discord_permissions
 
         mock_conn = AsyncMock()
         # First query: get group channels
@@ -161,7 +161,7 @@ class TestSyncGroupCalendar:
     @pytest.mark.asyncio
     async def test_returns_zero_counts_when_no_future_meetings(self):
         """Should return zero counts when group has no future meetings."""
-        from core.lifecycle import sync_group_calendar
+        from core.sync import sync_group_calendar
 
         mock_conn = AsyncMock()
         mock_result = MagicMock()
@@ -187,7 +187,7 @@ class TestSyncGroupReminders:
     @pytest.mark.asyncio
     async def test_returns_zero_meetings_when_no_future_meetings(self):
         """Should return zero count when group has no future meetings."""
-        from core.lifecycle import sync_group_reminders
+        from core.sync import sync_group_reminders
 
         mock_conn = AsyncMock()
         mock_result = MagicMock()
@@ -203,7 +203,7 @@ class TestSyncGroupReminders:
     @pytest.mark.asyncio
     async def test_calls_sync_meeting_reminders_for_each_meeting(self):
         """Should call sync_meeting_reminders for each future meeting."""
-        from core.lifecycle import sync_group_reminders
+        from core.sync import sync_group_reminders
 
         mock_conn = AsyncMock()
         mock_result = MagicMock()
@@ -232,7 +232,7 @@ class TestSyncGroupRsvps:
     @pytest.mark.asyncio
     async def test_returns_zero_meetings_when_no_future_meetings(self):
         """Should return zero count when group has no future meetings."""
-        from core.lifecycle import sync_group_rsvps
+        from core.sync import sync_group_rsvps
 
         mock_conn = AsyncMock()
         mock_result = MagicMock()
@@ -248,7 +248,7 @@ class TestSyncGroupRsvps:
     @pytest.mark.asyncio
     async def test_calls_sync_meeting_rsvps_for_each_meeting(self):
         """Should call sync_meeting_rsvps for each future meeting."""
-        from core.lifecycle import sync_group_rsvps
+        from core.sync import sync_group_rsvps
 
         mock_conn = AsyncMock()
         mock_result = MagicMock()
@@ -266,3 +266,127 @@ class TestSyncGroupRsvps:
 
         assert mock_sync.call_count == 2
         assert result == {"meetings": 2}
+
+
+class TestSyncGroup:
+    """Test unified sync_group function."""
+
+    @pytest.mark.asyncio
+    async def test_sync_group_calls_all_sub_syncs(self):
+        """Should call all four sub-sync functions for a group."""
+        from core.sync import sync_group
+
+        with (
+            patch(
+                "core.sync.sync_group_discord_permissions", new_callable=AsyncMock
+            ) as mock_discord,
+            patch(
+                "core.sync.sync_group_calendar", new_callable=AsyncMock
+            ) as mock_calendar,
+            patch(
+                "core.sync.sync_group_reminders", new_callable=AsyncMock
+            ) as mock_reminders,
+            patch("core.sync.sync_group_rsvps", new_callable=AsyncMock) as mock_rsvps,
+        ):
+            mock_discord.return_value = {
+                "granted": 1,
+                "revoked": 0,
+                "unchanged": 0,
+                "failed": 0,
+            }
+            mock_calendar.return_value = {
+                "meetings": 5,
+                "created": 0,
+                "patched": 2,
+                "unchanged": 3,
+                "failed": 0,
+            }
+            mock_reminders.return_value = {"meetings": 5}
+            mock_rsvps.return_value = {"meetings": 5}
+
+            result = await sync_group(group_id=123)
+
+            mock_discord.assert_called_once_with(123)
+            mock_calendar.assert_called_once_with(123)
+            mock_reminders.assert_called_once_with(123)
+            mock_rsvps.assert_called_once_with(123)
+
+            assert result["discord"] == {
+                "granted": 1,
+                "revoked": 0,
+                "unchanged": 0,
+                "failed": 0,
+            }
+            assert result["calendar"]["patched"] == 2
+            assert result["reminders"]["meetings"] == 5
+            assert result["rsvps"]["meetings"] == 5
+
+    @pytest.mark.asyncio
+    async def test_sync_group_returns_errors_without_raising(self):
+        """Should capture errors in results without raising exceptions."""
+        from core.sync import sync_group
+
+        with (
+            patch(
+                "core.sync.sync_group_discord_permissions", new_callable=AsyncMock
+            ) as mock_discord,
+            patch(
+                "core.sync.sync_group_calendar", new_callable=AsyncMock
+            ) as mock_calendar,
+            patch(
+                "core.sync.sync_group_reminders", new_callable=AsyncMock
+            ) as mock_reminders,
+            patch("core.sync.sync_group_rsvps", new_callable=AsyncMock) as mock_rsvps,
+        ):
+            mock_discord.side_effect = Exception("Discord error")
+            mock_calendar.return_value = {"error": "quota_exceeded"}
+            mock_reminders.return_value = {"meetings": 5}
+            mock_rsvps.return_value = {"meetings": 5}
+
+            result = await sync_group(group_id=123)
+
+            assert "error" in result["discord"]
+            assert result["calendar"]["error"] == "quota_exceeded"
+            assert result["reminders"]["meetings"] == 5
+
+    @pytest.mark.asyncio
+    async def test_sync_group_schedules_retries_on_failure(self):
+        """Should schedule retries for failed syncs."""
+        from core.sync import sync_group
+
+        with (
+            patch(
+                "core.sync.sync_group_discord_permissions", new_callable=AsyncMock
+            ) as mock_discord,
+            patch(
+                "core.sync.sync_group_calendar", new_callable=AsyncMock
+            ) as mock_calendar,
+            patch(
+                "core.sync.sync_group_reminders", new_callable=AsyncMock
+            ) as mock_reminders,
+            patch("core.sync.sync_group_rsvps", new_callable=AsyncMock) as mock_rsvps,
+            patch("core.notifications.scheduler.schedule_sync_retry") as mock_retry,
+        ):
+            mock_discord.return_value = {
+                "granted": 0,
+                "revoked": 0,
+                "unchanged": 0,
+                "failed": 2,
+            }
+            mock_calendar.return_value = {
+                "meetings": 5,
+                "created": 0,
+                "patched": 0,
+                "unchanged": 0,
+                "failed": 5,
+            }
+            mock_reminders.return_value = {"meetings": 5}
+            mock_rsvps.return_value = {"meetings": 5}
+
+            await sync_group(group_id=123)
+
+            # Should schedule retries for discord and calendar (both had failures)
+            calls = mock_retry.call_args_list
+            sync_types = [call[1]["sync_type"] for call in calls]
+            assert "discord" in sync_types
+            assert "calendar" in sync_types

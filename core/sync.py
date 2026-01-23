@@ -9,6 +9,8 @@ the database update. Use sync commands to recover from failures.
 """
 
 import logging
+from typing import Any
+
 import sentry_sdk
 
 logger = logging.getLogger(__name__)
@@ -391,3 +393,76 @@ async def sync_group_rsvps(group_id: int) -> dict:
         synced += 1
 
     return {"meetings": synced}
+
+
+async def sync_group(group_id: int) -> dict[str, Any]:
+    """
+    Sync all external systems for a group.
+
+    This is the unified sync function that should be called whenever
+    group membership changes. It syncs:
+    - Discord channel permissions
+    - Google Calendar event attendees
+    - Meeting reminder jobs
+    - RSVP records
+
+    Errors are captured in the results dict, not raised. Failed syncs
+    are automatically scheduled for retry.
+
+    Args:
+        group_id: The group to sync
+
+    Returns:
+        Dict with results from each sync operation:
+        {
+            "discord": {...},
+            "calendar": {...},
+            "reminders": {...},
+            "rsvps": {...},
+        }
+    """
+    from .notifications.scheduler import schedule_sync_retry
+
+    results: dict[str, Any] = {}
+
+    # Sync Discord permissions
+    try:
+        results["discord"] = await sync_group_discord_permissions(group_id)
+        if results["discord"].get("failed", 0) > 0 or results["discord"].get("error"):
+            schedule_sync_retry(sync_type="discord", group_id=group_id, attempt=0)
+    except Exception as e:
+        logger.error(f"Discord sync failed for group {group_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        results["discord"] = {"error": str(e)}
+        schedule_sync_retry(sync_type="discord", group_id=group_id, attempt=0)
+
+    # Sync Calendar
+    try:
+        results["calendar"] = await sync_group_calendar(group_id)
+        if results["calendar"].get("failed", 0) > 0 or results["calendar"].get("error"):
+            schedule_sync_retry(sync_type="calendar", group_id=group_id, attempt=0)
+    except Exception as e:
+        logger.error(f"Calendar sync failed for group {group_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        results["calendar"] = {"error": str(e)}
+        schedule_sync_retry(sync_type="calendar", group_id=group_id, attempt=0)
+
+    # Sync Reminders
+    try:
+        results["reminders"] = await sync_group_reminders(group_id)
+    except Exception as e:
+        logger.error(f"Reminders sync failed for group {group_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        results["reminders"] = {"error": str(e)}
+        schedule_sync_retry(sync_type="reminders", group_id=group_id, attempt=0)
+
+    # Sync RSVPs
+    try:
+        results["rsvps"] = await sync_group_rsvps(group_id)
+    except Exception as e:
+        logger.error(f"RSVPs sync failed for group {group_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        results["rsvps"] = {"error": str(e)}
+        schedule_sync_retry(sync_type="rsvps", group_id=group_id, attempt=0)
+
+    return results

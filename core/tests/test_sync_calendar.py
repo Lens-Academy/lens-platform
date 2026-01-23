@@ -1,4 +1,4 @@
-"""Tests for calendar sync lifecycle operations."""
+"""Tests for calendar sync operations."""
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -11,7 +11,7 @@ class TestSyncGroupCalendar:
     @pytest.mark.asyncio
     async def test_creates_events_for_meetings_without_calendar_ids(self):
         """Should batch create events for meetings without google_calendar_event_id."""
-        from core.lifecycle import sync_group_calendar
+        from core.sync import sync_group_calendar
 
         # Meetings without calendar event IDs
         mock_meetings = [
@@ -37,7 +37,7 @@ class TestSyncGroupCalendar:
             mock_result.mappings.return_value = mock_meetings
             mock_conn.execute.return_value = mock_result
 
-            with patch("core.lifecycle._get_group_member_emails") as mock_emails:
+            with patch("core.sync._get_group_member_emails") as mock_emails:
                 mock_emails.return_value = {"user@test.com"}
 
                 with patch("core.calendar.client.batch_create_events") as mock_create:
@@ -72,7 +72,7 @@ class TestSyncGroupCalendar:
     @pytest.mark.asyncio
     async def test_patches_existing_events_with_attendee_changes(self):
         """Should batch patch existing events that have attendee diffs."""
-        from core.lifecycle import sync_group_calendar
+        from core.sync import sync_group_calendar
 
         mock_meetings = [
             {
@@ -96,7 +96,7 @@ class TestSyncGroupCalendar:
             mock_result.mappings.return_value = mock_meetings
             mock_conn.execute.return_value = mock_result
 
-            with patch("core.lifecycle._get_group_member_emails") as mock_emails:
+            with patch("core.sync._get_group_member_emails") as mock_emails:
                 mock_emails.return_value = {"new@test.com"}
 
                 with patch("core.calendar.client.batch_create_events") as mock_create:
@@ -127,7 +127,7 @@ class TestSyncGroupCalendar:
     @pytest.mark.asyncio
     async def test_uses_send_updates_all_for_additions_none_for_removals(self):
         """Should send notifications only when adding attendees."""
-        from core.lifecycle import sync_group_calendar
+        from core.sync import sync_group_calendar
 
         # Test scenario:
         # - gcal_add: has no attendees, expected has new@test.com -> pure addition -> "all"
@@ -154,7 +154,7 @@ class TestSyncGroupCalendar:
             mock_result.mappings.return_value = mock_meetings
             mock_conn.execute.return_value = mock_result
 
-            with patch("core.lifecycle._get_group_member_emails") as mock_emails:
+            with patch("core.sync._get_group_member_emails") as mock_emails:
                 mock_emails.return_value = {"new@test.com"}
 
                 with patch("core.calendar.client.batch_create_events", return_value={}):

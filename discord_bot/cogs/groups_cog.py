@@ -3,14 +3,15 @@ Groups Cog - Discord adapter for realizing groups from database.
 Creates Discord channels, scheduled events, and welcome messages.
 """
 
-import discord
-from discord import app_commands
-from discord.ext import commands
-from datetime import datetime, timedelta
-import pytz
-
+import logging
 import sys
 from pathlib import Path
+from datetime import datetime, timedelta
+
+import discord
+import pytz
+from discord import app_commands
+from discord.ext import commands
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -24,7 +25,7 @@ from core.queries.groups import (
     get_group_member_names,
 )
 from core.meetings import create_meetings_for_group
-from core.lifecycle import (
+from core.sync import (
     sync_group_discord_permissions,
     sync_group_calendar,
     sync_group_reminders,
@@ -33,6 +34,8 @@ from core.lifecycle import (
 from core.notifications.dispatcher import was_notification_sent
 from core.notifications.actions import notify_group_assigned
 from core.enums import NotificationReferenceType
+
+logger = logging.getLogger(__name__)
 
 
 class GroupsCog(commands.Cog):
@@ -73,16 +76,36 @@ class GroupsCog(commands.Cog):
         ensuring one code path for all group membership operations.
         """
         # 1. Sync Discord permissions (diff-based - will grant to all members)
-        await sync_group_discord_permissions(group_id)
+        try:
+            print(f"Group {group_id}: Syncing Discord permissions...")
+            result = await sync_group_discord_permissions(group_id)
+            print(f"Group {group_id}: Discord permissions result: {result}")
+        except Exception as e:
+            print(f"Group {group_id}: Discord permissions failed: {e}")
 
         # 2. Sync calendar events and attendees for all future meetings
-        await sync_group_calendar(group_id)
+        try:
+            print(f"Group {group_id}: Syncing calendar...")
+            result = await sync_group_calendar(group_id)
+            print(f"Group {group_id}: Calendar result: {result}")
+        except Exception as e:
+            print(f"Group {group_id}: Calendar sync failed: {e}")
 
         # 3. Sync reminders for all future meetings
-        await sync_group_reminders(group_id)
+        try:
+            print(f"Group {group_id}: Syncing reminders...")
+            result = await sync_group_reminders(group_id)
+            print(f"Group {group_id}: Reminders result: {result}")
+        except Exception as e:
+            print(f"Group {group_id}: Reminders sync failed: {e}")
 
         # 4. Sync RSVPs for all future meetings
-        await sync_group_rsvps(group_id)
+        try:
+            print(f"Group {group_id}: Syncing RSVPs...")
+            result = await sync_group_rsvps(group_id)
+            print(f"Group {group_id}: RSVPs result: {result}")
+        except Exception as e:
+            print(f"Group {group_id}: RSVPs sync failed: {e}")
 
         # 5. Send notifications (with deduplication)
         async with get_connection() as conn:
@@ -194,92 +217,121 @@ class GroupsCog(commands.Cog):
 
         # Create channels for each group
         created_count = 0
+        failed_count = 0
         for group_data in cohort_data["groups"]:
             # Skip if already realized (not in preview status)
             if group_data.get("status") != "preview":
+                print(f"[realize] Skipping {group_data['group_name']} (status={group_data.get('status')})")
                 continue
 
-            await progress_msg.edit(
-                content=f"Creating channels for {group_data['group_name']}..."
-            )
+            group_name = group_data['group_name']
+            group_id = group_data['group_id']
+            print(f"Processing group {group_id}: {group_name}")
 
-            # Create text channel
-            text_channel = await interaction.guild.create_text_channel(
-                name=group_data["group_name"].lower().replace(" ", "-"),
-                category=category,
-                reason=f"Group channel for {group_data['group_name']}",
-            )
-
-            # Create voice channel
-            voice_channel = await interaction.guild.create_voice_channel(
-                name=f"{group_data['group_name']} Voice",
-                category=category,
-                reason=f"Voice channel for {group_data['group_name']}",
-            )
-
-            # Create scheduled events
-            await progress_msg.edit(
-                content=f"Creating events for {group_data['group_name']}..."
-            )
-
-            events, first_meeting = await self._create_scheduled_events(
-                interaction.guild,
-                voice_channel,
-                group_data,
-                cohort_data,
-            )
-
-            # Create meeting records in database
-            num_meetings = cohort_data.get("number_of_group_meetings", 8)
-            if first_meeting:
-                await create_meetings_for_group(
-                    group_id=group_data["group_id"],
-                    cohort_id=cohort_data["cohort_id"],
-                    group_name=group_data["group_name"],
-                    first_meeting=first_meeting,
-                    num_meetings=num_meetings,
-                    discord_voice_channel_id=str(voice_channel.id),
-                    discord_events=events,
-                    discord_text_channel_id=str(text_channel.id),
+            try:
+                await progress_msg.edit(
+                    content=f"Creating channels for {group_name}..."
                 )
 
-            # Save channel IDs to database
-            async with get_transaction() as conn:
-                await save_discord_channel_ids(
-                    conn,
-                    group_data["group_id"],
-                    str(text_channel.id),
-                    str(voice_channel.id),
+                # Create text channel
+                print(f"Group {group_id}: Creating text channel...")
+                text_channel = await interaction.guild.create_text_channel(
+                    name=group_name.lower().replace(" ", "-"),
+                    category=category,
+                    reason=f"Group channel for {group_name}",
+                )
+                print(f"Group {group_id}: Text channel created: {text_channel.id}")
+
+                # Create voice channel
+                print(f"Group {group_id}: Creating voice channel...")
+                voice_channel = await interaction.guild.create_voice_channel(
+                    name=f"{group_name} Voice",
+                    category=category,
+                    reason=f"Voice channel for {group_name}",
+                )
+                print(f"Group {group_id}: Voice channel created: {voice_channel.id}")
+
+                # Create scheduled events
+                await progress_msg.edit(
+                    content=f"Creating events for {group_name}..."
                 )
 
-            # Send welcome message
-            await self._send_welcome_message(
-                text_channel,
-                group_data,
-                cohort_data,
-                events[0].url if events else None,
-            )
+                print(f"Group {group_id}: Creating scheduled events...")
+                events, first_meeting = await self._create_scheduled_events(
+                    interaction.guild,
+                    voice_channel,
+                    group_data,
+                    cohort_data,
+                )
+                print(f"Group {group_id}: Created {len(events)} events")
 
-            # Sync permissions, calendar, reminders, and notifications via lifecycle functions
-            # This uses the same code path as direct group joining
-            user_ids = [m["user_id"] for m in group_data["members"]]
-            await self._sync_group_lifecycle(
-                group_id=group_data["group_id"],
-                user_ids=user_ids,
-            )
+                # Create meeting records in database
+                num_meetings = cohort_data.get("number_of_group_meetings", 8)
+                if first_meeting:
+                    print(f"Group {group_id}: Creating meeting records...")
+                    await create_meetings_for_group(
+                        group_id=group_id,
+                        cohort_id=cohort_data["cohort_id"],
+                        group_name=group_name,
+                        first_meeting=first_meeting,
+                        num_meetings=num_meetings,
+                        discord_voice_channel_id=str(voice_channel.id),
+                        discord_events=events,
+                        discord_text_channel_id=str(text_channel.id),
+                    )
 
-            created_count += 1
+                # Save channel IDs to database
+                print(f"Group {group_id}: Saving channel IDs...")
+                async with get_transaction() as conn:
+                    await save_discord_channel_ids(
+                        conn,
+                        group_id,
+                        str(text_channel.id),
+                        str(voice_channel.id),
+                    )
+
+                # Send welcome message
+                print(f"Group {group_id}: Sending welcome message...")
+                await self._send_welcome_message(
+                    text_channel,
+                    group_data,
+                    cohort_data,
+                    events[0].url if events else None,
+                )
+
+                # Sync permissions, calendar, reminders, and notifications via lifecycle functions
+                # This uses the same code path as direct group joining
+                print(f"Group {group_id}: Running lifecycle sync...")
+                user_ids = [m["user_id"] for m in group_data["members"]]
+                await self._sync_group_lifecycle(
+                    group_id=group_id,
+                    user_ids=user_ids,
+                )
+
+                created_count += 1
+                print(f"Group {group_id}: Realized successfully")
+
+            except Exception as e:
+                print(f"Group {group_id}: Failed to realize: {e}")
+                failed_count += 1
+                await progress_msg.edit(
+                    content=f"Error with {group_name}: {str(e)[:100]}. Continuing..."
+                )
+                continue
 
         # Summary
+        print(f"Realize complete: {created_count} created, {failed_count} failed")
+        color = discord.Color.green() if failed_count == 0 else discord.Color.orange()
         embed = discord.Embed(
             title=f"Groups Realized: {cohort_data['cohort_name']}",
-            color=discord.Color.green(),
+            color=color,
         )
+        summary = f"**Category:** {category.name}\n**Groups created:** {created_count}\n**Total groups:** {len(cohort_data['groups'])}"
+        if failed_count > 0:
+            summary += f"\n**Failed:** {failed_count}"
         embed.add_field(
             name="Summary",
-            value=f"**Category:** {category.name}\n"
-            f"**Groups created:** {created_count}\n"
-            f"**Total groups:** {len(cohort_data['groups'])}",
+            value=summary,
             inline=False,
         )
         embed.set_footer(
@@ -358,6 +410,7 @@ class GroupsCog(commands.Cog):
                 continue
 
             try:
+                print(f"Creating event {week + 1}/{num_meetings} for {group_data['group_name']}...")
                 event = await guild.create_scheduled_event(
                     name=f"{group_data['group_name']} - Week {week + 1}",
                     start_time=meeting_time,
@@ -368,8 +421,9 @@ class GroupsCog(commands.Cog):
                     privacy_level=discord.PrivacyLevel.guild_only,
                 )
                 events.append(event)
-            except discord.HTTPException:
-                pass  # Skip if event creation fails
+                print(f"Created event {week + 1} for {group_data['group_name']}")
+            except discord.HTTPException as e:
+                print(f"Failed to create event {week + 1} for {group_data['group_name']}: {e}")
 
         return events, first_meeting
 

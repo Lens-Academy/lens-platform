@@ -139,6 +139,10 @@ export default function GroupPage() {
             <h1 className="text-2xl font-bold mb-4">Group Updated!</h1>
             <p className="text-gray-600 mb-4">
               You've successfully joined your new group.
+              <br />
+              <span className="text-sm text-gray-500">
+                Calendar invites and Discord access will be set up in the next few minutes.
+              </span>
             </p>
             <a href="/" className="text-blue-600 hover:underline">
               Go to home

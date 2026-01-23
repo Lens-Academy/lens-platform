@@ -110,8 +110,8 @@ from .group_joining import (
     sync_after_group_change,
 )
 
-# Lifecycle operations (sync functions for group membership changes)
-from .lifecycle import (
+# Sync operations (sync functions for group membership changes)
+from .sync import (
     sync_group_discord_permissions,
     sync_group_calendar,
     sync_group_reminders,
@@ -205,7 +205,7 @@ __all__ = [
     "join_group",
     "get_user_group_info",
     "sync_after_group_change",
-    # Lifecycle operations (sync functions)
+    # Sync operations
     "sync_group_discord_permissions",
     "sync_group_calendar",
     "sync_group_reminders",
