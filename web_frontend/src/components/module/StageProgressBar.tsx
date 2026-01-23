@@ -1,5 +1,6 @@
 // web_frontend/src/components/unified-lesson/StageProgressBar.tsx
 import type { Stage } from "../../types/module";
+import { triggerHaptic } from "@/utils/haptics";
 import { Tooltip } from "../Tooltip";
 import {
   getHighestCompleted,
@@ -16,6 +17,7 @@ type StageProgressBarProps = {
   onNext: () => void;
   canGoPrevious: boolean;
   canGoNext: boolean;
+  compact?: boolean; // Smaller size for header use
 };
 
 export function StageIcon({
@@ -98,6 +100,7 @@ export default function StageProgressBar({
   onNext,
   canGoPrevious,
   canGoNext,
+  compact = false,
 }: StageProgressBarProps) {
   // Calculate highest completed index for bar coloring
   const highestCompleted = getHighestCompleted(completedStages);
@@ -115,6 +118,8 @@ export default function StageProgressBar({
   };
 
   const handleDotClick = (index: number) => {
+    // Trigger haptic on any tap
+    triggerHaptic(10);
     onStageClick(index);
   };
 
@@ -125,10 +130,14 @@ export default function StageProgressBar({
         <button
           onClick={onPrevious}
           disabled={!canGoPrevious}
-          className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default"
+          className={`rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default ${
+            compact
+              ? "p-1"
+              : "min-w-8 min-h-8 sm:min-w-[44px] sm:min-h-[44px] p-1.5 sm:p-2 transition-all active:scale-95 shrink-0"
+          }`}
         >
           <svg
-            className="w-4 h-4"
+            className={compact ? "w-4 h-4" : "w-4 h-4 sm:w-5 sm:h-5"}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -161,7 +170,7 @@ export default function StageProgressBar({
               {/* Connector line (except before first) */}
               {index > 0 && (
                 <div
-                  className={`w-4 h-0.5 ${getBarColor(index)}`}
+                  className={`h-0.5 ${compact ? "w-4" : "w-2 sm:w-4"} ${getBarColor(index)}`}
                 />
               )}
 
@@ -173,13 +182,19 @@ export default function StageProgressBar({
                 <button
                   onClick={() => handleDotClick(index)}
                   className={`
-                    relative w-7 h-7 rounded-full flex items-center justify-center
+                    relative rounded-full flex items-center justify-center
                     transition-all duration-150
+                    ${compact ? "" : "active:scale-95 shrink-0"}
+                    ${
+                      compact
+                        ? "w-7 h-7"
+                        : "min-w-8 min-h-8 w-8 h-8 sm:min-w-[44px] sm:min-h-[44px] sm:w-11 sm:h-11"
+                    }
                     ${fillClasses}
                     ${ringClasses}
                   `}
                 >
-                  <StageIcon type={stage.type} small />
+                  <StageIcon type={stage.type} small={compact} />
                 </button>
               </Tooltip>
             </div>
@@ -192,10 +207,14 @@ export default function StageProgressBar({
         <button
           onClick={onNext}
           disabled={!canGoNext}
-          className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default"
+          className={`rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default ${
+            compact
+              ? "p-1"
+              : "min-w-8 min-h-8 sm:min-w-[44px] sm:min-h-[44px] p-1.5 sm:p-2 transition-all active:scale-95 shrink-0"
+          }`}
         >
           <svg
-            className="w-4 h-4"
+            className={compact ? "w-4 h-4" : "w-4 h-4 sm:w-5 sm:h-5"}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

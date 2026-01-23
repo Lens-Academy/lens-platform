@@ -2,7 +2,7 @@ import { LandingNav } from "@/components/LandingNav";
 
 export default function LandingPage() {
   return (
-    <div className="h-screen bg-stone-50 text-slate-900 antialiased flex flex-col overflow-hidden">
+    <div className="h-dvh bg-stone-50 text-slate-900 antialiased flex flex-col overflow-hidden">
       <LandingNav />
 
       {/* Hero */}

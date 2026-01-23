@@ -1,6 +1,8 @@
-import { useHeaderLayout } from "../hooks/useHeaderLayout";
-import StageProgressBar from "./module/StageProgressBar";
+import { useMedia } from "react-use";
+import { useScrollDirection } from "../hooks/useScrollDirection";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { UserMenu } from "./nav/UserMenu";
+import StageProgressBar from "./module/StageProgressBar";
 import type { Stage } from "../types/module";
 
 interface ModuleHeaderProps {
@@ -26,81 +28,75 @@ export function ModuleHeader({
   onPrevious,
   onNext,
 }: ModuleHeaderProps) {
-  const [
-    { needsTwoRows, needsTruncation },
-    containerRef,
-    leftRef,
-    centerRef,
-    rightRef,
-  ] = useHeaderLayout();
+  const scrollDirection = useScrollDirection(100);
+  const isMobile = useMedia("(max-width: 767px)", false);
+
+  // Hide header on scroll down (100px threshold via useScrollDirection)
+  const shouldHideHeader = scrollDirection === "down";
+
+  // Current viewing position (1-indexed for display)
+  const displayIndex = viewingIndex + 1;
+  const totalStages = stages.length;
 
   return (
     <header
-      ref={containerRef}
-      className="relative bg-white border-b border-gray-200 px-4 py-3 z-40"
+      className={`
+        fixed top-0 left-0 right-0 z-40
+        bg-white border-b border-gray-200
+        transition-transform duration-300
+        ${shouldHideHeader ? "-translate-y-full" : "translate-y-0"}
+      `}
+      style={{ paddingTop: "var(--safe-top)" }}
     >
-      <div className={needsTwoRows ? "flex flex-col gap-3" : ""}>
-        {/* First row: Spacer pattern for soft centering */}
-        {/* [Left] [spacer flex-1] [Center] [spacer flex-1] [Right] */}
-        {/* Spacers try to be equal, so center is centered. When sides grow, spacers shrink and center yields */}
-        <div className="flex items-center">
-          {/* Left section: Logo and title */}
-          <div
-            ref={leftRef}
-            className={`flex items-center gap-2 ${needsTruncation ? "min-w-0" : ""}`}
-          >
-            <a href="/" className="flex items-center gap-1.5 shrink-0">
-              <img
-                src="/assets/Logo only.png"
-                alt="Lens Academy"
-                className="h-6"
-              />
-              <span className="text-lg font-semibold text-slate-800">
-                Lens Academy
-              </span>
-            </a>
-            <span className="text-slate-300 shrink-0">|</span>
-            <h1
-              className={`text-lg font-semibold text-gray-900 ${needsTruncation ? "truncate" : ""}`}
-            >
-              {moduleTitle}
-            </h1>
-          </div>
-
-          {/* Left spacer */}
-          <div className="flex-1 min-w-3" />
-
-          {/* Center section: Progress bar */}
-          <div
-            ref={centerRef}
-            className={
-              needsTwoRows ? "invisible fixed -left-[9999px]" : "shrink-0"
-            }
-          >
-            <StageProgressBar
-              stages={stages}
-              completedStages={completedStages}
-              viewingIndex={viewingIndex}
-              onStageClick={onStageClick}
-              onPrevious={onPrevious}
-              onNext={onNext}
-              canGoPrevious={canGoPrevious}
-              canGoNext={canGoNext}
+      <div className="relative flex items-center justify-between px-4 py-3">
+        {/* Left: Logo + Title */}
+        <div className="flex items-center gap-2 min-w-0 flex-shrink-0">
+          <a href="/" className="min-h-[44px] flex items-center gap-2 shrink-0">
+            <img
+              src="/assets/Logo only.png"
+              alt="Lens Academy"
+              className="h-6"
             />
-          </div>
-
-          {/* Right spacer */}
-          <div className="flex-1 min-w-3" />
-
-          {/* Right section: Controls */}
-          <div ref={rightRef} className="flex items-center gap-4">
-            <UserMenu />
-          </div>
+            <span className="hidden md:inline text-base font-semibold text-gray-900">
+              Lens Academy
+            </span>
+          </a>
+          <span className="hidden md:inline text-gray-300">|</span>
+          <h1 className="text-base md:text-lg font-semibold text-gray-900 truncate max-w-[200px]">
+            {moduleTitle}
+          </h1>
         </div>
 
-        {/* Second row: Progress bar (only if two-row mode) */}
-        {needsTwoRows && (
-          <div className="flex justify-center">
+        {/* Center: Simple prev/next navigation (mobile only) */}
+        {isMobile && (
+          <div className="flex items-center gap-1 shrink-0 mx-2">
+            <button
+              onClick={onPrevious}
+              disabled={!canGoPrevious}
+              className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
+              aria-label="Previous section"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+
+            <span className="text-sm text-gray-500 tabular-nums min-w-[3rem] text-center">
+              {displayIndex}/{totalStages}
+            </span>
+
+            <button
+              onClick={onNext}
+              disabled={!canGoNext}
+              className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
+              aria-label="Next section"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+        )}
+
+        {/* Center: StageProgressBar (desktop only) - absolutely centered */}
+        {!isMobile && (
+          <div className="absolute left-1/2 -translate-x-1/2">
             <StageProgressBar
               stages={stages}
               completedStages={completedStages}
@@ -110,9 +106,15 @@ export function ModuleHeader({
               onNext={onNext}
               canGoPrevious={canGoPrevious}
               canGoNext={canGoNext}
+              compact
             />
           </div>
         )}
+
+        {/* Right: UserMenu only (skip button removed) */}
+        <div className="flex items-center gap-1 md:gap-3 shrink-0">
+          <UserMenu />
+        </div>
       </div>
     </header>
   );

@@ -9,16 +9,86 @@
 :root {
   --background: #fafaf9; /* stone-50 */
   --foreground: #0f172a; /* slate-900 */
+
+  /* Safe area insets for notched devices */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Spring easing - slight overshoot and settle */
+  --ease-spring: linear(
+    0,
+    0.006,
+    0.025 2.8%,
+    0.101 6.1%,
+    0.539 18.9%,
+    0.721 25.3%,
+    0.849 31.5%,
+    0.937 38.1%,
+    0.968 41.8%,
+    0.991 45.7%,
+    1.006 50%,
+    1.015 55%,
+    1.017 63.9%,
+    1.014 73.1%,
+    1.007 85.5%,
+    1
+  );
+  /* Back easing for subtle overshoot */
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+html {
+  touch-action: manipulation; /* Disable double-tap zoom for faster taps */
+  -webkit-text-size-adjust: 100%; /* Prevent font scaling in landscape */
+  width: 100%;
+  overflow-x: clip; /* clip instead of hidden - works on mobile + doesn't break sticky */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-size: 18px;
+  line-height: 1.6;
+  width: 100%;
+  max-width: 100%; /* NOT 100vw - 100vw includes scrollbar width */
+  overflow-x: clip; /* clip instead of hidden - works on mobile */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 @layer base {
+  /* Mobile-first typography scale */
+  h1 {
+    @apply text-[1.75rem] leading-tight;
+  } /* 28px mobile */
+  h2 {
+    @apply text-[1.5rem] leading-tight;
+  } /* 24px mobile */
+  h3 {
+    @apply text-[1.25rem] leading-snug;
+  } /* 20px mobile */
+  h4 {
+    @apply text-[1.125rem] leading-snug;
+  } /* 18px mobile */
+
+  /* Desktop typography scale (640px+) */
+  @media (min-width: 640px) {
+    h1 {
+      @apply text-[2.5rem];
+    } /* 40px - bigger jump */
+    h2 {
+      @apply text-[2rem];
+    } /* 32px */
+    h3 {
+      @apply text-[1.5rem];
+    } /* 24px */
+    h4 {
+      @apply text-[1.25rem];
+    } /* 20px */
+  }
+
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   a[href],
@@ -28,6 +98,11 @@ body {
   select:not(:disabled),
   summary {
     cursor: pointer;
+  }
+
+  /* Touch feedback - scale down on press */
+  .touch-active:active {
+    transform: scale(0.97);
   }
 }
 
@@ -63,4 +138,95 @@ body {
 
 .toc-future {
   color: #9ca3af; /* gray-400 */
+}
+
+/* Reduced motion - disable animations for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Staggered reveal animation for list items */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-item {
+  animation: stagger-in 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+/* Stagger delay classes */
+.stagger-delay-1 {
+  animation-delay: 50ms;
+}
+.stagger-delay-2 {
+  animation-delay: 100ms;
+}
+.stagger-delay-3 {
+  animation-delay: 150ms;
+}
+.stagger-delay-4 {
+  animation-delay: 200ms;
+}
+.stagger-delay-5 {
+  animation-delay: 250ms;
+}
+
+/* View Transitions API styles */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+}
+
+/* Crossfade: old fades out, new fades in */
+::view-transition-old(root) {
+  animation: view-fade-out 200ms ease-out;
+}
+
+::view-transition-new(root) {
+  animation: view-fade-in 200ms ease-in;
+}
+
+@keyframes view-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes view-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Hide scrollbar while allowing scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

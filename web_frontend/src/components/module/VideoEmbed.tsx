@@ -49,9 +49,10 @@ export default function VideoEmbed({
   }, [isActivated]);
 
   // All clips start compact, expand when activated
+  // Mobile-first: full width on mobile, constrained on desktop (sm: 640px+)
   const containerClasses = isActivated
-    ? "w-[90%] max-w-[1100px] mx-auto py-4 scroll-mt-20 transition-all duration-300"
-    : "max-w-content mx-auto py-4 scroll-mt-20 transition-all duration-300";
+    ? "w-full sm:w-[90%] sm:max-w-[1100px] mx-auto py-4 scroll-mt-20 transition-all duration-300"
+    : "w-full px-4 sm:px-0 sm:max-w-content mx-auto py-4 scroll-mt-20 transition-all duration-300";
 
   // Label: "Watch" for first clip, "Watch Part N" for subsequent
   const label = isFirst ? "Watch" : `Watch Part ${excerptNumber}`;

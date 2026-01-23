@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { API_URL } from "../config";
+import { Skeleton, SkeletonText } from "../components/Skeleton";
 import type {
   FacilitatorGroup,
   GroupMember,
@@ -145,7 +146,10 @@ export default function Facilitator() {
   if (authLoading) {
     return (
       <div className="py-8 max-w-6xl mx-auto px-4">
-        <div className="text-gray-500">Loading...</div>
+        <div className="space-y-4">
+          <Skeleton variant="rectangular" className="h-8 w-48" />
+          <SkeletonText lines={3} />
+        </div>
       </div>
     );
   }
@@ -336,7 +340,10 @@ export default function Facilitator() {
 
       {isLoading && (
         <div className="fixed inset-0 bg-black/20 flex items-center justify-center">
-          <div className="bg-white px-6 py-4 rounded shadow">Loading...</div>
+          <div className="bg-white px-6 py-4 rounded shadow space-y-3">
+            <Skeleton variant="text" className="h-6 w-32" />
+            <SkeletonText lines={2} />
+          </div>
         </div>
       )}
     </div>

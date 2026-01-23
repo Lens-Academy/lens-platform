@@ -13,6 +13,7 @@ import type { ChatMessage, PendingMessage } from "@/types/module";
 import { transcribeAudio } from "@/api/modules";
 import { Tooltip } from "@/components/Tooltip";
 import { StageIcon } from "@/components/module/StageProgressBar";
+import { triggerHaptic } from "@/utils/haptics";
 
 // Minimal markdown for chat - just inline formatting, no block elements
 function ChatMarkdown({ children }: { children: string }) {
@@ -401,6 +402,7 @@ export default function NarrativeChatSection({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
+      triggerHaptic(10); // Subtle haptic feedback on send
       // Set split point before sending - current messages become "previous"
       setCurrentExchangeStartIndex(messages.length);
       setShowScrollButton(false); // Reset scroll button when sending new message
@@ -440,8 +442,8 @@ export default function NarrativeChatSection({
         className="max-w-content mx-auto border border-gray-200 rounded-lg bg-white shadow-sm flex flex-col scroll-mb-8 relative"
         style={
           hasInteracted
-            ? { height: "85vh", overflowAnchor: "none" } // Fixed height when interacted to prevent jitter during streaming
-            : { maxHeight: "85vh", minHeight: "180px", overflowAnchor: "none" }
+            ? { height: "85dvh", overflowAnchor: "none" } // Fixed height when interacted to prevent jitter during streaming
+            : { maxHeight: "85dvh", minHeight: "180px", overflowAnchor: "none" }
         }
       >
         {/* Messages area */}
@@ -455,7 +457,7 @@ export default function NarrativeChatSection({
             <div>
               {/* Previous messages - natural height */}
               {currentExchangeStartIndex > 0 && (
-                <div className="space-y-3 pb-3">
+                <div className="space-y-4 pb-4">
                   {messages.slice(0, currentExchangeStartIndex).map((msg, i) =>
                     msg.role === "system" ? (
                       <div key={i} className="flex justify-center my-3">
@@ -501,7 +503,7 @@ export default function NarrativeChatSection({
                       : undefined,
                 }}
               >
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {/* Current exchange messages */}
                   {messages.slice(currentExchangeStartIndex).map((msg, i) =>
                     msg.role === "system" ? (
@@ -665,6 +667,15 @@ export default function NarrativeChatSection({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => {
+              // Delay to let iOS keyboard animation start
+              setTimeout(() => {
+                textareaRef.current?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "nearest",
+                });
+              }, 100);
+            }}
             placeholder={
               recordingState === "transcribing"
                 ? "Transcribing..."
@@ -712,7 +723,7 @@ export default function NarrativeChatSection({
                       ? "Stop recording"
                       : "Start voice recording"
                   }
-                  className="p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-default bg-gray-100 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="min-w-[44px] min-h-[44px] p-2 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-default bg-gray-100 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {recordingState === "transcribing" ? (
                     <svg
@@ -762,7 +773,7 @@ export default function NarrativeChatSection({
                     type="button"
                     onClick={handleMicClick}
                     aria-label="Stop recording"
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[70px] flex items-center justify-center"
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[70px] min-h-[44px] flex items-center justify-center transition-all active:scale-95"
                   >
                     <svg
                       className="w-5 h-5"
@@ -779,7 +790,7 @@ export default function NarrativeChatSection({
                   disabled={
                     isLoading || !input.trim() || recordingState !== "idle"
                   }
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-default min-w-[70px]"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-default min-w-[70px] min-h-[44px] transition-all active:scale-95"
                 >
                   Send
                 </button>

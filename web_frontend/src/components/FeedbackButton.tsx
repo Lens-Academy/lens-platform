@@ -17,7 +17,7 @@ export default function FeedbackButton() {
   };
 
   return (
-    <div className="fixed bottom-16 left-6 z-50">
+    <div className="fixed bottom-28 left-6 md:bottom-16 z-50">
       <button
         onClick={handleClick}
         className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-medium rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer"

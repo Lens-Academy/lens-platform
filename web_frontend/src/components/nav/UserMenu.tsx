@@ -1,7 +1,16 @@
+import { useCallback } from "react";
+import { useMedia } from "react-use";
+import { User } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { Popover } from "../Popover";
+import { API_URL } from "../../config";
 
-export function UserMenu() {
+interface UserMenuProps {
+  /** Override the default redirect path after sign in */
+  signInRedirect?: string;
+}
+
+export function UserMenu({ signInRedirect }: UserMenuProps = {}) {
   const {
     isAuthenticated,
     isLoading,
@@ -10,6 +19,18 @@ export function UserMenu() {
     login,
     logout,
   } = useAuth();
+  const isMobile = useMedia("(max-width: 767px)", false);
+
+  // Custom login that uses signInRedirect if provided
+  const handleLogin = useCallback(() => {
+    if (signInRedirect) {
+      const next = encodeURIComponent(signInRedirect);
+      const origin = encodeURIComponent(window.location.origin);
+      window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}`;
+    } else {
+      login();
+    }
+  }, [signInRedirect, login]);
 
   if (isLoading) {
     return <div className="w-20 h-6" />; // Placeholder to prevent layout shift
@@ -18,10 +39,11 @@ export function UserMenu() {
   if (!isAuthenticated) {
     return (
       <button
-        onClick={login}
-        className="text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200"
+        onClick={handleLogin}
+        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200"
+        aria-label="Sign in"
       >
-        Sign in
+        {isMobile ? <User className="w-5 h-5" /> : "Sign in"}
       </button>
     );
   }

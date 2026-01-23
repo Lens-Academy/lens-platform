@@ -35,7 +35,7 @@ export default function SectionDivider({ type, title }: SectionDividerProps) {
   const iconType = type === "chat" ? "article" : type;
 
   return (
-    <div className="flex items-center gap-4 px-6 py-6">
+    <div className="flex items-center gap-4 px-4 sm:px-6 py-6">
       <div className="flex-1 border-t border-gray-300" />
       <div className="flex items-center gap-2 text-gray-600">
         <Icon type={iconType} />
