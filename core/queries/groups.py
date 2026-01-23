@@ -307,3 +307,49 @@ async def get_group_welcome_data(
         "number_of_group_meetings": row["number_of_group_meetings"],
         "members": members,
     }
+
+
+async def get_group_member_names(
+    conn: AsyncConnection,
+    group_id: int,
+) -> list[str]:
+    """Get display names of all active members in a group."""
+    from ..enums import GroupUserStatus
+
+    result = await conn.execute(
+        select(users.c.nickname)
+        .join(groups_users, users.c.user_id == groups_users.c.user_id)
+        .where(groups_users.c.group_id == group_id)
+        .where(groups_users.c.status == GroupUserStatus.active)
+    )
+
+    return [row["nickname"] or "Unknown" for row in result.mappings()]
+
+
+async def get_group_with_details(
+    conn: AsyncConnection,
+    group_id: int,
+) -> dict[str, Any] | None:
+    """
+    Get group details needed for notifications and lifecycle operations.
+
+    Returns:
+        {
+            "group_id": int,
+            "group_name": str,
+            "recurring_meeting_time_utc": str,
+            "discord_text_channel_id": str | None,
+            "cohort_id": int,
+        }
+    """
+    result = await conn.execute(
+        select(
+            groups.c.group_id,
+            groups.c.group_name,
+            groups.c.recurring_meeting_time_utc,
+            groups.c.discord_text_channel_id,
+            groups.c.cohort_id,
+        ).where(groups.c.group_id == group_id)
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None

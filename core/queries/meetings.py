@@ -120,3 +120,22 @@ async def get_group_member_user_ids(
         select(groups_users.c.user_id).where(groups_users.c.group_id == group_id)
     )
     return [row.user_id for row in result]
+
+
+async def get_future_meetings_for_group(
+    conn: AsyncConnection,
+    group_id: int,
+) -> list[dict]:
+    """Get all future meetings for a group."""
+    from datetime import timezone
+
+    now = datetime.now(timezone.utc)
+
+    result = await conn.execute(
+        select(meetings)
+        .where(meetings.c.group_id == group_id)
+        .where(meetings.c.scheduled_at > now)
+        .order_by(meetings.c.scheduled_at)
+    )
+
+    return [dict(row) for row in result.mappings()]
