@@ -2,6 +2,8 @@
 Notification dispatcher - routes messages to channels based on user preferences.
 """
 
+from datetime import datetime
+
 from core.enums import NotificationReferenceType
 from core.notifications.templates import get_message, load_templates
 from core.notifications.channels.email import send_email
@@ -9,6 +11,7 @@ from core.notifications.channels.discord import (
     send_discord_dm,
     send_discord_channel_message,
 )
+from core.timezone import format_datetime_in_timezone, format_date_in_timezone
 
 
 async def log_notification(
@@ -135,6 +138,24 @@ async def send_notification(
         "email": user.get("email", ""),
         **context,
     }
+
+    # Format meeting times in user's timezone if available
+    user_tz = user.get("timezone")
+    if user_tz:
+        if "meeting_time_utc" in context:
+            try:
+                utc_dt = datetime.fromisoformat(context["meeting_time_utc"])
+                full_context["meeting_time"] = format_datetime_in_timezone(
+                    utc_dt, user_tz
+                )
+            except (ValueError, TypeError):
+                pass  # Keep original meeting_time
+        if "meeting_date_utc" in context:
+            try:
+                utc_dt = datetime.fromisoformat(context["meeting_date_utc"])
+                full_context["meeting_date"] = format_date_in_timezone(utc_dt, user_tz)
+            except (ValueError, TypeError):
+                pass  # Keep original meeting_date
 
     templates = load_templates()
     message_templates = templates.get(message_type, {})
