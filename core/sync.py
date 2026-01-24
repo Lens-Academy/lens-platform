@@ -45,7 +45,7 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
     Returns dict with counts: {"granted": N, "revoked": N, "unchanged": N, "failed": N}
     """
     from .database import get_connection
-    from .notifications.channels.discord import _bot
+    from .notifications.channels.discord import _bot, get_or_fetch_member
     from .tables import groups, groups_users, users
     from .enums import GroupUserStatus
     from sqlalchemy import select
@@ -111,28 +111,28 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
     # Grant access to new members (both text and voice)
     for discord_id in to_grant:
         try:
-            member = guild.get_member(int(discord_id))
-            if member:
-                # Grant text channel permissions
-                await text_channel.set_permissions(
+            member = await get_or_fetch_member(guild, int(discord_id))
+            if not member:
+                logger.info(f"Member {discord_id} not in guild, skipping grant")
+                continue
+            # Grant text channel permissions
+            await text_channel.set_permissions(
+                member,
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True,
+                reason="Group sync",
+            )
+            # Grant voice channel permissions
+            if voice_channel:
+                await voice_channel.set_permissions(
                     member,
                     view_channel=True,
-                    send_messages=True,
-                    read_message_history=True,
+                    connect=True,
+                    speak=True,
                     reason="Group sync",
                 )
-                # Grant voice channel permissions
-                if voice_channel:
-                    await voice_channel.set_permissions(
-                        member,
-                        view_channel=True,
-                        connect=True,
-                        speak=True,
-                        reason="Group sync",
-                    )
-                granted += 1
-            else:
-                logger.info(f"Member {discord_id} not in guild, skipping grant")
+            granted += 1
         except Exception as e:
             logger.error(f"Error granting access to {discord_id}: {e}")
             sentry_sdk.capture_exception(e)
@@ -141,16 +141,18 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
     # Revoke access from removed members (both text and voice)
     for discord_id in to_revoke:
         try:
-            member = guild.get_member(int(discord_id))
-            if member:
-                await text_channel.set_permissions(
+            member = await get_or_fetch_member(guild, int(discord_id))
+            if not member:
+                # Member left the server, no need to revoke
+                continue
+            await text_channel.set_permissions(
+                member, overwrite=None, reason="Group sync"
+            )
+            if voice_channel:
+                await voice_channel.set_permissions(
                     member, overwrite=None, reason="Group sync"
                 )
-                if voice_channel:
-                    await voice_channel.set_permissions(
-                        member, overwrite=None, reason="Group sync"
-                    )
-                revoked += 1
+            revoked += 1
         except Exception as e:
             logger.error(f"Error revoking access from {discord_id}: {e}")
             sentry_sdk.capture_exception(e)

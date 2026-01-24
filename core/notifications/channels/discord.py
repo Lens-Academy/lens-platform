@@ -1,7 +1,8 @@
 """Discord notification delivery channel (DMs and channel messages)."""
 
 import asyncio
-from discord import Client
+import discord
+from discord import Client, Guild, Member
 
 
 # Set by main.py when bot starts
@@ -16,6 +17,32 @@ def set_bot(bot: Client) -> None:
     global _bot, _dm_semaphore
     _bot = bot
     _dm_semaphore = asyncio.Semaphore(1)
+
+
+async def get_or_fetch_member(guild: Guild, discord_id: int) -> Member | None:
+    """
+    Get a member from cache, falling back to API if not cached.
+
+    Discord.py's get_member() only checks the local cache, which may not
+    have all members (especially offline users in large servers). This
+    helper tries the cache first (fast, free) and falls back to fetch_member()
+    (API call) if needed.
+
+    Args:
+        guild: The Discord guild to get the member from
+        discord_id: The Discord user ID
+
+    Returns:
+        The Member if found, None if not in the server
+    """
+    member = guild.get_member(discord_id)
+    if member:
+        return member
+
+    try:
+        return await guild.fetch_member(discord_id)
+    except discord.NotFound:
+        return None
 
 
 async def send_discord_dm(discord_id: str, message: str) -> bool:
