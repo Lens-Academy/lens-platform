@@ -481,6 +481,7 @@ async def sync_group(group_id: int) -> dict[str, Any]:
 async def sync_after_group_change(
     group_id: int,
     previous_group_id: int | None = None,
+    user_id: int | None = None,
 ) -> dict[str, Any]:
     """
     Sync external systems after a group membership change.
@@ -488,18 +489,33 @@ async def sync_after_group_change(
     Call this AFTER the database transaction is committed.
     Syncs both the new group and the previous group (if switching).
 
+    When user_id is provided (direct join via API), also sends
+    a notification to the user and welcome message to the channel.
+
     Args:
         group_id: The group the user joined
         previous_group_id: The group the user left (if switching)
+        user_id: The user who joined (for direct join notifications)
 
     Returns:
         Dict with results for new group (and old group if switching):
         {
             "new_group": {...},
             "old_group": {...} | None,
+            "notification": {...} | None,
         }
     """
-    results: dict[str, Any] = {"new_group": None, "old_group": None}
+    from .database import get_connection
+    from .notifications.actions import notify_member_joined
+    from .queries.groups import get_group_member_names, get_group_with_details
+    from .tables import users
+    from sqlalchemy import select
+
+    results: dict[str, Any] = {
+        "new_group": None,
+        "old_group": None,
+        "notification": None,
+    }
 
     # Sync old group first (if switching) - revokes permissions, removes from calendar
     if previous_group_id:
@@ -509,5 +525,37 @@ async def sync_after_group_change(
     # Sync new group - grants permissions, adds to calendar
     logger.info(f"Syncing new group {group_id} after membership change")
     results["new_group"] = await sync_group(group_id)
+
+    # Send notification for direct joins (when user_id is provided)
+    if user_id:
+        try:
+            async with get_connection() as conn:
+                # Get group details using existing query function
+                group_details = await get_group_with_details(conn, group_id)
+
+                if group_details and group_details.get("discord_text_channel_id"):
+                    # Get user's Discord ID
+                    user_result = await conn.execute(
+                        select(users.c.discord_id).where(users.c.user_id == user_id)
+                    )
+                    user_row = user_result.mappings().first()
+
+                    # Get member names
+                    member_names = await get_group_member_names(conn, group_id)
+
+                    if user_row and user_row.get("discord_id"):
+                        results["notification"] = await notify_member_joined(
+                            user_id=user_id,
+                            group_name=group_details["group_name"],
+                            meeting_time_utc=group_details["recurring_meeting_time_utc"]
+                            or "TBD",
+                            member_names=member_names,
+                            discord_channel_id=group_details["discord_text_channel_id"],
+                            discord_user_id=user_row["discord_id"],
+                        )
+        except Exception as e:
+            logger.error(f"Failed to send direct join notification: {e}")
+            sentry_sdk.capture_exception(e)
+            results["notification"] = {"error": str(e)}
 
     return results

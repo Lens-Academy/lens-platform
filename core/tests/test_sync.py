@@ -390,3 +390,80 @@ class TestSyncGroup:
             sync_types = [call[1]["sync_type"] for call in calls]
             assert "discord" in sync_types
             assert "calendar" in sync_types
+
+
+class TestSyncAfterGroupChange:
+    """Tests for sync_after_group_change()."""
+
+    @pytest.mark.asyncio
+    async def test_sends_notification_for_direct_join(self):
+        """sync_after_group_change should send member_joined notification when user_id provided."""
+        with (
+            patch("core.sync.sync_group", new_callable=AsyncMock) as mock_sync,
+            patch(
+                "core.notifications.actions.notify_member_joined",
+                new_callable=AsyncMock,
+            ) as mock_notify,
+            patch("core.database.get_connection") as mock_conn_ctx,
+            patch(
+                "core.queries.groups.get_group_member_names", new_callable=AsyncMock
+            ) as mock_names,
+            patch(
+                "core.queries.groups.get_group_with_details", new_callable=AsyncMock
+            ) as mock_details,
+        ):
+            mock_sync.return_value = {"discord": {"granted": 1}}
+            mock_names.return_value = ["Alice", "Bob"]
+            mock_details.return_value = {
+                "group_name": "Test Group",
+                "recurring_meeting_time_utc": "Wednesday 15:00",
+                "discord_text_channel_id": "123456",
+            }
+            mock_notify.return_value = {"email": "sent", "discord": "sent"}
+
+            # Mock user query
+            mock_conn = AsyncMock()
+            mock_conn_ctx.return_value.__aenter__.return_value = mock_conn
+            mock_user_result = MagicMock()
+            mock_user_result.mappings.return_value.first.return_value = {
+                "discord_id": "999888",
+            }
+            mock_conn.execute.return_value = mock_user_result
+
+            from core.sync import sync_after_group_change
+
+            result = await sync_after_group_change(
+                group_id=1,
+                previous_group_id=None,
+                user_id=123,
+            )
+
+            mock_notify.assert_called_once()
+            call_kwargs = mock_notify.call_args.kwargs
+            assert call_kwargs["user_id"] == 123
+            assert call_kwargs["group_name"] == "Test Group"
+            assert call_kwargs["discord_channel_id"] == "123456"
+            assert result["notification"] is not None
+
+    @pytest.mark.asyncio
+    async def test_no_notification_without_user_id(self):
+        """sync_after_group_change should NOT send notification when user_id is None."""
+        with (
+            patch("core.sync.sync_group", new_callable=AsyncMock) as mock_sync,
+            patch(
+                "core.notifications.actions.notify_member_joined",
+                new_callable=AsyncMock,
+            ) as mock_notify,
+        ):
+            mock_sync.return_value = {"discord": {"granted": 1}}
+
+            from core.sync import sync_after_group_change
+
+            result = await sync_after_group_change(
+                group_id=1,
+                previous_group_id=None,
+                user_id=None,
+            )
+
+            mock_notify.assert_not_called()
+            assert result["notification"] is None

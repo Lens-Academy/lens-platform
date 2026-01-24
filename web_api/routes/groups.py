@@ -84,6 +84,7 @@ async def join_group_endpoint(
         await sync_after_group_change(
             group_id=result["group_id"],
             previous_group_id=result.get("previous_group_id"),
+            user_id=db_user["user_id"],  # Pass user_id for direct join notification
         )
 
     return {"status": "joined", **result}
