@@ -107,15 +107,16 @@ from .group_joining import (
     get_user_current_group,
     join_group,
     get_user_group_info,
-    sync_after_group_change,
 )
 
 # Sync operations (sync functions for group membership changes)
 from .sync import (
+    sync_group,
     sync_group_discord_permissions,
     sync_group_calendar,
     sync_group_reminders,
     sync_group_rsvps,
+    sync_after_group_change,
 )
 from .notifications.scheduler import sync_meeting_reminders
 
@@ -204,11 +205,12 @@ __all__ = [
     "get_user_current_group",
     "join_group",
     "get_user_group_info",
-    "sync_after_group_change",
     # Sync operations
+    "sync_group",
     "sync_group_discord_permissions",
     "sync_group_calendar",
     "sync_group_reminders",
     "sync_group_rsvps",
+    "sync_after_group_change",
     "sync_meeting_reminders",
 ]

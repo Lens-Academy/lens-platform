@@ -466,3 +466,38 @@ async def sync_group(group_id: int) -> dict[str, Any]:
         schedule_sync_retry(sync_type="rsvps", group_id=group_id, attempt=0)
 
     return results
+
+
+async def sync_after_group_change(
+    group_id: int,
+    previous_group_id: int | None = None,
+) -> dict[str, Any]:
+    """
+    Sync external systems after a group membership change.
+
+    Call this AFTER the database transaction is committed.
+    Syncs both the new group and the previous group (if switching).
+
+    Args:
+        group_id: The group the user joined
+        previous_group_id: The group the user left (if switching)
+
+    Returns:
+        Dict with results for new group (and old group if switching):
+        {
+            "new_group": {...},
+            "old_group": {...} | None,
+        }
+    """
+    results: dict[str, Any] = {"new_group": None, "old_group": None}
+
+    # Sync old group first (if switching) - revokes permissions, removes from calendar
+    if previous_group_id:
+        logger.info(f"Syncing old group {previous_group_id} after membership change")
+        results["old_group"] = await sync_group(previous_group_id)
+
+    # Sync new group - grants permissions, adds to calendar
+    logger.info(f"Syncing new group {group_id} after membership change")
+    results["new_group"] = await sync_group(group_id)
+
+    return results

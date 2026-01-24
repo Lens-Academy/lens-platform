@@ -376,121 +376,57 @@ class TestGetUserGroupInfo:
         assert result["current_group"] is None
 
 
-class TestSyncAfterGroupChangeRetry:
-    """Test retry scheduling for failed syncs."""
+class TestSyncAfterGroupChange:
+    """Test sync_after_group_change delegates to sync_group correctly."""
 
     @pytest.mark.asyncio
-    async def test_schedules_retry_when_discord_sync_fails(self):
-        """Should schedule retry when Discord sync returns error."""
-        from core.group_joining import sync_after_group_change
+    async def test_syncs_new_group_only_when_no_previous(self):
+        """Should call sync_group for new group only when no previous group."""
+        from core.sync import sync_after_group_change
 
-        with patch("core.sync.sync_group_discord_permissions") as mock_discord:
-            mock_discord.return_value = {"error": "bot_unavailable"}
+        with patch("core.sync.sync_group", new_callable=AsyncMock) as mock_sync:
+            mock_sync.return_value = {"discord": {}, "calendar": {}}
 
-            with patch("core.sync.sync_group_calendar") as mock_cal:
-                mock_cal.return_value = {"created": 0, "failed": 0}
+            result = await sync_after_group_change(group_id=123)
 
-                with patch("core.sync.sync_group_reminders") as mock_rem:
-                    mock_rem.return_value = {"meetings": 0}
-
-                    with patch("core.sync.sync_group_rsvps") as mock_rsvp:
-                        mock_rsvp.return_value = {"meetings": 0}
-
-                        with patch(
-                            "core.notifications.scheduler.schedule_sync_retry"
-                        ) as mock_retry:
-                            await sync_after_group_change(group_id=123)
-
-                            # Should have scheduled a retry for discord
-                            mock_retry.assert_any_call(
-                                sync_type="discord",
-                                group_id=123,
-                                attempt=0,
-                                previous_group_id=None,
-                            )
+            mock_sync.assert_called_once_with(123)
+            assert result["new_group"] == {"discord": {}, "calendar": {}}
+            assert result["old_group"] is None
 
     @pytest.mark.asyncio
-    async def test_schedules_retry_when_calendar_has_failures(self):
-        """Should schedule retry when calendar sync has failed events."""
-        from core.group_joining import sync_after_group_change
+    async def test_syncs_both_groups_when_switching(self):
+        """Should call sync_group for both old and new group when switching."""
+        from core.sync import sync_after_group_change
 
-        with patch("core.sync.sync_group_discord_permissions") as mock_discord:
-            mock_discord.return_value = {"granted": 1, "failed": 0}
+        with patch("core.sync.sync_group", new_callable=AsyncMock) as mock_sync:
+            mock_sync.side_effect = [
+                {"discord": {"revoked": 1}},  # Old group
+                {"discord": {"granted": 1}},  # New group
+            ]
 
-            with patch("core.sync.sync_group_calendar") as mock_cal:
-                mock_cal.return_value = {"created": 2, "failed": 3}  # Some failures
+            result = await sync_after_group_change(group_id=456, previous_group_id=123)
 
-                with patch("core.sync.sync_group_reminders") as mock_rem:
-                    mock_rem.return_value = {"meetings": 0}
+            # Should sync old group first, then new group
+            assert mock_sync.call_count == 2
+            mock_sync.assert_any_call(123)  # Old group
+            mock_sync.assert_any_call(456)  # New group
 
-                    with patch("core.sync.sync_group_rsvps") as mock_rsvp:
-                        mock_rsvp.return_value = {"meetings": 0}
-
-                        with patch(
-                            "core.notifications.scheduler.schedule_sync_retry"
-                        ) as mock_retry:
-                            await sync_after_group_change(group_id=456)
-
-                            # Should have scheduled a retry for calendar
-                            mock_retry.assert_any_call(
-                                sync_type="calendar",
-                                group_id=456,
-                                attempt=0,
-                                previous_group_id=None,
-                            )
+            assert result["old_group"] == {"discord": {"revoked": 1}}
+            assert result["new_group"] == {"discord": {"granted": 1}}
 
     @pytest.mark.asyncio
-    async def test_no_retry_when_all_syncs_succeed(self):
-        """Should not schedule retry when everything succeeds."""
-        from core.group_joining import sync_after_group_change
+    async def test_syncs_old_group_first(self):
+        """Should sync old group before new group (order matters for permissions)."""
+        from core.sync import sync_after_group_change
 
-        with patch("core.sync.sync_group_discord_permissions") as mock_discord:
-            mock_discord.return_value = {"granted": 1, "failed": 0}
+        call_order = []
 
-            with patch("core.sync.sync_group_calendar") as mock_cal:
-                mock_cal.return_value = {"created": 8, "failed": 0}
+        async def track_calls(group_id):
+            call_order.append(group_id)
+            return {"discord": {}}
 
-                with patch("core.sync.sync_group_reminders") as mock_rem:
-                    mock_rem.return_value = {"meetings": 8}
+        with patch("core.sync.sync_group", side_effect=track_calls):
+            await sync_after_group_change(group_id=456, previous_group_id=123)
 
-                    with patch("core.sync.sync_group_rsvps") as mock_rsvp:
-                        mock_rsvp.return_value = {"meetings": 8}
-
-                        with patch(
-                            "core.notifications.scheduler.schedule_sync_retry"
-                        ) as mock_retry:
-                            await sync_after_group_change(group_id=789)
-
-                            # Should not have scheduled any retries
-                            mock_retry.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_schedules_retry_when_sync_raises_exception(self):
-        """Should schedule retry when sync function raises an exception."""
-        from core.group_joining import sync_after_group_change
-
-        with patch("core.sync.sync_group_discord_permissions") as mock_discord:
-            mock_discord.side_effect = Exception("Network error")
-
-            with patch("core.sync.sync_group_calendar") as mock_cal:
-                mock_cal.return_value = {"created": 0, "failed": 0}
-
-                with patch("core.sync.sync_group_reminders") as mock_rem:
-                    mock_rem.return_value = {"meetings": 0}
-
-                    with patch("core.sync.sync_group_rsvps") as mock_rsvp:
-                        mock_rsvp.return_value = {"meetings": 0}
-
-                        with patch(
-                            "core.notifications.scheduler.schedule_sync_retry"
-                        ) as mock_retry:
-                            with patch("sentry_sdk.capture_exception"):
-                                await sync_after_group_change(group_id=999)
-
-                                # Should have scheduled a retry for discord
-                                mock_retry.assert_any_call(
-                                    sync_type="discord",
-                                    group_id=999,
-                                    attempt=0,
-                                    previous_group_id=None,
-                                )
+            # Old group (123) should be synced before new group (456)
+            assert call_order == [123, 456]
