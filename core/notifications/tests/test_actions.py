@@ -48,3 +48,33 @@ class TestScheduleMeetingReminders:
 
         # Should schedule 4 jobs: 24h, 1h, 3d module nudge, 1d module nudge
         assert mock_schedule.call_count == 4
+
+
+class TestScheduleMeetingRemindersContext:
+    def test_context_includes_iso_timestamp(self):
+        """Context should include meeting_time_utc as ISO string for per-user formatting."""
+        from core.notifications.actions import schedule_meeting_reminders
+
+        mock_schedule = MagicMock()
+        meeting_time = datetime(2024, 1, 10, 15, 0, tzinfo=ZoneInfo("UTC"))
+
+        with patch("core.notifications.actions.schedule_reminder", mock_schedule):
+            schedule_meeting_reminders(
+                meeting_id=42,
+                meeting_time=meeting_time,
+                user_ids=[1, 2, 3],
+                group_name="Test Group",
+                discord_channel_id="123456",
+            )
+
+        # Get the context from the first call (24h reminder)
+        call_kwargs = mock_schedule.call_args_list[0][1]
+        context = call_kwargs["context"]
+
+        # Should have ISO timestamp for per-user formatting
+        assert "meeting_time_utc" in context
+        assert context["meeting_time_utc"] == "2024-01-10T15:00:00+00:00"
+
+        # Should still have UTC fallback for channel messages
+        assert "meeting_time" in context
+        assert "UTC" in context["meeting_time"]

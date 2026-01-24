@@ -159,6 +159,10 @@ def schedule_meeting_reminders(
     """
     context = {
         "group_name": group_name,
+        # ISO timestamp for per-user timezone formatting
+        "meeting_time_utc": meeting_time.isoformat(),
+        "meeting_date_utc": meeting_time.isoformat(),
+        # UTC fallback for channel messages (no user context)
         "meeting_time": meeting_time.strftime("%A at %H:%M UTC"),
         "meeting_date": meeting_time.strftime("%A, %B %d"),
         "module_url": module_url or build_module_url("next"),
