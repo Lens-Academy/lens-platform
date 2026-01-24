@@ -25,12 +25,7 @@ from core.queries.groups import (
     get_group_member_names,
 )
 from core.meetings import create_meetings_for_group
-from core.sync import (
-    sync_group_discord_permissions,
-    sync_group_calendar,
-    sync_group_reminders,
-    sync_group_rsvps,
-)
+from core.sync import sync_group
 from core.notifications.dispatcher import was_notification_sent
 from core.notifications.actions import notify_group_assigned
 from core.enums import NotificationReferenceType
@@ -70,44 +65,17 @@ class GroupsCog(commands.Cog):
         user_ids: list[int],
     ) -> None:
         """
-        Sync all lifecycle operations for a newly realized group.
+        Sync all external systems for a newly realized group.
 
-        This uses the same group-level sync functions as direct group joining,
-        ensuring one code path for all group membership operations.
+        Uses the unified sync_group() function from core, then sends
+        notifications to users who haven't been notified yet.
         """
-        # 1. Sync Discord permissions (diff-based - will grant to all members)
-        try:
-            print(f"Group {group_id}: Syncing Discord permissions...")
-            result = await sync_group_discord_permissions(group_id)
-            print(f"Group {group_id}: Discord permissions result: {result}")
-        except Exception as e:
-            print(f"Group {group_id}: Discord permissions failed: {e}")
+        # Sync all external systems using unified function
+        print(f"Group {group_id}: Running sync_group()...")
+        result = await sync_group(group_id)
+        print(f"Group {group_id}: Sync result: {result}")
 
-        # 2. Sync calendar events and attendees for all future meetings
-        try:
-            print(f"Group {group_id}: Syncing calendar...")
-            result = await sync_group_calendar(group_id)
-            print(f"Group {group_id}: Calendar result: {result}")
-        except Exception as e:
-            print(f"Group {group_id}: Calendar sync failed: {e}")
-
-        # 3. Sync reminders for all future meetings
-        try:
-            print(f"Group {group_id}: Syncing reminders...")
-            result = await sync_group_reminders(group_id)
-            print(f"Group {group_id}: Reminders result: {result}")
-        except Exception as e:
-            print(f"Group {group_id}: Reminders sync failed: {e}")
-
-        # 4. Sync RSVPs for all future meetings
-        try:
-            print(f"Group {group_id}: Syncing RSVPs...")
-            result = await sync_group_rsvps(group_id)
-            print(f"Group {group_id}: RSVPs result: {result}")
-        except Exception as e:
-            print(f"Group {group_id}: RSVPs sync failed: {e}")
-
-        # 5. Send notifications (with deduplication)
+        # Send notifications (with deduplication)
         async with get_connection() as conn:
             group_details = await get_group_with_details(conn, group_id)
             member_names = await get_group_member_names(conn, group_id)
@@ -221,11 +189,13 @@ class GroupsCog(commands.Cog):
         for group_data in cohort_data["groups"]:
             # Skip if already realized (not in preview status)
             if group_data.get("status") != "preview":
-                print(f"[realize] Skipping {group_data['group_name']} (status={group_data.get('status')})")
+                print(
+                    f"[realize] Skipping {group_data['group_name']} (status={group_data.get('status')})"
+                )
                 continue
 
-            group_name = group_data['group_name']
-            group_id = group_data['group_id']
+            group_name = group_data["group_name"]
+            group_id = group_data["group_id"]
             print(f"Processing group {group_id}: {group_name}")
 
             try:
@@ -252,9 +222,7 @@ class GroupsCog(commands.Cog):
                 print(f"Group {group_id}: Voice channel created: {voice_channel.id}")
 
                 # Create scheduled events
-                await progress_msg.edit(
-                    content=f"Creating events for {group_name}..."
-                )
+                await progress_msg.edit(content=f"Creating events for {group_name}...")
 
                 print(f"Group {group_id}: Creating scheduled events...")
                 events, first_meeting = await self._create_scheduled_events(
@@ -410,7 +378,9 @@ class GroupsCog(commands.Cog):
                 continue
 
             try:
-                print(f"Creating event {week + 1}/{num_meetings} for {group_data['group_name']}...")
+                print(
+                    f"Creating event {week + 1}/{num_meetings} for {group_data['group_name']}..."
+                )
                 event = await guild.create_scheduled_event(
                     name=f"{group_data['group_name']} - Week {week + 1}",
                     start_time=meeting_time,
@@ -423,7 +393,9 @@ class GroupsCog(commands.Cog):
                 events.append(event)
                 print(f"Created event {week + 1} for {group_data['group_name']}")
             except discord.HTTPException as e:
-                print(f"Failed to create event {week + 1} for {group_data['group_name']}: {e}")
+                print(
+                    f"Failed to create event {week + 1} for {group_data['group_name']}: {e}"
+                )
 
         return events, first_meeting
 
