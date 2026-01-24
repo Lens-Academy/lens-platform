@@ -12,6 +12,13 @@ interface GroupSelectionStepProps {
   onBack: () => void;
   onSubmit: () => void;
   onSwitchToAvailability: () => void;
+  submitButtonLabel?: string;
+  hideHeader?: boolean;
+  isSubmitting?: boolean;
+  successMessage?: string;
+  cohortStartDate?: string;
+  cohortEndDate?: string;
+  cohortName?: string;
 }
 
 export default function GroupSelectionStep({
@@ -23,6 +30,13 @@ export default function GroupSelectionStep({
   onBack,
   onSubmit,
   onSwitchToAvailability,
+  submitButtonLabel = "Complete Enrollment",
+  hideHeader = false,
+  isSubmitting = false,
+  successMessage,
+  cohortStartDate,
+  cohortEndDate,
+  cohortName,
 }: GroupSelectionStepProps) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,6 +95,15 @@ export default function GroupSelectionStep({
     return null;
   };
 
+  // Format cohort dates
+  const formatCohortDate = (dateStr: string | undefined): string => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="max-w-md mx-auto">
@@ -136,13 +159,23 @@ export default function GroupSelectionStep({
 
   return (
     <div className="max-w-md mx-auto">
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">
-        Select Your Group
-      </h2>
-      <p className="text-gray-600 mb-6">
-        Choose a group that fits your schedule. You'll meet weekly at the same
-        time.
-      </p>
+      {!hideHeader && (
+        <>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Select Your Group
+          </h2>
+          {cohortStartDate && cohortEndDate && (
+            <p className="text-gray-600 mb-2">
+              {cohortName && <>{cohortName} — </>}
+              {formatCohortDate(cohortStartDate)} – {formatCohortDate(cohortEndDate)}
+            </p>
+          )}
+          <p className="text-gray-600 mb-6">
+            Choose a group that fits your schedule. You'll meet weekly at the same
+            time.
+          </p>
+        </>
+      )}
 
       {/* Timezone selector */}
       <div className="mb-6">
@@ -150,7 +183,7 @@ export default function GroupSelectionStep({
           htmlFor="timezone"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Your Timezone
+          Show times in:
         </label>
         <select
           id="timezone"
@@ -176,38 +209,39 @@ export default function GroupSelectionStep({
         {groups.map((group) => {
           const isSelected = selectedGroupId === group.group_id;
           const badgeText = getBadgeText(group.badge);
-          const isDisabled = group.is_current;
 
           return (
             <button
               key={group.group_id}
               type="button"
-              onClick={() => !isDisabled && onGroupSelect(group.group_id)}
-              disabled={isDisabled}
+              onClick={() => onGroupSelect(group.group_id)}
               className={`w-full text-left p-4 border rounded-lg transition-colors ${
-                isDisabled
-                  ? "border-gray-200 bg-gray-50 cursor-default"
-                  : isSelected
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                isSelected
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
               }`}
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="font-medium text-gray-900 flex items-center gap-2">
-                    {group.group_name}
-                    {group.is_current && (
-                      <span className="text-xs text-gray-500 font-normal">
-                        (Your current group)
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="font-medium text-gray-900">
                     {formatMeetingTime(group.next_meeting_at)}
                   </div>
+                  <div className="text-sm text-gray-600">
+                    {group.group_name}
+                  </div>
+                  {group.facilitator_name && (
+                    <div className="text-sm text-gray-600 mt-1">
+                      with {group.facilitator_name}
+                    </div>
+                  )}
                   <div className="text-sm text-gray-500 mt-1">
-                    {group.member_count} member
-                    {group.member_count !== 1 ? "s" : ""}
+                    {group.is_current ? (
+                      <span className="text-blue-600">You're in this group</span>
+                    ) : (
+                      <>
+                        {group.member_count} member{group.member_count !== 1 ? "s" : ""}
+                      </>
+                    )}
                   </div>
                 </div>
                 {badgeText && !group.is_current && (
@@ -245,19 +279,34 @@ export default function GroupSelectionStep({
           type="button"
           onClick={onSubmit}
           disabled={
+            isSubmitting ||
             !selectedGroupId ||
             groups.find((g) => g.group_id === selectedGroupId)?.is_current
           }
           className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
+            !isSubmitting &&
             selectedGroupId &&
             !groups.find((g) => g.group_id === selectedGroupId)?.is_current
               ? "bg-blue-500 hover:bg-blue-600 text-white"
               : "bg-gray-200 text-gray-400"
           }`}
         >
-          Complete Enrollment
+          {submitButtonLabel}
         </button>
       </div>
+
+      {isSubmitting && (
+        <div className="mt-4 p-3 bg-blue-50 text-blue-700 rounded-lg flex items-center gap-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700"></div>
+          Updating your group...
+        </div>
+      )}
+
+      {successMessage && !isSubmitting && (
+        <div className="mt-4 p-3 bg-green-50 text-green-700 rounded-lg">
+          {successMessage}
+        </div>
+      )}
     </div>
   );
 }

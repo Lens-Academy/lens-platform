@@ -23,6 +23,7 @@ export interface Group {
   badge: "best_size" | null;  // Backend decides badge
   is_current: boolean;  // True if user is already in this group
   status: string;
+  facilitator_name: string | null;  // Facilitator's display name
 }
 
 export interface Cohort {

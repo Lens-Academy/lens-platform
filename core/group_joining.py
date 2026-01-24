@@ -11,7 +11,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from .enums import GroupUserStatus
-from .tables import cohorts, groups, groups_users, meetings
+from .tables import cohorts, groups, groups_users, meetings, users
 
 
 # Constants for group size thresholds
@@ -160,6 +160,29 @@ async def get_joinable_groups(
         .subquery()
     )
 
+    # Subquery for facilitator name per group
+    facilitator_subq = (
+        select(
+            groups_users.c.group_id,
+            func.coalesce(users.c.nickname, users.c.discord_username).label(
+                "facilitator_name"
+            ),
+        )
+        .join(users, groups_users.c.user_id == users.c.user_id)
+        .where(groups_users.c.role == "facilitator")
+        .where(groups_users.c.status == GroupUserStatus.active)
+        .subquery()
+    )
+
+    # Build member count filter - always include user's current group
+    if user_current_group_id:
+        member_count_filter = (
+            (func.coalesce(member_count_subq.c.member_count, 0) < 8)
+            | (groups.c.group_id == user_current_group_id)
+        )
+    else:
+        member_count_filter = func.coalesce(member_count_subq.c.member_count, 0) < 8
+
     # Base query with joins
     query = (
         select(
@@ -169,21 +192,24 @@ async def get_joinable_groups(
             groups.c.status,
             func.coalesce(member_count_subq.c.member_count, 0).label("member_count"),
             first_meeting_subq.c.first_meeting_at,
+            facilitator_subq.c.facilitator_name,
         )
         .outerjoin(member_count_subq, groups.c.group_id == member_count_subq.c.group_id)
         .outerjoin(
             first_meeting_subq, groups.c.group_id == first_meeting_subq.c.group_id
         )
+        .outerjoin(facilitator_subq, groups.c.group_id == facilitator_subq.c.group_id)
         .where(groups.c.cohort_id == cohort_id)
         .where(groups.c.status.in_(["preview", "active"]))
-        # Filter: member count < 8 (8 is max capacity)
-        .where(func.coalesce(member_count_subq.c.member_count, 0) < 8)
+        # Filter: member count < 8 (8 is max capacity), but always include user's current group
+        .where(member_count_filter)
         # Sort: smallest groups first (nudge toward balanced sizes)
         .order_by(func.coalesce(member_count_subq.c.member_count, 0))
     )
 
     # Joining rule: if user has NO current group, filter out groups that have started
     # If user HAS a group, they can switch to any group (even after first meeting)
+    # BUT always include user's current group regardless
     if not user_current_group_id:
         query = query.where(
             (first_meeting_subq.c.first_meeting_at.is_(None))

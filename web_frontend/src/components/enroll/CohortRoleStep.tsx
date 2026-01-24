@@ -11,7 +11,7 @@ interface CohortRoleStepProps {
   onRoleSelect: (role: string) => void;
   onBecomeFacilitator: () => Promise<void>;
   onNext: () => void;
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 export default function CohortRoleStep({
@@ -31,10 +31,21 @@ export default function CohortRoleStep({
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "long",
+      month: "short",
       day: "numeric",
-      year: "numeric",
     });
+  };
+
+  const getEndDate = (startDate: string, durationDays: number) => {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + durationDays);
+    return date;
+  };
+
+  const formatDateRange = (cohort: Cohort) => {
+    const start = formatDate(cohort.cohort_start_date);
+    const end = formatDate(getEndDate(cohort.cohort_start_date, cohort.duration_days).toISOString());
+    return `${start} – ${end}`;
   };
 
   const handleBecomeFacilitator = async () => {
@@ -72,8 +83,7 @@ export default function CohortRoleStep({
               >
                 <span className="text-green-600">✓</span>
                 <span>
-                  {cohort.cohort_name} (as {cohort.role}) — starts{" "}
-                  {formatDate(cohort.cohort_start_date)}
+                  {cohort.cohort_name} (as {cohort.role}) — {formatDateRange(cohort)}
                 </span>
               </li>
             ))}
@@ -99,8 +109,7 @@ export default function CohortRoleStep({
             <option value="">Select a cohort...</option>
             {availableCohorts.map((cohort) => (
               <option key={cohort.cohort_id} value={cohort.cohort_id}>
-                {cohort.cohort_name} — starts{" "}
-                {formatDate(cohort.cohort_start_date)}
+                {cohort.cohort_name} — {formatDateRange(cohort)}
               </option>
             ))}
           </select>
@@ -172,13 +181,15 @@ export default function CohortRoleStep({
 
       {/* Navigation */}
       <div className="flex gap-3 mt-8">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex-1 px-4 py-3 font-medium rounded-lg border border-gray-300 hover:bg-gray-50"
-        >
-          Back
-        </button>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex-1 px-4 py-3 font-medium rounded-lg border border-gray-300 hover:bg-gray-50"
+          >
+            Back
+          </button>
+        )}
         <button
           type="button"
           onClick={onNext}
@@ -189,7 +200,7 @@ export default function CohortRoleStep({
               : "bg-gray-200 text-gray-400"
           }`}
         >
-          Continue to Availability
+          Continue
         </button>
       </div>
 

@@ -15,6 +15,7 @@ export interface User {
   email: string | null;
   timezone: string | null;
   availability_local: string | null;
+  tos_accepted_at: string | null;
 }
 
 export interface AuthState {
@@ -26,6 +27,7 @@ export interface AuthState {
   discordAvatarUrl: string | null;
   isInSignupsTable: boolean;
   isInActiveGroup: boolean;
+  tosAccepted: boolean;
 }
 
 export interface UseAuthReturn extends AuthState {
@@ -50,6 +52,7 @@ export function useAuth(): UseAuthReturn {
     discordAvatarUrl: null,
     isInSignupsTable: false,
     isInActiveGroup: false,
+    tosAccepted: false,
   });
 
   const fetchUser = useCallback(async () => {
@@ -69,6 +72,7 @@ export function useAuth(): UseAuthReturn {
           discordAvatarUrl: null,
           isInSignupsTable: false,
           isInActiveGroup: false,
+          tosAccepted: false,
         });
         return;
       }
@@ -85,6 +89,7 @@ export function useAuth(): UseAuthReturn {
           discordAvatarUrl: data.discord_avatar_url,
           isInSignupsTable: data.is_in_signups_table ?? false,
           isInActiveGroup: data.is_in_active_group ?? false,
+          tosAccepted: !!data.user?.tos_accepted_at,
         });
 
         // Identify user for analytics and error tracking
@@ -114,6 +119,7 @@ export function useAuth(): UseAuthReturn {
           discordAvatarUrl: null,
           isInSignupsTable: false,
           isInActiveGroup: false,
+          tosAccepted: false,
         });
       }
     } catch (error) {
@@ -127,6 +133,7 @@ export function useAuth(): UseAuthReturn {
         discordAvatarUrl: null,
         isInSignupsTable: false,
         isInActiveGroup: false,
+        tosAccepted: false,
       });
     }
   }, []);
@@ -163,6 +170,7 @@ export function useAuth(): UseAuthReturn {
         discordAvatarUrl: null,
         isInSignupsTable: false,
         isInActiveGroup: false,
+        tosAccepted: false,
       });
     } catch (error) {
       console.error("Failed to logout:", error);

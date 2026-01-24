@@ -9,6 +9,8 @@ interface UserGroupInfo {
   is_enrolled: boolean;
   cohort_id?: number;
   cohort_name?: string;
+  cohort_start_date?: string;
+  cohort_end_date?: string;
   current_group?: {
     group_id: number;
     group_name: string;
@@ -44,6 +46,9 @@ export default function GroupPage() {
       if (response.ok) {
         const data = await response.json();
         setUserInfo(data);
+        if (data.current_group?.group_id) {
+          setSelectedGroupId(data.current_group.group_id);
+        }
       }
     } catch {
       setError("Failed to load your group information");
@@ -130,48 +135,29 @@ export default function GroupPage() {
     );
   }
 
-  if (success) {
-    return (
-      <Layout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center max-w-md">
-            <div className="text-green-600 text-5xl mb-4">✓</div>
-            <h1 className="text-2xl font-bold mb-4">Group Updated!</h1>
-            <p className="text-gray-600 mb-4">
-              You've successfully joined your new group.
-              <br />
-              <span className="text-sm text-gray-500">
-                Calendar invites and Discord access will be set up in the next few minutes.
-              </span>
-            </p>
-            <a href="/" className="text-blue-600 hover:underline">
-              Go to home
-            </a>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
   return (
     <Layout>
       <div className="min-h-screen py-12 px-4">
         <div className="max-w-md mx-auto">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            {userInfo.current_group ? "Change Your Group" : "Join a Group"}
+            Select Your Group
           </h1>
-          <p className="text-gray-600 mb-6">Cohort: {userInfo.cohort_name}</p>
+          <p className="text-gray-600 mb-6">
+            {userInfo.cohort_start_date && userInfo.cohort_end_date ? (
+              <>
+                For the cohort running{" "}
+                {new Date(userInfo.cohort_start_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                {" - "}
+                {new Date(userInfo.cohort_end_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </>
+            ) : (
+              <>Cohort: {userInfo.cohort_name}</>
+            )}
+          </p>
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
               {error}
-            </div>
-          )}
-
-          {isSubmitting && (
-            <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700"></div>
-              Updating your group...
             </div>
           )}
 
@@ -180,12 +166,19 @@ export default function GroupPage() {
             timezone={timezone}
             onTimezoneChange={setTimezone}
             selectedGroupId={selectedGroupId}
-            onGroupSelect={setSelectedGroupId}
+            onGroupSelect={(groupId) => {
+              setSelectedGroupId(groupId);
+              setSuccess(false);
+            }}
             onBack={() => window.history.back()}
             onSubmit={handleJoinGroup}
             onSwitchToAvailability={() => {
               window.location.href = "/enroll";
             }}
+            submitButtonLabel={userInfo.current_group ? "Change Group" : "Join Group"}
+            hideHeader
+            isSubmitting={isSubmitting}
+            successMessage={success ? "You've joined your new group. Calendar invites and Discord access will be set up in the next few minutes." : undefined}
           />
         </div>
       </div>

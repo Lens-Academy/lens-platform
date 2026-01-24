@@ -54,6 +54,8 @@ Ports are auto-assigned based on workspace number:
 - `ws2` → API :8002, Frontend :3002
 - etc.
 
+The frontend and backend ports must be exactly 5000 apart, or they won't be able to connect to each other.
+
 Override via `.env.local` (gitignored) or CLI `--port`.
 
 **Before killing any server, always list first:**
