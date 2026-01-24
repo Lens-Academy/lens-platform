@@ -77,6 +77,46 @@ async def notify_group_assigned(
     )
 
 
+async def notify_member_joined(
+    user_id: int,
+    group_name: str,
+    meeting_time_utc: str,
+    member_names: list[str],
+    discord_channel_id: str,
+    discord_user_id: str,
+) -> dict:
+    """
+    Send notification when a user directly joins a group.
+
+    Unlike notify_group_assigned (used during realization), this is for
+    users who join an existing group via the web UI. It sends:
+    - Email to the joining user
+    - Discord message to the group channel (welcoming the new member)
+
+    Args:
+        user_id: Database user ID of the joining user
+        group_name: Name of the group they joined
+        meeting_time_utc: Human-readable meeting time
+        member_names: List of all group member names (including new member)
+        discord_channel_id: Discord channel ID for the group
+        discord_user_id: Discord user ID for mention in channel message
+    """
+    return await send_notification(
+        user_id=user_id,
+        message_type="member_joined",
+        context={
+            "group_name": group_name,
+            "meeting_time": meeting_time_utc,
+            "member_names": ", ".join(member_names),
+            "discord_channel_url": build_discord_channel_url(
+                channel_id=discord_channel_id
+            ),
+            "member_mention": f"<@{discord_user_id}>",
+        },
+        channel_id=discord_channel_id,  # dispatcher expects channel_id
+    )
+
+
 def schedule_meeting_reminders(
     meeting_id: int,
     meeting_time: datetime,
