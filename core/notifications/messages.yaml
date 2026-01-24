@@ -75,6 +75,10 @@ member_joined:
   discord_channel: |
     Welcome {member_mention}! 👋 They've joined the group.
 
+member_left:
+  discord_channel: |
+    👋 {member_mention} has left the group.
+
 meeting_reminder_24h:
   email_subject: "Reminder: {group_name} meeting tomorrow"
   email_body: |

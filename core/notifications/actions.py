@@ -117,6 +117,29 @@ async def notify_member_joined(
     )
 
 
+async def notify_member_left(
+    discord_channel_id: str,
+    discord_user_id: str,
+) -> dict:
+    """
+    Send notification to a group channel when a member leaves.
+
+    Only sends a Discord channel message (no email to the leaving user).
+
+    Args:
+        discord_channel_id: Discord channel ID for the group they left
+        discord_user_id: Discord user ID for mention in channel message
+    """
+    from core.notifications.channels.discord import send_discord_channel_message
+    from core.notifications.templates import get_message
+
+    context = {"member_mention": f"<@{discord_user_id}>"}
+    message = get_message("member_left", "discord_channel", context)
+
+    result = await send_discord_channel_message(discord_channel_id, message)
+    return {"discord_channel": result}
+
+
 def schedule_meeting_reminders(
     meeting_id: int,
     meeting_time: datetime,

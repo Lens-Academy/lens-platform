@@ -506,7 +506,7 @@ async def sync_after_group_change(
         }
     """
     from .database import get_connection
-    from .notifications.actions import notify_member_joined
+    from .notifications.actions import notify_member_joined, notify_member_left
     from .queries.groups import get_group_member_names, get_group_with_details
     from .tables import users
     from sqlalchemy import select
@@ -515,6 +515,7 @@ async def sync_after_group_change(
         "new_group": None,
         "old_group": None,
         "notification": None,
+        "left_notification": None,
     }
 
     # Sync old group first (if switching) - revokes permissions, removes from calendar
@@ -526,24 +527,37 @@ async def sync_after_group_change(
     logger.info(f"Syncing new group {group_id} after membership change")
     results["new_group"] = await sync_group(group_id)
 
-    # Send notification for direct joins (when user_id is provided)
+    # Send notifications for direct joins (when user_id is provided)
     if user_id:
         try:
             async with get_connection() as conn:
-                # Get group details using existing query function
-                group_details = await get_group_with_details(conn, group_id)
+                # Get user's Discord ID (needed for both notifications)
+                user_result = await conn.execute(
+                    select(users.c.discord_id).where(users.c.user_id == user_id)
+                )
+                user_row = user_result.mappings().first()
+                discord_user_id = user_row.get("discord_id") if user_row else None
 
-                if group_details and group_details.get("discord_text_channel_id"):
-                    # Get user's Discord ID
-                    user_result = await conn.execute(
-                        select(users.c.discord_id).where(users.c.user_id == user_id)
-                    )
-                    user_row = user_result.mappings().first()
+                if discord_user_id:
+                    # Send "left" notification to old group (if switching)
+                    if previous_group_id:
+                        old_group_details = await get_group_with_details(
+                            conn, previous_group_id
+                        )
+                        if old_group_details and old_group_details.get(
+                            "discord_text_channel_id"
+                        ):
+                            results["left_notification"] = await notify_member_left(
+                                discord_channel_id=old_group_details[
+                                    "discord_text_channel_id"
+                                ],
+                                discord_user_id=discord_user_id,
+                            )
 
-                    # Get member names
-                    member_names = await get_group_member_names(conn, group_id)
-
-                    if user_row and user_row.get("discord_id"):
+                    # Send "joined" notification to new group
+                    group_details = await get_group_with_details(conn, group_id)
+                    if group_details and group_details.get("discord_text_channel_id"):
+                        member_names = await get_group_member_names(conn, group_id)
                         results["notification"] = await notify_member_joined(
                             user_id=user_id,
                             group_name=group_details["group_name"],
@@ -551,7 +565,7 @@ async def sync_after_group_change(
                             or "TBD",
                             member_names=member_names,
                             discord_channel_id=group_details["discord_text_channel_id"],
-                            discord_user_id=user_row["discord_id"],
+                            discord_user_id=discord_user_id,
                         )
         except Exception as e:
             logger.error(f"Failed to send direct join notification: {e}")
