@@ -756,8 +756,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         />
       </div>
 
-      {/* Main content */}
-      <main>
+      {/* Main content - padding-top accounts for fixed header */}
+      <main className="pt-[var(--module-header-height)]">
         {module.sections.map((section, sectionIndex) => {
           // In paginated mode, only render current section
           if (

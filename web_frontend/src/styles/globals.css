@@ -16,6 +16,9 @@
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
 
+  /* Module header height for content offset calculations */
+  --module-header-height: 68px;
+
   /* Spring easing - slight overshoot and settle */
   --ease-spring: linear(
     0,

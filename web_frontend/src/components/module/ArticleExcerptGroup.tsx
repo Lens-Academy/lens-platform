@@ -53,7 +53,7 @@ export default function ArticleExcerptGroup({
 
         {/* TOC Sidebar - positioned to the left of centered content */}
         <div className="hidden xl:block absolute top-0 bottom-0 right-full w-[250px] mr-6">
-          <div className="sticky top-20 will-change-transform">
+          <div className="sticky top-[calc(var(--module-header-height)+12px)] will-change-transform">
             <ArticleTOC
               title={section.meta.title}
               author={section.meta.author}
