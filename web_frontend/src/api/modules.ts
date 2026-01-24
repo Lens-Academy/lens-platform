@@ -152,7 +152,7 @@ export interface SessionState {
     isExcerpt: boolean;
   } | null;
   previous_stage?: { type: string; [key: string]: unknown } | null;
-  show_user_previous_content?: boolean;
+  hidePreviousContentFromUser?: boolean;
 }
 
 export async function getSession(

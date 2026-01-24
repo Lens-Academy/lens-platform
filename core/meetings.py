@@ -112,7 +112,7 @@ async def send_calendar_invites_for_group(
             if meeting["meeting_id"] not in meeting_ids:
                 continue
 
-            event_id = create_meeting_event(
+            event_id = await create_meeting_event(
                 title=f"{group_name} - Week {meeting['meeting_number']}",
                 description="Weekly AI Safety study group meeting",
                 start=meeting["scheduled_at"],
@@ -175,7 +175,7 @@ async def reschedule_meeting(
 
         # Update Google Calendar (sends notification to attendees)
         if meeting.get("google_calendar_event_id"):
-            update_meeting_event(
+            await update_meeting_event(
                 event_id=meeting["google_calendar_event_id"],
                 start=new_time,
             )

@@ -1,16 +1,23 @@
 // web_frontend/src/components/unified-lesson/StageProgressBar.tsx
 import type { Stage } from "../../types/module";
+import { triggerHaptic } from "@/utils/haptics";
 import { Tooltip } from "../Tooltip";
+import {
+  getHighestCompleted,
+  getCircleFillClasses,
+  getRingClasses,
+} from "../../utils/stageProgress";
 
 type StageProgressBarProps = {
   stages: Stage[];
-  currentStageIndex: number; // Actual progress (rightmost reached)
-  viewingStageIndex: number | null; // What's being viewed (null = current)
+  completedStages: Set<number>; // Which stages are completed (can be non-contiguous)
+  viewingIndex: number; // What's currently being viewed
   onStageClick: (index: number) => void;
   onPrevious: () => void;
   onNext: () => void;
   canGoPrevious: boolean;
   canGoNext: boolean;
+  compact?: boolean; // Smaller size for header use
 };
 
 export function StageIcon({
@@ -59,49 +66,60 @@ export function StageIcon({
   );
 }
 
+function getStageTitle(stage: Stage): string {
+  if (stage.title) return stage.title;
+  // Fallback based on type
+  if (stage.type === "video") return "Video";
+  if (stage.type === "article") return "Article";
+  return "Discussion";
+}
+
 function getTooltipContent(
   stage: Stage,
   index: number,
-  currentStageIndex: number,
+  isCompleted: boolean,
+  isViewing: boolean,
 ): string {
-  const isFuture = index > currentStageIndex;
-  const isPastChat = stage.type === "chat" && index < currentStageIndex;
-  const isFutureChat = stage.type === "chat" && index > currentStageIndex;
-  const isCurrentChat = stage.type === "chat" && index === currentStageIndex;
   const isOptional = "optional" in stage && stage.optional === true;
   const optionalPrefix = isOptional ? "(Optional) " : "";
+  const completedSuffix = isCompleted ? " (completed)" : "";
+  const title = getStageTitle(stage);
 
-  if (isFutureChat) return "Chat sections can't be previewed";
-  if (isFuture) return `${optionalPrefix}Preview ${stage.type} section`;
-  if (isPastChat) return "Chat sections can't be revisited";
-  if (isCurrentChat) return "Return to chat";
-  return `${optionalPrefix}View ${stage.type} section`;
+  if (isViewing) {
+    return `${title}${completedSuffix}`;
+  }
+  return `${optionalPrefix}${title}${completedSuffix}`;
 }
 
 export default function StageProgressBar({
   stages,
-  currentStageIndex,
-  viewingStageIndex,
+  completedStages,
+  viewingIndex,
   onStageClick,
   onPrevious,
   onNext,
   canGoPrevious,
   canGoNext,
+  compact = false,
 }: StageProgressBarProps) {
-  const viewingIndex = viewingStageIndex ?? currentStageIndex;
+  // Calculate highest completed index for bar coloring
+  const highestCompleted = getHighestCompleted(completedStages);
 
-  const handleDotClick = (index: number, stage: Stage) => {
-    // Past chat stages can't be revisited
-    if (stage.type === "chat" && index < currentStageIndex) {
-      return;
-    }
+  // Bar color logic:
+  // - Blue up to highest completed
+  // - Blue to viewing if viewing is adjacent to a completed section
+  // - Dark gray to viewing if we skipped sections
+  // - Light gray beyond
+  const getBarColor = (index: number) => {
+    if (index <= highestCompleted) return "bg-blue-400";
+    if (index === viewingIndex && completedStages.has(index - 1)) return "bg-blue-400";
+    if (index <= viewingIndex) return "bg-gray-400";
+    return "bg-gray-200";
+  };
 
-    // Future chat stages can't be previewed (no content to show)
-    if (stage.type === "chat" && index > currentStageIndex) {
-      return;
-    }
-
-    // Navigate to stage (including future for preview)
+  const handleDotClick = (index: number) => {
+    // Trigger haptic on any tap
+    triggerHaptic(10);
     onStageClick(index);
   };
 
@@ -112,10 +130,14 @@ export default function StageProgressBar({
         <button
           onClick={onPrevious}
           disabled={!canGoPrevious}
-          className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default"
+          className={`rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default ${
+            compact
+              ? "p-1"
+              : "min-w-8 min-h-8 sm:min-w-[44px] sm:min-h-[44px] p-1.5 sm:p-2 transition-all active:scale-95 shrink-0"
+          }`}
         >
           <svg
-            className="w-4 h-4"
+            className={compact ? "w-4 h-4" : "w-4 h-4 sm:w-5 sm:h-5"}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -133,59 +155,46 @@ export default function StageProgressBar({
       {/* Stage dots */}
       <div className="flex items-center">
         {stages.map((stage, index) => {
-          const isReached = index <= currentStageIndex;
+          const isCompleted = completedStages.has(index);
           const isViewing = index === viewingIndex;
-          const isPastChat = stage.type === "chat" && index < currentStageIndex;
-          const isFutureChat =
-            stage.type === "chat" && index > currentStageIndex;
-          const isClickable = isReached && !isPastChat;
-          const isFuture = index > currentStageIndex;
           const isOptional = "optional" in stage && stage.optional === true;
-          const canPreview = isFuture && !isFutureChat; // Future non-chat stages can be previewed
+
+          const fillClasses = getCircleFillClasses(
+            { isCompleted, isViewing, isOptional },
+            { includeHover: true }
+          );
+          const ringClasses = getRingClasses(isViewing, isCompleted);
 
           return (
             <div key={index} className="flex items-center">
               {/* Connector line (except before first) */}
               {index > 0 && (
                 <div
-                  className={`w-4 h-0.5 ${
-                    index <= currentStageIndex ? "bg-blue-400" : "bg-gray-300"
-                  }`}
+                  className={`h-0.5 ${compact ? "w-4" : "w-2 sm:w-4"} ${getBarColor(index)}`}
                 />
               )}
 
               {/* Dot */}
               <Tooltip
-                content={getTooltipContent(stage, index, currentStageIndex)}
+                content={getTooltipContent(stage, index, isCompleted, isViewing)}
                 placement="bottom"
-                persistOnClick={isPastChat}
               >
                 <button
-                  onClick={() => handleDotClick(index, stage)}
-                  disabled={
-                    stage.type === "chat" &&
-                    index !== currentStageIndex &&
-                    index !== viewingIndex
-                  }
+                  onClick={() => handleDotClick(index)}
                   className={`
-                    relative w-7 h-7 rounded-full flex items-center justify-center
-                    transition-all duration-150 disabled:cursor-default
+                    relative rounded-full flex items-center justify-center
+                    transition-all duration-150
+                    ${compact ? "" : "active:scale-95 shrink-0"}
                     ${
-                      isOptional
-                        ? "bg-transparent text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500"
-                        : isReached
-                          ? isClickable
-                            ? "bg-blue-500 text-white hover:bg-blue-600"
-                            : "bg-blue-500 text-white"
-                          : canPreview
-                            ? "bg-gray-300 text-gray-500 hover:bg-gray-400"
-                            : "bg-gray-300 text-gray-500"
+                      compact
+                        ? "w-7 h-7"
+                        : "min-w-8 min-h-8 w-8 h-8 sm:min-w-[44px] sm:min-h-[44px] sm:w-11 sm:h-11"
                     }
-                    ${isViewing ? "ring-2 ring-offset-2 ring-blue-500" : ""}
-                    ${isFuture ? "opacity-50" : ""}
+                    ${fillClasses}
+                    ${ringClasses}
                   `}
                 >
-                  <StageIcon type={stage.type} small />
+                  <StageIcon type={stage.type} small={compact} />
                 </button>
               </Tooltip>
             </div>
@@ -198,10 +207,14 @@ export default function StageProgressBar({
         <button
           onClick={onNext}
           disabled={!canGoNext}
-          className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default"
+          className={`rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default ${
+            compact
+              ? "p-1"
+              : "min-w-8 min-h-8 sm:min-w-[44px] sm:min-h-[44px] p-1.5 sm:p-2 transition-all active:scale-95 shrink-0"
+          }`}
         >
           <svg
-            className="w-4 h-4"
+            className={compact ? "w-4 h-4" : "w-4 h-4 sm:w-5 sm:h-5"}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

@@ -221,7 +221,7 @@ title: Test
 ---
 
 # Chat: Discussion
-showUserPreviousContent:: true
+hidePreviousContentFromUser:: true
 """
         errors = validate_lesson(text)
         assert len(errors) == 1
@@ -276,7 +276,7 @@ title: Test
 source:: [[video_transcripts/test]]
 
 ## Chat
-showUserPreviousContent:: true
+hidePreviousContentFromUser:: true
 """
         errors = validate_lesson(text)
         assert len(errors) == 1
@@ -660,8 +660,8 @@ title: Test
 source:: [[video_transcripts/test]]
 
 ## Chat: Discussion Title
-showUserPreviousContent:: true
-showTutorPreviousContent:: false
+hidePreviousContentFromUser:: true
+hidePreviousContentFromTutor:: false
 instructions::
 Ask the user about the video.
 """
@@ -679,7 +679,7 @@ title: Test
 source:: [[video_transcripts/test]]
 
 ## Chat: Discussion Title
-showUserPreviousContent:: true
+hidePreviousContentFromUser:: true
 """
         errors = validate_lesson(text)
         assert len(errors) == 1

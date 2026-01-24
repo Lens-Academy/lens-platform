@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { navigate } from "vike/client/router";
+import { Skeleton } from "../../components/Skeleton";
 
 // This page pre-renders to /200 - served as SPA fallback for non-SSG routes.
 // On hydration, it checks if the URL matches /200. If not, it navigates
@@ -16,9 +17,12 @@ export default function SpaFallbackPage() {
   return (
     <div
       id="spa-loading"
-      className="flex items-center justify-center min-h-screen"
+      className="flex items-center justify-center min-h-dvh"
     >
-      <div className="animate-pulse text-gray-500">Loading...</div>
+      <div className="flex flex-col items-center gap-4">
+        <Skeleton variant="circular" className="w-12 h-12" />
+        <Skeleton variant="text" className="w-32 h-4" />
+      </div>
     </div>
   );
 }

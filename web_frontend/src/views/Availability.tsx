@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { Skeleton, SkeletonText } from "../components/Skeleton";
 import ScheduleSelector from "../components/schedule/ScheduleSelector";
 import type { AvailabilityData } from "../types/enroll";
 import {
@@ -67,7 +68,10 @@ export default function Availability() {
   if (isLoading) {
     return (
       <div className="py-8 flex justify-center">
-        <div className="text-gray-600">Loading...</div>
+        <div className="space-y-4">
+          <Skeleton variant="rectangular" className="h-10 w-64" />
+          <SkeletonText lines={2} />
+        </div>
       </div>
     );
   }

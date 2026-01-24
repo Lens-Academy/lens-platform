@@ -339,15 +339,18 @@ class GroupsCog(commands.Cog):
         ]
         day_num = None
         hour = None
+        minute = None
 
         for i, day in enumerate(day_names):
             if day in meeting_time_str:
                 day_num = i
-                # Extract hour
+                # Extract hour and minute
                 parts = meeting_time_str.split()
                 for part in parts:
                     if ":" in part:
-                        hour = int(part.split(":")[0])
+                        time_parts = part.split(":")
+                        hour = int(time_parts[0])
+                        minute = int(time_parts[1])
                         break
                 break
 
@@ -361,7 +364,7 @@ class GroupsCog(commands.Cog):
 
         # Find first occurrence of the meeting day
         first_meeting = datetime.combine(start_date, datetime.min.time())
-        first_meeting = first_meeting.replace(hour=hour, minute=0, tzinfo=pytz.UTC)
+        first_meeting = first_meeting.replace(hour=hour, minute=minute, tzinfo=pytz.UTC)
 
         days_ahead = day_num - first_meeting.weekday()
         if days_ahead < 0:

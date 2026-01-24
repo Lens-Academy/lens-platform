@@ -104,9 +104,32 @@ export default function ArticleEmbed({
       <em className="italic">{children}</em>
     ),
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4">
+      <blockquote className="bg-blue-50 border-l-4 border-blue-400 pl-4 pr-4 py-3 my-4 rounded-r-lg">
         {children}
       </blockquote>
+    ),
+    code: ({ children, className }: { children?: React.ReactNode; className?: string }) => {
+      const isInline = !className;
+      if (isInline) {
+        return (
+          <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono">
+            {children}
+          </code>
+        );
+      }
+      return <code className="text-sm font-mono">{children}</code>;
+    },
+    pre: ({ children }: { children?: React.ReactNode }) => (
+      <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm overflow-x-auto my-4">
+        {children}
+      </pre>
+    ),
+    img: ({ src, alt }: { src?: string; alt?: string }) => (
+      <img
+        src={src}
+        alt={alt || ""}
+        className="w-full max-w-full my-4 sm:w-[calc(100%+2rem)] sm:max-w-none sm:-mx-4 sm:rounded-lg"
+      />
     ),
     hr: () => <hr className="my-8 border-gray-300" />,
     table: ({ children }: { children?: React.ReactNode }) => (
@@ -190,7 +213,7 @@ export default function ArticleEmbed({
     <div>
       {/* Article content with warm background - header inside */}
       <div className="max-w-content-padded mx-auto">
-        <div className="bg-amber-50/50 px-10 py-6 rounded-lg">
+        <div className="bg-amber-50/50 px-4 py-4 sm:px-10 sm:py-6 rounded-lg">
           {/* Excerpt marker inside yellow background */}
           {isFirst ? (
             // First excerpt: full attribution with divider
@@ -259,7 +282,7 @@ export default function ArticleEmbed({
           {/* Collapsed content before this excerpt (after header) */}
           {collapsed_before && <CollapsedSection content={collapsed_before} position="before" />}
 
-          <article className="prose prose-gray max-w-content mx-auto">
+          <article className="prose prose-gray max-w-content mx-auto overflow-x-hidden">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeRaw]}

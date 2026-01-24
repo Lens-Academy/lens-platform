@@ -47,7 +47,9 @@ class TestSendCalendarInvites:
             patch("core.meetings.get_connection") as mock_conn_ctx,
             patch("core.meetings.get_transaction") as mock_tx,
             patch("core.meetings.is_calendar_configured", return_value=True),
-            patch("core.meetings.create_meeting_event") as mock_create_event,
+            patch(
+                "core.meetings.create_meeting_event", new_callable=AsyncMock
+            ) as mock_create_event,
             patch("core.meetings.get_group_member_emails") as mock_get_emails,
             patch("core.meetings.get_meetings_for_group") as mock_get_meetings,
         ):

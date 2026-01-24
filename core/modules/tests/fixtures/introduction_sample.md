@@ -25,8 +25,8 @@ Understanding these basics is essential for the discussions ahead.
 from:: 0:00
 
 # Chat: Discussion on AI Basics
-showUserPreviousContent:: true
-showTutorPreviousContent:: false
+hidePreviousContentFromUser:: false
+hidePreviousContentFromTutor:: true
 instructions::
 TLDR of what the user just watched:
 Humans dominate Earth because general intelligence enabled cumulative knowledge.
@@ -57,8 +57,8 @@ from:: "Existential risk from artificial general intelligence"
 to:: "the hypothesis that substantial progress"
 
 # Chat: Discussion on X-Risk
-showUserPreviousContent:: false
-showTutorPreviousContent:: true
+hidePreviousContentFromUser:: true
+hidePreviousContentFromTutor:: false
 instructions::
 TLDR of what the user just read:
 AI x-risk is the hypothesis that AGI/superintelligence could cause human extinction
@@ -86,8 +86,8 @@ from:: 0:00
 to:: 14:48
 
 # Chat: Discussion on Objections
-showUserPreviousContent:: false
-showTutorPreviousContent:: false
+hidePreviousContentFromUser:: true
+hidePreviousContentFromTutor:: true
 instructions::
 TLDR of what the user just watched:
 The video presents 10 common objections to AI safety concerns and refutes each one.
@@ -106,8 +106,8 @@ This is a good stage to surface any remaining skepticism they have. Engage with
 their doubts constructively rather than dismissing them.
 
 # Chat: Reflection
-showUserPreviousContent:: true
-showTutorPreviousContent:: true
+hidePreviousContentFromUser:: false
+hidePreviousContentFromTutor:: false
 instructions::
 Ask the user to reflect on what they've learned so far.
 

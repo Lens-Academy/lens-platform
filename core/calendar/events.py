@@ -1,11 +1,12 @@
 """Google Calendar event operations."""
 
+import asyncio
 from datetime import datetime, timedelta
 
 from .client import get_calendar_service, get_calendar_email
 
 
-def create_meeting_event(
+async def create_meeting_event(
     title: str,
     description: str,
     start: datetime,
@@ -43,8 +44,8 @@ def create_meeting_event(
         "reminders": {"useDefault": False, "overrides": []},  # We handle reminders
     }
 
-    try:
-        result = (
+    def _sync_insert():
+        return (
             service.events()
             .insert(
                 calendarId=get_calendar_email(),
@@ -54,13 +55,15 @@ def create_meeting_event(
             .execute()
         )
 
+    try:
+        result = await asyncio.to_thread(_sync_insert)
         return result["id"]
     except Exception as e:
         print(f"Failed to create calendar event: {e}")
         return None
 
 
-def update_meeting_event(
+async def update_meeting_event(
     event_id: str,
     start: datetime | None = None,
     title: str | None = None,
@@ -78,16 +81,26 @@ def update_meeting_event(
     if not service:
         return False
 
-    try:
-        # Get existing event
-        event = (
+    calendar_id = get_calendar_email()
+
+    def _sync_get():
+        return service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+
+    def _sync_update(event_body):
+        return (
             service.events()
-            .get(
-                calendarId=get_calendar_email(),
+            .update(
+                calendarId=calendar_id,
                 eventId=event_id,
+                body=event_body,
+                sendUpdates="all",
             )
             .execute()
         )
+
+    try:
+        # Get existing event
+        event = await asyncio.to_thread(_sync_get)
 
         # Update fields
         if start:
@@ -99,20 +112,14 @@ def update_meeting_event(
         if title:
             event["summary"] = title
 
-        service.events().update(
-            calendarId=get_calendar_email(),
-            eventId=event_id,
-            body=event,
-            sendUpdates="all",
-        ).execute()
-
+        await asyncio.to_thread(_sync_update, event)
         return True
     except Exception as e:
         print(f"Failed to update calendar event {event_id}: {e}")
         return False
 
 
-def cancel_meeting_event(event_id: str) -> bool:
+async def cancel_meeting_event(event_id: str) -> bool:
     """
     Cancel/delete a calendar event.
 
@@ -125,19 +132,28 @@ def cancel_meeting_event(event_id: str) -> bool:
     if not service:
         return False
 
+    calendar_id = get_calendar_email()
+
+    def _sync_delete():
+        return (
+            service.events()
+            .delete(
+                calendarId=calendar_id,
+                eventId=event_id,
+                sendUpdates="all",
+            )
+            .execute()
+        )
+
     try:
-        service.events().delete(
-            calendarId=get_calendar_email(),
-            eventId=event_id,
-            sendUpdates="all",
-        ).execute()
+        await asyncio.to_thread(_sync_delete)
         return True
     except Exception as e:
         print(f"Failed to cancel calendar event {event_id}: {e}")
         return False
 
 
-def get_event_rsvps(event_id: str) -> list[dict] | None:
+async def get_event_rsvps(event_id: str) -> list[dict] | None:
     """
     Get attendee RSVP statuses for an event.
 
@@ -149,16 +165,13 @@ def get_event_rsvps(event_id: str) -> list[dict] | None:
     if not service:
         return None
 
-    try:
-        event = (
-            service.events()
-            .get(
-                calendarId=get_calendar_email(),
-                eventId=event_id,
-            )
-            .execute()
-        )
+    calendar_id = get_calendar_email()
 
+    def _sync_get():
+        return service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+
+    try:
+        event = await asyncio.to_thread(_sync_get)
         return [
             {
                 "email": a["email"],

@@ -65,7 +65,7 @@ title: Test
 ---
 
 # Chat: Discussion
-showUserPreviousContent:: false
+hidePreviousContentFromUser:: true
 instructions::
 Ask the user about their understanding.
 
@@ -78,7 +78,7 @@ Topics:
         section = module.sections[0]
         assert isinstance(section, ChatSection)
         # Note: title field was removed from ChatSection dataclass
-        assert section.show_user_previous_content is False
+        assert section.hide_previous_content_from_user is True
         assert "Ask the user" in section.instructions
 
 
@@ -104,7 +104,7 @@ from:: 0:00
 to:: 5:00
 
 ## Chat
-showUserPreviousContent:: true
+hidePreviousContentFromUser:: false
 instructions::
 Discuss the video.
 """
@@ -370,13 +370,13 @@ class TestRealModuleParsing:
 
             elif exp["type"] == "chat":
                 assert (
-                    actual.show_user_previous_content
-                    == exp["show_user_previous_content"]
-                ), f"Section {i} show_user_previous_content mismatch"
+                    actual.hide_previous_content_from_user
+                    == exp["hide_previous_content_from_user"]
+                ), f"Section {i} hide_previous_content_from_user mismatch"
                 assert (
-                    actual.show_tutor_previous_content
-                    == exp["show_tutor_previous_content"]
-                ), f"Section {i} show_tutor_previous_content mismatch"
+                    actual.hide_previous_content_from_tutor
+                    == exp["hide_previous_content_from_tutor"]
+                ), f"Section {i} hide_previous_content_from_tutor mismatch"
                 assert actual.instructions == exp["instructions"], (
                     f"Section {i} instructions mismatch"
                 )
@@ -500,7 +500,7 @@ from:: 1:00
 to:: 5:00
 
 ## Chat: Discussion Questions
-showUserPreviousContent:: false
+hidePreviousContentFromUser:: true
 instructions::
 Ask what stood out to the user.
 """
@@ -519,4 +519,4 @@ Ask what stood out to the user.
 
         seg2 = section.segments[2]
         assert isinstance(seg2, ChatSegment)
-        assert seg2.show_user_previous_content is False
+        assert seg2.hide_previous_content_from_user is True

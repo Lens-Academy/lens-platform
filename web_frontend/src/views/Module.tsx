@@ -48,6 +48,7 @@ import {
 } from "@/analytics";
 import { Sentry } from "@/errorTracking";
 import { RequestTimeoutError } from "@/api/modules";
+import { Skeleton, SkeletonText } from "@/components/Skeleton";
 
 interface ModuleProps {
   courseId: string;
@@ -183,34 +184,28 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // View mode state (default to paginated)
   const [viewMode] = useState<ViewMode>("paginated");
 
-  // Derive furthest completed index for progress bar display
-  // Progress bar shows stages as "reached" based on this, not scroll position
-  const furthestCompletedIndex = useMemo(() => {
-    let max = -1;
-    completedSections.forEach((idx) => {
-      if (idx > max) max = idx;
-    });
-    return max;
-  }, [completedSections]);
-
   // Convert sections to Stage format for progress bar
-  // StageProgressBar only uses the `type` field for icon display
   const stages: Stage[] = useMemo(() => {
     if (!module) return [];
-    return module.sections.map((section): Stage => {
+    return module.sections.map((section, index): Stage => {
       const stageType = section.type === "text" ? "article" : section.type;
       const isOptional =
         "optional" in section && section.optional === true;
+      const title =
+        section.type === "text"
+          ? `Section ${index + 1}`
+          : section.meta?.title || `${section.type || "Section"} ${index + 1}`;
       if (stageType === "article") {
-        return { type: "article", source: "", from: null, to: null, optional: isOptional };
+        return { type: "article", source: "", from: null, to: null, optional: isOptional, title };
       } else if (stageType === "video" && section.type === "video") {
-        return { type: "video", videoId: section.videoId, from: 0, to: null, optional: isOptional };
+        return { type: "video", videoId: section.videoId, from: 0, to: null, optional: isOptional, title };
       } else {
         return {
           type: "chat",
           instructions: "",
-          showUserPreviousContent: false,
-          showTutorPreviousContent: false,
+          hidePreviousContentFromUser: false,
+          hidePreviousContentFromTutor: false,
+          title,
         };
       }
     });
@@ -603,11 +598,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     ],
   );
 
-  const handleSkipSection = useCallback(() => {
-    // Mark current as complete (which also navigates to next)
-    handleMarkComplete(currentSectionIndex);
-  }, [currentSectionIndex, handleMarkComplete]);
-
   // Render a segment (sectionIndex included for unique keys)
   const renderSegment = (
     segment: ModuleSegment,
@@ -701,11 +691,24 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
   };
 
-  // Loading state
+  // Loading state - skeleton layout mirrors actual content structure
   if (loadingModule) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Loading module...</p>
+      <div className="min-h-dvh bg-stone-50 p-4 sm:p-6">
+        {/* Module header skeleton */}
+        <div className="mb-6">
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        {/* Content skeleton */}
+        <div className="max-w-2xl">
+          <SkeletonText lines={4} className="mb-6" />
+          <Skeleton
+            className="h-48 w-full rounded-lg mb-6"
+            variant="rectangular"
+          />
+          <SkeletonText lines={3} />
+        </div>
       </div>
     );
   }
@@ -713,7 +716,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Error states
   if (loadError || !module) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+      <div className="min-h-dvh flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">{loadError ?? "Module not found"}</p>
           <a href="/" className="text-emerald-600 hover:underline">
@@ -726,7 +729,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+      <div className="min-h-dvh flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <a href="/" className="text-emerald-600 hover:underline">
@@ -738,24 +741,18 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-dvh bg-white overflow-x-clip">
       <div className="sticky top-0 z-50 bg-white">
         <ModuleHeader
           moduleTitle={module.title}
           stages={stages}
-          currentStageIndex={furthestCompletedIndex + 1}
-          viewingStageIndex={viewingStageIndex ?? currentSectionIndex}
-          isViewingOther={
-            viewingStageIndex !== null &&
-            viewingStageIndex !== currentSectionIndex
-          }
+          completedStages={completedSections}
+          viewingIndex={viewingStageIndex ?? currentSectionIndex}
           canGoPrevious={currentSectionIndex > 0}
           canGoNext={currentSectionIndex < module.sections.length - 1}
           onStageClick={handleStageClick}
           onPrevious={handlePrevious}
           onNext={handleNext}
-          onReturnToCurrent={() => setViewingStageIndex(null)}
-          onSkipSection={handleSkipSection}
         />
       </div>
 
@@ -781,12 +778,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             >
               {section.type === "text" ? (
                 <>
-                  <SectionDivider type="article" />
+                  <SectionDivider type="article" title={`Section ${sectionIndex + 1}`} />
                   <AuthoredText content={section.content} />
                 </>
               ) : section.type === "chat" ? (
                 <>
-                  <SectionDivider type="chat" />
+                  <SectionDivider type="chat" title={section.meta?.title} />
                   <NarrativeChatSection
                     messages={messages}
                     pendingMessage={pendingMessage}
@@ -800,7 +797,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 </>
               ) : section.type === "article" ? (
                 <>
-                  <SectionDivider type="article" optional={section.optional} />
+                  <SectionDivider type="article" optional={section.optional} title={section.meta?.title} />
                   <ArticleSectionWrapper>
                     {(() => {
                       // Split segments into pre-excerpt, excerpt, post-excerpt groups
@@ -870,7 +867,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 </>
               ) : (
                 <>
-                  <SectionDivider type={section.type} optional={section.optional} />
+                  <SectionDivider type={section.type} optional={section.optional} title={section.meta?.title} />
                   {section.segments?.map((segment, segmentIndex) =>
                     renderSegment(segment, section, sectionIndex, segmentIndex),
                   )}
@@ -890,8 +887,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       <ModuleDrawer
         moduleTitle={module.title}
         stages={stagesForDrawer}
-        currentStageIndex={furthestCompletedIndex + 1}
-        viewedStageIndex={viewingStageIndex ?? currentSectionIndex}
+        completedStages={completedSections}
+        viewingIndex={viewingStageIndex ?? currentSectionIndex}
         onStageClick={handleStageClick}
       />
 

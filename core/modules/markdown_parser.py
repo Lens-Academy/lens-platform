@@ -29,8 +29,8 @@ class ChatSegment:
 
     type: str = "chat"
     instructions: str = ""
-    show_user_previous_content: bool = True
-    show_tutor_previous_content: bool = True
+    hide_previous_content_from_user: bool = False
+    hide_previous_content_from_tutor: bool = False
 
 
 @dataclass
@@ -59,6 +59,7 @@ class VideoSection:
     """A video-based section with source and segments."""
 
     type: str = "video"
+    title: str = ""
     source: str = ""
     segments: list[Segment] = field(default_factory=list)
     optional: bool = False
@@ -69,6 +70,7 @@ class ArticleSection:
     """An article-based section with source and segments."""
 
     type: str = "article"
+    title: str = ""
     source: str = ""
     segments: list[Segment] = field(default_factory=list)
     optional: bool = False
@@ -79,6 +81,7 @@ class TextSection:
     """A standalone text section (no child segments)."""
 
     type: str = "text"
+    title: str = ""
     content: str = ""
 
 
@@ -87,9 +90,10 @@ class ChatSection:
     """A standalone chat section (no child segments)."""
 
     type: str = "chat"
+    title: str = ""
     instructions: str = ""
-    show_user_previous_content: bool = True
-    show_tutor_previous_content: bool = True
+    hide_previous_content_from_user: bool = False
+    hide_previous_content_from_tutor: bool = False
 
 
 Section = VideoSection | ArticleSection | TextSection | ChatSection
@@ -256,11 +260,11 @@ def _parse_segment(segment_type: str, content: str) -> Segment:
     elif segment_type_lower == "chat":
         return ChatSegment(
             instructions=fields.get("instructions", ""),
-            show_user_previous_content=_parse_bool(
-                fields.get("showUserPreviousContent", "true")
+            hide_previous_content_from_user=_parse_bool(
+                fields.get("hidePreviousContentFromUser", "false")
             ),
-            show_tutor_previous_content=_parse_bool(
-                fields.get("showTutorPreviousContent", "true")
+            hide_previous_content_from_tutor=_parse_bool(
+                fields.get("hidePreviousContentFromTutor", "false")
             ),
         )
 
@@ -329,6 +333,7 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
         segments = [_parse_segment(stype, scontent) for stype, scontent in segment_data]
 
         return VideoSection(
+            title=title,
             source=source,
             segments=segments,
             optional=optional,
@@ -340,6 +345,7 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
         segments = [_parse_segment(stype, scontent) for stype, scontent in segment_data]
 
         return ArticleSection(
+            title=title,
             source=source,
             segments=segments,
             optional=optional,
@@ -348,17 +354,19 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
     elif section_type_lower == "text":
         raw_content = fields.get("content", "")
         return TextSection(
+            title=title,
             content=_unescape_content_headers(raw_content),
         )
 
     elif section_type_lower == "chat":
         return ChatSection(
+            title=title,
             instructions=fields.get("instructions", ""),
-            show_user_previous_content=_parse_bool(
-                fields.get("showUserPreviousContent", "true")
+            hide_previous_content_from_user=_parse_bool(
+                fields.get("hidePreviousContentFromUser", "false")
             ),
-            show_tutor_previous_content=_parse_bool(
-                fields.get("showTutorPreviousContent", "true")
+            hide_previous_content_from_tutor=_parse_bool(
+                fields.get("hidePreviousContentFromTutor", "false")
             ),
         )
 

@@ -11,8 +11,9 @@ from sqlalchemy import create_engine, pool
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (.env.local overrides .env)
+load_dotenv(".env")
+load_dotenv(".env.local", override=True)
 
 from core.database import get_sync_database_url
 from core.tables import metadata

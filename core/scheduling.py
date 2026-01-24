@@ -272,13 +272,22 @@ async def schedule_cohort(
             raise ValueError(f"Cohort {cohort_id} not found")
 
         # Load users awaiting grouping for this cohort
-        # (row exists in signups = awaiting grouping, no ungroupable_reason = first attempt)
+        # (row exists in signups = awaiting grouping, excludes users already in groups)
 
         # Subquery: users already in groups for this cohort
         already_grouped = (
             select(groups_users.c.user_id)
             .join(groups, groups_users.c.group_id == groups.c.group_id)
             .where(groups.c.cohort_id == cohort_id)
+        )
+
+        # Clear ungroupable_reason for users not already in groups
+        # so they can be reconsidered in this scheduling run
+        await conn.execute(
+            update(signups)
+            .where(signups.c.cohort_id == cohort_id)
+            .where(signups.c.user_id.notin_(already_grouped))
+            .values(ungroupable_reason=None)
         )
 
         query = (
@@ -294,9 +303,6 @@ async def schedule_cohort(
             )
             .join(signups, users.c.user_id == signups.c.user_id)
             .where(signups.c.cohort_id == cohort_id)
-            .where(
-                signups.c.ungroupable_reason.is_(None)
-            )  # Only users not yet marked ungroupable
             .where(users.c.user_id.notin_(already_grouped))
         )
         result = await conn.execute(query)
@@ -312,15 +318,44 @@ async def schedule_cohort(
                 groups=[],
             )
 
+        # First, identify which facilitator signups are certified
+        # Uncertified facilitators should be excluded from scheduling entirely
+        facilitator_signup_user_ids = [
+            row["user_id"] for row in user_rows if row["role"] == "facilitator"
+        ]
+        certified_user_ids: set[int] = set()
+        facilitator_max_groups_by_user_id: dict[int, int] = {}
+
+        if facilitator_signup_user_ids:
+            fac_query = select(
+                facilitators.c.user_id,
+                facilitators.c.max_active_groups,
+                facilitators.c.certified_at,
+            ).where(facilitators.c.user_id.in_(facilitator_signup_user_ids))
+            fac_result = await conn.execute(fac_query)
+            for row in fac_result.fetchall():
+                if row.certified_at is not None:
+                    certified_user_ids.add(row.user_id)
+                    facilitator_max_groups_by_user_id[row.user_id] = (
+                        row.max_active_groups or 999
+                    )
+
         # Convert to Person objects for scheduling
         people = []
         user_id_map = {}  # discord_id -> user_id for later
-        facilitator_ids = set()
+        certified_facilitator_ids: set[str] = set()
+        facilitator_max_groups: dict[str, int] = {}
         user_timezones = []  # Collect for DST warning check
 
         for row in user_rows:
             discord_id = row["discord_id"]
-            user_id_map[discord_id] = row["user_id"]
+            user_id = row["user_id"]
+
+            # Skip uncertified facilitators entirely - they should not be scheduled
+            if row["role"] == "facilitator" and user_id not in certified_user_ids:
+                continue
+
+            user_id_map[discord_id] = user_id
             user_timezone = row["timezone"] or "UTC"
 
             # Parse availability from JSON format, converting from local to UTC
@@ -347,34 +382,12 @@ async def schedule_cohort(
             people.append(person)
             user_timezones.append(user_timezone)
 
+            # Track certified facilitators
             if row["role"] == "facilitator":
-                facilitator_ids.add(discord_id)
-
-        # Query facilitator max_active_groups from facilitators table
-        facilitator_max_groups = {}
-        if facilitator_ids:
-            # Get user_ids for facilitators in this cohort
-            facilitator_user_ids = [
-                user_id_map[discord_id]
-                for discord_id in facilitator_ids
-                if discord_id in user_id_map
-            ]
-            if facilitator_user_ids:
-                fac_query = select(
-                    facilitators.c.user_id, facilitators.c.max_active_groups
-                ).where(facilitators.c.user_id.in_(facilitator_user_ids))
-                fac_result = await conn.execute(fac_query)
-                fac_rows = {
-                    row.user_id: row.max_active_groups for row in fac_result.fetchall()
-                }
-
-                # Build mapping: discord_id -> max_active_groups
-                for discord_id in facilitator_ids:
-                    user_id = user_id_map.get(discord_id)
-                    if user_id and user_id in fac_rows:
-                        facilitator_max_groups[discord_id] = (
-                            fac_rows[user_id] or 999
-                        )  # Default to unlimited if NULL
+                certified_facilitator_ids.add(discord_id)
+                facilitator_max_groups[discord_id] = facilitator_max_groups_by_user_id[
+                    user_id
+                ]
 
         if not people:
             return CohortSchedulingResult(
@@ -396,7 +409,7 @@ async def schedule_cohort(
             min_people=min_people,
             max_people=max_people,
             num_iterations=num_iterations,
-            facilitator_ids=facilitator_ids if facilitator_ids else None,
+            facilitator_ids=certified_facilitator_ids if certified_facilitator_ids else None,
             facilitator_max_cohorts=facilitator_max_groups
             if facilitator_max_groups
             else None,
@@ -434,7 +447,7 @@ async def schedule_cohort(
                     if user_id:
                         role = (
                             "facilitator"
-                            if person.id in facilitator_ids
+                            if person.id in certified_facilitator_ids
                             else "participant"
                         )
                         await add_user_to_group(
@@ -463,7 +476,7 @@ async def schedule_cohort(
             ungroupable_details = analyze_ungroupable_users(
                 unassigned=scheduling_result.unassigned,
                 all_people=people,
-                facilitator_ids=facilitator_ids,
+                facilitator_ids=certified_facilitator_ids,
                 facilitator_max_groups=facilitator_max_groups,
                 groups_created=len(created_groups),
                 meeting_length=meeting_length,

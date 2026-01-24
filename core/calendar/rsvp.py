@@ -43,7 +43,7 @@ async def sync_meeting_rsvps(meeting_id: int) -> dict[str, int]:
             return {}
 
         # Get RSVPs from Google Calendar API
-        google_rsvps = get_event_rsvps(row.google_calendar_event_id)
+        google_rsvps = await get_event_rsvps(row.google_calendar_event_id)
         if google_rsvps is None:
             return {}
 

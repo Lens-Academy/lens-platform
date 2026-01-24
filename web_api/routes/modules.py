@@ -197,8 +197,8 @@ async def get_module(module_slug: str):
                     **(
                         {
                             "instructions": s.instructions,
-                            "showUserPreviousContent": s.show_user_previous_content,
-                            "showTutorPreviousContent": s.show_tutor_previous_content,
+                            "hidePreviousContentFromUser": s.hide_previous_content_from_user,
+                            "hidePreviousContentFromTutor": s.hide_previous_content_from_tutor,
                         }
                         if s.type == "chat"
                         else {}
@@ -349,7 +349,7 @@ async def get_session_state(
     # For chat stages, get previous stage content (for blur/visible display)
     previous_article = None
     previous_stage = None
-    show_user_previous_content = True
+    hide_previous_content_from_user = False
     if current_stage and current_stage.type == "chat" and view_stage is None:
         # Only provide previous content when viewing current (not reviewing)
         stage_idx = session["current_stage_index"]
@@ -357,7 +357,7 @@ async def get_session_state(
             previous_stage = module.stages[stage_idx - 1]
             prev_result = get_stage_content(previous_stage)
             previous_article = bundle_article(prev_result)
-            show_user_previous_content = current_stage.show_user_previous_content
+            hide_previous_content_from_user = current_stage.hide_previous_content_from_user
 
     return {
         "session_id": session["session_id"],
@@ -410,7 +410,7 @@ async def get_session_state(
             if previous_stage
             else None
         ),
-        "show_user_previous_content": show_user_previous_content,
+        "hidePreviousContentFromUser": hide_previous_content_from_user,
         # Add all stages for frontend navigation
         "stages": [
             {
@@ -598,7 +598,7 @@ def get_narrative_chat_context(
 
     instructions = segment.instructions
 
-    if not segment.show_tutor_previous_content or segment_index == 0:
+    if segment.hide_previous_content_from_tutor or segment_index == 0:
         return instructions, None
 
     # Accumulate all previous segments in order
@@ -655,8 +655,8 @@ async def send_message_endpoint(
             current_stage = ChatStage(
                 type="chat",
                 instructions=instructions,
-                show_user_previous_content=True,
-                show_tutor_previous_content=True,
+                hide_previous_content_from_user=False,
+                hide_previous_content_from_tutor=False,
             )
             current_content = None  # Not used for narrative chat
         except (ModuleNotFoundError, IndexError):
@@ -677,8 +677,8 @@ async def send_message_endpoint(
             result = get_stage_content(current_stage)
             current_content = result.content if result else None
         elif current_stage.type == "chat" and previous_stage:
-            # For chat stages: provide previous content if showTutorPreviousContent
-            if current_stage.show_tutor_previous_content:
+            # For chat stages: provide previous content unless hidePreviousContentFromTutor
+            if not current_stage.hide_previous_content_from_tutor:
                 prev_result = get_stage_content(previous_stage)
                 previous_content = prev_result.content if prev_result else None
 
