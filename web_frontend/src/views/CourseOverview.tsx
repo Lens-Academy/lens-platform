@@ -94,6 +94,22 @@ export default function CourseOverview({
       return { completedStages: new Set<number>(), viewingIndex: 0 };
     }
     const completed = new Set<number>();
+
+    // Use lens-level completion if available (new progress format)
+    if (selectedModule.stages.some((s) => s.completed !== undefined)) {
+      selectedModule.stages.forEach((stage, i) => {
+        if (stage.completed) {
+          completed.add(i);
+        }
+      });
+
+      // Viewing index: first non-completed stage, or last stage if all complete
+      let viewIdx = selectedModule.stages.findIndex((s) => !s.completed);
+      if (viewIdx === -1) viewIdx = selectedModule.stages.length - 1;
+      return { completedStages: completed, viewingIndex: viewIdx };
+    }
+
+    // Fallback to legacy logic (currentStageIndex-based)
     const currentIdx = selectedModule.currentStageIndex ?? 0;
 
     if (selectedModule.status === "completed") {
