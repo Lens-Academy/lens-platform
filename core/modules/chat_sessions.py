@@ -1,0 +1,137 @@
+"""Chat sessions service.
+
+Manages chat history separately from progress tracking.
+Supports archiving old sessions and creating new ones.
+"""
+
+from datetime import datetime, timezone
+from uuid import UUID
+
+from sqlalchemy import select, update, and_
+from sqlalchemy.ext.asyncio import AsyncConnection
+
+from core.tables import chat_sessions
+
+
+async def get_or_create_chat_session(
+    conn: AsyncConnection,
+    *,
+    user_id: int | None,
+    session_token: UUID | None,
+    content_id: UUID | None,
+    content_type: str | None,
+) -> dict:
+    """Get active chat session or create new one.
+
+    Active = archived_at IS NULL
+    """
+    # Build WHERE clause for active session
+    conditions = [chat_sessions.c.archived_at.is_(None)]
+
+    if content_id is not None:
+        conditions.append(chat_sessions.c.content_id == content_id)
+    else:
+        conditions.append(chat_sessions.c.content_id.is_(None))
+
+    if user_id is not None:
+        conditions.append(chat_sessions.c.user_id == user_id)
+    elif session_token is not None:
+        conditions.append(chat_sessions.c.session_token == session_token)
+    else:
+        raise ValueError("Either user_id or session_token must be provided")
+
+    # Check for existing active session
+    result = await conn.execute(select(chat_sessions).where(and_(*conditions)))
+    row = result.fetchone()
+
+    if row:
+        return dict(row._mapping)
+
+    # Create new session
+    insert_values = {
+        "content_id": content_id,
+        "content_type": content_type,
+        "messages": [],
+    }
+    if user_id is not None:
+        insert_values["user_id"] = user_id
+    else:
+        insert_values["session_token"] = session_token
+
+    result = await conn.execute(
+        chat_sessions.insert().values(**insert_values).returning(chat_sessions)
+    )
+    row = result.fetchone()
+    await conn.commit()
+    return dict(row._mapping)
+
+
+async def add_chat_message(
+    conn: AsyncConnection,
+    *,
+    session_id: int,
+    role: str,
+    content: str,
+    icon: str | None = None,
+) -> None:
+    """Append message to chat session."""
+    message = {"role": role, "content": content}
+    if icon:
+        message["icon"] = icon
+
+    # Use PostgreSQL jsonb_insert or || operator
+    await conn.execute(
+        update(chat_sessions)
+        .where(chat_sessions.c.session_id == session_id)
+        .values(
+            messages=chat_sessions.c.messages + [message],
+            last_active_at=datetime.now(timezone.utc),
+        )
+    )
+    await conn.commit()
+
+
+async def archive_chat_session(
+    conn: AsyncConnection,
+    *,
+    session_id: int,
+) -> None:
+    """Archive a chat session (soft delete)."""
+    await conn.execute(
+        update(chat_sessions)
+        .where(chat_sessions.c.session_id == session_id)
+        .values(archived_at=datetime.now(timezone.utc))
+    )
+    await conn.commit()
+
+
+async def get_chat_session(
+    conn: AsyncConnection,
+    *,
+    session_id: int,
+) -> dict | None:
+    """Get chat session by ID."""
+    result = await conn.execute(
+        select(chat_sessions).where(chat_sessions.c.session_id == session_id)
+    )
+    row = result.fetchone()
+    return dict(row._mapping) if row else None
+
+
+async def claim_chat_sessions(
+    conn: AsyncConnection,
+    *,
+    session_token: UUID,
+    user_id: int,
+) -> int:
+    """Claim all anonymous chat sessions for a user.
+
+    Returns count of sessions claimed.
+    """
+    result = await conn.execute(
+        update(chat_sessions)
+        .where(chat_sessions.c.session_token == session_token)
+        .values(user_id=user_id, session_token=None)
+    )
+    await conn.commit()
+    return result.rowcount
