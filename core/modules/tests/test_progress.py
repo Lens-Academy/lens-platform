@@ -1,0 +1,347 @@
+"""Tests for progress tracking service."""
+
+import uuid
+
+import pytest
+
+from core.modules.progress import (
+    get_or_create_progress,
+    mark_content_complete,
+    update_time_spent,
+    get_module_progress,
+    claim_progress_records,
+)
+from core.database import get_transaction
+
+
+@pytest.fixture
+def content_id():
+    """Generate a random content UUID for testing."""
+    return uuid.uuid4()
+
+
+@pytest.fixture
+def session_token():
+    """Generate a random session token UUID for testing."""
+    return uuid.uuid4()
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_progress_creates_new_record(test_user_id, content_id):
+    """get_or_create_progress should create a new record if none exists."""
+    async with get_transaction() as conn:
+        progress = await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test Lens",
+        )
+
+    assert progress["user_id"] == test_user_id
+    assert progress["content_id"] == content_id
+    assert progress["content_type"] == "lens"
+    assert progress["content_title"] == "Test Lens"
+    assert progress["completed_at"] is None
+    assert progress["time_to_complete_s"] == 0
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_progress_returns_existing_record(test_user_id, content_id):
+    """get_or_create_progress should return existing record without creating duplicate."""
+    async with get_transaction() as conn:
+        progress1 = await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test Lens",
+        )
+
+    async with get_transaction() as conn:
+        progress2 = await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Different Title",  # Shouldn't update
+        )
+
+    assert progress1["id"] == progress2["id"]
+    assert progress2["content_title"] == "Test Lens"  # Original title preserved
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_progress_requires_identity():
+    """get_or_create_progress should raise error when neither user_id nor session_token provided."""
+    content_id = uuid.uuid4()
+
+    async with get_transaction() as conn:
+        with pytest.raises(ValueError, match="Either user_id or session_token"):
+            await get_or_create_progress(
+                conn,
+                user_id=None,
+                session_token=None,
+                content_id=content_id,
+                content_type="lens",
+                content_title="Test",
+            )
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_progress_anonymous_user(session_token, content_id):
+    """get_or_create_progress should work with session_token for anonymous users."""
+    async with get_transaction() as conn:
+        progress = await get_or_create_progress(
+            conn,
+            user_id=None,
+            session_token=session_token,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Anonymous Test",
+        )
+
+    assert progress["user_id"] is None
+    assert progress["session_token"] == session_token
+    assert progress["content_id"] == content_id
+
+
+@pytest.mark.asyncio
+async def test_mark_content_complete_creates_and_completes(test_user_id, content_id):
+    """mark_content_complete should create record if none exists and mark it complete."""
+    async with get_transaction() as conn:
+        progress = await mark_content_complete(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test Lens",
+            time_spent_s=120,
+        )
+
+    assert progress["completed_at"] is not None
+    assert progress["time_to_complete_s"] == 120
+
+
+@pytest.mark.asyncio
+async def test_mark_content_complete_idempotent(test_user_id, content_id):
+    """Calling mark_content_complete twice should return same record."""
+    async with get_transaction() as conn:
+        progress1 = await mark_content_complete(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test Lens",
+            time_spent_s=120,
+        )
+
+    async with get_transaction() as conn:
+        progress2 = await mark_content_complete(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test Lens",
+            time_spent_s=200,  # Different time
+        )
+
+    assert progress1["id"] == progress2["id"]
+    assert progress2["time_to_complete_s"] == 120  # Original time preserved
+
+
+@pytest.mark.asyncio
+async def test_update_time_spent(test_user_id, content_id):
+    """update_time_spent should add to total_time_spent_s."""
+    # Create progress first
+    async with get_transaction() as conn:
+        await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test",
+        )
+
+    # Update time
+    async with get_transaction() as conn:
+        await update_time_spent(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            time_delta_s=60,
+        )
+
+    # Check via get_or_create
+    async with get_transaction() as conn:
+        progress = await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test",
+        )
+
+    assert progress["total_time_spent_s"] == 60
+    assert progress["time_to_complete_s"] == 60  # Also updated since not complete
+
+
+@pytest.mark.asyncio
+async def test_update_time_spent_after_completion(test_user_id, content_id):
+    """update_time_spent after completion should only update total_time_spent_s."""
+    # Create and complete
+    async with get_transaction() as conn:
+        await mark_content_complete(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test",
+            time_spent_s=100,
+        )
+
+    # Update time after completion
+    async with get_transaction() as conn:
+        await update_time_spent(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            time_delta_s=60,
+        )
+
+    # Check
+    async with get_transaction() as conn:
+        progress = await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test",
+        )
+
+    assert progress["total_time_spent_s"] == 60  # Updated
+    assert progress["time_to_complete_s"] == 100  # Unchanged
+
+
+@pytest.mark.asyncio
+async def test_get_module_progress(test_user_id):
+    """get_module_progress should return progress for multiple content items."""
+    lens_ids = [uuid.uuid4() for _ in range(3)]
+
+    # Create progress for first two
+    async with get_transaction() as conn:
+        await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=lens_ids[0],
+            content_type="lens",
+            content_title="Lens 1",
+        )
+
+    async with get_transaction() as conn:
+        await mark_content_complete(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            content_id=lens_ids[1],
+            content_type="lens",
+            content_title="Lens 2",
+            time_spent_s=100,
+        )
+
+    # Get progress for all three
+    async with get_transaction() as conn:
+        progress = await get_module_progress(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            lens_ids=lens_ids,
+        )
+
+    assert len(progress) == 2  # Third has no progress
+    assert lens_ids[0] in progress
+    assert lens_ids[1] in progress
+    assert lens_ids[2] not in progress
+    assert progress[lens_ids[1]]["completed_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_get_module_progress_empty_list(test_user_id):
+    """get_module_progress with empty list should return empty dict."""
+    async with get_transaction() as conn:
+        progress = await get_module_progress(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            lens_ids=[],
+        )
+
+    assert progress == {}
+
+
+@pytest.mark.asyncio
+async def test_claim_progress_records(test_user_id, session_token):
+    """claim_progress_records should transfer anonymous progress to user."""
+    content_ids = [uuid.uuid4() for _ in range(2)]
+
+    # Create anonymous progress
+    for i, cid in enumerate(content_ids):
+        async with get_transaction() as conn:
+            await get_or_create_progress(
+                conn,
+                user_id=None,
+                session_token=session_token,
+                content_id=cid,
+                content_type="lens",
+                content_title=f"Lens {i}",
+            )
+
+    # Claim records
+    async with get_transaction() as conn:
+        count = await claim_progress_records(
+            conn,
+            session_token=session_token,
+            user_id=test_user_id,
+        )
+
+    assert count == 2
+
+    # Verify they're now associated with user
+    async with get_transaction() as conn:
+        progress = await get_module_progress(
+            conn,
+            user_id=test_user_id,
+            session_token=None,
+            lens_ids=content_ids,
+        )
+
+    assert len(progress) == 2
+    for cid in content_ids:
+        assert progress[cid]["user_id"] == test_user_id
+        assert progress[cid]["session_token"] is None
+
+
+@pytest.mark.asyncio
+async def test_claim_progress_records_no_records(test_user_id):
+    """claim_progress_records with no matching records should return 0."""
+    async with get_transaction() as conn:
+        count = await claim_progress_records(
+            conn,
+            session_token=uuid.uuid4(),  # Non-existent token
+            user_id=test_user_id,
+        )
+
+    assert count == 0
