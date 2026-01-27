@@ -22,6 +22,7 @@ from core.queries.facilitator import (
     get_accessible_groups,
     is_admin,
 )
+
 # TODO: progress.py removed - old progress tracking system deleted
 # These functions need to be reimplemented using the new user_content_progress tables:
 # from core.queries.progress import (

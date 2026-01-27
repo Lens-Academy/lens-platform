@@ -21,6 +21,7 @@ from .facilitator import (
     get_accessible_groups,
     can_access_group,
 )
+
 # NOTE: progress.py removed - old progress tracking system deleted
 # The following functions need to be reimplemented using the new user_content_progress tables:
 # - get_group_members_summary

@@ -348,7 +348,9 @@ async def test_claim_progress_records_no_records(test_user_id):
 
 
 @pytest.mark.asyncio
-async def test_claim_progress_records_merges_with_existing(test_user_id, anonymous_token):
+async def test_claim_progress_records_merges_with_existing(
+    test_user_id, anonymous_token
+):
     """claim_progress_records should not fail if user already has progress for same content.
 
     If user has existing progress and claims records for the same content_id,

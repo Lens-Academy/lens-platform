@@ -66,7 +66,8 @@ async def migrate_sessions():
 
         # Migrate to chat_sessions
         # Anonymous sessions get random tokens (unclaimable - acceptable loss)
-        await conn.execute(text(f"""
+        await conn.execute(
+            text(f"""
             INSERT INTO chat_sessions (anonymous_token, user_id, content_id, content_type, messages, started_at, last_active_at)
             SELECT
                 CASE WHEN ms.user_id IS NULL THEN gen_random_uuid() ELSE NULL END,
@@ -83,7 +84,8 @@ async def migrate_sessions():
                 WHERE cs.user_id = ms.user_id
                 AND cs.content_id = m.uuid::uuid
             )
-        """))
+        """)
+        )
 
         # Build VALUES clause with titles (escaped)
         values_with_titles = [
@@ -93,7 +95,8 @@ async def migrate_sessions():
         values_clause_with_titles = ",".join(values_with_titles)
 
         # Migrate completed sessions to user_content_progress
-        await conn.execute(text(f"""
+        await conn.execute(
+            text(f"""
             INSERT INTO user_content_progress (user_id, content_id, content_type, content_title, started_at, completed_at)
             SELECT
                 ms.user_id,
@@ -111,7 +114,8 @@ async def migrate_sessions():
                 WHERE ucp.user_id = ms.user_id
                 AND ucp.content_id = m.uuid::uuid
             )
-        """))
+        """)
+        )
 
         print("Migration complete!")
 
@@ -121,13 +125,15 @@ async def rename_old_tables():
     engine = get_engine()
 
     async with engine.begin() as conn:
-        await conn.execute(text("""
+        await conn.execute(
+            text("""
             ALTER TABLE IF EXISTS module_sessions RENAME TO module_sessions_archived;
             ALTER TABLE IF EXISTS content_events RENAME TO content_events_archived;
 
             COMMENT ON TABLE module_sessions_archived IS 'Archived 2026-01-XX. Replaced by chat_sessions and user_content_progress.';
             COMMENT ON TABLE content_events_archived IS 'Archived 2026-01-XX. Replaced by time tracking in user_content_progress.';
-        """))
+        """)
+        )
 
         print("Old tables renamed to *_archived")
 
@@ -136,7 +142,9 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--archive", action="store_true", help="Also rename old tables to _archived")
+    parser.add_argument(
+        "--archive", action="store_true", help="Also rename old tables to _archived"
+    )
     args = parser.parse_args()
 
     asyncio.run(migrate_sessions())

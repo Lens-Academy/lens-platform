@@ -37,19 +37,19 @@ def parse_frontmatter(content: str) -> tuple[dict | None, str]:
         return None, content
 
     # Find the closing ---
-    end_match = re.search(r'\n---\n', content[4:])
+    end_match = re.search(r"\n---\n", content[4:])
     if not end_match:
         return None, content
 
     end_pos = end_match.start() + 4  # Account for initial "---\n"
     frontmatter_str = content[4:end_pos]
-    body = content[end_pos + 5:]  # Skip "\n---\n"
+    body = content[end_pos + 5 :]  # Skip "\n---\n"
 
     # Simple YAML parsing (key: value pairs)
     frontmatter = {}
-    for line in frontmatter_str.split('\n'):
-        if ':' in line:
-            key, _, value = line.partition(':')
+    for line in frontmatter_str.split("\n"):
+        if ":" in line:
+            key, _, value = line.partition(":")
             key = key.strip()
             value = value.strip()
             # Remove quotes if present
@@ -78,13 +78,13 @@ def build_frontmatter(data: dict) -> str:
         if key == "id":
             continue
         # Quote values that contain special characters
-        if any(c in str(value) for c in [':', '[', ']', '{', '}', '#', '|']):
+        if any(c in str(value) for c in [":", "[", "]", "{", "}", "#", "|"]):
             lines.append(f'{key}: "{value}"')
         else:
             lines.append(f"{key}: {value}")
 
     lines.append("---")
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def add_uuid_to_file(filepath: Path, dry_run: bool = False) -> bool:
@@ -92,7 +92,7 @@ def add_uuid_to_file(filepath: Path, dry_run: bool = False) -> bool:
 
     Returns True if file was modified.
     """
-    content = filepath.read_text(encoding='utf-8')
+    content = filepath.read_text(encoding="utf-8")
 
     frontmatter, body = parse_frontmatter(content)
 
@@ -116,7 +116,7 @@ def add_uuid_to_file(filepath: Path, dry_run: bool = False) -> bool:
     if dry_run:
         print(f"  DRY RUN: {filepath.name} -> {new_id}")
     else:
-        filepath.write_text(new_content, encoding='utf-8')
+        filepath.write_text(new_content, encoding="utf-8")
         print(f"  ADDED: {filepath.name} -> {new_id}")
 
     return True
@@ -147,7 +147,11 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Add UUIDs to content frontmatter")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be done without making changes")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be done without making changes",
+    )
     args = parser.parse_args()
 
     if args.dry_run:
