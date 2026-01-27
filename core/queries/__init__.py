@@ -21,11 +21,11 @@ from .facilitator import (
     get_accessible_groups,
     can_access_group,
 )
-from .progress import (
-    get_group_members_summary,
-    get_user_progress_for_group,
-    get_user_chat_sessions,
-)
+# NOTE: progress.py removed - old progress tracking system deleted
+# The following functions need to be reimplemented using the new user_content_progress tables:
+# - get_group_members_summary
+# - get_user_progress_for_group
+# - get_user_chat_sessions
 from .meetings import (
     create_meeting,
     update_meeting_calendar_id,
@@ -61,10 +61,7 @@ __all__ = [
     "get_facilitator_group_ids",
     "get_accessible_groups",
     "can_access_group",
-    # Progress
-    "get_group_members_summary",
-    "get_user_progress_for_group",
-    "get_user_chat_sessions",
+    # Progress - removed, needs reimplementation with new tables
     # Meetings
     "create_meeting",
     "update_meeting_calendar_id",
