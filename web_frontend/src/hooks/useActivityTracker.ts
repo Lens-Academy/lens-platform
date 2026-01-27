@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { API_URL } from "../config";
 import { updateTimeSpent } from "../api/progress";
-import { getSessionToken } from "./useSessionToken";
+import { getAnonymousToken } from "./useAnonymousToken";
 
 interface ActivityTrackerOptions {
   // New progress API options
@@ -188,8 +188,8 @@ export function useActivityTracker({
       // For anonymous users, we need to append the token as a query param since
       // sendBeacon doesn't support custom headers
       if (!isAuthenticated) {
-        const token = getSessionToken();
-        navigator.sendBeacon(`${url}?session_token=${token}`, payload);
+        const token = getAnonymousToken();
+        navigator.sendBeacon(`${url}?anonymous_token=${token}`, payload);
       } else {
         navigator.sendBeacon(url, payload);
       }

@@ -3,13 +3,13 @@
  */
 
 import { API_URL } from "../config";
-import { getSessionToken } from "../hooks/useSessionToken";
+import { getAnonymousToken } from "../hooks/useAnonymousToken";
 
 const API_BASE = API_URL;
 
 interface AuthHeaders {
   Authorization?: string;
-  "X-Session-Token"?: string;
+  "X-Anonymous-Token"?: string;
 }
 
 function getAuthHeaders(isAuthenticated: boolean): AuthHeaders {
@@ -17,7 +17,7 @@ function getAuthHeaders(isAuthenticated: boolean): AuthHeaders {
     // JWT is sent via credentials: include
     return {};
   }
-  return { "X-Session-Token": getSessionToken() };
+  return { "X-Anonymous-Token": getAnonymousToken() };
 }
 
 export interface MarkCompleteRequest {
@@ -75,13 +75,13 @@ export async function updateTimeSpent(
 }
 
 export async function claimSessionRecords(
-  sessionToken: string,
+  anonymousToken: string,
 ): Promise<{ progress_records_claimed: number; chat_sessions_claimed: number }> {
   const res = await fetch(`${API_BASE}/api/progress/claim`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ session_token: sessionToken }),
+    body: JSON.stringify({ anonymous_token: anonymousToken }),
   });
 
   if (!res.ok) {

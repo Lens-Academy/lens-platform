@@ -3,7 +3,7 @@
  *
  * Removes old progress tracking keys that are no longer used:
  * - module-completed-* (replaced by server-side progress tracking)
- * - module_session_* (replaced by session_token)
+ * - module_session_* (replaced by anonymous_token)
  *
  * Call this once on app initialization (e.g., in Module.tsx).
  */

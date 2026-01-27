@@ -103,26 +103,26 @@ async def get_next_module_endpoint(
 async def get_course_progress(
     course_slug: str,
     request: Request,
-    x_session_token: str | None = Header(None),
+    x_anonymous_token: str | None = Header(None),
 ):
     """Get course structure with user progress.
 
     Returns course modules, lessons, and stages with completion status.
     Supports both authenticated users (via session cookie) and anonymous users
-    (via X-Session-Token header).
+    (via X-Anonymous-Token header).
     """
-    # Get user_id if authenticated, or session_token for anonymous users
+    # Get user_id if authenticated, or anonymous_token for anonymous users
     user_jwt = await get_optional_user(request)
     user_id = None
-    session_token = None
+    anonymous_token = None
 
     if user_jwt:
         discord_id = user_jwt["sub"]
         user = await get_or_create_user(discord_id)
         user_id = user["user_id"]
-    elif x_session_token:
+    elif x_anonymous_token:
         try:
-            session_token = UUID(x_session_token)
+            anonymous_token = UUID(x_anonymous_token)
         except ValueError:
             pass  # Invalid token, continue without progress
 
@@ -150,14 +150,14 @@ async def get_course_progress(
             except ModuleNotFoundError:
                 continue
 
-    # Query progress for all lens UUIDs (if user_id or session_token is available)
+    # Query progress for all lens UUIDs (if user_id or anonymous_token is available)
     progress_map: dict[UUID, dict] = {}
-    if all_lens_ids and (user_id is not None or session_token is not None):
+    if all_lens_ids and (user_id is not None or anonymous_token is not None):
         async with get_connection() as conn:
             progress_map = await get_module_progress(
                 conn,
                 user_id=user_id,
-                session_token=session_token,
+                anonymous_token=anonymous_token,
                 lens_ids=all_lens_ids,
             )
 

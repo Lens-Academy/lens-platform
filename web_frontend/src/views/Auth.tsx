@@ -4,7 +4,7 @@ import { navigate } from "vike/client/router";
 import { API_URL } from "../config";
 import { DiscordIcon } from "../components/icons/DiscordIcon";
 import { claimSessionRecords } from "../api/progress";
-import { getSessionToken } from "../hooks/useSessionToken";
+import { getAnonymousToken } from "../hooks/useAnonymousToken";
 
 type AuthStatus = "loading" | "success" | "error";
 
@@ -53,8 +53,8 @@ export default function Auth() {
 
           // Claim anonymous progress records for the authenticated user
           try {
-            const sessionToken = getSessionToken();
-            const result = await claimSessionRecords(sessionToken);
+            const anonymousToken = getAnonymousToken();
+            const result = await claimSessionRecords(anonymousToken);
             console.log(
               `[Auth] Claimed ${result.progress_records_claimed} progress records and ${result.chat_sessions_claimed} chat sessions`,
             );

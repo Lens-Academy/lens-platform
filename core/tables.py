@@ -398,7 +398,7 @@ user_content_progress = Table(
     "user_content_progress",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("session_token", UUID(as_uuid=True), nullable=True),
+    Column("anonymous_token", UUID(as_uuid=True), nullable=True),
     Column(
         "user_id",
         Integer,
@@ -421,15 +421,15 @@ user_content_progress = Table(
     ),
     Index(
         "idx_user_content_progress_anon",
-        "session_token",
+        "anonymous_token",
         "content_id",
         unique=True,
-        postgresql_where=text("session_token IS NOT NULL"),
+        postgresql_where=text("anonymous_token IS NOT NULL"),
     ),
     Index(
         "idx_user_content_progress_token",
-        "session_token",
-        postgresql_where=text("session_token IS NOT NULL"),
+        "anonymous_token",
+        postgresql_where=text("anonymous_token IS NOT NULL"),
     ),
     CheckConstraint(
         "content_type IN ('module', 'lo', 'lens', 'test')", name="valid_content_type"
@@ -444,7 +444,7 @@ chat_sessions = Table(
     "chat_sessions",
     metadata,
     Column("session_id", Integer, primary_key=True, autoincrement=True),
-    Column("session_token", UUID(as_uuid=True), nullable=True),
+    Column("anonymous_token", UUID(as_uuid=True), nullable=True),
     Column(
         "user_id",
         Integer,
@@ -458,7 +458,7 @@ chat_sessions = Table(
     Column("last_active_at", DateTime(timezone=True), server_default=func.now()),
     Column("archived_at", DateTime(timezone=True), nullable=True),
     Index("idx_chat_sessions_user_content", "user_id", "content_id", "archived_at"),
-    Index("idx_chat_sessions_token", "session_token"),
+    Index("idx_chat_sessions_token", "anonymous_token"),
     CheckConstraint(
         "content_type IS NULL OR content_type IN ('module', 'lo', 'lens', 'test')",
         name="valid_chat_content_type",

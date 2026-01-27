@@ -849,7 +849,7 @@ async def record_heartbeat(
 async def get_module_progress_endpoint(
     module_slug: str,
     request: Request,
-    x_session_token: str | None = Header(None),
+    x_anonymous_token: str | None = Header(None),
 ):
     """Get detailed progress for a single module.
 
@@ -858,14 +858,14 @@ async def get_module_progress_endpoint(
     # Get user or session token
     user = await get_optional_user(request)
     user_id = user["user_id"] if user else None
-    session_token = None
-    if not user_id and x_session_token:
+    anonymous_token = None
+    if not user_id and x_anonymous_token:
         try:
-            session_token = UUID(x_session_token)
+            anonymous_token = UUID(x_anonymous_token)
         except ValueError:
             pass
 
-    if not user_id and not session_token:
+    if not user_id and not anonymous_token:
         raise HTTPException(401, "Authentication required")
 
     # Load module
@@ -881,7 +881,7 @@ async def get_module_progress_endpoint(
         progress_map = await get_module_progress(
             conn,
             user_id=user_id,
-            session_token=session_token,
+            anonymous_token=anonymous_token,
             lens_ids=lens_ids,
         )
 
@@ -889,7 +889,7 @@ async def get_module_progress_endpoint(
         chat_session = await get_or_create_chat_session(
             conn,
             user_id=user_id,
-            session_token=session_token,
+            anonymous_token=anonymous_token,
             content_id=module.content_id,
             content_type="module",
         )

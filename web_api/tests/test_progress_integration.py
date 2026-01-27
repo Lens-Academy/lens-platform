@@ -41,7 +41,7 @@ def make_complete_request(
     content_type: str = "lens",
     content_title: str = "Test Lens",
     time_spent_s: int = 60,
-    session_token: str | None = None,
+    anonymous_token: str | None = None,
     auth_cookie: str | None = None,
     sibling_lens_ids: list[str] | None = None,
 ):
@@ -49,8 +49,8 @@ def make_complete_request(
     headers = {}
     cookies = {}
 
-    if session_token:
-        headers["X-Session-Token"] = session_token
+    if anonymous_token:
+        headers["X-Anonymous-Token"] = anonymous_token
     if auth_cookie:
         cookies["auth_token"] = auth_cookie
 
@@ -74,7 +74,7 @@ def make_complete_request(
 def make_time_request(
     content_id: str,
     time_delta_s: int = 30,
-    session_token: str | None = None,
+    anonymous_token: str | None = None,
     auth_cookie: str | None = None,
     use_query_param: bool = False,
 ):
@@ -83,11 +83,11 @@ def make_time_request(
     cookies = {}
     params = {}
 
-    if session_token:
+    if anonymous_token:
         if use_query_param:
-            params["session_token"] = session_token
+            params["anonymous_token"] = anonymous_token
         else:
-            headers["X-Session-Token"] = session_token
+            headers["X-Anonymous-Token"] = anonymous_token
     if auth_cookie:
         cookies["auth_token"] = auth_cookie
 
@@ -147,7 +147,7 @@ class TestProgressAuthentication:
         """POST /claim without authentication should return 401."""
         response = client.post(
             "/api/progress/claim",
-            json={"session_token": random_uuid_str()},
+            json={"anonymous_token": random_uuid_str()},
         )
         assert response.status_code == 401
         assert "Must be authenticated" in response.json()["detail"]
@@ -161,7 +161,7 @@ class TestProgressValidation:
 
     def test_complete_invalid_content_type_returns_400(self):
         """POST /complete with invalid content_type should return 400."""
-        session_token = random_uuid_str()
+        anonymous_token = random_uuid_str()
         # Patch both the database connection and the function to avoid actual DB calls
         with patch(
             "web_api.routes.progress.get_connection", return_value=mock_db_connection()
@@ -169,7 +169,7 @@ class TestProgressValidation:
             response = make_complete_request(
                 content_id=random_uuid_str(),
                 content_type="invalid_type",
-                session_token=session_token,
+                anonymous_token=anonymous_token,
             )
         assert response.status_code == 400
         assert "Invalid content_type" in response.json()["detail"]
@@ -184,11 +184,11 @@ class TestProgressValidation:
                 "content_title": "Test",
                 "time_spent_s": 60,
             },
-            headers={"X-Session-Token": random_uuid_str()},
+            headers={"X-Anonymous-Token": random_uuid_str()},
         )
         assert response.status_code == 422
 
-    def test_complete_invalid_session_token_format_returns_400(self):
+    def test_complete_invalid_anonymous_token_format_returns_400(self):
         """POST /complete with malformed session token should return 400."""
         response = client.post(
             "/api/progress/complete",
@@ -198,7 +198,7 @@ class TestProgressValidation:
                 "content_title": "Test",
                 "time_spent_s": 60,
             },
-            headers={"X-Session-Token": "invalid-not-uuid"},
+            headers={"X-Anonymous-Token": "invalid-not-uuid"},
         )
         assert response.status_code == 400
         assert "Invalid session token format" in response.json()["detail"]
@@ -206,7 +206,7 @@ class TestProgressValidation:
     def test_complete_accepts_all_valid_content_types(self):
         """POST /complete should accept all valid content_types."""
         valid_types = ["module", "lo", "lens", "test"]
-        session_token = random_uuid_str()
+        anonymous_token = random_uuid_str()
 
         for content_type in valid_types:
             with (
@@ -223,7 +223,7 @@ class TestProgressValidation:
                 response = make_complete_request(
                     content_id=random_uuid_str(),
                     content_type=content_type,
-                    session_token=session_token,
+                    anonymous_token=anonymous_token,
                 )
                 # Should not return 400 for valid content types
                 assert response.status_code != 400, (
@@ -237,9 +237,9 @@ class TestProgressValidation:
 class TestAnonymousProgress:
     """Tests for anonymous user progress tracking via session tokens."""
 
-    def test_complete_with_session_token_succeeds(self):
+    def test_complete_with_anonymous_token_succeeds(self):
         """Anonymous user with session token can mark content complete."""
-        session_token = random_uuid_str()
+        anonymous_token = random_uuid_str()
         content_id = random_uuid_str()
 
         with (
@@ -259,7 +259,7 @@ class TestAnonymousProgress:
 
             response = make_complete_request(
                 content_id=content_id,
-                session_token=session_token,
+                anonymous_token=anonymous_token,
             )
 
             assert response.status_code == 200
@@ -267,15 +267,15 @@ class TestAnonymousProgress:
             assert "completed_at" in data
             assert data["completed_at"] is not None
 
-            # Verify the mock was called with session_token
+            # Verify the mock was called with anonymous_token
             mock_complete.assert_called_once()
             call_kwargs = mock_complete.call_args.kwargs
-            assert call_kwargs["session_token"] == uuid.UUID(session_token)
+            assert call_kwargs["anonymous_token"] == uuid.UUID(anonymous_token)
             assert call_kwargs["user_id"] is None
 
-    def test_time_with_session_token_returns_204(self):
+    def test_time_with_anonymous_token_returns_204(self):
         """Anonymous user with session token can update time spent."""
-        session_token = random_uuid_str()
+        anonymous_token = random_uuid_str()
         content_id = random_uuid_str()
 
         with (
@@ -290,15 +290,15 @@ class TestAnonymousProgress:
             response = make_time_request(
                 content_id=content_id,
                 time_delta_s=30,
-                session_token=session_token,
+                anonymous_token=anonymous_token,
             )
 
             assert response.status_code == 204
             mock_update.assert_called_once()
 
-    def test_time_with_session_token_query_param(self):
-        """Time endpoint should accept session_token as query param (for sendBeacon)."""
-        session_token = random_uuid_str()
+    def test_time_with_anonymous_token_query_param(self):
+        """Time endpoint should accept anonymous_token as query param (for sendBeacon)."""
+        anonymous_token = random_uuid_str()
         content_id = random_uuid_str()
 
         with (
@@ -313,7 +313,7 @@ class TestAnonymousProgress:
             response = make_time_request(
                 content_id=content_id,
                 time_delta_s=30,
-                session_token=session_token,
+                anonymous_token=anonymous_token,
                 use_query_param=True,
             )
 
@@ -367,11 +367,11 @@ class TestAuthenticatedProgress:
 
             assert response.status_code == 200
 
-            # Verify user_id was passed, not session_token
+            # Verify user_id was passed, not anonymous_token
             mock_complete.assert_called_once()
             call_kwargs = mock_complete.call_args.kwargs
             assert call_kwargs["user_id"] == 42
-            assert call_kwargs["session_token"] is None
+            assert call_kwargs["anonymous_token"] is None
 
 
 # --- Claim Records Tests ---
@@ -384,7 +384,7 @@ class TestClaimRecords:
         """POST /claim requires authentication."""
         response = client.post(
             "/api/progress/claim",
-            json={"session_token": random_uuid_str()},
+            json={"anonymous_token": random_uuid_str()},
         )
         assert response.status_code == 401
 
@@ -415,7 +415,7 @@ class TestClaimRecords:
 
             response = client.post(
                 "/api/progress/claim",
-                json={"session_token": random_uuid_str()},
+                json={"anonymous_token": random_uuid_str()},
                 cookies={"auth_token": "valid_token"},
             )
 
@@ -433,7 +433,7 @@ class TestModuleProgressResponse:
 
     def test_complete_with_sibling_ids_returns_module_completed(self):
         """POST /complete with all siblings complete should return module_status=completed."""
-        session_token = random_uuid_str()
+        anonymous_token = random_uuid_str()
         content_id = random_uuid_str()
         sibling_ids = [random_uuid_str() for _ in range(3)]
 
@@ -462,7 +462,7 @@ class TestModuleProgressResponse:
 
             response = make_complete_request(
                 content_id=content_id,
-                session_token=session_token,
+                anonymous_token=anonymous_token,
                 sibling_lens_ids=sibling_ids,
             )
 
@@ -474,7 +474,7 @@ class TestModuleProgressResponse:
 
     def test_complete_partial_progress_returns_in_progress(self):
         """Module with some lenses complete should return in_progress."""
-        session_token = random_uuid_str()
+        anonymous_token = random_uuid_str()
         content_id = random_uuid_str()
         sibling_ids = [random_uuid_str() for _ in range(4)]
 
@@ -504,7 +504,7 @@ class TestModuleProgressResponse:
 
             response = make_complete_request(
                 content_id=content_id,
-                session_token=session_token,
+                anonymous_token=anonymous_token,
                 sibling_lens_ids=sibling_ids,
             )
 
@@ -516,7 +516,7 @@ class TestModuleProgressResponse:
 
     def test_complete_no_progress_returns_not_started(self):
         """Module with no lenses complete should return not_started."""
-        session_token = random_uuid_str()
+        anonymous_token = random_uuid_str()
         content_id = random_uuid_str()
         sibling_ids = [random_uuid_str() for _ in range(3)]
 
@@ -542,7 +542,7 @@ class TestModuleProgressResponse:
 
             response = make_complete_request(
                 content_id=content_id,
-                session_token=session_token,
+                anonymous_token=anonymous_token,
                 sibling_lens_ids=sibling_ids,
             )
 
@@ -559,7 +559,7 @@ class TestProgressEdgeCases:
 
     def test_complete_idempotent(self):
         """Marking already-completed content should be idempotent."""
-        session_token = random_uuid_str()
+        anonymous_token = random_uuid_str()
         content_id = random_uuid_str()
         completed_at = datetime.now(timezone.utc)
 
@@ -581,7 +581,7 @@ class TestProgressEdgeCases:
 
             response1 = make_complete_request(
                 content_id=content_id,
-                session_token=session_token,
+                anonymous_token=anonymous_token,
             )
 
         # Second call (same content, new context managers)
@@ -602,7 +602,7 @@ class TestProgressEdgeCases:
 
             response2 = make_complete_request(
                 content_id=content_id,
-                session_token=session_token,
+                anonymous_token=anonymous_token,
             )
 
         assert response1.status_code == 200
@@ -613,7 +613,7 @@ class TestProgressEdgeCases:
 
     def test_complete_with_zero_time_spent(self):
         """Should accept time_spent_s=0."""
-        session_token = random_uuid_str()
+        anonymous_token = random_uuid_str()
 
         with (
             patch(
@@ -629,14 +629,14 @@ class TestProgressEdgeCases:
             response = make_complete_request(
                 content_id=random_uuid_str(),
                 time_spent_s=0,
-                session_token=session_token,
+                anonymous_token=anonymous_token,
             )
 
             assert response.status_code == 200
 
     def test_time_update_with_zero_delta(self):
         """Should accept time_delta_s=0."""
-        session_token = random_uuid_str()
+        anonymous_token = random_uuid_str()
 
         with (
             patch(
@@ -648,14 +648,14 @@ class TestProgressEdgeCases:
             response = make_time_request(
                 content_id=random_uuid_str(),
                 time_delta_s=0,
-                session_token=session_token,
+                anonymous_token=anonymous_token,
             )
 
             assert response.status_code == 204
 
     def test_complete_without_sibling_ids_omits_module_status(self):
         """POST /complete without sibling_lens_ids should not return module_status."""
-        session_token = random_uuid_str()
+        anonymous_token = random_uuid_str()
 
         with (
             patch(
@@ -673,7 +673,7 @@ class TestProgressEdgeCases:
 
             response = make_complete_request(
                 content_id=random_uuid_str(),
-                session_token=session_token,
+                anonymous_token=anonymous_token,
             )
 
             assert response.status_code == 200

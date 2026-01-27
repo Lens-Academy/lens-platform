@@ -15,14 +15,16 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.db import get_engine
+from core.database import get_engine
 from core.content.cache import get_cache
+from core.content.github_fetcher import initialize_cache
 from sqlalchemy import text
 
 
 async def build_module_uuid_lookup() -> dict[str, tuple[str, str]]:
     """Build mapping from module slug to (uuid, title)."""
-    cache = await get_cache()
+    await initialize_cache()
+    cache = get_cache()
     lookup = {}
 
     for slug, module in cache.modules.items():
@@ -65,7 +67,7 @@ async def migrate_sessions():
         # Migrate to chat_sessions
         # Anonymous sessions get random tokens (unclaimable - acceptable loss)
         await conn.execute(text(f"""
-            INSERT INTO chat_sessions (session_token, user_id, content_id, content_type, messages, started_at, last_active_at)
+            INSERT INTO chat_sessions (anonymous_token, user_id, content_id, content_type, messages, started_at, last_active_at)
             SELECT
                 CASE WHEN ms.user_id IS NULL THEN gen_random_uuid() ELSE NULL END,
                 ms.user_id,

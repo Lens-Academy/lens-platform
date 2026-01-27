@@ -1,7 +1,7 @@
 """Progress tracking service.
 
 Handles user progress through course content using UUID-based tracking.
-Supports both authenticated users (user_id) and anonymous users (session_token).
+Supports both authenticated users (user_id) and anonymous users (anonymous_token).
 """
 
 from datetime import datetime, timezone
@@ -18,7 +18,7 @@ async def get_or_create_progress(
     conn: AsyncConnection,
     *,
     user_id: int | None,
-    session_token: UUID | None,
+    anonymous_token: UUID | None,
     content_id: UUID,
     content_type: str,
     content_title: str,
@@ -42,13 +42,13 @@ async def get_or_create_progress(
         # Use the partial unique index for authenticated users
         conflict_target = ["user_id", "content_id"]
         conflict_where = user_content_progress.c.user_id.isnot(None)
-    elif session_token is not None:
-        insert_values["session_token"] = session_token
+    elif anonymous_token is not None:
+        insert_values["anonymous_token"] = anonymous_token
         # Use the partial unique index for anonymous users
-        conflict_target = ["session_token", "content_id"]
-        conflict_where = user_content_progress.c.session_token.isnot(None)
+        conflict_target = ["anonymous_token", "content_id"]
+        conflict_where = user_content_progress.c.anonymous_token.isnot(None)
     else:
-        raise ValueError("Either user_id or session_token must be provided")
+        raise ValueError("Either user_id or anonymous_token must be provided")
 
     # INSERT ... ON CONFLICT DO UPDATE (no-op update to return existing row)
     stmt = pg_insert(user_content_progress).values(**insert_values)
@@ -68,7 +68,7 @@ async def mark_content_complete(
     conn: AsyncConnection,
     *,
     user_id: int | None,
-    session_token: UUID | None,
+    anonymous_token: UUID | None,
     content_id: UUID,
     content_type: str,
     content_title: str,
@@ -82,7 +82,7 @@ async def mark_content_complete(
     progress = await get_or_create_progress(
         conn,
         user_id=user_id,
-        session_token=session_token,
+        anonymous_token=anonymous_token,
         content_id=content_id,
         content_type=content_type,
         content_title=content_title,
@@ -112,7 +112,7 @@ async def update_time_spent(
     conn: AsyncConnection,
     *,
     user_id: int | None,
-    session_token: UUID | None,
+    anonymous_token: UUID | None,
     content_id: UUID,
     time_delta_s: int,
 ) -> None:
@@ -123,9 +123,9 @@ async def update_time_spent(
             user_content_progress.c.user_id == user_id,
             user_content_progress.c.content_id == content_id,
         )
-    elif session_token is not None:
+    elif anonymous_token is not None:
         where_clause = and_(
-            user_content_progress.c.session_token == session_token,
+            user_content_progress.c.anonymous_token == anonymous_token,
             user_content_progress.c.content_id == content_id,
         )
     else:
@@ -155,7 +155,7 @@ async def get_module_progress(
     conn: AsyncConnection,
     *,
     user_id: int | None,
-    session_token: UUID | None,
+    anonymous_token: UUID | None,
     lens_ids: list[UUID],
 ) -> dict[UUID, dict]:
     """Get progress for multiple content items (lenses in a module).
@@ -171,9 +171,9 @@ async def get_module_progress(
             user_content_progress.c.user_id == user_id,
             user_content_progress.c.content_id.in_(lens_ids),
         )
-    elif session_token is not None:
+    elif anonymous_token is not None:
         where_clause = and_(
-            user_content_progress.c.session_token == session_token,
+            user_content_progress.c.anonymous_token == anonymous_token,
             user_content_progress.c.content_id.in_(lens_ids),
         )
     else:
@@ -187,7 +187,7 @@ async def get_module_progress(
 async def claim_progress_records(
     conn: AsyncConnection,
     *,
-    session_token: UUID,
+    anonymous_token: UUID,
     user_id: int,
 ) -> int:
     """Claim all anonymous progress records for a user.
@@ -196,8 +196,8 @@ async def claim_progress_records(
     """
     result = await conn.execute(
         update(user_content_progress)
-        .where(user_content_progress.c.session_token == session_token)
-        .values(user_id=user_id, session_token=None)
+        .where(user_content_progress.c.anonymous_token == anonymous_token)
+        .values(user_id=user_id, anonymous_token=None)
     )
     await conn.commit()
     return result.rowcount

@@ -48,7 +48,7 @@ class TimeUpdateRequest(BaseModel):
 
 
 class ClaimRequest(BaseModel):
-    session_token: UUID
+    anonymous_token: UUID
 
 
 class ClaimResponse(BaseModel):
@@ -58,17 +58,17 @@ class ClaimResponse(BaseModel):
 
 async def get_user_or_token(
     request: Request,
-    x_session_token: str | None = Header(None),
-    session_token: str | None = Query(None),  # For sendBeacon (query param)
+    x_anonymous_token: str | None = Header(None),
+    anonymous_token: str | None = Query(None),  # For sendBeacon (query param)
 ) -> tuple[int | None, UUID | None]:
-    """Get user_id from auth or session_token from header/query.
+    """Get user_id from auth or anonymous_token from header/query.
 
     For authenticated users, looks up the user record by discord_id to get user_id.
-    For anonymous users, uses X-Session-Token header or session_token query param.
+    For anonymous users, uses X-Anonymous-Token header or anonymous_token query param.
     Query param is used by sendBeacon which can't set custom headers.
 
     Returns:
-        Tuple of (user_id, session_token) - one will be set, the other None.
+        Tuple of (user_id, anonymous_token) - one will be set, the other None.
 
     Raises:
         HTTPException: 401 if neither authenticated nor session token provided.
@@ -81,7 +81,7 @@ async def get_user_or_token(
         return user["user_id"], None
 
     # Check header first, then query param (for sendBeacon)
-    token_str = x_session_token or session_token
+    token_str = x_anonymous_token or anonymous_token
     if token_str:
         try:
             return None, UUID(token_str)
@@ -99,7 +99,7 @@ async def complete_content(
     """Mark content as complete.
 
     Accepts either authenticated user (via session cookie) or anonymous user
-    (via X-Session-Token header).
+    (via X-Anonymous-Token header).
 
     Args:
         body: Request with content_id, content_type, content_title, time_spent_s,
@@ -108,7 +108,7 @@ async def complete_content(
     Returns:
         MarkCompleteResponse with completed_at timestamp and optionally module status
     """
-    user_id, session_token = auth
+    user_id, anonymous_token = auth
 
     if body.content_type not in ("module", "lo", "lens", "test"):
         raise HTTPException(400, "Invalid content_type")
@@ -120,7 +120,7 @@ async def complete_content(
         progress = await mark_content_complete(
             conn,
             user_id=user_id,
-            session_token=session_token,
+            anonymous_token=anonymous_token,
             content_id=body.content_id,
             content_type=body.content_type,
             content_title=body.content_title,
@@ -138,7 +138,7 @@ async def complete_content(
                 progress_map = await get_module_progress(
                     conn,
                     user_id=user_id,
-                    session_token=session_token,
+                    anonymous_token=anonymous_token,
                     lens_ids=lens_uuids,
                 )
 
@@ -186,7 +186,7 @@ async def update_time_endpoint(
         body: Request with content_id and time_delta_s (seconds to add)
              May be None for sendBeacon requests
     """
-    user_id, session_token = auth
+    user_id, anonymous_token = auth
 
     # Handle sendBeacon (raw JSON body without Content-Type header)
     if body is None:
@@ -205,7 +205,7 @@ async def update_time_endpoint(
         await update_time_spent(
             conn,
             user_id=user_id,
-            session_token=session_token,
+            anonymous_token=anonymous_token,
             content_id=content_id,
             time_delta_s=time_delta_s,
         )
@@ -222,7 +222,7 @@ async def claim_records(
     anonymously with the now-authenticated user.
 
     Args:
-        body: Request with session_token (the anonymous token to claim from)
+        body: Request with anonymous_token (the anonymous token to claim from)
 
     Returns:
         ClaimResponse with counts of records claimed
@@ -239,12 +239,12 @@ async def claim_records(
     async with get_connection() as conn:
         progress_count = await claim_progress_records(
             conn,
-            session_token=body.session_token,
+            anonymous_token=body.anonymous_token,
             user_id=user_id,
         )
         chat_count = await claim_chat_sessions(
             conn,
-            session_token=body.session_token,
+            anonymous_token=body.anonymous_token,
             user_id=user_id,
         )
 

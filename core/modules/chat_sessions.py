@@ -17,7 +17,7 @@ async def get_or_create_chat_session(
     conn: AsyncConnection,
     *,
     user_id: int | None,
-    session_token: UUID | None,
+    anonymous_token: UUID | None,
     content_id: UUID | None,
     content_type: str | None,
 ) -> dict:
@@ -35,10 +35,10 @@ async def get_or_create_chat_session(
 
     if user_id is not None:
         conditions.append(chat_sessions.c.user_id == user_id)
-    elif session_token is not None:
-        conditions.append(chat_sessions.c.session_token == session_token)
+    elif anonymous_token is not None:
+        conditions.append(chat_sessions.c.anonymous_token == anonymous_token)
     else:
-        raise ValueError("Either user_id or session_token must be provided")
+        raise ValueError("Either user_id or anonymous_token must be provided")
 
     # Check for existing active session
     result = await conn.execute(select(chat_sessions).where(and_(*conditions)))
@@ -56,7 +56,7 @@ async def get_or_create_chat_session(
     if user_id is not None:
         insert_values["user_id"] = user_id
     else:
-        insert_values["session_token"] = session_token
+        insert_values["anonymous_token"] = anonymous_token
 
     result = await conn.execute(
         chat_sessions.insert().values(**insert_values).returning(chat_sessions)
@@ -121,7 +121,7 @@ async def get_chat_session(
 async def claim_chat_sessions(
     conn: AsyncConnection,
     *,
-    session_token: UUID,
+    anonymous_token: UUID,
     user_id: int,
 ) -> int:
     """Claim all anonymous chat sessions for a user.
@@ -130,8 +130,8 @@ async def claim_chat_sessions(
     """
     result = await conn.execute(
         update(chat_sessions)
-        .where(chat_sessions.c.session_token == session_token)
-        .values(user_id=user_id, session_token=None)
+        .where(chat_sessions.c.anonymous_token == anonymous_token)
+        .values(user_id=user_id, anonymous_token=None)
     )
     await conn.commit()
     return result.rowcount

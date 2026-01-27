@@ -25,7 +25,7 @@ def upgrade() -> None:
     op.create_table(
         "user_content_progress",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("session_token", UUID(as_uuid=True), nullable=True),
+        sa.Column("anonymous_token", UUID(as_uuid=True), nullable=True),
         sa.Column(
             "user_id",
             sa.Integer(),
@@ -68,24 +68,24 @@ def upgrade() -> None:
     op.create_index(
         "idx_user_content_progress_anon",
         "user_content_progress",
-        ["session_token", "content_id"],
+        ["anonymous_token", "content_id"],
         unique=True,
-        postgresql_where=sa.text("session_token IS NOT NULL"),
+        postgresql_where=sa.text("anonymous_token IS NOT NULL"),
     )
 
-    # Index for claiming (UPDATE WHERE session_token = ?)
+    # Index for claiming (UPDATE WHERE anonymous_token = ?)
     op.create_index(
         "idx_user_content_progress_token",
         "user_content_progress",
-        ["session_token"],
-        postgresql_where=sa.text("session_token IS NOT NULL"),
+        ["anonymous_token"],
+        postgresql_where=sa.text("anonymous_token IS NOT NULL"),
     )
 
     # Create chat_sessions table
     op.create_table(
         "chat_sessions",
         sa.Column("session_id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("session_token", UUID(as_uuid=True), nullable=True),
+        sa.Column("anonymous_token", UUID(as_uuid=True), nullable=True),
         sa.Column(
             "user_id",
             sa.Integer(),
@@ -126,7 +126,7 @@ def upgrade() -> None:
     op.create_index(
         "idx_chat_sessions_token",
         "chat_sessions",
-        ["session_token"],
+        ["anonymous_token"],
     )
 
 

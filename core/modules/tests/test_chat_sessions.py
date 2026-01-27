@@ -22,7 +22,7 @@ def content_id():
 
 
 @pytest.fixture
-def session_token():
+def anonymous_token():
     """Generate a random session token UUID for testing."""
     return uuid.uuid4()
 
@@ -40,12 +40,12 @@ def mock_conn():
 
 @pytest.mark.asyncio
 async def test_get_or_create_requires_identity_unit(mock_conn, content_id):
-    """get_or_create_chat_session should raise error when neither user_id nor session_token provided."""
-    with pytest.raises(ValueError, match="Either user_id or session_token"):
+    """get_or_create_chat_session should raise error when neither user_id nor anonymous_token provided."""
+    with pytest.raises(ValueError, match="Either user_id or anonymous_token"):
         await get_or_create_chat_session(
             mock_conn,
             user_id=None,
-            session_token=None,
+            anonymous_token=None,
             content_id=content_id,
             content_type="module",
         )
@@ -67,7 +67,7 @@ async def test_get_or_create_creates_new_session_unit(mock_conn, content_id):
     mock_row._mapping = {
         "session_id": session_id,
         "user_id": user_id,
-        "session_token": None,
+        "anonymous_token": None,
         "content_id": content_id,
         "content_type": "module",
         "messages": [],
@@ -91,7 +91,7 @@ async def test_get_or_create_creates_new_session_unit(mock_conn, content_id):
     result = await get_or_create_chat_session(
         mock_conn,
         user_id=user_id,
-        session_token=None,
+        anonymous_token=None,
         content_id=content_id,
         content_type="module",
     )
@@ -114,7 +114,7 @@ async def test_get_or_create_creates_new_session(test_user_id, content_id):
         result = await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
-            session_token=None,
+            anonymous_token=None,
             content_id=content_id,
             content_type="module",
         )
@@ -134,7 +134,7 @@ async def test_get_or_create_returns_existing_session(test_user_id, content_id):
         session1 = await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
-            session_token=None,
+            anonymous_token=None,
             content_id=content_id,
             content_type="module",
         )
@@ -144,7 +144,7 @@ async def test_get_or_create_returns_existing_session(test_user_id, content_id):
         session2 = await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
-            session_token=None,
+            anonymous_token=None,
             content_id=content_id,
             content_type="module",
         )
@@ -154,34 +154,34 @@ async def test_get_or_create_returns_existing_session(test_user_id, content_id):
 
 @pytest.mark.asyncio
 async def test_get_or_create_requires_identity():
-    """get_or_create_chat_session should raise error when neither user_id nor session_token provided."""
+    """get_or_create_chat_session should raise error when neither user_id nor anonymous_token provided."""
     content_id = uuid.uuid4()
 
     async with get_transaction() as conn:
-        with pytest.raises(ValueError, match="Either user_id or session_token"):
+        with pytest.raises(ValueError, match="Either user_id or anonymous_token"):
             await get_or_create_chat_session(
                 conn,
                 user_id=None,
-                session_token=None,
+                anonymous_token=None,
                 content_id=content_id,
                 content_type="module",
             )
 
 
 @pytest.mark.asyncio
-async def test_get_or_create_anonymous_session(session_token, content_id):
-    """get_or_create_chat_session should work with session_token for anonymous users."""
+async def test_get_or_create_anonymous_session(anonymous_token, content_id):
+    """get_or_create_chat_session should work with anonymous_token for anonymous users."""
     async with get_transaction() as conn:
         result = await get_or_create_chat_session(
             conn,
             user_id=None,
-            session_token=session_token,
+            anonymous_token=anonymous_token,
             content_id=content_id,
             content_type="lens",
         )
 
     assert result["user_id"] is None
-    assert result["session_token"] == session_token
+    assert result["anonymous_token"] == anonymous_token
     assert result["content_id"] == content_id
 
 
@@ -192,7 +192,7 @@ async def test_get_or_create_no_content_id(test_user_id):
         result = await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
-            session_token=None,
+            anonymous_token=None,
             content_id=None,
             content_type=None,
         )
@@ -209,7 +209,7 @@ async def test_add_chat_message(test_user_id, content_id):
         session = await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
-            session_token=None,
+            anonymous_token=None,
             content_id=content_id,
             content_type="module",
         )
@@ -247,7 +247,7 @@ async def test_add_chat_message_with_icon(test_user_id, content_id):
         session = await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
-            session_token=None,
+            anonymous_token=None,
             content_id=content_id,
             content_type="module",
         )
@@ -274,7 +274,7 @@ async def test_archive_chat_session(test_user_id, content_id):
         session = await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
-            session_token=None,
+            anonymous_token=None,
             content_id=content_id,
             content_type="module",
         )
@@ -296,7 +296,7 @@ async def test_get_or_create_after_archive_creates_new(test_user_id, content_id)
         session1 = await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
-            session_token=None,
+            anonymous_token=None,
             content_id=content_id,
             content_type="module",
         )
@@ -309,7 +309,7 @@ async def test_get_or_create_after_archive_creates_new(test_user_id, content_id)
         session2 = await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
-            session_token=None,
+            anonymous_token=None,
             content_id=content_id,
             content_type="module",
         )
@@ -319,14 +319,14 @@ async def test_get_or_create_after_archive_creates_new(test_user_id, content_id)
 
 
 @pytest.mark.asyncio
-async def test_claim_chat_sessions(test_user_id, session_token, content_id):
+async def test_claim_chat_sessions(test_user_id, anonymous_token, content_id):
     """claim_chat_sessions should transfer anonymous sessions to user."""
     # Create anonymous sessions
     async with get_transaction() as conn:
         await get_or_create_chat_session(
             conn,
             user_id=None,
-            session_token=session_token,
+            anonymous_token=anonymous_token,
             content_id=content_id,
             content_type="module",
         )
@@ -336,7 +336,7 @@ async def test_claim_chat_sessions(test_user_id, session_token, content_id):
         await get_or_create_chat_session(
             conn,
             user_id=None,
-            session_token=session_token,
+            anonymous_token=anonymous_token,
             content_id=content_id2,
             content_type="lens",
         )
@@ -345,7 +345,7 @@ async def test_claim_chat_sessions(test_user_id, session_token, content_id):
     async with get_transaction() as conn:
         count = await claim_chat_sessions(
             conn,
-            session_token=session_token,
+            anonymous_token=anonymous_token,
             user_id=test_user_id,
         )
 
@@ -356,14 +356,14 @@ async def test_claim_chat_sessions(test_user_id, session_token, content_id):
         session = await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
-            session_token=None,
+            anonymous_token=None,
             content_id=content_id,
             content_type="module",
         )
 
     # Should return existing session (now owned by user)
     assert session["user_id"] == test_user_id
-    assert session["session_token"] is None
+    assert session["anonymous_token"] is None
 
 
 @pytest.mark.asyncio
@@ -372,7 +372,7 @@ async def test_claim_chat_sessions_no_records(test_user_id):
     async with get_transaction() as conn:
         count = await claim_chat_sessions(
             conn,
-            session_token=uuid.uuid4(),  # Non-existent token
+            anonymous_token=uuid.uuid4(),  # Non-existent token
             user_id=test_user_id,
         )
 
