@@ -170,6 +170,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     useState<ModuleCompletionResult>(null);
   const [completionModalDismissed, setCompletionModalDismissed] =
     useState(false);
+  // Track if module was marked complete by API (all required lenses done)
+  const [apiConfirmedComplete, setApiConfirmedComplete] = useState(false);
 
   // Auth prompt modal state
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
@@ -239,8 +241,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }, [module]);
 
   // Derived value for module completion
+  // Complete if: API confirmed complete OR all sections marked locally
   const isModuleComplete = module
-    ? completedSections.size === module.sections.length
+    ? apiConfirmedComplete || completedSections.size === module.sections.length
     : false;
 
   // Activity tracking for current section
@@ -593,7 +596,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       // Check if module is now complete based on API response
       // This handles the case where server says "completed" even if local state doesn't match
       if (apiResponse?.module_status === "completed") {
-        // Module is complete - the ModuleCompleteModal will show based on isModuleComplete
+        // Module is complete - mark as confirmed by API to show modal
+        setApiConfirmedComplete(true);
         // No need to navigate to next section
         return;
       }
