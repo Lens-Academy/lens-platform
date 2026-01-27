@@ -258,31 +258,30 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Article/text activity tracking (3 min inactivity timeout)
   useActivityTracker({
-    sessionId: sessionId ?? 0,
-    stageIndex: currentSectionIndex,
-    stageType: "article",
+    contentId: currentSection?.contentId ?? undefined,
+    isAuthenticated,
     inactivityTimeout: 180_000,
     enabled:
-      !!sessionId &&
+      !!currentSection?.contentId &&
       (currentSectionType === "article" || currentSection?.type === "text"),
   });
 
-  // Video activity tracking
-  const videoTracker = useVideoActivityTracker({
-    sessionId: sessionId ?? 0,
-    stageIndex: currentSectionIndex,
-    enabled: !!sessionId && currentSectionType === "video",
+  // Video activity tracking (3 min inactivity timeout)
+  useActivityTracker({
+    contentId: currentSection?.contentId ?? undefined,
+    isAuthenticated,
+    inactivityTimeout: 180_000,
+    enabled: !!currentSection?.contentId && currentSectionType === "video",
   });
 
   // Chat activity tracking (5 min inactivity timeout)
   // Chat segments can appear within any section type, so we keep the tracker
   // ready and trigger it manually via triggerChatActivity() in handleSendMessage
   const { triggerActivity: triggerChatActivity } = useActivityTracker({
-    sessionId: sessionId ?? 0,
-    stageIndex: currentSectionIndex,
-    stageType: "chat",
+    contentId: currentSection?.contentId ?? undefined,
+    isAuthenticated,
     inactivityTimeout: 300_000,
-    enabled: !!sessionId,
+    enabled: !!currentSection?.contentId,
   });
 
   // Fetch next module info when module completes
@@ -693,9 +692,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             excerptNumber={excerptNumber}
             title={section.meta.title}
             channel={section.meta.channel}
-            onPlay={videoTracker.onPlay}
-            onPause={videoTracker.onPause}
-            onTimeUpdate={videoTracker.onTimeUpdate}
           />
         );
       }
