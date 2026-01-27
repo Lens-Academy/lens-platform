@@ -43,8 +43,6 @@ import {
   trackChatMessageSent,
 } from "@/analytics";
 import { Skeleton, SkeletonText } from "@/components/Skeleton";
-import { cleanupLegacyProgress } from "@/lib/progressMigration";
-
 interface ModuleProps {
   courseId: string;
   moduleId: string;
@@ -62,11 +60,6 @@ interface ModuleProps {
  * - Progress sidebar on left
  */
 export default function Module({ courseId, moduleId }: ModuleProps) {
-  // One-time migration: clean up legacy localStorage keys
-  useEffect(() => {
-    cleanupLegacyProgress();
-  }, []);
-
   // Module data loading state
   const [module, setModule] = useState<ModuleType | null>(null);
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
