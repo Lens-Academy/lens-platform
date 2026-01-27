@@ -12,8 +12,6 @@ const API_BASE = API_URL;
 
 // Default timeout for API requests (in milliseconds)
 const DEFAULT_TIMEOUT_MS = 10000;
-// Shorter timeout for content-heavy requests that should be fast
-const CONTENT_TIMEOUT_MS = 8000;
 
 /**
  * Custom error class for request timeouts.
@@ -100,91 +98,6 @@ export async function listModules(): Promise<
 export async function getModule(moduleSlug: string): Promise<Module> {
   const res = await fetchWithTimeout(`${API_BASE}/api/modules/${moduleSlug}`);
   if (!res.ok) throw new Error("Failed to fetch module");
-  return res.json();
-}
-
-export async function createSession(moduleSlug: string): Promise<number> {
-  const res = await fetchWithTimeout(
-    `${API_BASE}/api/module-sessions`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ module_slug: moduleSlug }),
-    },
-    CONTENT_TIMEOUT_MS,
-  );
-  if (!res.ok) throw new Error("Failed to create session");
-  const data = await res.json();
-  return data.session_id;
-}
-
-// Session state type - dynamic response from API
-// For narrative modules: { session_id, module_slug, module_title, messages, completed, is_narrative }
-// For staged modules: includes current_stage_index, total_stages, stages array, etc.
-export interface SessionState {
-  session_id: number;
-  module_slug: string;
-  module_title: string;
-  messages: Array<{
-    role: "user" | "assistant" | "system";
-    content: string;
-    icon?: "article" | "video" | "chat";
-  }>;
-  completed: boolean;
-  is_narrative?: boolean;
-  current_stage_index?: number;
-  total_stages?: number;
-  current_stage?: { type: string; [key: string]: unknown };
-  stages?: Array<{ type: string; title: string; duration: number | null }>;
-  article?: {
-    content: string;
-    title: string;
-    author: string | null;
-    sourceUrl: string | null;
-    isExcerpt: boolean;
-  } | null;
-  previous_article?: {
-    content: string;
-    title: string;
-    author: string | null;
-    sourceUrl: string | null;
-    isExcerpt: boolean;
-  } | null;
-  previous_stage?: { type: string; [key: string]: unknown } | null;
-  hidePreviousContentFromUser?: boolean;
-}
-
-export async function getSession(
-  sessionId: number,
-  viewStage?: number,
-): Promise<SessionState> {
-  const url =
-    viewStage !== undefined
-      ? `${API_BASE}/api/module-sessions/${sessionId}?view_stage=${viewStage}`
-      : `${API_BASE}/api/module-sessions/${sessionId}`;
-
-  const res = await fetchWithTimeout(
-    url,
-    { credentials: "include" },
-    CONTENT_TIMEOUT_MS,
-  );
-  if (!res.ok) throw new Error("Failed to fetch session");
-  return res.json();
-}
-
-export async function advanceStage(
-  sessionId: number,
-): Promise<{ completed: boolean; new_stage_index?: number }> {
-  const res = await fetchWithTimeout(
-    `${API_BASE}/api/module-sessions/${sessionId}/advance`,
-    {
-      method: "POST",
-      credentials: "include",
-    },
-    CONTENT_TIMEOUT_MS,
-  );
-  if (!res.ok) throw new Error("Failed to advance stage");
   return res.json();
 }
 
@@ -277,24 +190,6 @@ export async function getNextModule(
     slug: data.nextModuleSlug,
     title: data.nextModuleTitle,
   };
-}
-
-export async function claimSession(
-  sessionId: number,
-): Promise<{ claimed: boolean }> {
-  const res = await fetchWithTimeout(
-    `${API_BASE}/api/module-sessions/${sessionId}/claim`,
-    {
-      method: "POST",
-      credentials: "include",
-    },
-  );
-  if (!res.ok) {
-    if (res.status === 403) throw new Error("Session already claimed");
-    if (res.status === 404) throw new Error("Session not found");
-    throw new Error("Failed to claim session");
-  }
-  return res.json();
 }
 
 export async function transcribeAudio(audioBlob: Blob): Promise<string> {
