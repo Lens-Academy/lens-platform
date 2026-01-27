@@ -573,7 +573,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }, [currentSectionIndex, module, viewMode, handleStageClick]);
 
   const handleMarkComplete = useCallback(
-    (sectionIndex: number) => {
+    (sectionIndex: number, apiResponse?: { module_status?: string }) => {
       // Check if this is the first completion (for auth prompt)
       // Must check BEFORE updating state
       const isFirstCompletion = completedSections.size === 0;
@@ -588,6 +588,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       if (isFirstCompletion && !isAuthenticated && !hasPromptedAuth) {
         setShowAuthPrompt(true);
         setHasPromptedAuth(true);
+      }
+
+      // Check if module is now complete based on API response
+      // This handles the case where server says "completed" even if local state doesn't match
+      if (apiResponse?.module_status === "completed") {
+        // Module is complete - the ModuleCompleteModal will show based on isModuleComplete
+        // No need to navigate to next section
+        return;
       }
 
       // Navigate to next section
@@ -899,9 +907,19 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               )}
               <MarkCompleteButton
                 isCompleted={completedSections.has(sectionIndex)}
-                onComplete={() => handleMarkComplete(sectionIndex)}
+                onComplete={(response) =>
+                  handleMarkComplete(sectionIndex, response)
+                }
                 onNext={handleNext}
                 hasNext={sectionIndex < module.sections.length - 1}
+                contentId={section.contentId ?? undefined}
+                contentType="lens"
+                contentTitle={
+                  section.type === "text"
+                    ? `Section ${sectionIndex + 1}`
+                    : section.meta?.title ||
+                      `${section.type || "Section"} ${sectionIndex + 1}`
+                }
               />
             </div>
           );

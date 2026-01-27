@@ -793,16 +793,22 @@ def bundle_narrative_module(module) -> dict:
 
     def bundle_section(section) -> dict:
         """Bundle a single section with metadata and content."""
+        # Helper to get content_id as string if present
+        content_id = str(section.content_id) if section.content_id else None
+
         if isinstance(section, TextSection):
             return {
                 "type": "text",
                 "meta": {"title": section.title or None},
                 "content": section.content,
+                "contentId": content_id,
             }
 
         elif isinstance(section, ArticleSection):
             # Use bundle_article_section for collapsed content support
-            return bundle_article_section(section)
+            bundled = bundle_article_section(section)
+            bundled["contentId"] = content_id
+            return bundled
 
         elif isinstance(section, VideoSection):
             # Load video metadata
@@ -824,6 +830,7 @@ def bundle_narrative_module(module) -> dict:
                 "meta": meta,
                 "segments": segments,
                 "optional": section.optional,
+                "contentId": content_id,
             }
 
         elif isinstance(section, ChatSection):
@@ -833,6 +840,7 @@ def bundle_narrative_module(module) -> dict:
                 "instructions": section.instructions,
                 "hidePreviousContentFromUser": section.hide_previous_content_from_user,
                 "hidePreviousContentFromTutor": section.hide_previous_content_from_tutor,
+                "contentId": content_id,
             }
 
         return {}
