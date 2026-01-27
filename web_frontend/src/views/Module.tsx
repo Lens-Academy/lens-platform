@@ -17,15 +17,12 @@ import type {
 import type { CourseProgress } from "@/types/course";
 import {
   sendMessage,
-  createSession,
-  getSession,
-  claimSession,
   getNextModule,
   getModule,
   getCourseProgress,
 } from "@/api/modules";
 import type { ModuleCompletionResult } from "@/api/modules";
-import { useAnonymousSession } from "@/hooks/useAnonymousSession";
+
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import AuthoredText from "@/components/module/AuthoredText";
@@ -45,8 +42,6 @@ import {
   trackModuleCompleted,
   trackChatMessageSent,
 } from "@/analytics";
-import { Sentry } from "@/errorTracking";
-import { RequestTimeoutError } from "@/api/modules";
 import { Skeleton, SkeletonText } from "@/components/Skeleton";
 import { cleanupLegacyProgress } from "@/lib/progressMigration";
 
@@ -136,11 +131,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const [streamingContent, setStreamingContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Session state
-  const [sessionId, setSessionId] = useState<number | null>(null);
-  const { getStoredSessionId, storeSessionId, clearSessionId } =
-    useAnonymousSession(moduleId);
-
   // Progress tracking
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const sectionRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -184,9 +174,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Analytics tracking ref
   const hasTrackedModuleStart = useRef(false);
-
-  // Error state
-  const [error, setError] = useState<string | null>(null);
 
   // View mode state (default to paginated)
   const [viewMode] = useState<ViewMode>("paginated");
@@ -318,73 +305,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
   }, [isModuleComplete, module]);
 
-  // Initialize session (only after module is loaded)
+  // Track module start
   useEffect(() => {
     if (!module) return;
-
-    // Capture module in a const so TypeScript knows it's not null in the async function
-    const currentModule = module;
-
-    async function init() {
-      try {
-        const storedId = getStoredSessionId();
-        if (storedId) {
-          try {
-            const state = await getSession(storedId);
-            setSessionId(storedId);
-            setMessages(state.messages);
-
-            // If user is now authenticated, try to claim the session
-            if (isAuthenticated) {
-              try {
-                await claimSession(storedId);
-              } catch {
-                // Session already claimed or other error - ignore
-              }
-            }
-            return;
-          } catch {
-            clearSessionId();
-          }
-        }
-
-        // Create new session
-        const sid = await createSession(currentModule.slug);
-        storeSessionId(sid);
-        setSessionId(sid);
-
-        // Track module start (only for new sessions)
-        if (!hasTrackedModuleStart.current) {
-          hasTrackedModuleStart.current = true;
-          trackModuleStarted(currentModule.slug, currentModule.title);
-        }
-      } catch (e) {
-        console.error("[Module] Session init failed:", e);
-        if (e instanceof RequestTimeoutError) {
-          setError(
-            "Content is taking too long to load. Please check your connection and try refreshing the page.",
-          );
-        } else {
-          setError(e instanceof Error ? e.message : "Failed to start module");
-        }
-
-        Sentry.captureException(e, {
-          tags: {
-            error_type: "session_init_failed",
-            module_slug: currentModule.slug,
-          },
-        });
-      }
+    if (!hasTrackedModuleStart.current) {
+      hasTrackedModuleStart.current = true;
+      trackModuleStarted(module.slug, module.title);
     }
-
-    init();
-  }, [
-    module,
-    getStoredSessionId,
-    storeSessionId,
-    clearSessionId,
-    isAuthenticated,
-  ]);
+  }, [module]);
 
   // Track position for retry
   const [lastPosition, setLastPosition] = useState<{
@@ -394,14 +322,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Send message handler (shared across all chat sections)
   const handleSendMessage = useCallback(
-    async (content: string, sectionIndex: number, segmentIndex: number) => {
-      if (!sessionId) return;
-
+    async (content: string, sectionIndex: number, _segmentIndex: number) => {
       // Track chat activity on message send
       triggerChatActivity();
 
       // Store position for potential retry
-      setLastPosition({ sectionIndex, segmentIndex });
+      setLastPosition({ sectionIndex, segmentIndex: _segmentIndex });
 
       if (content) {
         setPendingMessage({ content, status: "sending" });
@@ -413,10 +339,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       try {
         let assistantContent = "";
 
-        for await (const chunk of sendMessage(sessionId, content, {
-          sectionIndex,
-          segmentIndex,
-        })) {
+        // Get system context from the current section's chat segment
+        const section = module?.sections[sectionIndex];
+        const systemContext =
+          section?.type === "chat" ? section.meta?.instructions : undefined;
+
+        // Use the new stateless chat API with conversation history
+        for await (const chunk of sendMessage(messages, content, systemContext)) {
           if (chunk.type === "text" && chunk.content) {
             assistantContent += chunk.content;
             setStreamingContent(assistantContent);
@@ -440,7 +369,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         setIsLoading(false);
       }
     },
-    [sessionId, triggerChatActivity, moduleId],
+    [triggerChatActivity, moduleId, messages, module],
   );
 
   const handleRetryMessage = useCallback(() => {
@@ -745,19 +674,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       <div className="min-h-dvh flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">{loadError ?? "Module not found"}</p>
-          <a href="/" className="text-emerald-600 hover:underline">
-            Go home
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center bg-stone-50">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
           <a href="/" className="text-emerald-600 hover:underline">
             Go home
           </a>

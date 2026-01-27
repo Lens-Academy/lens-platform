@@ -188,26 +188,32 @@ export async function advanceStage(
   return res.json();
 }
 
+/**
+ * Send a chat message and stream the response.
+ *
+ * Uses the stateless /api/chat/module endpoint which requires authentication.
+ * Messages are managed client-side; the API just processes the conversation.
+ */
 export async function* sendMessage(
-  sessionId: number,
-  content: string,
-  position?: { sectionIndex: number; segmentIndex: number },
+  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
+  userMessage: string,
+  systemContext?: string,
 ): AsyncGenerator<{ type: string; content?: string; name?: string }> {
-  const body: Record<string, unknown> = { content };
-  if (position) {
-    body.section_index = position.sectionIndex;
-    body.segment_index = position.segmentIndex;
-  }
+  // Build messages array with the new user message
+  const messages = [
+    ...conversationHistory.map((m) => ({ role: m.role, content: m.content })),
+    ...(userMessage ? [{ role: "user" as const, content: userMessage }] : []),
+  ];
 
-  const res = await fetch(
-    `${API_BASE}/api/module-sessions/${sessionId}/message`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(body),
-    },
-  );
+  const res = await fetch(`${API_BASE}/api/chat/module`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      messages,
+      system_context: systemContext,
+    }),
+  });
 
   if (!res.ok) throw new Error("Failed to send message");
 
