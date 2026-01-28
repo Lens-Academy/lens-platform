@@ -315,7 +315,11 @@ Key concerns include:
     async def test_presence(self, interaction: discord.Interaction):
         """Report all available information about the user including presence data."""
         user = interaction.user
-        member = await get_or_fetch_member(interaction.guild, user.id) if interaction.guild else None
+        member = (
+            await get_or_fetch_member(interaction.guild, user.id)
+            if interaction.guild
+            else None
+        )
 
         lines = ["**User Information**\n"]
 
