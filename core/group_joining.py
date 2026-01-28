@@ -100,6 +100,80 @@ async def get_user_current_group(
     return dict(row) if row else None
 
 
+async def get_user_current_group_membership(
+    conn: AsyncConnection,
+    user_id: int,
+) -> dict[str, Any] | None:
+    """
+    Get user's current active group membership (any cohort).
+
+    Returns dict with group_id, group_name, group_user_id, cohort_id, role
+    or None if user is not in any group.
+    """
+    query = (
+        select(
+            groups.c.group_id,
+            groups.c.group_name,
+            groups.c.cohort_id,
+            groups_users.c.group_user_id,
+            groups_users.c.role,
+        )
+        .join(groups_users, groups.c.group_id == groups_users.c.group_id)
+        .where(groups_users.c.user_id == user_id)
+        .where(groups_users.c.status == GroupUserStatus.active)
+    )
+    result = await conn.execute(query)
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def assign_to_group(
+    conn: AsyncConnection,
+    user_id: int,
+    to_group_id: int,
+    from_group_user_id: int | None = None,
+    role: str = "participant",
+) -> dict[str, Any]:
+    """
+    Low-level function to assign a user to a group.
+
+    Handles both first-time joins and group switches. This is pure mechanism -
+    no validation. Callers are responsible for:
+    - Checking the target group exists
+    - Checking capacity limits
+    - Checking timing restrictions
+    - Checking the user isn't already in the target group
+
+    Args:
+        conn: Database connection (should be in a transaction)
+        user_id: User to assign
+        to_group_id: Target group
+        from_group_user_id: If provided, removes user from this membership first
+        role: Role in new group ("participant" or "facilitator")
+
+    Returns:
+        {"group_id": int, "group_user_id": int}
+    """
+    from .queries.groups import add_user_to_group
+
+    # Remove from old group if specified
+    if from_group_user_id is not None:
+        await conn.execute(
+            update(groups_users)
+            .where(groups_users.c.group_user_id == from_group_user_id)
+            .values(
+                status=GroupUserStatus.removed,
+                left_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+        )
+
+    # Add to new group
+    result = await add_user_to_group(conn, to_group_id, user_id, role)
+
+    return {"group_id": to_group_id, "group_user_id": result["group_user_id"]}
+
+
 def assign_group_badge(member_count: int) -> str | None:
     """Assign badge based on member count. Backend decides all badges."""
     if MIN_BADGE_SIZE <= member_count <= MAX_BADGE_SIZE:
@@ -257,53 +331,32 @@ async def join_group(
     user_id: int,
     group_id: int,
     role: str = "participant",
-    admin_override: bool = False,
 ) -> dict[str, Any]:
     """
-    Join a group (or switch to a different group).
+    Join a group (or switch to a different group) with full validation.
 
-    This is THE single function for joining groups. ALL lifecycle operations
-    happen here:
-    1. Database: Update groups_users
-    2. Discord: Grant/revoke channel permissions via sync_group_discord_permissions
-    3. Calendar: Send/cancel meeting invites via sync_group_calendar
-    4. Reminders: Add/remove user from meeting reminder jobs via sync_group_reminders
-    5. RSVPs: Create/remove RSVP records via sync_group_rsvps
+    Validates:
+    - Target group exists
+    - Group is not full (max 8 members)
+    - User is not already in this group
+    - Group hasn't started (if user has no current group)
+
+    For admin operations that need to bypass validation, use assign_to_group() directly.
 
     Args:
         conn: Database connection (should be in a transaction)
         user_id: User joining the group
         group_id: Target group
         role: "participant" or "facilitator"
-        admin_override: If True, bypass capacity and timing validations (for admin use)
 
     Returns:
         {"success": True, "group_id": int, "previous_group_id": int | None}
         or {"success": False, "error": str} on failure
     """
-    from .queries.groups import add_user_to_group
+    # Get user's current group (if any)
+    current_group = await get_user_current_group_membership(conn, user_id)
 
-    # Query 1: Check user's current group status
-    # This query returns: group_id, group_name, recurring_meeting_time_utc, group_user_id, role
-    # or None if user has no group
-    current_group_query = (
-        select(
-            groups.c.group_id,
-            groups.c.group_name,
-            groups.c.recurring_meeting_time_utc,
-            groups.c.cohort_id,
-            groups_users.c.group_user_id,
-            groups_users.c.role,
-        )
-        .join(groups_users, groups.c.group_id == groups_users.c.group_id)
-        .where(groups_users.c.user_id == user_id)
-        .where(groups_users.c.status == GroupUserStatus.active)
-    )
-    current_result = await conn.execute(current_group_query)
-    current_group = current_result.mappings().first()
-    current_group = dict(current_group) if current_group else None
-
-    # Query 2: Get the target group with first meeting time and member count
+    # Get the target group with first meeting time and member count for validation
     member_count_subq = (
         select(
             groups_users.c.group_id,
@@ -341,47 +394,32 @@ async def join_group(
     group_result = await conn.execute(group_query)
     target_group = group_result.mappings().first()
 
+    # === VALIDATION ===
     if not target_group:
         return {"success": False, "error": "group_not_found"}
 
-    # Check if group is full (8 is max capacity) - admin can override
-    if not admin_override and target_group["member_count"] >= 8:
+    if target_group["member_count"] >= 8:
         return {"success": False, "error": "group_full"}
 
-    first_meeting_at = target_group.get("first_meeting_at")
-
-    # Check if user is already in this group
     if current_group and current_group["group_id"] == group_id:
         return {"success": False, "error": "already_in_group"}
 
-    # If user has no current group and group has started, reject - admin can override
+    first_meeting_at = target_group.get("first_meeting_at")
     now = datetime.now(timezone.utc)
-    if (
-        not admin_override
-        and not current_group
-        and first_meeting_at
-        and first_meeting_at < now
-    ):
+    if not current_group and first_meeting_at and first_meeting_at < now:
         return {"success": False, "error": "group_already_started"}
 
-    # === LEAVE OLD GROUP (if switching) ===
-    previous_group_id = None
-    if current_group:
-        previous_group_id = current_group["group_id"]
+    # === SWITCH GROUPS ===
+    previous_group_id = current_group["group_id"] if current_group else None
+    from_group_user_id = current_group["group_user_id"] if current_group else None
 
-        # Update database: mark old membership as removed
-        await conn.execute(
-            update(groups_users)
-            .where(groups_users.c.group_user_id == current_group["group_user_id"])
-            .values(
-                status=GroupUserStatus.removed,
-                left_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-            )
-        )
-
-    # === JOIN NEW GROUP ===
-    await add_user_to_group(conn, group_id, user_id, role)
+    await assign_to_group(
+        conn,
+        user_id=user_id,
+        to_group_id=group_id,
+        from_group_user_id=from_group_user_id,
+        role=role,
+    )
 
     # NOTE: Lifecycle sync is NOT called here. The caller (API route) must:
     # 1. Commit the transaction first

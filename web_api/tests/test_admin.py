@@ -265,8 +265,11 @@ class TestAdminMemberAdd:
 
     @patch("web_api.routes.admin.get_transaction")
     @patch("web_api.routes.admin.sync_after_group_change")
-    @patch("web_api.routes.admin.join_group")
-    def test_adds_user_to_group(self, mock_join, mock_sync, mock_get_tx):
+    @patch("web_api.routes.admin.assign_to_group")
+    @patch("web_api.routes.admin.get_user_current_group_membership")
+    def test_adds_user_to_group(
+        self, mock_get_membership, mock_assign, mock_sync, mock_get_tx
+    ):
         """Should add user to group and sync."""
         from web_api.routes.admin import router
         from fastapi import FastAPI
@@ -282,12 +285,14 @@ class TestAdminMemberAdd:
         mock_conn.__aexit__.return_value = None
         mock_get_tx.return_value = mock_conn
 
-        # User not in any group, successfully added
-        mock_join.return_value = {
-            "success": True,
-            "group_id": 5,
-            "previous_group_id": None,
-        }
+        # Mock group exists check
+        mock_execute_result = AsyncMock()
+        mock_execute_result.first.return_value = (5,)  # Group exists
+        mock_conn.execute.return_value = mock_execute_result
+
+        # User not in any group
+        mock_get_membership.return_value = None
+        mock_assign.return_value = {"group_id": 5, "group_user_id": 100}
 
         client = TestClient(app)
         response = client.post(
@@ -298,13 +303,18 @@ class TestAdminMemberAdd:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "added"
-        mock_join.assert_called_once_with(mock_conn, 2, 5, admin_override=True)
+        mock_assign.assert_called_once_with(
+            mock_conn, user_id=2, to_group_id=5, from_group_user_id=None
+        )
         mock_sync.assert_called_once()
 
     @patch("web_api.routes.admin.get_transaction")
     @patch("web_api.routes.admin.sync_after_group_change")
-    @patch("web_api.routes.admin.join_group")
-    def test_moves_user_between_groups(self, mock_join, mock_sync, mock_get_tx):
+    @patch("web_api.routes.admin.assign_to_group")
+    @patch("web_api.routes.admin.get_user_current_group_membership")
+    def test_moves_user_between_groups(
+        self, mock_get_membership, mock_assign, mock_sync, mock_get_tx
+    ):
         """Should move user from old group to new group."""
         from web_api.routes.admin import router
         from fastapi import FastAPI
@@ -320,12 +330,18 @@ class TestAdminMemberAdd:
         mock_conn.__aexit__.return_value = None
         mock_get_tx.return_value = mock_conn
 
-        # User was in group 3, moved to group 5
-        mock_join.return_value = {
-            "success": True,
-            "group_id": 5,
-            "previous_group_id": 3,
+        # Mock group exists check
+        mock_execute_result = AsyncMock()
+        mock_execute_result.first.return_value = (5,)  # Group exists
+        mock_conn.execute.return_value = mock_execute_result
+
+        # User is in group 3
+        mock_get_membership.return_value = {
+            "group_id": 3,
+            "group_user_id": 50,
+            "group_name": "Old Group",
         }
+        mock_assign.return_value = {"group_id": 5, "group_user_id": 100}
 
         client = TestClient(app)
         response = client.post(
@@ -336,13 +352,18 @@ class TestAdminMemberAdd:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "moved"
+        mock_assign.assert_called_once_with(
+            mock_conn, user_id=2, to_group_id=5, from_group_user_id=50
+        )
         # Sync should be called twice: once for new group, once for old group
         assert mock_sync.call_count == 2
 
     @patch("web_api.routes.admin.get_transaction")
     @patch("web_api.routes.admin.sync_after_group_change")
-    @patch("web_api.routes.admin.join_group")
-    def test_rejects_adding_to_same_group(self, mock_join, mock_sync, mock_get_tx):
+    @patch("web_api.routes.admin.get_user_current_group_membership")
+    def test_rejects_adding_to_same_group(
+        self, mock_get_membership, mock_sync, mock_get_tx
+    ):
         """Should return 400 when trying to add user to group they're already in."""
         from web_api.routes.admin import router
         from fastapi import FastAPI
@@ -358,10 +379,16 @@ class TestAdminMemberAdd:
         mock_conn.__aexit__.return_value = None
         mock_get_tx.return_value = mock_conn
 
-        # join_group returns error when user is already in group
-        mock_join.return_value = {
-            "success": False,
-            "error": "already_in_group",
+        # Mock group exists check
+        mock_execute_result = AsyncMock()
+        mock_execute_result.first.return_value = (5,)  # Group exists
+        mock_conn.execute.return_value = mock_execute_result
+
+        # User is already in group 5
+        mock_get_membership.return_value = {
+            "group_id": 5,
+            "group_user_id": 50,
+            "group_name": "Target Group",
         }
 
         client = TestClient(app)

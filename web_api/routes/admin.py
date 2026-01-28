@@ -26,7 +26,7 @@ from pydantic import BaseModel
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import get_connection, get_transaction
-from core.group_joining import join_group
+from core.group_joining import get_user_current_group_membership, assign_to_group
 from core.queries.groups import (
     create_group,
     get_cohort_group_ids,
@@ -130,27 +130,40 @@ async def add_member_endpoint(
     admin: dict = Depends(require_admin),
 ) -> dict[str, Any]:
     """
-    Add a user to a group.
+    Add a user to a group (admin operation - bypasses capacity/timing validation).
 
     If user is already in another group, removes them from the old group first.
     Automatically syncs Discord permissions, calendar, and sends notifications.
-    Uses admin_override to bypass capacity and timing restrictions.
     """
+    from sqlalchemy import select
+
+    from core.tables import groups
+
     async with get_transaction() as conn:
-        result = await join_group(
-            conn, request.user_id, group_id, admin_override=True
+        # Check target group exists
+        result = await conn.execute(
+            select(groups.c.group_id).where(groups.c.group_id == group_id)
         )
-
-    if not result["success"]:
-        error = result["error"]
-        if error == "group_not_found":
+        if not result.first():
             raise HTTPException(status_code=404, detail="Group not found")
-        elif error == "already_in_group":
-            raise HTTPException(status_code=400, detail="User is already in this group")
-        else:
-            raise HTTPException(status_code=400, detail=f"Failed to add user: {error}")
 
-    previous_group_id = result.get("previous_group_id")
+        # Get user's current group (if any)
+        current_group = await get_user_current_group_membership(conn, request.user_id)
+
+        # Check user isn't already in target group
+        if current_group and current_group["group_id"] == group_id:
+            raise HTTPException(status_code=400, detail="User is already in this group")
+
+        # Switch groups (no capacity/timing validation - admin can bypass)
+        previous_group_id = current_group["group_id"] if current_group else None
+        from_group_user_id = current_group["group_user_id"] if current_group else None
+
+        result = await assign_to_group(
+            conn,
+            user_id=request.user_id,
+            to_group_id=group_id,
+            from_group_user_id=from_group_user_id,
+        )
 
     # Sync after transaction commits
     await sync_after_group_change(group_id=group_id, user_id=request.user_id)
