@@ -201,14 +201,17 @@ async def discord_oauth_callback(
 
     # Extract user info
     discord_id = discord_user["id"]
-    discord_username = discord_user.get("global_name") or discord_user["username"]
+    # Use actual Discord username (no spaces allowed), not global_name (display name)
+    discord_username = discord_user["username"]
     discord_avatar = discord_user.get("avatar")  # Avatar hash from Discord
     email = discord_user.get("email")
     email_verified = discord_user.get("verified", False)
+    # Use global_name (display name) to pre-fill nickname if user doesn't have one
+    nickname = discord_user.get("global_name")
 
     # Create or update user in database
     await get_or_create_user(
-        discord_id, discord_username, discord_avatar, email, email_verified
+        discord_id, discord_username, discord_avatar, email, email_verified, nickname
     )
 
     # Create JWT and set cookie

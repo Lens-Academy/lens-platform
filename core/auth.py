@@ -16,6 +16,7 @@ async def get_or_create_user(
     discord_avatar: str | None = None,
     email: str | None = None,
     email_verified: bool = False,
+    nickname: str | None = None,
 ) -> dict:
     """
     Get or create a user by Discord ID.
@@ -25,17 +26,24 @@ async def get_or_create_user(
 
     Args:
         discord_id: The Discord user ID
-        discord_username: Optional username to set/update
+        discord_username: Optional username to set/update (actual Discord username, no spaces)
         discord_avatar: Optional avatar hash from Discord
         email: Optional email to set/update
         email_verified: Whether the email is verified (from Discord)
+        nickname: Optional nickname to pre-fill (only set if user has no nickname)
 
     Returns:
         The user record from the database
     """
     async with get_transaction() as conn:
         user, _is_new = await _get_or_create_user(
-            conn, discord_id, discord_username, discord_avatar, email, email_verified
+            conn,
+            discord_id,
+            discord_username,
+            discord_avatar,
+            email,
+            email_verified,
+            nickname,
         )
 
     return user

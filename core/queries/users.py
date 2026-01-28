@@ -69,12 +69,14 @@ async def get_or_create_user(
     discord_avatar: str | None = None,
     email: str | None = None,
     email_verified: bool = False,
+    nickname: str | None = None,
 ) -> tuple[dict[str, Any], bool]:
     """
     Get or create a user by Discord ID.
 
     If user exists and new fields are provided, updates them.
     When email changes or is newly set with verification, updates email_verified_at.
+    Nickname is only set if the user doesn't already have one (won't overwrite user choice).
 
     Returns:
         Tuple of (user_dict, is_new_user)
@@ -95,6 +97,9 @@ async def get_or_create_user(
                 updates["email_verified_at"] = datetime.now(timezone.utc)
             else:
                 updates["email_verified_at"] = None
+        # Only set nickname if user doesn't have one (don't overwrite user choice)
+        if nickname and not existing.get("nickname"):
+            updates["nickname"] = nickname
 
         if updates:
             return await update_user(conn, discord_id, **updates), False
@@ -103,6 +108,9 @@ async def get_or_create_user(
     new_user = await create_user(
         conn, discord_id, discord_username, discord_avatar, email, email_verified
     )
+    # Set nickname for new user if provided
+    if nickname:
+        new_user = await update_user(conn, discord_id, nickname=nickname)
     return new_user, True
 
 
