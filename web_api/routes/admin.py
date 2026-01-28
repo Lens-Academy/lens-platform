@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import get_connection, get_transaction
 from core.group_joining import get_user_current_group_membership, assign_to_group
+from core.queries.cohorts import get_all_cohorts_summary
 from core.queries.groups import (
     create_group,
     get_cohort_group_ids,
@@ -165,12 +166,12 @@ async def add_member_endpoint(
             from_group_user_id=from_group_user_id,
         )
 
-    # Sync after transaction commits
-    await sync_after_group_change(group_id=group_id, user_id=request.user_id)
-
-    # Also sync the old group if user was moved
-    if previous_group_id:
-        await sync_after_group_change(group_id=previous_group_id)
+    # Sync after transaction commits (handles both new and old group if switching)
+    await sync_after_group_change(
+        group_id=group_id,
+        previous_group_id=previous_group_id,
+        user_id=request.user_id,
+    )
 
     status = "moved" if previous_group_id else "added"
     return {"status": status, "group_id": result["group_id"]}
@@ -261,30 +262,8 @@ async def list_cohorts_endpoint(
     """
     List all cohorts for admin panel.
     """
-    from sqlalchemy import select
-
-    from core.modules.course_loader import load_course
-    from core.tables import cohorts
-
     async with get_connection() as conn:
-        result = await conn.execute(
-            select(
-                cohorts.c.cohort_id,
-                cohorts.c.cohort_name,
-                cohorts.c.course_slug,
-                cohorts.c.status,
-            ).order_by(cohorts.c.cohort_start_date.desc())
-        )
-        cohort_list = []
-        for row in result.mappings():
-            cohort = dict(row)
-            # Add course name for display
-            try:
-                course = load_course(cohort["course_slug"])
-                cohort["course_name"] = course.title
-            except Exception:
-                cohort["course_name"] = cohort["course_slug"]
-            cohort_list.append(cohort)
+        cohort_list = await get_all_cohorts_summary(conn)
 
     return {"cohorts": cohort_list}
 

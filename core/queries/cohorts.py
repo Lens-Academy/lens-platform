@@ -112,6 +112,39 @@ async def save_cohort_category_id(
     )
 
 
+async def get_all_cohorts_summary(
+    conn: AsyncConnection,
+) -> list[dict[str, Any]]:
+    """
+    Get all cohorts with course names for admin panel.
+
+    Returns list of dicts with cohort_id, cohort_name, course_slug, status, course_name.
+    Ordered by cohort_start_date descending (most recent first).
+    """
+    query = (
+        select(
+            cohorts.c.cohort_id,
+            cohorts.c.cohort_name,
+            cohorts.c.course_slug,
+            cohorts.c.status,
+        )
+        .order_by(cohorts.c.cohort_start_date.desc())
+    )
+
+    result = await conn.execute(query)
+    cohort_list = []
+    for row in result.mappings():
+        cohort = dict(row)
+        try:
+            course = load_course(cohort["course_slug"])
+            cohort["course_name"] = course.title
+        except Exception:
+            cohort["course_name"] = cohort["course_slug"]
+        cohort_list.append(cohort)
+
+    return cohort_list
+
+
 async def get_available_cohorts(
     conn: AsyncConnection,
     user_id: int | None = None,
