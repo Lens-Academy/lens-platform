@@ -30,5 +30,4 @@ export * from "./course";
 // Facilitator types
 export * from "./facilitator";
 
-// Signup types
-export * from "./signup";
+// Signup types - file removed, no exports needed

@@ -84,7 +84,7 @@ export default function CourseOverview({
     setPreviewStage({
       moduleSlug: selectedModule.slug,
       stageIndex: index,
-      sessionId: selectedModule.sessionId,
+      sessionId: selectedModule.sessionId ?? null,
     });
   };
 

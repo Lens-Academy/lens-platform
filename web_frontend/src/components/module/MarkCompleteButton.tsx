@@ -102,11 +102,7 @@ export default function MarkCompleteButton({
         className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium disabled:opacity-50"
       >
         {isSubmitting ? (
-          <svg
-            className="w-5 h-5 animate-spin"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
+          <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
             <circle
               className="opacity-25"
               cx="12"

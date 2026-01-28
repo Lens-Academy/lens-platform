@@ -46,7 +46,9 @@ export default function Admin() {
   const [cohortSyncing, setCohortSyncing] = useState(false);
   const [cohortRealizing, setCohortRealizing] = useState(false);
   const [groupSyncing, setGroupSyncing] = useState<Record<number, boolean>>({});
-  const [groupRealizing, setGroupRealizing] = useState<Record<number, boolean>>({});
+  const [groupRealizing, setGroupRealizing] = useState<Record<number, boolean>>(
+    {},
+  );
 
   // Debounced search
   const performSearch = useCallback(async (query: string) => {
@@ -346,14 +348,20 @@ export default function Admin() {
                       key={user.user_id}
                       onClick={() => handleSelectUser(user.user_id)}
                       className={`border-t cursor-pointer hover:bg-gray-50 ${
-                        selectedUser?.user_id === user.user_id ? "bg-blue-50" : ""
+                        selectedUser?.user_id === user.user_id
+                          ? "bg-blue-50"
+                          : ""
                       }`}
                     >
                       <td className="px-4 py-3">
-                        {user.nickname || <span className="text-gray-400">-</span>}
+                        {user.nickname || (
+                          <span className="text-gray-400">-</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">{user.discord_username}</td>
-                      <td className="px-4 py-3 text-gray-500">{user.user_id}</td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {user.user_id}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -380,19 +388,31 @@ export default function Admin() {
                 </div>
                 <div>
                   <dt className="font-medium text-gray-500">Discord ID</dt>
-                  <dd className="font-mono text-xs">{selectedUser.discord_id}</dd>
+                  <dd className="font-mono text-xs">
+                    {selectedUser.discord_id}
+                  </dd>
                 </div>
                 <div>
                   <dt className="font-medium text-gray-500">Nickname</dt>
-                  <dd>{selectedUser.nickname || <span className="text-gray-400">-</span>}</dd>
+                  <dd>
+                    {selectedUser.nickname || (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </dd>
                 </div>
                 <div>
-                  <dt className="font-medium text-gray-500">Discord Username</dt>
+                  <dt className="font-medium text-gray-500">
+                    Discord Username
+                  </dt>
                   <dd>{selectedUser.discord_username}</dd>
                 </div>
                 <div>
                   <dt className="font-medium text-gray-500">Email</dt>
-                  <dd>{selectedUser.email || <span className="text-gray-400">-</span>}</dd>
+                  <dd>
+                    {selectedUser.email || (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </dd>
                 </div>
                 <div>
                   <dt className="font-medium text-gray-500">Group</dt>
@@ -411,7 +431,11 @@ export default function Admin() {
                 </div>
                 <div>
                   <dt className="font-medium text-gray-500">Cohort</dt>
-                  <dd>{selectedUser.cohort_name || <span className="text-gray-400">-</span>}</dd>
+                  <dd>
+                    {selectedUser.cohort_name || (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </dd>
                 </div>
               </dl>
 
@@ -426,7 +450,8 @@ export default function Admin() {
                     {isSyncing ? "Syncing..." : "Sync Group"}
                   </button>
                   <p className="text-sm text-gray-500 mt-2">
-                    Syncs Discord permissions, calendar, and reminders for this user's group.
+                    Syncs Discord permissions, calendar, and reminders for this
+                    user's group.
                   </p>
                 </div>
               )}
@@ -447,7 +472,7 @@ export default function Admin() {
               value={selectedCohortId || ""}
               onChange={(e) =>
                 setSelectedCohortId(
-                  e.target.value ? Number(e.target.value) : null
+                  e.target.value ? Number(e.target.value) : null,
                 )
               }
               className="border rounded px-3 py-2 w-full max-w-md"

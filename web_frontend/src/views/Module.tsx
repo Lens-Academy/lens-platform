@@ -335,10 +335,22 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         // Get system context from the current section's chat segment
         const section = module?.sections[sectionIndex];
         const systemContext =
-          section?.type === "chat" ? section.meta?.instructions : undefined;
+          section?.type === "chat" ? section.instructions : undefined;
 
         // Use the new stateless chat API with conversation history
-        for await (const chunk of sendMessage(messages, content, systemContext)) {
+        // Filter out system messages as the API only accepts user/assistant
+        const conversationHistory = messages
+          .filter((m) => m.role !== "system")
+          .map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          }));
+
+        for await (const chunk of sendMessage(
+          conversationHistory,
+          content,
+          systemContext,
+        )) {
           if (chunk.type === "text" && chunk.content) {
             assistantContent += chunk.content;
             setStreamingContent(assistantContent);

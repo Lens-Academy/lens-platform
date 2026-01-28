@@ -74,9 +74,10 @@ export async function updateTimeSpent(
   // Fire and forget - don't throw on error
 }
 
-export async function claimSessionRecords(
-  anonymousToken: string,
-): Promise<{ progress_records_claimed: number; chat_sessions_claimed: number }> {
+export async function claimSessionRecords(anonymousToken: string): Promise<{
+  progress_records_claimed: number;
+  chat_sessions_claimed: number;
+}> {
   const res = await fetch(`${API_BASE}/api/progress/claim`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

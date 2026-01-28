@@ -200,12 +200,15 @@ export async function addMemberToGroup(
   groupId: number,
   userId: number,
 ): Promise<{ status: string; group_user_id: number }> {
-  const res = await fetch(`${API_URL}/api/admin/groups/${groupId}/members/add`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ user_id: userId }),
-  });
+  const res = await fetch(
+    `${API_URL}/api/admin/groups/${groupId}/members/add`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ user_id: userId }),
+    },
+  );
 
   if (!res.ok) {
     if (res.status === 403) {
