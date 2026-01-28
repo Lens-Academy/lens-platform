@@ -19,7 +19,7 @@ from core.queries.groups import (
     get_cohort_groups_for_realization,
     get_realized_groups_for_discord_user,
 )
-from core.sync import sync_group
+from core.sync import sync_group, sync_group_discord_permissions
 
 logger = logging.getLogger(__name__)
 
@@ -29,26 +29,6 @@ class GroupsCog(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-
-    async def _grant_channel_permissions(
-        self,
-        member: discord.Member,
-        text_channel: discord.TextChannel,
-        voice_channel: discord.VoiceChannel,
-    ):
-        """Grant standard group channel permissions to a member."""
-        await text_channel.set_permissions(
-            member,
-            view_channel=True,
-            send_messages=True,
-            read_message_history=True,
-        )
-        await voice_channel.set_permissions(
-            member,
-            view_channel=True,
-            connect=True,
-            speak=True,
-        )
 
     async def cohort_autocomplete(
         self,
@@ -154,11 +134,7 @@ class GroupsCog(commands.Cog):
         Grant channel permissions when a user joins the guild.
 
         If the user is in any realized groups (groups with Discord channels),
-        automatically grant them access to those channels.
-
-        Note: This duplicates permission-granting logic from sync_group_discord_permissions().
-        This is intentional - sync_group() only runs on membership changes, but users may
-        join Discord AFTER their group was realized. This handler catches that case.
+        automatically grant them access to those channels via sync.
         """
         # Check if this user has any realized groups
         async with get_connection() as conn:
@@ -169,37 +145,29 @@ class GroupsCog(commands.Cog):
         if not user_groups:
             return
 
-        # Grant permissions to each group's channels
+        # Sync permissions for each group (will grant access to this user)
         granted_groups = []
         for group in user_groups:
             try:
-                text_channel = member.guild.get_channel(
-                    int(group["discord_text_channel_id"])
-                )
-                voice_channel = member.guild.get_channel(
-                    int(group["discord_voice_channel_id"])
-                )
+                result = await sync_group_discord_permissions(group["group_id"])
 
-                if text_channel and voice_channel:
-                    await self._grant_channel_permissions(
-                        member, text_channel, voice_channel
+                if result.get("granted", 0) > 0:
+                    granted_groups.append(group["group_name"])
+
+                    # Send welcome message to the text channel
+                    text_channel = member.guild.get_channel(
+                        int(group["discord_text_channel_id"])
                     )
+                    if text_channel:
+                        await text_channel.send(
+                            f"Welcome {member.mention}! You now have access to this group channel."
+                        )
 
-                granted_groups.append(group["group_name"])
-
-                # Send welcome message to the text channel
-                if text_channel:
-                    await text_channel.send(
-                        f"Welcome {member.mention}! You now have access to this group channel."
-                    )
-
-            except discord.HTTPException:
-                pass  # Channel may have been deleted
+            except Exception as e:
+                logger.error(f"Failed to sync group {group['group_id']} for {member}: {e}")
 
         if granted_groups:
-            print(
-                f"[GroupsCog] Granted {member} access to groups: {', '.join(granted_groups)}"
-            )
+            logger.info(f"Granted {member} access to groups: {', '.join(granted_groups)}")
 
 
 async def setup(bot):

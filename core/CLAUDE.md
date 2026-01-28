@@ -1,6 +1,48 @@
 # Core Module
 
-Platform-agnostic business logic layer. **No Discord or FastAPI imports allowed** - this ensures the core can be used by any adapter.
+Platform-agnostic business logic layer. **No imports from `discord_bot/` or `web_api/`** - adapters import from core, not the other way around.
+
+## Accessing Discord from Core
+
+Core can use the `discord` library directly, but must access the bot instance through the injection pattern in `core/notifications/channels/discord.py`:
+
+```python
+# core/notifications/channels/discord.py
+_bot: Client | None = None
+
+def set_bot(bot: Client) -> None:
+    """Called by main.py when bot starts."""
+    global _bot
+    _bot = bot
+
+# Helper functions that use the injected bot
+async def send_discord_dm(discord_id: str, message: str) -> bool: ...
+async def send_discord_channel_message(channel_id: str, message: str) -> bool: ...
+async def get_or_fetch_member(guild: Guild, discord_id: int) -> Member | None: ...
+```
+
+**Usage in core modules:**
+```python
+from .notifications.channels.discord import _bot, get_or_fetch_member
+
+# Check bot is available before using
+if not _bot:
+    return {"error": "bot_unavailable"}
+
+channel = _bot.get_channel(int(channel_id))
+member = await get_or_fetch_member(guild, discord_id)
+```
+
+**Initialization (in main.py):**
+```python
+from core.notifications.channels.discord import set_bot as set_notification_bot
+
+@bot.event
+async def on_ready():
+    set_notification_bot(bot)
+```
+
+This pattern allows core to use Discord APIs while keeping the bot instance injection centralized.
 
 ## Module Overview
 
