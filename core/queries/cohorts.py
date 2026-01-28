@@ -117,12 +117,13 @@ async def get_available_cohorts(
     user_id: int | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """
-    Get future cohorts, separated into enrolled and available.
+    Get cohorts available for enrollment, separated into enrolled and available.
 
+    Includes cohorts that started up to 7 days ago (late enrollment allowed).
     Includes has_groups flag for each cohort (True if cohort has any groups).
     Maps course_slug to course_name using load_course().
     """
-    from datetime import date
+    from datetime import date, timedelta
 
     from ..tables import groups
 
@@ -149,7 +150,7 @@ async def get_available_cohorts(
             func.coalesce(has_groups_subq.c.group_count, 0).label("group_count"),
         )
         .outerjoin(has_groups_subq, cohorts.c.cohort_id == has_groups_subq.c.cohort_id)
-        .where(cohorts.c.cohort_start_date > today)
+        .where(cohorts.c.cohort_start_date + timedelta(days=7) > today)
         .where(cohorts.c.status == "active")
         .order_by(cohorts.c.cohort_start_date)
     )

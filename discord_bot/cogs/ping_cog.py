@@ -10,6 +10,8 @@ from datetime import datetime
 import asyncio
 import io
 
+from core.notifications.channels.discord import get_or_fetch_member
+
 
 class PingCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -313,7 +315,11 @@ Key concerns include:
     async def test_presence(self, interaction: discord.Interaction):
         """Report all available information about the user including presence data."""
         user = interaction.user
-        member = interaction.guild.get_member(user.id) if interaction.guild else None
+        member = (
+            await get_or_fetch_member(interaction.guild, user.id)
+            if interaction.guild
+            else None
+        )
 
         lines = ["**User Information**\n"]
 
