@@ -59,6 +59,7 @@ export type VideoMeta = {
 export type TextSection = {
   type: "text";
   content: string;
+  contentId?: string | null;
 };
 
 export type ArticleSection = {
@@ -66,6 +67,7 @@ export type ArticleSection = {
   meta: ArticleMeta;
   segments: ModuleSegment[];
   optional?: boolean;
+  contentId?: string | null;
 };
 
 export type VideoSection = {
@@ -74,6 +76,7 @@ export type VideoSection = {
   meta: VideoMeta;
   segments: ModuleSegment[];
   optional?: boolean;
+  contentId?: string | null;
 };
 
 export type ChatSection = {
@@ -82,6 +85,7 @@ export type ChatSection = {
   instructions: string;
   hidePreviousContentFromUser: boolean;
   hidePreviousContentFromTutor: boolean;
+  contentId?: string | null;
 };
 
 export type ModuleSection =

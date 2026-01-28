@@ -8,6 +8,7 @@ Format specification: docs/plans/2026-01-18-lesson-markdown-format-design.md
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from uuid import UUID as PyUUID
 
 
 # -----------------------------------------------------------------------------
@@ -63,6 +64,7 @@ class VideoSection:
     source: str = ""
     segments: list[Segment] = field(default_factory=list)
     optional: bool = False
+    content_id: PyUUID | None = None
 
 
 @dataclass
@@ -74,6 +76,7 @@ class ArticleSection:
     source: str = ""
     segments: list[Segment] = field(default_factory=list)
     optional: bool = False
+    content_id: PyUUID | None = None
 
 
 @dataclass
@@ -83,6 +86,7 @@ class TextSection:
     type: str = "text"
     title: str = ""
     content: str = ""
+    content_id: PyUUID | None = None
 
 
 @dataclass
@@ -94,6 +98,7 @@ class ChatSection:
     instructions: str = ""
     hide_previous_content_from_user: bool = False
     hide_previous_content_from_tutor: bool = False
+    content_id: PyUUID | None = None
 
 
 Section = VideoSection | ArticleSection | TextSection | ChatSection
@@ -106,6 +111,7 @@ class ParsedModule:
     slug: str
     title: str
     sections: list[Section]
+    content_id: PyUUID | None = None  # UUID from frontmatter, if present
 
 
 @dataclass
@@ -327,6 +333,14 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
     # Parse optional flag (default False)
     optional = _parse_bool(fields.get("optional", "false"))
 
+    # Extract content_id if present
+    content_id = None
+    if "id" in fields:
+        try:
+            content_id = PyUUID(fields["id"])
+        except ValueError:
+            pass  # Invalid UUID format, leave as None
+
     if section_type_lower == "video":
         source = _extract_wiki_link(fields.get("source", ""))
         segment_data = _split_into_segments(content)
@@ -337,6 +351,7 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
             source=source,
             segments=segments,
             optional=optional,
+            content_id=content_id,
         )
 
     elif section_type_lower == "article":
@@ -349,6 +364,7 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
             source=source,
             segments=segments,
             optional=optional,
+            content_id=content_id,
         )
 
     elif section_type_lower == "text":
@@ -356,6 +372,7 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
         return TextSection(
             title=title,
             content=_unescape_content_headers(raw_content),
+            content_id=content_id,
         )
 
     elif section_type_lower == "chat":
@@ -368,6 +385,7 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
             hide_previous_content_from_tutor=_parse_bool(
                 fields.get("hidePreviousContentFromTutor", "false")
             ),
+            content_id=content_id,
         )
 
     else:
@@ -424,6 +442,14 @@ def parse_module(text: str) -> ParsedModule:
     slug = metadata.get("slug", "")
     title = metadata.get("title", "")
 
+    # Extract content_id if present
+    content_id = None
+    if "id" in metadata:
+        try:
+            content_id = PyUUID(metadata["id"])
+        except ValueError:
+            pass  # Invalid UUID format, leave as None
+
     section_data = _split_into_sections(content)
     sections = [
         _parse_section(stype, stitle, scontent)
@@ -434,6 +460,7 @@ def parse_module(text: str) -> ParsedModule:
         slug=slug,
         title=title,
         sections=sections,
+        content_id=content_id,
     )
 
 

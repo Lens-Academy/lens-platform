@@ -1,51 +1,66 @@
 import { useEffect, useRef, useCallback } from "react";
 import { API_URL } from "../config";
+import { updateTimeSpent } from "../api/progress";
+import { getAnonymousToken } from "./useAnonymousToken";
 
 interface ActivityTrackerOptions {
-  sessionId: number;
-  stageIndex: number;
-  stageType: "article" | "video" | "chat";
+  // New progress API options
+  contentId?: string;
+  isAuthenticated?: boolean;
+
   inactivityTimeout?: number; // ms, default 180000 (3 min)
-  heartbeatInterval?: number; // ms, default 30000 (30 sec)
+  heartbeatInterval?: number; // ms, default 60000 (60 sec)
   enabled?: boolean;
 }
 
 export function useActivityTracker({
-  sessionId,
-  stageIndex,
-  stageType,
+  contentId,
+  isAuthenticated = false,
   inactivityTimeout = 180_000,
-  heartbeatInterval = 30_000,
+  heartbeatInterval = 60_000, // Changed from 30s to 60s
   enabled = true,
 }: ActivityTrackerOptions) {
   const isActiveRef = useRef(false);
   // Initialize to null, set on first activity to avoid impure Date.now() during render
   const lastActivityRef = useRef<number | null>(null);
   const heartbeatIntervalRef = useRef<number | null>(null);
-  const scrollDepthRef = useRef(0);
+  // Track accumulated time for progress API
+  const lastHeartbeatTimeRef = useRef<number | null>(null);
 
-  const sendHeartbeat = useCallback(async () => {
-    if (!enabled) return;
+  // Heartbeat for UUID-based progress API
+  const sendProgressHeartbeat = useCallback(async () => {
+    if (!enabled || !contentId) return;
+
+    const now = Date.now();
+    const lastTime = lastHeartbeatTimeRef.current;
+
+    // Calculate time delta since last heartbeat
+    const timeDeltaS = lastTime ? Math.floor((now - lastTime) / 1000) : 0;
+    lastHeartbeatTimeRef.current = now;
+
+    // Only send if we have actual time to report
+    if (timeDeltaS <= 0) return;
 
     try {
-      await fetch(`${API_URL}/api/module-sessions/${sessionId}/heartbeat`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stage_index: stageIndex,
-          stage_type: stageType,
-          scroll_depth: stageType === "article" ? scrollDepthRef.current : null,
-        }),
-      });
+      await updateTimeSpent(contentId, timeDeltaS, isAuthenticated);
     } catch (error) {
       // Fire-and-forget, ignore errors
-      console.debug("Heartbeat failed:", error);
+      console.debug("Progress heartbeat failed:", error);
     }
-  }, [sessionId, stageIndex, stageType, enabled]);
+  }, [contentId, isAuthenticated, enabled]);
+
+  const sendHeartbeat = useCallback(async () => {
+    if (!enabled || !contentId) return;
+    await sendProgressHeartbeat();
+  }, [enabled, contentId, sendProgressHeartbeat]);
 
   const handleActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
+
+    // Initialize heartbeat time on first activity
+    if (lastHeartbeatTimeRef.current === null) {
+      lastHeartbeatTimeRef.current = Date.now();
+    }
 
     if (!isActiveRef.current) {
       isActiveRef.current = true;
@@ -56,17 +71,7 @@ export function useActivityTracker({
 
   const handleScroll = useCallback(() => {
     handleActivity();
-
-    // Track scroll depth for articles
-    if (stageType === "article") {
-      const scrollTop = window.scrollY;
-      const docHeight =
-        document.documentElement.scrollHeight - window.innerHeight;
-      if (docHeight > 0) {
-        scrollDepthRef.current = Math.min(1, scrollTop / docHeight);
-      }
-    }
-  }, [handleActivity, stageType]);
+  }, [handleActivity]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -105,12 +110,46 @@ export function useActivityTracker({
     // Initial activity
     handleActivity();
 
+    // sendBeacon on page unload for reliable time tracking
+    const handleBeforeUnload = () => {
+      if (!contentId || !isActiveRef.current) return;
+
+      const now = Date.now();
+      const lastTime = lastHeartbeatTimeRef.current;
+      const timeDeltaS = lastTime ? Math.floor((now - lastTime) / 1000) : 0;
+
+      if (timeDeltaS <= 0) return;
+
+      // Use sendBeacon for reliable delivery on page unload
+      const payload = JSON.stringify({
+        content_id: contentId,
+        time_delta_s: timeDeltaS,
+      });
+
+      // Build URL with session token for anonymous users
+      const url = `${API_URL}/api/progress/time`;
+
+      // sendBeacon sends as text/plain by default, but our endpoint handles raw JSON
+      // For authenticated users, cookies are sent automatically
+      // For anonymous users, we need to append the token as a query param since
+      // sendBeacon doesn't support custom headers
+      if (!isAuthenticated) {
+        const token = getAnonymousToken();
+        navigator.sendBeacon(`${url}?anonymous_token=${token}`, payload);
+      } else {
+        navigator.sendBeacon(url, payload);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
     return () => {
       events.forEach((event) => {
         window.removeEventListener(event, handleActivity);
       });
       window.removeEventListener("scroll", handleScroll);
       document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
 
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
@@ -118,6 +157,8 @@ export function useActivityTracker({
     };
   }, [
     enabled,
+    contentId,
+    isAuthenticated,
     handleActivity,
     handleScroll,
     sendHeartbeat,

@@ -17,18 +17,14 @@ import type {
 import type { CourseProgress } from "@/types/course";
 import {
   sendMessage,
-  createSession,
-  getSession,
-  claimSession,
   getNextModule,
   getModule,
   getCourseProgress,
 } from "@/api/modules";
 import type { ModuleCompletionResult } from "@/api/modules";
-import { useAnonymousSession } from "@/hooks/useAnonymousSession";
+
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
-import { useVideoActivityTracker } from "@/hooks/useVideoActivityTracker";
 import AuthoredText from "@/components/module/AuthoredText";
 import ArticleEmbed from "@/components/module/ArticleEmbed";
 import VideoEmbed from "@/components/module/VideoEmbed";
@@ -46,10 +42,7 @@ import {
   trackModuleCompleted,
   trackChatMessageSent,
 } from "@/analytics";
-import { Sentry } from "@/errorTracking";
-import { RequestTimeoutError } from "@/api/modules";
 import { Skeleton, SkeletonText } from "@/components/Skeleton";
-
 interface ModuleProps {
   courseId: string;
   moduleId: string;
@@ -131,11 +124,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const [streamingContent, setStreamingContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Session state
-  const [sessionId, setSessionId] = useState<number | null>(null);
-  const { getStoredSessionId, storeSessionId, clearSessionId } =
-    useAnonymousSession(moduleId);
-
   // Progress tracking
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const sectionRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -170,6 +158,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     useState<ModuleCompletionResult>(null);
   const [completionModalDismissed, setCompletionModalDismissed] =
     useState(false);
+  // Track if module was marked complete by API (all required lenses done)
+  const [apiConfirmedComplete, setApiConfirmedComplete] = useState(false);
 
   // Auth prompt modal state
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
@@ -177,9 +167,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Analytics tracking ref
   const hasTrackedModuleStart = useRef(false);
-
-  // Error state
-  const [error, setError] = useState<string | null>(null);
 
   // View mode state (default to paginated)
   const [viewMode] = useState<ViewMode>("paginated");
@@ -239,8 +226,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }, [module]);
 
   // Derived value for module completion
+  // Complete if: API confirmed complete OR all sections marked locally
   const isModuleComplete = module
-    ? completedSections.size === module.sections.length
+    ? apiConfirmedComplete || completedSections.size === module.sections.length
     : false;
 
   // Activity tracking for current section
@@ -250,31 +238,30 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Article/text activity tracking (3 min inactivity timeout)
   useActivityTracker({
-    sessionId: sessionId ?? 0,
-    stageIndex: currentSectionIndex,
-    stageType: "article",
+    contentId: currentSection?.contentId ?? undefined,
+    isAuthenticated,
     inactivityTimeout: 180_000,
     enabled:
-      !!sessionId &&
+      !!currentSection?.contentId &&
       (currentSectionType === "article" || currentSection?.type === "text"),
   });
 
-  // Video activity tracking
-  const videoTracker = useVideoActivityTracker({
-    sessionId: sessionId ?? 0,
-    stageIndex: currentSectionIndex,
-    enabled: !!sessionId && currentSectionType === "video",
+  // Video activity tracking (3 min inactivity timeout)
+  useActivityTracker({
+    contentId: currentSection?.contentId ?? undefined,
+    isAuthenticated,
+    inactivityTimeout: 180_000,
+    enabled: !!currentSection?.contentId && currentSectionType === "video",
   });
 
   // Chat activity tracking (5 min inactivity timeout)
   // Chat segments can appear within any section type, so we keep the tracker
   // ready and trigger it manually via triggerChatActivity() in handleSendMessage
   const { triggerActivity: triggerChatActivity } = useActivityTracker({
-    sessionId: sessionId ?? 0,
-    stageIndex: currentSectionIndex,
-    stageType: "chat",
+    contentId: currentSection?.contentId ?? undefined,
+    isAuthenticated,
     inactivityTimeout: 300_000,
-    enabled: !!sessionId,
+    enabled: !!currentSection?.contentId,
   });
 
   // Fetch next module info when module completes
@@ -311,73 +298,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
   }, [isModuleComplete, module]);
 
-  // Initialize session (only after module is loaded)
+  // Track module start
   useEffect(() => {
     if (!module) return;
-
-    // Capture module in a const so TypeScript knows it's not null in the async function
-    const currentModule = module;
-
-    async function init() {
-      try {
-        const storedId = getStoredSessionId();
-        if (storedId) {
-          try {
-            const state = await getSession(storedId);
-            setSessionId(storedId);
-            setMessages(state.messages);
-
-            // If user is now authenticated, try to claim the session
-            if (isAuthenticated) {
-              try {
-                await claimSession(storedId);
-              } catch {
-                // Session already claimed or other error - ignore
-              }
-            }
-            return;
-          } catch {
-            clearSessionId();
-          }
-        }
-
-        // Create new session
-        const sid = await createSession(currentModule.slug);
-        storeSessionId(sid);
-        setSessionId(sid);
-
-        // Track module start (only for new sessions)
-        if (!hasTrackedModuleStart.current) {
-          hasTrackedModuleStart.current = true;
-          trackModuleStarted(currentModule.slug, currentModule.title);
-        }
-      } catch (e) {
-        console.error("[Module] Session init failed:", e);
-        if (e instanceof RequestTimeoutError) {
-          setError(
-            "Content is taking too long to load. Please check your connection and try refreshing the page.",
-          );
-        } else {
-          setError(e instanceof Error ? e.message : "Failed to start module");
-        }
-
-        Sentry.captureException(e, {
-          tags: {
-            error_type: "session_init_failed",
-            module_slug: currentModule.slug,
-          },
-        });
-      }
+    if (!hasTrackedModuleStart.current) {
+      hasTrackedModuleStart.current = true;
+      trackModuleStarted(module.slug, module.title);
     }
-
-    init();
-  }, [
-    module,
-    getStoredSessionId,
-    storeSessionId,
-    clearSessionId,
-    isAuthenticated,
-  ]);
+  }, [module]);
 
   // Track position for retry
   const [lastPosition, setLastPosition] = useState<{
@@ -387,14 +315,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Send message handler (shared across all chat sections)
   const handleSendMessage = useCallback(
-    async (content: string, sectionIndex: number, segmentIndex: number) => {
-      if (!sessionId) return;
-
+    async (content: string, sectionIndex: number, _segmentIndex: number) => {
       // Track chat activity on message send
       triggerChatActivity();
 
       // Store position for potential retry
-      setLastPosition({ sectionIndex, segmentIndex });
+      setLastPosition({ sectionIndex, segmentIndex: _segmentIndex });
 
       if (content) {
         setPendingMessage({ content, status: "sending" });
@@ -406,10 +332,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       try {
         let assistantContent = "";
 
-        for await (const chunk of sendMessage(sessionId, content, {
-          sectionIndex,
-          segmentIndex,
-        })) {
+        // Get system context from the current section's chat segment
+        const section = module?.sections[sectionIndex];
+        const systemContext =
+          section?.type === "chat" ? section.meta?.instructions : undefined;
+
+        // Use the new stateless chat API with conversation history
+        for await (const chunk of sendMessage(messages, content, systemContext)) {
           if (chunk.type === "text" && chunk.content) {
             assistantContent += chunk.content;
             setStreamingContent(assistantContent);
@@ -433,7 +362,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         setIsLoading(false);
       }
     },
-    [sessionId, triggerChatActivity, moduleId],
+    [triggerChatActivity, moduleId, messages, module],
   );
 
   const handleRetryMessage = useCallback(() => {
@@ -573,7 +502,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }, [currentSectionIndex, module, viewMode, handleStageClick]);
 
   const handleMarkComplete = useCallback(
-    (sectionIndex: number) => {
+    (sectionIndex: number, apiResponse?: { module_status?: string }) => {
       // Check if this is the first completion (for auth prompt)
       // Must check BEFORE updating state
       const isFirstCompletion = completedSections.size === 0;
@@ -588,6 +517,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       if (isFirstCompletion && !isAuthenticated && !hasPromptedAuth) {
         setShowAuthPrompt(true);
         setHasPromptedAuth(true);
+      }
+
+      // Check if module is now complete based on API response
+      // This handles the case where server says "completed" even if local state doesn't match
+      if (apiResponse?.module_status === "completed") {
+        // Module is complete - mark as confirmed by API to show modal
+        setApiConfirmedComplete(true);
+        // No need to navigate to next section
+        return;
       }
 
       // Navigate to next section
@@ -676,9 +614,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             excerptNumber={excerptNumber}
             title={section.meta.title}
             channel={section.meta.channel}
-            onPlay={videoTracker.onPlay}
-            onPause={videoTracker.onPause}
-            onTimeUpdate={videoTracker.onTimeUpdate}
           />
         );
       }
@@ -732,19 +667,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       <div className="min-h-dvh flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">{loadError ?? "Module not found"}</p>
-          <a href="/" className="text-emerald-600 hover:underline">
-            Go home
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center bg-stone-50">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
           <a href="/" className="text-emerald-600 hover:underline">
             Go home
           </a>
@@ -899,9 +821,19 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               )}
               <MarkCompleteButton
                 isCompleted={completedSections.has(sectionIndex)}
-                onComplete={() => handleMarkComplete(sectionIndex)}
+                onComplete={(response) =>
+                  handleMarkComplete(sectionIndex, response)
+                }
                 onNext={handleNext}
                 hasNext={sectionIndex < module.sections.length - 1}
+                contentId={section.contentId ?? undefined}
+                contentType="lens"
+                contentTitle={
+                  section.type === "text"
+                    ? `Section ${sectionIndex + 1}`
+                    : section.meta?.title ||
+                      `${section.type || "Section"} ${sectionIndex + 1}`
+                }
               />
             </div>
           );

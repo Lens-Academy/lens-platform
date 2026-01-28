@@ -41,7 +41,7 @@ async def test_user_id():
 
     yield user_id
 
-    # Cleanup: delete the test user (cascades to module_sessions)
+    # Cleanup: delete the test user (cascades to user_content_progress, chat_sessions)
     async with get_transaction() as conn:
         await conn.execute(
             text("DELETE FROM users WHERE user_id = :user_id"), {"user_id": user_id}
@@ -70,7 +70,7 @@ async def another_test_user_id():
 
     yield user_id
 
-    # Cleanup: delete the test user (cascades to module_sessions)
+    # Cleanup: delete the test user (cascades to user_content_progress, chat_sessions)
     async with get_transaction() as conn:
         await conn.execute(
             text("DELETE FROM users WHERE user_id = :user_id"), {"user_id": user_id}

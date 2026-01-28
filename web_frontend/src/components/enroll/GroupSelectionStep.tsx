@@ -135,9 +135,9 @@ export default function GroupSelectionStep({
           No Groups Available
         </h2>
         <p className="text-gray-600 mb-6">
-          All groups in this cohort are currently full or have already started.
-          You can join a different cohort and be matched based on your
-          availability.
+          No groups are available to join in this cohort. Groups may not be
+          scheduled yet, may be full, or may have already started. You can join a
+          different cohort and be matched based on your availability.
         </p>
         <div className="flex gap-3">
           <button

@@ -65,18 +65,6 @@ class RSVPStatus(str, enum.Enum):
     tentative = "tentative"
 
 
-class StageType(str, enum.Enum):
-    article = "article"
-    video = "video"
-    chat = "chat"
-
-
-class ContentEventType(str, enum.Enum):
-    heartbeat = "heartbeat"
-    start = "start"
-    complete = "complete"
-
-
 class NotificationReferenceType(str, enum.Enum):
     """Types of entities that notifications can reference."""
 

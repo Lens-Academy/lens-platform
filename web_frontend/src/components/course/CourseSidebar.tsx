@@ -137,7 +137,10 @@ export default function CourseSidebar({
                         {!module.optional &&
                           module.status === "in_progress" && (
                             <span className="text-xs text-blue-600 font-medium">
-                              Continue
+                              {module.completedLenses !== undefined &&
+                              module.totalLenses
+                                ? `${module.completedLenses}/${module.totalLenses}`
+                                : "Continue"}
                             </span>
                           )}
                       </button>

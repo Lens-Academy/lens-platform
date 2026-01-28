@@ -22,11 +22,14 @@ from core.queries.facilitator import (
     get_accessible_groups,
     is_admin,
 )
-from core.queries.progress import (
-    get_group_members_summary,
-    get_user_progress_for_group,
-    get_user_chat_sessions,
-)
+
+# TODO: progress.py removed - old progress tracking system deleted
+# These functions need to be reimplemented using the new user_content_progress tables:
+# from core.queries.progress import (
+#     get_group_members_summary,
+#     get_user_progress_for_group,
+#     get_user_chat_sessions,
+# )
 from core.queries.users import get_user_by_discord_id
 from web_api.auth import get_current_user
 
@@ -81,6 +84,9 @@ async def list_group_members(
 ) -> dict[str, Any]:
     """
     List members of a group with progress summary.
+
+    TODO: Reimplement using new user_content_progress tables.
+    Old implementation used module_sessions which has been removed.
     """
     discord_id = user["sub"]
     db_user = await get_db_user_or_403(discord_id)
@@ -89,9 +95,8 @@ async def list_group_members(
         if not await can_access_group(conn, db_user["user_id"], group_id):
             raise HTTPException(403, "Access denied to this group")
 
-        members = await get_group_members_summary(conn, group_id)
-
-    return {"members": members}
+    # TODO: Reimplement get_group_members_summary for new progress system
+    raise HTTPException(501, "Progress tracking is being migrated to a new system")
 
 
 @router.get("/groups/{group_id}/users/{target_user_id}/progress")
@@ -102,6 +107,9 @@ async def get_user_progress(
 ) -> dict[str, Any]:
     """
     Get detailed progress for a specific user within a group context.
+
+    TODO: Reimplement using new user_content_progress tables.
+    Old implementation used module_sessions which has been removed.
     """
     discord_id = user["sub"]
     db_user = await get_db_user_or_403(discord_id)
@@ -110,9 +118,8 @@ async def get_user_progress(
         if not await can_access_group(conn, db_user["user_id"], group_id):
             raise HTTPException(403, "Access denied to this group")
 
-        progress = await get_user_progress_for_group(conn, target_user_id, group_id)
-
-    return progress
+    # TODO: Reimplement get_user_progress_for_group for new progress system
+    raise HTTPException(501, "Progress tracking is being migrated to a new system")
 
 
 @router.get("/groups/{group_id}/users/{target_user_id}/chats")
@@ -123,6 +130,9 @@ async def get_user_chats(
 ) -> dict[str, Any]:
     """
     Get chat sessions for a specific user.
+
+    TODO: Reimplement using new chat_sessions table.
+    Old implementation used module_sessions which has been removed.
     """
     discord_id = user["sub"]
     db_user = await get_db_user_or_403(discord_id)
@@ -131,6 +141,5 @@ async def get_user_chats(
         if not await can_access_group(conn, db_user["user_id"], group_id):
             raise HTTPException(403, "Access denied to this group")
 
-        chats = await get_user_chat_sessions(conn, target_user_id, group_id)
-
-    return {"chats": chats}
+    # TODO: Reimplement get_user_chat_sessions for new chat_sessions table
+    raise HTTPException(501, "Chat sessions are being migrated to a new system")

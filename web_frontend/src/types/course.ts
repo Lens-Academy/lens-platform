@@ -7,6 +7,9 @@ export type StageInfo = {
   title: string;
   duration: string | null;
   optional: boolean;
+  // New fields for lens-level progress tracking
+  contentId?: string | null;
+  completed?: boolean;
 };
 
 export type ModuleStatus = "completed" | "in_progress" | "not_started";
@@ -16,9 +19,13 @@ export type ModuleInfo = {
   title: string;
   stages: StageInfo[];
   status: ModuleStatus;
-  currentStageIndex: number | null;
-  sessionId: number | null;
   optional: boolean;
+  // Legacy fields (may still be present)
+  currentStageIndex?: number | null;
+  sessionId?: number | null;
+  // New lens progress fields
+  completedLenses?: number;
+  totalLenses?: number;
 };
 
 export type UnitInfo = {

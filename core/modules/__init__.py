@@ -36,18 +36,6 @@ from .content import (
     get_stage_title,
     get_stage_duration,
 )
-from .sessions import (
-    create_session,
-    get_session,
-    get_user_sessions,
-    add_message,
-    advance_stage,
-    complete_session,
-    claim_session,
-    get_user_module_progress,
-    SessionNotFoundError,
-    SessionAlreadyClaimedError,
-)
 from .chat import send_module_message, get_stage_content
 from .llm import DEFAULT_PROVIDER
 from .course_loader import (
@@ -91,16 +79,6 @@ __all__ = [
     "VideoTranscriptMetadata",
     "get_stage_title",
     "get_stage_duration",
-    "create_session",
-    "get_session",
-    "get_user_sessions",
-    "add_message",
-    "advance_stage",
-    "complete_session",
-    "claim_session",
-    "get_user_module_progress",
-    "SessionNotFoundError",
-    "SessionAlreadyClaimedError",
     "send_module_message",
     "get_stage_content",
     "DEFAULT_PROVIDER",

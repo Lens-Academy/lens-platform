@@ -14,6 +14,7 @@ export function UserMenu({ signInRedirect }: UserMenuProps = {}) {
   const {
     isAuthenticated,
     isLoading,
+    user,
     discordUsername,
     discordAvatarUrl,
     login,
@@ -89,7 +90,7 @@ export function UserMenu({ signInRedirect }: UserMenuProps = {}) {
         ) : (
           <div className="w-6 h-6 rounded-full bg-slate-300" />
         )}
-        <span>{discordUsername}</span>
+        <span>{user?.nickname || discordUsername}</span>
         <svg
           className="w-4 h-4"
           fill="none"

@@ -1,10 +1,18 @@
 // web_frontend_next/src/components/narrative-lesson/MarkCompleteButton.tsx
 
+import { useState } from "react";
+import { markComplete, type MarkCompleteResponse } from "@/api/progress";
+import { useAuth } from "@/hooks/useAuth";
+
 type MarkCompleteButtonProps = {
   isCompleted: boolean;
-  onComplete: () => void;
+  onComplete: (response?: MarkCompleteResponse) => void;
   onNext?: () => void;
   hasNext?: boolean;
+  // Props for calling the progress API
+  contentId?: string;
+  contentType?: "module" | "lo" | "lens" | "test";
+  contentTitle?: string;
 };
 
 export default function MarkCompleteButton({
@@ -12,7 +20,42 @@ export default function MarkCompleteButton({
   onComplete,
   onNext,
   hasNext,
+  contentId,
+  contentType = "lens",
+  contentTitle,
 }: MarkCompleteButtonProps) {
+  const { isAuthenticated } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleComplete = async () => {
+    if (isSubmitting) return;
+
+    // If we have content info, call the progress API
+    if (contentId && contentTitle) {
+      setIsSubmitting(true);
+      try {
+        const response = await markComplete(
+          {
+            content_id: contentId,
+            content_type: contentType,
+            content_title: contentTitle,
+          },
+          isAuthenticated,
+        );
+        onComplete(response);
+      } catch (error) {
+        console.error("[MarkCompleteButton] Failed to mark complete:", error);
+        // Still call onComplete for local state update even if API fails
+        onComplete();
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // Fallback: just call onComplete without API call
+      onComplete();
+    }
+  };
+
   if (isCompleted) {
     return (
       <div className="flex items-center justify-center py-6 gap-4">
@@ -54,22 +97,45 @@ export default function MarkCompleteButton({
   return (
     <div className="flex items-center justify-center py-6">
       <button
-        onClick={onComplete}
-        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
+        onClick={handleComplete}
+        disabled={isSubmitting}
+        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium disabled:opacity-50"
       >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
+        {isSubmitting ? (
+          <svg
+            className="w-5 h-5 animate-spin"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+        ) : (
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+        )}
         Mark section complete
       </button>
     </div>
