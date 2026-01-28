@@ -1,13 +1,18 @@
 """Fetch educational content from GitHub repository."""
 
+from __future__ import annotations
+
 import base64
 import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import httpx
+
+if TYPE_CHECKING:
+    from core.modules.content import ArticleContent, VideoTranscriptContent
 
 from core.modules.markdown_parser import (
     parse_module,
@@ -296,11 +301,25 @@ class CacheContentLookup(ContentLookup):
             stem = extract_filename_stem(path)
             if stem == key or key in path:
                 metadata = _parse_frontmatter(content)
+                # Extract video_id from url if not directly provided
+                video_id = metadata.get("video_id", "")
+                if not video_id and metadata.get("url"):
+                    video_id = self._extract_youtube_id(metadata["url"])
                 return {
-                    "video_id": metadata.get("video_id", ""),
+                    "video_id": video_id,
                     "channel": metadata.get("channel"),
                 }
         raise KeyError(f"Video transcript not found: {key}")
+
+    def _extract_youtube_id(self, url: str) -> str:
+        """Extract YouTube video ID from URL."""
+        import re
+
+        # Remove quotes if present
+        url = url.strip('"\'')
+        # Match youtube.com/watch?v=ID or youtu.be/ID
+        match = re.search(r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]+)", url)
+        return match.group(1) if match else ""
 
     def get_article_metadata(self, key: str) -> dict:
         """Get article metadata by searching for matching article file."""
@@ -314,6 +333,64 @@ class CacheContentLookup(ContentLookup):
                     "source_url": metadata.get("source_url") or metadata.get("url"),
                 }
         raise KeyError(f"Article not found: {key}")
+
+    def get_article_content(self, key: str) -> str:
+        """Get article raw markdown content by searching for matching article file."""
+        for path, content in self._articles.items():
+            stem = extract_filename_stem(path)
+            if stem == key or key in path:
+                return content
+        raise KeyError(f"Article not found: {key}")
+
+    def get_article_for_bundling(self, source: str) -> "ArticleContent":
+        """Get article content for bundling (content + metadata).
+
+        Args:
+            source: Source path like "../articles/Some Article" or just "Some Article"
+        """
+        from core.modules.content import (
+            ArticleContent,
+            parse_frontmatter,
+        )
+
+        # Extract key from source path
+        key = extract_filename_stem(source)
+
+        for path, raw_content in self._articles.items():
+            stem = extract_filename_stem(path)
+            if stem == key or key in path:
+                metadata, content = parse_frontmatter(raw_content)
+                return ArticleContent(
+                    content=content,
+                    metadata=metadata,
+                    is_excerpt=False,
+                )
+        raise KeyError(f"Article not found: {source}")
+
+    def get_video_for_bundling(self, source: str) -> "VideoTranscriptContent":
+        """Get video transcript content for bundling (transcript + metadata).
+
+        Args:
+            source: Source path like "../video_transcripts/Some Video" or just "Some Video"
+        """
+        from core.modules.content import (
+            VideoTranscriptContent,
+            parse_video_frontmatter,
+        )
+
+        # Extract key from source path
+        key = extract_filename_stem(source)
+
+        for path, raw_content in self._video_transcripts.items():
+            stem = extract_filename_stem(path)
+            if stem == key or key in path:
+                metadata, transcript = parse_video_frontmatter(raw_content)
+                return VideoTranscriptContent(
+                    transcript=transcript,
+                    metadata=metadata,
+                    is_excerpt=False,
+                )
+        raise KeyError(f"Video transcript not found: {source}")
 
 
 async def fetch_all_content() -> ContentCache:

@@ -577,7 +577,10 @@ def get_stage_duration(stage) -> str:
     return duration
 
 
-def bundle_article_section(section) -> dict:
+def bundle_article_section(
+    section,
+    article_content: ArticleContent | None = None,
+) -> dict:
     """
     Bundle an article section with collapsed content for excerpts.
 
@@ -586,6 +589,8 @@ def bundle_article_section(section) -> dict:
 
     Args:
         section: ArticleSection with source and segments
+        article_content: Pre-loaded article content (for cache construction).
+                        If None, loads from global cache (for request-time).
 
     Returns:
         Dict with type, meta, segments (with collapsed_before/collapsed_after), optional
@@ -594,16 +599,22 @@ def bundle_article_section(section) -> dict:
         ArticleExcerptSegment,
         TextSegment,
         ChatSegment,
+        LensArticleExcerptSegment,
+        LensTextSegment,
+        LensChatSegment,
     )
 
-    # 1. Load full article once
-    full_result = load_article_with_metadata(section.source)
+    # 1. Load full article once (use provided content or load from cache)
+    if article_content is not None:
+        full_result = article_content
+    else:
+        full_result = load_article_with_metadata(section.source)
     full_content = full_result.content
 
-    # 2. Find positions for all article-excerpt segments
+    # 2. Find positions for all article-excerpt segments (handle both regular and Lens types)
     excerpt_data = []
     for seg in section.segments:
-        if isinstance(seg, ArticleExcerptSegment):
+        if isinstance(seg, (ArticleExcerptSegment, LensArticleExcerptSegment)):
             start, end = find_excerpt_bounds(full_content, seg.from_text, seg.to_text)
             excerpt_data.append(
                 {
@@ -634,7 +645,7 @@ def bundle_article_section(section) -> dict:
     bundled_segments = []
 
     for seg in section.segments:
-        if isinstance(seg, ArticleExcerptSegment):
+        if isinstance(seg, (ArticleExcerptSegment, LensArticleExcerptSegment)):
             ep = excerpt_map[id(seg)]
             bundled_segments.append(
                 {
@@ -644,9 +655,9 @@ def bundle_article_section(section) -> dict:
                     "collapsed_after": ep["collapsed_after"],
                 }
             )
-        elif isinstance(seg, TextSegment):
+        elif isinstance(seg, (TextSegment, LensTextSegment)):
             bundled_segments.append({"type": "text", "content": seg.content})
-        elif isinstance(seg, ChatSegment):
+        elif isinstance(seg, (ChatSegment, LensChatSegment)):
             bundled_segments.append(
                 {
                     "type": "chat",
@@ -664,7 +675,106 @@ def bundle_article_section(section) -> dict:
             "sourceUrl": full_result.metadata.source_url,
         },
         "segments": bundled_segments,
-        "optional": section.optional,
+        "optional": getattr(section, "optional", False),
+    }
+
+
+def bundle_video_section(
+    section,
+    video_content: VideoTranscriptContent | None = None,
+) -> dict:
+    """
+    Bundle a video section with transcript excerpts.
+
+    Args:
+        section: VideoSection or LensVideoSection with source and segments
+        video_content: Pre-loaded video transcript content (for cache construction).
+                      If None, loads from global cache (for request-time).
+
+    Returns:
+        Dict with type, videoId, meta, segments, optional
+    """
+    from .markdown_parser import (
+        TextSegment,
+        ChatSegment,
+        VideoExcerptSegment,
+        LensTextSegment,
+        LensChatSegment,
+        LensVideoExcerptSegment,
+    )
+    from core.transcripts import get_text_at_time
+
+    def _parse_time_to_seconds(time_str: str) -> int:
+        """Convert time string (e.g., '1:30' or '1:30:45') to seconds."""
+        if not time_str:
+            return 0
+        time_str = time_str.strip().split("\n")[0].strip()
+        try:
+            parts = time_str.split(":")
+            if len(parts) == 2:
+                minutes, seconds = int(parts[0]), int(parts[1])
+                return minutes * 60 + seconds
+            elif len(parts) == 3:
+                hours, minutes, seconds = int(parts[0]), int(parts[1]), int(parts[2])
+                return hours * 3600 + minutes * 60 + seconds
+            else:
+                return int(time_str)
+        except ValueError:
+            return 0
+
+    # Load video metadata (use provided content or load from cache)
+    if video_content is not None:
+        video_id = video_content.metadata.video_id
+        meta = {
+            "title": section.title or video_content.metadata.title,
+            "channel": video_content.metadata.channel,
+        }
+    else:
+        try:
+            result = load_video_transcript_with_metadata(section.source)
+            video_id = result.metadata.video_id
+            meta = {
+                "title": section.title or result.metadata.title,
+                "channel": result.metadata.channel,
+            }
+        except FileNotFoundError:
+            video_id = None
+            meta = {"title": section.title or None, "channel": None}
+
+    # Bundle segments (handle both regular and Lens segment types)
+    bundled_segments = []
+    for seg in section.segments:
+        if isinstance(seg, (TextSegment, LensTextSegment)):
+            bundled_segments.append({"type": "text", "content": seg.content})
+        elif isinstance(seg, (VideoExcerptSegment, LensVideoExcerptSegment)):
+            from_seconds = _parse_time_to_seconds(seg.from_time) if seg.from_time else 0
+            to_seconds = (
+                _parse_time_to_seconds(seg.to_time) if seg.to_time else 99999
+            )
+            try:
+                transcript = get_text_at_time(video_id, from_seconds, to_seconds)
+            except (FileNotFoundError, TypeError):
+                transcript = ""
+            bundled_segments.append({
+                "type": "video-excerpt",
+                "from": from_seconds,
+                "to": to_seconds if seg.to_time else None,
+                "transcript": transcript,
+            })
+        elif isinstance(seg, (ChatSegment, LensChatSegment)):
+            bundled_segments.append({
+                "type": "chat",
+                "instructions": seg.instructions,
+                "hidePreviousContentFromUser": seg.hide_previous_content_from_user,
+                "hidePreviousContentFromTutor": seg.hide_previous_content_from_tutor,
+            })
+
+    return {
+        "type": "video",
+        "videoId": video_id,
+        "meta": meta,
+        "segments": bundled_segments,
+        "optional": getattr(section, "optional", False),
     }
 
 

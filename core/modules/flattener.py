@@ -15,16 +15,13 @@ from core.modules.markdown_parser import (
     LensArticleSection,
     TextSegment,
     ChatSegment,
-    VideoExcerptSegment,
-    ArticleExcerptSegment,
-    LensSegment,
 )
-from core.modules.flattened_types import (
-    FlattenedModule,
-    FlatSection,
-    FlatPageSection,
-    FlatLensVideoSection,
-    FlatLensArticleSection,
+from core.modules.flattened_types import FlattenedModule
+from core.modules.content import (
+    bundle_article_section,
+    bundle_video_section,
+    ArticleContent,
+    VideoTranscriptContent,
 )
 from core.modules.path_resolver import resolve_wiki_link
 
@@ -43,46 +40,14 @@ class ContentLookup(ABC):
         pass
 
     @abstractmethod
-    def get_video_metadata(self, key: str) -> dict:
-        """Get video metadata (video_id, channel) by transcript filename stem."""
+    def get_article_for_bundling(self, source: str) -> "ArticleContent":
+        """Get article content for bundling (content + metadata)."""
         pass
 
     @abstractmethod
-    def get_article_metadata(self, key: str) -> dict:
-        """Get article metadata (title, author, source_url) by filename stem."""
+    def get_video_for_bundling(self, source: str) -> "VideoTranscriptContent":
+        """Get video transcript content for bundling (transcript + metadata)."""
         pass
-
-
-def _serialize_segment(
-    segment: TextSegment
-    | ChatSegment
-    | VideoExcerptSegment
-    | ArticleExcerptSegment
-    | LensSegment,
-) -> dict:
-    """Serialize a segment to a dictionary for the API response."""
-    if hasattr(segment, "content") and segment.type == "text":
-        return {"type": "text", "content": segment.content}
-    elif segment.type == "chat":
-        return {
-            "type": "chat",
-            "instructions": segment.instructions,
-            "hidePreviousContentFromUser": segment.hide_previous_content_from_user,
-            "hidePreviousContentFromTutor": segment.hide_previous_content_from_tutor,
-        }
-    elif segment.type == "video-excerpt":
-        return {
-            "type": "video-excerpt",
-            "from": segment.from_time,
-            "to": segment.to_time,
-        }
-    elif segment.type == "article-excerpt":
-        return {
-            "type": "article-excerpt",
-            "from": segment.from_text,
-            "to": segment.to_text,
-        }
-    return {}
 
 
 def _flatten_lens(
@@ -90,11 +55,14 @@ def _flatten_lens(
     learning_outcome_id: UUID | None,
     optional: bool,
     lookup: ContentLookup,
-) -> list[FlatSection]:
-    """Flatten a lens into one or more flat sections.
+) -> list[dict]:
+    """Flatten a lens into one or more section dicts.
 
     Note: Per design doc, one lens = exactly one video or article.
     We take the first section and raise if there are multiple.
+
+    Returns dicts with standard section format (type: "article" or "video")
+    plus additional fields: contentId, learningOutcomeId.
     """
     if len(lens.sections) == 0:
         raise ValueError(f"Lens {lens.content_id} has no sections")
@@ -104,43 +72,26 @@ def _flatten_lens(
         )
 
     section = lens.sections[0]
-    segments = [_serialize_segment(s) for s in section.segments]
+    content_id = str(lens.content_id) if lens.content_id else None
+    lo_id = str(learning_outcome_id) if learning_outcome_id else None
 
     if isinstance(section, LensVideoSection):
-        # Resolve video source to get metadata
-        # section.source may contain wiki-link brackets, use resolve_wiki_link
-        _, video_key = resolve_wiki_link(section.source)
-        video_meta = lookup.get_video_metadata(video_key)
-
-        return [
-            FlatLensVideoSection(
-                content_id=lens.content_id,
-                learning_outcome_id=learning_outcome_id,
-                title=section.title,
-                video_id=video_meta.get("video_id", ""),
-                channel=video_meta.get("channel"),
-                segments=segments,
-                optional=optional,
-            )
-        ]
+        # Get video content from lookup and pass to bundling
+        video_content = lookup.get_video_for_bundling(section.source)
+        bundled = bundle_video_section(section, video_content=video_content)
+        bundled["contentId"] = content_id
+        bundled["learningOutcomeId"] = lo_id
+        bundled["optional"] = optional
+        return [bundled]
 
     elif isinstance(section, LensArticleSection):
-        # Resolve article source to get metadata
-        # section.source may contain wiki-link brackets, use resolve_wiki_link
-        _, article_key = resolve_wiki_link(section.source)
-        article_meta = lookup.get_article_metadata(article_key)
-
-        return [
-            FlatLensArticleSection(
-                content_id=lens.content_id,
-                learning_outcome_id=learning_outcome_id,
-                title=section.title,
-                author=article_meta.get("author"),
-                source_url=article_meta.get("source_url"),
-                segments=segments,
-                optional=optional,
-            )
-        ]
+        # Get article content from lookup and pass to bundling
+        article_content = lookup.get_article_for_bundling(section.source)
+        bundled = bundle_article_section(section, article_content=article_content)
+        bundled["contentId"] = content_id
+        bundled["learningOutcomeId"] = lo_id
+        bundled["optional"] = optional
+        return [bundled]
 
     return []
 
@@ -148,7 +99,7 @@ def _flatten_lens(
 def _flatten_learning_outcome(
     lo_ref: LearningOutcomeRef,
     lookup: ContentLookup,
-) -> list[FlatSection]:
+) -> list[dict]:
     """Flatten a learning outcome reference into flat sections."""
     _, lo_key = resolve_wiki_link(lo_ref.source)
     lo = lookup.get_learning_outcome(lo_key)
@@ -172,7 +123,7 @@ def _flatten_learning_outcome(
 def _flatten_uncategorized(
     uncategorized: UncategorizedSection,
     lookup: ContentLookup,
-) -> list[FlatSection]:
+) -> list[dict]:
     """Flatten an uncategorized section into flat sections."""
     sections = []
     for lens_ref in uncategorized.lenses:
@@ -190,14 +141,29 @@ def _flatten_uncategorized(
     return sections
 
 
-def _flatten_page(page: PageSection) -> FlatPageSection:
-    """Convert a PageSection to a FlatPageSection."""
+def _serialize_segment(segment: TextSegment | ChatSegment) -> dict:
+    """Serialize a page segment to a dict."""
+    if isinstance(segment, TextSegment):
+        return {"type": "text", "content": segment.content}
+    elif isinstance(segment, ChatSegment):
+        return {
+            "type": "chat",
+            "instructions": segment.instructions,
+            "hidePreviousContentFromUser": segment.hide_previous_content_from_user,
+            "hidePreviousContentFromTutor": segment.hide_previous_content_from_tutor,
+        }
+    return {}
+
+
+def _flatten_page(page: PageSection) -> dict:
+    """Convert a PageSection to a dict."""
     segments = [_serialize_segment(s) for s in page.segments]
-    return FlatPageSection(
-        content_id=page.content_id,
-        title=page.title,
-        segments=segments,
-    )
+    return {
+        "type": "page",
+        "contentId": str(page.content_id) if page.content_id else None,
+        "title": page.title,
+        "segments": segments,
+    }
 
 
 def flatten_module(module: ParsedModule, lookup: ContentLookup) -> FlattenedModule:
@@ -208,13 +174,13 @@ def flatten_module(module: ParsedModule, lookup: ContentLookup) -> FlattenedModu
         lookup: Interface for looking up referenced content
 
     Returns:
-        FlattenedModule with all sections resolved to page/lens-video/lens-article
+        FlattenedModule with all sections resolved to page/video/article dicts
 
     Raises:
         KeyError: If any referenced content is not found (fail fast)
         ValueError: If a lens has zero or multiple sections
     """
-    flat_sections: list[FlatSection] = []
+    flat_sections: list[dict] = []
 
     for section in module.sections:
         if isinstance(section, PageSection):

@@ -22,13 +22,7 @@ from core.modules import (
     ModuleNotFoundError,
 )
 from core.modules.loader import load_flattened_module
-from core.modules.flattened_types import (
-    FlattenedModule,
-    FlatSection,
-    FlatPageSection,
-    FlatLensVideoSection,
-    FlatLensArticleSection,
-)
+from core.modules.flattened_types import FlattenedModule
 from core.modules.progress import (
     get_module_progress,
     get_or_create_progress,
@@ -68,55 +62,15 @@ router = APIRouter(prefix="/api", tags=["modules"])
 # --- Serialization Helpers ---
 
 
-def serialize_flat_section(section: FlatSection) -> dict:
-    """Serialize a flat section to JSON for the API response."""
-    if isinstance(section, FlatPageSection):
-        return {
-            "type": "page",
-            "contentId": str(section.content_id) if section.content_id else None,
-            "meta": {"title": section.title},
-            "segments": section.segments,
-        }
-    elif isinstance(section, FlatLensVideoSection):
-        return {
-            "type": "lens-video",
-            "contentId": str(section.content_id),
-            "learningOutcomeId": (
-                str(section.learning_outcome_id)
-                if section.learning_outcome_id
-                else None
-            ),
-            "videoId": section.video_id,
-            "meta": {"title": section.title, "channel": section.channel},
-            "segments": section.segments,
-            "optional": section.optional,
-        }
-    elif isinstance(section, FlatLensArticleSection):
-        return {
-            "type": "lens-article",
-            "contentId": str(section.content_id),
-            "learningOutcomeId": (
-                str(section.learning_outcome_id)
-                if section.learning_outcome_id
-                else None
-            ),
-            "meta": {
-                "title": section.title,
-                "author": section.author,
-                "sourceUrl": section.source_url,
-            },
-            "segments": section.segments,
-            "optional": section.optional,
-        }
-    return {}
-
-
 def serialize_flattened_module(module: FlattenedModule) -> dict:
-    """Serialize a flattened module to JSON for the API response."""
+    """Serialize a flattened module to JSON for the API response.
+
+    Sections are already dicts (page, video, article) so we pass them through.
+    """
     return {
         "slug": module.slug,
         "title": module.title,
-        "sections": [serialize_flat_section(s) for s in module.sections],
+        "sections": module.sections,  # Already dicts from flattener
     }
 
 
@@ -176,8 +130,10 @@ async def get_module_progress_endpoint(
     except ModuleNotFoundError:
         raise HTTPException(404, "Module not found")
 
-    # Collect content IDs from flattened sections
-    content_ids = [s.content_id for s in module.sections if s.content_id]
+    # Collect content IDs from flattened sections (sections are dicts)
+    content_ids = [
+        UUID(s["contentId"]) for s in module.sections if s.get("contentId")
+    ]
 
     async with get_connection() as conn:
         # Get progress for all lenses/sections
@@ -197,20 +153,26 @@ async def get_module_progress_endpoint(
             content_type="module",
         )
 
-    # Build lens list with completion status
+    # Build lens list with completion status (sections are dicts)
     lenses = []
     for section in module.sections:
+        content_id_str = section.get("contentId")
+        content_id = UUID(content_id_str) if content_id_str else None
+        # Get title from meta if present, otherwise from title key
+        title = (
+            section.get("meta", {}).get("title") or section.get("title") or "Untitled"
+        )
         lens_data = {
-            "id": str(section.content_id) if section.content_id else None,
-            "title": section.title,
-            "type": section.type,
-            "optional": getattr(section, "optional", False),
+            "id": content_id_str,
+            "title": title,
+            "type": section.get("type"),
+            "optional": section.get("optional", False),
             "completed": False,
             "completedAt": None,
             "timeSpentS": 0,
         }
-        if section.content_id and section.content_id in progress_map:
-            prog = progress_map[section.content_id]
+        if content_id and content_id in progress_map:
+            prog = progress_map[content_id]
             lens_data["completed"] = prog.get("completed_at") is not None
             lens_data["completedAt"] = (
                 prog["completed_at"].isoformat() if prog.get("completed_at") else None
@@ -284,10 +246,11 @@ async def update_module_progress(
     except ModuleNotFoundError:
         raise HTTPException(404, "Module not found")
 
-    # Find the section matching contentId
+    # Find the section matching contentId (sections are dicts)
     matching_section = None
     for section in module.sections:
-        if section.content_id == body.contentId:
+        content_id_str = section.get("contentId")
+        if content_id_str and UUID(content_id_str) == body.contentId:
             matching_section = section
             break
 
@@ -296,8 +259,12 @@ async def update_module_progress(
             400, f"Content ID {body.contentId} not found in module {module_slug}"
         )
 
-    # Get section title for the progress record
-    content_title = matching_section.title
+    # Get section title from meta or title key
+    content_title = (
+        matching_section.get("meta", {}).get("title")
+        or matching_section.get("title")
+        or "Untitled"
+    )
 
     async with get_connection() as conn:
         if body.completed:

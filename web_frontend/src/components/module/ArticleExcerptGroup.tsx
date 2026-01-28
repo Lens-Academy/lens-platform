@@ -1,13 +1,17 @@
 // web_frontend/src/components/module/ArticleExcerptGroup.tsx
 
 import { useMemo, useRef } from "react";
-import type { ArticleSection, ArticleExcerptSegment } from "@/types/module";
+import type {
+  ArticleSection,
+  LensArticleSection,
+  ArticleExcerptSegment,
+} from "@/types/module";
 import { extractAllHeadings } from "@/utils/extractHeadings";
 import ArticleTOC from "./ArticleTOC";
 import { useArticleSectionContext } from "./ArticleSectionContext";
 
 type ArticleExcerptGroupProps = {
-  section: ArticleSection;
+  section: ArticleSection | LensArticleSection;
   children: React.ReactNode;
 };
 
