@@ -205,17 +205,6 @@ def load_article_with_metadata(
     raw_text = cache.articles[source_path]
     metadata, full_content = parse_frontmatter(raw_text)
 
-    # Debug: log h2 headers to trace where they're lost
-    print(f"[load_article_with_metadata] Path: {source_path}")
-    print(f"[load_article_with_metadata] Raw text length: {len(raw_text)}")
-    print(f"[load_article_with_metadata] Full content length: {len(full_content)}")
-    print(
-        f"[load_article_with_metadata] '## History' in raw: {'## History' in raw_text}"
-    )
-    print(
-        f"[load_article_with_metadata] '## History' in full_content: {'## History' in full_content}"
-    )
-
     # Check if we're extracting an excerpt
     is_excerpt = from_text is not None or to_text is not None
 
@@ -740,18 +729,7 @@ def bundle_narrative_module(module) -> dict:
                     segment.from_text,
                     segment.to_text,
                 )
-                # Debug: log h2 headers to trace where they're lost
-                content = result.content
-                print(f"[bundle_segment] Source: {section.source}")
-                print(f"[bundle_segment] Content length: {len(content)}")
-                print(
-                    f"[bundle_segment] Contains '## History': {'## History' in content}"
-                )
-                print(
-                    f"[bundle_segment] '## History' position: {content.find('## History')}"
-                )
-                print(f"[bundle_segment] First 300 chars: {repr(content[:300])}")
-                return {"type": "article-excerpt", "content": content}
+                return {"type": "article-excerpt", "content": result.content}
             return {"type": "article-excerpt", "content": ""}
 
         elif isinstance(segment, VideoExcerptSegment):

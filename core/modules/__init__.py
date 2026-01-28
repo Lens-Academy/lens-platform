@@ -1,20 +1,11 @@
 """Module management package."""
 
+# Stage types for chat context (v1 chat system)
 from .types import (
     ArticleStage,
     VideoStage,
     ChatStage,
     Stage,
-    Module,
-    NarrativeModule,
-    NarrativeSection,
-    NarrativeSegment,
-    TextSection,
-    ArticleSection,
-    VideoSection,
-    TextSegment,
-    ArticleExcerptSegment,
-    VideoExcerptSegment,
 )
 from .loader import (
     load_module,
@@ -29,13 +20,10 @@ from .content import (
     load_video_transcript,
     load_video_transcript_with_metadata,
     load_article_with_metadata,
-    bundle_narrative_module,
     ArticleContent,
     ArticleMetadata,
     VideoTranscriptContent,
     VideoTranscriptMetadata,
-    get_stage_title,
-    get_stage_duration,
 )
 from .chat import send_module_message, get_stage_content
 from .llm import DEFAULT_PROVIDER
@@ -50,40 +38,32 @@ from .course_loader import (
 )
 
 __all__ = [
+    # Stage types for chat context
     "ArticleStage",
     "VideoStage",
     "ChatStage",
     "Stage",
-    "Module",
-    "NarrativeModule",
-    "NarrativeSection",
-    "NarrativeSegment",
-    "TextSection",
-    "ArticleSection",
-    "VideoSection",
-    "TextSegment",
-    "ArticleExcerptSegment",
-    "VideoExcerptSegment",
+    # Module loading
     "load_module",
     "load_narrative_module",
     "load_flattened_module",
     "get_available_modules",
     "ModuleNotFoundError",
+    # Content loading
     "load_article",
     "extract_article_section",
     "load_video_transcript",
     "load_video_transcript_with_metadata",
     "load_article_with_metadata",
-    "bundle_narrative_module",
     "ArticleContent",
     "ArticleMetadata",
     "VideoTranscriptContent",
     "VideoTranscriptMetadata",
-    "get_stage_title",
-    "get_stage_duration",
+    # Chat
     "send_module_message",
     "get_stage_content",
     "DEFAULT_PROVIDER",
+    # Course
     "load_course",
     "get_next_module",
     "get_all_module_slugs",

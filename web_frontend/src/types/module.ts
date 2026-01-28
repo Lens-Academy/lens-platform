@@ -128,26 +128,9 @@ export type LensArticleSection = {
   optional: boolean;
 };
 
-// v1 section types (kept for backward compatibility during migration)
-export type LensReference = {
-  source: string;
-  optional: boolean;
-};
-
-export type LearningOutcomeSection = {
-  type: "learning-outcome";
-  source: string;
-  optional: boolean;
-};
-
-export type UncategorizedSection = {
-  type: "uncategorized";
-  lenses: LensReference[];
-};
-
 // Union of all section types
 // v2 types: page, lens-video, lens-article (flattened, ready to render)
-// v1 types: text, article, video, chat, learning-outcome, uncategorized (legacy)
+// v1 types: text, article, video, chat (legacy, still used for v1 content)
 export type ModuleSection =
   | PageSection
   | LensVideoSection
@@ -155,9 +138,7 @@ export type ModuleSection =
   | TextSection
   | ArticleSection
   | VideoSection
-  | ChatSection
-  | LearningOutcomeSection
-  | UncategorizedSection;
+  | ChatSection;
 
 // Full module definition
 export type Module = {

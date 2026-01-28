@@ -13,17 +13,12 @@ from core.modules.course_loader import (
     CourseNotFoundError,
     _extract_slug_from_path,
 )
-from core.modules.markdown_parser import ModuleRef, MeetingMarker, ParsedModule
+from core.modules.markdown_parser import ModuleRef, MeetingMarker
 from core.modules import (
     load_narrative_module,
     ModuleNotFoundError,
 )
-from core.modules.markdown_parser import (
-    VideoSection,
-    ArticleSection,
-    TextSection,
-    ChatSection,
-)
+from core.modules.flattened_types import FlattenedModule
 from core.modules.progress import get_module_progress
 from web_api.auth import get_optional_user
 from core import get_or_create_user
@@ -32,7 +27,7 @@ router = APIRouter(prefix="/api/courses", tags=["courses"])
 
 
 def get_module_status_from_lenses(
-    parsed_module: ParsedModule, progress_map: dict[UUID, dict]
+    parsed_module: FlattenedModule, progress_map: dict[UUID, dict]
 ) -> tuple[str, int, int]:
     """Calculate module status from lens completion progress.
 
@@ -134,7 +129,7 @@ async def get_course_progress(
 
     # First pass: collect all lens UUIDs from parsed modules and load parsed modules
     all_lens_ids: list[UUID] = []
-    parsed_modules: dict[str, ParsedModule] = {}
+    parsed_modules: dict[str, FlattenedModule] = {}
 
     for item in course.progression:
         if isinstance(item, ModuleRef):
@@ -198,20 +193,9 @@ async def get_course_progress(
             # Build sections info (named "stages" for API compatibility)
             stages = []
             for section in parsed.sections:
-                # Get section title based on type
-                if isinstance(section, (VideoSection, ArticleSection)):
-                    title = (
-                        section.source.split("/")[-1]
-                        .replace(".md", "")
-                        .replace("-", " ")
-                        .title()
-                    )
-                elif isinstance(section, TextSection):
-                    title = "Text"
-                elif isinstance(section, ChatSection):
-                    title = "Discussion"
-                else:
-                    title = section.type.title()
+                # Get section title from the flattened section
+                # All flattened sections have a title attribute
+                title = section.title or section.type.replace("-", " ").title()
 
                 # Check if this specific lens is completed
                 lens_completed = (

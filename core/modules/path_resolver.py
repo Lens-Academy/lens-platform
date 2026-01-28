@@ -24,7 +24,8 @@ def resolve_wiki_link(wiki_link: str) -> tuple[str, str]:
     """Resolve a wiki-link to (content_type, cache_key).
 
     Args:
-        wiki_link: A wiki-link like "[[../Learning Outcomes/AI Risks]]"
+        wiki_link: A wiki-link like "[[../Learning Outcomes/AI Risks]]" or just
+                   a path like "../Learning Outcomes/AI Risks"
 
     Returns:
         Tuple of (content_type, cache_key) where:
@@ -32,14 +33,15 @@ def resolve_wiki_link(wiki_link: str) -> tuple[str, str]:
         - cache_key is the filename stem used as the cache dictionary key
 
     Raises:
-        ValueError: If the wiki-link format is not recognized
+        ValueError: If the path's content type is not recognized
     """
-    # Extract path from [[...]] or ![[...]]
+    # Extract path from [[...]] or ![[...]] if present, otherwise use as-is
     match = re.search(r"!?\[\[([^\]]+)\]\]", wiki_link)
-    if not match:
-        raise ValueError(f"Invalid wiki-link format: {wiki_link}")
-
-    path = match.group(1)
+    if match:
+        path = match.group(1)
+    else:
+        # Treat input as a bare path
+        path = wiki_link
 
     # Determine content type from path
     path_lower = path.lower()

@@ -1,8 +1,6 @@
 # core/modules/tests/test_critic_markup.py
 """Tests for critic markup stripping (reject all changes behavior)."""
 
-import pytest
-
 from core.modules.critic_markup import strip_critic_markup
 
 
