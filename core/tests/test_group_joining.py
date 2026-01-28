@@ -389,7 +389,7 @@ class TestSyncAfterGroupChange:
 
             result = await sync_after_group_change(group_id=123)
 
-            mock_sync.assert_called_once_with(123)
+            mock_sync.assert_called_once_with(123, allow_create=False)
             assert result["new_group"] == {"discord": {}, "calendar": {}}
             assert result["old_group"] is None
 
@@ -408,8 +408,8 @@ class TestSyncAfterGroupChange:
 
             # Should sync old group first, then new group
             assert mock_sync.call_count == 2
-            mock_sync.assert_any_call(123)  # Old group
-            mock_sync.assert_any_call(456)  # New group
+            mock_sync.assert_any_call(123, allow_create=False)  # Old group
+            mock_sync.assert_any_call(456, allow_create=False)  # New group
 
             assert result["old_group"] == {"discord": {"revoked": 1}}
             assert result["new_group"] == {"discord": {"granted": 1}}
@@ -421,7 +421,7 @@ class TestSyncAfterGroupChange:
 
         call_order = []
 
-        async def track_calls(group_id):
+        async def track_calls(group_id, allow_create=False):
             call_order.append(group_id)
             return {"discord": {}}
 

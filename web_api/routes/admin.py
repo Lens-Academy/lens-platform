@@ -26,8 +26,8 @@ from pydantic import BaseModel
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import get_connection, get_transaction
+from core.group_joining import join_group
 from core.queries.groups import (
-    add_user_to_group,
     create_group,
     get_cohort_group_ids,
     get_cohort_groups_summary,
@@ -132,15 +132,35 @@ async def add_member_endpoint(
     """
     Add a user to a group.
 
+    If user is already in another group, removes them from the old group first.
     Automatically syncs Discord permissions, calendar, and sends notifications.
+    Uses admin_override to bypass capacity and timing restrictions.
     """
     async with get_transaction() as conn:
-        result = await add_user_to_group(conn, group_id, request.user_id)
+        result = await join_group(
+            conn, request.user_id, group_id, admin_override=True
+        )
+
+    if not result["success"]:
+        error = result["error"]
+        if error == "group_not_found":
+            raise HTTPException(status_code=404, detail="Group not found")
+        elif error == "already_in_group":
+            raise HTTPException(status_code=400, detail="User is already in this group")
+        else:
+            raise HTTPException(status_code=400, detail=f"Failed to add user: {error}")
+
+    previous_group_id = result.get("previous_group_id")
 
     # Sync after transaction commits
     await sync_after_group_change(group_id=group_id, user_id=request.user_id)
 
-    return {"status": "added", "group_user_id": result["group_user_id"]}
+    # Also sync the old group if user was moved
+    if previous_group_id:
+        await sync_after_group_change(group_id=previous_group_id)
+
+    status = "moved" if previous_group_id else "added"
+    return {"status": status, "group_id": result["group_id"]}
 
 
 @router.post("/groups/{group_id}/members/remove")
@@ -219,6 +239,41 @@ async def realize_cohort_endpoint(
         results.append({"group_id": group_id, "result": result})
 
     return {"realized": len(results), "results": results}
+
+
+@router.get("/cohorts")
+async def list_cohorts_endpoint(
+    admin: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """
+    List all cohorts for admin panel.
+    """
+    from sqlalchemy import select
+
+    from core.modules.course_loader import load_course
+    from core.tables import cohorts
+
+    async with get_connection() as conn:
+        result = await conn.execute(
+            select(
+                cohorts.c.cohort_id,
+                cohorts.c.cohort_name,
+                cohorts.c.course_slug,
+                cohorts.c.status,
+            ).order_by(cohorts.c.cohort_start_date.desc())
+        )
+        cohort_list = []
+        for row in result.mappings():
+            cohort = dict(row)
+            # Add course name for display
+            try:
+                course = load_course(cohort["course_slug"])
+                cohort["course_name"] = course.title
+            except Exception:
+                cohort["course_name"] = cohort["course_slug"]
+            cohort_list.append(cohort)
+
+    return {"cohorts": cohort_list}
 
 
 @router.get("/cohorts/{cohort_id}/groups")

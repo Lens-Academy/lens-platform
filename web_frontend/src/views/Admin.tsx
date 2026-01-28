@@ -9,6 +9,7 @@ import {
   getCohortGroups,
   syncCohort,
   realizeCohort,
+  addMemberToGroup,
   type UserSearchResult,
   type UserDetails,
   type GroupSummary,
@@ -37,6 +38,12 @@ export default function Admin() {
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  // Add/Change group state (for Users tab)
+  const [addGroupCohortId, setAddGroupCohortId] = useState<number | null>(null);
+  const [addGroupId, setAddGroupId] = useState<number | null>(null);
+  const [addGroupOptions, setAddGroupOptions] = useState<GroupSummary[]>([]);
+  const [isAddingToGroup, setIsAddingToGroup] = useState(false);
 
   // Groups tab state
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
@@ -79,21 +86,16 @@ export default function Admin() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery, performSearch]);
 
-  // Fetch cohorts on mount
+  // Fetch cohorts on mount (admin endpoint returns all cohorts)
   useEffect(() => {
     async function fetchCohorts() {
       try {
-        const res = await fetch(`${API_URL}/api/cohorts/available`, {
+        const res = await fetch(`${API_URL}/api/admin/cohorts`, {
           credentials: "include",
         });
         if (!res.ok) return;
         const data = await res.json();
-        // Combine enrolled and available cohorts
-        const allCohorts: Cohort[] = [
-          ...(data.enrolled || []),
-          ...(data.available || []),
-        ];
-        setCohorts(allCohorts);
+        setCohorts(data.cohorts || []);
       } catch {
         // Silently fail - cohorts will be empty
       }
@@ -155,6 +157,63 @@ export default function Admin() {
       setError(err instanceof Error ? err.message : "Sync failed");
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  // Pre-select cohort when user with a group is selected
+  useEffect(() => {
+    if (selectedUser?.cohort_id) {
+      setAddGroupCohortId(selectedUser.cohort_id);
+    } else {
+      setAddGroupCohortId(null);
+      setAddGroupId(null);
+    }
+  }, [selectedUser?.user_id]);
+
+  // Load groups when cohort is selected for adding user
+  useEffect(() => {
+    if (!addGroupCohortId) {
+      setAddGroupOptions([]);
+      setAddGroupId(null);
+      return;
+    }
+
+    async function loadGroups() {
+      try {
+        const groups = await getCohortGroups(addGroupCohortId!);
+        setAddGroupOptions(groups);
+        setAddGroupId(null);
+      } catch {
+        setAddGroupOptions([]);
+      }
+    }
+    loadGroups();
+  }, [addGroupCohortId]);
+
+  // Handle adding user to group
+  const handleAddToGroup = async () => {
+    if (!selectedUser || !addGroupId) return;
+
+    setIsAddingToGroup(true);
+    setSyncMessage(null);
+    setError(null);
+    try {
+      await addMemberToGroup(addGroupId, selectedUser.user_id);
+      const action = selectedUser.group_id ? "moved to" : "added to";
+      const groupName =
+        addGroupOptions.find((g) => g.group_id === addGroupId)?.group_name ||
+        "group";
+      setSyncMessage(`User ${action} ${groupName}`);
+      // Refresh user details
+      const updatedUser = await getUserDetails(selectedUser.user_id);
+      setSelectedUser(updatedUser);
+      // Reset selection
+      setAddGroupCohortId(null);
+      setAddGroupId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add to group");
+    } finally {
+      setIsAddingToGroup(false);
     }
   };
 
@@ -455,6 +514,91 @@ export default function Admin() {
                   </p>
                 </div>
               )}
+
+              {/* Add/Change Group */}
+              <div className="mt-6 pt-4 border-t">
+                <h3 className="font-medium mb-3">
+                  {selectedUser.group_id ? "Change Group" : "Add to Group"}
+                </h3>
+
+                <div className="space-y-3">
+                  {/* Cohort selector */}
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Cohort
+                    </label>
+                    <select
+                      value={addGroupCohortId || ""}
+                      onChange={(e) =>
+                        setAddGroupCohortId(
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
+                      className="border rounded px-3 py-2 w-full"
+                    >
+                      <option value="">Select a cohort...</option>
+                      {cohorts.map((c) => (
+                        <option key={c.cohort_id} value={c.cohort_id}>
+                          {c.cohort_name}
+                          {c.course_name ? ` (${c.course_name})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Group selector */}
+                  {addGroupCohortId && (
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        Group
+                      </label>
+                      <select
+                        value={addGroupId || ""}
+                        onChange={(e) =>
+                          setAddGroupId(
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                        className="border rounded px-3 py-2 w-full"
+                        disabled={addGroupOptions.length === 0}
+                      >
+                        <option value="">
+                          {addGroupOptions.length === 0
+                            ? "No groups in this cohort"
+                            : "Select a group..."}
+                        </option>
+                        {addGroupOptions.map((g) => (
+                          <option key={g.group_id} value={g.group_id}>
+                            {g.group_name} ({g.member_count} members)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Submit button */}
+                  {addGroupId && (
+                    <button
+                      onClick={handleAddToGroup}
+                      disabled={isAddingToGroup}
+                      className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:bg-green-400"
+                    >
+                      {isAddingToGroup
+                        ? "Adding..."
+                        : selectedUser.group_id
+                          ? "Change Group"
+                          : "Add to Group"}
+                    </button>
+                  )}
+                </div>
+
+                {selectedUser.group_id && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    Changing groups will remove the user from their current
+                    group and add them to the new one.
+                  </p>
+                )}
+              </div>
             </div>
           ) : null}
         </div>

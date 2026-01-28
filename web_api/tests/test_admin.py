@@ -265,7 +265,8 @@ class TestAdminMemberAdd:
 
     @patch("web_api.routes.admin.get_transaction")
     @patch("web_api.routes.admin.sync_after_group_change")
-    def test_adds_user_to_group(self, mock_sync, mock_get_tx):
+    @patch("web_api.routes.admin.join_group")
+    def test_adds_user_to_group(self, mock_join, mock_sync, mock_get_tx):
         """Should add user to group and sync."""
         from web_api.routes.admin import router
         from fastapi import FastAPI
@@ -281,18 +282,96 @@ class TestAdminMemberAdd:
         mock_conn.__aexit__.return_value = None
         mock_get_tx.return_value = mock_conn
 
-        with patch("web_api.routes.admin.add_user_to_group") as mock_add:
-            mock_add.return_value = {"group_user_id": 100, "group_id": 5, "user_id": 2}
+        # User not in any group, successfully added
+        mock_join.return_value = {
+            "success": True,
+            "group_id": 5,
+            "previous_group_id": None,
+        }
 
-            client = TestClient(app)
-            response = client.post(
-                "/api/admin/groups/5/members/add",
-                json={"user_id": 2},
-            )
+        client = TestClient(app)
+        response = client.post(
+            "/api/admin/groups/5/members/add",
+            json={"user_id": 2},
+        )
 
-            assert response.status_code == 200
-            mock_add.assert_called_once()
-            mock_sync.assert_called_once()
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "added"
+        mock_join.assert_called_once_with(mock_conn, 2, 5, admin_override=True)
+        mock_sync.assert_called_once()
+
+    @patch("web_api.routes.admin.get_transaction")
+    @patch("web_api.routes.admin.sync_after_group_change")
+    @patch("web_api.routes.admin.join_group")
+    def test_moves_user_between_groups(self, mock_join, mock_sync, mock_get_tx):
+        """Should move user from old group to new group."""
+        from web_api.routes.admin import router
+        from fastapi import FastAPI
+
+        app = FastAPI()
+        app.include_router(router)
+
+        # Override require_admin dependency to return mock admin user
+        app.dependency_overrides[require_admin] = lambda: {"user_id": 1}
+
+        mock_conn = AsyncMock()
+        mock_conn.__aenter__.return_value = mock_conn
+        mock_conn.__aexit__.return_value = None
+        mock_get_tx.return_value = mock_conn
+
+        # User was in group 3, moved to group 5
+        mock_join.return_value = {
+            "success": True,
+            "group_id": 5,
+            "previous_group_id": 3,
+        }
+
+        client = TestClient(app)
+        response = client.post(
+            "/api/admin/groups/5/members/add",
+            json={"user_id": 2},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "moved"
+        # Sync should be called twice: once for new group, once for old group
+        assert mock_sync.call_count == 2
+
+    @patch("web_api.routes.admin.get_transaction")
+    @patch("web_api.routes.admin.sync_after_group_change")
+    @patch("web_api.routes.admin.join_group")
+    def test_rejects_adding_to_same_group(self, mock_join, mock_sync, mock_get_tx):
+        """Should return 400 when trying to add user to group they're already in."""
+        from web_api.routes.admin import router
+        from fastapi import FastAPI
+
+        app = FastAPI()
+        app.include_router(router)
+
+        # Override require_admin dependency to return mock admin user
+        app.dependency_overrides[require_admin] = lambda: {"user_id": 1}
+
+        mock_conn = AsyncMock()
+        mock_conn.__aenter__.return_value = mock_conn
+        mock_conn.__aexit__.return_value = None
+        mock_get_tx.return_value = mock_conn
+
+        # join_group returns error when user is already in group
+        mock_join.return_value = {
+            "success": False,
+            "error": "already_in_group",
+        }
+
+        client = TestClient(app)
+        response = client.post(
+            "/api/admin/groups/5/members/add",
+            json={"user_id": 2},
+        )
+
+        assert response.status_code == 400
+        assert "already in this group" in response.json()["detail"]
 
 
 class TestAdminMemberRemove:

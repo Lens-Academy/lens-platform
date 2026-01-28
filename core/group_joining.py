@@ -257,6 +257,7 @@ async def join_group(
     user_id: int,
     group_id: int,
     role: str = "participant",
+    admin_override: bool = False,
 ) -> dict[str, Any]:
     """
     Join a group (or switch to a different group).
@@ -274,6 +275,7 @@ async def join_group(
         user_id: User joining the group
         group_id: Target group
         role: "participant" or "facilitator"
+        admin_override: If True, bypass capacity and timing validations (for admin use)
 
     Returns:
         {"success": True, "group_id": int, "previous_group_id": int | None}
@@ -342,8 +344,8 @@ async def join_group(
     if not target_group:
         return {"success": False, "error": "group_not_found"}
 
-    # Check if group is full (8 is max capacity)
-    if target_group["member_count"] >= 8:
+    # Check if group is full (8 is max capacity) - admin can override
+    if not admin_override and target_group["member_count"] >= 8:
         return {"success": False, "error": "group_full"}
 
     first_meeting_at = target_group.get("first_meeting_at")
@@ -352,9 +354,14 @@ async def join_group(
     if current_group and current_group["group_id"] == group_id:
         return {"success": False, "error": "already_in_group"}
 
-    # If user has no current group and group has started, reject
+    # If user has no current group and group has started, reject - admin can override
     now = datetime.now(timezone.utc)
-    if not current_group and first_meeting_at and first_meeting_at < now:
+    if (
+        not admin_override
+        and not current_group
+        and first_meeting_at
+        and first_meeting_at < now
+    ):
         return {"success": False, "error": "group_already_started"}
 
     # === LEAVE OLD GROUP (if switching) ===
