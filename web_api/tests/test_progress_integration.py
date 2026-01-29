@@ -164,7 +164,7 @@ class TestProgressValidation:
         anonymous_token = random_uuid_str()
         # Patch both the database connection and the function to avoid actual DB calls
         with patch(
-            "web_api.routes.progress.get_connection", return_value=mock_db_connection()
+            "web_api.routes.progress.get_transaction", return_value=mock_db_connection()
         ):
             response = make_complete_request(
                 content_id=random_uuid_str(),
@@ -211,7 +211,7 @@ class TestProgressValidation:
         for content_type in valid_types:
             with (
                 patch(
-                    "web_api.routes.progress.get_connection",
+                    "web_api.routes.progress.get_transaction",
                     return_value=mock_db_connection(),
                 ),
                 patch(
@@ -244,7 +244,7 @@ class TestAnonymousProgress:
 
         with (
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -280,7 +280,7 @@ class TestAnonymousProgress:
 
         with (
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -303,7 +303,7 @@ class TestAnonymousProgress:
 
         with (
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -339,7 +339,7 @@ class TestAuthenticatedProgress:
                 "web_api.routes.progress.get_or_create_user", new_callable=AsyncMock
             ) as mock_user,
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -398,7 +398,7 @@ class TestClaimRecords:
                 "web_api.routes.progress.get_or_create_user", new_callable=AsyncMock
             ) as mock_user,
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -439,7 +439,7 @@ class TestModuleProgressResponse:
 
         with (
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -480,7 +480,7 @@ class TestModuleProgressResponse:
 
         with (
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -522,7 +522,7 @@ class TestModuleProgressResponse:
 
         with (
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -566,7 +566,7 @@ class TestProgressEdgeCases:
         # First call
         with (
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -587,7 +587,7 @@ class TestProgressEdgeCases:
         # Second call (same content, new context managers)
         with (
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -617,7 +617,7 @@ class TestProgressEdgeCases:
 
         with (
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -640,7 +640,7 @@ class TestProgressEdgeCases:
 
         with (
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch("web_api.routes.progress.update_time_spent", new_callable=AsyncMock),
@@ -659,7 +659,7 @@ class TestProgressEdgeCases:
 
         with (
             patch(
-                "web_api.routes.progress.get_connection",
+                "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(

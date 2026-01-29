@@ -120,7 +120,7 @@ class TestModuleProgressAuthentication:
 
         with (
             patch(
-                "web_api.routes.modules.get_connection",
+                "web_api.routes.modules.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -238,7 +238,7 @@ class TestModuleProgressUpdate:
 
         with (
             patch(
-                "web_api.routes.modules.get_connection",
+                "web_api.routes.modules.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -288,7 +288,7 @@ class TestModuleProgressUpdate:
 
         with (
             patch(
-                "web_api.routes.modules.get_connection",
+                "web_api.routes.modules.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -336,7 +336,7 @@ class TestModuleProgressUpdate:
 
         with (
             patch(
-                "web_api.routes.modules.get_connection",
+                "web_api.routes.modules.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -391,7 +391,11 @@ class TestModuleProgressAuthenticated:
                 new_callable=AsyncMock,
             ) as mock_auth,
             patch(
-                "web_api.routes.modules.get_connection",
+                "web_api.routes.modules.get_or_create_user",
+                new_callable=AsyncMock,
+            ) as mock_get_user,
+            patch(
+                "web_api.routes.modules.get_transaction",
                 return_value=mock_db_connection(),
             ),
             patch(
@@ -403,7 +407,10 @@ class TestModuleProgressAuthenticated:
                 new_callable=AsyncMock,
             ),
         ):
-            mock_auth.return_value = {"user_id": 42, "sub": "123456789"}
+            # JWT only has 'sub' (Discord ID), not 'user_id'
+            mock_auth.return_value = {"sub": "123456789"}
+            # get_or_create_user looks up/creates the database user
+            mock_get_user.return_value = {"user_id": 42}
             mock_progress.return_value = {
                 "id": 1,
                 "content_id": UUID(content_id),

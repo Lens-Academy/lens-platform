@@ -23,6 +23,25 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+def _strip_critic_markup(text: str) -> str:
+    """
+    Strip critic markup from text using "reject all changes" behavior.
+
+    Critic markup types:
+    - {>>comment<<}     → remove entirely
+    - {++addition++}    → remove entirely (reject the addition)
+    - {--deletion--}    → keep inner content (reject the deletion)
+    - {~~old~>new~~}    → keep old, discard new (reject the substitution)
+    - {==highlight==}   → keep inner content, remove markers
+    """
+    text = re.sub(r"\{>>.*?<<\}", "", text, flags=re.DOTALL)
+    text = re.sub(r"\{\+\+.*?\+\+\}", "", text, flags=re.DOTALL)
+    text = re.sub(r"\{--(.*?)--\}", r"\1", text, flags=re.DOTALL)
+    text = re.sub(r"\{~~(.*?)~>.*?~~\}", r"\1", text, flags=re.DOTALL)
+    text = re.sub(r"\{==(.*?)==\}", r"\1", text, flags=re.DOTALL)
+    return text
+
+
 @dataclass
 class ValidationError:
     """A single validation error."""
@@ -200,10 +219,8 @@ def validate_module(text: str) -> list[ValidationError]:
     Returns:
         List of ValidationError objects (empty if valid)
     """
-    from core.modules.critic_markup import strip_critic_markup
-
     # Strip critic markup before validation
-    text = strip_critic_markup(text)
+    text = _strip_critic_markup(text)
 
     errors: list[ValidationError] = []
 
@@ -786,10 +803,8 @@ def validate_learning_outcome(text: str) -> list[ValidationError]:
     Returns:
         List of ValidationError objects (empty if valid)
     """
-    from core.modules.critic_markup import strip_critic_markup
-
     # Strip critic markup before validation
-    text = strip_critic_markup(text)
+    text = _strip_critic_markup(text)
 
     errors: list[ValidationError] = []
 
@@ -903,10 +918,8 @@ def validate_lens(text: str) -> list[ValidationError]:
     Returns:
         List of ValidationError objects (empty if valid)
     """
-    from core.modules.critic_markup import strip_critic_markup
-
     # Strip critic markup before validation
-    text = strip_critic_markup(text)
+    text = _strip_critic_markup(text)
 
     errors: list[ValidationError] = []
 
