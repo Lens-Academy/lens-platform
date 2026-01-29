@@ -30,6 +30,9 @@ class ContentCache:
     articles: dict[str, str]  # path -> raw markdown (for metadata extraction)
     video_transcripts: dict[str, str]  # path -> raw markdown (for metadata extraction)
     last_refreshed: datetime
+    video_timestamps: dict[str, list[dict]] | None = (
+        None  # video_id -> timestamp word list
+    )
     last_commit_sha: str | None = None  # Git commit SHA of current cache state
 
 

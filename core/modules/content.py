@@ -1,8 +1,11 @@
 # core/modules/content.py
 """Content loading and extraction utilities."""
 
+import logging
 import re
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 def extract_video_id_from_url(url: str) -> str:
@@ -743,7 +746,11 @@ def bundle_video_section(section) -> dict:
             to_seconds = _parse_time_to_seconds(seg.to_time) if seg.to_time else 99999
             try:
                 transcript = get_text_at_time(video_id, from_seconds, to_seconds)
-            except (FileNotFoundError, TypeError):
+            except (FileNotFoundError, TypeError) as e:
+                logger.warning(
+                    f"Failed to load transcript for video {video_id} "
+                    f"(time {from_seconds}-{to_seconds}): {e}"
+                )
                 transcript = ""
             bundled_segments.append(
                 {
@@ -856,7 +863,11 @@ def bundle_narrative_module(module) -> dict:
                         from_seconds,
                         to_seconds,
                     )
-                except FileNotFoundError:
+                except FileNotFoundError as e:
+                    logger.warning(
+                        f"Failed to load transcript for video {video_id} "
+                        f"(time {from_seconds}-{to_seconds}): {e}"
+                    )
                     transcript = ""
                 return {
                     "type": "video-excerpt",

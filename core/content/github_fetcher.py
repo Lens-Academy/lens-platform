@@ -1,6 +1,7 @@
 """Fetch educational content from GitHub repository."""
 
 import base64
+import json
 import logging
 import os
 from dataclasses import dataclass
@@ -311,7 +312,7 @@ class CacheContentLookup(ContentLookup):
         import re
 
         # Remove quotes if present
-        url = url.strip('"\'')
+        url = url.strip("\"'")
         # Match youtube.com/watch?v=ID or youtu.be/ID
         match = re.search(r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]+)", url)
         return match.group(1) if match else ""
@@ -384,6 +385,46 @@ async def fetch_all_content() -> ContentCache:
                 content = await _fetch_file_with_client(client, path)
                 video_transcripts[path] = content
 
+        # Fetch video timestamps (.timestamps.json files for transcript lookup)
+        # Timestamps are keyed by YouTube video_id, extracted from corresponding .md frontmatter
+        video_timestamps: dict[str, list[dict]] = {}
+        for path in transcript_files:
+            if path.endswith(".timestamps.json"):
+                try:
+                    content = await _fetch_file_with_client(client, path)
+                    timestamps_data = json.loads(content)
+
+                    # Find corresponding .md file to get video_id from frontmatter
+                    # e.g., "video_transcripts/foo.timestamps.json" -> "video_transcripts/foo.md"
+                    md_path = path.replace(".timestamps.json", ".md")
+                    if md_path in video_transcripts:
+                        md_content = video_transcripts[md_path]
+                        metadata = _parse_frontmatter(md_content)
+                        video_id = metadata.get("video_id", "")
+                        # Also check url field for video_id
+                        if not video_id and metadata.get("url"):
+                            url = metadata["url"].strip("\"'")
+                            import re
+
+                            match = re.search(
+                                r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]+)",
+                                url,
+                            )
+                            if match:
+                                video_id = match.group(1)
+
+                        if video_id:
+                            video_timestamps[video_id] = timestamps_data
+                            logger.debug(f"Loaded timestamps for video {video_id}")
+                        else:
+                            logger.warning(
+                                f"No video_id found in frontmatter for {md_path}"
+                            )
+                    else:
+                        logger.warning(f"No matching .md file for timestamps: {path}")
+                except Exception as e:
+                    logger.warning(f"Failed to parse timestamps {path}: {e}")
+
         # Fetch and parse learning outcomes (store by filename stem)
         learning_outcome_files = await _list_directory_with_client(
             client, "Learning Outcomes"
@@ -440,6 +481,7 @@ async def fetch_all_content() -> ContentCache:
             parsed_lenses=parsed_lenses,
             articles=articles,
             video_transcripts=video_transcripts,
+            video_timestamps=video_timestamps,
             last_refreshed=datetime.now(),
             last_commit_sha=commit_sha,
         )
@@ -547,6 +589,7 @@ async def initialize_cache() -> None:
     print(f"  Loaded {len(cache.flattened_modules)} modules (flattened)")
     print(f"  Loaded {len(cache.articles)} articles")
     print(f"  Loaded {len(cache.video_transcripts)} video transcripts")
+    print(f"  Loaded {len(cache.video_timestamps)} video timestamps")
     print(f"  Loaded {len(cache.parsed_learning_outcomes)} learning outcomes (parsed)")
     print(f"  Loaded {len(cache.parsed_lenses)} lenses (parsed)")
     print("Content cache initialized")

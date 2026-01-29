@@ -3,11 +3,11 @@
 Module chat - Claude SDK integration with stage-aware prompting.
 """
 
+import logging
 import os
 from typing import AsyncIterator
 
 from .llm import stream_chat
-
 from .types import Stage, ArticleStage, VideoStage, ChatStage
 from .content import (
     load_article_with_metadata,
@@ -16,6 +16,8 @@ from .content import (
     ArticleMetadata,
 )
 from ..transcripts.tools import get_text_at_time
+
+logger = logging.getLogger(__name__)
 
 
 # Tool for transitioning to next stage (OpenAI function calling format)
@@ -102,7 +104,8 @@ def get_stage_content(stage: Stage) -> ArticleContent | None:
                 stage.from_text,
                 stage.to_text,
             )
-        except FileNotFoundError:
+        except FileNotFoundError as e:
+            logger.warning(f"Article not found for stage {stage.source}: {e}")
             return None
 
     elif isinstance(stage, VideoStage):
@@ -112,6 +115,7 @@ def get_stage_content(stage: Stage) -> ArticleContent | None:
             video_id = transcript_data.metadata.video_id
 
             if not video_id:
+                logger.warning(f"No video_id found for video stage {stage.source}")
                 return None
 
             # Get transcript text for the time range
@@ -129,7 +133,11 @@ def get_stage_content(stage: Stage) -> ArticleContent | None:
                 ),
                 is_excerpt=stage.from_seconds > 0 or stage.to_seconds is not None,
             )
-        except FileNotFoundError:
+        except FileNotFoundError as e:
+            logger.warning(
+                f"Transcript not found for video {stage.source} "
+                f"(time {stage.from_seconds}-{stage.to_seconds}): {e}"
+            )
             return None
 
     return None

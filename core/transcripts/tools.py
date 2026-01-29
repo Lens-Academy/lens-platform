@@ -92,6 +92,28 @@ def find_transcript_timestamps(
     return matches[0]
 
 
+def get_text_at_time_from_data(
+    words: list[dict],
+    start: float,
+    end: float,
+) -> str:
+    """
+    Get transcript text between timestamps from pre-loaded data.
+
+    Args:
+        words: List of word dicts with "text" and "start" keys
+        start: Start time in seconds
+        end: End time in seconds
+
+    Returns:
+        Text spoken between start and end times
+    """
+    words_in_range = [
+        w["text"] for w in words if start <= _parse_timestamp(w["start"]) <= end
+    ]
+    return " ".join(words_in_range)
+
+
 def get_text_at_time(
     video_id: str,
     start: float,
@@ -101,23 +123,37 @@ def get_text_at_time(
     """
     Get transcript text between timestamps.
 
+    First tries the in-memory content cache (populated from GitHub).
+    Falls back to local filesystem if cache is unavailable.
+
     Args:
         video_id: YouTube video ID
         start: Start time in seconds
         end: End time in seconds
-        search_dir: Directory to search (default: educational_content_deprecated/video_transcripts/)
+        search_dir: Directory to search (only used as fallback if cache unavailable)
 
     Returns:
         Text spoken between start and end times
+
+    Raises:
+        FileNotFoundError: If no timestamps found for this video in cache or filesystem
     """
+    # Try the content cache first
+    try:
+        from core.content.cache import get_cache, CacheNotInitializedError
+
+        cache = get_cache()
+        if cache.video_timestamps and video_id in cache.video_timestamps:
+            words = cache.video_timestamps[video_id]
+            return get_text_at_time_from_data(words, start, end)
+    except CacheNotInitializedError:
+        # Cache not available - fall back to filesystem
+        pass
+
+    # Fallback to filesystem (for tests and local development)
     timestamps_path = find_transcript_timestamps(video_id, search_dir)
     words = json.loads(timestamps_path.read_text())
-
-    words_in_range = [
-        w["text"] for w in words if start <= _parse_timestamp(w["start"]) <= end
-    ]
-
-    return " ".join(words_in_range)
+    return get_text_at_time_from_data(words, start, end)
 
 
 def normalize_for_matching(text: str) -> str:
