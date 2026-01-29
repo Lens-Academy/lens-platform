@@ -70,7 +70,6 @@ export function Tooltip({
     return children;
   }
 
-   
   const childWithRef = cloneElement(children, {
     ref: refs.setReference,
     ...getReferenceProps({

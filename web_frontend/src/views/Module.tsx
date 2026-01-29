@@ -218,10 +218,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       // v2 types: page, lens-video, lens-article
       // v1 types: text, article, video, chat
       let stageType: "article" | "video" | "chat";
-      if (
-        section.type === "video" ||
-        section.type === "lens-video"
-      ) {
+      if (section.type === "video" || section.type === "lens-video") {
         stageType = "video";
       } else if (
         section.type === "article" ||
@@ -240,7 +237,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           ? `Section ${index + 1}`
           : section.type === "page"
             ? section.meta?.title || `Page ${index + 1}`
-            : section.meta?.title || `${section.type || "Section"} ${index + 1}`;
+            : section.meta?.title ||
+              `${section.type || "Section"} ${index + 1}`;
 
       if (stageType === "article") {
         return {

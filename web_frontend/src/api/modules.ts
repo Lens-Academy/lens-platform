@@ -158,9 +158,7 @@ export async function* sendMessage(
 /**
  * Fetch chat history for a module.
  */
-export async function getChatHistory(
-  slug: string,
-): Promise<{
+export async function getChatHistory(slug: string): Promise<{
   sessionId: number;
   messages: Array<{ role: string; content: string }>;
 }> {

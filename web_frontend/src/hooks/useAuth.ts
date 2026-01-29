@@ -92,9 +92,12 @@ export function useAuth(): UseAuthReturn {
           try {
             const anonymousToken = getAnonymousToken();
             const result = await claimSessionRecords(anonymousToken);
-            if (result.progress_records_claimed > 0 || result.chat_sessions_claimed > 0) {
+            if (
+              result.progress_records_claimed > 0 ||
+              result.chat_sessions_claimed > 0
+            ) {
               console.log(
-                `[Auth] Claimed ${result.progress_records_claimed} progress records and ${result.chat_sessions_claimed} chat sessions`
+                `[Auth] Claimed ${result.progress_records_claimed} progress records and ${result.chat_sessions_claimed} chat sessions`,
               );
             }
           } catch (error) {
@@ -162,7 +165,6 @@ export function useAuth(): UseAuthReturn {
   }, []);
 
   useEffect(() => {
-     
     fetchUser();
   }, [fetchUser]);
 

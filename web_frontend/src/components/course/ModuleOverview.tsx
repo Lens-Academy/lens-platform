@@ -175,7 +175,8 @@ export default function ModuleOverview({
                       {stage.type === "chat"
                         ? "Discuss with AI tutor"
                         : stage.duration ||
-                          (stage.type === "article" || stage.type === "lens-article"
+                          (stage.type === "article" ||
+                          stage.type === "lens-article"
                             ? "Article"
                             : stage.type === "page"
                               ? "Page"

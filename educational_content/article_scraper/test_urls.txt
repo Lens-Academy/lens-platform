@@ -1,0 +1,39 @@
+# Test URLs for Article Extraction
+# Format: URL | Category | Expected Difficulty | Notes
+#
+# Run with: python extract_article.py "URL" /tmp/test-output.md
+
+# === Simple Blog Posts (should work well with trafilatura) ===
+https://www.cold-takes.com/most-important-century/ | blog | easy | Holden Karnofsky, clean layout
+https://www.lesswrong.com/posts/uMQ3cqWDPHhjtiesc/agi-ruin-a-list-of-lethalities | forum | easy | LessWrong, standard format
+
+
+# === AI Safety Specific Content ===
+https://intelligence.org/2017/10/13/fire-alarm/ | org-site | easy | MIRI, Eliezer Yudkowsky
+https://www.alignmentforum.org/posts/pRkFkzwKZ2zfa3R6H/without-specific-countermeasures-the-easiest-path-to | forum | easy | Alignment Forum
+https://80000hours.org/problem-profiles/artificial-intelligence/ | org-site | medium | 80K Hours, longer form
+
+https://www.governance.ai/post/computing-power-and-the-governance-of-ai
+
+# === News/Media Sites (ads, complex layouts) ===
+https://www.nytimes.com/2023/05/01/technology/ai-google-chatbot-engineer-quits-hinton.html | news | medium | NYT, may have paywall
+https://www.theatlantic.com/technology/archive/2023/06/ai-regulation-sam-altman-congress/674278/ | news | medium | Atlantic, metered paywall
+
+
+# === Academic/Research (structured, but sometimes PDF-like) ===
+https://distill.pub/2020/circuits/zoom-in/ | academic | medium | Distill, interactive elements
+https://transformer-circuits.pub/2022/mech-interp-essay/index.html | academic | medium | Anthropic research
+
+# === Image-Heavy Articles ===
+https://waitbutwhy.com/2015/01/artificial-intelligence-revolution-1.html | blog | medium | Tim Urban, many images
+https://www.newyorker.com/magazine/2023/11/20/a-coder-considers-the-waning-days-of-the-craft | magazine | hard | New Yorker, images + complex layout
+
+
+# === PDFs (need special handling) ===
+https://intelligence.org/files/IE-EI.pdf | pdf | hard | MIRI, Intelligence Explosion paper
+
+
+# === Edge Cases ===
+https://en.wikipedia.org/wiki/Existential_risk_from_artificial_general_intelligence | wiki | easy | Wikipedia, very structured
+https://forum.effectivealtruism.org/posts/cXBznkfoPJAjacFoT/are-you-really-in-a-much-better-position-to-give | forum | easy | EA Forum
+https://gwern.net/scaling-hypothesis | personal | medium | Gwern, unique formatting

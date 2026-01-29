@@ -51,7 +51,6 @@ export function Popover({
     return children;
   }
 
-   
   const childWithRef = cloneElement(children, {
     ref: refs.setReference,
     ...getReferenceProps(),
