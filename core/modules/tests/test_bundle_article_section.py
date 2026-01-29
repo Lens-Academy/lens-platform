@@ -322,3 +322,30 @@ C"""
 
         assert len(result["segments"]) == 1
         assert result["segments"][0]["type"] == "text"
+
+    def test_chat_segment_uses_hide_fields(self):
+        """Chat segments should use hidePreviousContentFromUser/Tutor, not show* fields."""
+        section = ArticleSection(
+            source=TEST_ARTICLE_SOURCE,
+            segments=[
+                ArticleExcerptSegment(from_text="A", to_text="B"),
+                ChatSegment(
+                    instructions="Discuss this",
+                    hide_previous_content_from_user=True,
+                    hide_previous_content_from_tutor=False,
+                ),
+            ],
+        )
+
+        result = bundle_article_section(section)
+
+        chat_seg = result["segments"][1]
+        assert chat_seg["type"] == "chat"
+        # Should have hide* fields, not show* fields
+        assert "hidePreviousContentFromUser" in chat_seg
+        assert "hidePreviousContentFromTutor" in chat_seg
+        assert chat_seg["hidePreviousContentFromUser"] is True
+        assert chat_seg["hidePreviousContentFromTutor"] is False
+        # Should NOT have show* fields
+        assert "showUserPreviousContent" not in chat_seg
+        assert "showTutorPreviousContent" not in chat_seg

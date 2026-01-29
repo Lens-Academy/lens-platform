@@ -104,27 +104,24 @@ export async function getModule(moduleSlug: string): Promise<Module> {
 /**
  * Send a chat message and stream the response.
  *
- * Uses the stateless /api/chat/module endpoint which requires authentication.
- * Messages are managed client-side; the API just processes the conversation.
+ * Uses the /api/chat/module endpoint with position-based context.
+ * Backend owns chat history; we just send position and message.
  */
 export async function* sendMessage(
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
-  userMessage: string,
-  systemContext?: string,
+  slug: string,
+  sectionIndex: number,
+  segmentIndex: number,
+  message: string,
 ): AsyncGenerator<{ type: string; content?: string; name?: string }> {
-  // Build messages array with the new user message
-  const messages = [
-    ...conversationHistory.map((m) => ({ role: m.role, content: m.content })),
-    ...(userMessage ? [{ role: "user" as const, content: userMessage }] : []),
-  ];
-
   const res = await fetch(`${API_BASE}/api/chat/module`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify({
-      messages,
-      system_context: systemContext,
+      slug,
+      sectionIndex,
+      segmentIndex,
+      message,
     }),
   });
 
@@ -152,6 +149,28 @@ export async function* sendMessage(
       }
     }
   }
+}
+
+/**
+ * Fetch chat history for a module.
+ */
+export async function getChatHistory(
+  slug: string,
+): Promise<{
+  sessionId: number;
+  messages: Array<{ role: string; content: string }>;
+}> {
+  const res = await fetchWithTimeout(
+    `${API_BASE}/api/chat/module/${slug}/history`,
+    { credentials: "include" },
+  );
+  if (!res.ok) {
+    if (res.status === 401) {
+      return { sessionId: 0, messages: [] };
+    }
+    throw new Error("Failed to fetch chat history");
+  }
+  return res.json();
 }
 
 interface NextModuleResponse {

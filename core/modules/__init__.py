@@ -26,6 +26,7 @@ from .content import (
     VideoTranscriptMetadata,
 )
 from .chat import send_module_message, get_stage_content
+from .context import gather_section_context
 from .llm import DEFAULT_PROVIDER
 from .course_loader import (
     load_course,
@@ -63,6 +64,8 @@ __all__ = [
     "send_module_message",
     "get_stage_content",
     "DEFAULT_PROVIDER",
+    # Context gathering
+    "gather_section_context",
     # Course
     "load_course",
     "get_next_module",

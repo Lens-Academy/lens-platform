@@ -660,8 +660,8 @@ def bundle_article_section(section) -> dict:
                 {
                     "type": "chat",
                     "instructions": seg.instructions,
-                    "showUserPreviousContent": not seg.hide_previous_content_from_user,
-                    "showTutorPreviousContent": not seg.hide_previous_content_from_tutor,
+                    "hidePreviousContentFromUser": seg.hide_previous_content_from_user,
+                    "hidePreviousContentFromTutor": seg.hide_previous_content_from_tutor,
                 }
             )
 
@@ -740,26 +740,28 @@ def bundle_video_section(section) -> dict:
             bundled_segments.append({"type": "text", "content": seg.content})
         elif isinstance(seg, (VideoExcerptSegment, LensVideoExcerptSegment)):
             from_seconds = _parse_time_to_seconds(seg.from_time) if seg.from_time else 0
-            to_seconds = (
-                _parse_time_to_seconds(seg.to_time) if seg.to_time else 99999
-            )
+            to_seconds = _parse_time_to_seconds(seg.to_time) if seg.to_time else 99999
             try:
                 transcript = get_text_at_time(video_id, from_seconds, to_seconds)
             except (FileNotFoundError, TypeError):
                 transcript = ""
-            bundled_segments.append({
-                "type": "video-excerpt",
-                "from": from_seconds,
-                "to": to_seconds if seg.to_time else None,
-                "transcript": transcript,
-            })
+            bundled_segments.append(
+                {
+                    "type": "video-excerpt",
+                    "from": from_seconds,
+                    "to": to_seconds if seg.to_time else None,
+                    "transcript": transcript,
+                }
+            )
         elif isinstance(seg, (ChatSegment, LensChatSegment)):
-            bundled_segments.append({
-                "type": "chat",
-                "instructions": seg.instructions,
-                "hidePreviousContentFromUser": seg.hide_previous_content_from_user,
-                "hidePreviousContentFromTutor": seg.hide_previous_content_from_tutor,
-            })
+            bundled_segments.append(
+                {
+                    "type": "chat",
+                    "instructions": seg.instructions,
+                    "hidePreviousContentFromUser": seg.hide_previous_content_from_user,
+                    "hidePreviousContentFromTutor": seg.hide_previous_content_from_tutor,
+                }
+            )
 
     return {
         "type": "video",

@@ -17,6 +17,7 @@ import type {
 import type { CourseProgress } from "@/types/course";
 import {
   sendMessage,
+  getChatHistory,
   getNextModule,
   getModule,
   getCourseProgress,
@@ -123,6 +124,44 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   );
   const [streamingContent, setStreamingContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch chat history when module loads
+  useEffect(() => {
+    if (!module) return;
+
+    // Clear messages when switching modules
+    setMessages([]);
+
+    // Track if effect is still active (prevent race condition)
+    let cancelled = false;
+
+    async function loadHistory() {
+      try {
+        const history = await getChatHistory(module!.slug);
+        if (cancelled) return; // Don't update if module changed
+
+        if (history.messages.length > 0) {
+          setMessages(
+            history.messages.map((m) => ({
+              role: m.role as "user" | "assistant",
+              content: m.content,
+            })),
+          );
+        }
+        // Messages already cleared above if history is empty
+      } catch (e) {
+        if (!cancelled) {
+          console.error("[Module] Failed to load chat history:", e);
+        }
+      }
+    }
+
+    loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [module]);
 
   // Progress tracking
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -364,12 +403,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Send message handler (shared across all chat sections)
   const handleSendMessage = useCallback(
-    async (content: string, sectionIndex: number, _segmentIndex: number) => {
+    async (content: string, sectionIndex: number, segmentIndex: number) => {
       // Track chat activity on message send
       triggerChatActivity();
 
       // Store position for potential retry
-      setLastPosition({ sectionIndex, segmentIndex: _segmentIndex });
+      setLastPosition({ sectionIndex, segmentIndex });
 
       if (content) {
         setPendingMessage({ content, status: "sending" });
@@ -381,24 +420,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       try {
         let assistantContent = "";
 
-        // Get system context from the current section's chat segment
-        const section = module?.sections[sectionIndex];
-        const systemContext =
-          section?.type === "chat" ? section.instructions : undefined;
-
-        // Use the new stateless chat API with conversation history
-        // Filter out system messages as the API only accepts user/assistant
-        const conversationHistory = messages
-          .filter((m) => m.role !== "system")
-          .map((m) => ({
-            role: m.role as "user" | "assistant",
-            content: m.content,
-          }));
-
+        // Use new position-based API
         for await (const chunk of sendMessage(
-          conversationHistory,
+          moduleId, // slug
+          sectionIndex,
+          segmentIndex,
           content,
-          systemContext,
         )) {
           if (chunk.type === "text" && chunk.content) {
             assistantContent += chunk.content;
@@ -406,7 +433,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           }
         }
 
-        // Update messages
+        // Update local display state
         setMessages((prev) => [
           ...prev,
           ...(content ? [{ role: "user" as const, content }] : []),
@@ -423,7 +450,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         setIsLoading(false);
       }
     },
-    [triggerChatActivity, moduleId, messages, module],
+    [triggerChatActivity, moduleId],
   );
 
   const handleRetryMessage = useCallback(() => {
