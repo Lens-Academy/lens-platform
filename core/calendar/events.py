@@ -1,9 +1,14 @@
 """Google Calendar event operations."""
 
 import asyncio
+import logging
 from datetime import datetime, timedelta
 
+import sentry_sdk
+
 from .client import get_calendar_service, get_calendar_email
+
+logger = logging.getLogger(__name__)
 
 
 async def create_meeting_event(
@@ -60,6 +65,69 @@ async def create_meeting_event(
         return result["id"]
     except Exception as e:
         print(f"Failed to create calendar event: {e}")
+        return None
+
+
+async def create_recurring_event(
+    title: str,
+    description: str,
+    first_meeting: datetime,
+    duration_minutes: int,
+    num_occurrences: int,
+    attendee_emails: list[str],
+) -> str | None:
+    """
+    Create a recurring calendar event with weekly frequency.
+
+    Args:
+        title: Event title (e.g., "Study Group Alpha")
+        description: Event description
+        first_meeting: First occurrence datetime (must be timezone-aware)
+        duration_minutes: Meeting duration
+        num_occurrences: Number of weekly meetings
+        attendee_emails: List of attendee email addresses
+
+    Returns:
+        Google Calendar recurring event ID, or None if calendar not configured
+    """
+    service = get_calendar_service()
+    if not service:
+        logger.warning(
+            "Google Calendar not configured, skipping recurring event creation"
+        )
+        return None
+
+    end = first_meeting + timedelta(minutes=duration_minutes)
+
+    event = {
+        "summary": title,
+        "description": description,
+        "start": {"dateTime": first_meeting.isoformat(), "timeZone": "UTC"},
+        "end": {"dateTime": end.isoformat(), "timeZone": "UTC"},
+        "recurrence": [f"RRULE:FREQ=WEEKLY;COUNT={num_occurrences}"],
+        "attendees": [{"email": email} for email in attendee_emails],
+        "guestsCanSeeOtherGuests": False,
+        "guestsCanModify": False,
+        "reminders": {"useDefault": False, "overrides": []},
+    }
+
+    def _sync_insert():
+        return (
+            service.events()
+            .insert(
+                calendarId=get_calendar_email(),
+                body=event,
+                sendUpdates="all",
+            )
+            .execute()
+        )
+
+    try:
+        result = await asyncio.to_thread(_sync_insert)
+        return result["id"]
+    except Exception as e:
+        logger.error(f"Failed to create recurring calendar event: {e}")
+        sentry_sdk.capture_exception(e)
         return None
 
 

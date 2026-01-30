@@ -12,6 +12,7 @@ from core.calendar.events import (
     update_meeting_event,
     cancel_meeting_event,
     get_event_rsvps,
+    create_recurring_event,
 )
 
 
@@ -140,4 +141,47 @@ class TestGetEventRsvps:
     async def test_returns_none_when_service_unavailable(self):
         with patch("core.calendar.events.get_calendar_service", return_value=None):
             result = await get_event_rsvps("event123")
+            assert result is None
+
+
+class TestCreateRecurringEvent:
+    @pytest.mark.asyncio
+    async def test_creates_recurring_event_with_rrule(
+        self, mock_calendar_service, mock_calendar_email
+    ):
+        mock_calendar_service.events().insert().execute.return_value = {
+            "id": "recurring123"
+        }
+
+        result = await create_recurring_event(
+            title="Study Group Alpha",
+            description="Weekly AI Safety study group",
+            first_meeting=datetime(2026, 2, 1, 18, 0, tzinfo=timezone.utc),
+            duration_minutes=60,
+            num_occurrences=8,
+            attendee_emails=["user1@example.com", "user2@example.com"],
+        )
+
+        assert result == "recurring123"
+
+        # Verify RRULE was included
+        call_kwargs = mock_calendar_service.events().insert.call_args
+        body = call_kwargs.kwargs["body"]
+
+        assert body["summary"] == "Study Group Alpha"
+        assert "recurrence" in body
+        assert body["recurrence"] == ["RRULE:FREQ=WEEKLY;COUNT=8"]
+        assert len(body["attendees"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_service_unavailable(self):
+        with patch("core.calendar.events.get_calendar_service", return_value=None):
+            result = await create_recurring_event(
+                title="Test",
+                description="Test",
+                first_meeting=datetime.now(timezone.utc),
+                duration_minutes=60,
+                num_occurrences=8,
+                attendee_emails=["test@example.com"],
+            )
             assert result is None
