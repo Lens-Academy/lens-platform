@@ -20,9 +20,12 @@ Individual sync functions:
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import sentry_sdk
+
+if TYPE_CHECKING:
+    import discord
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +266,342 @@ async def _ensure_group_channels(group_id: int, category) -> dict:
             result["welcome_message_sent"] = True
         except Exception as e:
             logger.error(f"Failed to send welcome message for group {group_id}: {e}")
+
+    return result
+
+
+async def _ensure_group_role(group_id: int) -> dict:
+    """
+    Ensure a Discord role exists for this group.
+
+    1. Check role limit (warn if >240, fail if >=250)
+    2. Read groups.discord_role_id from DB
+    3. If exists, verify role still exists in Discord
+       - If missing in Discord, return {"status": "role_missing", ...}
+    4. If no ID in DB, create role with name "Cohort X - Group Y"
+    5. Sync name if changed (compare computed name vs Discord name)
+    6. Save role ID to DB if newly created
+
+    Returns:
+        {
+            "status": "existed"|"created"|"role_missing"|"failed",
+            "id": str | None,
+            "role": discord.Role | None,
+            "error"?: str
+        }
+    """
+    from .database import get_connection, get_transaction
+    from .discord_outbound import get_bot, create_role, rename_role
+    from .tables import groups, cohorts
+    from sqlalchemy import select, update
+    import discord
+
+    _bot = get_bot()
+    if not _bot:
+        return {
+            "status": "failed",
+            "error": "bot_unavailable",
+            "id": None,
+            "role": None,
+        }
+
+    # Get guild (assumes single guild)
+    guilds = list(_bot.guilds)
+    if not guilds:
+        return {"status": "failed", "error": "no_guild", "id": None, "role": None}
+    guild = guilds[0]
+
+    # Check bot has Manage Roles permission
+    if not guild.me.guild_permissions.manage_roles:
+        return {
+            "status": "failed",
+            "error": "missing_manage_roles_permission",
+            "id": None,
+            "role": None,
+        }
+
+    # Check role limit
+    current_role_count = len(guild.roles)
+    if current_role_count >= 250:
+        logger.warning(f"Role limit reached: {current_role_count}/250 roles")
+        return {
+            "status": "failed",
+            "error": "role_limit_reached",
+            "id": None,
+            "role": None,
+        }
+    if current_role_count > 240:
+        logger.warning(f"Role limit approaching: {current_role_count}/250 roles")
+
+    # Get group and cohort info from DB
+    async with get_connection() as conn:
+        result = await conn.execute(
+            select(
+                groups.c.group_id,
+                groups.c.group_name,
+                groups.c.discord_role_id,
+                groups.c.cohort_id,
+                cohorts.c.cohort_name,
+            )
+            .join(cohorts, groups.c.cohort_id == cohorts.c.cohort_id)
+            .where(groups.c.group_id == group_id)
+        )
+        row = result.mappings().first()
+
+    if not row:
+        return {
+            "status": "failed",
+            "error": "group_not_found",
+            "id": None,
+            "role": None,
+        }
+
+    # Compute expected role name
+    expected_name = f"Cohort {row['cohort_name']} - Group {row['group_name']}"
+
+    # Check if role already exists in DB
+    if row["discord_role_id"]:
+        role = guild.get_role(int(row["discord_role_id"]))
+        if role:
+            # Role exists - check if name needs sync
+            if role.name != expected_name:
+                success = await rename_role(role, expected_name)
+                if success:
+                    logger.info(
+                        f"Renamed role from '{role.name}' to '{expected_name}' "
+                        f"for group {group_id}"
+                    )
+            return {"status": "existed", "id": row["discord_role_id"], "role": role}
+        else:
+            # DB has ID but role doesn't exist in Discord
+            logger.warning(
+                f"Role {row['discord_role_id']} missing in Discord for group {group_id}"
+            )
+            return {
+                "status": "role_missing",
+                "id": row["discord_role_id"],
+                "role": None,
+            }
+
+    # No role ID in DB - need to create
+    try:
+        role = await create_role(
+            guild, expected_name, reason=f"Group sync for group {group_id}"
+        )
+        logger.info(f"Created role '{role.name}' for group {group_id}")
+
+        # Save role ID to database
+        async with get_transaction() as conn:
+            await conn.execute(
+                update(groups)
+                .where(groups.c.group_id == group_id)
+                .values(discord_role_id=str(role.id))
+            )
+
+        return {"status": "created", "id": str(role.id), "role": role}
+    except discord.HTTPException as e:
+        logger.error(f"Failed to create role for group {group_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        return {"status": "failed", "error": str(e), "id": None, "role": None}
+
+
+async def _ensure_cohort_channel(cohort_id: int) -> dict:
+    """
+    Ensure cohort has a shared #general channel.
+
+    1. Read cohorts.discord_cohort_channel_id from DB
+    2. If exists, verify channel still exists in Discord
+       - If missing in Discord, return {"status": "channel_missing", ...}
+    3. If no ID in DB, create "general (<cohort_name>)" in cohort category
+       - Set @everyone to view_channel=False (deny)
+    4. Sync name if changed
+    5. Save channel ID to DB if newly created
+
+    Returns:
+        {
+            "status": "existed"|"created"|"channel_missing"|"failed",
+            "id": str | None,
+            "channel": discord.TextChannel | None,
+            "error"?: str
+        }
+    """
+    from .database import get_connection, get_transaction
+    from .discord_outbound import get_bot
+    from .tables import cohorts
+    from sqlalchemy import select, update
+    import discord
+
+    _bot = get_bot()
+    if not _bot:
+        return {
+            "status": "failed",
+            "error": "bot_unavailable",
+            "id": None,
+            "channel": None,
+        }
+
+    async with get_connection() as conn:
+        result = await conn.execute(
+            select(
+                cohorts.c.cohort_id,
+                cohorts.c.cohort_name,
+                cohorts.c.discord_category_id,
+                cohorts.c.discord_cohort_channel_id,
+            ).where(cohorts.c.cohort_id == cohort_id)
+        )
+        cohort = result.mappings().first()
+
+    if not cohort:
+        return {
+            "status": "failed",
+            "error": "cohort_not_found",
+            "id": None,
+            "channel": None,
+        }
+
+    # Compute expected channel name
+    expected_name = f"general ({cohort['cohort_name']})"
+
+    # Check if cohort channel already exists in DB
+    if cohort["discord_cohort_channel_id"]:
+        channel = _bot.get_channel(int(cohort["discord_cohort_channel_id"]))
+        if channel:
+            # Channel exists - check if name needs sync
+            if channel.name != expected_name.lower().replace(" ", "-"):
+                try:
+                    await channel.edit(name=expected_name)
+                    logger.info(
+                        f"Renamed cohort channel to '{expected_name}' "
+                        f"for cohort {cohort_id}"
+                    )
+                except discord.HTTPException as e:
+                    logger.warning(f"Failed to rename cohort channel: {e}")
+            return {
+                "status": "existed",
+                "id": cohort["discord_cohort_channel_id"],
+                "channel": channel,
+            }
+        else:
+            # DB has ID but channel doesn't exist in Discord
+            logger.warning(
+                f"Cohort channel {cohort['discord_cohort_channel_id']} "
+                f"missing in Discord for cohort {cohort_id}"
+            )
+            return {
+                "status": "channel_missing",
+                "id": cohort["discord_cohort_channel_id"],
+                "channel": None,
+            }
+
+    # No channel ID in DB - need to create
+    # First, ensure we have a category
+    if not cohort["discord_category_id"]:
+        return {
+            "status": "failed",
+            "error": "no_category",
+            "id": None,
+            "channel": None,
+        }
+
+    category = _bot.get_channel(int(cohort["discord_category_id"]))
+    if not category:
+        return {
+            "status": "failed",
+            "error": "category_not_found",
+            "id": None,
+            "channel": None,
+        }
+
+    try:
+        # Create channel in the cohort's category
+        channel = await category.guild.create_text_channel(
+            name=expected_name,
+            category=category,
+            reason=f"Cohort channel for cohort {cohort_id}",
+        )
+
+        # Set @everyone to view_channel=False
+        await channel.set_permissions(
+            category.guild.default_role,
+            view_channel=False,
+            reason="Cohort channel - deny @everyone",
+        )
+
+        logger.info(f"Created cohort channel '{channel.name}' for cohort {cohort_id}")
+
+        # Save channel ID to database
+        async with get_transaction() as conn:
+            await conn.execute(
+                update(cohorts)
+                .where(cohorts.c.cohort_id == cohort_id)
+                .values(discord_cohort_channel_id=str(channel.id))
+            )
+
+        return {"status": "created", "id": str(channel.id), "channel": channel}
+    except discord.HTTPException as e:
+        logger.error(f"Failed to create cohort channel for cohort {cohort_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        return {"status": "failed", "error": str(e), "id": None, "channel": None}
+
+
+async def _set_group_role_permissions(
+    role: "discord.Role",
+    text_channel: "discord.TextChannel",
+    voice_channel: "discord.VoiceChannel | None",
+    cohort_channel: "discord.TextChannel | None",
+) -> dict:
+    """
+    Set role permissions on all group-related channels.
+
+    - Text channel: view_channel, send_messages, read_message_history
+    - Voice channel: view_channel, connect, speak
+    - Cohort channel: view_channel, send_messages, read_message_history
+
+    Args:
+        role: Discord role to set permissions for
+        text_channel: Group's text channel
+        voice_channel: Group's voice channel (can be None)
+        cohort_channel: Cohort's shared channel (can be None)
+
+    Returns:
+        {"text": bool, "voice": bool, "cohort": bool}
+    """
+    from .discord_outbound import set_role_channel_permissions
+
+    result = {"text": False, "voice": False, "cohort": False}
+
+    # Set text channel permissions
+    if text_channel:
+        result["text"] = await set_role_channel_permissions(
+            role=role,
+            channel=text_channel,
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True,
+            reason="Group role permissions",
+        )
+
+    # Set voice channel permissions
+    if voice_channel:
+        result["voice"] = await set_role_channel_permissions(
+            role=role,
+            channel=voice_channel,
+            view_channel=True,
+            connect=True,
+            speak=True,
+            reason="Group role permissions",
+        )
+
+    # Set cohort channel permissions
+    if cohort_channel:
+        result["cohort"] = await set_role_channel_permissions(
+            role=role,
+            channel=cohort_channel,
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True,
+            reason="Group role permissions",
+        )
 
     return result
 
