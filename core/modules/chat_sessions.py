@@ -140,14 +140,35 @@ async def claim_chat_sessions(
     anonymous_token: UUID,
     user_id: int,
 ) -> int:
-    """Claim all anonymous chat sessions for a user.
+    """Claim anonymous chat sessions for a user.
+
+    Skips sessions where the user already has an active session for the same content_id
+    to avoid unique constraint violations.
 
     Returns count of sessions claimed.
     """
+    # Subquery to find content_ids where user already has an active session
+    existing_content_ids = (
+        select(chat_sessions.c.content_id)
+        .where(
+            and_(
+                chat_sessions.c.user_id == user_id,
+                chat_sessions.c.archived_at.is_(None),
+            )
+        )
+        .scalar_subquery()
+    )
+
+    # Only claim sessions for content the user doesn't already have
     result = await conn.execute(
         update(chat_sessions)
-        .where(chat_sessions.c.anonymous_token == anonymous_token)
+        .where(
+            and_(
+                chat_sessions.c.anonymous_token == anonymous_token,
+                ~chat_sessions.c.content_id.in_(existing_content_ids),
+            )
+        )
         .values(user_id=user_id, anonymous_token=None)
     )
-    await conn.commit()
+    # No explicit commit - let the caller's transaction context handle it
     return result.rowcount

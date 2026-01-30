@@ -386,3 +386,39 @@ async def test_get_chat_session_not_found():
         result = await get_chat_session(conn, session_id=999999)
 
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_claim_chat_sessions_skips_conflicting_content(
+    test_user_id, anonymous_token, content_id
+):
+    """Claim skips sessions where user already has one for same content."""
+    # User already has a session for this content
+    async with get_transaction() as conn:
+        await get_or_create_chat_session(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            content_type="module",
+        )
+
+    # Anonymous session for same content
+    async with get_transaction() as conn:
+        await get_or_create_chat_session(
+            conn,
+            user_id=None,
+            anonymous_token=anonymous_token,
+            content_id=content_id,
+            content_type="module",
+        )
+
+    # Claim should skip the conflicting one (not raise IntegrityError)
+    async with get_transaction() as conn:
+        count = await claim_chat_sessions(
+            conn,
+            anonymous_token=anonymous_token,
+            user_id=test_user_id,
+        )
+
+    assert count == 0
