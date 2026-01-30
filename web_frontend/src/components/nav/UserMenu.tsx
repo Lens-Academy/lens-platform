@@ -27,7 +27,11 @@ export function UserMenu({ signInRedirect }: UserMenuProps = {}) {
     if (signInRedirect) {
       const next = encodeURIComponent(signInRedirect);
       const origin = encodeURIComponent(window.location.origin);
-      window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}`;
+      const anonymousToken = localStorage.getItem("anonymous_token");
+      const tokenParam = anonymousToken
+        ? `&anonymous_token=${encodeURIComponent(anonymousToken)}`
+        : "";
+      window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}`;
     } else {
       login();
     }

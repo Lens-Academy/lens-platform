@@ -3,7 +3,6 @@
 Endpoints:
 - POST /api/progress/complete - Mark content as complete
 - POST /api/progress/time - Update time spent (heartbeat or beacon)
-- POST /api/progress/claim - Claim anonymous records for authenticated user
 """
 
 import json
@@ -17,10 +16,8 @@ from core.database import get_transaction
 from core.modules.progress import (
     mark_content_complete,
     update_time_spent,
-    claim_progress_records,
     get_module_progress,
 )
-from core.modules.chat_sessions import claim_chat_sessions
 from web_api.auth import get_optional_user
 
 router = APIRouter(prefix="/api/progress", tags=["progress"])
@@ -60,15 +57,6 @@ class MarkCompleteResponse(BaseModel):
 class TimeUpdateRequest(BaseModel):
     content_id: UUID
     time_delta_s: int
-
-
-class ClaimRequest(BaseModel):
-    anonymous_token: UUID
-
-
-class ClaimResponse(BaseModel):
-    progress_records_claimed: int
-    chat_sessions_claimed: int
 
 
 async def get_user_or_token(
@@ -291,46 +279,3 @@ async def update_time_endpoint(
             content_id=content_id,
             time_delta_s=time_delta_s,
         )
-
-
-@router.post("/claim", response_model=ClaimResponse)
-async def claim_records(
-    body: ClaimRequest,
-    request: Request,
-):
-    """Claim all anonymous records for authenticated user.
-
-    Called after login to associate any progress/chat records created
-    anonymously with the now-authenticated user.
-
-    Args:
-        body: Request with anonymous_token (the anonymous token to claim from)
-
-    Returns:
-        ClaimResponse with counts of records claimed
-    """
-    user_jwt = await get_optional_user(request)
-    if not user_jwt:
-        raise HTTPException(401, "Must be authenticated to claim records")
-
-    # Get user_id from discord_id
-    discord_id = user_jwt["sub"]
-    user = await get_or_create_user(discord_id)
-    user_id = user["user_id"]
-
-    async with get_transaction() as conn:
-        progress_count = await claim_progress_records(
-            conn,
-            anonymous_token=body.anonymous_token,
-            user_id=user_id,
-        )
-        chat_count = await claim_chat_sessions(
-            conn,
-            anonymous_token=body.anonymous_token,
-            user_id=user_id,
-        )
-
-    return ClaimResponse(
-        progress_records_claimed=progress_count,
-        chat_sessions_claimed=chat_count,
-    )

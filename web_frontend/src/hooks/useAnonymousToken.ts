@@ -2,7 +2,7 @@
  * Manages anonymous token for progress tracking.
  *
  * The token is a UUID stored in localStorage, sent as X-Anonymous-Token header.
- * On login, call claimSessionRecords() to associate anonymous progress with user.
+ * On login, the token is passed to the OAuth callback which claims records server-side.
  */
 
 import { useState, useEffect, useCallback } from "react";

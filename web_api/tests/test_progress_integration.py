@@ -143,15 +143,6 @@ class TestProgressAuthentication:
         )
         assert response.status_code == 401
 
-    def test_claim_without_auth_returns_401(self):
-        """POST /claim without authentication should return 401."""
-        response = client.post(
-            "/api/progress/claim",
-            json={"anonymous_token": random_uuid_str()},
-        )
-        assert response.status_code == 401
-        assert "Must be authenticated" in response.json()["detail"]
-
 
 # --- Request Validation Tests ---
 
@@ -372,57 +363,6 @@ class TestAuthenticatedProgress:
             call_kwargs = mock_complete.call_args.kwargs
             assert call_kwargs["user_id"] == 42
             assert call_kwargs["anonymous_token"] is None
-
-
-# --- Claim Records Tests ---
-
-
-class TestClaimRecords:
-    """Tests for claiming anonymous records on login."""
-
-    def test_claim_requires_authentication(self):
-        """POST /claim requires authentication."""
-        response = client.post(
-            "/api/progress/claim",
-            json={"anonymous_token": random_uuid_str()},
-        )
-        assert response.status_code == 401
-
-    def test_claim_returns_counts(self):
-        """POST /claim should return counts of claimed records."""
-        with (
-            patch(
-                "web_api.routes.progress.get_optional_user", new_callable=AsyncMock
-            ) as mock_auth,
-            patch(
-                "web_api.routes.progress.get_or_create_user", new_callable=AsyncMock
-            ) as mock_user,
-            patch(
-                "web_api.routes.progress.get_transaction",
-                return_value=mock_db_connection(),
-            ),
-            patch(
-                "web_api.routes.progress.claim_progress_records", new_callable=AsyncMock
-            ) as mock_claim_progress,
-            patch(
-                "web_api.routes.progress.claim_chat_sessions", new_callable=AsyncMock
-            ) as mock_claim_chat,
-        ):
-            mock_auth.return_value = {"sub": "123456789"}
-            mock_user.return_value = {"user_id": 42}
-            mock_claim_progress.return_value = 3
-            mock_claim_chat.return_value = 2
-
-            response = client.post(
-                "/api/progress/claim",
-                json={"anonymous_token": random_uuid_str()},
-                cookies={"auth_token": "valid_token"},
-            )
-
-            assert response.status_code == 200
-            data = response.json()
-            assert data["progress_records_claimed"] == 3
-            assert data["chat_sessions_claimed"] == 2
 
 
 # --- Module Progress Response Tests ---

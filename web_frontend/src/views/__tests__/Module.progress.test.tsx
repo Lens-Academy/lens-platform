@@ -16,7 +16,6 @@ vi.mock("@/api/modules", () => ({
 vi.mock("@/api/progress", () => ({
   markComplete: vi.fn(),
   updateTimeSpent: vi.fn(),
-  claimSessionRecords: vi.fn(),
 }));
 
 // useAuth mock - we'll configure the return value in tests
@@ -41,7 +40,7 @@ import {
   getCourseProgress,
   getChatHistory,
 } from "@/api/modules";
-import { markComplete, claimSessionRecords } from "@/api/progress";
+import { markComplete } from "@/api/progress";
 
 const mockModule = {
   slug: "test-module",
@@ -287,7 +286,7 @@ describe("Module progress on login", () => {
     });
   });
 
-  it("claims anonymous records and re-fetches progress when user logs in", async () => {
+  it("re-fetches progress when user logs in (claiming happens server-side during OAuth)", async () => {
     // Start anonymous
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
@@ -319,11 +318,6 @@ describe("Module progress on login", () => {
       .mockResolvedValueOnce(anonymousProgress)
       .mockResolvedValueOnce(authenticatedProgress);
 
-    (claimSessionRecords as ReturnType<typeof vi.fn>).mockResolvedValue({
-      progress_records_claimed: 1,
-      chat_sessions_claimed: 0,
-    });
-
     const { rerender } = render(
       <Module courseId="test-course" moduleId="test-module" />,
     );
@@ -334,6 +328,8 @@ describe("Module progress on login", () => {
     });
 
     // Simulate login - change auth state and rerender
+    // Note: In real flow, claiming happens server-side during OAuth callback
+    // before the redirect back to the frontend
     mockUseAuth.mockReturnValue({
       isAuthenticated: true,
       isInSignupsTable: false,
@@ -342,11 +338,7 @@ describe("Module progress on login", () => {
     });
     rerender(<Module courseId="test-course" moduleId="test-module" />);
 
-    // Should claim records and re-fetch progress
-    await waitFor(() => {
-      expect(claimSessionRecords).toHaveBeenCalled();
-    });
-
+    // Should re-fetch progress (now includes claimed records from server)
     await waitFor(() => {
       expect(getModuleProgress).toHaveBeenCalledTimes(2);
     });

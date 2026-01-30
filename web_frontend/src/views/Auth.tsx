@@ -3,8 +3,6 @@ import { usePageContext } from "vike-react/usePageContext";
 import { navigate } from "vike/client/router";
 import { API_URL } from "../config";
 import { DiscordIcon } from "../components/icons/DiscordIcon";
-import { claimSessionRecords } from "../api/progress";
-import { getAnonymousToken } from "../hooks/useAnonymousToken";
 
 type AuthStatus = "loading" | "success" | "error";
 
@@ -51,18 +49,6 @@ export default function Auth() {
         if (data.status === "ok") {
           setStatus("success");
 
-          // Claim anonymous progress records for the authenticated user
-          try {
-            const anonymousToken = getAnonymousToken();
-            const result = await claimSessionRecords(anonymousToken);
-            console.log(
-              `[Auth] Claimed ${result.progress_records_claimed} progress records and ${result.chat_sessions_claimed} chat sessions`,
-            );
-          } catch (error) {
-            // Non-critical - just log and continue
-            console.warn("[Auth] Failed to claim session records:", error);
-          }
-
           // Small delay to show success message, then navigate
           setTimeout(() => {
             navigate(data.next || next);
@@ -92,7 +78,11 @@ export default function Auth() {
 
   const handleDiscordLogin = () => {
     const origin = encodeURIComponent(window.location.origin);
-    window.location.href = `${API_URL}/auth/discord?next=${encodeURIComponent(next)}&origin=${origin}`;
+    const anonymousToken = localStorage.getItem("anonymous_token");
+    const tokenParam = anonymousToken
+      ? `&anonymous_token=${encodeURIComponent(anonymousToken)}`
+      : "";
+    window.location.href = `${API_URL}/auth/discord?next=${encodeURIComponent(next)}&origin=${origin}${tokenParam}`;
   };
 
   if (status === "loading") {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { API_URL } from "../config";
 import { identifyUser, resetUser, hasConsent } from "../analytics";
 import {
@@ -6,7 +6,6 @@ import {
   resetSentryUser,
   isSentryInitialized,
 } from "../errorTracking";
-import { claimSessionRecords } from "../api/progress";
 import { getAnonymousToken } from "./useAnonymousToken";
 
 export interface User {
@@ -57,9 +56,6 @@ export function useAuth(): UseAuthReturn {
     tosAccepted: false,
   });
 
-  // Track if we've already tried to claim anonymous records for this session
-  const hasClaimedRef = useRef(false);
-
   const fetchUser = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/auth/me`, {
@@ -85,27 +81,6 @@ export function useAuth(): UseAuthReturn {
       const data = await response.json();
 
       if (data.authenticated) {
-        // Claim anonymous progress/chat records BEFORE setting authenticated state
-        // This ensures claim happens before any authenticated sessions are created
-        if (!hasClaimedRef.current) {
-          hasClaimedRef.current = true;
-          try {
-            const anonymousToken = getAnonymousToken();
-            const result = await claimSessionRecords(anonymousToken);
-            if (
-              result.progress_records_claimed > 0 ||
-              result.chat_sessions_claimed > 0
-            ) {
-              console.log(
-                `[Auth] Claimed ${result.progress_records_claimed} progress records and ${result.chat_sessions_claimed} chat sessions`,
-              );
-            }
-          } catch (error) {
-            // Non-critical - just log and continue
-            console.warn("[Auth] Failed to claim session records:", error);
-          }
-        }
-
         setState({
           isAuthenticated: true,
           isLoading: false,
@@ -172,7 +147,11 @@ export function useAuth(): UseAuthReturn {
     // Redirect to Discord OAuth, with current path as the return URL
     const next = encodeURIComponent(window.location.pathname);
     const origin = encodeURIComponent(window.location.origin);
-    window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}`;
+    const anonymousToken = getAnonymousToken();
+    const tokenParam = anonymousToken
+      ? `&anonymous_token=${encodeURIComponent(anonymousToken)}`
+      : "";
+    window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}`;
   }, []);
 
   const logout = useCallback(async () => {

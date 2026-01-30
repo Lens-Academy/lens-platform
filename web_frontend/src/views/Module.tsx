@@ -28,8 +28,6 @@ import type { ModuleCompletionResult, LensProgress } from "@/api/modules";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import type { MarkCompleteResponse } from "@/api/progress";
-import { claimSessionRecords } from "@/api/progress";
-import { useAnonymousToken } from "@/hooks/useAnonymousToken";
 import AuthoredText from "@/components/module/AuthoredText";
 import ArticleEmbed from "@/components/module/ArticleEmbed";
 import VideoEmbed from "@/components/module/VideoEmbed";
@@ -207,26 +205,17 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   const { isAuthenticated, isInSignupsTable, isInActiveGroup, login } =
     useAuth();
-  const { token: anonymousToken } = useAnonymousToken();
 
   // Track previous auth state for detecting login
   const wasAuthenticated = useRef(isAuthenticated);
 
-  // Handle login: claim anonymous records and re-fetch progress
+  // Handle login: re-fetch progress (claiming is now handled server-side during OAuth)
   useEffect(() => {
     // Only run when transitioning from anonymous to authenticated
-    if (
-      isAuthenticated &&
-      !wasAuthenticated.current &&
-      anonymousToken &&
-      moduleId
-    ) {
+    if (isAuthenticated && !wasAuthenticated.current && moduleId) {
       async function handleLogin() {
         try {
-          // Claim any anonymous progress/chat records
-          await claimSessionRecords(anonymousToken!);
-
-          // Re-fetch progress (now includes claimed records)
+          // Re-fetch progress (now includes claimed records from OAuth callback)
           const progressResult = await getModuleProgress(moduleId);
           if (progressResult) {
             updateCompletedFromLenses(progressResult.lenses);
@@ -241,7 +230,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       handleLogin();
     }
     wasAuthenticated.current = isAuthenticated;
-  }, [isAuthenticated, anonymousToken, moduleId, updateCompletedFromLenses]);
+  }, [isAuthenticated, moduleId, updateCompletedFromLenses]);
 
   // For stage navigation (viewing non-current section)
   const [viewingStageIndex, setViewingStageIndex] = useState<number | null>(

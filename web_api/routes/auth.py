@@ -15,6 +15,7 @@ import sys
 import time
 from pathlib import Path
 from urllib.parse import urlencode
+from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -23,7 +24,9 @@ from fastapi.responses import RedirectResponse
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core import get_or_create_user, get_user_profile, validate_and_use_auth_code
-from core.database import get_connection
+from core.database import get_connection, get_transaction
+from core.modules.progress import claim_progress_records
+from core.modules.chat_sessions import claim_chat_sessions
 from core.queries.users import get_user_enrollment_status
 from core.config import (
     is_dev_mode,
@@ -88,7 +91,10 @@ def _cleanup_expired_oauth_states():
 
 @router.get("/discord")
 async def discord_oauth_start(
-    request: Request, next: str = "/", origin: str | None = None
+    request: Request,
+    next: str = "/",
+    origin: str | None = None,
+    anonymous_token: str | None = None,
 ):
     """
     Start Discord OAuth flow.
@@ -101,6 +107,7 @@ async def discord_oauth_start(
     Args:
         next: Path to redirect to after auth (default: "/")
         origin: Frontend origin URL (validated against whitelist)
+        anonymous_token: Optional anonymous session token to claim on login
     """
     # Validate origin against whitelist
     validated_origin = _validate_origin(origin)
@@ -120,6 +127,7 @@ async def discord_oauth_start(
     _oauth_states[state] = {
         "next": next,
         "origin": validated_origin,
+        "anonymous_token": anonymous_token,
         "created_at": time.time(),
     }
 
@@ -210,9 +218,26 @@ async def discord_oauth_callback(
     nickname = discord_user.get("global_name")
 
     # Create or update user in database
-    await get_or_create_user(
+    user = await get_or_create_user(
         discord_id, discord_username, discord_avatar, email, email_verified, nickname
     )
+
+    # Claim anonymous sessions if token provided
+    anonymous_token_str = state_data.get("anonymous_token")
+    if anonymous_token_str:
+        try:
+            anonymous_uuid = UUID(anonymous_token_str)
+        except ValueError:
+            anonymous_uuid = None
+
+        if anonymous_uuid:
+            async with get_transaction() as conn:
+                await claim_progress_records(
+                    conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
+                )
+                await claim_chat_sessions(
+                    conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
+                )
 
     # Create JWT and set cookie
     token = create_jwt(discord_id, discord_username)
@@ -225,7 +250,10 @@ async def discord_oauth_callback(
 
 @router.get("/code")
 async def validate_auth_code_endpoint(
-    code: str, next: str = "/", origin: str | None = None
+    code: str,
+    next: str = "/",
+    origin: str | None = None,
+    anonymous_token: str | None = None,
 ):
     """
     Validate a temporary auth code from the Discord bot.
@@ -253,6 +281,22 @@ async def validate_auth_code_endpoint(
     user = await get_or_create_user(discord_id)
     discord_username = user.get("discord_username") or f"User_{discord_id[:8]}"
 
+    # Claim anonymous sessions if token provided
+    if anonymous_token:
+        try:
+            anonymous_uuid = UUID(anonymous_token)
+        except ValueError:
+            anonymous_uuid = None
+
+        if anonymous_uuid:
+            async with get_transaction() as conn:
+                await claim_progress_records(
+                    conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
+                )
+                await claim_chat_sessions(
+                    conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
+                )
+
     # Create JWT and set cookie
     token = create_jwt(discord_id, discord_username)
 
@@ -263,7 +307,12 @@ async def validate_auth_code_endpoint(
 
 
 @router.post("/code")
-async def validate_auth_code_api(response: Response, code: str, next: str = "/"):
+async def validate_auth_code_api(
+    response: Response,
+    code: str,
+    next: str = "/",
+    anonymous_token: str | None = None,
+):
     """
     Validate a temporary auth code from the Discord bot (API version).
 
@@ -281,6 +330,22 @@ async def validate_auth_code_api(response: Response, code: str, next: str = "/")
     discord_id = auth_code["discord_id"]
     user = await get_or_create_user(discord_id)
     discord_username = user.get("discord_username") or f"User_{discord_id[:8]}"
+
+    # Claim anonymous sessions if token provided
+    if anonymous_token:
+        try:
+            anonymous_uuid = UUID(anonymous_token)
+        except ValueError:
+            anonymous_uuid = None
+
+        if anonymous_uuid:
+            async with get_transaction() as conn:
+                await claim_progress_records(
+                    conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
+                )
+                await claim_chat_sessions(
+                    conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
+                )
 
     # Create JWT and set cookie
     token = create_jwt(discord_id, discord_username)
