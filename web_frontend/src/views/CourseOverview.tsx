@@ -11,7 +11,7 @@ import { getCourseProgress } from "../api/modules";
 import type { CourseProgress, ModuleInfo } from "../types/course";
 import CourseSidebar from "../components/course/CourseSidebar";
 import ModuleOverview from "../components/course/ModuleOverview";
-import ContentPreviewModal from "../components/course/ContentPreviewModal";
+import { generateHeadingId } from "../utils/extractHeadings";
 import { DiscordInviteButton, UserMenu } from "../components/nav";
 import { Skeleton } from "../components/Skeleton";
 
@@ -28,11 +28,6 @@ export default function CourseOverview({
   const [selectedModule, setSelectedModule] = useState<ModuleInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [previewStage, setPreviewStage] = useState<{
-    moduleSlug: string;
-    stageIndex: number;
-    sessionId: number | null;
-  } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useMedia("(max-width: 767px)", false);
 
@@ -81,11 +76,10 @@ export default function CourseOverview({
     if (!selectedModule) return;
     const stage = selectedModule.stages[index];
     if (stage.type === "chat") return; // Can't preview chat
-    setPreviewStage({
-      moduleSlug: selectedModule.slug,
-      stageIndex: index,
-      sessionId: selectedModule.sessionId ?? null,
-    });
+    // Generate section slug from title, fallback to section-N
+    const slug =
+      stage.title.trim() ? generateHeadingId(stage.title) : `section-${index + 1}`;
+    navigate(`/course/${courseId}/module/${selectedModule.slug}#${slug}`);
   };
 
   // Compute completedStages and currentSectionIndex for ModuleOverview
@@ -328,15 +322,6 @@ export default function CourseOverview({
         </div>
       </div>
 
-      {/* Content preview modal */}
-      {previewStage && (
-        <ContentPreviewModal
-          moduleSlug={previewStage.moduleSlug}
-          stageIndex={previewStage.stageIndex}
-          sessionId={previewStage.sessionId}
-          onClose={() => setPreviewStage(null)}
-        />
-      )}
     </div>
   );
 }
