@@ -131,6 +131,41 @@ async def create_recurring_event(
         return None
 
 
+async def get_event_instances(recurring_event_id: str) -> list[dict] | None:
+    """
+    Get all instances of a recurring event.
+
+    Each instance includes its own ID, start time, and attendee RSVPs.
+
+    Args:
+        recurring_event_id: The parent recurring event ID
+
+    Returns:
+        List of instance dicts with id, start, attendees, etc.
+        Returns None if calendar not configured or API error.
+    """
+    service = get_calendar_service()
+    if not service:
+        return None
+
+    calendar_id = get_calendar_email()
+
+    def _sync_instances():
+        return (
+            service.events()
+            .instances(calendarId=calendar_id, eventId=recurring_event_id)
+            .execute()
+        )
+
+    try:
+        result = await asyncio.to_thread(_sync_instances)
+        return result.get("items", [])
+    except Exception as e:
+        logger.error(f"Failed to get instances for event {recurring_event_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        return None
+
+
 async def update_meeting_event(
     event_id: str,
     start: datetime | None = None,

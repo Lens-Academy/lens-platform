@@ -13,6 +13,7 @@ from core.calendar.events import (
     cancel_meeting_event,
     get_event_rsvps,
     create_recurring_event,
+    get_event_instances,
 )
 
 
@@ -184,4 +185,42 @@ class TestCreateRecurringEvent:
                 num_occurrences=8,
                 attendee_emails=["test@example.com"],
             )
+            assert result is None
+
+
+class TestGetEventInstances:
+    @pytest.mark.asyncio
+    async def test_returns_all_instances(
+        self, mock_calendar_service, mock_calendar_email
+    ):
+        mock_calendar_service.events().instances().execute.return_value = {
+            "items": [
+                {
+                    "id": "recurring123_20260201T180000Z",
+                    "start": {"dateTime": "2026-02-01T18:00:00Z"},
+                    "attendees": [
+                        {"email": "user1@example.com", "responseStatus": "accepted"},
+                    ],
+                },
+                {
+                    "id": "recurring123_20260208T180000Z",
+                    "start": {"dateTime": "2026-02-08T18:00:00Z"},
+                    "attendees": [
+                        {"email": "user1@example.com", "responseStatus": "tentative"},
+                    ],
+                },
+            ]
+        }
+
+        result = await get_event_instances("recurring123")
+
+        assert len(result) == 2
+        assert result[0]["id"] == "recurring123_20260201T180000Z"
+        assert result[0]["attendees"][0]["responseStatus"] == "accepted"
+        assert result[1]["id"] == "recurring123_20260208T180000Z"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_service_unavailable(self):
+        with patch("core.calendar.events.get_calendar_service", return_value=None):
+            result = await get_event_instances("recurring123")
             assert result is None
