@@ -302,45 +302,49 @@ class TestSyncGroupReminders:
 
 
 class TestSyncGroupRsvps:
-    """Test group RSVPs sync wrapper."""
+    """Test group RSVPs sync wrapper using recurring events."""
 
     @pytest.mark.asyncio
-    async def test_returns_zero_meetings_when_no_future_meetings(self):
-        """Should return zero count when group has no future meetings."""
+    async def test_returns_error_when_no_recurring_event(self):
+        """Should return error when group has no recurring event ID."""
         from core.sync import sync_group_rsvps
 
         mock_conn = AsyncMock()
         mock_result = MagicMock()
-        mock_result.mappings.return_value = []  # No meetings
+        mock_result.first.return_value = MagicMock(gcal_recurring_event_id=None)
         mock_conn.execute = AsyncMock(return_value=mock_result)
 
         with patch("core.database.get_connection") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = mock_conn
             result = await sync_group_rsvps(group_id=1)
 
-        assert result == {"meetings": 0}
+        assert result == {"error": "no_recurring_event", "synced": 0}
 
     @pytest.mark.asyncio
-    async def test_calls_sync_meeting_rsvps_for_each_meeting(self):
-        """Should call sync_meeting_rsvps for each future meeting."""
+    async def test_calls_sync_group_rsvps_from_recurring(self):
+        """Should call sync_group_rsvps_from_recurring with recurring event ID."""
         from core.sync import sync_group_rsvps
 
         mock_conn = AsyncMock()
         mock_result = MagicMock()
-        mock_result.mappings.return_value = [
-            {"meeting_id": 1},
-            {"meeting_id": 2},
-        ]
+        mock_result.first.return_value = MagicMock(
+            gcal_recurring_event_id="recurring123"
+        )
         mock_conn.execute = AsyncMock(return_value=mock_result)
 
         with patch("core.database.get_connection") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = mock_conn
-            with patch("core.calendar.rsvp.sync_meeting_rsvps") as mock_sync:
-                mock_sync.return_value = {}
+            with patch(
+                "core.calendar.rsvp.sync_group_rsvps_from_recurring"
+            ) as mock_sync:
+                mock_sync.return_value = {"synced": 2, "instances_fetched": 2}
                 result = await sync_group_rsvps(group_id=1)
 
-        assert mock_sync.call_count == 2
-        assert result == {"meetings": 2}
+        mock_sync.assert_called_once_with(
+            group_id=1,
+            recurring_event_id="recurring123",
+        )
+        assert result == {"synced": 2, "instances_fetched": 2}
 
 
 class TestSyncGroup:

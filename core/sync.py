@@ -1131,36 +1131,30 @@ async def sync_group_reminders(group_id: int) -> dict:
 
 async def sync_group_rsvps(group_id: int) -> dict:
     """
-    Sync RSVP records for all future meetings of a group.
-
-    Calls sync_meeting_rsvps for each future meeting.
+    Sync RSVP records for all meetings of a group using recurring event instances.
 
     Returns dict with counts.
     """
     from .database import get_connection
-    from .tables import meetings
-    from .calendar.rsvp import sync_meeting_rsvps
-    from datetime import datetime, timezone
+    from .tables import groups
+    from .calendar.rsvp import sync_group_rsvps_from_recurring
     from sqlalchemy import select
 
     async with get_connection() as conn:
-        now = datetime.now(timezone.utc)
-        meetings_result = await conn.execute(
-            select(meetings.c.meeting_id)
-            .where(meetings.c.group_id == group_id)
-            .where(meetings.c.scheduled_at > now)
+        result = await conn.execute(
+            select(groups.c.gcal_recurring_event_id).where(
+                groups.c.group_id == group_id
+            )
         )
-        meeting_ids = [row["meeting_id"] for row in meetings_result.mappings()]
+        row = result.first()
 
-    if not meeting_ids:
-        return {"meetings": 0}
+    if not row or not row.gcal_recurring_event_id:
+        return {"error": "no_recurring_event", "synced": 0}
 
-    synced = 0
-    for meeting_id in meeting_ids:
-        await sync_meeting_rsvps(meeting_id)
-        synced += 1
-
-    return {"meetings": synced}
+    return await sync_group_rsvps_from_recurring(
+        group_id=group_id,
+        recurring_event_id=row.gcal_recurring_event_id,
+    )
 
 
 async def sync_group(group_id: int, allow_create: bool = False) -> dict[str, Any]:
