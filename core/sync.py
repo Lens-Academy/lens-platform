@@ -1134,24 +1134,34 @@ async def _get_group_member_count(group_id: int) -> int:
 
 async def sync_group_discord_permissions(group_id: int) -> dict:
     """
-    Sync Discord channel permissions with DB membership (diff-based).
+    Sync Discord role membership with DB membership (diff-based).
 
-    Syncs BOTH text and voice channels:
-    1. Reads current permission overwrites from Discord
-    2. Compares with active members from DB
-    3. Only grants/revokes for the diff
+    Uses role-based permissions instead of per-member channel overwrites:
+    1. Ensure group role exists (call _ensure_group_role)
+    2. Ensure cohort channel exists (call _ensure_cohort_channel)
+    3. Ensure role has permissions on channels (call _set_group_role_permissions)
+    4. Get expected members from DB (active group membership)
+    5. Get current role members from Discord (using get_role_member_ids)
+    6. Diff and add/remove role assignments:
+       - member.add_roles(role) for new members
+       - member.remove_roles(role) for removed members
+       - Skip users not in guild (they'll get role on join)
+       - Add asyncio.sleep(0.1) between bulk operations for rate limits
 
     Idempotent and efficient - no API calls if nothing changed.
 
-    Returns dict with counts: {"granted": N, "revoked": N, "unchanged": N, "failed": N}
+    Returns:
+        {"granted": N, "revoked": N, "unchanged": N, "failed": N,
+         "role_status": str, "cohort_channel_status": str,
+         "granted_discord_ids": [...], "revoked_discord_ids": [...]}
     """
+    import asyncio
+
     from .database import get_connection
     from .discord_outbound import (
         get_bot,
         get_or_fetch_member,
-        get_members_with_access,
-        grant_channel_access,
-        revoke_channel_access,
+        get_role_member_ids,
     )
     from .tables import groups, groups_users, users
     from .enums import GroupUserStatus
@@ -1160,29 +1170,103 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
     _bot = get_bot()
     if not _bot:
         logger.warning("Bot not available for Discord sync")
-        return {"error": "bot_unavailable"}
+        return {
+            "error": "bot_unavailable",
+            "granted": 0,
+            "revoked": 0,
+            "unchanged": 0,
+            "failed": 0,
+        }
 
+    # Step 1: Ensure group role exists
+    role_result = await _ensure_group_role(group_id)
+    role_status = role_result.get("status", "failed")
+    role = role_result.get("role")
+
+    if role_status == "failed":
+        logger.error(
+            f"Failed to ensure role for group {group_id}: {role_result.get('error')}"
+        )
+        return {
+            "error": role_result.get("error"),
+            "role_status": role_status,
+            "granted": 0,
+            "revoked": 0,
+            "unchanged": 0,
+            "failed": 0,
+        }
+
+    if role_status == "role_missing" or role is None:
+        logger.error(f"Role missing in Discord for group {group_id}")
+        return {
+            "error": "role_missing",
+            "role_status": role_status,
+            "granted": 0,
+            "revoked": 0,
+            "unchanged": 0,
+            "failed": 0,
+        }
+
+    # Get group data including cohort_id and channel IDs
     async with get_connection() as conn:
-        # Get group's Discord channels (both text and voice)
         group_result = await conn.execute(
             select(
+                groups.c.cohort_id,
                 groups.c.discord_text_channel_id,
                 groups.c.discord_voice_channel_id,
             ).where(groups.c.group_id == group_id)
         )
         group_row = group_result.mappings().first()
-        if not group_row or not group_row.get("discord_text_channel_id"):
-            logger.warning(f"Group {group_id} has no Discord channel")
-            return {"error": "no_channel"}
 
-        text_channel_id = int(group_row["discord_text_channel_id"])
-        voice_channel_id = (
-            int(group_row["discord_voice_channel_id"])
-            if group_row.get("discord_voice_channel_id")
-            else None
-        )
+    if not group_row or not group_row.get("discord_text_channel_id"):
+        logger.warning(f"Group {group_id} has no Discord channel")
+        return {
+            "error": "no_channel",
+            "role_status": role_status,
+            "granted": 0,
+            "revoked": 0,
+            "unchanged": 0,
+            "failed": 0,
+        }
 
-        # Get all active members' Discord IDs from DB (who SHOULD have access)
+    cohort_id = group_row["cohort_id"]
+    text_channel_id = int(group_row["discord_text_channel_id"])
+    voice_channel_id = (
+        int(group_row["discord_voice_channel_id"])
+        if group_row.get("discord_voice_channel_id")
+        else None
+    )
+
+    # Step 2: Ensure cohort channel exists
+    cohort_channel_result = await _ensure_cohort_channel(cohort_id)
+    cohort_channel_status = cohort_channel_result.get("status", "failed")
+    cohort_channel = cohort_channel_result.get("channel")
+
+    # Step 3: Ensure role has permissions on channels
+    text_channel = _bot.get_channel(text_channel_id)
+    if not text_channel:
+        logger.warning(f"Text channel {text_channel_id} not found in Discord")
+        return {
+            "error": "channel_not_found",
+            "role_status": role_status,
+            "cohort_channel_status": cohort_channel_status,
+            "granted": 0,
+            "revoked": 0,
+            "unchanged": 0,
+            "failed": 0,
+        }
+
+    voice_channel = _bot.get_channel(voice_channel_id) if voice_channel_id else None
+
+    await _set_group_role_permissions(
+        role=role,
+        text_channel=text_channel,
+        voice_channel=voice_channel,
+        cohort_channel=cohort_channel,
+    )
+
+    # Step 4: Get expected members from DB (who SHOULD have the role)
+    async with get_connection() as conn:
         members_result = await conn.execute(
             select(users.c.discord_id)
             .join(groups_users, users.c.user_id == groups_users.c.user_id)
@@ -1192,19 +1276,10 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
         )
         expected_discord_ids = {row["discord_id"] for row in members_result.mappings()}
 
-    # Get text channel
-    text_channel = _bot.get_channel(text_channel_id)
-    if not text_channel:
-        logger.warning(f"Text channel {text_channel_id} not found in Discord")
-        return {"error": "channel_not_found"}
+    # Step 5: Get current role members from Discord (who CURRENTLY has the role)
+    current_discord_ids = get_role_member_ids(role)
 
-    # Get voice channel (optional)
-    voice_channel = _bot.get_channel(voice_channel_id) if voice_channel_id else None
-
-    # Get current permission overwrites from text channel (who CURRENTLY has access)
-    current_discord_ids = get_members_with_access(text_channel)
-
-    # Calculate diff
+    # Step 6: Calculate diff and add/remove role assignments
     to_grant = expected_discord_ids - current_discord_ids
     to_revoke = current_discord_ids - expected_discord_ids
     unchanged = expected_discord_ids & current_discord_ids
@@ -1212,33 +1287,44 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
     granted, revoked, failed = 0, 0, 0
     granted_discord_ids = []
     revoked_discord_ids = []
-    guild = text_channel.guild
+    guild = role.guild
 
-    # Grant access to new members (both text and voice)
+    # Grant role to new members
     for discord_id in to_grant:
         member = await get_or_fetch_member(guild, int(discord_id))
         if not member:
-            logger.info(f"Member {discord_id} not in guild, skipping grant")
+            logger.info(f"Member {discord_id} not in guild, skipping role grant")
             continue
-        success = await grant_channel_access(member, text_channel, voice_channel)
-        if success:
+        try:
+            await member.add_roles(role, reason="Group sync")
             granted += 1
             granted_discord_ids.append(int(discord_id))
-        else:
+        except Exception as e:
+            logger.error(f"Failed to add role to member {discord_id}: {e}")
+            sentry_sdk.capture_exception(e)
             failed += 1
+        await asyncio.sleep(0.1)  # Rate limit protection
 
-    # Revoke access from removed members (both text and voice)
+    # Remove role from removed members
     for discord_id in to_revoke:
         member = await get_or_fetch_member(guild, int(discord_id))
         if not member:
             # Member left the server, no need to revoke
             continue
-        success = await revoke_channel_access(member, text_channel, voice_channel)
-        if success:
+        try:
+            await member.remove_roles(role, reason="Group sync")
             revoked += 1
             revoked_discord_ids.append(int(discord_id))
-        else:
+        except Exception as e:
+            logger.error(f"Failed to remove role from member {discord_id}: {e}")
+            sentry_sdk.capture_exception(e)
             failed += 1
+        await asyncio.sleep(0.1)  # Rate limit protection
+
+    logger.info(
+        f"Role sync for group {group_id}: "
+        f"granted={granted}, revoked={revoked}, unchanged={len(unchanged)}"
+    )
 
     return {
         "granted": granted,
@@ -1247,6 +1333,8 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
         "failed": failed,
         "granted_discord_ids": granted_discord_ids,
         "revoked_discord_ids": revoked_discord_ids,
+        "role_status": role_status,
+        "cohort_channel_status": cohort_channel_status,
     }
 
 
