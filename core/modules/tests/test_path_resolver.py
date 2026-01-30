@@ -40,3 +40,21 @@ def test_resolve_wiki_link_embed_syntax():
     # ![[...]] is embed syntax, should work the same
     result = resolve_wiki_link("![[../Lenses/My Lens]]")
     assert result == ("lenses", "My Lens")
+
+
+def test_resolve_wiki_link_with_display_name():
+    """Obsidian display name syntax [[path|display]] should strip display name."""
+    result = resolve_wiki_link("[[../Learning Outcomes/AI Risks|AI Risk Overview]]")
+    assert result == ("learning_outcomes", "AI Risks")
+
+
+def test_resolve_wiki_link_embed_with_display_name():
+    """Embed with display name ![[path|display]] should strip display name."""
+    result = resolve_wiki_link("![[../Lenses/My Lens|Custom Title]]")
+    assert result == ("lenses", "My Lens")
+
+
+def test_resolve_wiki_link_bare_path_with_pipe():
+    """Bare path (without brackets) containing pipe should strip display name."""
+    result = resolve_wiki_link("../articles/deep_dive|Article Title")
+    assert result == ("articles", "deep_dive")

@@ -893,6 +893,88 @@ source:: ![[../Lenses/Embedded]]
         lo = parse_learning_outcome(text)
         assert lo.lenses[0].source == "../Lenses/Embedded"
 
+    def test_parse_learning_outcome_with_display_name(self):
+        """Should strip Obsidian display name from wiki-links (pipe syntax)."""
+        from core.modules.markdown_parser import parse_learning_outcome
+
+        text = """---
+id: 44444444-4444-4444-4444-444444444444
+---
+## Lens:
+source:: [[../Lenses/My Lens|Custom Display Name]]
+"""
+        lo = parse_learning_outcome(text)
+        assert lo.lenses[0].source == "../Lenses/My Lens"
+
+
+class TestWikiLinkPipeSyntax:
+    """Test that Obsidian display name syntax (pipe) is handled correctly."""
+
+    def test_learning_outcome_source_with_pipe(self):
+        """Learning Outcome source should strip display name."""
+        text = """---
+slug: test
+title: Test
+---
+
+# Learning Outcome:
+source:: [[../Learning Outcomes/Core Concepts|Core Concepts Overview]]
+"""
+        module = parse_module(text)
+        section = module.sections[0]
+        assert isinstance(section, LearningOutcomeRef)
+        assert section.source == "../Learning Outcomes/Core Concepts"
+
+    def test_uncategorized_lens_with_pipe(self):
+        """Uncategorized Lens source should strip display name."""
+        text = """---
+slug: test
+title: Test
+---
+
+# Uncategorized:
+## Lens:
+source:: [[../Lenses/Background|Background Reading Lens]]
+"""
+        module = parse_module(text)
+        section = module.sections[0]
+        assert isinstance(section, UncategorizedSection)
+        assert section.lenses[0].source == "../Lenses/Background"
+
+    def test_video_section_source_with_pipe(self):
+        """Video section source should strip display name."""
+        text = """---
+slug: test
+title: Test
+---
+
+# Video: Test Video
+source:: [[video_transcripts/intro|Introduction Video]]
+
+## Text
+content::
+Watch this.
+"""
+        module = parse_module(text)
+        section = module.sections[0]
+        assert isinstance(section, VideoSection)
+        assert section.source == "video_transcripts/intro"
+
+    def test_embed_with_pipe(self):
+        """Embed syntax with display name should also strip it."""
+        text = """---
+slug: test
+title: Test
+---
+
+# Learning Outcome:
+source:: ![[../Learning Outcomes/Core|Core Concepts]]
+"""
+        module = parse_module(text)
+        section = module.sections[0]
+        assert isinstance(section, LearningOutcomeRef)
+        assert section.source == "../Learning Outcomes/Core"
+
 
 class TestCriticMarkupStripping:
     """Test that critic markup is stripped during parsing."""

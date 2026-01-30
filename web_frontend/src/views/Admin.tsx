@@ -168,7 +168,7 @@ export default function Admin() {
       setAddGroupCohortId(null);
       setAddGroupId(null);
     }
-  }, [selectedUser?.user_id]);
+  }, [selectedUser?.user_id, selectedUser?.cohort_id]);
 
   // Load groups when cohort is selected for adding user
   useEffect(() => {

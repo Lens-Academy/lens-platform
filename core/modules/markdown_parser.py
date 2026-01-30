@@ -11,6 +11,13 @@ from pathlib import Path
 from uuid import UUID as PyUUID
 
 from core.modules.critic_markup import strip_critic_markup
+from core.modules.markdown_validator import (
+    extract_wiki_link_path,
+    parse_frontmatter,
+    parse_fields,
+    split_by_headers,
+    FIELD_STOP_PATTERN_H2,
+)
 
 
 # -----------------------------------------------------------------------------
@@ -305,80 +312,23 @@ class ParsedCourse:
 
 def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     """Extract YAML frontmatter and return (metadata, remaining_content)."""
-    pattern = r"^---\s*\n(.*?)\n---\s*\n"
-    match = re.match(pattern, text, re.DOTALL)
-
-    if not match:
-        return {}, text
-
-    frontmatter_text = match.group(1)
-    content = text[match.end() :]
-
-    metadata = {}
-    for line in frontmatter_text.split("\n"):
-        line = line.strip()
-        if ":" in line:
-            key, value = line.split(":", 1)
-            metadata[key.strip()] = value.strip().strip('"').strip("'")
-
+    metadata, content, _, _ = parse_frontmatter(text)
     return metadata, content
 
 
 def _parse_fields(text: str) -> dict[str, str]:
-    """
-    Parse key:: value fields from text.
-
-    Single-line: key:: value
-    Multi-line: key:: followed by lines until next key::, segment header (## ), or end
-    """
-    fields = {}
-    lines = text.split("\n")
-    current_key = None
-    current_value_lines = []
-
-    for line in lines:
-        # Stop at segment headers (## SegmentType or ## SegmentType: Title)
-        if re.match(r"^## \S+(?::\s*.+)?$", line):
-            if current_key is not None:
-                fields[current_key] = "\n".join(current_value_lines).strip()
-                current_key = None
-                current_value_lines = []
-            continue
-
-        # Check for new field
-        field_match = re.match(r"^(\w+)::\s*(.*)?$", line)
-
-        if field_match:
-            # Save previous field if exists
-            if current_key is not None:
-                fields[current_key] = "\n".join(current_value_lines).strip()
-
-            current_key = field_match.group(1)
-            value_on_line = field_match.group(2) or ""
-
-            if value_on_line:
-                # Single-line value
-                current_value_lines = [value_on_line]
-            else:
-                # Multi-line value starts on next line
-                current_value_lines = []
-        elif current_key is not None:
-            # Continue multi-line value
-            current_value_lines.append(line)
-
-    # Save last field
-    if current_key is not None:
-        fields[current_key] = "\n".join(current_value_lines).strip()
-
-    return fields
+    """Parse key:: value fields from text (stops at ## headers)."""
+    return parse_fields(text, FIELD_STOP_PATTERN_H2)
 
 
 def _extract_wiki_link(text: str) -> str:
-    """Extract path from [[wiki-link]] or ![[embed]] syntax."""
-    # Handle both [[path]] and ![[path]] (embed) syntax identically
-    match = re.search(r"!?\[\[([^\]]+)\]\]", text)
-    if match:
-        return match.group(1)
+    """Extract path from [[wiki-link]] or ![[embed]] syntax.
+
+    Handles Obsidian display name syntax: [[path|display name]] -> path
+    """
+    path = extract_wiki_link_path(text)
+    if path is not None:
+        return path
     return text.strip()
 
 
@@ -491,30 +441,9 @@ def _parse_lens_refs(content: str) -> list["LensRef"]:
 def _split_into_segments(content: str) -> list[tuple[str, str]]:
     """Split section content into (segment_type, segment_content) tuples."""
     # Pattern for ## SegmentType or ## SegmentType: Title
-    # Use [^:\s]+ to capture segment type without including trailing colon
     pattern = r"^## ([^:\s]+)(?::\s*.*)?$"
-
-    segments = []
-    current_type = None
-    current_lines = []
-
-    for line in content.split("\n"):
-        match = re.match(pattern, line)
-        if match:
-            # Save previous segment
-            if current_type is not None:
-                segments.append((current_type, "\n".join(current_lines)))
-
-            current_type = match.group(1)
-            current_lines = []
-        elif current_type is not None:
-            current_lines.append(line)
-
-    # Save last segment
-    if current_type is not None:
-        segments.append((current_type, "\n".join(current_lines)))
-
-    return segments
+    sections = split_by_headers(content, pattern, include_line_numbers=False)
+    return [(groups[0], text) for _, groups, text in sections]
 
 
 def _parse_section(section_type: str, title: str, content: str) -> Section:
@@ -613,33 +542,12 @@ def _parse_section(section_type: str, title: str, content: str) -> Section:
 def _split_into_sections(content: str) -> list[tuple[str, str, str]]:
     """Split content into (section_type, title, section_content) tuples."""
     # Pattern for # SectionType or # SectionType: Title (title is optional)
-    # Supports multi-word types like "Learning Outcome" by matching up to the colon
-    # Use non-greedy match (.+?) to capture type, then optional ": title"
     pattern = r"^# (.+?)(?::\s*(.*))?$"
-
-    sections = []
-    current_type = None
-    current_title = None
-    current_lines = []
-
-    for line in content.split("\n"):
-        match = re.match(pattern, line)
-        if match:
-            # Save previous section
-            if current_type is not None:
-                sections.append((current_type, current_title, "\n".join(current_lines)))
-
-            current_type = match.group(1).strip()
-            current_title = (match.group(2) or "").strip()
-            current_lines = []
-        elif current_type is not None:
-            current_lines.append(line)
-
-    # Save last section
-    if current_type is not None:
-        sections.append((current_type, current_title, "\n".join(current_lines)))
-
-    return sections
+    sections = split_by_headers(content, pattern, include_line_numbers=False)
+    return [
+        (groups[0].strip(), (groups[1] or "").strip(), text)
+        for _, groups, text in sections
+    ]
 
 
 def parse_module(text: str) -> ParsedModule:
@@ -917,70 +825,21 @@ def parse_learning_outcome_file(path: Path | str) -> ParsedLearningOutcome:
 
 
 def _split_lens_sections(content: str) -> list[tuple[str, str, str]]:
-    """
-    Split Lens content into (section_type, title, section_content) tuples.
-
-    Lens files use ### for sections: ### Article: Title or ### Video: Title
-    """
-    # Pattern for ### Type: Title
-    pattern = r"^### (Article|Video):\s*(.*)$"
-
-    sections = []
-    current_type = None
-    current_title = None
-    current_lines = []
-
-    for line in content.split("\n"):
-        match = re.match(pattern, line, re.IGNORECASE)
-        if match:
-            # Save previous section
-            if current_type is not None:
-                sections.append((current_type, current_title, "\n".join(current_lines)))
-
-            current_type = match.group(1).strip()
-            current_title = match.group(2).strip()
-            current_lines = []
-        elif current_type is not None:
-            current_lines.append(line)
-
-    # Save last section
-    if current_type is not None:
-        sections.append((current_type, current_title, "\n".join(current_lines)))
-
-    return sections
+    """Split Lens content into (section_type, title, section_content) tuples."""
+    # Pattern for ### Type: Title (case-insensitive with (?i))
+    pattern = r"(?i)^### (Article|Video):\s*(.*)$"
+    sections = split_by_headers(content, pattern, include_line_numbers=False)
+    return [
+        (groups[0].strip(), groups[1].strip(), text) for _, groups, text in sections
+    ]
 
 
 def _split_lens_segments(content: str) -> list[tuple[str, str]]:
-    """
-    Split Lens section content into (segment_type, segment_content) tuples.
-
-    Lens files use #### for segments: #### Text, #### Chat, etc.
-    """
+    """Split Lens section content into (segment_type, segment_content) tuples."""
     # Pattern for #### SegmentType or #### SegmentType: Title
-    # Use [^:\s]+ to capture segment type without including trailing colon
     pattern = r"^#### ([^:\s]+)(?::\s*.*)?$"
-
-    segments = []
-    current_type = None
-    current_lines = []
-
-    for line in content.split("\n"):
-        match = re.match(pattern, line)
-        if match:
-            # Save previous segment
-            if current_type is not None:
-                segments.append((current_type, "\n".join(current_lines)))
-
-            current_type = match.group(1)
-            current_lines = []
-        elif current_type is not None:
-            current_lines.append(line)
-
-    # Save last segment
-    if current_type is not None:
-        segments.append((current_type, "\n".join(current_lines)))
-
-    return segments
+    sections = split_by_headers(content, pattern, include_line_numbers=False)
+    return [(groups[0], text) for _, groups, text in sections]
 
 
 def _parse_lens_segment(segment_type: str, content: str) -> LensSegment:

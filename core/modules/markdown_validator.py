@@ -42,6 +42,188 @@ def _strip_critic_markup(text: str) -> str:
     return text
 
 
+# -----------------------------------------------------------------------------
+# Wiki-link utilities (shared with markdown_parser.py and path_resolver.py)
+# -----------------------------------------------------------------------------
+
+# Regex pattern for wiki-links: [[path]] or ![[path]] (Obsidian embed)
+WIKI_LINK_PATTERN = r"!?\[\[([^\]]+)\]\]"
+
+
+def extract_wiki_link_path(text: str) -> str | None:
+    """Extract path from [[wiki-link]] or ![[embed]] syntax.
+
+    Handles Obsidian display name syntax: [[path|display name]] -> path
+
+    Args:
+        text: Text that may contain a wiki-link
+
+    Returns:
+        The path portion of the wiki-link, or None if no wiki-link found
+    """
+    match = re.search(WIKI_LINK_PATTERN, text)
+    if match:
+        path = match.group(1)
+        # Strip Obsidian display name (everything after |)
+        if "|" in path:
+            path = path.split("|", 1)[0]
+        return path
+    return None
+
+
+# -----------------------------------------------------------------------------
+# Frontmatter parsing (shared with markdown_parser.py)
+# -----------------------------------------------------------------------------
+
+# Regex for YAML frontmatter block
+FRONTMATTER_PATTERN = r"^---\s*\n(.*?)---\s*\n"
+
+
+def parse_frontmatter(text: str) -> tuple[dict[str, str], str, int | None, int | None]:
+    """Extract YAML frontmatter from markdown text.
+
+    Args:
+        text: Full markdown text
+
+    Returns:
+        Tuple of (metadata_dict, remaining_content, start_line, end_line).
+        If no frontmatter found, returns ({}, original_text, None, None).
+    """
+    match = re.match(FRONTMATTER_PATTERN, text, re.DOTALL)
+
+    if not match:
+        return {}, text, None, None
+
+    frontmatter_text = match.group(1).strip()
+    content = text[match.end() :]
+
+    # Line numbers for validation
+    start_line = 1
+    end_line = frontmatter_text.count("\n") + 3  # Include both --- lines
+
+    # Parse key: value pairs
+    metadata = {}
+    for line in frontmatter_text.split("\n"):
+        line = line.strip()
+        if ":" in line:
+            key, value = line.split(":", 1)
+            metadata[key.strip()] = value.strip().strip('"').strip("'")
+
+    return metadata, content, start_line, end_line
+
+
+# -----------------------------------------------------------------------------
+# Field parsing (shared with markdown_parser.py)
+# -----------------------------------------------------------------------------
+
+# Default pattern for segment headers that stop field parsing
+FIELD_STOP_PATTERN_H2 = r"^## \S+(?::\s*.+)?$"
+FIELD_STOP_PATTERN_H4 = r"^#### \S+(?::\s*.*)?$"
+
+
+def parse_fields(
+    text: str, stop_pattern: str = FIELD_STOP_PATTERN_H2
+) -> dict[str, str]:
+    """Parse key:: value fields from text.
+
+    Handles both single-line (key:: value) and multi-line (key:: followed by
+    lines until next key::, header, or end) formats.
+
+    Args:
+        text: Text containing fields
+        stop_pattern: Regex pattern for headers that stop field parsing
+
+    Returns:
+        Dictionary of field names to values
+    """
+    fields = {}
+    lines = text.split("\n")
+    current_key = None
+    current_value_lines: list[str] = []
+
+    for line in lines:
+        # Stop at headers matching the stop pattern
+        if re.match(stop_pattern, line):
+            if current_key is not None:
+                fields[current_key] = "\n".join(current_value_lines).strip()
+            break
+
+        # Check for new field
+        field_match = re.match(r"^(\w+)::\s*(.*)?$", line)
+
+        if field_match:
+            # Save previous field if exists
+            if current_key is not None:
+                fields[current_key] = "\n".join(current_value_lines).strip()
+
+            current_key = field_match.group(1)
+            value_on_line = field_match.group(2) or ""
+
+            if value_on_line:
+                current_value_lines = [value_on_line]
+            else:
+                current_value_lines = []
+        elif current_key is not None:
+            current_value_lines.append(line)
+
+    # Save last field
+    if current_key is not None:
+        fields[current_key] = "\n".join(current_value_lines).strip()
+
+    return fields
+
+
+# -----------------------------------------------------------------------------
+# Header-based section splitting (shared with markdown_parser.py)
+# -----------------------------------------------------------------------------
+
+
+def split_by_headers(
+    text: str, pattern: str, *, include_line_numbers: bool = True
+) -> list[tuple[int, tuple[str, ...], str]]:
+    """Split text into sections based on header pattern.
+
+    This is a generic utility for splitting markdown by any header level.
+    Each match of the pattern starts a new section.
+
+    Args:
+        text: Text to split
+        pattern: Regex pattern with capture groups for header components.
+                 E.g., ``^# (.+?)(?::\\s*(.*))?$`` captures (type, title)
+        include_line_numbers: If True, returns (line_num, groups, content).
+                              If False, returns (0, groups, content).
+
+    Returns:
+        List of (line_number, captured_groups, section_content) tuples.
+        line_number is 1-indexed. captured_groups is a tuple of all regex groups.
+    """
+    sections: list[tuple[int, tuple[str, ...], str]] = []
+    current_start: int | None = None
+    current_groups: tuple[str, ...] | None = None
+    current_lines: list[str] = []
+
+    for i, line in enumerate(text.split("\n"), 1):
+        match = re.match(pattern, line)
+        if match:
+            # Save previous section
+            if current_start is not None:
+                sections.append(
+                    (current_start, current_groups, "\n".join(current_lines))
+                )
+
+            current_start = i if include_line_numbers else 0
+            current_groups = match.groups()
+            current_lines = []
+        elif current_start is not None:
+            current_lines.append(line)
+
+    # Save last section
+    if current_start is not None:
+        sections.append((current_start, current_groups, "\n".join(current_lines)))
+
+    return sections
+
+
 @dataclass
 class ValidationError:
     """A single validation error."""
@@ -144,69 +326,14 @@ def _find_line_number(text: str, pattern: str, occurrence: int = 0) -> int | Non
 def _parse_frontmatter_for_validation(
     text: str,
 ) -> tuple[dict[str, str], int | None, int | None]:
-    """
-    Extract frontmatter and return (metadata, start_line, end_line).
-
-    Returns empty dict and None lines if no frontmatter found.
-    """
-    # Allow empty frontmatter (---\n---) by making content optional
-    pattern = r"^---\s*\n(.*?)---\s*\n"
-    match = re.match(pattern, text, re.DOTALL)
-
-    if not match:
-        return {}, None, None
-
-    frontmatter_text = match.group(1).strip()
-
-    # Count lines to find positions
-    start_line = 1  # First ---
-    end_line = frontmatter_text.count("\n") + 3  # Include both --- lines
-
-    metadata = {}
-    for line in frontmatter_text.split("\n"):
-        line = line.strip()
-        if ":" in line:
-            key, value = line.split(":", 1)
-            metadata[key.strip()] = value.strip().strip('"').strip("'")
-
+    """Extract frontmatter and return (metadata, start_line, end_line)."""
+    metadata, _, start_line, end_line = parse_frontmatter(text)
     return metadata, start_line, end_line
 
 
 def _parse_fields_for_validation(text: str) -> dict[str, str]:
-    """Parse key:: value fields (same logic as parser, for validation)."""
-    fields = {}
-    lines = text.split("\n")
-    current_key = None
-    current_value_lines = []
-
-    for line in lines:
-        # Stop at segment headers - don't parse fields inside segments
-        # Segment headers can have optional titles: ## Type or ## Type: Title
-        if re.match(r"^## \S+(?::\s*.+)?$", line):
-            if current_key is not None:
-                fields[current_key] = "\n".join(current_value_lines).strip()
-            break
-
-        field_match = re.match(r"^(\w+)::\s*(.*)?$", line)
-
-        if field_match:
-            if current_key is not None:
-                fields[current_key] = "\n".join(current_value_lines).strip()
-
-            current_key = field_match.group(1)
-            value_on_line = field_match.group(2) or ""
-
-            if value_on_line:
-                current_value_lines = [value_on_line]
-            else:
-                current_value_lines = []
-        elif current_key is not None:
-            current_value_lines.append(line)
-
-    if current_key is not None:
-        fields[current_key] = "\n".join(current_value_lines).strip()
-
-    return fields
+    """Parse key:: value fields (stops at ## headers)."""
+    return parse_fields(text, FIELD_STOP_PATTERN_H2)
 
 
 def validate_module(text: str) -> list[ValidationError]:
@@ -594,17 +721,19 @@ def _extract_wiki_links(text: str) -> list[tuple[int, str]]:
     """Extract all wiki-links from text with their line numbers.
 
     Handles both [[link]] and ![[embed]] (Obsidian embed) syntax.
+    Handles Obsidian display name syntax: [[path|display name]] -> path
     Only returns wiki-links that look like file paths (contain '/' or '..').
     Ignores things like Wikipedia citation links [[1]], [[2]], etc.
 
     Returns list of (line_number, link_path) tuples.
     """
-    # Match both [[link]] and ![[embed]] syntax
-    wiki_link_pattern = r"!?\[\[([^\]]+)\]\]"
     links = []
     for i, line in enumerate(text.split("\n"), 1):
-        for match in re.finditer(wiki_link_pattern, line):
+        for match in re.finditer(WIKI_LINK_PATTERN, line):
             link = match.group(1)
+            # Strip Obsidian display name (everything after |)
+            if "|" in link:
+                link = link.split("|", 1)[0]
             # Only validate links that look like file paths
             if "/" in link or link.startswith(".."):
                 links.append((i, link))
@@ -1078,38 +1207,7 @@ def validate_lens_file(path: Path | str) -> ValidationResult:
 
 def _parse_lens_section_fields(text: str) -> dict[str, str]:
     """Parse key:: value fields from a Lens section (stop at #### headers)."""
-    fields = {}
-    lines = text.split("\n")
-    current_key = None
-    current_value_lines = []
-
-    for line in lines:
-        # Stop at segment headers (#### Type or #### Type: Title)
-        if re.match(r"^#### \S+(?::\s*.*)?$", line):
-            if current_key is not None:
-                fields[current_key] = "\n".join(current_value_lines).strip()
-            break
-
-        field_match = re.match(r"^(\w+)::\s*(.*)?$", line)
-
-        if field_match:
-            if current_key is not None:
-                fields[current_key] = "\n".join(current_value_lines).strip()
-
-            current_key = field_match.group(1)
-            value_on_line = field_match.group(2) or ""
-
-            if value_on_line:
-                current_value_lines = [value_on_line]
-            else:
-                current_value_lines = []
-        elif current_key is not None:
-            current_value_lines.append(line)
-
-    if current_key is not None:
-        fields[current_key] = "\n".join(current_value_lines).strip()
-
-    return fields
+    return parse_fields(text, FIELD_STOP_PATTERN_H4)
 
 
 def _validate_lens_segments(

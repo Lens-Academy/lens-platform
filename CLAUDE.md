@@ -121,6 +121,24 @@ ai-safety-course-platform/
 
 **Layer separation:** Layer 2a (Discord) and Layer 2b (FastAPI) should never import from each other. Both delegate to `core/`.
 
+## Database Migrations
+
+**Workflow for schema changes:**
+
+1. **Edit SQLAlchemy schema** in `core/tables.py`
+2. **Auto-generate migration** with Alembic:
+   ```bash
+   alembic revision --autogenerate -m "description of change"
+   ```
+3. **Manually review and fix** the generated migration file in `alembic/versions/`
+   - Alembic autogenerate is imperfect - always verify the SQL is correct
+   - Add data migrations if needed
+   - Test both upgrade and downgrade paths
+4. **Walk through migration with user** - Show the user the migration and explain changes
+5. **Run the migration** after user approval
+
+Never write raw SQL migrations directly. Always start from SQLAlchemy schema changes.
+
 ## UI/UX Patterns
 
 **Never use `cursor-not-allowed`** - use `cursor-default` instead for non-interactive elements.
