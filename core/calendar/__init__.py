@@ -3,6 +3,8 @@
 from .client import get_calendar_service, is_calendar_configured
 from .events import (
     create_meeting_event,
+    create_recurring_event,
+    get_event_instances,
     update_meeting_event,
     cancel_meeting_event,
     get_event_rsvps,
@@ -13,6 +15,8 @@ __all__ = [
     "get_calendar_service",
     "is_calendar_configured",
     "create_meeting_event",
+    "create_recurring_event",
+    "get_event_instances",
     "update_meeting_event",
     "cancel_meeting_event",
     "get_event_rsvps",
