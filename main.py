@@ -86,7 +86,7 @@ from core import get_allowed_origins, is_dev_mode
 from core.config import check_required_env_vars
 from core.content import initialize_cache, ContentBranchNotConfiguredError
 from core.notifications import init_scheduler, shutdown_scheduler
-from core.calendar.rsvp import sync_upcoming_meeting_rsvps
+from core.sync import sync_all_group_rsvps
 from core.discord_outbound import set_bot as set_notification_bot
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -189,12 +189,11 @@ async def lifespan(app: FastAPI):
         # Add periodic RSVP sync job
         if scheduler:
             scheduler.add_job(
-                sync_upcoming_meeting_rsvps,
+                sync_all_group_rsvps,
                 trigger="interval",
                 hours=6,
                 id="sync_calendar_rsvps",
                 replace_existing=True,
-                kwargs={"days_ahead": 7},
             )
             print("Scheduled RSVP sync job (every 6 hours)")
     else:

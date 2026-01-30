@@ -582,9 +582,44 @@ def light_cleanup(content: str, title: str | None = None) -> str:
             ):
                 result = result[h1_match.end() :].lstrip()
 
-    # Fix spacing around asterisks
-    result = re.sub(r"\*\s+([^*]+)\s+\*", r"*\1*", result)
-    result = re.sub(r"\*\*\s+([^*]+)\s+\*\*", r"**\1**", result)
+    # === Fix internal links ===
+    # LessWrong internal links: /lw/xxx → https://www.lesswrong.com/lw/xxx
+    result = re.sub(r"\]\(/lw/", r"](https://www.lesswrong.com/lw/", result)
+    # Alignment Forum internal links
+    result = re.sub(r"\]\(/posts/", r"](https://www.alignmentforum.org/posts/", result)
+
+    # === HTML entities ===
+    html_entities = [
+        ("&gt;", ">"),
+        ("&lt;", "<"),
+        ("&amp;", "&"),
+        ("&quot;", '"'),
+        ("&apos;", "'"),
+        ("&nbsp;", " "),
+    ]
+    for entity, replacement in html_entities:
+        result = result.replace(entity, replacement)
+
+    # === Bold/italic spacing ===
+    # Add space between formatting markers and adjacent text
+    # Patterns require content to have at least one word char (avoids matching *  *)
+
+    # **bold**letter → **bold** letter
+    result = re.sub(r"(\*\*[^*\n]*\w[^*\n]*\*\*)([a-zA-Z])", r"\1 \2", result)
+    # letter**bold** → letter **bold**
+    result = re.sub(r"([a-zA-Z])(\*\*[^*\n]*\w[^*\n]*\*\*)", r"\1 \2", result)
+    # punctuation**bold** → punctuation **bold**
+    result = re.sub(r"([,.:;)\]])(\*\*[^*\n]*\w[^*\n]*\*\*)", r"\1 \2", result)
+
+    # *italic*letter → *italic* letter (negative lookbehind avoids matching **)
+    result = re.sub(r"(?<!\*)(\*\w[^*\n]*\*)([a-zA-Z])", r"\1 \2", result)
+    # letter*italic* → letter *italic*
+    result = re.sub(r"([a-zA-Z])(\*\w[^*\n]*\*)(?!\*)", r"\1 \2", result)
+    # punctuation*italic* → punctuation *italic*
+    result = re.sub(r"([,.:;)\]])(\*\w[^*\n]*\*)(?!\*)", r"\1 \2", result)
+
+    # Collapse double spaces that might result from above
+    result = re.sub(r"  +", " ", result)
 
     # Collapse excessive blank lines
     result = re.sub(r"\n{3,}", "\n\n", result)

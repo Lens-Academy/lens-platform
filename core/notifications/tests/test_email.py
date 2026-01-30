@@ -2,7 +2,12 @@
 
 from unittest.mock import patch, MagicMock
 
-from core.notifications.channels.email import send_email, EmailMessage
+from core.notifications.channels.email import (
+    send_email,
+    EmailMessage,
+    markdown_to_html,
+    markdown_to_plain_text,
+)
 
 
 class TestEmailMessage:
@@ -58,3 +63,51 @@ class TestSendEmail:
                     body="Test",
                 )
                 assert result is False
+
+
+class TestMarkdownConversion:
+    def test_markdown_to_html_converts_links(self):
+        text = "Click [here](https://example.com) to continue."
+        html = markdown_to_html(text)
+
+        assert '<a href="https://example.com">here</a>' in html
+        assert "[here]" not in html
+
+    def test_markdown_to_html_converts_multiple_links(self):
+        text = "[Link 1](https://one.com) and [Link 2](https://two.com)"
+        html = markdown_to_html(text)
+
+        assert '<a href="https://one.com">Link 1</a>' in html
+        assert '<a href="https://two.com">Link 2</a>' in html
+
+    def test_markdown_to_html_preserves_newlines(self):
+        text = "Line 1\nLine 2"
+        html = markdown_to_html(text)
+
+        assert "<br>" in html
+
+    def test_markdown_to_html_wraps_in_html_structure(self):
+        text = "Hello"
+        html = markdown_to_html(text)
+
+        assert "<!DOCTYPE html>" in html
+        assert "<html>" in html
+        assert "<body" in html
+
+    def test_markdown_to_plain_text_converts_links(self):
+        text = "Click [here](https://example.com) to continue."
+        plain = markdown_to_plain_text(text)
+
+        assert plain == "Click here (https://example.com) to continue."
+
+    def test_markdown_to_plain_text_converts_multiple_links(self):
+        text = "[Link 1](https://one.com) and [Link 2](https://two.com)"
+        plain = markdown_to_plain_text(text)
+
+        assert plain == "Link 1 (https://one.com) and Link 2 (https://two.com)"
+
+    def test_markdown_to_plain_text_preserves_non_links(self):
+        text = "No links here, just text."
+        plain = markdown_to_plain_text(text)
+
+        assert plain == text

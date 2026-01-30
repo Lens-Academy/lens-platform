@@ -7,8 +7,47 @@ from datetime import timedelta
 import sentry_sdk
 from google.oauth2 import service_account
 from googleapiclient.discovery import build, Resource
+from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
+
+
+def _is_rate_limit_error(exception: Exception) -> bool:
+    """Check if exception is a Google API rate limit error."""
+    if isinstance(exception, HttpError):
+        return exception.resp.status == 429
+    return False
+
+
+def _log_calendar_error(
+    exception: Exception,
+    operation: str,
+    context: dict | None = None,
+) -> None:
+    """
+    Log calendar API errors with appropriate severity.
+
+    Rate limits get warning level + specific Sentry event.
+    Other errors get error level.
+    """
+    context = context or {}
+
+    if _is_rate_limit_error(exception):
+        logger.warning(
+            f"Google Calendar rate limit hit during {operation}",
+            extra={"operation": operation, **context},
+        )
+        sentry_sdk.capture_message(
+            f"Google Calendar rate limit: {operation}",
+            level="warning",
+            extras={"operation": operation, **context},
+        )
+    else:
+        logger.error(
+            f"Google Calendar API error during {operation}: {exception}",
+            extra={"operation": operation, **context},
+        )
+        sentry_sdk.capture_exception(exception)
 
 
 CALENDAR_EMAIL = os.environ.get("GOOGLE_CALENDAR_EMAIL", "calendar@lensacademy.org")
@@ -77,8 +116,11 @@ def batch_get_events(event_ids: list[str]) -> dict[str, dict] | None:
 
     def callback(request_id: str, response: dict, exception):
         if exception:
-            logger.error(f"Failed to fetch event {request_id}: {exception}")
-            sentry_sdk.capture_exception(exception)
+            _log_calendar_error(
+                exception,
+                operation="batch_get_events",
+                context={"event_id": request_id},
+            )
         else:
             results[request_id] = response
 
@@ -126,14 +168,16 @@ def batch_create_events(
     def callback(request_id: str, response: dict, exception):
         meeting_id = int(request_id)
         if exception:
-            logger.error(
-                f"Failed to create event for meeting {meeting_id}: {exception}"
+            _log_calendar_error(
+                exception,
+                operation="batch_create_events",
+                context={"meeting_id": meeting_id},
             )
-            sentry_sdk.capture_exception(exception)
             results[meeting_id] = {
                 "success": False,
                 "event_id": None,
                 "error": str(exception),
+                "is_rate_limit": _is_rate_limit_error(exception),
             }
         else:
             results[meeting_id] = {
@@ -200,9 +244,16 @@ def batch_patch_events(
 
     def callback(request_id: str, response: dict, exception):
         if exception:
-            logger.error(f"Failed to patch event {request_id}: {exception}")
-            sentry_sdk.capture_exception(exception)
-            results[request_id] = {"success": False, "error": str(exception)}
+            _log_calendar_error(
+                exception,
+                operation="batch_patch_events",
+                context={"event_id": request_id},
+            )
+            results[request_id] = {
+                "success": False,
+                "error": str(exception),
+                "is_rate_limit": _is_rate_limit_error(exception),
+            }
         else:
             results[request_id] = {"success": True, "error": None}
 
@@ -217,6 +268,54 @@ def batch_patch_events(
             ),
             callback=callback,
             request_id=update["event_id"],
+        )
+
+    batch.execute()
+    return results
+
+
+def batch_delete_events(event_ids: list[str]) -> dict[str, dict] | None:
+    """
+    Delete multiple calendar events in a single batch request.
+
+    Args:
+        event_ids: List of Google Calendar event IDs to delete
+
+    Returns:
+        Dict mapping event_id -> {"success": bool, "error": str | None},
+        or None if calendar not configured.
+    """
+    if not event_ids:
+        return {}
+
+    service = get_calendar_service()
+    if not service:
+        return None
+
+    calendar_id = get_calendar_email()
+    results: dict[str, dict] = {}
+
+    def callback(request_id: str, response, exception):
+        if exception:
+            _log_calendar_error(
+                exception,
+                operation="batch_delete_events",
+                context={"event_id": request_id},
+            )
+            results[request_id] = {"success": False, "error": str(exception)}
+        else:
+            results[request_id] = {"success": True, "error": None}
+
+    batch = service.new_batch_http_request()
+    for event_id in event_ids:
+        batch.add(
+            service.events().delete(
+                calendarId=calendar_id,
+                eventId=event_id,
+                sendUpdates="none",  # Don't notify - these are being replaced
+            ),
+            callback=callback,
+            request_id=event_id,
         )
 
     batch.execute()

@@ -39,7 +39,6 @@ from .facilitator import (
 # - get_user_chat_sessions
 from .meetings import (
     create_meeting,
-    update_meeting_calendar_id,
     get_meetings_for_group,
     get_meeting,
     reschedule_meeting,
@@ -80,7 +79,6 @@ __all__ = [
     # Progress - removed, needs reimplementation with new tables
     # Meetings
     "create_meeting",
-    "update_meeting_calendar_id",
     "get_meetings_for_group",
     "get_meeting",
     "reschedule_meeting",

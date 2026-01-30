@@ -9,18 +9,12 @@ from datetime import datetime, timedelta
 from core.database import get_connection, get_transaction
 from core.queries.meetings import (
     create_meeting,
-    update_meeting_calendar_id,
     get_meeting,
     get_meetings_for_group,
     reschedule_meeting as db_reschedule_meeting,
-    get_group_member_emails,
     get_group_member_user_ids,
 )
-from core.calendar import (
-    create_meeting_event,
-    update_meeting_event,
-    is_calendar_configured,
-)
+from core.calendar import update_meeting_event
 from core.notifications.actions import (
     schedule_meeting_reminders,
     cancel_meeting_reminders,
@@ -78,52 +72,6 @@ async def create_meetings_for_group(
             meeting_ids.append(meeting_id)
 
     return meeting_ids
-
-
-async def send_calendar_invites_for_group(
-    group_id: int,
-    group_name: str,
-    meeting_ids: list[int],
-) -> int:
-    """
-    Send Google Calendar invites for all meetings in a group.
-
-    Returns:
-        Number of invites sent successfully
-    """
-    if not is_calendar_configured():
-        print("Google Calendar not configured, skipping invites")
-        return 0
-
-    async with get_connection() as conn:
-        # Get member emails
-        emails = await get_group_member_emails(conn, group_id)
-
-        if not emails:
-            print(f"No emails found for group {group_id}, skipping calendar invites")
-            return 0
-
-        # Get meetings
-        meetings_list = await get_meetings_for_group(conn, group_id)
-
-    sent = 0
-    async with get_transaction() as conn:
-        for meeting in meetings_list:
-            if meeting["meeting_id"] not in meeting_ids:
-                continue
-
-            event_id = await create_meeting_event(
-                title=f"{group_name} - Week {meeting['meeting_number']}",
-                description="Weekly AI Safety study group meeting",
-                start=meeting["scheduled_at"],
-                attendee_emails=emails,
-            )
-
-            if event_id:
-                await update_meeting_calendar_id(conn, meeting["meeting_id"], event_id)
-                sent += 1
-
-    return sent
 
 
 async def schedule_reminders_for_group(

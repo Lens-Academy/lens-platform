@@ -14,7 +14,7 @@ from core.notifications.urls import (
     build_profile_url,
     build_discord_channel_url,
     build_discord_invite_url,
-    build_module_url,
+    build_course_url,
 )
 
 
@@ -165,7 +165,7 @@ def schedule_meeting_reminders(
         # UTC fallback for channel messages (no user context)
         "meeting_time": meeting_time.strftime("%A at %H:%M UTC"),
         "meeting_date": meeting_time.strftime("%A, %B %d"),
-        "module_url": module_url or build_module_url("next"),
+        "module_url": module_url or build_course_url(),
         "discord_channel_url": build_discord_channel_url(channel_id=discord_channel_id),
         "module_list": "- Check your course dashboard for assigned modules",
         "modules_remaining": "some",

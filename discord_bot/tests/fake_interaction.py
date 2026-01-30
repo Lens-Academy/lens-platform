@@ -16,7 +16,7 @@ class FakeInteraction:
         guild = bot.get_guild(DEV_GUILD_ID)
         test_channel = guild.get_channel(TEST_CHANNEL_ID)
         interaction = FakeInteraction(guild, test_channel)
-        await cog.realize_groups(interaction, cohort_id)
+        await cog.realize_cohort(interaction, cohort_id)
     """
 
     def __init__(

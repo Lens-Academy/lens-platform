@@ -99,19 +99,39 @@ class TestSyncGroupDiscordPermissions:
         import discord
 
         # Setup: mock DB returns two expected members (discord_ids 111, 222)
-        # Discord channel currently has one member (discord_id 333)
+        # Discord role currently has one member (discord_id 333)
         # Expected: grant 111, 222; revoke 333
 
         mock_conn = AsyncMock()
 
-        # Query 1: get group channels
+        # Query 1: _ensure_group_role - get group/cohort info
+        mock_role_query_result = MagicMock()
+        mock_role_query_result.mappings.return_value.first.return_value = {
+            "group_id": 1,
+            "group_name": "Test Group",
+            "discord_role_id": "777888999",  # Role exists
+            "cohort_id": 1,
+            "cohort_name": "Jan 2026",
+        }
+
+        # Query 2: get group channel info
         mock_group_result = MagicMock()
         mock_group_result.mappings.return_value.first.return_value = {
+            "cohort_id": 1,
             "discord_text_channel_id": "123456789",
             "discord_voice_channel_id": "987654321",
         }
 
-        # Query 2: get active members from DB
+        # Query 3: _ensure_cohort_channel - get cohort info
+        mock_cohort_result = MagicMock()
+        mock_cohort_result.mappings.return_value.first.return_value = {
+            "cohort_id": 1,
+            "cohort_name": "Jan 2026",
+            "discord_category_id": "555666777",
+            "discord_cohort_channel_id": "888999000",  # Cohort channel exists
+        }
+
+        # Query 4: get expected members from DB
         mock_members_result = MagicMock()
         mock_members_result.mappings.return_value = [
             {"discord_id": "111"},
@@ -119,28 +139,53 @@ class TestSyncGroupDiscordPermissions:
         ]
 
         mock_conn.execute = AsyncMock(
-            side_effect=[mock_group_result, mock_members_result]
+            side_effect=[
+                mock_role_query_result,
+                mock_group_result,
+                mock_cohort_result,
+                mock_members_result,
+            ]
         )
 
-        # Mock Discord channel with existing permission for user 333
+        # Mock Discord role - currently has member 333
         mock_member_333 = MagicMock(spec=discord.Member)
         mock_member_333.id = 333
 
-        mock_perms = MagicMock()
-        mock_perms.view_channel = True
+        mock_role = MagicMock(spec=discord.Role)
+        mock_role.id = 777888999
+        mock_role.name = "Cohort Jan 2026 - Group Test Group"
+        mock_role.members = [mock_member_333]  # Member 333 currently has this role
 
-        mock_text_channel = MagicMock()
-        mock_text_channel.overwrites = {mock_member_333: mock_perms}
-        mock_text_channel.guild = MagicMock()
+        # Mock channels
+        mock_text_channel = MagicMock(spec=discord.TextChannel)
+        mock_text_channel.id = 123456789
         mock_text_channel.set_permissions = AsyncMock()
 
-        mock_voice_channel = MagicMock()
+        mock_voice_channel = MagicMock(spec=discord.VoiceChannel)
+        mock_voice_channel.id = 987654321
         mock_voice_channel.set_permissions = AsyncMock()
 
+        mock_cohort_channel = MagicMock(spec=discord.TextChannel)
+        mock_cohort_channel.id = 888999000
+        mock_cohort_channel.name = "general-jan-2026"
+        mock_cohort_channel.set_permissions = AsyncMock()
+
+        # Mock guild
+        mock_guild = MagicMock(spec=discord.Guild)
+        mock_guild.roles = [mock_role]  # Less than 250 roles
+        mock_guild.me = MagicMock()
+        mock_guild.me.guild_permissions = MagicMock()
+        mock_guild.me.guild_permissions.manage_roles = True
+        mock_guild.get_role.return_value = mock_role
+        mock_role.guild = mock_guild
+
         mock_bot = MagicMock()
+        mock_bot.guilds = [mock_guild]
         mock_bot.get_channel.side_effect = lambda id: {
             123456789: mock_text_channel,
             987654321: mock_voice_channel,
+            888999000: mock_cohort_channel,
+            555666777: MagicMock(),  # Category
         }.get(id)
 
         # Mock get_or_fetch_member to return members for grants, None for revoke (left server)
@@ -148,6 +193,8 @@ class TestSyncGroupDiscordPermissions:
             if discord_id in [111, 222]:
                 m = MagicMock(spec=discord.Member)
                 m.id = discord_id
+                m.add_roles = AsyncMock()
+                m.remove_roles = AsyncMock()
                 return m
             return None  # User 333 left server
 
@@ -158,14 +205,29 @@ class TestSyncGroupDiscordPermissions:
                     "core.discord_outbound.get_or_fetch_member",
                     side_effect=mock_fetch,
                 ):
-                    result = await sync_group_discord_permissions(group_id=1)
+                    with patch(
+                        "core.discord_outbound.get_role_member_ids",
+                        return_value={"333"},  # Current role members (as strings)
+                    ):
+                        with patch(
+                            "core.sync._set_group_role_permissions",
+                            new_callable=AsyncMock,
+                        ) as mock_set_perms:
+                            mock_set_perms.return_value = {
+                                "text": True,
+                                "voice": True,
+                                "cohort": True,
+                            }
+                            result = await sync_group_discord_permissions(group_id=1)
 
         # Verify user ID lists are returned
         assert "granted_discord_ids" in result
         assert "revoked_discord_ids" in result
         assert set(result["granted_discord_ids"]) == {111, 222}
         # 333 was in revoke set but member not found, so not in revoked_discord_ids
+        assert result["revoked_discord_ids"] == []
         assert result["granted"] == 2
+        assert result["role_status"] == "existed"
 
     @pytest.mark.asyncio
     async def test_returns_error_when_bot_unavailable(self):
@@ -175,85 +237,161 @@ class TestSyncGroupDiscordPermissions:
         with patch("core.discord_outbound.bot._bot", None):
             result = await sync_group_discord_permissions(group_id=1)
 
-        assert result == {"error": "bot_unavailable"}
+        assert result == {
+            "error": "bot_unavailable",
+            "granted": 0,
+            "revoked": 0,
+            "unchanged": 0,
+            "failed": 0,
+        }
 
     @pytest.mark.asyncio
     async def test_returns_error_when_group_has_no_channel(self):
         """Should return error if group has no Discord channel."""
         from core.sync import sync_group_discord_permissions
+        import discord
 
         mock_conn = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.mappings.return_value.first.return_value = {
-            "discord_text_channel_id": None,
+
+        # Mock role query result (first DB query in _ensure_group_role)
+        mock_role_result = MagicMock()
+        mock_role_result.mappings.return_value.first.return_value = {
+            "group_id": 1,
+            "group_name": "Test Group",
+            "discord_role_id": "777888999",  # Role exists
+            "cohort_id": 1,
+            "cohort_name": "Jan 2026",
+        }
+
+        # Mock group query result (second DB query for channel info)
+        mock_group_result = MagicMock()
+        mock_group_result.mappings.return_value.first.return_value = {
+            "cohort_id": 1,
+            "discord_text_channel_id": None,  # No channel
             "discord_voice_channel_id": None,
         }
-        mock_conn.execute = AsyncMock(return_value=mock_result)
+
+        mock_conn.execute = AsyncMock(side_effect=[mock_role_result, mock_group_result])
+
+        # Mock Discord role
+        mock_role = MagicMock(spec=discord.Role)
+        mock_role.id = 777888999
+        mock_role.name = "Cohort Jan 2026 - Group Test Group"
+        mock_role.members = []  # No members currently have this role
+
+        # Mock guild
+        mock_guild = MagicMock(spec=discord.Guild)
+        mock_guild.roles = [mock_role]  # Less than 250 roles
+        mock_guild.me = MagicMock()
+        mock_guild.me.guild_permissions = MagicMock()
+        mock_guild.me.guild_permissions.manage_roles = True
+        mock_guild.get_role.return_value = mock_role
 
         mock_bot = MagicMock()
+        mock_bot.guilds = [mock_guild]
 
         with patch("core.discord_outbound.bot._bot", mock_bot):
             with patch("core.database.get_connection") as mock_get_conn:
                 mock_get_conn.return_value.__aenter__.return_value = mock_conn
                 result = await sync_group_discord_permissions(group_id=1)
 
-        assert result == {"error": "no_channel"}
+        assert result["error"] == "no_channel"
+        assert result["role_status"] == "existed"
+        assert result["granted"] == 0
+        assert result["revoked"] == 0
+        assert result["unchanged"] == 0
+        assert result["failed"] == 0
 
     @pytest.mark.asyncio
     async def test_returns_error_when_channel_not_found_in_discord(self):
         """Should return error if Discord channel is not found."""
         from core.sync import sync_group_discord_permissions
+        import discord
 
         mock_conn = AsyncMock()
-        # First query: get group channels
+
+        # Mock role query result (first DB query in _ensure_group_role)
+        mock_role_result = MagicMock()
+        mock_role_result.mappings.return_value.first.return_value = {
+            "group_id": 1,
+            "group_name": "Test Group",
+            "discord_role_id": "777888999",
+            "cohort_id": 1,
+            "cohort_name": "Jan 2026",
+        }
+
+        # Mock group query result (for channel info)
         mock_group_result = MagicMock()
         mock_group_result.mappings.return_value.first.return_value = {
-            "discord_text_channel_id": "123456789",
+            "cohort_id": 1,
+            "discord_text_channel_id": "123456789",  # Channel ID exists in DB
             "discord_voice_channel_id": None,
         }
-        # Second query: get active members
-        mock_members_result = MagicMock()
-        mock_members_result.mappings.return_value = [{"discord_id": "111"}]
+
+        # Mock cohort query result (for _ensure_cohort_channel)
+        mock_cohort_result = MagicMock()
+        mock_cohort_result.mappings.return_value.first.return_value = {
+            "cohort_id": 1,
+            "cohort_name": "Jan 2026",
+            "discord_category_id": "555666777",
+            "discord_cohort_channel_id": None,  # No cohort channel yet
+        }
 
         mock_conn.execute = AsyncMock(
-            side_effect=[mock_group_result, mock_members_result]
+            side_effect=[mock_role_result, mock_group_result, mock_cohort_result]
         )
 
+        # Mock Discord role
+        mock_role = MagicMock(spec=discord.Role)
+        mock_role.id = 777888999
+        mock_role.name = "Cohort Jan 2026 - Group Test Group"
+        mock_role.members = []
+
+        # Mock guild
+        mock_guild = MagicMock(spec=discord.Guild)
+        mock_guild.roles = [mock_role]
+        mock_guild.me = MagicMock()
+        mock_guild.me.guild_permissions = MagicMock()
+        mock_guild.me.guild_permissions.manage_roles = True
+        mock_guild.get_role.return_value = mock_role
+
         mock_bot = MagicMock()
-        mock_bot.get_channel.return_value = None  # Channel not found
+        mock_bot.guilds = [mock_guild]
+        mock_bot.get_channel.return_value = None  # Channel not found in Discord
 
         with patch("core.discord_outbound.bot._bot", mock_bot):
             with patch("core.database.get_connection") as mock_get_conn:
                 mock_get_conn.return_value.__aenter__.return_value = mock_conn
                 result = await sync_group_discord_permissions(group_id=1)
 
-        assert result == {"error": "channel_not_found"}
+        assert result["error"] == "channel_not_found"
+        assert result["role_status"] == "existed"
+        assert result["granted"] == 0
+        assert result["revoked"] == 0
+        assert result["unchanged"] == 0
+        assert result["failed"] == 0
 
 
 class TestSyncGroupCalendar:
     """Test group calendar sync wrapper."""
 
     @pytest.mark.asyncio
-    async def test_returns_zero_counts_when_no_future_meetings(self):
-        """Should return zero counts when group has no future meetings."""
+    async def test_returns_error_when_group_not_found(self):
+        """Should return error when group doesn't exist."""
         from core.sync import sync_group_calendar
 
         mock_conn = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.mappings.return_value = []  # No meetings
-        mock_conn.execute = AsyncMock(return_value=mock_result)
+        mock_group_result = MagicMock()
+        mock_group_result.mappings.return_value.first.return_value = None
+        mock_conn.execute = AsyncMock(return_value=mock_group_result)
 
-        with patch("core.database.get_connection") as mock_get_conn:
-            mock_get_conn.return_value.__aenter__.return_value = mock_conn
+        with patch("core.database.get_transaction") as mock_get_tx:
+            mock_get_tx.return_value.__aenter__.return_value = mock_conn
             result = await sync_group_calendar(group_id=1)
 
-        assert result == {
-            "meetings": 0,
-            "created": 0,
-            "patched": 0,
-            "unchanged": 0,
-            "failed": 0,
-        }
+        assert result["error"] == "group_not_found"
+        assert result["meetings"] == 0
+        assert result["created_recurring"] is False
 
 
 class TestSyncGroupReminders:
@@ -302,45 +440,49 @@ class TestSyncGroupReminders:
 
 
 class TestSyncGroupRsvps:
-    """Test group RSVPs sync wrapper."""
+    """Test group RSVPs sync wrapper using recurring events."""
 
     @pytest.mark.asyncio
-    async def test_returns_zero_meetings_when_no_future_meetings(self):
-        """Should return zero count when group has no future meetings."""
+    async def test_returns_error_when_no_recurring_event(self):
+        """Should return error when group has no recurring event ID."""
         from core.sync import sync_group_rsvps
 
         mock_conn = AsyncMock()
         mock_result = MagicMock()
-        mock_result.mappings.return_value = []  # No meetings
+        mock_result.first.return_value = MagicMock(gcal_recurring_event_id=None)
         mock_conn.execute = AsyncMock(return_value=mock_result)
 
         with patch("core.database.get_connection") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = mock_conn
             result = await sync_group_rsvps(group_id=1)
 
-        assert result == {"meetings": 0}
+        assert result == {"error": "no_recurring_event", "synced": 0}
 
     @pytest.mark.asyncio
-    async def test_calls_sync_meeting_rsvps_for_each_meeting(self):
-        """Should call sync_meeting_rsvps for each future meeting."""
+    async def test_calls_sync_group_rsvps_from_recurring(self):
+        """Should call sync_group_rsvps_from_recurring with recurring event ID."""
         from core.sync import sync_group_rsvps
 
         mock_conn = AsyncMock()
         mock_result = MagicMock()
-        mock_result.mappings.return_value = [
-            {"meeting_id": 1},
-            {"meeting_id": 2},
-        ]
+        mock_result.first.return_value = MagicMock(
+            gcal_recurring_event_id="recurring123"
+        )
         mock_conn.execute = AsyncMock(return_value=mock_result)
 
         with patch("core.database.get_connection") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = mock_conn
-            with patch("core.calendar.rsvp.sync_meeting_rsvps") as mock_sync:
-                mock_sync.return_value = {}
+            with patch(
+                "core.calendar.rsvp.sync_group_rsvps_from_recurring"
+            ) as mock_sync:
+                mock_sync.return_value = {"synced": 2, "instances_fetched": 2}
                 result = await sync_group_rsvps(group_id=1)
 
-        assert mock_sync.call_count == 2
-        assert result == {"meetings": 2}
+        mock_sync.assert_called_once_with(
+            group_id=1,
+            recurring_event_id="recurring123",
+        )
+        assert result == {"synced": 2, "instances_fetched": 2}
 
 
 class TestSyncGroup:

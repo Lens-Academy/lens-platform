@@ -1,15 +1,15 @@
 """
-End-to-end tests for scheduling commands using real Discord.
+End-to-end tests for Discord integration using real Discord.
 
 These tests:
-- Create real Discord channels in the dev server
+- Create real Discord channels, roles, and events in the dev server
 - Use FakeInteraction to call cog methods directly
-- Clean up channels after each test
+- Clean up all created resources after each test
 
 Run sparingly to avoid rate limits.
 
 Usage:
-    pytest discord_bot/tests/test_scheduling_e2e.py -v -s
+    pytest discord_bot/tests/test_discord_e2e.py -v -s
 """
 
 import pytest
@@ -35,6 +35,7 @@ from .helpers import (
 from core.queries.groups import add_user_to_group
 from core.tables import cohorts, users, signups, groups, groups_users
 from core.modules.course_loader import load_course
+from core.discord_outbound import set_bot
 
 
 # Load environment (.env first, then .env.local overrides)
@@ -75,6 +76,9 @@ async def bot():
     else:
         pytest.fail("Bot did not connect in time")
 
+    # Register bot with core's global singleton so sync functions can use it
+    set_bot(bot)
+
     yield bot
 
     await bot.close()
@@ -86,22 +90,31 @@ async def guild(bot):
     if DEV_GUILD_ID == 0:
         pytest.skip("TEST_GUILD_ID not set in .env.local")
 
-    guild = bot.get_guild(DEV_GUILD_ID)
-    if not guild:
-        pytest.fail(f"Could not find guild {DEV_GUILD_ID}")
+    # Use fetch_guild to make an API call instead of relying on cache
+    # This avoids race conditions where is_ready() returns True before guilds are cached
+    try:
+        guild = await bot.fetch_guild(DEV_GUILD_ID)
+    except discord.NotFound:
+        pytest.fail(f"Guild {DEV_GUILD_ID} not found - bot may not be a member")
+    except discord.Forbidden:
+        pytest.fail(f"Bot doesn't have access to guild {DEV_GUILD_ID}")
 
     return guild
 
 
 @pytest_asyncio.fixture
-async def test_channel(guild):
+async def test_channel(bot, guild):
     """Get the test output channel."""
     if TEST_CHANNEL_ID == 0:
         pytest.skip("TEST_CHANNEL_ID not set in .env.local")
 
-    channel = guild.get_channel(TEST_CHANNEL_ID)
-    if not channel:
-        pytest.fail(f"Could not find channel {TEST_CHANNEL_ID}")
+    # Use fetch_channel to make an API call instead of relying on cache
+    try:
+        channel = await bot.fetch_channel(TEST_CHANNEL_ID)
+    except discord.NotFound:
+        pytest.fail(f"Channel {TEST_CHANNEL_ID} not found")
+    except discord.Forbidden:
+        pytest.fail(f"Bot doesn't have access to channel {TEST_CHANNEL_ID}")
 
     return channel
 
@@ -112,20 +125,32 @@ E2E_TEST_PREFIX = "E2E-Test"
 
 
 @pytest_asyncio.fixture
-async def cleanup_channels(guild):
+async def cleanup_discord(guild):
     """
-    Track and clean up Discord channels and events created during tests.
+    Track and clean up Discord channels, events, and roles created during tests.
 
-    Also cleans up any leftover E2E test channels from previous runs at START.
+    Also cleans up any leftover E2E test resources from previous runs at START.
 
     Usage:
-        async def test_something(cleanup_channels):
+        async def test_something(cleanup_discord):
             category = await guild.create_category("Test")
-            cleanup_channels["channels"].append(category)
+            cleanup_discord["channels"].append(category)
+            role = await guild.create_role(name="Test Role")
+            cleanup_discord["roles"].append(role)
             # ... test ...
-            # category deleted automatically after test
+            # resources deleted automatically after test
     """
-    # FIRST: Clean up any leftover E2E test categories from previous runs
+    # FIRST: Clean up any leftover E2E test roles from previous runs
+    for role in guild.roles:
+        if E2E_TEST_PREFIX in role.name:
+            try:
+                await role.delete(reason="E2E stale cleanup")
+                await asyncio.sleep(0.3)
+                print(f"Cleaned up stale E2E role: {role.name}")
+            except discord.HTTPException as e:
+                print(f"Warning: Could not clean up stale role {role}: {e}")
+
+    # Clean up any leftover E2E test categories from previous runs
     for category in guild.categories:
         if E2E_TEST_PREFIX in category.name:
             try:
@@ -142,10 +167,21 @@ async def cleanup_channels(guild):
     created = {
         "channels": [],
         "events": [],
+        "roles": [],
     }
     yield created
 
-    # Cancel scheduled events first
+    # Cleanup roles FIRST (before channels, as roles may reference channels)
+    for role in created["roles"]:
+        try:
+            await role.delete(reason="E2E test cleanup")
+            await asyncio.sleep(0.3)
+        except discord.NotFound:
+            pass
+        except discord.HTTPException as e:
+            print(f"Warning: Could not delete role {role}: {e}")
+
+    # Cancel scheduled events
     for event in created["events"]:
         try:
             await event.cancel(reason="E2E test cleanup")
@@ -171,7 +207,7 @@ async def committed_db_conn():
     """
     Provide a DB connection that COMMITS data for E2E tests.
 
-    realize_groups uses get_connection() and get_transaction() internally which
+    realize_cohort uses get_connection() and get_transaction() internally which
     create separate connections, so test data must be committed to be visible.
     This fixture cleans up all created data after the test.
 
@@ -179,12 +215,16 @@ async def committed_db_conn():
         async def test_something(self, committed_db_conn):
             conn, user_ids, cohort_ids, commit = committed_db_conn
             # ... create data ...
-            await commit()  # Commit before calling realize_groups
+            await commit()  # Commit before calling realize_cohort
             # ... call cog method ...
     """
     load_dotenv(".env.local")
 
     from core.database import get_engine, close_engine
+
+    # Close any existing engine from previous tests to avoid event loop mismatch
+    # The singleton engine may have been created in a different test's event loop
+    await close_engine()
 
     engine = get_engine()
 
@@ -244,27 +284,8 @@ async def committed_db_conn():
 
 
 class TestRealizeGroupsE2E:
-    """E2E tests for /realize-groups command."""
+    """E2E tests for /realize-cohort command."""
 
-    @pytest.mark.skip(
-        reason="""
-        Event loop mismatch between test fixture and core functions.
-
-        This E2E test uses committed_db_conn fixture which relies on the singleton
-        database engine. When run in a test suite with other tests, the singleton
-        engine gets created in a different event loop, causing asyncpg failures.
-
-        The test passes when run in isolation:
-            pytest discord_bot/tests/test_scheduling_e2e.py -v
-
-        This is the same underlying issue as other skipped tests - core functions
-        use get_transaction()/get_connection() which access the singleton engine
-        rather than accepting a connection parameter.
-
-        The test validates Discord channel creation and database persistence for
-        the /realize-groups command. This functionality works in production.
-        """
-    )
     @pytest.mark.asyncio
     async def test_realize_groups_full_flow(
         self,
@@ -272,10 +293,10 @@ class TestRealizeGroupsE2E:
         bot,
         guild,
         test_channel,
-        cleanup_channels,
+        cleanup_discord,
     ):
         """
-        Comprehensive E2E test for /realize-groups command.
+        Comprehensive E2E test for /realize-cohort command.
 
         Verifies:
         1. Discord category and channels are created
@@ -313,10 +334,10 @@ class TestRealizeGroupsE2E:
         # === EXECUTE ===
         cog = GroupsCog(bot)
         interaction = FakeInteraction(guild, test_channel)
-        await cog.realize_groups.callback(cog, interaction, cohort["cohort_id"])
+        await cog.realize_cohort.callback(cog, interaction, cohort["cohort_id"])
 
         # === GET CREATED CATEGORY FROM DATABASE ===
-        # Fetch the category ID that realize_groups saved to DB, then get the Discord category
+        # Fetch the category ID that realize_cohort saved to DB, then get the Discord category
         # This avoids issues with leftover categories from previous runs with the same name
         from core.database import get_connection as get_conn_for_category
 
@@ -330,7 +351,7 @@ class TestRealizeGroupsE2E:
             category_id = row[0] if row else None
 
         assert category_id is not None, (
-            "Category ID not saved to cohort after realize_groups"
+            "Category ID not saved to cohort after realize_cohort"
         )
         category = await guild.fetch_channel(int(category_id))
         assert category is not None, (
@@ -345,15 +366,15 @@ class TestRealizeGroupsE2E:
         )
 
         # === CLEANUP REGISTRATION (before assertions to avoid orphans) ===
-        cleanup_channels["channels"].append(category)
+        cleanup_discord["channels"].append(category)
         for ch in category.channels:
-            cleanup_channels["channels"].append(ch)
+            cleanup_discord["channels"].append(ch)
         # Also register scheduled events for cleanup
         for event in guild.scheduled_events:
             if event.channel_id and any(
                 ch.id == event.channel_id for ch in category.channels
             ):
-                cleanup_channels["events"].append(event)
+                cleanup_discord["events"].append(event)
 
         # === VERIFY: Channels created ===
         # Channel names are derived from group_name (see groups_cog.py)
@@ -464,7 +485,7 @@ class TestRealizeGroupsE2E:
         )
 
         # === VERIFY: Idempotency (running again doesn't create duplicates) ===
-        await cog.realize_groups.callback(cog, interaction, cohort["cohort_id"])
+        await cog.realize_cohort.callback(cog, interaction, cohort["cohort_id"])
 
         # Check no duplicate categories
         matching_categories = [
@@ -516,3 +537,141 @@ class TestRealizeGroupsE2E:
                 await asyncio.sleep(1)
             signal_file.unlink()
             print("Continuing with cleanup...")
+
+
+class TestRoleBasedPermissionsE2E:
+    """E2E tests for role-based Discord permissions."""
+
+    @pytest.mark.asyncio
+    async def test_sync_creates_role_and_assigns_members(
+        self,
+        committed_db_conn,
+        bot,
+        guild,
+        test_channel,
+        cleanup_discord,
+    ):
+        """
+        Test that sync_group_discord_permissions creates a role and assigns members.
+
+        Verifies:
+        1. A role with correct name format is created
+        2. Role ID is saved to groups.discord_role_id in DB
+        3. Role has permissions on text and voice channels
+        4. Group members have the role assigned
+        """
+        from core.sync import sync_group_discord_permissions
+
+        conn, user_ids, cohort_ids, commit = committed_db_conn
+
+        # === SETUP ===
+        import time
+
+        test_run_id = int(time.time() * 1000) % 100000
+        cohort_name = f"{E2E_TEST_PREFIX} Cohort {test_run_id}"
+        group_name = f"{E2E_TEST_PREFIX} Group {test_run_id}"
+
+        cohort = await create_test_cohort(conn, name=cohort_name, num_meetings=1)
+        cohort_ids.append(cohort["cohort_id"])
+
+        group = await create_test_group(conn, cohort["cohort_id"], group_name)
+        group_id = group["group_id"]
+
+        # Create test users
+        if TEST_USER_ID_1 == "0" or TEST_USER_ID_2 == "0":
+            pytest.skip("TEST_USER_ID_1 and TEST_USER_ID_2 not set in .env.local")
+
+        user1 = await create_test_user(conn, cohort["cohort_id"], TEST_USER_ID_1)
+        user_ids.append(user1["user_id"])
+        user2 = await create_test_user(conn, cohort["cohort_id"], TEST_USER_ID_2)
+        user_ids.append(user2["user_id"])
+
+        await add_user_to_group(conn, group_id, user1["user_id"])
+        await add_user_to_group(conn, group_id, user2["user_id"])
+        await commit()
+
+        # Create Discord channels first (using existing realize_cohort)
+        set_bot(bot)
+        cog = GroupsCog(bot)
+        interaction = FakeInteraction(guild, test_channel)
+        await cog.realize_cohort.callback(cog, interaction, cohort["cohort_id"])
+
+        # Get the created category and channels for cleanup
+        from core.database import get_connection
+
+        async with get_connection() as fresh_conn:
+            result = await fresh_conn.execute(
+                select(cohorts.c.discord_category_id).where(
+                    cohorts.c.cohort_id == cohort["cohort_id"]
+                )
+            )
+            row = result.first()
+            category_id = row[0] if row else None
+
+        category = await guild.fetch_channel(int(category_id))
+        cleanup_discord["channels"].append(category)
+        for ch in category.channels:
+            cleanup_discord["channels"].append(ch)
+        for event in guild.scheduled_events:
+            if event.channel_id and any(
+                ch.id == event.channel_id for ch in category.channels
+            ):
+                cleanup_discord["events"].append(event)
+
+        # === EXECUTE ===
+        # Call sync_group_discord_permissions to create role and assign members
+        result = await sync_group_discord_permissions(group_id)
+
+        # === VERIFY: Role created with correct name ===
+        expected_role_name = f"Cohort {cohort_name} - Group {group_name}"
+        role = discord.utils.get(guild.roles, name=expected_role_name)
+        assert role is not None, f"Role '{expected_role_name}' not created"
+
+        # Track role for cleanup
+        cleanup_discord["roles"].append(role)
+
+        # === VERIFY: Role ID saved to database ===
+        async with get_connection() as fresh_conn:
+            result = await fresh_conn.execute(
+                select(groups.c.discord_role_id).where(groups.c.group_id == group_id)
+            )
+            row = result.first()
+            saved_role_id = row[0] if row else None
+
+        assert saved_role_id is not None, "Role ID not saved to groups.discord_role_id"
+        assert saved_role_id == str(role.id), (
+            f"Role ID mismatch: DB has {saved_role_id}, Discord has {role.id}"
+        )
+
+        # === VERIFY: Role has permissions on channels ===
+        # Get the text and voice channels
+        text_channel_name = group_name.lower().replace(" ", "-")
+        voice_channel_name = f"{group_name} Voice"
+        text_channel = discord.utils.get(
+            guild.text_channels, name=text_channel_name, category_id=category.id
+        )
+        voice_channel = discord.utils.get(
+            guild.voice_channels, name=voice_channel_name, category_id=category.id
+        )
+
+        assert text_channel is not None, f"Text channel '{text_channel_name}' not found"
+        assert voice_channel is not None, (
+            f"Voice channel '{voice_channel_name}' not found"
+        )
+
+        # Check role has view permission on text channel
+        text_overwrites = text_channel.overwrites_for(role)
+        assert text_overwrites.view_channel is True, (
+            "Role does not have view_channel permission on text channel"
+        )
+
+        # Check role has view permission on voice channel
+        voice_overwrites = voice_channel.overwrites_for(role)
+        assert voice_overwrites.view_channel is True, (
+            "Role does not have view_channel permission on voice channel"
+        )
+
+        # === VERIFY: Members have the role ===
+        for discord_id in [TEST_USER_ID_1, TEST_USER_ID_2]:
+            member = await guild.fetch_member(int(discord_id))
+            assert role in member.roles, f"Member {discord_id} does not have the role"

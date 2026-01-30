@@ -1140,6 +1140,74 @@ source:: ![[../Learning Outcomes/Nonexistent]]
         assert any("not found" in str(e).lower() for e in result.errors)
 
 
+class TestWikiLinkPipeSyntax:
+    """Test that Obsidian display name syntax [[path|display]] is handled."""
+
+    def test_pipe_syntax_stripped_for_validation(self, tmp_path):
+        """Wiki-link with display name should validate against path only."""
+        (tmp_path / "modules").mkdir()
+        (tmp_path / "Learning Outcomes").mkdir()
+
+        # Create the referenced file
+        (tmp_path / "Learning Outcomes" / "Core Concepts.md").write_text(
+            "---\nid: 11111111-1111-1111-1111-111111111111\n---\n## Lens:\nsource:: [[x]]\n"
+        )
+
+        lesson = tmp_path / "modules" / "lesson.md"
+        lesson.write_text("""---
+slug: test
+title: Test
+---
+
+# Learning Outcome:
+source:: [[../Learning Outcomes/Core Concepts|Display Name]]
+""")
+
+        result = validate_lesson_file(lesson)
+        assert result.is_valid, f"Unexpected errors: {result.errors}"
+
+    def test_pipe_syntax_with_missing_file(self, tmp_path):
+        """Wiki-link with display name pointing to missing file should error."""
+        (tmp_path / "modules").mkdir()
+
+        lesson = tmp_path / "modules" / "lesson.md"
+        lesson.write_text("""---
+slug: test
+title: Test
+---
+
+# Learning Outcome:
+source:: [[../Learning Outcomes/Nonexistent|Nice Title]]
+""")
+
+        result = validate_lesson_file(lesson)
+        assert not result.is_valid
+        assert any("not found" in str(e).lower() for e in result.errors)
+
+    def test_embed_with_pipe_syntax(self, tmp_path):
+        """Embed with display name ![[path|display]] should work."""
+        (tmp_path / "modules").mkdir()
+        (tmp_path / "Learning Outcomes").mkdir()
+
+        # Create the referenced file
+        (tmp_path / "Learning Outcomes" / "Core Concepts.md").write_text(
+            "---\nid: 11111111-1111-1111-1111-111111111111\n---\n## Lens:\nsource:: [[x]]\n"
+        )
+
+        lesson = tmp_path / "modules" / "lesson.md"
+        lesson.write_text("""---
+slug: test
+title: Test
+---
+
+# Learning Outcome:
+source:: ![[../Learning Outcomes/Core Concepts|Custom Title]]
+""")
+
+        result = validate_lesson_file(lesson)
+        assert result.is_valid, f"Unexpected errors: {result.errors}"
+
+
 class TestValidateLearningOutcomeFile:
     """Test validation of Learning Outcome files."""
 

@@ -19,9 +19,15 @@ def build_module_url(module_slug: str) -> str:
 
 
 def build_profile_url() -> str:
-    """Build URL to user profile/signup page."""
+    """Build URL to user enrollment page."""
     base = get_frontend_url()
-    return f"{base}/signup"
+    return f"{base}/enroll"
+
+
+def build_course_url() -> str:
+    """Build URL to the course overview page."""
+    base = get_frontend_url()
+    return f"{base}/course"
 
 
 def build_discord_channel_url(

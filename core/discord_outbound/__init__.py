@@ -15,6 +15,13 @@ from .permissions import (
     grant_channel_access,
     revoke_channel_access,
 )
+from .roles import (
+    create_role,
+    delete_role,
+    get_role_member_ids,
+    rename_role,
+    set_role_channel_permissions,
+)
 
 __all__ = [
     "set_bot",
@@ -31,4 +38,10 @@ __all__ = [
     "revoke_channel_access",
     "get_members_with_access",
     "create_scheduled_event",
+    # Role operations
+    "create_role",
+    "delete_role",
+    "rename_role",
+    "set_role_channel_permissions",
+    "get_role_member_ids",
 ]

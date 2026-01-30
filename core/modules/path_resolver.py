@@ -1,7 +1,7 @@
 # core/modules/path_resolver.py
 """Resolve wiki-link paths to cache keys."""
 
-import re
+from core.modules.markdown_validator import extract_wiki_link_path
 
 
 def extract_filename_stem(path: str) -> str:
@@ -26,6 +26,7 @@ def resolve_wiki_link(wiki_link: str) -> tuple[str, str]:
     Args:
         wiki_link: A wiki-link like "[[../Learning Outcomes/AI Risks]]" or just
                    a path like "../Learning Outcomes/AI Risks"
+                   Handles Obsidian display name syntax: [[path|display name]]
 
     Returns:
         Tuple of (content_type, cache_key) where:
@@ -36,12 +37,12 @@ def resolve_wiki_link(wiki_link: str) -> tuple[str, str]:
         ValueError: If the path's content type is not recognized
     """
     # Extract path from [[...]] or ![[...]] if present, otherwise use as-is
-    match = re.search(r"!?\[\[([^\]]+)\]\]", wiki_link)
-    if match:
-        path = match.group(1)
-    else:
-        # Treat input as a bare path
+    path = extract_wiki_link_path(wiki_link)
+    if path is None:
+        # Treat input as a bare path, but still strip display name
         path = wiki_link
+        if "|" in path:
+            path = path.split("|", 1)[0]
 
     # Determine content type from path
     path_lower = path.lower()

@@ -38,22 +38,6 @@ async def create_meeting(
     return result.scalar_one()
 
 
-async def update_meeting_calendar_id(
-    conn: AsyncConnection,
-    meeting_id: int,
-    google_calendar_event_id: str,
-) -> None:
-    """Store Google Calendar event ID for a meeting."""
-    await conn.execute(
-        update(meetings)
-        .where(meetings.c.meeting_id == meeting_id)
-        .values(
-            google_calendar_event_id=google_calendar_event_id,
-            calendar_invite_sent_at=func.now(),
-        )
-    )
-
-
 async def get_meetings_for_group(
     conn: AsyncConnection,
     group_id: int,

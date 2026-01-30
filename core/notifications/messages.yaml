@@ -16,8 +16,7 @@ welcome:
     - We'll match you with a study group based on your availability
     - You'll receive an email with your group details and calendar invite
 
-    Join our Discord server to chat with the other people who enrolled, as well as the team behind Lens Academy.
-    {discord_invite_url}
+    [Join our Discord server]({discord_invite_url}) to chat with the other people who enrolled, as well as the team behind Lens Academy.
 
     Questions? Ask us on the Discord server.
 
@@ -39,7 +38,7 @@ group_assigned:
     Meeting time: {meeting_time}
     Your groupmates: {member_names}
 
-    Chat with your group on Discord: {discord_channel_url}
+    [Chat with your group on Discord]({discord_channel_url})
 
     A calendar invite is attached.
 
@@ -65,7 +64,7 @@ member_joined:
     Meeting time: {meeting_time}
     Your groupmates: {member_names}
 
-    Chat with your group on Discord: {discord_channel_url}
+    [Chat with your group on Discord]({discord_channel_url})
 
     A calendar invite has been sent to your email.
 
@@ -89,9 +88,9 @@ meeting_reminder_24h:
     Modules to complete before the meeting:
     {module_list}
 
-    Continue here: {module_url}
+    [Continue the course]({module_url})
 
-    Questions? Chat with your group: {discord_channel_url}
+    Questions? [Chat with your group]({discord_channel_url})
 
     Best,
     Luc
@@ -106,7 +105,7 @@ meeting_reminder_1h:
 
     Your study group meets in 1 hour at {meeting_time}.
 
-    Join your group channel: {discord_channel_url}
+    [Join your group channel]({discord_channel_url})
 
     See you there!
 
@@ -121,19 +120,19 @@ module_nudge:
   email_body: |
     Hi {name},
 
-    Your next meeting is on {meeting_date}. You have {modules_remaining}
+    Your next meeting is {meeting_time}. You have {modules_remaining}
     modules left to complete:
 
     {module_list}
 
-    Continue here: {module_url}
+    [Continue the course]({module_url})
 
-    Questions for your group? {discord_channel_url}
+    Questions for your group? [Chat on Discord]({discord_channel_url})
 
     Best,
     Luc
     Founder of Lens Academy
   discord: |
     Heads up! You have {modules_remaining} modules to finish before
-    your meeting on {meeting_date}. Continue here: {module_url}
+    your meeting {meeting_time}. [Continue the course]({module_url})
 

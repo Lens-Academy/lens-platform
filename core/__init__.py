@@ -97,7 +97,6 @@ from .notifications import (
 # Meetings
 from .meetings import (
     create_meetings_for_group,
-    send_calendar_invites_for_group,
     schedule_reminders_for_group,
     reschedule_meeting,
 )
@@ -117,6 +116,7 @@ from .sync import (
     sync_group_calendar,
     sync_group_reminders,
     sync_group_rsvps,
+    sync_all_group_rsvps,
     sync_after_group_change,
 )
 from .notifications.scheduler import sync_meeting_reminders
@@ -199,7 +199,6 @@ __all__ = [
     "cancel_meeting_reminders",
     # Meetings
     "create_meetings_for_group",
-    "send_calendar_invites_for_group",
     "schedule_reminders_for_group",
     "reschedule_meeting",
     # Group joining
@@ -213,6 +212,7 @@ __all__ = [
     "sync_group_calendar",
     "sync_group_reminders",
     "sync_group_rsvps",
+    "sync_all_group_rsvps",
     "sync_after_group_change",
     "sync_meeting_reminders",
 ]
