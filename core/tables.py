@@ -227,8 +227,6 @@ meetings = Table(
     Column("meeting_number", Integer),
     Column("discord_event_id", Text),
     Column("discord_voice_channel_id", Text),
-    Column("google_calendar_event_id", Text),
-    Column("calendar_invite_sent_at", TIMESTAMP(timezone=True)),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Index("idx_meetings_group_id", "group_id"),
