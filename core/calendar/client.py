@@ -7,8 +7,47 @@ from datetime import timedelta
 import sentry_sdk
 from google.oauth2 import service_account
 from googleapiclient.discovery import build, Resource
+from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
+
+
+def _is_rate_limit_error(exception: Exception) -> bool:
+    """Check if exception is a Google API rate limit error."""
+    if isinstance(exception, HttpError):
+        return exception.resp.status == 429
+    return False
+
+
+def _log_calendar_error(
+    exception: Exception,
+    operation: str,
+    context: dict | None = None,
+) -> None:
+    """
+    Log calendar API errors with appropriate severity.
+
+    Rate limits get warning level + specific Sentry event.
+    Other errors get error level.
+    """
+    context = context or {}
+
+    if _is_rate_limit_error(exception):
+        logger.warning(
+            f"Google Calendar rate limit hit during {operation}",
+            extra={"operation": operation, **context},
+        )
+        sentry_sdk.capture_message(
+            f"Google Calendar rate limit: {operation}",
+            level="warning",
+            extras={"operation": operation, **context},
+        )
+    else:
+        logger.error(
+            f"Google Calendar API error during {operation}: {exception}",
+            extra={"operation": operation, **context},
+        )
+        sentry_sdk.capture_exception(exception)
 
 
 CALENDAR_EMAIL = os.environ.get("GOOGLE_CALENDAR_EMAIL", "calendar@lensacademy.org")
@@ -77,8 +116,11 @@ def batch_get_events(event_ids: list[str]) -> dict[str, dict] | None:
 
     def callback(request_id: str, response: dict, exception):
         if exception:
-            logger.error(f"Failed to fetch event {request_id}: {exception}")
-            sentry_sdk.capture_exception(exception)
+            _log_calendar_error(
+                exception,
+                operation="batch_get_events",
+                context={"event_id": request_id},
+            )
         else:
             results[request_id] = response
 
@@ -126,14 +168,16 @@ def batch_create_events(
     def callback(request_id: str, response: dict, exception):
         meeting_id = int(request_id)
         if exception:
-            logger.error(
-                f"Failed to create event for meeting {meeting_id}: {exception}"
+            _log_calendar_error(
+                exception,
+                operation="batch_create_events",
+                context={"meeting_id": meeting_id},
             )
-            sentry_sdk.capture_exception(exception)
             results[meeting_id] = {
                 "success": False,
                 "event_id": None,
                 "error": str(exception),
+                "is_rate_limit": _is_rate_limit_error(exception),
             }
         else:
             results[meeting_id] = {
@@ -200,9 +244,16 @@ def batch_patch_events(
 
     def callback(request_id: str, response: dict, exception):
         if exception:
-            logger.error(f"Failed to patch event {request_id}: {exception}")
-            sentry_sdk.capture_exception(exception)
-            results[request_id] = {"success": False, "error": str(exception)}
+            _log_calendar_error(
+                exception,
+                operation="batch_patch_events",
+                context={"event_id": request_id},
+            )
+            results[request_id] = {
+                "success": False,
+                "error": str(exception),
+                "is_rate_limit": _is_rate_limit_error(exception),
+            }
         else:
             results[request_id] = {"success": True, "error": None}
 
