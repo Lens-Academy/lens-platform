@@ -1,5 +1,6 @@
 """Google Calendar API client initialization."""
 
+import json
 import logging
 import os
 from datetime import timedelta
@@ -52,6 +53,7 @@ def _log_calendar_error(
 
 CALENDAR_EMAIL = os.environ.get("GOOGLE_CALENDAR_EMAIL", "calendar@lensacademy.org")
 CREDENTIALS_FILE = os.environ.get("GOOGLE_CALENDAR_CREDENTIALS_FILE")
+CREDENTIALS_JSON = os.environ.get("GOOGLE_CALENDAR_CREDENTIALS_JSON")
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 _service: Resource | None = None
@@ -59,12 +61,19 @@ _service: Resource | None = None
 
 def is_calendar_configured() -> bool:
     """Check if Google Calendar credentials are configured."""
+    # Support credentials from env var (for Railway/Heroku) or file
+    if CREDENTIALS_JSON:
+        return True
     return bool(CREDENTIALS_FILE and os.path.exists(CREDENTIALS_FILE))
 
 
 def get_calendar_service() -> Resource | None:
     """
     Get or create Google Calendar API service.
+
+    Supports credentials from:
+    - GOOGLE_CALENDAR_CREDENTIALS_JSON env var (for Railway/Heroku)
+    - GOOGLE_CALENDAR_CREDENTIALS_FILE path (for local dev)
 
     Returns None if not configured.
     """
@@ -77,10 +86,19 @@ def get_calendar_service() -> Resource | None:
         return None
 
     try:
-        creds = service_account.Credentials.from_service_account_file(
-            CREDENTIALS_FILE,
-            scopes=SCOPES,
-        )
+        if CREDENTIALS_JSON:
+            # Load credentials from env var (Railway/Heroku pattern)
+            creds_info = json.loads(CREDENTIALS_JSON)
+            creds = service_account.Credentials.from_service_account_info(
+                creds_info,
+                scopes=SCOPES,
+            )
+        else:
+            # Load credentials from file (local dev)
+            creds = service_account.Credentials.from_service_account_file(
+                CREDENTIALS_FILE,
+                scopes=SCOPES,
+            )
         # Delegate to the calendar email (service account acts as this user)
         creds = creds.with_subject(CALENDAR_EMAIL)
 
