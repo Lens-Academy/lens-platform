@@ -103,14 +103,18 @@ async def guild(bot):
 
 
 @pytest_asyncio.fixture
-async def test_channel(guild):
+async def test_channel(bot, guild):
     """Get the test output channel."""
     if TEST_CHANNEL_ID == 0:
         pytest.skip("TEST_CHANNEL_ID not set in .env.local")
 
-    channel = guild.get_channel(TEST_CHANNEL_ID)
-    if not channel:
-        pytest.fail(f"Could not find channel {TEST_CHANNEL_ID}")
+    # Use fetch_channel to make an API call instead of relying on cache
+    try:
+        channel = await bot.fetch_channel(TEST_CHANNEL_ID)
+    except discord.NotFound:
+        pytest.fail(f"Channel {TEST_CHANNEL_ID} not found")
+    except discord.Forbidden:
+        pytest.fail(f"Bot doesn't have access to channel {TEST_CHANNEL_ID}")
 
     return channel
 
