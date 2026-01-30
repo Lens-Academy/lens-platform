@@ -48,6 +48,38 @@ import {
   trackChatMessageSent,
 } from "@/analytics";
 import { Skeleton, SkeletonText } from "@/components/Skeleton";
+import { getSectionSlug, findSectionBySlug } from "@/utils/sectionSlug";
+
+// Helper to get total text length for a section (for smart button text)
+function getSectionTextLength(section: ModuleSection): number {
+  if (section.type === "text") {
+    return section.content.length;
+  }
+  if (section.type === "page") {
+    return (
+      section.segments
+        ?.filter((s): s is { type: "text"; content: string } => s.type === "text")
+        .reduce((acc, s) => acc + s.content.length, 0) ?? 0
+    );
+  }
+  // Video/article sections have embedded content - not considered "short"
+  return Infinity;
+}
+
+// Determine completion button text based on section type and length
+function getCompletionButtonText(
+  section: ModuleSection,
+  sectionIndex: number,
+): string {
+  const isTextOrPage = section.type === "text" || section.type === "page";
+  if (!isTextOrPage) return "Mark section complete";
+
+  const isShort = getSectionTextLength(section) < 1500;
+  if (!isShort) return "Mark section complete";
+
+  return sectionIndex === 0 ? "Get started" : "Continue";
+}
+
 interface ModuleProps {
   courseId: string;
   moduleId: string;
@@ -201,6 +233,106 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Progress tracking
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const sectionRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  // Track if this is initial load vs user navigation (for pushState vs replaceState)
+  const isInitialLoad = useRef(true);
+
+  // Parse URL hash on mount, module load, and browser navigation
+  useEffect(() => {
+    if (!module) return;
+
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1); // Remove leading #
+      if (!hash) {
+        // No hash - go to first section
+        setCurrentSectionIndex(0);
+        setViewingStageIndex(null);
+        return;
+      }
+
+      const sectionIndex = findSectionBySlug(module.sections, hash);
+      if (sectionIndex !== -1) {
+        setCurrentSectionIndex(sectionIndex);
+        setViewingStageIndex(null);
+      } else {
+        // Invalid hash - strip it and go to first section
+        window.history.replaceState(null, "", window.location.pathname);
+        setCurrentSectionIndex(0);
+        setViewingStageIndex(null);
+      }
+    };
+
+    // Handle initial load
+    handleHashChange();
+
+    // Handle browser back/forward
+    window.addEventListener("popstate", handleHashChange);
+
+    return () => {
+      window.removeEventListener("popstate", handleHashChange);
+    };
+  }, [module]);
+
+  // Update URL hash when section changes
+  useEffect(() => {
+    if (!module) return;
+
+    const currentSection = module.sections[currentSectionIndex];
+    if (!currentSection) return;
+
+    const slug = getSectionSlug(currentSection, currentSectionIndex);
+    const newHash = `#${slug}`;
+
+    // Only update if hash is different
+    if (window.location.hash !== newHash) {
+      if (isInitialLoad.current) {
+        // Initial load or hash navigation - use replaceState
+        window.history.replaceState(null, "", `${window.location.pathname}${newHash}`);
+        isInitialLoad.current = false;
+      } else {
+        // User clicked navigation - use pushState for back button support
+        window.history.pushState(null, "", `${window.location.pathname}${newHash}`);
+      }
+    }
+  }, [module, currentSectionIndex]);
+
+  // Update document title to show current section
+  useEffect(() => {
+    if (!module) return;
+
+    const currentSection = module.sections[currentSectionIndex];
+    if (!currentSection) return;
+
+    // Get section title
+    let sectionTitle: string | null = null;
+    switch (currentSection.type) {
+      case "lens-article":
+      case "lens-video":
+        sectionTitle = currentSection.meta?.title ?? null;
+        break;
+      case "page":
+        sectionTitle = currentSection.meta?.title ?? null;
+        break;
+      case "article":
+      case "video":
+      case "chat":
+        sectionTitle = currentSection.meta?.title ?? null;
+        break;
+    }
+
+    if (sectionTitle) {
+      document.title = `${sectionTitle} | ${module.title}`;
+    } else {
+      document.title = module.title;
+    }
+
+    // Cleanup: restore module title when unmounting
+    return () => {
+      if (module) {
+        document.title = module.title;
+      }
+    };
+  }, [module, currentSectionIndex]);
 
   // Section completion tracking (database is source of truth)
   const [completedSections, setCompletedSections] = useState<Set<number>>(
@@ -1114,6 +1246,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         : `${section.type || "Section"} ${sectionIndex + 1}`
                 }
                 moduleSlug={moduleId}
+                buttonText={getCompletionButtonText(section, sectionIndex)}
               />
             </div>
           );

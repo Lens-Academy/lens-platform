@@ -14,6 +14,8 @@ type MarkCompleteButtonProps = {
   contentType?: "module" | "lo" | "lens" | "test";
   contentTitle?: string;
   moduleSlug?: string;
+  // Custom button text (defaults to "Mark section complete")
+  buttonText?: string;
 };
 
 export default function MarkCompleteButton({
@@ -25,6 +27,7 @@ export default function MarkCompleteButton({
   contentType = "lens",
   contentTitle,
   moduleSlug,
+  buttonText = "Mark section complete",
 }: MarkCompleteButtonProps) {
   const { isAuthenticated } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -135,7 +138,7 @@ export default function MarkCompleteButton({
             />
           </svg>
         )}
-        Mark section complete
+        {buttonText}
       </button>
     </div>
   );
