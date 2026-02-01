@@ -70,3 +70,26 @@ def test_flattened_module_content_id_optional():
         sections=[],
     )
     assert module.content_id is None
+
+
+def test_flattened_module_with_error():
+    """FlattenedModule can store an error message."""
+    module = FlattenedModule(
+        slug="broken",
+        title="Broken Module",
+        content_id=None,
+        sections=[],
+        error="'from' anchor not found: Cascades are when...",
+    )
+    assert module.error == "'from' anchor not found: Cascades are when..."
+
+
+def test_flattened_module_error_defaults_to_none():
+    """FlattenedModule error field defaults to None."""
+    module = FlattenedModule(
+        slug="working",
+        title="Working Module",
+        content_id=None,
+        sections=[{"type": "page", "segments": []}],
+    )
+    assert module.error is None

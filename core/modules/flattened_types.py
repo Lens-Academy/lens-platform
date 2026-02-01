@@ -27,3 +27,4 @@ class FlattenedModule:
     title: str
     content_id: UUID | None
     sections: list[dict] = field(default_factory=list)
+    error: str | None = None
