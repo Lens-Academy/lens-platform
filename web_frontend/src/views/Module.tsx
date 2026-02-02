@@ -935,6 +935,35 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     );
   }
 
+  // Module loaded but has flattening error
+  if (module.error) {
+    return (
+      <div className="min-h-dvh bg-stone-50">
+        <div className="sticky top-0 z-50 bg-white border-b border-stone-200">
+          <div className="max-w-3xl mx-auto px-4 py-4">
+            <h1 className="text-xl font-semibold text-stone-900">{module.title}</h1>
+          </div>
+        </div>
+        <div className="max-w-3xl mx-auto px-4 py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-red-800 mb-2">
+              Module Error
+            </h2>
+            <p className="text-red-700 mb-4">
+              This module failed to load due to a content error:
+            </p>
+            <pre className="bg-red-100 p-4 rounded text-sm text-red-900 overflow-x-auto whitespace-pre-wrap">
+              {module.error}
+            </pre>
+            <p className="text-red-600 text-sm mt-4">
+              Please contact the course administrators to resolve this issue.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-dvh bg-white overflow-x-clip">
       <div className="sticky top-0 z-50 bg-white">
