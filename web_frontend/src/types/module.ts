@@ -145,6 +145,7 @@ export type Module = {
   slug: string;
   title: string;
   sections: ModuleSection[];
+  error?: string;
 };
 
 // Chat types (used in module player)
