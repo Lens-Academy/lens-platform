@@ -71,12 +71,17 @@ class BreakoutView(discord.ui.View):
 class CollectView(discord.ui.View):
     """Button to collect everyone from breakout rooms."""
 
-    def __init__(self, cog: "BreakoutCog"):
+    def __init__(self, cog: "BreakoutCog", room_buttons: list[discord.ui.Button] = None):
         super().__init__(timeout=None)  # No timeout - button stays active
         self.cog = cog
 
+        # Add room navigation buttons (link buttons for each breakout room)
+        if room_buttons:
+            for button in room_buttons:
+                self.add_item(button)
+
     @discord.ui.button(
-        label="Collect Everyone", style=discord.ButtonStyle.danger, emoji="📢"
+        label="Collect Everyone", style=discord.ButtonStyle.danger, emoji="📢", row=4
     )
     async def collect_button(
         self, interaction: discord.Interaction, button: discord.ui.Button
@@ -163,6 +168,7 @@ class BreakoutCog(commands.Cog):
         category = source_channel.category
         breakout_channels = []
         room_assignments = []
+        room_buttons = []  # Link buttons for navigation
 
         try:
             for i, group in enumerate(groups, 1):
@@ -172,6 +178,13 @@ class BreakoutCog(commands.Cog):
                     reason=f"Breakout room created by {member.display_name}",
                 )
                 breakout_channels.append(channel)
+
+                # Create invite for this channel (for navigation button)
+                invite = await channel.create_invite(
+                    max_age=3600,  # 1 hour
+                    max_uses=0,  # Unlimited uses
+                    reason="Breakout room navigation",
+                )
 
                 # Move members to breakout channel
                 member_names = []
@@ -187,6 +200,21 @@ class BreakoutCog(commands.Cog):
                     room_assignments.append(
                         f"**Breakout {i}:** {', '.join(member_names)}"
                     )
+                    # Create link button for this room
+                    # Truncate names if too long for button label (max 80 chars)
+                    names_str = ", ".join(member_names)
+                    label = f"Breakout {i}: {names_str}"
+                    if len(label) > 80:
+                        label = label[:77] + "..."
+                    room_buttons.append(
+                        discord.ui.Button(
+                            label=label,
+                            style=discord.ButtonStyle.link,
+                            url=invite.url,
+                            emoji="🔊",
+                            row=min(i - 1, 3),  # Rows 0-3, collect button on row 4
+                        )
+                    )
 
             # Store session
             self._active_sessions[guild.id] = BreakoutSession(
@@ -198,7 +226,8 @@ class BreakoutCog(commands.Cog):
             # Build response
             embed = discord.Embed(
                 title="Breakout Rooms Created",
-                description=f"Split {len(other_members)} users into {len(groups)} rooms.",
+                description=f"Split {len(other_members)} users into {len(groups)} rooms.\n\n"
+                "**Your audio is connected.** Click your room button below to see your group:",
                 color=discord.Color.green(),
             )
             embed.add_field(
@@ -208,9 +237,10 @@ class BreakoutCog(commands.Cog):
                 else "No assignments",
                 inline=False,
             )
-            embed.set_footer(text="Click the button below to collect everyone")
 
-            await interaction.followup.send(embed=embed, view=CollectView(self))
+            await interaction.followup.send(
+                embed=embed, view=CollectView(self, room_buttons)
+            )
 
         except discord.Forbidden:
             # Clean up any channels we created

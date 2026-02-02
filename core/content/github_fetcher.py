@@ -57,7 +57,7 @@ class CommitComparison:
     is_truncated: bool  # True if GitHub's 300 file limit exceeded
 
 
-CONTENT_REPO = "lucbrinkman/lens-educational-content"
+CONTENT_REPO = "Lens-Academy/lens-edu-relay"
 
 
 def get_content_branch() -> str:
