@@ -201,7 +201,8 @@ async def get_module_progress_endpoint(
     else:
         status = "in_progress"
 
-    return {
+    # Build response
+    response = {
         "module": {
             "id": str(module.content_id) if module.content_id else None,
             "slug": module.slug,
@@ -215,6 +216,12 @@ async def get_module_progress_endpoint(
             "hasMessages": len(chat_session.get("messages", [])) > 0,
         },
     }
+
+    # Include error if module has one
+    if module.error:
+        response["error"] = module.error
+
+    return response
 
 
 @router.post("/modules/{module_slug}/progress", response_model=ProgressUpdateResponse)

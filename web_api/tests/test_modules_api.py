@@ -11,7 +11,7 @@ TODO: Add tests for:
 """
 
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock, AsyncMock
 from uuid import UUID
 
 from fastapi.testclient import TestClient
@@ -106,3 +106,50 @@ def test_list_modules_includes_errored_modules(client):
     slugs = [m["slug"] for m in data["modules"]]
     assert "working" in slugs
     assert "broken" in slugs  # Errored modules still appear in list
+
+
+def test_get_module_progress_includes_error_when_present(client):
+    """GET /api/modules/{slug}/progress should include error field when module has error."""
+    mock_module = FlattenedModule(
+        slug="broken-module",
+        title="Broken Module",
+        content_id=UUID("00000000-0000-0000-0000-000000000001"),
+        sections=[],
+        error="'from' anchor not found: some text...",
+    )
+
+    # Use anonymous token for authentication
+    anon_token = "00000000-0000-0000-0000-000000000099"
+    headers = {"X-Anonymous-Token": anon_token}
+
+    # Mock database connection as async context manager
+    mock_conn = MagicMock()
+    mock_conn.__aenter__ = AsyncMock(return_value=mock_conn)
+    mock_conn.__aexit__ = AsyncMock(return_value=None)
+
+    # Mock chat session response
+    mock_chat_session = {
+        "session_id": "test-session-id",
+        "messages": [],
+    }
+
+    with (
+        patch("web_api.routes.modules.load_flattened_module", return_value=mock_module),
+        patch("web_api.routes.modules.get_connection", return_value=mock_conn),
+        patch(
+            "web_api.routes.modules.get_module_progress",
+            new_callable=AsyncMock,
+            return_value={},
+        ),
+        patch(
+            "web_api.routes.modules.get_or_create_chat_session",
+            new_callable=AsyncMock,
+            return_value=mock_chat_session,
+        ),
+    ):
+        response = client.get("/api/modules/broken-module/progress", headers=headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["error"] == "'from' anchor not found: some text..."
+    assert data["progress"]["total"] == 0
