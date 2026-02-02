@@ -67,12 +67,16 @@ def serialize_flattened_module(module: FlattenedModule) -> dict:
     """Serialize a flattened module to JSON for the API response.
 
     Sections are already dicts (page, video, article) so we pass them through.
+    Error field is only included when present (not None).
     """
-    return {
+    result = {
         "slug": module.slug,
         "title": module.title,
         "sections": module.sections,  # Already dicts from flattener
     }
+    if module.error is not None:
+        result["error"] = module.error
+    return result
 
 
 # --- Module Definition Endpoints ---
