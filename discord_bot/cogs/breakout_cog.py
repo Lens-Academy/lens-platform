@@ -338,7 +338,19 @@ class CollectView(discord.ui.View):
 class BreakoutCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        # Keyed by source_channel_id (allows concurrent sessions in different channels)
         self._active_sessions: dict[int, BreakoutSession] = {}
+
+    def _find_session_for_channel(self, channel_id: int) -> BreakoutSession | None:
+        """Find session by source channel or breakout room."""
+        # Direct match on source channel
+        if channel_id in self._active_sessions:
+            return self._active_sessions[channel_id]
+        # Check if it's a breakout room
+        for session in self._active_sessions.values():
+            if channel_id in session.breakout_channel_ids:
+                return session
+        return None
 
     async def _send_response(
         self,
@@ -373,6 +385,7 @@ class BreakoutCog(commands.Cog):
     async def _run_timer(
         self,
         guild: discord.Guild,
+        source_channel_id: int,
         timer_minutes: int,
     ):
         """Run the breakout timer with countdown messages."""
@@ -381,12 +394,12 @@ class BreakoutCog(commands.Cog):
 
         # Helper to send message to main channel and all breakout rooms
         async def send_countdown(message: str) -> bool:
-            session = self._active_sessions.get(guild.id)
+            session = self._active_sessions.get(source_channel_id)
             if not session:
                 return False  # Session ended early
 
             # Send to main channel
-            source_channel = guild.get_channel(session.source_channel_id)
+            source_channel = guild.get_channel(source_channel_id)
             if source_channel:
                 try:
                     await source_channel.send(message)
@@ -433,19 +446,19 @@ class BreakoutCog(commands.Cog):
             await asyncio.sleep(remaining)
 
         # Auto-collect (this will handle the 20s + 5s warnings)
-        session = self._active_sessions.get(guild.id)
+        session = self._active_sessions.get(source_channel_id)
         if session:
             # Create a fake interaction-like context for run_collect
             # We'll call the internal collect logic directly
-            await self._auto_collect(guild)
+            await self._auto_collect(guild, source_channel_id)
 
-    async def _auto_collect(self, guild: discord.Guild):
+    async def _auto_collect(self, guild: discord.Guild, source_channel_id: int):
         """Auto-collect without interaction (called by timer)."""
-        session = self._active_sessions.get(guild.id)
+        session = self._active_sessions.get(source_channel_id)
         if not session:
             return
 
-        source_channel = guild.get_channel(session.source_channel_id)
+        source_channel = guild.get_channel(source_channel_id)
 
         # Get breakout channels
         breakout_channels = []
@@ -513,7 +526,7 @@ class BreakoutCog(commands.Cog):
                         pass
 
         # Clean up session
-        del self._active_sessions[guild.id]
+        del self._active_sessions[source_channel_id]
 
         # Notify in source channel
         if source_channel:
@@ -541,11 +554,11 @@ class BreakoutCog(commands.Cog):
 
         source_channel = member.voice.channel
 
-        # Check for existing session
-        if guild.id in self._active_sessions:
+        # Check for existing session in this channel
+        if source_channel.id in self._active_sessions:
             await self._send_response(
                 interaction,
-                "A breakout session is already active. Use `/collect` first.",
+                "A breakout session is already active in this channel. Use `/collect` first.",
             )
             return
 
@@ -678,13 +691,13 @@ class BreakoutCog(commands.Cog):
                 self._unlock_after_delay(source_channel, locked_members)
             )
 
-            # Store session
+            # Store session (keyed by source channel for concurrent support)
             session = BreakoutSession(
                 source_channel_id=source_channel.id,
                 breakout_channel_ids=[c.id for c in breakout_channels],
                 facilitator_id=member.id,
             )
-            self._active_sessions[guild.id] = session
+            self._active_sessions[source_channel.id] = session
 
             # Send duration message to each breakout room
             if timer_minutes:
@@ -697,7 +710,7 @@ class BreakoutCog(commands.Cog):
             # Start timer if configured
             if timer_minutes:
                 session.timer_task = asyncio.create_task(
-                    self._run_timer(guild, timer_minutes)
+                    self._run_timer(guild, source_channel.id, timer_minutes)
                 )
 
         except discord.Forbidden:
@@ -711,24 +724,6 @@ class BreakoutCog(commands.Cog):
                 "I don't have permission to create channels or move members.",
                 ephemeral=True,
             )
-
-    @app_commands.command(
-        name="breakout", description="Split voice channel users into breakout rooms"
-    )
-    @app_commands.describe(
-        num_groups="Number of breakout rooms to create",
-        include_bots="Include bots in breakout (for testing)",
-        include_self="Include yourself in the breakout groups",
-    )
-    async def breakout(
-        self,
-        interaction: discord.Interaction,
-        num_groups: int,
-        include_bots: bool = False,
-        include_self: bool = False,
-    ):
-        """Split users in the caller's voice channel into breakout rooms."""
-        await self.run_breakout(interaction, num_groups, include_bots, include_self)
 
     @app_commands.command(
         name="breakout-gui", description="Show breakout room controls"
@@ -768,14 +763,15 @@ class BreakoutCog(commands.Cog):
         guild = interaction.guild
         member = interaction.user
 
-        # Check for active session
-        if guild.id not in self._active_sessions:
+        # Find session based on user's current voice channel
+        user_channel_id = member.voice.channel.id if member.voice and member.voice.channel else None
+        session = self._find_session_for_channel(user_channel_id) if user_channel_id else None
+
+        if not session:
             await self._send_response(
-                interaction, "No active breakout session to collect."
+                interaction, "No active breakout session in your channel."
             )
             return
-
-        session = self._active_sessions[guild.id]
 
         # Cancel timer if running
         if session.timer_task and not session.timer_task.done():
@@ -877,7 +873,7 @@ class BreakoutCog(commands.Cog):
                         pass
 
         # Remove session
-        del self._active_sessions[guild.id]
+        del self._active_sessions[session.source_channel_id]
 
         # Response
         if source_channel:
