@@ -1,4 +1,7 @@
 // src/cli.ts
+import { readVaultFiles } from './fs/read-vault.js';
+import { processContent, ProcessResult } from './index.js';
+
 export interface CliOptions {
   vaultPath: string | null;
   outputPath: string | null;
@@ -19,4 +22,13 @@ export function parseArgs(argv: string[]): CliOptions {
   }
 
   return { vaultPath, outputPath };
+}
+
+export async function run(options: CliOptions): Promise<ProcessResult> {
+  if (!options.vaultPath) {
+    throw new Error('Vault path is required');
+  }
+
+  const files = await readVaultFiles(options.vaultPath);
+  return processContent(files);
 }
