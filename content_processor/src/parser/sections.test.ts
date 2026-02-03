@@ -225,5 +225,91 @@ content:: Some content
         e.message.includes('Duplicate')
       )).toHaveLength(0);
     });
+
+    it('does not warn about duplicate fields when they are in different sub-sections', () => {
+      // This is the real-world case: a Lens file with multiple Text segments,
+      // each with their own content:: field. These are NOT duplicates.
+      const content = `
+### Article: Cascades and Cycles
+source:: [[../articles/cascades.md]]
+
+#### Text
+content::
+Introduction paragraph explaining cybernetics and feedback loops.
+
+#### Article-excerpt
+from:: "Cascades are when"
+to:: "neutron multiplication factor"
+
+#### Text
+content::
+What are the properties that make something a cycle rather than a cascade?
+
+#### Chat: Discussion
+instructions::
+TLDR of what the user just read about cascades and cycles.
+Discuss the difference between cascades and cycles.
+
+### Video: Intelligence Explosion
+source:: [[../video_transcripts/intelligence.md]]
+
+#### Text
+content::
+Watch this video about intelligence feedback loops.
+
+#### Video-excerpt
+from:: 0:00
+to:: 14:49
+
+#### Text
+content::
+What surprised you about the video?
+
+#### Chat: Video Discussion
+instructions::
+Discuss what the user learned from the video.
+`;
+
+      const result = parseSections(content, 3, LENS_SECTION_TYPES, 'test-lens.md');
+
+      // Should have 2 sections (Article and Video)
+      expect(result.sections).toHaveLength(2);
+
+      // Should NOT have any duplicate field warnings
+      const duplicateWarnings = result.errors.filter(e =>
+        e.severity === 'warning' &&
+        e.message.includes('Duplicate')
+      );
+      expect(duplicateWarnings).toHaveLength(0);
+
+      // Verify the sections were parsed correctly
+      expect(result.sections[0].type).toBe('article');
+      expect(result.sections[0].title).toBe('Cascades and Cycles');
+      expect(result.sections[0].fields.source).toBe('[[../articles/cascades.md]]');
+
+      expect(result.sections[1].type).toBe('video');
+      expect(result.sections[1].title).toBe('Intelligence Explosion');
+      expect(result.sections[1].fields.source).toBe('[[../video_transcripts/intelligence.md]]');
+    });
+
+    it('still warns about actual duplicates within the same sub-section', () => {
+      const content = `
+### Text: Intro
+
+#### Text
+content:: First paragraph
+content:: Second paragraph that overwrites the first
+`;
+
+      const result = parseSections(content, 3, LENS_SECTION_TYPES, 'test.md');
+
+      // This IS a real duplicate - same field twice within the same #### Text segment
+      const duplicateWarnings = result.errors.filter(e =>
+        e.severity === 'warning' &&
+        e.message.includes('Duplicate')
+      );
+      expect(duplicateWarnings).toHaveLength(1);
+      expect(duplicateWarnings[0].message).toContain("content");
+    });
   });
 });

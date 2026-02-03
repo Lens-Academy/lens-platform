@@ -69,34 +69,5 @@
     }
   ],
   "courses": [],
-  "errors": [
-    {
-      "file": "modules/software-demo.md",
-      "line": 19,
-      "message": "Duplicate field 'source' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'source::' definition",
-      "severity": "warning"
-    },
-    {
-      "file": "modules/software-demo.md",
-      "line": 24,
-      "message": "Duplicate field 'source' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'source::' definition",
-      "severity": "warning"
-    },
-    {
-      "file": "modules/software-demo.md",
-      "line": 27,
-      "message": "Duplicate field 'source' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'source::' definition",
-      "severity": "warning"
-    },
-    {
-      "file": "modules/software-demo.md",
-      "line": 30,
-      "message": "Duplicate field 'source' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'source::' definition",
-      "severity": "warning"
-    }
-  ]
+  "errors": []
 }

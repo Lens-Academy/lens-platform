@@ -302,74 +302,11 @@
       "severity": "error"
     },
     {
-      "file": "Lenses/Cascades and Cycles.md",
-      "line": 16,
-      "message": "Duplicate field 'content' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'content::' definition",
-      "severity": "warning"
-    },
-    {
-      "file": "Lenses/Speculations concerning the first ultraintelligent machine.md",
-      "line": 16,
-      "message": "Duplicate field 'from' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'from::' definition",
-      "severity": "warning"
-    },
-    {
-      "file": "Lenses/Speculations concerning the first ultraintelligent machine.md",
-      "line": 17,
-      "message": "Duplicate field 'to' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'to::' definition",
-      "severity": "warning"
-    },
-    {
-      "file": "Lenses/Speculations concerning the first ultraintelligent machine.md",
-      "line": 20,
-      "message": "Duplicate field 'content' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'content::' definition",
-      "severity": "warning"
-    },
-    {
       "file": "Learning Outcomes/Fizzle or Foom.md",
       "line": 5,
       "message": "Test section missing source:: field",
       "suggestion": "Add 'source:: [[../Tests/filename.md|Display]]' to the test section",
       "severity": "error"
-    },
-    {
-      "file": "Lenses/What are the differences between a singularity, an intelligence explosion, and a hard takeoff.md",
-      "line": 16,
-      "message": "Duplicate field 'from' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'from::' definition",
-      "severity": "warning"
-    },
-    {
-      "file": "Lenses/What are the differences between a singularity, an intelligence explosion, and a hard takeoff.md",
-      "line": 19,
-      "message": "Duplicate field 'content' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'content::' definition",
-      "severity": "warning"
-    },
-    {
-      "file": "Lenses/Recursion Magic.md",
-      "line": 16,
-      "message": "Duplicate field 'content' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'content::' definition",
-      "severity": "warning"
-    },
-    {
-      "file": "modules/introduction.md",
-      "line": 24,
-      "message": "Duplicate field 'optional' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'optional::' definition",
-      "severity": "warning"
-    },
-    {
-      "file": "modules/introduction.md",
-      "line": 25,
-      "message": "Duplicate field 'source' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'source::' definition",
-      "severity": "warning"
     },
     {
       "file": "Learning Outcomes/Unknown intro outcome 1.md",
@@ -379,24 +316,10 @@
       "severity": "error"
     },
     {
-      "file": "Lenses/A.I. - Humanity's Final Invention.md",
-      "line": 13,
-      "message": "Duplicate field 'content' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'content::' definition",
-      "severity": "warning"
-    },
-    {
       "file": "video_transcripts/kurzgesagt-ai-humanitys-final-invention.md",
       "message": "Start timestamp '0:00' not found in transcript",
       "suggestion": "Check that the timestamp exists as a line marker in the transcript",
       "severity": "error"
-    },
-    {
-      "file": "Lenses/Wikipedia Existential Risk.md",
-      "line": 15,
-      "message": "Duplicate field 'content' (previous value will be overwritten)",
-      "suggestion": "Remove the duplicate 'content::' definition",
-      "severity": "warning"
     },
     {
       "file": "Learning Outcomes/Objections L1 - Realize objections and rebuttals exist.md",

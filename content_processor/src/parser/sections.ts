@@ -121,6 +121,20 @@ function parseFields(section: ParsedSection, file: string): ParseFieldsResult {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const lineNum = section.line + i + 1; // +1 because body starts after header
+
+    // Check for sub-header first - starts a new scope for field tracking
+    if (line.match(/^#{1,6}\s/)) {
+      // Save current field if any
+      if (currentField) {
+        section.fields[currentField] = currentValue.join('\n').trim();
+        currentField = null;
+        currentValue = [];
+      }
+      // Reset seenFields for the new sub-section scope
+      seenFields.clear();
+      continue;
+    }
+
     const match = line.match(FIELD_PATTERN);
 
     if (match) {
@@ -145,16 +159,8 @@ function parseFields(section: ParsedSection, file: string): ParseFieldsResult {
       }
       seenFields.add(currentField);
     } else if (currentField) {
-      // Check if this line starts a new section (#### or similar)
-      if (line.match(/^#{1,6}\s/)) {
-        // Save current field and stop collecting for this field
-        section.fields[currentField] = currentValue.join('\n').trim();
-        currentField = null;
-        currentValue = [];
-      } else {
-        // Continue multiline value
-        currentValue.push(line);
-      }
+      // Continue multiline value
+      currentValue.push(line);
     }
   }
 
