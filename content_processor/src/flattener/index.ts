@@ -13,7 +13,7 @@ import type {
 import { parseModule } from '../parser/module.js';
 import { parseLearningOutcome } from '../parser/learning-outcome.js';
 import { parseLens, type ParsedLensSegment, type ParsedLensSection } from '../parser/lens.js';
-import { parseWikilink, resolveWikilinkPath } from '../parser/wikilink.js';
+import { parseWikilink, resolveWikilinkPath, findFileWithExtension } from '../parser/wikilink.js';
 import { extractArticleExcerpt } from '../bundler/article.js';
 import { extractVideoExcerpt } from '../bundler/video.js';
 
@@ -163,21 +163,22 @@ function flattenLearningOutcomeSection(
     return { section: null, errors, errorMessage: err.message };
   }
 
-  const loPath = resolveWikilinkPath(wikilink.path, modulePath);
+  const loPathResolved = resolveWikilinkPath(wikilink.path, modulePath);
+  const loPath = findFileWithExtension(loPathResolved, files);
 
   // Get the LO file content
-  const loContent = files.get(loPath);
-  if (!loContent) {
+  if (!loPath) {
     const err: ContentError = {
       file: modulePath,
       line: section.line,
-      message: `Referenced file not found: ${loPath}`,
+      message: `Referenced file not found: ${loPathResolved}`,
       suggestion: 'Check the file path in the wiki-link',
       severity: 'error',
     };
     errors.push(err);
     return { section: null, errors, errorMessage: err.message };
   }
+  const loContent = files.get(loPath)!;
 
   // Parse the Learning Outcome
   const loResult = parseLearningOutcome(loContent, loPath);
@@ -200,8 +201,8 @@ function flattenLearningOutcomeSection(
   const meta: SectionMeta = { title: section.title };
 
   for (const lensRef of lo.lenses) {
-    const lensContent = files.get(lensRef.resolvedPath);
-    if (!lensContent) {
+    const lensPath = findFileWithExtension(lensRef.resolvedPath, files);
+    if (!lensPath) {
       const err: ContentError = {
         file: loPath,
         message: `Referenced lens file not found: ${lensRef.resolvedPath}`,
@@ -211,9 +212,10 @@ function flattenLearningOutcomeSection(
       errors.push(err);
       continue;
     }
+    const lensContent = files.get(lensPath)!;
 
     // Parse the lens
-    const lensResult = parseLens(lensContent, lensRef.resolvedPath);
+    const lensResult = parseLens(lensContent, lensPath);
     errors.push(...lensResult.errors);
 
     if (!lensResult.lens) {
@@ -236,7 +238,7 @@ function flattenLearningOutcomeSection(
         const segmentResult = convertSegment(
           parsedSegment,
           lensSection,
-          lensRef.resolvedPath,
+          lensPath,
           files
         );
         errors.push(...segmentResult.errors);
@@ -328,18 +330,19 @@ function convertSegment(
         return { segment: null, errors };
       }
 
-      const articlePath = resolveWikilinkPath(wikilink.path, lensPath);
-      const articleContent = files.get(articlePath);
+      const articlePathResolved = resolveWikilinkPath(wikilink.path, lensPath);
+      const articlePath = findFileWithExtension(articlePathResolved, files);
 
-      if (!articleContent) {
+      if (!articlePath) {
         errors.push({
           file: lensPath,
-          message: `Referenced article file not found: ${articlePath}`,
+          message: `Referenced article file not found: ${articlePathResolved}`,
           suggestion: 'Check the file path in the wiki-link',
           severity: 'error',
         });
         return { segment: null, errors };
       }
+      const articleContent = files.get(articlePath)!;
 
       // Extract the excerpt
       const excerptResult = extractArticleExcerpt(
@@ -385,18 +388,19 @@ function convertSegment(
         return { segment: null, errors };
       }
 
-      const videoPath = resolveWikilinkPath(wikilink.path, lensPath);
-      const transcriptContent = files.get(videoPath);
+      const videoPathResolved = resolveWikilinkPath(wikilink.path, lensPath);
+      const videoPath = findFileWithExtension(videoPathResolved, files);
 
-      if (!transcriptContent) {
+      if (!videoPath) {
         errors.push({
           file: lensPath,
-          message: `Referenced video transcript file not found: ${videoPath}`,
+          message: `Referenced video transcript file not found: ${videoPathResolved}`,
           suggestion: 'Check the file path in the wiki-link',
           severity: 'error',
         });
         return { segment: null, errors };
       }
+      const transcriptContent = files.get(videoPath)!;
 
       // Extract the video excerpt
       const excerptResult = extractVideoExcerpt(

@@ -1,6 +1,6 @@
 // src/parser/wikilink.test.ts
 import { describe, it, expect } from 'vitest';
-import { parseWikilink, resolveWikilinkPath } from './wikilink';
+import { parseWikilink, resolveWikilinkPath, findFileWithExtension } from './wikilink';
 
 describe('parseWikilink', () => {
   it('extracts path and display text', () => {
@@ -55,5 +55,53 @@ describe('resolveWikilinkPath', () => {
     );
 
     expect(resolved).toBe('Lenses/category/lens1.md');
+  });
+
+  it('resolves path without .md extension', () => {
+    const resolved = resolveWikilinkPath(
+      '../modules/introduction',
+      'courses/default.md'
+    );
+
+    expect(resolved).toBe('modules/introduction');
+  });
+});
+
+describe('findFileWithExtension', () => {
+  it('finds file with exact path', () => {
+    const files = new Map([
+      ['modules/intro.md', 'content'],
+    ]);
+
+    const result = findFileWithExtension('modules/intro.md', files);
+    expect(result).toBe('modules/intro.md');
+  });
+
+  it('finds file by adding .md extension', () => {
+    const files = new Map([
+      ['modules/intro.md', 'content'],
+    ]);
+
+    const result = findFileWithExtension('modules/intro', files);
+    expect(result).toBe('modules/intro.md');
+  });
+
+  it('returns null when file not found', () => {
+    const files = new Map([
+      ['modules/other.md', 'content'],
+    ]);
+
+    const result = findFileWithExtension('modules/intro', files);
+    expect(result).toBeNull();
+  });
+
+  it('prefers exact match over .md extension', () => {
+    const files = new Map([
+      ['modules/intro', 'exact content'],
+      ['modules/intro.md', 'md content'],
+    ]);
+
+    const result = findFileWithExtension('modules/intro', files);
+    expect(result).toBe('modules/intro');
   });
 });

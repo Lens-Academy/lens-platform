@@ -85,11 +85,36 @@ export interface VideoExcerptSegment {
 
 export type Segment = TextSegment | ChatSegment | ArticleExcerptSegment | VideoExcerptSegment;
 
+import { flattenModule } from './flattener/index.js';
+import { parseCourse } from './parser/course.js';
+
 export function processContent(files: Map<string, string>): ProcessResult {
-  // Stub - will be implemented via TDD
-  return {
-    modules: [],
-    courses: [],
-    errors: [],
-  };
+  const modules: FlattenedModule[] = [];
+  const courses: Course[] = [];
+  const errors: ContentError[] = [];
+
+  // Identify file types by path
+  for (const [path] of files.entries()) {
+    if (path.startsWith('modules/')) {
+      const result = flattenModule(path, files);
+
+      if (result.module) {
+        modules.push(result.module);
+      }
+
+      errors.push(...result.errors);
+    } else if (path.startsWith('courses/')) {
+      const content = files.get(path)!;
+      const result = parseCourse(content, path);
+
+      if (result.course) {
+        courses.push(result.course);
+      }
+
+      errors.push(...result.errors);
+    }
+    // Learning Outcomes, Lenses, articles, video_transcripts are processed via references
+  }
+
+  return { modules, courses, errors };
 }

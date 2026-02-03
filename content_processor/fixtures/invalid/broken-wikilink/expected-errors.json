@@ -12,7 +12,7 @@
   "errors": [
     {
       "file": "modules/broken.md",
-      "line": 7,
+      "line": 6,
       "message": "Referenced file not found: Learning Outcomes/nonexistent.md",
       "suggestion": "Check the file path in the wiki-link",
       "severity": "error"

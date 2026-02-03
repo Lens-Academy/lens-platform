@@ -25,3 +25,22 @@ export function resolveWikilinkPath(linkPath: string, sourceFile: string): strin
   // Use Node's path module - normalize handles .. and . segments
   return normalize(join(dirname(sourceFile), linkPath)).replace(/\\/g, '/');
 }
+
+/**
+ * Find a file in the files Map, trying with and without .md extension.
+ * Returns the key that exists in the map, or null if not found.
+ */
+export function findFileWithExtension(path: string, files: Map<string, string>): string | null {
+  // Try exact match first
+  if (files.has(path)) {
+    return path;
+  }
+
+  // Try adding .md extension
+  const withMd = path + '.md';
+  if (files.has(withMd)) {
+    return withMd;
+  }
+
+  return null;
+}
