@@ -28,6 +28,7 @@ class BreakoutSession:
     source_channel_id: int
     breakout_channel_ids: list[int] = field(default_factory=list)
     facilitator_id: int = 0
+    timer_task: asyncio.Task | None = None
 
 
 # Keycap emoji for numbers 1-9
@@ -72,6 +73,99 @@ def format_distribution_label(groups: list[int]) -> str:
     num_rooms = len(groups)
     keycaps = "".join(KEYCAPS.get(g, str(g)) for g in sorted(groups, reverse=True))
     return f"{num_rooms} rooms ({keycaps})"
+
+
+class TimerModal(discord.ui.Modal, title="Custom Timer"):
+    """Modal for setting custom breakout room duration."""
+
+    minutes = discord.ui.TextInput(
+        label="Timer (minutes)",
+        placeholder="Enter number of minutes",
+        required=True,
+        max_length=3,
+    )
+
+    def __init__(self, cog: "BreakoutCog", num_groups: int, include_bots: bool, include_self: bool):
+        super().__init__()
+        self.cog = cog
+        self.num_groups = num_groups
+        self.include_bots = include_bots
+        self.include_self = include_self
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # Parse timer value
+        timer_minutes = None
+        if self.minutes.value.strip():
+            try:
+                timer_minutes = int(self.minutes.value.strip())
+                if timer_minutes <= 0:
+                    timer_minutes = None
+            except ValueError:
+                await interaction.response.send_message(
+                    "Invalid timer value. Please enter a number.", ephemeral=True
+                )
+                return
+
+        await self.cog.run_breakout(
+            interaction,
+            self.num_groups,
+            self.include_bots,
+            self.include_self,
+            timer_minutes,
+        )
+
+
+class TimerSelectView(discord.ui.View):
+    """View for selecting breakout timer duration."""
+
+    def __init__(
+        self,
+        cog: "BreakoutCog",
+        num_groups: int,
+        include_bots: bool,
+        include_self: bool,
+        distribution_label: str,
+    ):
+        super().__init__(timeout=60)
+        self.cog = cog
+        self.num_groups = num_groups
+        self.include_bots = include_bots
+        self.include_self = include_self
+        self.distribution_label = distribution_label
+
+    @discord.ui.button(label="4 min", style=discord.ButtonStyle.primary, row=0)
+    async def timer_4(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.cog.run_breakout(
+            interaction, self.num_groups, self.include_bots, self.include_self, 4
+        )
+        self.stop()
+
+    @discord.ui.button(label="6 min", style=discord.ButtonStyle.primary, row=0)
+    async def timer_6(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.cog.run_breakout(
+            interaction, self.num_groups, self.include_bots, self.include_self, 6
+        )
+        self.stop()
+
+    @discord.ui.button(label="8 min", style=discord.ButtonStyle.primary, row=0)
+    async def timer_8(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.cog.run_breakout(
+            interaction, self.num_groups, self.include_bots, self.include_self, 8
+        )
+        self.stop()
+
+    @discord.ui.button(label="Custom", style=discord.ButtonStyle.secondary, row=0)
+    async def timer_custom(self, interaction: discord.Interaction, button: discord.ui.Button):
+        modal = TimerModal(self.cog, self.num_groups, self.include_bots, self.include_self)
+        await interaction.response.send_modal(modal)
+        self.stop()
+
+    @discord.ui.button(label="No limit", style=discord.ButtonStyle.secondary, row=0)
+    async def timer_none(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.cog.run_breakout(
+            interaction, self.num_groups, self.include_bots, self.include_self, None
+        )
+        self.stop()
 
 
 class BreakoutView(discord.ui.View):
@@ -160,7 +254,7 @@ class BreakoutView(discord.ui.View):
                 style=discord.ButtonStyle.primary,
                 row=row,  # Each button on its own row
             )
-            btn.callback = self._make_distribution_callback(num_groups)
+            btn.callback = self._make_distribution_callback(num_groups, label)
             self._distribution_buttons.append(btn)
             self.add_item(btn)
             row += 1
@@ -169,12 +263,19 @@ class BreakoutView(discord.ui.View):
             if row > 4:
                 break
 
-    def _make_distribution_callback(self, num_groups: int):
+    def _make_distribution_callback(self, num_groups: int, label: str):
         """Create a callback for a distribution button."""
         async def callback(interaction: discord.Interaction):
-            await self.cog.run_breakout(
-                interaction, num_groups, self.include_bots, self.include_self
+            # Show timer selection view
+            embed = discord.Embed(
+                title="Select Timer",
+                description=f"**Distribution:** {label}\n\nHow long should the breakout last?",
+                color=discord.Color.blue(),
             )
+            view = TimerSelectView(
+                self.cog, num_groups, self.include_bots, self.include_self, label
+            )
+            await interaction.response.edit_message(embed=embed, view=view)
             self.stop()
         return callback
 
@@ -269,12 +370,165 @@ class BreakoutCog(commands.Cog):
                 # Member may have left, channel may be gone
                 pass
 
+    async def _run_timer(
+        self,
+        guild: discord.Guild,
+        timer_minutes: int,
+    ):
+        """Run the breakout timer with countdown messages."""
+        total_seconds = timer_minutes * 60
+        elapsed = 0
+
+        # Helper to send message to main channel and all breakout rooms
+        async def send_countdown(message: str) -> bool:
+            session = self._active_sessions.get(guild.id)
+            if not session:
+                return False  # Session ended early
+
+            # Send to main channel
+            source_channel = guild.get_channel(session.source_channel_id)
+            if source_channel:
+                try:
+                    await source_channel.send(message)
+                except discord.HTTPException:
+                    pass
+
+            # Send to breakout rooms
+            for channel_id in session.breakout_channel_ids:
+                channel = guild.get_channel(channel_id)
+                if channel:
+                    try:
+                        await channel.send(message)
+                    except discord.HTTPException:
+                        pass
+            return True
+
+        # Halfway message (if timer >= 4 min, so halfway is at least 2 min)
+        if timer_minutes >= 4:
+            halfway_seconds = total_seconds // 2
+            await asyncio.sleep(halfway_seconds)
+            elapsed = halfway_seconds
+
+            halfway_min = (total_seconds - elapsed) // 60
+            if not await send_countdown(f"Halfway: {halfway_min} min remaining"):
+                return
+
+        # 1 minute warning (if timer >= 2 min)
+        if timer_minutes >= 2:
+            wait_for_1min = total_seconds - 60 - COLLECT_COUNTDOWN - elapsed
+            if wait_for_1min > 0:
+                await asyncio.sleep(wait_for_1min)
+                elapsed += wait_for_1min
+
+                if not await send_countdown("1 minute remaining"):
+                    return
+
+                # Wait the remaining minute minus collect countdown
+                await asyncio.sleep(60)
+                elapsed += 60
+
+        # Wait for remaining time until collect countdown
+        remaining = total_seconds - elapsed - COLLECT_COUNTDOWN
+        if remaining > 0:
+            await asyncio.sleep(remaining)
+
+        # Auto-collect (this will handle the 20s + 5s warnings)
+        session = self._active_sessions.get(guild.id)
+        if session:
+            # Create a fake interaction-like context for run_collect
+            # We'll call the internal collect logic directly
+            await self._auto_collect(guild)
+
+    async def _auto_collect(self, guild: discord.Guild):
+        """Auto-collect without interaction (called by timer)."""
+        session = self._active_sessions.get(guild.id)
+        if not session:
+            return
+
+        source_channel = guild.get_channel(session.source_channel_id)
+
+        # Get breakout channels
+        breakout_channels = []
+        for channel_id in session.breakout_channel_ids:
+            channel = guild.get_channel(channel_id)
+            if channel:
+                breakout_channels.append(channel)
+
+        # Send countdown warnings to main channel and breakout rooms
+        if breakout_channels:
+            # 20s warning to main channel
+            if source_channel:
+                try:
+                    await source_channel.send("20 seconds remaining")
+                except discord.HTTPException:
+                    pass
+            # 20s warning to breakout rooms
+            for channel in breakout_channels:
+                try:
+                    await channel.send("20 seconds remaining")
+                except discord.HTTPException:
+                    pass
+
+            await asyncio.sleep(COLLECT_COUNTDOWN - 5)
+
+            # 5s warning to main channel
+            if source_channel:
+                try:
+                    await source_channel.send("5 seconds remaining")
+                except discord.HTTPException:
+                    pass
+            # 5s warning to breakout rooms
+            for channel in breakout_channels:
+                try:
+                    await channel.send("5 seconds remaining")
+                except discord.HTTPException:
+                    pass
+
+            await asyncio.sleep(5)
+
+        # Move everyone back
+        collected_count = 0
+        for channel in breakout_channels:
+            if source_channel:
+                for m in channel.members:
+                    try:
+                        await m.move_to(source_channel)
+                        collected_count += 1
+                    except discord.HTTPException:
+                        pass
+            try:
+                await channel.delete(reason="Breakout timer ended")
+            except discord.HTTPException:
+                pass
+
+        # Restore permissions
+        if source_channel:
+            for target, overwrite in list(source_channel.overwrites.items()):
+                if isinstance(target, discord.Member):
+                    try:
+                        await source_channel.set_permissions(
+                            target, overwrite=None, reason="Breakout session ended"
+                        )
+                    except discord.HTTPException:
+                        pass
+
+        # Clean up session
+        del self._active_sessions[guild.id]
+
+        # Notify in source channel
+        if source_channel:
+            try:
+                await source_channel.send(f"✅ Breakout ended! Collected {collected_count} users.")
+            except discord.HTTPException:
+                pass
+
     async def run_breakout(
         self,
         interaction: discord.Interaction,
         num_groups: int,
         include_bots: bool = False,
         include_self: bool = False,
+        timer_minutes: int | None = None,
     ):
         """Core breakout logic - can be called from command or GUI."""
         guild = interaction.guild
@@ -394,8 +648,9 @@ class BreakoutCog(commands.Cog):
             )
 
             # Send popup messages before moving (users can still see main room)
+            duration_msg = f"{timer_minutes} minute breakout" if timer_minutes else "Breakout starting"
             try:
-                await source_channel.send("👋 You're being moved to a breakout room!")
+                await source_channel.send(f"👋 {duration_msg}!")
                 await source_channel.send("Switch your screen to see your group.")
             except discord.HTTPException:
                 pass
@@ -424,11 +679,26 @@ class BreakoutCog(commands.Cog):
             )
 
             # Store session
-            self._active_sessions[guild.id] = BreakoutSession(
+            session = BreakoutSession(
                 source_channel_id=source_channel.id,
                 breakout_channel_ids=[c.id for c in breakout_channels],
                 facilitator_id=member.id,
             )
+            self._active_sessions[guild.id] = session
+
+            # Send duration message to each breakout room
+            if timer_minutes:
+                for channel in breakout_channels:
+                    try:
+                        await channel.send(f"{timer_minutes} minute breakout")
+                    except discord.HTTPException:
+                        pass
+
+            # Start timer if configured
+            if timer_minutes:
+                session.timer_task = asyncio.create_task(
+                    self._run_timer(guild, timer_minutes)
+                )
 
         except discord.Forbidden:
             # Clean up any channels we created
@@ -507,6 +777,10 @@ class BreakoutCog(commands.Cog):
 
         session = self._active_sessions[guild.id]
 
+        # Cancel timer if running
+        if session.timer_task and not session.timer_task.done():
+            session.timer_task.cancel()
+
         # Defer if not already done
         if not interaction.response.is_done():
             await interaction.response.defer()
@@ -534,26 +808,34 @@ class BreakoutCog(commands.Cog):
                     continue
             breakout_channels.append(channel)
 
-        # Send warning messages to each breakout channel and wait
+        # Send warning messages to main channel and breakout rooms
         if countdown and breakout_channels:
-            source_name = source_channel.name if source_channel else "main room"
-
-            # First warning
+            # 20s warning to main channel
+            if source_channel:
+                try:
+                    await source_channel.send("20 seconds remaining")
+                except discord.HTTPException:
+                    pass
+            # 20s warning to breakout rooms
             for channel in breakout_channels:
                 try:
-                    await channel.send(
-                        f"⏰ **Returning to {source_name} in {COLLECT_COUNTDOWN} seconds!**"
-                    )
+                    await channel.send("20 seconds remaining")
                 except discord.HTTPException:
-                    pass  # Channel may not allow messages
+                    pass
 
             # Wait until 5 seconds remaining
             await asyncio.sleep(COLLECT_COUNTDOWN - 5)
 
-            # Final warning
+            # 5s warning to main channel
+            if source_channel:
+                try:
+                    await source_channel.send("5 seconds remaining")
+                except discord.HTTPException:
+                    pass
+            # 5s warning to breakout rooms
             for channel in breakout_channels:
                 try:
-                    await channel.send(f"⏰ **Returning to {source_name} in 5 seconds!**")
+                    await channel.send("5 seconds remaining")
                 except discord.HTTPException:
                     pass
 
