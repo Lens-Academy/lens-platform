@@ -103,6 +103,18 @@ export function extractVideoExcerpt(
     };
   }
 
+  // Validate that from is not after to
+  if (fromSeconds > toSeconds) {
+    return {
+      error: {
+        file,
+        message: `Start timestamp '${fromTime}' is after end timestamp '${toTime}'`,
+        suggestion: 'Ensure the from:: timestamp comes before the to:: timestamp',
+        severity: 'error',
+      },
+    };
+  }
+
   // Parse the transcript into lines with timestamps
   const lines = transcript.split('\n');
   const timestampedLines: Array<{ timestamp: number; line: string }> = [];

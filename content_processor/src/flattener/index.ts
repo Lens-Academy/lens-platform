@@ -10,10 +10,11 @@ import type {
   ContentError,
   SectionMeta,
 } from '../index.js';
-import { parseModule } from '../parser/module.js';
+import { parseModule, parsePageTextSegments } from '../parser/module.js';
 import { parseLearningOutcome } from '../parser/learning-outcome.js';
 import { parseLens, type ParsedLensSegment, type ParsedLensSection } from '../parser/lens.js';
 import { parseWikilink, resolveWikilinkPath, findFileWithExtension } from '../parser/wikilink.js';
+import { parseFrontmatter } from '../parser/frontmatter.js';
 import { extractArticleExcerpt } from '../bundler/article.js';
 import { extractVideoExcerpt } from '../bundler/video.js';
 
@@ -33,12 +34,26 @@ export interface FlattenModuleResult {
  *
  * @param modulePath - Path to the module file within the files Map
  * @param files - Map of all file paths to their content
+ * @param visitedPaths - Optional set of already-visited paths for cycle detection
  * @returns Flattened module with resolved sections and segments, plus any errors
  */
 export function flattenModule(
   modulePath: string,
-  files: Map<string, string>
+  files: Map<string, string>,
+  visitedPaths: Set<string> = new Set()
 ): FlattenModuleResult {
+  // Check for circular reference
+  if (visitedPaths.has(modulePath)) {
+    return {
+      module: null,
+      errors: [{
+        file: modulePath,
+        message: `Circular reference detected: ${modulePath}`,
+        severity: 'error',
+      }],
+    };
+  }
+  visitedPaths.add(modulePath);
   const errors: ContentError[] = [];
   let moduleError: string | undefined;
 
@@ -68,10 +83,15 @@ export function flattenModule(
   for (const section of parsedModule.sections) {
     if (section.type === 'learning-outcome') {
       // Resolve the Learning Outcome reference
+      // Create a copy of visitedPaths for this section's reference chain
+      // This allows the same file to be referenced in different sections
+      // while still detecting cycles within a single chain
+      const sectionVisitedPaths = new Set(visitedPaths);
       const result = flattenLearningOutcomeSection(
         section,
         modulePath,
-        files
+        files,
+        sectionVisitedPaths
       );
       errors.push(...result.errors);
 
@@ -85,23 +105,37 @@ export function flattenModule(
       }
     } else if (section.type === 'page') {
       // Page sections don't have LO references, they have inline content
-      // For now, create a basic page section
+      // Parse the section body for ## Text subsections
+      const textSegments = parsePageTextSegments(section.body);
+
       const pageSection: Section = {
         type: 'page',
         meta: { title: section.title },
-        segments: [],
+        segments: textSegments,
         optional: section.fields.optional === 'true',
       };
+
+      // Extract contentId from id:: field
+      if (section.fields.id) {
+        pageSection.contentId = section.fields.id;
+      }
+
       flattenedSections.push(pageSection);
     } else if (section.type === 'uncategorized') {
-      // Uncategorized sections are similar to pages
-      const uncategorizedSection: Section = {
-        type: 'page',
-        meta: { title: section.title },
-        segments: [],
-        optional: section.fields.optional === 'true',
-      };
-      flattenedSections.push(uncategorizedSection);
+      // Uncategorized sections can contain ## Lens: references, similar to Learning Outcomes
+      // Create a copy of visitedPaths for this section's reference chain
+      const sectionVisitedPaths = new Set(visitedPaths);
+      const result = flattenUncategorizedSection(
+        section,
+        modulePath,
+        files,
+        sectionVisitedPaths
+      );
+      errors.push(...result.errors);
+
+      if (result.section) {
+        flattenedSections.push(result.section);
+      }
     }
   }
 
@@ -131,7 +165,8 @@ interface FlattenSectionResult {
 function flattenLearningOutcomeSection(
   section: { type: string; title: string; fields: Record<string, string>; line: number },
   modulePath: string,
-  files: Map<string, string>
+  files: Map<string, string>,
+  visitedPaths: Set<string>
 ): FlattenSectionResult {
   const errors: ContentError[] = [];
 
@@ -178,6 +213,20 @@ function flattenLearningOutcomeSection(
     errors.push(err);
     return { section: null, errors, errorMessage: err.message };
   }
+
+  // Check for circular reference
+  if (visitedPaths.has(loPath)) {
+    const err: ContentError = {
+      file: modulePath,
+      line: section.line,
+      message: `Circular reference detected: ${loPath}`,
+      severity: 'error',
+    };
+    errors.push(err);
+    return { section: null, errors, errorMessage: err.message };
+  }
+  visitedPaths.add(loPath);
+
   const loContent = files.get(loPath)!;
 
   // Parse the Learning Outcome
@@ -199,6 +248,7 @@ function flattenLearningOutcomeSection(
   const allSegments: Segment[] = [];
   let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
   const meta: SectionMeta = { title: section.title };
+  let lensId: string | undefined;
 
   for (const lensRef of lo.lenses) {
     const lensPath = findFileWithExtension(lensRef.resolvedPath, files);
@@ -212,6 +262,171 @@ function flattenLearningOutcomeSection(
       errors.push(err);
       continue;
     }
+
+    // Check for circular reference
+    if (visitedPaths.has(lensPath)) {
+      errors.push({
+        file: loPath,
+        message: `Circular reference detected: ${lensPath}`,
+        severity: 'error',
+      });
+      continue;
+    }
+    visitedPaths.add(lensPath);
+
+    const lensContent = files.get(lensPath)!;
+
+    // Parse the lens
+    const lensResult = parseLens(lensContent, lensPath);
+    errors.push(...lensResult.errors);
+
+    if (!lensResult.lens) {
+      continue;
+    }
+
+    const lens = lensResult.lens;
+
+    // Capture the lens ID (use the last successfully parsed lens's ID)
+    lensId = lens.id;
+
+    // Process each section in the lens
+    for (const lensSection of lens.sections) {
+      // Determine section type from lens section
+      if (lensSection.type === 'lens-article') {
+        sectionType = 'lens-article';
+
+        // Extract article metadata from the article file's frontmatter
+        if (lensSection.source) {
+          const articleWikilink = parseWikilink(lensSection.source);
+          if (articleWikilink) {
+            const articlePathResolved = resolveWikilinkPath(articleWikilink.path, lensPath);
+            const articlePath = findFileWithExtension(articlePathResolved, files);
+            if (articlePath) {
+              const articleContent = files.get(articlePath)!;
+              const articleFrontmatter = parseFrontmatter(articleContent, articlePath);
+
+              // Extract metadata fields
+              if (articleFrontmatter.frontmatter.title) {
+                meta.title = articleFrontmatter.frontmatter.title as string;
+              }
+              if (articleFrontmatter.frontmatter.author) {
+                meta.author = articleFrontmatter.frontmatter.author as string;
+              }
+              if (articleFrontmatter.frontmatter.sourceUrl) {
+                meta.sourceUrl = articleFrontmatter.frontmatter.sourceUrl as string;
+              }
+            }
+          }
+        }
+      } else if (lensSection.type === 'lens-video') {
+        sectionType = 'lens-video';
+
+        // Extract video metadata from the video transcript file's frontmatter
+        if (lensSection.source) {
+          const videoWikilink = parseWikilink(lensSection.source);
+          if (videoWikilink) {
+            const videoPathResolved = resolveWikilinkPath(videoWikilink.path, lensPath);
+            const videoPath = findFileWithExtension(videoPathResolved, files);
+            if (videoPath) {
+              const videoContent = files.get(videoPath)!;
+              const videoFrontmatter = parseFrontmatter(videoContent, videoPath);
+
+              // Extract metadata fields
+              if (videoFrontmatter.frontmatter.title) {
+                meta.title = videoFrontmatter.frontmatter.title as string;
+              }
+              if (videoFrontmatter.frontmatter.channel) {
+                meta.channel = videoFrontmatter.frontmatter.channel as string;
+              }
+            }
+          }
+        }
+      }
+
+      // Process segments
+      for (const parsedSegment of lensSection.segments) {
+        const segmentResult = convertSegment(
+          parsedSegment,
+          lensSection,
+          lensPath,
+          files,
+          visitedPaths
+        );
+        errors.push(...segmentResult.errors);
+
+        if (segmentResult.segment) {
+          allSegments.push(segmentResult.segment);
+        }
+      }
+    }
+  }
+
+  const resultSection: Section = {
+    type: sectionType,
+    meta,
+    segments: allSegments,
+    optional: section.fields.optional === 'true',
+    learningOutcomeId: lo.id,
+    contentId: lensId,
+  };
+
+  return { section: resultSection, errors };
+}
+
+/**
+ * Flatten an Uncategorized section by parsing its ## Lens: references
+ * and resolving them just like Learning Outcome sections do.
+ */
+function flattenUncategorizedSection(
+  section: { type: string; title: string; fields: Record<string, string>; body: string; line: number },
+  modulePath: string,
+  files: Map<string, string>,
+  visitedPaths: Set<string>
+): FlattenSectionResult {
+  const errors: ContentError[] = [];
+
+  // Parse the section body for ## Lens: subsections
+  const lensRefs = parseUncategorizedLensRefs(section.body, modulePath);
+
+  // If no lens refs found, return an empty page section
+  if (lensRefs.length === 0) {
+    const uncategorizedSection: Section = {
+      type: 'page',
+      meta: { title: section.title },
+      segments: [],
+      optional: section.fields.optional === 'true',
+    };
+    return { section: uncategorizedSection, errors };
+  }
+
+  // Flatten all lenses
+  const allSegments: Segment[] = [];
+  let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
+  const meta: SectionMeta = { title: section.title };
+
+  for (const lensRef of lensRefs) {
+    const lensPath = findFileWithExtension(lensRef.resolvedPath, files);
+    if (!lensPath) {
+      errors.push({
+        file: modulePath,
+        message: `Referenced lens file not found: ${lensRef.resolvedPath}`,
+        suggestion: 'Check the file path in the wiki-link',
+        severity: 'error',
+      });
+      continue;
+    }
+
+    // Check for circular reference
+    if (visitedPaths.has(lensPath)) {
+      errors.push({
+        file: modulePath,
+        message: `Circular reference detected: ${lensPath}`,
+        severity: 'error',
+      });
+      continue;
+    }
+    visitedPaths.add(lensPath);
+
     const lensContent = files.get(lensPath)!;
 
     // Parse the lens
@@ -229,8 +444,53 @@ function flattenLearningOutcomeSection(
       // Determine section type from lens section
       if (lensSection.type === 'lens-article') {
         sectionType = 'lens-article';
+
+        // Extract article metadata from the article file's frontmatter
+        if (lensSection.source) {
+          const articleWikilink = parseWikilink(lensSection.source);
+          if (articleWikilink) {
+            const articlePathResolved = resolveWikilinkPath(articleWikilink.path, lensPath);
+            const articlePath = findFileWithExtension(articlePathResolved, files);
+            if (articlePath) {
+              const articleContent = files.get(articlePath)!;
+              const articleFrontmatter = parseFrontmatter(articleContent, articlePath);
+
+              // Extract metadata fields
+              if (articleFrontmatter.frontmatter.title) {
+                meta.title = articleFrontmatter.frontmatter.title as string;
+              }
+              if (articleFrontmatter.frontmatter.author) {
+                meta.author = articleFrontmatter.frontmatter.author as string;
+              }
+              if (articleFrontmatter.frontmatter.sourceUrl) {
+                meta.sourceUrl = articleFrontmatter.frontmatter.sourceUrl as string;
+              }
+            }
+          }
+        }
       } else if (lensSection.type === 'lens-video') {
         sectionType = 'lens-video';
+
+        // Extract video metadata from the video transcript file's frontmatter
+        if (lensSection.source) {
+          const videoWikilink = parseWikilink(lensSection.source);
+          if (videoWikilink) {
+            const videoPathResolved = resolveWikilinkPath(videoWikilink.path, lensPath);
+            const videoPath = findFileWithExtension(videoPathResolved, files);
+            if (videoPath) {
+              const videoContent = files.get(videoPath)!;
+              const videoFrontmatter = parseFrontmatter(videoContent, videoPath);
+
+              // Extract metadata fields
+              if (videoFrontmatter.frontmatter.title) {
+                meta.title = videoFrontmatter.frontmatter.title as string;
+              }
+              if (videoFrontmatter.frontmatter.channel) {
+                meta.channel = videoFrontmatter.frontmatter.channel as string;
+              }
+            }
+          }
+        }
       }
 
       // Process segments
@@ -239,7 +499,8 @@ function flattenLearningOutcomeSection(
           parsedSegment,
           lensSection,
           lensPath,
-          files
+          files,
+          visitedPaths
         );
         errors.push(...segmentResult.errors);
 
@@ -255,10 +516,131 @@ function flattenLearningOutcomeSection(
     meta,
     segments: allSegments,
     optional: section.fields.optional === 'true',
-    learningOutcomeId: lo.id,
   };
 
   return { section: resultSection, errors };
+}
+
+/**
+ * Parse ## Lens: subsections from an Uncategorized section's body.
+ * Returns an array of lens references with resolved paths.
+ */
+function parseUncategorizedLensRefs(
+  body: string,
+  parentPath: string
+): Array<{ source: string; resolvedPath: string; optional: boolean }> {
+  const lensRefs: Array<{ source: string; resolvedPath: string; optional: boolean }> = [];
+  const lines = body.split('\n');
+
+  let inLensSection = false;
+  let currentFields: Record<string, string> = {};
+  let currentField: string | null = null;
+  let currentValue: string[] = [];
+
+  const LENS_HEADER_PATTERN = /^##\s+Lens:\s*(.*)$/i;
+  const FIELD_PATTERN = /^(\w+)::\s*(.*)$/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Check for ## Lens: header
+    const lensMatch = line.match(LENS_HEADER_PATTERN);
+    if (lensMatch) {
+      // Save previous lens if we were in one
+      if (inLensSection && currentFields.source) {
+        // Finalize current field
+        if (currentField) {
+          currentFields[currentField] = currentValue.join('\n').trim();
+        }
+
+        const wikilink = parseWikilink(currentFields.source);
+        if (wikilink) {
+          const resolvedPath = resolveWikilinkPath(wikilink.path, parentPath);
+          lensRefs.push({
+            source: currentFields.source,
+            resolvedPath,
+            optional: currentFields.optional === 'true',
+          });
+        }
+      }
+
+      inLensSection = true;
+      currentFields = {};
+      currentField = null;
+      currentValue = [];
+      continue;
+    }
+
+    // Check for another ## header (end of Lens section)
+    if (line.match(/^##\s+\S/) && inLensSection) {
+      // Save current lens
+      if (currentField) {
+        currentFields[currentField] = currentValue.join('\n').trim();
+      }
+
+      if (currentFields.source) {
+        const wikilink = parseWikilink(currentFields.source);
+        if (wikilink) {
+          const resolvedPath = resolveWikilinkPath(wikilink.path, parentPath);
+          lensRefs.push({
+            source: currentFields.source,
+            resolvedPath,
+            optional: currentFields.optional === 'true',
+          });
+        }
+      }
+
+      inLensSection = false;
+      currentFields = {};
+      currentField = null;
+      currentValue = [];
+      continue;
+    }
+
+    if (inLensSection) {
+      // Parse fields
+      const fieldMatch = line.match(FIELD_PATTERN);
+      if (fieldMatch) {
+        // Save previous field
+        if (currentField) {
+          currentFields[currentField] = currentValue.join('\n').trim();
+        }
+        currentField = fieldMatch[1];
+        const inlineValue = fieldMatch[2].trim();
+        currentValue = inlineValue ? [inlineValue] : [];
+      } else if (currentField) {
+        // Check if line starts a new section header
+        if (line.match(/^#/)) {
+          currentFields[currentField] = currentValue.join('\n').trim();
+          currentField = null;
+          currentValue = [];
+        } else {
+          currentValue.push(line);
+        }
+      }
+    }
+  }
+
+  // Don't forget the last lens section
+  if (inLensSection) {
+    if (currentField) {
+      currentFields[currentField] = currentValue.join('\n').trim();
+    }
+
+    if (currentFields.source) {
+      const wikilink = parseWikilink(currentFields.source);
+      if (wikilink) {
+        const resolvedPath = resolveWikilinkPath(wikilink.path, parentPath);
+        lensRefs.push({
+          source: currentFields.source,
+          resolvedPath,
+          optional: currentFields.optional === 'true',
+        });
+      }
+    }
+  }
+
+  return lensRefs;
 }
 
 interface ConvertSegmentResult {
@@ -274,7 +656,8 @@ function convertSegment(
   parsedSegment: ParsedLensSegment,
   lensSection: ParsedLensSection,
   lensPath: string,
-  files: Map<string, string>
+  files: Map<string, string>,
+  visitedPaths: Set<string>
 ): ConvertSegmentResult {
   const errors: ContentError[] = [];
 
@@ -342,6 +725,20 @@ function convertSegment(
         });
         return { segment: null, errors };
       }
+
+      // Check if the article path points back to an already-visited structural file
+      // This would indicate a circular reference (e.g., a lens source pointing back to an LO)
+      // Note: We only check, we don't add article paths to visitedPaths since
+      // multiple segments can legitimately reference the same article
+      if (visitedPaths.has(articlePath)) {
+        errors.push({
+          file: lensPath,
+          message: `Circular reference detected: ${articlePath}`,
+          severity: 'error',
+        });
+        return { segment: null, errors };
+      }
+
       const articleContent = files.get(articlePath)!;
 
       // Extract the excerpt
@@ -400,6 +797,20 @@ function convertSegment(
         });
         return { segment: null, errors };
       }
+
+      // Check if the video path points back to an already-visited structural file
+      // This would indicate a circular reference
+      // Note: We only check, we don't add video paths to visitedPaths since
+      // multiple segments can legitimately reference the same video
+      if (visitedPaths.has(videoPath)) {
+        errors.push({
+          file: lensPath,
+          message: `Circular reference detected: ${videoPath}`,
+          severity: 'error',
+        });
+        return { segment: null, errors };
+      }
+
       const transcriptContent = files.get(videoPath)!;
 
       // Extract the video excerpt

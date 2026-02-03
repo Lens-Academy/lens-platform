@@ -41,28 +41,131 @@ function findAllOccurrences(text: string, anchor: string): number[] {
 }
 
 /**
+ * Strip frontmatter from article content.
+ * Frontmatter is enclosed in --- markers at the start of the file.
+ */
+function stripFrontmatter(article: string): string {
+  const match = article.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+  return match ? match[1].trim() : article.trim();
+}
+
+/**
  * Extract content from an article between two anchor texts.
  *
+ * Both anchors are optional:
+ * - Only fromAnchor → extract from anchor to end of article
+ * - Only toAnchor → extract from start of article to anchor
+ * - Neither → extract entire article (stripping frontmatter)
+ *
  * @param article - The full article content
- * @param fromAnchor - Text marking the start of the excerpt (inclusive)
- * @param toAnchor - Text marking the end of the excerpt (inclusive)
+ * @param fromAnchor - Text marking the start of the excerpt (inclusive), undefined means start
+ * @param toAnchor - Text marking the end of the excerpt (inclusive), undefined means end
  * @param file - Source file path for error reporting
  * @returns Extracted content or error
  */
 export function extractArticleExcerpt(
   article: string,
-  fromAnchor: string,
-  toAnchor: string,
+  fromAnchor: string | undefined,
+  toAnchor: string | undefined,
   file: string
 ): ArticleExcerptResult {
-  // Find all occurrences of start anchor (case-insensitive)
-  const fromOccurrences = findAllOccurrences(article, fromAnchor);
+  // If no anchors, return entire article (strip frontmatter)
+  if (!fromAnchor && !toAnchor) {
+    const content = stripFrontmatter(article);
+    return {
+      content,
+      startIndex: 0,
+      endIndex: article.length,
+    };
+  }
+
+  // Get article body (strip frontmatter) for extraction
+  const body = stripFrontmatter(article);
+
+  // If only toAnchor, extract from start to anchor
+  if (!fromAnchor && toAnchor) {
+    const toOccurrences = findAllOccurrences(body, toAnchor);
+
+    if (toOccurrences.length === 0) {
+      return {
+        error: {
+          file,
+          message: `End anchor '${toAnchor}' not found in article`,
+          suggestion: 'Check that the anchor text exists exactly in the article',
+          severity: 'error',
+        },
+      };
+    }
+
+    if (toOccurrences.length > 1) {
+      return {
+        error: {
+          file,
+          message: `End anchor '${toAnchor}' found multiple times (${toOccurrences.length} occurrences) - ambiguous`,
+          suggestion: 'Use a more specific anchor text that appears only once',
+          severity: 'error',
+        },
+      };
+    }
+
+    const endIndex = toOccurrences[0] + toAnchor.length;
+    const content = body.slice(0, endIndex);
+
+    return {
+      content,
+      startIndex: 0,
+      endIndex,
+    };
+  }
+
+  // If only fromAnchor, extract from anchor to end
+  if (fromAnchor && !toAnchor) {
+    const fromOccurrences = findAllOccurrences(body, fromAnchor);
+
+    if (fromOccurrences.length === 0) {
+      return {
+        error: {
+          file,
+          message: `Start anchor '${fromAnchor}' not found in article`,
+          suggestion: 'Check that the anchor text exists exactly in the article',
+          severity: 'error',
+        },
+      };
+    }
+
+    if (fromOccurrences.length > 1) {
+      return {
+        error: {
+          file,
+          message: `Start anchor '${fromAnchor}' found multiple times (${fromOccurrences.length} occurrences) - ambiguous`,
+          suggestion: 'Use a more specific anchor text that appears only once',
+          severity: 'error',
+        },
+      };
+    }
+
+    const startIndex = fromOccurrences[0];
+    const content = body.slice(startIndex);
+
+    return {
+      content,
+      startIndex,
+      endIndex: body.length,
+    };
+  }
+
+  // Both anchors provided - find content between them
+  // At this point we know both fromAnchor and toAnchor are defined (not undefined)
+  const fromAnchorStr = fromAnchor as string;
+  const toAnchorStr = toAnchor as string;
+
+  const fromOccurrences = findAllOccurrences(article, fromAnchorStr);
 
   if (fromOccurrences.length === 0) {
     return {
       error: {
         file,
-        message: `Start anchor '${fromAnchor}' not found in article`,
+        message: `Start anchor '${fromAnchorStr}' not found in article`,
         suggestion: 'Check that the anchor text exists exactly in the article',
         severity: 'error',
       },
@@ -73,7 +176,7 @@ export function extractArticleExcerpt(
     return {
       error: {
         file,
-        message: `Start anchor '${fromAnchor}' found multiple times (${fromOccurrences.length} occurrences) - ambiguous`,
+        message: `Start anchor '${fromAnchorStr}' found multiple times (${fromOccurrences.length} occurrences) - ambiguous`,
         suggestion: 'Use a more specific anchor text that appears only once',
         severity: 'error',
       },
@@ -84,13 +187,13 @@ export function extractArticleExcerpt(
 
   // Search for end anchor only AFTER the start anchor (case-insensitive)
   const afterStart = article.slice(startIndex);
-  const toOccurrences = findAllOccurrences(afterStart, toAnchor);
+  const toOccurrences = findAllOccurrences(afterStart, toAnchorStr);
 
   if (toOccurrences.length === 0) {
     return {
       error: {
         file,
-        message: `End anchor '${toAnchor}' not found in article after start anchor`,
+        message: `End anchor '${toAnchorStr}' not found in article after start anchor`,
         suggestion: 'Check that the anchor text exists after the start anchor',
         severity: 'error',
       },
@@ -101,7 +204,7 @@ export function extractArticleExcerpt(
     return {
       error: {
         file,
-        message: `End anchor '${toAnchor}' found multiple times (${toOccurrences.length} occurrences) after start - ambiguous`,
+        message: `End anchor '${toAnchorStr}' found multiple times (${toOccurrences.length} occurrences) after start - ambiguous`,
         suggestion: 'Use a more specific anchor text that appears only once',
         severity: 'error',
       },
@@ -110,7 +213,7 @@ export function extractArticleExcerpt(
 
   // Calculate absolute end index (end of the anchor text)
   const relativeToIndex = toOccurrences[0];
-  const endIndex = startIndex + relativeToIndex + toAnchor.length;
+  const endIndex = startIndex + relativeToIndex + toAnchorStr.length;
 
   // Extract the content between (and including) the anchors
   const content = article.slice(startIndex, endIndex);

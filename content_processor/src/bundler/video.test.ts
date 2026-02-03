@@ -73,4 +73,15 @@ describe('extractVideoExcerpt', () => {
     expect(result.error).toBeDefined();
     expect(result.error?.message).toContain('not found');
   });
+
+  it('returns error when from timestamp is after to timestamp', () => {
+    const transcript = `0:00 - Start.
+3:00 - Middle.
+5:00 - End.`;
+
+    const result = extractVideoExcerpt(transcript, '5:00', '3:00', 'video.md');
+
+    expect(result.error).toBeDefined();
+    expect(result.error?.message).toContain('after');
+  });
 });

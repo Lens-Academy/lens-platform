@@ -2,6 +2,8 @@
 import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, LENS_SECTION_TYPES, LENS_OUTPUT_TYPE } from './sections.js';
+import { validateSegmentFields } from '../validator/segment-fields.js';
+import { validateFieldValues } from '../validator/field-values.js';
 
 // Segment types for parsed lens content (before bundling/flattening)
 export interface ParsedTextSegment {
@@ -12,6 +14,7 @@ export interface ParsedTextSegment {
 
 export interface ParsedChatSegment {
   type: 'chat';
+  title?: string;
   instructions?: string;
   hidePreviousContentFromUser?: boolean;
   hidePreviousContentFromTutor?: boolean;
@@ -20,8 +23,8 @@ export interface ParsedChatSegment {
 
 export interface ParsedArticleExcerptSegment {
   type: 'article-excerpt';
-  fromAnchor: string;   // Text anchor (start)
-  toAnchor: string;     // Text anchor (end)
+  fromAnchor?: string;   // Text anchor (start) - undefined means start of article
+  toAnchor?: string;     // Text anchor (end) - undefined means end of article
   optional?: boolean;
 }
 
@@ -60,14 +63,15 @@ export interface LensParseResult {
 // Valid segment types for lens H4 headers
 const LENS_SEGMENT_TYPES = new Set(['text', 'chat', 'article-excerpt', 'video-excerpt']);
 
-// H4 segment header pattern: #### <type>
-const SEGMENT_HEADER_PATTERN = /^####\s+([^\n:]+)$/i;
+// H4 segment header pattern: #### <type> or #### <type>: <title>
+const SEGMENT_HEADER_PATTERN = /^####\s+(\S+)(?::\s*(.*))?$/i;
 
 // Field pattern: fieldname:: value
 const FIELD_PATTERN = /^(\w+)::\s*(.*)$/;
 
 interface RawSegment {
   type: string;
+  title?: string;
   fields: Record<string, string>;
   line: number;
 }
@@ -103,6 +107,7 @@ function parseSegments(
 
       const rawType = headerMatch[1].trim();
       const normalizedType = rawType.toLowerCase();
+      const title = headerMatch[2]?.trim() || undefined;
 
       if (!LENS_SEGMENT_TYPES.has(normalizedType)) {
         errors.push({
@@ -116,6 +121,7 @@ function parseSegments(
 
       currentSegment = {
         type: normalizedType,
+        title,
         fields: {},
         line: lineNum,
       };
@@ -134,12 +140,35 @@ function parseSegments(
   return { segments, errors };
 }
 
+/**
+ * Parse fields from lines into a segment, handling multiline values.
+ * A field continues until the next field or the end of the lines.
+ */
 function parseFieldsIntoSegment(segment: RawSegment, lines: string[]): void {
+  let currentField: string | null = null;
+  let currentValue: string[] = [];
+
   for (const line of lines) {
     const match = line.match(FIELD_PATTERN);
+
     if (match) {
-      segment.fields[match[1]] = match[2];
+      // Save previous field if any
+      if (currentField) {
+        segment.fields[currentField] = currentValue.join('\n').trim();
+      }
+
+      currentField = match[1];
+      const inlineValue = match[2].trim();
+      currentValue = inlineValue ? [inlineValue] : [];
+    } else if (currentField) {
+      // Continue multiline value
+      currentValue.push(line);
     }
+  }
+
+  // Save final field
+  if (currentField) {
+    segment.fields[currentField] = currentValue.join('\n').trim();
   }
 }
 
@@ -155,8 +184,11 @@ function convertSegment(
 
   switch (raw.type) {
     case 'text': {
+      const hasContentField = 'content' in raw.fields;
       const content = raw.fields.content;
-      if (!content) {
+
+      if (!hasContentField) {
+        // Field completely missing - error
         errors.push({
           file,
           line: raw.line,
@@ -166,6 +198,25 @@ function convertSegment(
         });
         return { segment: null, errors };
       }
+
+      if (!content || content.trim() === '') {
+        // Field present but empty - warning
+        errors.push({
+          file,
+          line: raw.line,
+          message: 'Text segment has empty content:: field',
+          suggestion: 'Add text content after content::',
+          severity: 'warning',
+        });
+        // Still create the segment, just with empty content
+        const segment: ParsedTextSegment = {
+          type: 'text',
+          content: '',
+          optional: raw.fields.optional === 'true' ? true : undefined,
+        };
+        return { segment, errors };
+      }
+
       const segment: ParsedTextSegment = {
         type: 'text',
         content,
@@ -177,6 +228,7 @@ function convertSegment(
     case 'chat': {
       const segment: ParsedChatSegment = {
         type: 'chat',
+        title: raw.title,
         instructions: raw.fields.instructions,
         hidePreviousContentFromUser: raw.fields.hidePreviousContentFromUser === 'true' ? true : undefined,
         hidePreviousContentFromTutor: raw.fields.hidePreviousContentFromTutor === 'true' ? true : undefined,
@@ -189,32 +241,14 @@ function convertSegment(
       const fromField = raw.fields.from;
       const toField = raw.fields.to;
 
-      if (!fromField) {
-        errors.push({
-          file,
-          line: raw.line,
-          message: 'Article-excerpt segment missing from:: field',
-          suggestion: "Add 'from:: \"anchor text\"' to the segment",
-          severity: 'error',
-        });
-      }
-      if (!toField) {
-        errors.push({
-          file,
-          line: raw.line,
-          message: 'Article-excerpt segment missing to:: field',
-          suggestion: "Add 'to:: \"anchor text\"' to the segment",
-          severity: 'error',
-        });
-      }
+      // Both from:: and to:: are optional for article-excerpt:
+      // - Only from:: → extract from anchor to end of article
+      // - Only to:: → extract from start to anchor
+      // - Neither → extract entire article
 
-      if (!fromField || !toField) {
-        return { segment: null, errors };
-      }
-
-      // Strip quotes from anchor text
-      const fromAnchor = stripQuotes(fromField);
-      const toAnchor = stripQuotes(toField);
+      // Strip quotes from anchor text if present
+      const fromAnchor = fromField ? stripQuotes(fromField) : undefined;
+      const toAnchor = toField ? stripQuotes(toField) : undefined;
 
       const segment: ParsedArticleExcerptSegment = {
         type: 'article-excerpt',
@@ -229,15 +263,7 @@ function convertSegment(
       const fromField = raw.fields.from;
       const toField = raw.fields.to;
 
-      if (!fromField) {
-        errors.push({
-          file,
-          line: raw.line,
-          message: 'Video-excerpt segment missing from:: field',
-          suggestion: "Add 'from:: M:SS' or 'from:: H:MM:SS' to the segment",
-          severity: 'error',
-        });
-      }
+      // to:: is required, from:: defaults to "0:00"
       if (!toField) {
         errors.push({
           file,
@@ -246,15 +272,12 @@ function convertSegment(
           suggestion: "Add 'to:: M:SS' or 'to:: H:MM:SS' to the segment",
           severity: 'error',
         });
-      }
-
-      if (!fromField || !toField) {
         return { segment: null, errors };
       }
 
       const segment: ParsedVideoExcerptSegment = {
         type: 'video-excerpt',
-        fromTimeStr: fromField,
+        fromTimeStr: fromField || '0:00',  // Default to start of video
         toTimeStr: toField,
         optional: raw.fields.optional === 'true' ? true : undefined,
       };
@@ -275,6 +298,34 @@ function stripQuotes(s: string): string {
     return s.slice(1, -1);
   }
   return s;
+}
+
+/**
+ * Check if a segment is empty (has no meaningful fields).
+ * Returns a warning if the segment is empty.
+ *
+ * Note: article-excerpt with no fields is valid (means entire article).
+ */
+function checkEmptySegment(raw: RawSegment, file: string): ContentError | null {
+  // A segment is empty if it has no fields at all
+  const fieldCount = Object.keys(raw.fields).length;
+
+  // article-excerpt with no fields is valid - means "include entire article"
+  if (raw.type === 'article-excerpt' && fieldCount === 0) {
+    return null;
+  }
+
+  if (fieldCount === 0) {
+    return {
+      file,
+      line: raw.line,
+      message: `Empty ${raw.type} segment has no fields`,
+      suggestion: `Add required fields to the ${raw.type} segment`,
+      severity: 'warning',
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -355,11 +406,36 @@ export function parseLens(content: string, file: string): LensParseResult {
     // Convert raw segments to typed segments
     const segments: ParsedLensSegment[] = [];
     for (const rawSeg of rawSegments) {
+      // Check for empty segments
+      const emptyWarning = checkEmptySegment(rawSeg, file);
+      if (emptyWarning) {
+        errors.push(emptyWarning);
+      }
+
+      // Validate that fields are appropriate for this segment type
+      const fieldWarnings = validateSegmentFields(rawSeg.type, rawSeg.fields, file, rawSeg.line);
+      errors.push(...fieldWarnings);
+
+      // Validate field values (e.g., boolean fields should have 'true' or 'false')
+      const valueWarnings = validateFieldValues(rawSeg.fields, file, rawSeg.line);
+      errors.push(...valueWarnings);
+
       const { segment, errors: conversionErrors } = convertSegment(rawSeg, outputType, file);
       errors.push(...conversionErrors);
       if (segment) {
         segments.push(segment);
       }
+    }
+
+    // Warn if section has no segments
+    if (segments.length === 0) {
+      errors.push({
+        file,
+        line: rawSection.line,
+        message: `${rawSection.rawType} section has no segments`,
+        suggestion: `Add at least one segment (#### Text, #### Chat, etc.) to the ${rawSection.rawType.toLowerCase()} section`,
+        severity: 'warning',
+      });
     }
 
     const parsedSection: ParsedLensSection = {

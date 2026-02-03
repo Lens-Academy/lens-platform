@@ -1,7 +1,84 @@
 // src/parser/module.ts
-import type { ContentError } from '../index.js';
+import type { ContentError, TextSegment } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, MODULE_SECTION_TYPES, type ParsedSection } from './sections.js';
+
+/**
+ * Parse ## Text subsections from within a Page section body.
+ * These subsections have a `content::` field that can span multiple lines.
+ *
+ * @param body - The body text of a # Page: section
+ * @returns Array of TextSegment objects extracted from ## Text subsections
+ */
+export function parsePageTextSegments(body: string): TextSegment[] {
+  const segments: TextSegment[] = [];
+  const lines = body.split('\n');
+
+  let inTextSection = false;
+  let currentContent = '';
+  let collectingContent = false;
+
+  for (const line of lines) {
+    // Check for ## Text header (case-insensitive)
+    if (line.match(/^##\s+Text\s*$/i)) {
+      // Save previous content if any
+      if (collectingContent && currentContent.trim()) {
+        segments.push({ type: 'text', content: currentContent.trim() });
+      }
+      inTextSection = true;
+      currentContent = '';
+      collectingContent = false;
+      continue;
+    }
+
+    // Check for any other ## header (end of Text section)
+    if (line.match(/^##\s+\S/)) {
+      // Save current content if any
+      if (collectingContent && currentContent.trim()) {
+        segments.push({ type: 'text', content: currentContent.trim() });
+      }
+      inTextSection = false;
+      currentContent = '';
+      collectingContent = false;
+      continue;
+    }
+
+    if (inTextSection) {
+      // Check for content:: field
+      const contentMatch = line.match(/^content::\s*(.*)$/);
+      if (contentMatch) {
+        // Start collecting content
+        collectingContent = true;
+        const inlineValue = contentMatch[1].trim();
+        currentContent = inlineValue;
+      } else if (collectingContent) {
+        // Check if this line starts another field (ends content collection)
+        if (line.match(/^\w+::\s*/)) {
+          // Save current content and stop collecting
+          if (currentContent.trim()) {
+            segments.push({ type: 'text', content: currentContent.trim() });
+          }
+          collectingContent = false;
+          currentContent = '';
+        } else {
+          // Continue multiline content
+          if (currentContent) {
+            currentContent += '\n' + line;
+          } else {
+            currentContent = line;
+          }
+        }
+      }
+    }
+  }
+
+  // Don't forget the last segment
+  if (collectingContent && currentContent.trim()) {
+    segments.push({ type: 'text', content: currentContent.trim() });
+  }
+
+  return segments;
+}
 
 export interface ParsedModule {
   slug: string;

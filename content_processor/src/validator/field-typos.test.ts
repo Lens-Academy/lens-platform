@@ -1,0 +1,62 @@
+// src/validator/field-typos.test.ts
+import { describe, it, expect } from 'vitest';
+import { detectFieldTypos } from './field-typos.js';
+
+describe('field typo detection', () => {
+  it('suggests correction for misspelled field "contnet" -> "content"', () => {
+    const warnings = detectFieldTypos({ contnet: 'value' }, 'test.md', 10);
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain("'contnet'");
+    expect(warnings[0].suggestion).toContain("'content'");
+    expect(warnings[0].severity).toBe('warning');
+  });
+
+  it('suggests correction for "intructions" -> "instructions"', () => {
+    const warnings = detectFieldTypos({ intructions: 'value' }, 'test.md', 10);
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].suggestion).toContain("'instructions'");
+  });
+
+  it('suggests correction for "souce" -> "source"', () => {
+    const warnings = detectFieldTypos({ souce: 'value' }, 'test.md', 10);
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].suggestion).toContain("'source'");
+  });
+
+  it('ignores valid field names', () => {
+    const warnings = detectFieldTypos(
+      { content: 'value', optional: 'true', instructions: 'do something' },
+      'test.md',
+      10
+    );
+
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('does not suggest for completely unrelated field names', () => {
+    // "xyz123" is not close to any known field
+    const warnings = detectFieldTypos({ xyz123: 'value' }, 'test.md', 10);
+
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('includes file and line in warnings', () => {
+    const warnings = detectFieldTypos({ contnet: 'value' }, 'Lenses/myfile.md', 42);
+
+    expect(warnings[0].file).toBe('Lenses/myfile.md');
+    expect(warnings[0].line).toBe(42);
+  });
+
+  it('handles multiple typos in same fields object', () => {
+    const warnings = detectFieldTypos(
+      { contnet: 'value', intructions: 'do something' },
+      'test.md',
+      10
+    );
+
+    expect(warnings).toHaveLength(2);
+  });
+});

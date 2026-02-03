@@ -61,7 +61,8 @@ export function parseSections(
       // Save previous section
       if (currentSection) {
         currentSection.body = currentBody.join('\n');
-        parseFields(currentSection);
+        const { warnings } = parseFields(currentSection, file);
+        errors.push(...warnings);
         sections.push(currentSection);
       }
 
@@ -96,7 +97,8 @@ export function parseSections(
   // Don't forget last section
   if (currentSection) {
     currentSection.body = currentBody.join('\n');
-    parseFields(currentSection);
+    const { warnings } = parseFields(currentSection, file);
+    errors.push(...warnings);
     sections.push(currentSection);
   }
 
@@ -105,11 +107,61 @@ export function parseSections(
 
 const FIELD_PATTERN = /^(\w+)::\s*(.*)$/;
 
-function parseFields(section: ParsedSection): void {
-  for (const line of section.body.split('\n')) {
+interface ParseFieldsResult {
+  warnings: ContentError[];
+}
+
+function parseFields(section: ParsedSection, file: string): ParseFieldsResult {
+  const lines = section.body.split('\n');
+  const warnings: ContentError[] = [];
+  const seenFields = new Set<string>();
+  let currentField: string | null = null;
+  let currentValue: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineNum = section.line + i + 1; // +1 because body starts after header
     const match = line.match(FIELD_PATTERN);
+
     if (match) {
-      section.fields[match[1]] = match[2];
+      // Save previous field if any
+      if (currentField) {
+        section.fields[currentField] = currentValue.join('\n').trim();
+      }
+
+      currentField = match[1];
+      const inlineValue = match[2].trim();
+      currentValue = inlineValue ? [inlineValue] : [];
+
+      // Check for duplicate field
+      if (seenFields.has(currentField)) {
+        warnings.push({
+          file,
+          line: lineNum,
+          message: `Duplicate field '${currentField}' (previous value will be overwritten)`,
+          suggestion: `Remove the duplicate '${currentField}::' definition`,
+          severity: 'warning',
+        });
+      }
+      seenFields.add(currentField);
+    } else if (currentField) {
+      // Check if this line starts a new section (#### or similar)
+      if (line.match(/^#{1,6}\s/)) {
+        // Save current field and stop collecting for this field
+        section.fields[currentField] = currentValue.join('\n').trim();
+        currentField = null;
+        currentValue = [];
+      } else {
+        // Continue multiline value
+        currentValue.push(line);
+      }
     }
   }
+
+  // Save final field
+  if (currentField) {
+    section.fields[currentField] = currentValue.join('\n').trim();
+  }
+
+  return { warnings };
 }

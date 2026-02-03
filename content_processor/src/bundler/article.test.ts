@@ -128,3 +128,107 @@ Conclusion paragraph at the end.
     expect(result[1].collapsed_before).toBeUndefined();
   });
 });
+
+describe('extractArticleExcerpt with optional anchors', () => {
+  const articleWithFrontmatter = `---
+title: Test Article
+author: John Doe
+---
+
+Introduction paragraph here.
+
+Start here with the main content that we want to extract.
+
+Middle section content.
+
+End here and this is included.
+
+Conclusion paragraph at the end.
+`;
+
+  const articleWithoutFrontmatter = `Introduction paragraph here.
+
+Start here with the main content that we want to extract.
+
+Middle section content.
+
+End here and this is included.
+
+Conclusion paragraph at the end.
+`;
+
+  it('extracts from anchor to end of article when toAnchor is undefined', () => {
+    const result = extractArticleExcerpt(
+      articleWithoutFrontmatter,
+      'Start here',
+      undefined,
+      'articles/test.md'
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.content).toContain('Start here');
+    expect(result.content).toContain('Middle section');
+    expect(result.content).toContain('End here');
+    expect(result.content).toContain('Conclusion paragraph');
+  });
+
+  it('extracts from start of article to anchor when fromAnchor is undefined', () => {
+    const result = extractArticleExcerpt(
+      articleWithoutFrontmatter,
+      undefined,
+      'End here and this is included.',
+      'articles/test.md'
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.content).toContain('Introduction paragraph');
+    expect(result.content).toContain('Start here');
+    expect(result.content).toContain('End here and this is included.');
+    expect(result.content).not.toContain('Conclusion paragraph');
+  });
+
+  it('extracts entire article when both anchors are undefined', () => {
+    const result = extractArticleExcerpt(
+      articleWithoutFrontmatter,
+      undefined,
+      undefined,
+      'articles/test.md'
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.content).toContain('Introduction paragraph');
+    expect(result.content).toContain('Conclusion paragraph');
+    expect(result.content).toBe(articleWithoutFrontmatter.trim());
+  });
+
+  it('strips frontmatter when extracting entire article', () => {
+    const result = extractArticleExcerpt(
+      articleWithFrontmatter,
+      undefined,
+      undefined,
+      'articles/test.md'
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.content).not.toContain('title:');
+    expect(result.content).not.toContain('author:');
+    expect(result.content).not.toContain('---');
+    expect(result.content).toContain('Introduction paragraph');
+    expect(result.content).toContain('Conclusion paragraph');
+  });
+
+  it('strips frontmatter when extracting from start to anchor', () => {
+    const result = extractArticleExcerpt(
+      articleWithFrontmatter,
+      undefined,
+      'Middle section content.',
+      'articles/test.md'
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.content).not.toContain('title:');
+    expect(result.content).not.toContain('---');
+    expect(result.content).toContain('Introduction paragraph');
+    expect(result.content).toContain('Middle section content.');
+  });
+});

@@ -247,4 +247,253 @@ content:: Second content.
     expect(result.module?.sections[0].optional).toBe(false);
     expect(result.module?.sections[1].optional).toBe(true);
   });
+
+  it('flattens Page section with ## Text content segments', () => {
+    const files = new Map([
+      ['modules/page-test.md', `---
+slug: page-test
+title: Page Test Module
+---
+
+# Page: Welcome
+id:: d1e2f3a4-5678-90ab-cdef-1234567890ab
+
+## Text
+content::
+This is the welcome text.
+It spans multiple lines.
+`],
+    ]);
+
+    const result = flattenModule('modules/page-test.md', files);
+
+    expect(result.module).toBeDefined();
+    expect(result.module?.sections).toHaveLength(1);
+    expect(result.module?.sections[0].type).toBe('page');
+    expect(result.module?.sections[0].contentId).toBe('d1e2f3a4-5678-90ab-cdef-1234567890ab');
+    expect(result.module?.sections[0].segments).toHaveLength(1);
+    expect(result.module?.sections[0].segments[0].type).toBe('text');
+    const textSegment = result.module?.sections[0].segments[0] as { type: 'text'; content: string };
+    expect(textSegment.content).toContain('welcome text');
+    expect(textSegment.content).toContain('multiple lines');
+  });
+
+  it('flattens Page section with multiple ## Text subsections', () => {
+    const files = new Map([
+      ['modules/multi-text.md', `---
+slug: multi-text
+title: Multi Text Module
+---
+
+# Page: Introduction
+id:: aaaa-bbbb-cccc-dddd
+
+## Text
+content::
+First paragraph of text.
+
+## Text
+content::
+Second paragraph of text.
+`],
+    ]);
+
+    const result = flattenModule('modules/multi-text.md', files);
+
+    expect(result.module).toBeDefined();
+    expect(result.module?.sections).toHaveLength(1);
+    expect(result.module?.sections[0].segments).toHaveLength(2);
+    const seg0 = result.module?.sections[0].segments[0] as { type: 'text'; content: string };
+    const seg1 = result.module?.sections[0].segments[1] as { type: 'text'; content: string };
+    expect(seg0.content).toContain('First paragraph');
+    expect(seg1.content).toContain('Second paragraph');
+  });
+
+  it('flattens Uncategorized section with Lens references', () => {
+    const files = new Map([
+      ['modules/test.md', `---
+slug: test
+title: Test
+---
+
+# Uncategorized:
+## Lens:
+source:: [[../Lenses/lens1.md|Lens 1]]
+`],
+      ['Lenses/lens1.md', `---
+id: lens-1-id
+---
+
+### Text: Content
+
+#### Text
+content:: This is lens content.
+`],
+    ]);
+
+    const result = flattenModule('modules/test.md', files);
+
+    expect(result.module?.sections).toHaveLength(1);
+    expect(result.module?.sections[0].segments[0].content).toBe('This is lens content.');
+  });
+
+  it('extracts article metadata into section meta', () => {
+    const files = new Map([
+      ['modules/test.md', `---
+slug: test
+title: Test
+---
+
+# Learning Outcome: Read Article
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`],
+      ['Learning Outcomes/lo1.md', `---
+id: lo-id
+---
+
+## Lens:
+source:: [[../Lenses/article-lens.md|Lens]]
+`],
+      ['Lenses/article-lens.md', `---
+id: lens-id
+---
+
+### Article: Good Article
+source:: [[../articles/test-article.md|Article]]
+
+#### Article-excerpt
+from:: "Start here"
+to:: "End here"
+`],
+      ['articles/test-article.md', `---
+title: The Article Title
+author: John Doe
+sourceUrl: https://example.com/article
+---
+
+Start here with some content. End here with more.
+`],
+    ]);
+
+    const result = flattenModule('modules/test.md', files);
+
+    expect(result.module?.sections[0].meta.title).toBe('The Article Title');
+    expect(result.module?.sections[0].meta.author).toBe('John Doe');
+    expect(result.module?.sections[0].meta.sourceUrl).toBe('https://example.com/article');
+  });
+
+  it('extracts video metadata into section meta', () => {
+    const files = new Map([
+      ['modules/test.md', `---
+slug: test
+title: Test
+---
+
+# Learning Outcome: Watch Video
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`],
+      ['Learning Outcomes/lo1.md', `---
+id: lo-id
+---
+
+## Lens:
+source:: [[../Lenses/video-lens.md|Lens]]
+`],
+      ['Lenses/video-lens.md', `---
+id: lens-id
+---
+
+### Video: Good Video
+source:: [[../video_transcripts/test-video.md|Video]]
+
+#### Video-excerpt
+from:: 0:00
+to:: 5:00
+`],
+      ['video_transcripts/test-video.md', `---
+title: The Video Title
+channel: Kurzgesagt
+url: https://youtube.com/watch?v=abc123
+---
+
+0:00 - Start of video content.
+5:00 - End of excerpt.
+`],
+    ]);
+
+    const result = flattenModule('modules/test.md', files);
+
+    expect(result.module?.sections[0].meta.title).toBe('The Video Title');
+    expect(result.module?.sections[0].meta.channel).toBe('Kurzgesagt');
+  });
+
+  it('sets section contentId from lens frontmatter id', () => {
+    const files = new Map([
+      ['modules/test.md', `---
+slug: test
+title: Test
+---
+
+# Learning Outcome: Topic
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`],
+      ['Learning Outcomes/lo1.md', `---
+id: lo-id
+---
+
+## Lens:
+source:: [[../Lenses/lens1.md|Lens]]
+`],
+      ['Lenses/lens1.md', `---
+id: 3dd47fce-a0fe-4e03-916d-a160fe697dd0
+---
+
+### Text: Content
+
+#### Text
+content:: Some content.
+`],
+    ]);
+
+    const result = flattenModule('modules/test.md', files);
+
+    expect(result.module?.sections[0].contentId).toBe('3dd47fce-a0fe-4e03-916d-a160fe697dd0');
+  });
+
+  it('detects circular reference and returns error', () => {
+    // Create a cycle: Module -> LO-A -> Lens-B -> (references back to LO-A)
+    // The lens has an article section that points back to the LO file
+    const files = new Map([
+      ['modules/circular.md', `---
+slug: circular
+title: Circular
+---
+
+# Learning Outcome: Loop
+source:: [[../Learning Outcomes/lo-a.md|LO A]]
+`],
+      ['Learning Outcomes/lo-a.md', `---
+id: lo-a-id
+---
+
+## Lens:
+source:: [[../Lenses/lens-b.md|Lens B]]
+`],
+      ['Lenses/lens-b.md', `---
+id: lens-b-id
+---
+
+### Article: Back to LO
+source:: [[../Learning Outcomes/lo-a.md|Back to A]]
+
+#### Article-excerpt
+from:: "Start"
+to:: "End"
+`],
+    ]);
+
+    const result = flattenModule('modules/circular.md', files);
+
+    expect(result.errors.some(e => e.message.toLowerCase().includes('circular'))).toBe(true);
+  });
 });

@@ -1,6 +1,6 @@
 // src/parser/sections.test.ts
 import { describe, it, expect } from 'vitest';
-import { parseSections, MODULE_SECTION_TYPES, LENS_SECTION_TYPES } from './sections.js';
+import { parseSections, MODULE_SECTION_TYPES, LENS_SECTION_TYPES, LO_SECTION_TYPES } from './sections.js';
 
 describe('parseSections', () => {
   it('splits content by H1 headers for modules', () => {
@@ -64,5 +64,166 @@ content:: here
 
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].message).toContain('Unknown section type');
+  });
+
+  describe('multiline fields', () => {
+    it('parses content:: spanning multiple lines', () => {
+      const content = `
+### Text: Intro
+
+#### Text
+content::
+This is line one.
+This is line two.
+This is line three.
+
+#### Chat
+instructions:: Next segment
+`;
+
+      const result = parseSections(content, 3, LENS_SECTION_TYPES);
+
+      // The section body should contain the multiline content
+      expect(result.sections[0].body).toContain('content::\nThis is line one.');
+    });
+
+    it('parses field with value on next line after ::', () => {
+      const content = `
+## Lens:
+source::
+![[../Lenses/test]]
+`;
+
+      const result = parseSections(content, 2, LO_SECTION_TYPES);
+
+      expect(result.sections[0].fields.source).toBe('![[../Lenses/test]]');
+    });
+
+    it('parses multiline field that continues until next field', () => {
+      const content = `
+## Lens: Test
+instructions::
+First line.
+Second line.
+Third line.
+source:: [[test.md|Test]]
+`;
+
+      const result = parseSections(content, 2, LO_SECTION_TYPES);
+
+      expect(result.sections[0].fields.instructions).toBe('First line.\nSecond line.\nThird line.');
+      expect(result.sections[0].fields.source).toBe('[[test.md|Test]]');
+    });
+
+    it('parses multiline field that continues until end of section', () => {
+      const content = `
+### Text: Notes
+
+#### Text
+content::
+Line one.
+Line two.
+Line three.
+`;
+
+      const result = parseSections(content, 3, LENS_SECTION_TYPES);
+
+      // The parseFields function should extract multiline content
+      // Note: body contains subsections too, we need to test fields parsing
+      expect(result.sections[0].body).toContain('content::\nLine one.');
+    });
+
+    it('handles field with empty value followed by content on next line', () => {
+      const content = `
+# Page: Welcome
+id:: abc-123
+content::
+Welcome to the course.
+This is the intro text.
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+
+      expect(result.sections[0].fields.id).toBe('abc-123');
+      expect(result.sections[0].fields.content).toBe('Welcome to the course.\nThis is the intro text.');
+    });
+  });
+
+  describe('empty section titles', () => {
+    it('handles empty section title (colon with no title after)', () => {
+      const content = `
+## Lens:
+source:: [[../Lenses/test.md|Test]]
+
+## Lens:
+source:: [[../Lenses/other.md|Other]]
+`;
+
+      const result = parseSections(content, 2, LO_SECTION_TYPES);
+
+      expect(result.sections).toHaveLength(2);
+      expect(result.sections[0].title).toBe('');
+      expect(result.sections[0].type).toBe('lens');
+      expect(result.sections[1].title).toBe('');
+    });
+
+    it('handles empty section title with trailing whitespace', () => {
+      const content = `
+## Lens:
+source:: [[../Lenses/test.md|Test]]
+`;
+
+      const result = parseSections(content, 2, LO_SECTION_TYPES);
+
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].title).toBe('');
+      expect(result.sections[0].type).toBe('lens');
+    });
+  });
+
+  describe('duplicate field warnings', () => {
+    it('warns about duplicate field definitions', () => {
+      const content = `
+# Page: Test
+content:: First value
+content:: Second value
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'warning' &&
+        e.message.includes('Duplicate')
+      )).toBe(true);
+    });
+
+    it('uses the last value when field is duplicated', () => {
+      const content = `
+# Page: Test
+id:: first-id
+id:: second-id
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+
+      // The last value should win
+      expect(result.sections[0].fields.id).toBe('second-id');
+    });
+
+    it('does not warn when different fields are defined', () => {
+      const content = `
+# Page: Test
+id:: some-id
+content:: Some content
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+
+      // No warnings about duplicates
+      expect(result.errors.filter(e =>
+        e.severity === 'warning' &&
+        e.message.includes('Duplicate')
+      )).toHaveLength(0);
+    });
   });
 });
