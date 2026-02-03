@@ -170,7 +170,11 @@ class BreakoutCog(commands.Cog):
         room_assignments = []
         room_buttons = []  # Link buttons for navigation
 
+        # Map each user to their assigned group/channel for later movement
+        user_assignments: list[tuple[list[discord.Member], discord.VoiceChannel]] = []
+
         try:
+            # PHASE 1: Create all breakout channels and invites (don't move anyone yet)
             for i, group in enumerate(groups, 1):
                 channel = await guild.create_voice_channel(
                     name=f"Breakout {i}",
@@ -186,48 +190,35 @@ class BreakoutCog(commands.Cog):
                     reason="Breakout room navigation",
                 )
 
-                # Move members to breakout channel
-                member_names = []
-                for m in group:
-                    try:
-                        await m.move_to(channel)
-                        member_names.append(m.display_name)
-                    except discord.HTTPException:
-                        # Member may have left, skip
-                        pass
+                # Store assignment for later movement
+                user_assignments.append((group, channel))
 
-                if member_names:
-                    room_assignments.append(
-                        f"**Breakout {i}:** {', '.join(member_names)}"
+                # Build room assignment text and button
+                member_names = [m.display_name for m in group]
+                room_assignments.append(
+                    f"**Breakout {i}:** {', '.join(member_names)}"
+                )
+                # Create link button for this room
+                # Truncate names if too long for button label (max 80 chars)
+                names_str = ", ".join(member_names)
+                label = f"Breakout {i}: {names_str}"
+                if len(label) > 80:
+                    label = label[:77] + "..."
+                room_buttons.append(
+                    discord.ui.Button(
+                        label=label,
+                        style=discord.ButtonStyle.link,
+                        url=invite.url,
+                        emoji="🔊",
+                        row=min(i - 1, 3),  # Rows 0-3, collect button on row 4
                     )
-                    # Create link button for this room
-                    # Truncate names if too long for button label (max 80 chars)
-                    names_str = ", ".join(member_names)
-                    label = f"Breakout {i}: {names_str}"
-                    if len(label) > 80:
-                        label = label[:77] + "..."
-                    room_buttons.append(
-                        discord.ui.Button(
-                            label=label,
-                            style=discord.ButtonStyle.link,
-                            url=invite.url,
-                            emoji="🔊",
-                            row=min(i - 1, 3),  # Rows 0-3, collect button on row 4
-                        )
-                    )
+                )
 
-            # Store session
-            self._active_sessions[guild.id] = BreakoutSession(
-                source_channel_id=source_channel.id,
-                breakout_channel_ids=[c.id for c in breakout_channels],
-                facilitator_id=member.id,
-            )
-
-            # Build response
+            # PHASE 2: Post the message with navigation buttons (before moving/locking)
             embed = discord.Embed(
-                title="Breakout Rooms Created",
-                description=f"Split {len(other_members)} users into {len(groups)} rooms.\n\n"
-                "**Your audio is connected.** Click your room button below to see your group:",
+                title="Breakout Rooms Starting",
+                description=f"Splitting {len(other_members)} users into {len(groups)} rooms.\n\n"
+                "**Click your room button below to navigate once moved:**",
                 color=discord.Color.green(),
             )
             embed.add_field(
@@ -240,6 +231,29 @@ class BreakoutCog(commands.Cog):
 
             await interaction.followup.send(
                 embed=embed, view=CollectView(self, room_buttons)
+            )
+
+            # PHASE 3: Lock users out of source channel, then move them
+            for group, channel in user_assignments:
+                for m in group:
+                    try:
+                        # Block from rejoining source channel first
+                        await source_channel.set_permissions(
+                            m,
+                            connect=False,
+                            reason="Breakout session active - preventing accidental rejoin",
+                        )
+                        # Then move to breakout channel
+                        await m.move_to(channel)
+                    except discord.HTTPException:
+                        # Member may have left, skip
+                        pass
+
+            # Store session
+            self._active_sessions[guild.id] = BreakoutSession(
+                source_channel_id=source_channel.id,
+                breakout_channel_ids=[c.id for c in breakout_channels],
+                facilitator_id=member.id,
             )
 
         except discord.Forbidden:
@@ -357,6 +371,21 @@ class BreakoutCog(commands.Cog):
                 await channel.delete(reason="Breakout session ended")
             except discord.HTTPException:
                 pass
+
+        # Restore connect permissions on source channel
+        # Use Discord's actual state as source of truth - remove all member-specific overwrites
+        if source_channel:
+            for target, overwrite in list(source_channel.overwrites.items()):
+                # Only remove Member overwrites, not Role overwrites
+                if isinstance(target, discord.Member):
+                    try:
+                        await source_channel.set_permissions(
+                            target,
+                            overwrite=None,
+                            reason="Breakout session ended - restoring permissions",
+                        )
+                    except discord.HTTPException:
+                        pass
 
         # Remove session
         del self._active_sessions[guild.id]
