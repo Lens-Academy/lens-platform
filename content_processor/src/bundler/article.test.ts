@@ -71,6 +71,101 @@ And another occurrence of the phrase here.`;
     expect(result.content).toBeDefined();
     expect(result.error).toBeUndefined();
   });
+
+  describe('special characters in anchors', () => {
+    it('handles apostrophes in anchor text', () => {
+      const article = `Introduction here.
+
+It's important to understand that AI systems don't always behave as expected.
+
+Conclusion here.`;
+
+      const result = extractArticleExcerpt(
+        article,
+        "It's important",
+        "don't always behave",
+        'articles/test.md'
+      );
+
+      expect(result.error).toBeUndefined();
+      expect(result.content).toContain("It's important");
+      expect(result.content).toContain("don't always");
+    });
+
+    it('handles ampersand in anchor text', () => {
+      const article = `Introduction here.
+
+The relationship between safety & alignment is crucial for AI development.
+
+Conclusion here.`;
+
+      const result = extractArticleExcerpt(
+        article,
+        'safety & alignment',
+        'AI development',
+        'articles/test.md'
+      );
+
+      expect(result.error).toBeUndefined();
+      expect(result.content).toContain('safety & alignment');
+    });
+
+    it('handles colons in anchor text', () => {
+      const article = `Introduction here.
+
+Key point: this is the main argument we need to consider carefully.
+
+Conclusion here.`;
+
+      const result = extractArticleExcerpt(
+        article,
+        'Key point:',
+        'consider carefully',
+        'articles/test.md'
+      );
+
+      expect(result.error).toBeUndefined();
+      expect(result.content).toContain('Key point:');
+    });
+
+    it('handles percent signs in anchor text', () => {
+      const article = `Introduction here.
+
+The model achieved 95% accuracy on the benchmark test results.
+
+Conclusion here.`;
+
+      const result = extractArticleExcerpt(
+        article,
+        '95% accuracy',
+        'test results',
+        'articles/test.md'
+      );
+
+      expect(result.error).toBeUndefined();
+      expect(result.content).toContain('95% accuracy');
+    });
+
+    it('handles multiple special characters together', () => {
+      const article = `Introduction here.
+
+Here's the key insight: AI systems won't achieve 100% safety & reliability without careful design.
+
+Conclusion here.`;
+
+      const result = extractArticleExcerpt(
+        article,
+        "Here's the key insight:",
+        "100% safety & reliability",
+        'articles/test.md'
+      );
+
+      expect(result.error).toBeUndefined();
+      expect(result.content).toContain("Here's");
+      expect(result.content).toContain("100%");
+      expect(result.content).toContain("&");
+    });
+  });
 });
 
 describe('bundleArticleWithCollapsed', () => {

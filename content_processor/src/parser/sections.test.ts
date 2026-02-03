@@ -312,4 +312,56 @@ content:: Second paragraph that overwrites the first
       expect(duplicateWarnings[0].message).toContain("content");
     });
   });
+
+  describe('special characters in titles', () => {
+    it('handles ampersand in section title', () => {
+      const content = `
+# Page: Safety & Alignment
+content:: This section covers both topics.
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].title).toBe('Safety & Alignment');
+      expect(result.sections[0].type).toBe('page');
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('handles apostrophe in section title', () => {
+      const content = `
+# Page: What's Next
+content:: Looking ahead.
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].title).toBe("What's Next");
+    });
+
+    it('handles colon in section title', () => {
+      const content = `
+# Page: Part 1: Introduction
+content:: The beginning.
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].title).toBe('Part 1: Introduction');
+    });
+
+    it('handles multiple special characters in section title', () => {
+      const content = `
+# Page: AI Safety & Alignment: What's at Stake?
+content:: Important questions.
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].title).toBe("AI Safety & Alignment: What's at Stake?");
+    });
+  });
 });
