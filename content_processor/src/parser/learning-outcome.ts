@@ -1,0 +1,163 @@
+// src/parser/learning-outcome.ts
+import type { ContentError } from '../index.js';
+import { parseFrontmatter } from './frontmatter.js';
+import { parseSections, LO_SECTION_TYPES } from './sections.js';
+import { parseWikilink, resolveWikilinkPath } from './wikilink.js';
+
+export interface ParsedLensRef {
+  source: string;       // Raw wikilink
+  resolvedPath: string; // Resolved file path
+  optional: boolean;
+}
+
+export interface ParsedTestRef {
+  source: string;
+  resolvedPath: string;
+}
+
+export interface ParsedLearningOutcome {
+  id: string;
+  lenses: ParsedLensRef[];
+  test?: ParsedTestRef;
+  discussion?: string;
+}
+
+export interface LearningOutcomeParseResult {
+  learningOutcome: ParsedLearningOutcome | null;
+  errors: ContentError[];
+}
+
+export function parseLearningOutcome(content: string, file: string): LearningOutcomeParseResult {
+  const errors: ContentError[] = [];
+
+  // Step 1: Parse frontmatter and validate id field
+  const frontmatterResult = parseFrontmatter(content, file);
+  if (frontmatterResult.error) {
+    errors.push(frontmatterResult.error);
+    return { learningOutcome: null, errors };
+  }
+
+  const { frontmatter, body, bodyStartLine } = frontmatterResult;
+
+  // Validate required id field
+  if (!frontmatter.id) {
+    errors.push({
+      file,
+      line: 2,
+      message: 'Missing required field: id',
+      suggestion: "Add 'id: <uuid>' to frontmatter",
+      severity: 'error',
+    });
+    return { learningOutcome: null, errors };
+  }
+
+  // Step 2: Parse sections with H2 level and LO_SECTION_TYPES ('lens', 'test')
+  const sectionsResult = parseSections(body, 2, LO_SECTION_TYPES, file);
+
+  // Adjust line numbers to account for frontmatter
+  for (const error of sectionsResult.errors) {
+    if (error.line) {
+      error.line += bodyStartLine - 1;
+    }
+  }
+  errors.push(...sectionsResult.errors);
+
+  for (const section of sectionsResult.sections) {
+    section.line += bodyStartLine - 1;
+  }
+
+  // Step 3: Extract lens refs with source field and optional flag
+  const lenses: ParsedLensRef[] = [];
+  let testRef: ParsedTestRef | undefined;
+
+  for (const section of sectionsResult.sections) {
+    if (section.type === 'lens') {
+      const source = section.fields.source;
+      if (!source) {
+        errors.push({
+          file,
+          line: section.line,
+          message: 'Lens section missing source:: field',
+          suggestion: "Add 'source:: [[../Lenses/filename.md|Display]]' to the lens section",
+          severity: 'error',
+        });
+        continue;
+      }
+
+      // Parse wikilink and resolve path
+      const wikilink = parseWikilink(source);
+      if (!wikilink) {
+        errors.push({
+          file,
+          line: section.line,
+          message: `Invalid wikilink format in source:: field: ${source}`,
+          suggestion: 'Use format [[../Lenses/filename.md|Display Text]]',
+          severity: 'error',
+        });
+        continue;
+      }
+
+      const resolvedPath = resolveWikilinkPath(wikilink.path, file);
+      const optional = section.fields.optional === 'true';
+
+      lenses.push({
+        source,
+        resolvedPath,
+        optional,
+      });
+    } else if (section.type === 'test') {
+      const source = section.fields.source;
+      if (!source) {
+        errors.push({
+          file,
+          line: section.line,
+          message: 'Test section missing source:: field',
+          suggestion: "Add 'source:: [[../Tests/filename.md|Display]]' to the test section",
+          severity: 'error',
+        });
+        continue;
+      }
+
+      // Parse wikilink and resolve path
+      const wikilink = parseWikilink(source);
+      if (!wikilink) {
+        errors.push({
+          file,
+          line: section.line,
+          message: `Invalid wikilink format in source:: field: ${source}`,
+          suggestion: 'Use format [[../Tests/filename.md|Display Text]]',
+          severity: 'error',
+        });
+        continue;
+      }
+
+      const resolvedPath = resolveWikilinkPath(wikilink.path, file);
+
+      testRef = {
+        source,
+        resolvedPath,
+      };
+    }
+  }
+
+  // Step 4: Validate at least one lens exists
+  if (lenses.length === 0) {
+    errors.push({
+      file,
+      line: bodyStartLine,
+      message: 'Learning Outcome must have at least one ## Lens: section',
+      suggestion: "Add a '## Lens: <title>' section with a source:: field",
+      severity: 'error',
+    });
+  }
+
+  // Return result even if there are errors (partial success)
+  const learningOutcome: ParsedLearningOutcome = {
+    id: frontmatter.id as string,
+    lenses,
+    test: testRef,
+    discussion: frontmatter.discussion as string | undefined,
+  };
+
+  return { learningOutcome, errors };
+}
