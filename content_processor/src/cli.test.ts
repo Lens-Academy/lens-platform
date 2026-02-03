@@ -112,3 +112,21 @@ describe('CLI exit codes', () => {
     }).toThrow();
   });
 });
+
+describe('CLI golden master integration', () => {
+  it('produces same output as processContent for golden fixture', () => {
+    const vaultPath = join(import.meta.dirname, '../fixtures/golden/actual-content/input');
+    const expectedPath = join(import.meta.dirname, '../fixtures/golden/actual-content/expected.json');
+
+    const stdout = execSync(`npx tsx src/cli.ts "${vaultPath}"`, {
+      cwd: join(import.meta.dirname, '..'),
+      encoding: 'utf-8',
+      timeout: 30000,
+    });
+
+    const cliResult = JSON.parse(stdout);
+    const expected = JSON.parse(readFileSync(expectedPath, 'utf-8'));
+
+    expect(cliResult).toEqual(expected);
+  }, 35000);
+});
