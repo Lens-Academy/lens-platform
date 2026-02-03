@@ -1,0 +1,51 @@
+{
+  "modules": [
+    {
+      "slug": "test-uncategorized",
+      "title": "Test Uncategorized Lenses",
+      "contentId": "a1b2c3d4-0000-0000-0000-000000000001",
+      "sections": [
+        {
+          "type": "lens-video",
+          "meta": {
+            "title": "AI Safety Introduction",
+            "channel": "Safety Channel"
+          },
+          "segments": [
+            {
+              "type": "text",
+              "content": "Watch this video introduction."
+            },
+            {
+              "type": "video-excerpt",
+              "from": 0,
+              "to": 60,
+              "transcript": "0:00 - Welcome to AI safety."
+            }
+          ],
+          "optional": false
+        },
+        {
+          "type": "lens-article",
+          "meta": {
+            "title": "Deep Dive Article",
+            "author": "Jane Doe"
+          },
+          "segments": [
+            {
+              "type": "text",
+              "content": "Read this article."
+            },
+            {
+              "type": "article-excerpt",
+              "content": "The key insight."
+            }
+          ],
+          "optional": false
+        }
+      ]
+    }
+  ],
+  "courses": [],
+  "errors": []
+}

@@ -501,12 +501,13 @@ content:: Second lens content.
 
     const result = flattenModule('modules/test.md', files);
 
-    // Should have 2 segments (one from each lens)
+    // Each lens should become its own section
     expect(result.errors).toHaveLength(0);
-    expect(result.module?.sections).toHaveLength(1);
-    expect(result.module?.sections[0].segments).toHaveLength(2);
+    expect(result.module?.sections).toHaveLength(2);
+    expect(result.module?.sections[0].segments).toHaveLength(1);
+    expect(result.module?.sections[1].segments).toHaveLength(1);
     expect((result.module?.sections[0].segments[0] as any).content).toBe('First lens content.');
-    expect((result.module?.sections[0].segments[1] as any).content).toBe('Second lens content.');
+    expect((result.module?.sections[1].segments[0] as any).content).toBe('Second lens content.');
   });
 
   it('detects circular reference and returns error', () => {

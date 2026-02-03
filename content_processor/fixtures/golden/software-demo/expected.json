@@ -22,9 +22,8 @@
         {
           "type": "lens-article",
           "meta": {
-            "title": "Four Background Claims - Machine Intelligence Research Institute",
-            "author": "Nate Soares",
-            "channel": "Kurzgesagt – In a Nutshell"
+            "title": "Speculations Concerning the First Ultraintelligent Machine",
+            "author": "Irving John Good"
           },
           "segments": [
             {
@@ -46,7 +45,17 @@
             {
               "type": "chat",
               "instructions": "TLDR of what the user just read:\nAn article by I.J. Good speculating about the cognitive infrastructure of a thinking machine more capable than any human. He importantly claims that he will only speculate about the first agent of this kind since the second will be built by the first according to design considerations humans cannot yet fathom. Good claims that this might happen by way of the AI building a wholly different successor or by self-modifying until it becomes unrecognisable. He tries to measure the economic value of such a system in \"mega-keynes\" based on the fact that John Maynard Keynes was estimated to be the most valuable human to the world economy. \n\ntopics to explore:\n- We are a shape of intelligence grown by evolution and AI is a shape of intelligence grown by us. Will an intelligence grown or built by a hyper-intelligent AI be another such paradigm change? \n- Is economic impact even still a meaningful notion is such worlds?\n- Is the creation of further ultra-intelligent closer to a cycle or to a cascade in the sense of the previous article? \n- Is there a way to impose design constraints onto the second generation of machines? What would be the benefits and drawbacks?"
-            },
+            }
+          ],
+          "optional": false
+        },
+        {
+          "type": "lens-article",
+          "meta": {
+            "title": "Cascades, Cycles, Insight... — LessWrong",
+            "author": "Eliezer Yudkowsky"
+          },
+          "segments": [
             {
               "type": "text",
               "content": "Cybernetics is the study of systems whose output is used as their input: Successful investment produces funds which can then be invested again. There are negative feedback systems which hold themselves in equilibrium and positive feedback systems which multiply their output at each step. Hold this idea in mind as you read the following article about types of feedback as they pertain to intelligence."
@@ -62,7 +71,17 @@
             {
               "type": "chat",
               "instructions": "TLDR of what the user just read:\nAn article that explains positive feedback loops especially with regards to civilisational competence. It explains \"cascades\" as breakthroughs which probabilisticly  opens up other breakthroughs in related fields and \"cycles\" as processes which generate some excess quantity that can be reinvested into the same process. Examples provided are neutron multiplication in radioactive materials as a cycle  and the development of writing leading to various civilisational breakthroughs as a cascade. \n\ntopics to explore:\n- Does it seem like intelligence has some universal equivalent that can be directly reinvested?\n- What is AI's neutron multiplication factor?\n- What are the properties that make something a cycle?\n- How do cycles and cascades cause discontinuity in an otherwise gradual growth?\n- How applicable do these concepts seem to artificial intelligence?\n\nThis is a good stage to raise worry about the ability to predict a system's abilities at time t+1 based on its abilities at time t."
-            },
+            }
+          ],
+          "optional": false
+        },
+        {
+          "type": "lens-video",
+          "meta": {
+            "title": "A.I. ‐ Humanity's Final Invention?",
+            "channel": "Kurzgesagt – In a Nutshell"
+          },
+          "segments": [
             {
               "type": "text",
               "content": "Watch the first part of this video from Kurzgesagt to understand why artificial intelligence\nmight be humanity's most important invention."
@@ -94,7 +113,17 @@
             {
               "type": "chat",
               "instructions": "The user just watched the second half of the video about AI risks and intelligence explosion.\n\nDiscussion topics:\n- How could an \"intelligence explosion\" happen through recursive self-improvement?\n- Why might controlling superintelligent AI be difficult?\n- What does it mean that \"the fate of humanity could depend on machine superintelligence\"?\n\nCheck if they understand why speed of improvement matters. Ask them to explain\nthe intelligence explosion concept in their own words."
-            },
+            }
+          ],
+          "optional": false
+        },
+        {
+          "type": "lens-article",
+          "meta": {
+            "title": "Existential risk from artificial intelligence",
+            "author": "Wikipedia"
+          },
+          "segments": [
             {
               "type": "text",
               "content": "# Understanding Existential Risk from AI\n\nNow let's read an overview of the main concepts regarding AI as a source\nof existential threat: what capabilities of this technology are considered\nmost concerning, and why the task of eliminating AI risks differs from\nsimilar tasks for other technologies."
@@ -130,7 +159,17 @@
             {
               "type": "chat",
               "instructions": "The user just read about AGI and superintelligence capabilities.\n\nKey points:\n- AGI = human-level across most tasks\n- Superintelligence = vastly exceeds humans in all domains\n- AI advantages: speed, scalability, duplicability, editability\n- Timelines are uncertain but potentially soon\n\nDiscussion topics:\n- Why might the transition from AGI to superintelligence be rapid?\n- Which of the AI advantages over human brains seems most significant?\n- How does duplicability change the dynamics of AI development?\n\nHelp them understand why these technical properties have such large implications."
-            },
+            }
+          ],
+          "optional": false
+        },
+        {
+          "type": "lens-article",
+          "meta": {
+            "title": "Four Background Claims - Machine Intelligence Research Institute",
+            "author": "Nate Soares"
+          },
+          "segments": [
             {
               "type": "text",
               "content": "This text explains exactly how the emergence of AI smarter than humans could become an event with enormous stakes, and why, in the author's opinion, there is already meaningful work being done today that increases the chance of a positive outcome. The author identifies four key premises that underpin his entire perspective on the prospects of AI."

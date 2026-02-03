@@ -122,8 +122,8 @@ export function flattenModule(
 
       flattenedSections.push(pageSection);
     } else if (section.type === 'uncategorized') {
-      // Uncategorized sections can contain ## Lens: references, similar to Learning Outcomes
-      // Create a copy of visitedPaths for this section's reference chain
+      // Uncategorized sections can contain ## Lens: references
+      // Each lens becomes its own section (lens-video, lens-article, or page)
       const sectionVisitedPaths = new Set(visitedPaths);
       const result = flattenUncategorizedSection(
         section,
@@ -132,10 +132,7 @@ export function flattenModule(
         sectionVisitedPaths
       );
       errors.push(...result.errors);
-
-      if (result.section) {
-        flattenedSections.push(result.section);
-      }
+      flattenedSections.push(...result.sections);
     }
   }
 
@@ -157,6 +154,11 @@ interface FlattenSectionResult {
   section: Section | null;
   errors: ContentError[];
   errorMessage?: string;
+}
+
+interface FlattenMultipleSectionsResult {
+  sections: Section[];
+  errors: ContentError[];
 }
 
 /**
@@ -374,36 +376,27 @@ function flattenLearningOutcomeSection(
 }
 
 /**
- * Flatten an Uncategorized section by parsing its ## Lens: references
- * and resolving them just like Learning Outcome sections do.
+ * Flatten an Uncategorized section by parsing its ## Lens: references.
+ * Each lens becomes its own section with the appropriate type (lens-video, lens-article, or page).
  */
 function flattenUncategorizedSection(
   section: { type: string; title: string; fields: Record<string, string>; body: string; line: number },
   modulePath: string,
   files: Map<string, string>,
   visitedPaths: Set<string>
-): FlattenSectionResult {
+): FlattenMultipleSectionsResult {
   const errors: ContentError[] = [];
+  const sections: Section[] = [];
 
   // Parse the section body for ## Lens: subsections
   const lensRefs = parseUncategorizedLensRefs(section.body, modulePath);
 
-  // If no lens refs found, return an empty page section
+  // If no lens refs found, return empty array
   if (lensRefs.length === 0) {
-    const uncategorizedSection: Section = {
-      type: 'page',
-      meta: { title: section.title },
-      segments: [],
-      optional: section.fields.optional === 'true',
-    };
-    return { section: uncategorizedSection, errors };
+    return { sections: [], errors };
   }
 
-  // Flatten all lenses
-  const allSegments: Segment[] = [];
-  let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
-  const meta: SectionMeta = { title: section.title };
-
+  // Process each lens reference as a separate section
   for (const lensRef of lensRefs) {
     const lensPath = findFileWithExtension(lensRef.resolvedPath, files);
     if (!lensPath) {
@@ -438,6 +431,11 @@ function flattenUncategorizedSection(
     }
 
     const lens = lensResult.lens;
+
+    // Each lens becomes its own section
+    let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
+    const meta: SectionMeta = { title: section.title };
+    const segments: Segment[] = [];
 
     // Process each section in the lens
     for (const lensSection of lens.sections) {
@@ -505,20 +503,23 @@ function flattenUncategorizedSection(
         errors.push(...segmentResult.errors);
 
         if (segmentResult.segment) {
-          allSegments.push(segmentResult.segment);
+          segments.push(segmentResult.segment);
         }
       }
     }
+
+    // Create a section for this lens
+    const resultSection: Section = {
+      type: sectionType,
+      meta,
+      segments,
+      optional: lensRef.optional,
+    };
+
+    sections.push(resultSection);
   }
 
-  const resultSection: Section = {
-    type: sectionType,
-    meta,
-    segments: allSegments,
-    optional: section.fields.optional === 'true',
-  };
-
-  return { section: resultSection, errors };
+  return { sections, errors };
 }
 
 /**
