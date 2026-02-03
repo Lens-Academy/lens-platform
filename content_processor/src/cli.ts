@@ -6,23 +6,27 @@ import { writeFile } from 'fs/promises';
 export interface CliOptions {
   vaultPath: string | null;
   outputPath: string | null;
+  includeWip: boolean;
 }
 
 export function parseArgs(argv: string[]): CliOptions {
   const args = argv.slice(2);
   let vaultPath: string | null = null;
   let outputPath: string | null = null;
+  let includeWip = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--output' || args[i] === '-o') {
       outputPath = args[i + 1] || null;
       i++; // skip next arg
+    } else if (args[i] === '--include-wip') {
+      includeWip = true;
     } else if (!args[i].startsWith('-')) {
       vaultPath = args[i];
     }
   }
 
-  return { vaultPath, outputPath };
+  return { vaultPath, outputPath, includeWip };
 }
 
 export async function run(options: CliOptions): Promise<ProcessResult> {
@@ -30,7 +34,7 @@ export async function run(options: CliOptions): Promise<ProcessResult> {
     throw new Error('Vault path is required');
   }
 
-  const files = await readVaultFiles(options.vaultPath);
+  const files = await readVaultFiles(options.vaultPath, { includeWip: options.includeWip });
   return processContent(files);
 }
 
@@ -38,7 +42,7 @@ async function main(): Promise<void> {
   const options = parseArgs(process.argv);
 
   if (!options.vaultPath) {
-    console.error('Usage: npx tsx src/cli.ts <vault-path> [--output <file>]');
+    console.error('Usage: npx tsx src/cli.ts <vault-path> [--output <file>] [--include-wip]');
     process.exit(1);
   }
 
