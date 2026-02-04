@@ -4,25 +4,19 @@ import base64
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 import httpx
 
-from core.modules.markdown_parser import (
-    parse_module,
-    parse_course,
-    parse_learning_outcome,
-    parse_lens,
-    ParsedModule,
-    ParsedCourse,
-    ParsedLearningOutcome,
-    ParsedLens,
+from core.modules.flattened_types import FlattenedModule, ParsedCourse
+from core.content.typescript_processor import (
+    process_content_typescript,
+    TypeScriptProcessorError,
 )
-from core.modules.flattened_types import FlattenedModule
-from core.modules.flattener import flatten_module, ContentLookup
-from core.modules.path_resolver import extract_filename_stem
 from .cache import ContentCache, set_cache, get_cache
 
 logger = logging.getLogger(__name__)
@@ -252,8 +246,6 @@ async def compare_commits(base_sha: str, head_sha: str) -> CommitComparison:
 
 def _parse_frontmatter(content: str) -> dict:
     """Parse YAML frontmatter from markdown content."""
-    import re
-
     match = re.match(r"^---\s*\n(.*?)\n---", content, re.DOTALL)
     if not match:
         return {}
@@ -266,83 +258,10 @@ def _parse_frontmatter(content: str) -> dict:
     return metadata
 
 
-class CacheContentLookup(ContentLookup):
-    """Content lookup implementation using cache dictionaries."""
-
-    def __init__(
-        self,
-        learning_outcomes: dict[str, ParsedLearningOutcome],
-        lenses: dict[str, ParsedLens],
-        video_transcripts: dict[str, str],
-        articles: dict[str, str],
-    ):
-        self._learning_outcomes = learning_outcomes  # stem -> ParsedLearningOutcome
-        self._lenses = lenses  # stem -> ParsedLens
-        self._video_transcripts = video_transcripts  # path -> raw markdown
-        self._articles = articles  # path -> raw markdown
-
-    def get_learning_outcome(self, key: str) -> ParsedLearningOutcome:
-        if key not in self._learning_outcomes:
-            raise KeyError(f"Learning outcome not found: {key}")
-        return self._learning_outcomes[key]
-
-    def get_lens(self, key: str) -> ParsedLens:
-        if key not in self._lenses:
-            raise KeyError(f"Lens not found: {key}")
-        return self._lenses[key]
-
-    def get_video_metadata(self, key: str) -> dict:
-        """Get video metadata by searching for matching transcript file."""
-        for path, content in self._video_transcripts.items():
-            stem = extract_filename_stem(path)
-            if stem == key or key in path:
-                metadata = _parse_frontmatter(content)
-                # Extract video_id from url if not directly provided
-                video_id = metadata.get("video_id", "")
-                if not video_id and metadata.get("url"):
-                    video_id = self._extract_youtube_id(metadata["url"])
-                return {
-                    "video_id": video_id,
-                    "channel": metadata.get("channel"),
-                }
-        raise KeyError(f"Video transcript not found: {key}")
-
-    def _extract_youtube_id(self, url: str) -> str:
-        """Extract YouTube video ID from URL."""
-        import re
-
-        # Remove quotes if present
-        url = url.strip("\"'")
-        # Match youtube.com/watch?v=ID or youtu.be/ID
-        match = re.search(r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]+)", url)
-        return match.group(1) if match else ""
-
-    def get_article_metadata(self, key: str) -> dict:
-        """Get article metadata by searching for matching article file."""
-        for path, content in self._articles.items():
-            stem = extract_filename_stem(path)
-            if stem == key or key in path:
-                metadata = _parse_frontmatter(content)
-                return {
-                    "title": metadata.get("title", ""),
-                    "author": metadata.get("author"),
-                    "source_url": metadata.get("source_url") or metadata.get("url"),
-                }
-        raise KeyError(f"Article not found: {key}")
-
-    def get_article_content(self, key: str) -> str:
-        """Get article raw markdown content by searching for matching article file."""
-        for path, content in self._articles.items():
-            stem = extract_filename_stem(path)
-            if stem == key or key in path:
-                return content
-        raise KeyError(f"Article not found: {key}")
-
-
 async def fetch_all_content() -> ContentCache:
     """Fetch all educational content from GitHub.
 
-    Modules are flattened at fetch time - all Learning Outcome and
+    Modules are flattened by TypeScript subprocess - all Learning Outcome and
     Uncategorized references are resolved to lens-video/lens-article sections.
 
     Returns:
@@ -362,126 +281,110 @@ async def fetch_all_content() -> ContentCache:
         transcript_files = await _list_directory_with_client(
             client, "video_transcripts"
         )
+        learning_outcome_files = await _list_directory_with_client(
+            client, "Learning Outcomes"
+        )
+        lens_files = await _list_directory_with_client(client, "Lenses")
 
-        # Fetch and parse courses
-        # Use ref=commit_sha to bypass GitHub's 5-minute CDN cache
-        courses: dict[str, ParsedCourse] = {}
+        # Collect ALL files for TypeScript processing
+        all_files: dict[str, str] = {}
+
+        # Fetch and collect all markdown files
+        for path in module_files:
+            if path.endswith(".md"):
+                content = await _fetch_file_with_client(client, path, ref=commit_sha)
+                all_files[path] = content
+
         for path in course_files:
             if path.endswith(".md"):
                 content = await _fetch_file_with_client(client, path, ref=commit_sha)
-                parsed = parse_course(content)
-                courses[parsed.slug] = parsed
+                all_files[path] = content
 
-        # Fetch articles (raw markdown for metadata extraction)
+        for path in learning_outcome_files:
+            if path.endswith(".md"):
+                content = await _fetch_file_with_client(client, path, ref=commit_sha)
+                all_files[path] = content
+
+        for path in lens_files:
+            if path.endswith(".md"):
+                content = await _fetch_file_with_client(client, path, ref=commit_sha)
+                all_files[path] = content
+
+        # Fetch articles (also stored separately for metadata extraction)
         articles: dict[str, str] = {}
         for path in article_files:
             if path.endswith(".md"):
                 content = await _fetch_file_with_client(client, path, ref=commit_sha)
                 articles[path] = content
+                all_files[path] = content
 
-        # Fetch video transcripts (raw markdown for metadata extraction)
+        # Fetch video transcripts (also stored separately)
         video_transcripts: dict[str, str] = {}
         for path in transcript_files:
             if path.endswith(".md"):
                 content = await _fetch_file_with_client(client, path, ref=commit_sha)
                 video_transcripts[path] = content
+                all_files[path] = content
 
-        # Fetch video timestamps (.timestamps.json files for transcript lookup)
-        # Timestamps are keyed by YouTube video_id, extracted from corresponding .md frontmatter
+        # Fetch timestamp files
         video_timestamps: dict[str, list[dict]] = {}
         for path in transcript_files:
             if path.endswith(".timestamps.json"):
+                content = await _fetch_file_with_client(client, path, ref=commit_sha)
+                all_files[path] = content
+                # Also parse for video_timestamps dict (keyed by video_id)
                 try:
-                    content = await _fetch_file_with_client(
-                        client, path, ref=commit_sha
-                    )
                     timestamps_data = json.loads(content)
-
-                    # Find corresponding .md file to get video_id from frontmatter
-                    # e.g., "video_transcripts/foo.timestamps.json" -> "video_transcripts/foo.md"
                     md_path = path.replace(".timestamps.json", ".md")
                     if md_path in video_transcripts:
-                        md_content = video_transcripts[md_path]
-                        metadata = _parse_frontmatter(md_content)
+                        metadata = _parse_frontmatter(video_transcripts[md_path])
                         video_id = metadata.get("video_id", "")
-                        # Also check url field for video_id
                         if not video_id and metadata.get("url"):
                             url = metadata["url"].strip("\"'")
-                            import re
-
                             match = re.search(
                                 r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]+)",
                                 url,
                             )
                             if match:
                                 video_id = match.group(1)
-
                         if video_id:
                             video_timestamps[video_id] = timestamps_data
-                            logger.debug(f"Loaded timestamps for video {video_id}")
-                        else:
-                            logger.warning(
-                                f"No video_id found in frontmatter for {md_path}"
-                            )
-                    else:
-                        logger.warning(f"No matching .md file for timestamps: {path}")
                 except Exception as e:
                     logger.warning(f"Failed to parse timestamps {path}: {e}")
 
-        # Fetch and parse learning outcomes (store by filename stem)
-        learning_outcome_files = await _list_directory_with_client(
-            client, "Learning Outcomes"
-        )
-        parsed_learning_outcomes: dict[str, ParsedLearningOutcome] = {}
-        for path in learning_outcome_files:
-            if path.endswith(".md"):
-                content = await _fetch_file_with_client(client, path, ref=commit_sha)
-                try:
-                    parsed = parse_learning_outcome(content)
-                    stem = extract_filename_stem(path)
-                    parsed_learning_outcomes[stem] = parsed
-                except Exception as e:
-                    logger.warning(f"Failed to parse learning outcome {path}: {e}")
+        # Process all content with TypeScript subprocess
+        try:
+            ts_result = await process_content_typescript(all_files)
+        except TypeScriptProcessorError as e:
+            logger.error(f"TypeScript processing failed: {e}")
+            raise GitHubFetchError(f"Content processing failed: {e}")
 
-        # Fetch and parse lenses (store by filename stem)
-        lens_files = await _list_directory_with_client(client, "Lenses")
-        parsed_lenses: dict[str, ParsedLens] = {}
-        for path in lens_files:
-            if path.endswith(".md"):
-                content = await _fetch_file_with_client(client, path, ref=commit_sha)
-                try:
-                    parsed = parse_lens(content)
-                    stem = extract_filename_stem(path)
-                    parsed_lenses[stem] = parsed
-                except Exception as e:
-                    logger.warning(f"Failed to parse lens {path}: {e}")
+        # Convert TypeScript result to Python cache format
+        flattened_modules: dict[str, FlattenedModule] = {}
+        for mod in ts_result.get("modules", []):
+            flattened_modules[mod["slug"]] = FlattenedModule(
+                slug=mod["slug"],
+                title=mod["title"],
+                content_id=UUID(mod["contentId"]) if mod.get("contentId") else None,
+                sections=mod["sections"],
+                error=mod.get("error"),
+            )
 
-        # Fetch and parse modules (raw, before flattening)
-        raw_modules: dict[str, ParsedModule] = {}
-        for path in module_files:
-            if path.endswith(".md"):
-                content = await _fetch_file_with_client(client, path, ref=commit_sha)
-                try:
-                    parsed = parse_module(content)
-                    raw_modules[parsed.slug] = parsed
-                except Exception as e:
-                    logger.warning(f"Failed to parse module {path}: {e}")
+        # Convert courses from TypeScript result
+        courses: dict[str, ParsedCourse] = {}
+        for course in ts_result.get("courses", []):
+            courses[course["slug"]] = ParsedCourse(
+                slug=course["slug"],
+                title=course["title"],
+                progression=course.get("progression", []),
+            )
 
-        # Create content lookup for flattening
-        lookup = CacheContentLookup(
-            learning_outcomes=parsed_learning_outcomes,
-            lenses=parsed_lenses,
-            video_transcripts=video_transcripts,
-            articles=articles,
-        )
-
-        # Set cache BEFORE flattening so bundling functions can access content
-        # (bundling functions call get_cache() to load articles/transcripts)
+        # Build and return cache
         cache = ContentCache(
             courses=courses,
-            flattened_modules={},  # Will populate below
-            parsed_learning_outcomes=parsed_learning_outcomes,
-            parsed_lenses=parsed_lenses,
+            flattened_modules=flattened_modules,
+            parsed_learning_outcomes={},  # No longer needed - TS handles
+            parsed_lenses={},  # No longer needed - TS handles
             articles=articles,
             video_transcripts=video_transcripts,
             video_timestamps=video_timestamps,
@@ -489,27 +392,6 @@ async def fetch_all_content() -> ContentCache:
             last_commit_sha=commit_sha,
         )
         set_cache(cache)
-
-        # Flatten all modules (now bundling functions can use get_cache())
-        for slug, module in raw_modules.items():
-            try:
-                flattened = flatten_module(module, lookup)
-                cache.flattened_modules[slug] = flattened
-            except Exception as e:
-                logger.warning(f"Failed to flatten module {slug}: {e}")
-                # Truncate long error messages for better UX
-                error_msg = str(e)
-                if len(error_msg) > 1000:
-                    error_msg = error_msg[:1000] + "..."
-                # Create a minimal flattened module with the error message
-                cache.flattened_modules[slug] = FlattenedModule(
-                    slug=module.slug,
-                    title=module.title,
-                    content_id=module.content_id,
-                    sections=[],
-                    error=error_msg,
-                )
-
         return cache
 
 
@@ -598,9 +480,7 @@ async def initialize_cache() -> None:
     print(f"  Loaded {len(cache.articles)} articles")
     print(f"  Loaded {len(cache.video_transcripts)} video transcripts")
     print(f"  Loaded {len(cache.video_timestamps)} video timestamps")
-    print(f"  Loaded {len(cache.parsed_learning_outcomes)} learning outcomes (parsed)")
-    print(f"  Loaded {len(cache.parsed_lenses)} lenses (parsed)")
-    print("Content cache initialized")
+    print("Content cache initialized (TypeScript processor handles LO/lens parsing)")
 
 
 async def refresh_cache() -> None:
@@ -659,9 +539,10 @@ async def _apply_file_change(
         # File is not in a tracked directory, skip it
         return False
 
-    # Module, LO, and Lens changes require full refresh for re-flattening
+    # Module, LO, Lens, and Course changes require full refresh
+    # (TypeScript processor handles all content together)
     # Only process markdown files
-    if tracked_dir in ("modules", "Learning Outcomes", "Lenses"):
+    if tracked_dir in ("modules", "Learning Outcomes", "Lenses", "courses"):
         if change.path.endswith(".md"):
             logger.info(
                 f"Change in {tracked_dir} ({change.path}) requires full refresh"
@@ -670,17 +551,9 @@ async def _apply_file_change(
         # Non-.md files in these directories don't require any action
         return False
 
-    # Handle removals for articles, video_transcripts, and courses
+    # Handle removals for articles and video_transcripts
     if change.status == "removed":
-        if tracked_dir == "courses":
-            filename = change.path.split("/")[-1]
-            if filename.endswith(".md"):
-                potential_slug = filename[:-3]
-                if potential_slug in cache.courses:
-                    del cache.courses[potential_slug]
-                    logger.info(f"Removed course: {potential_slug}")
-
-        elif tracked_dir == "articles":
+        if tracked_dir == "articles":
             if change.path in cache.articles:
                 del cache.articles[change.path]
                 logger.info(f"Removed article: {change.path}")
@@ -696,15 +569,7 @@ async def _apply_file_change(
     if change.status == "renamed" and change.previous_path:
         prev_tracked_dir = _get_tracked_directory(change.previous_path)
 
-        if prev_tracked_dir == "courses":
-            filename = change.previous_path.split("/")[-1]
-            if filename.endswith(".md"):
-                potential_slug = filename[:-3]
-                if potential_slug in cache.courses:
-                    del cache.courses[potential_slug]
-                    logger.info(f"Removed renamed course: {potential_slug}")
-
-        elif prev_tracked_dir == "articles":
+        if prev_tracked_dir == "articles":
             if change.previous_path in cache.articles:
                 del cache.articles[change.previous_path]
                 logger.info(f"Removed renamed article: {change.previous_path}")
@@ -723,12 +588,7 @@ async def _apply_file_change(
         try:
             content = await _fetch_file_with_client(client, change.path, ref=ref)
 
-            if tracked_dir == "courses":
-                parsed = parse_course(content)
-                cache.courses[parsed.slug] = parsed
-                logger.info(f"Updated course: {parsed.slug}")
-
-            elif tracked_dir == "articles":
+            if tracked_dir == "articles":
                 cache.articles[change.path] = content
                 logger.info(f"Updated article: {change.path}")
 

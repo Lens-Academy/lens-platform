@@ -2,9 +2,9 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
-from core.modules.markdown_parser import ParsedCourse, ParsedLearningOutcome, ParsedLens
-from core.modules.flattened_types import FlattenedModule
+from core.modules.flattened_types import FlattenedModule, ParsedCourse
 
 
 class CacheNotInitializedError(Exception):
@@ -18,15 +18,15 @@ class ContentCache:
     """Cache for all educational content.
 
     Modules are stored in flattened form - all Learning Outcome and
-    Uncategorized references resolved to lens-video/lens-article sections.
+    Uncategorized references resolved to lens-video/lens-article sections
+    by the TypeScript processor.
     """
 
     courses: dict[str, ParsedCourse]  # slug -> parsed course
     flattened_modules: dict[str, FlattenedModule]  # slug -> flattened module
-    parsed_learning_outcomes: dict[
-        str, ParsedLearningOutcome
-    ]  # filename stem -> parsed LO
-    parsed_lenses: dict[str, ParsedLens]  # filename stem -> parsed lens
+    # Legacy fields - kept for compatibility but always empty (TypeScript handles these)
+    parsed_learning_outcomes: dict[str, Any]  # Always {} - TypeScript handles
+    parsed_lenses: dict[str, Any]  # Always {} - TypeScript handles
     articles: dict[str, str]  # path -> raw markdown (for metadata extraction)
     video_transcripts: dict[str, str]  # path -> raw markdown (for metadata extraction)
     last_refreshed: datetime
