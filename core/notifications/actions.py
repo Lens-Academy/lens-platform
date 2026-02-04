@@ -5,11 +5,11 @@ These functions are called by business logic (cogs, routes) to send notification
 They handle building context and scheduling reminders.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from core.enums import NotificationReferenceType
 from core.notifications.dispatcher import send_notification
-from core.notifications.scheduler import schedule_reminder, cancel_reminders
+from core.notifications.scheduler import schedule_reminder, cancel_reminders, REMINDER_CONFIG
 from core.notifications.urls import (
     build_profile_url,
     build_discord_channel_url,
@@ -149,32 +149,18 @@ def schedule_meeting_reminders(
     Only needs meeting_id and meeting_time - everything else is fetched
     fresh at execution time. This avoids stale data issues.
 
-    Schedules:
-    - 24h before: meeting reminder
-    - 1h before: meeting reminder
-    - 3d before: module nudge (if <50% done)
+    Reminder types and timing are defined in REMINDER_CONFIG (scheduler.py).
 
     Args:
         meeting_id: Database meeting ID
         meeting_time: When the meeting is scheduled
     """
-    schedule_reminder(
-        meeting_id=meeting_id,
-        reminder_type="reminder_24h",
-        run_at=meeting_time - timedelta(hours=24),
-    )
-
-    schedule_reminder(
-        meeting_id=meeting_id,
-        reminder_type="reminder_1h",
-        run_at=meeting_time - timedelta(hours=1),
-    )
-
-    schedule_reminder(
-        meeting_id=meeting_id,
-        reminder_type="module_nudge_3d",
-        run_at=meeting_time - timedelta(days=3),
-    )
+    for reminder_type, config in REMINDER_CONFIG.items():
+        schedule_reminder(
+            meeting_id=meeting_id,
+            reminder_type=reminder_type,
+            run_at=meeting_time + config["offset"],
+        )
 
 
 def cancel_meeting_reminders(meeting_id: int) -> int:

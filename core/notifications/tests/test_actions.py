@@ -74,8 +74,9 @@ class TestScheduleMeetingReminders:
         assert "job_id" not in call_kwargs
 
     def test_calculates_correct_run_times(self):
-        """Should calculate run times relative to meeting time."""
+        """Should calculate run times relative to meeting time using REMINDER_CONFIG."""
         from core.notifications.actions import schedule_meeting_reminders
+        from core.notifications.scheduler import REMINDER_CONFIG
 
         mock_schedule = MagicMock()
         meeting_time = datetime(2026, 2, 10, 17, 0, tzinfo=ZoneInfo("UTC"))
@@ -88,18 +89,16 @@ class TestScheduleMeetingReminders:
 
         # Extract run_at times
         run_times = {
-            mock_schedule.call_args_list[i][1][
-                "reminder_type"
-            ]: mock_schedule.call_args_list[i][1]["run_at"]
-            for i in range(3)
+            call[1]["reminder_type"]: call[1]["run_at"]
+            for call in mock_schedule.call_args_list
         }
 
-        # 24h before
-        assert run_times["reminder_24h"] == meeting_time - timedelta(hours=24)
-        # 1h before
-        assert run_times["reminder_1h"] == meeting_time - timedelta(hours=1)
-        # 3d before
-        assert run_times["module_nudge_3d"] == meeting_time - timedelta(days=3)
+        # Verify each reminder type uses the correct offset from REMINDER_CONFIG
+        for reminder_type, config in REMINDER_CONFIG.items():
+            expected_time = meeting_time + config["offset"]
+            assert run_times[reminder_type] == expected_time, (
+                f"{reminder_type} should be at {expected_time}, got {run_times[reminder_type]}"
+            )
 
 
 class TestRescheduleMeetingReminders:

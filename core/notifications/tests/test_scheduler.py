@@ -461,10 +461,10 @@ class TestExecuteReminder:
 
     @pytest.mark.asyncio
     async def test_uses_correct_message_type_mapping(self):
-        """Should use REMINDER_MESSAGE_TYPES to map reminder_type to message_type."""
+        """Should use REMINDER_CONFIG to map reminder_type to message_type."""
         from core.notifications.scheduler import (
             _execute_reminder,
-            REMINDER_MESSAGE_TYPES,
+            REMINDER_CONFIG,
         )
 
         mock_meeting = {
@@ -506,8 +506,8 @@ class TestExecuteReminder:
         ):
             await _execute_reminder(meeting_id=42, reminder_type="reminder_24h")
 
-        # Should use the mapped message type
-        expected_message_type = REMINDER_MESSAGE_TYPES["reminder_24h"]
+        # Should use the mapped message template from REMINDER_CONFIG
+        expected_message_type = REMINDER_CONFIG["reminder_24h"]["message_template"]
         assert mock_send.call_args.kwargs["message_type"] == expected_message_type
 
 
@@ -761,26 +761,206 @@ class TestSyncMeetingReminders:
 
 
 # =============================================================================
-# Test REMINDER_MESSAGE_TYPES and REMINDER_CONDITIONS mappings
+# Test REMINDER_CONFIG (single source of truth)
 # =============================================================================
 
 
-class TestReminderMappings:
-    """Test the module-level mappings."""
+class TestReminderConfig:
+    """Test the REMINDER_CONFIG single source of truth."""
 
-    def test_reminder_message_types_contains_expected_keys(self):
-        """REMINDER_MESSAGE_TYPES should have all expected reminder types."""
-        from core.notifications.scheduler import REMINDER_MESSAGE_TYPES
+    def test_contains_all_expected_reminder_types(self):
+        """REMINDER_CONFIG should have all expected reminder types."""
+        from core.notifications.scheduler import REMINDER_CONFIG
 
-        assert "reminder_24h" in REMINDER_MESSAGE_TYPES
-        assert "reminder_1h" in REMINDER_MESSAGE_TYPES
-        assert "module_nudge_3d" in REMINDER_MESSAGE_TYPES
+        assert "reminder_24h" in REMINDER_CONFIG
+        assert "reminder_1h" in REMINDER_CONFIG
+        assert "module_nudge_3d" in REMINDER_CONFIG
 
-    def test_reminder_conditions_has_module_nudge(self):
-        """REMINDER_CONDITIONS should have condition for module_nudge_3d."""
-        from core.notifications.scheduler import REMINDER_CONDITIONS
+    def test_each_reminder_has_required_fields(self):
+        """Each reminder config should have offset, message_template, send_to_channel."""
+        from core.notifications.scheduler import REMINDER_CONFIG
 
-        assert "module_nudge_3d" in REMINDER_CONDITIONS
-        condition = REMINDER_CONDITIONS["module_nudge_3d"]
-        assert condition["type"] == "module_progress"
-        assert "threshold" in condition
+        for reminder_type, config in REMINDER_CONFIG.items():
+            assert "offset" in config, f"{reminder_type} missing offset"
+            assert "message_template" in config, f"{reminder_type} missing message_template"
+            assert "send_to_channel" in config, f"{reminder_type} missing send_to_channel"
+
+    def test_module_nudge_has_condition(self):
+        """module_nudge_3d should have a condition for module progress."""
+        from core.notifications.scheduler import REMINDER_CONFIG
+
+        config = REMINDER_CONFIG["module_nudge_3d"]
+        assert "condition" in config
+        assert config["condition"]["type"] == "module_progress"
+        assert "threshold" in config["condition"]
+
+    def test_offsets_are_negative_timedeltas(self):
+        """Offsets should be negative (before meeting time)."""
+        from datetime import timedelta
+        from core.notifications.scheduler import REMINDER_CONFIG
+
+        for reminder_type, config in REMINDER_CONFIG.items():
+            assert config["offset"] < timedelta(0), f"{reminder_type} offset should be negative"
+
+
+# =============================================================================
+# Test _check_module_progress
+# =============================================================================
+
+
+class TestCheckModuleProgress:
+    """Test the _check_module_progress function."""
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_no_meeting_id(self):
+        """Should return False if meeting_id is None."""
+        from core.notifications.scheduler import _check_module_progress
+
+        result = await _check_module_progress(
+            user_ids=[1, 2], meeting_id=None, threshold=0.5
+        )
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_no_users(self):
+        """Should return False if user_ids is empty."""
+        from core.notifications.scheduler import _check_module_progress
+
+        result = await _check_module_progress(
+            user_ids=[], meeting_id=42, threshold=0.5
+        )
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_returns_true_on_error(self):
+        """Should return True (send nudge) on error - conservative behavior."""
+        from core.notifications.scheduler import _check_module_progress
+
+        # Patch at the source module where get_connection is defined
+        with patch(
+            "core.database.get_connection",
+            side_effect=Exception("DB error"),
+        ):
+            result = await _check_module_progress(
+                user_ids=[1], meeting_id=99999, threshold=0.5
+            )
+            # On error, sends nudge anyway (conservative)
+            assert result is True
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_all_users_above_threshold(self):
+        """Should return False (no nudge) when all users are above threshold."""
+        from core.notifications.scheduler import _check_module_progress
+        from uuid import UUID
+
+        mock_module = MagicMock()
+        mock_module.content_id = UUID("12345678-1234-1234-1234-123456789012")
+
+        mock_course = MagicMock()
+
+        # Mock the database query
+        mock_row = {
+            "meeting_number": 1,
+            "course_slug_override": None,
+            "course_slug": "test-course",
+        }
+
+        with (
+            patch("core.database.get_connection") as mock_conn_ctx,
+            patch(
+                "core.modules.course_loader.load_course", return_value=mock_course
+            ),
+            patch(
+                "core.modules.course_loader.get_required_modules",
+                return_value=[MagicMock(path="modules/mod1")],
+            ),
+            patch(
+                "core.modules.course_loader.get_due_by_meeting", return_value=1
+            ),
+            patch(
+                "core.modules.course_loader._extract_slug_from_path",
+                return_value="mod1",
+            ),
+            patch(
+                "core.modules.loader.load_flattened_module",
+                return_value=mock_module,
+            ),
+            patch(
+                "core.modules.progress.get_module_progress",
+                new_callable=AsyncMock,
+                return_value={
+                    mock_module.content_id: {"completed_at": "2026-01-01T00:00:00Z"}
+                },
+            ),
+        ):
+            # Mock the async context manager
+            mock_conn = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.mappings.return_value.first.return_value = mock_row
+            mock_conn.execute = AsyncMock(return_value=mock_result)
+            mock_conn_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+            mock_conn_ctx.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            result = await _check_module_progress(
+                user_ids=[1], meeting_id=42, threshold=0.5
+            )
+
+            # User completed 100% (1/1), above 50% threshold
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_returns_true_when_user_below_threshold(self):
+        """Should return True (send nudge) when a user is below threshold."""
+        from core.notifications.scheduler import _check_module_progress
+        from uuid import UUID
+
+        mock_module = MagicMock()
+        mock_module.content_id = UUID("12345678-1234-1234-1234-123456789012")
+
+        mock_course = MagicMock()
+
+        mock_row = {
+            "meeting_number": 1,
+            "course_slug_override": None,
+            "course_slug": "test-course",
+        }
+
+        with (
+            patch("core.database.get_connection") as mock_conn_ctx,
+            patch(
+                "core.modules.course_loader.load_course", return_value=mock_course
+            ),
+            patch(
+                "core.modules.course_loader.get_required_modules",
+                return_value=[MagicMock(path="modules/mod1")],
+            ),
+            patch(
+                "core.modules.course_loader.get_due_by_meeting", return_value=1
+            ),
+            patch(
+                "core.modules.course_loader._extract_slug_from_path",
+                return_value="mod1",
+            ),
+            patch(
+                "core.modules.loader.load_flattened_module",
+                return_value=mock_module,
+            ),
+            patch(
+                "core.modules.progress.get_module_progress",
+                new_callable=AsyncMock,
+                return_value={},  # No completion records = 0%
+            ),
+        ):
+            mock_conn = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.mappings.return_value.first.return_value = mock_row
+            mock_conn.execute = AsyncMock(return_value=mock_result)
+            mock_conn_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+            mock_conn_ctx.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            result = await _check_module_progress(
+                user_ids=[1], meeting_id=42, threshold=0.5
+            )
+
+            # User completed 0%, below 50% threshold
+            assert result is True

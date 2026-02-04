@@ -24,19 +24,26 @@ _scheduler: AsyncIOScheduler | None = None
 
 
 # =============================================================================
-# Reminder type mappings
+# Reminder configuration - SINGLE SOURCE OF TRUTH
 # =============================================================================
 
-# Message type mapping: reminder_type -> template message_type
-REMINDER_MESSAGE_TYPES = {
-    "reminder_24h": "meeting_reminder_24h",
-    "reminder_1h": "meeting_reminder_1h",
-    "module_nudge_3d": "module_nudge",
-}
-
-# Conditions for conditional reminders (e.g., only send if user behind on modules)
-REMINDER_CONDITIONS = {
-    "module_nudge_3d": {"type": "module_progress", "threshold": 0.5},
+REMINDER_CONFIG = {
+    "reminder_24h": {
+        "offset": timedelta(hours=-24),
+        "message_template": "meeting_reminder_24h",
+        "send_to_channel": True,
+    },
+    "reminder_1h": {
+        "offset": timedelta(hours=-1),
+        "message_template": "meeting_reminder_1h",
+        "send_to_channel": True,
+    },
+    "module_nudge_3d": {
+        "offset": timedelta(days=-3),
+        "message_template": "module_nudge",
+        "send_to_channel": False,
+        "condition": {"type": "module_progress", "threshold": 0.5},
+    },
 }
 
 
@@ -241,8 +248,11 @@ async def _execute_reminder(meeting_id: int, reminder_type: str) -> None:
         logger.info(f"No active members for meeting {meeting_id}, skipping")
         return
 
+    # Get config for this reminder type
+    config = REMINDER_CONFIG.get(reminder_type, {})
+
     # Check condition if this reminder type has one
-    condition = REMINDER_CONDITIONS.get(reminder_type)
+    condition = config.get("condition")
     if condition:
         should_send = await _check_condition(condition, user_ids, meeting_id)
         if not should_send:
@@ -254,11 +264,11 @@ async def _execute_reminder(meeting_id: int, reminder_type: str) -> None:
     # Build fresh context
     context = build_reminder_context(meeting, group)
 
-    # Get the template message type
-    message_type = REMINDER_MESSAGE_TYPES.get(reminder_type, reminder_type)
+    # Get the template name
+    message_type = config.get("message_template", reminder_type)
 
-    # Send to channel if applicable (meeting reminders, not module nudges)
-    if reminder_type in ("reminder_24h", "reminder_1h"):
+    # Send to channel if configured
+    if config.get("send_to_channel"):
         channel_id = group["discord_text_channel_id"]
         if channel_id:
             await send_channel_notification(channel_id, message_type, context)
@@ -303,10 +313,10 @@ async def sync_meeting_reminders(meeting_id: int) -> dict:
             meeting_time = meeting["scheduled_at"]
 
             if meeting_time > now:
+                # Build expected jobs from REMINDER_CONFIG
                 expected = {
-                    "reminder_24h": meeting_time - timedelta(hours=24),
-                    "reminder_1h": meeting_time - timedelta(hours=1),
-                    "module_nudge_3d": meeting_time - timedelta(days=3),
+                    reminder_type: meeting_time + config["offset"]
+                    for reminder_type, config in REMINDER_CONFIG.items()
                 }
                 # Filter out jobs scheduled in the past
                 expected = {k: v for k, v in expected.items() if v > now}
@@ -370,14 +380,145 @@ async def _check_condition(
     condition_type = condition.get("type")
 
     if condition_type == "module_progress":
-        # Check if user hasn't completed required modules
-        condition.get("meeting_id")
-        condition.get("threshold", 1.0)  # 1.0 = 100%
-        # TODO: Implement module progress check
-        # For now, always return True
-        return True
+        return await _check_module_progress(
+            user_ids=user_ids,
+            meeting_id=meeting_id,
+            threshold=condition.get("threshold", 1.0),
+        )
 
     return True
+
+
+async def _check_module_progress(
+    user_ids: list[int],
+    meeting_id: int | None,
+    threshold: float,
+) -> bool:
+    """
+    Check if any user is below the module completion threshold.
+
+    Returns True (send nudge) if at least one user hasn't completed
+    enough modules that are due by this meeting.
+
+    Args:
+        user_ids: Users to check
+        meeting_id: Meeting to check modules for
+        threshold: Completion percentage required (0.0-1.0)
+
+    Returns:
+        True if nudge should be sent (someone is behind)
+    """
+    if not meeting_id or not user_ids:
+        return False
+
+    try:
+        # Import here to avoid circular imports
+        from core.database import get_connection
+        from core.modules.course_loader import (
+            load_course,
+            get_required_modules,
+            get_due_by_meeting,
+            _extract_slug_from_path,
+        )
+        from core.modules.loader import load_flattened_module, ModuleNotFoundError
+        from core.modules.progress import get_module_progress
+        from core.tables import meetings, groups, cohorts
+        from sqlalchemy import select
+
+        async with get_connection() as conn:
+            # Get meeting info with group and cohort
+            query = (
+                select(
+                    meetings.c.meeting_number,
+                    groups.c.course_slug_override,
+                    cohorts.c.course_slug,
+                )
+                .select_from(
+                    meetings.join(groups, meetings.c.group_id == groups.c.group_id)
+                    .join(cohorts, groups.c.cohort_id == cohorts.c.cohort_id)
+                )
+                .where(meetings.c.meeting_id == meeting_id)
+            )
+            result = await conn.execute(query)
+            row = result.mappings().first()
+
+            if not row:
+                logger.warning(f"Meeting {meeting_id} not found for progress check")
+                return False
+
+            meeting_number = row["meeting_number"]
+            course_slug = row["course_slug_override"] or row["course_slug"]
+
+            # Load course and find modules due by this meeting
+            try:
+                course = load_course(course_slug)
+            except Exception as e:
+                logger.warning(f"Could not load course {course_slug}: {e}")
+                return False
+
+            # Find all required modules due by this meeting number
+            required_modules = get_required_modules(course)
+            modules_due_slugs = []
+            for m in required_modules:
+                slug = _extract_slug_from_path(m.path)
+                due_by = get_due_by_meeting(course, slug)
+                if due_by is not None and due_by <= meeting_number:
+                    modules_due_slugs.append(slug)
+
+            if not modules_due_slugs:
+                # No modules due yet, no need to nudge
+                return False
+
+            # Get content_ids for these modules
+            module_content_ids = []
+            for slug in modules_due_slugs:
+                try:
+                    module = load_flattened_module(slug)
+                    if module.content_id:
+                        module_content_ids.append(module.content_id)
+                except ModuleNotFoundError:
+                    logger.warning(f"Module {slug} not found in cache")
+                    continue
+
+            if not module_content_ids:
+                # No trackable modules, skip nudge
+                return False
+
+            # Check each user's progress
+            for user_id in user_ids:
+                progress = await get_module_progress(
+                    conn,
+                    user_id=user_id,
+                    anonymous_token=None,
+                    lens_ids=module_content_ids,
+                )
+
+                # Count completed modules
+                completed = sum(
+                    1 for content_id in module_content_ids
+                    if content_id in progress and progress[content_id].get("completed_at")
+                )
+
+                completion_rate = completed / len(module_content_ids)
+
+                if completion_rate < threshold:
+                    # This user is behind, send the nudge
+                    logger.info(
+                        f"User {user_id} at {completion_rate:.0%} completion "
+                        f"(threshold {threshold:.0%}), sending nudge"
+                    )
+                    return True
+
+            # All users are on track
+            logger.info(
+                f"All users above {threshold:.0%} threshold for meeting {meeting_id}"
+            )
+            return False
+
+    except Exception as e:
+        logger.error(f"Error checking module progress: {e}")
+        # On error, send the nudge anyway (conservative)
+        return True
 
 
 # =============================================================================
