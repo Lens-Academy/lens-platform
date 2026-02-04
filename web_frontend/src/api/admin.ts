@@ -47,7 +47,13 @@ export interface SyncResult {
 // Detailed sync result types (matches backend sync_group() return structure)
 
 export interface InfrastructureStatus {
-  status: "existed" | "created" | "skipped" | "failed" | "channel_missing" | "role_missing";
+  status:
+    | "existed"
+    | "created"
+    | "skipped"
+    | "failed"
+    | "channel_missing"
+    | "role_missing";
   id?: string | null;
   error?: string;
 }
@@ -259,7 +265,9 @@ export async function syncCohort(cohortId: number): Promise<CohortSyncResult> {
 /**
  * Realize All Preview Groups in a cohort.
  */
-export async function realizeCohort(cohortId: number): Promise<CohortSyncResult> {
+export async function realizeCohort(
+  cohortId: number,
+): Promise<CohortSyncResult> {
   const res = await fetch(`${API_URL}/api/admin/cohorts/${cohortId}/realize`, {
     method: "POST",
     credentials: "include",

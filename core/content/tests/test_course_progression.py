@@ -1,9 +1,7 @@
 # core/content/tests/test_course_progression.py
 """Tests for course progression conversion from TypeScript output."""
 
-import pytest
-
-from core.modules.flattened_types import ModuleRef, MeetingMarker, ParsedCourse
+from core.modules.flattened_types import ModuleRef, MeetingMarker
 
 
 class TestCourseProgressionConversion:

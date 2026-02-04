@@ -491,8 +491,9 @@ def html_to_markdown(html: str) -> str:
     # Blockquotes
     content = re.sub(
         r"<blockquote[^>]*>(.*?)</blockquote>",
-        lambda m: "\n".join("> " + line for line in m.group(1).strip().split("\n"))
-        + "\n\n",
+        lambda m: (
+            "\n".join("> " + line for line in m.group(1).strip().split("\n")) + "\n\n"
+        ),
         content,
         flags=re.DOTALL,
     )

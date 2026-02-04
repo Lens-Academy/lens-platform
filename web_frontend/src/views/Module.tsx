@@ -941,7 +941,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       <div className="min-h-dvh bg-stone-50">
         <div className="sticky top-0 z-50 bg-white border-b border-stone-200">
           <div className="max-w-3xl mx-auto px-4 py-4">
-            <h1 className="text-xl font-semibold text-stone-900">{module.title}</h1>
+            <h1 className="text-xl font-semibold text-stone-900">
+              {module.title}
+            </h1>
           </div>
         </div>
         <div className="max-w-3xl mx-auto px-4 py-12">

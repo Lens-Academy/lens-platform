@@ -10,7 +10,6 @@ If content changes legitimately, regenerate the fixture:
 
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -156,9 +155,7 @@ class TestCourseProgressContractExact:
         response = client.get("/api/courses/default/progress")
         actual = response.json()
 
-        actual_slugs = [
-            m["slug"] for u in actual["units"] for m in u["modules"]
-        ]
+        actual_slugs = [m["slug"] for u in actual["units"] for m in u["modules"]]
         expected_slugs = [
             m["slug"] for u in expected_response["units"] for m in u["modules"]
         ]

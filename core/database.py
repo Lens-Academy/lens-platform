@@ -112,6 +112,20 @@ def reset_engine() -> None:
     _engine = None
 
 
+def set_engine(engine: AsyncEngine | None) -> None:
+    """
+    Set the engine singleton directly.
+
+    Use this in tests to inject a test-specific engine created in the test's
+    event loop, avoiding "Future attached to a different loop" errors.
+
+    Args:
+        engine: The engine to use, or None to clear.
+    """
+    global _engine
+    _engine = engine
+
+
 def is_configured() -> bool:
     """Check if database credentials are configured."""
     return bool(os.environ.get("DATABASE_URL"))

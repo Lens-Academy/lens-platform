@@ -12,7 +12,12 @@ from uuid import UUID
 
 import httpx
 
-from core.modules.flattened_types import FlattenedModule, ParsedCourse, ModuleRef, MeetingMarker
+from core.modules.flattened_types import (
+    FlattenedModule,
+    ParsedCourse,
+    ModuleRef,
+    MeetingMarker,
+)
 from core.content.typescript_processor import (
     process_content_typescript,
     TypeScriptProcessorError,
@@ -46,6 +51,7 @@ def _convert_ts_course_to_parsed_course(ts_course: dict) -> ParsedCourse:
         title=ts_course["title"],
         progression=progression,
     )
+
 
 logger = logging.getLogger(__name__)
 
@@ -711,7 +717,9 @@ async def incremental_refresh(new_commit_sha: str) -> None:
 
         if not tracked_changes:
             # No tracked files changed, just update commit SHA
-            print(f"No tracked files changed, updating commit SHA to {new_commit_sha[:8]}")
+            print(
+                f"No tracked files changed, updating commit SHA to {new_commit_sha[:8]}"
+            )
             cache.last_commit_sha = new_commit_sha
             cache.last_refreshed = datetime.now()
             return
@@ -727,8 +735,7 @@ async def incremental_refresh(new_commit_sha: str) -> None:
 
         # Fetch changed files in parallel
         files_to_fetch = [
-            c for c in tracked_changes
-            if c.status in ("added", "modified", "renamed")
+            c for c in tracked_changes if c.status in ("added", "modified", "renamed")
         ]
 
         async with httpx.AsyncClient() as client:

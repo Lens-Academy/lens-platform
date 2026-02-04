@@ -104,7 +104,7 @@ def test_get_next_module_invalid_course():
     (graceful fallback). This test sets up multiple courses to test 404 behavior.
     """
     from datetime import datetime
-    from core.content.cache import ContentCache, set_cache, get_cache, clear_cache
+    from core.content.cache import ContentCache, set_cache, get_cache
     from core.modules.flattened_types import ParsedCourse
 
     # Save current cache
@@ -113,8 +113,12 @@ def test_get_next_module_invalid_course():
     # Set up cache with multiple courses
     cache = ContentCache(
         courses={
-            "course-one": ParsedCourse(slug="course-one", title="Course One", progression=[]),
-            "course-two": ParsedCourse(slug="course-two", title="Course Two", progression=[]),
+            "course-one": ParsedCourse(
+                slug="course-one", title="Course One", progression=[]
+            ),
+            "course-two": ParsedCourse(
+                slug="course-two", title="Course Two", progression=[]
+            ),
         },
         flattened_modules=original_cache.flattened_modules,
         parsed_learning_outcomes={},
@@ -197,8 +201,12 @@ def test_get_course_progress_invalid_course():
     # Set up cache with multiple courses
     cache = ContentCache(
         courses={
-            "course-one": ParsedCourse(slug="course-one", title="Course One", progression=[]),
-            "course-two": ParsedCourse(slug="course-two", title="Course Two", progression=[]),
+            "course-one": ParsedCourse(
+                slug="course-one", title="Course One", progression=[]
+            ),
+            "course-two": ParsedCourse(
+                slug="course-two", title="Course Two", progression=[]
+            ),
         },
         flattened_modules={},
         parsed_learning_outcomes={},

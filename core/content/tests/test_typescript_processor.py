@@ -9,7 +9,14 @@ from pathlib import Path
 @pytest.fixture
 def fixture_files() -> dict[str, str]:
     """Load the minimal-module fixture files into a dict."""
-    fixture_dir = Path(__file__).parent.parent.parent.parent / "content_processor" / "fixtures" / "valid" / "minimal-module" / "input"
+    fixture_dir = (
+        Path(__file__).parent.parent.parent.parent
+        / "content_processor"
+        / "fixtures"
+        / "valid"
+        / "minimal-module"
+        / "input"
+    )
     files = {}
     for file_path in fixture_dir.rglob("*.md"):
         relative_path = file_path.relative_to(fixture_dir)
@@ -24,7 +31,14 @@ def fixture_files() -> dict[str, str]:
 @pytest.fixture
 def expected_output() -> dict:
     """Load the expected output for the minimal-module fixture."""
-    expected_path = Path(__file__).parent.parent.parent.parent / "content_processor" / "fixtures" / "valid" / "minimal-module" / "expected.json"
+    expected_path = (
+        Path(__file__).parent.parent.parent.parent
+        / "content_processor"
+        / "fixtures"
+        / "valid"
+        / "minimal-module"
+        / "expected.json"
+    )
     return json.loads(expected_path.read_text())
 
 

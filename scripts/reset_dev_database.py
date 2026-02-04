@@ -16,7 +16,6 @@ Example:
 
 import argparse
 import asyncio
-import subprocess
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -45,7 +44,6 @@ async def reset_database(discord_id: str, discord_username: str = "admin"):
     from core.tables import users, cohorts, groups, groups_users, meetings
 
     # Import text for raw SQL
-    from sqlalchemy import text
 
     print("\n" + "=" * 60)
     print("RESETTING LOCAL DEV DATABASE")
@@ -141,12 +139,22 @@ async def reset_database(discord_id: str, discord_username: str = "admin"):
             now = datetime.now(timezone.utc)
             day_name = group_data["time"].split()[0]
             hour = int(group_data["time"].split()[1].split(":")[0])
-            days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            days = [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            ]
             target_day = days.index(day_name)
             days_until = (target_day - now.weekday()) % 7
             if days_until == 0:
                 days_until = 7
-            first_meeting = now.replace(hour=hour, minute=0, second=0, microsecond=0) + timedelta(days=days_until)
+            first_meeting = now.replace(
+                hour=hour, minute=0, second=0, microsecond=0
+            ) + timedelta(days=days_until)
 
             # Create meetings
             for week in range(6):
@@ -184,7 +192,9 @@ async def reset_database(discord_id: str, discord_username: str = "admin"):
                     )
                 )
 
-            print(f"  ✓ {group_data['name']}: {group_data['members']} members (status=preview)")
+            print(
+                f"  ✓ {group_data['name']}: {group_data['members']} members (status=preview)"
+            )
 
         await conn.commit()
 

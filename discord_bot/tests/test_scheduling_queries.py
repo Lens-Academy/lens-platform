@@ -219,8 +219,10 @@ class TestScheduleCohort:
 
         load_dotenv(".env.local")
 
-        from core.database import get_engine, close_engine
+        from core.database import get_engine, close_engine, reset_engine
 
+        # Reset any stale engine from previous event loop
+        reset_engine()
         engine = get_engine()
 
         # Track IDs for cleanup
@@ -279,29 +281,6 @@ class TestScheduleCohort:
             # Close engine so next test gets a fresh one in its event loop
             await close_engine()
 
-    @pytest.mark.skip(
-        reason="""
-        Event loop mismatch between test fixture and core function.
-
-        This test fails because:
-        1. The committed_db_conn fixture calls get_engine() from core.database.
-        2. get_engine() returns the global singleton engine, which was created
-           in a DIFFERENT event loop than the one running this test.
-        3. schedule_cohort() also uses get_transaction() internally, which
-           accesses the same singleton engine.
-        4. asyncpg fails with "Future attached to a different loop".
-
-        The schedule_cohort function works correctly in production (single event loop).
-        The issue is purely test isolation - the fixture and the function under test
-        both need to use the SAME engine instance, but the singleton pattern prevents
-        creating a test-specific engine.
-
-        Fix options (for later):
-        - Refactor get_engine() to accept an optional event loop parameter
-        - Use a session-scoped event loop for all tests
-        - Refactor schedule_cohort to accept an optional connection parameter
-        """
-    )
     @pytest.mark.asyncio
     async def test_schedule_cohort_creates_groups(self, committed_db_conn):
         """Should create groups when cohort has 4+ users with overlapping availability."""
@@ -339,9 +318,6 @@ class TestScheduleCohort:
         assert result.users_grouped == 4
         assert result.users_ungroupable == 0
 
-    @pytest.mark.skip(
-        reason="Event loop mismatch - see test_schedule_cohort_creates_groups for details"
-    )
     @pytest.mark.asyncio
     async def test_schedule_cohort_no_users(self, committed_db_conn):
         """Should return empty result when cohort has no users."""
@@ -364,9 +340,6 @@ class TestScheduleCohort:
         assert result.users_ungroupable == 0
         assert result.groups == []
 
-    @pytest.mark.skip(
-        reason="Event loop mismatch - see test_schedule_cohort_creates_groups for details"
-    )
     @pytest.mark.asyncio
     async def test_schedule_cohort_raises_error_for_invalid_cohort(
         self, committed_db_conn
@@ -377,9 +350,6 @@ class TestScheduleCohort:
         with pytest.raises(ValueError, match="not found"):
             await schedule_cohort(cohort_id=999999)
 
-    @pytest.mark.skip(
-        reason="Event loop mismatch - see test_schedule_cohort_creates_groups for details"
-    )
     @pytest.mark.asyncio
     async def test_schedule_cohort_assigns_facilitator_role(self, committed_db_conn):
         """Should preserve facilitator role when creating groups."""
@@ -428,9 +398,6 @@ class TestScheduleCohort:
         # (schedule_cohort checks role and sets role accordingly)
         assert len(result.groups) >= 1
 
-    @pytest.mark.skip(
-        reason="Event loop mismatch - see test_schedule_cohort_creates_groups for details"
-    )
     @pytest.mark.asyncio
     async def test_schedule_cohort_more_students_than_facilitator_capacity(
         self, committed_db_conn
@@ -476,9 +443,6 @@ class TestScheduleCohort:
         # This test documents the behavior and will change when we add max_groups support
         assert result.groups_created >= 1
 
-    @pytest.mark.skip(
-        reason="Event loop mismatch - see test_schedule_cohort_creates_groups for details"
-    )
     @pytest.mark.asyncio
     async def test_schedule_cohort_facilitator_no_overlap_with_students(
         self, committed_db_conn
@@ -523,9 +487,6 @@ class TestScheduleCohort:
         # All 7 users (1 facilitator + 6 students) should be ungroupable
         assert result.users_ungroupable == 7
 
-    @pytest.mark.skip(
-        reason="Event loop mismatch - see test_schedule_cohort_creates_groups for details"
-    )
     @pytest.mark.asyncio
     async def test_schedule_cohort_no_facilitators_creates_groups(
         self, committed_db_conn
@@ -561,9 +522,6 @@ class TestScheduleCohort:
         assert result.users_grouped == 10
         assert result.users_ungroupable == 0
 
-    @pytest.mark.skip(
-        reason="Event loop mismatch - see test_schedule_cohort_creates_groups for details"
-    )
     @pytest.mark.asyncio
     async def test_schedule_cohort_verifies_facilitator_in_groups_users(
         self, committed_db_conn
@@ -621,9 +579,6 @@ class TestScheduleCohort:
             if user_id in roles:
                 assert roles[user_id].value == "participant"
 
-    @pytest.mark.skip(
-        reason="Event loop mismatch - see test_schedule_cohort_creates_groups for details"
-    )
     @pytest.mark.asyncio
     async def test_schedule_cohort_returns_ungroupable_details(self, committed_db_conn):
         """Ungroupable users should have diagnostic details explaining why."""
@@ -668,8 +623,8 @@ class TestScheduleCohort:
         assert len(result.ungroupable_details) == 7
 
         # Check that reasons are populated
-        from core.scheduling import UngroupableReason
+        from core.enums import UngroupableReason
 
         reasons = {d.reason for d in result.ungroupable_details}
-        # Students should have NO_FACILITATOR_OVERLAP reason
-        assert UngroupableReason.NO_FACILITATOR_OVERLAP in reasons
+        # Students should have no_facilitator_overlap reason
+        assert UngroupableReason.no_facilitator_overlap in reasons

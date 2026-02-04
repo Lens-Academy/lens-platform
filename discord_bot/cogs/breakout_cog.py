@@ -12,13 +12,13 @@ from discord.ext import commands
 from dataclasses import dataclass, field
 import random
 
+from test_bot_manager import test_bot_manager
+
 # How long to lock users out of the main room (seconds)
 LOCKOUT_DURATION = 15
 
 # Countdown before collecting everyone back (seconds)
 COLLECT_COUNTDOWN = 20
-
-from test_bot_manager import test_bot_manager
 
 
 @dataclass
@@ -33,8 +33,15 @@ class BreakoutSession:
 
 # Keycap emoji for numbers 1-9
 KEYCAPS = {
-    1: "1️⃣", 2: "2️⃣", 3: "3️⃣", 4: "4️⃣", 5: "5️⃣",
-    6: "6️⃣", 7: "7️⃣", 8: "8️⃣", 9: "9️⃣",
+    1: "1️⃣",
+    2: "2️⃣",
+    3: "3️⃣",
+    4: "4️⃣",
+    5: "5️⃣",
+    6: "6️⃣",
+    7: "7️⃣",
+    8: "8️⃣",
+    9: "9️⃣",
 }
 
 # Max people per breakout room
@@ -85,7 +92,13 @@ class TimerModal(discord.ui.Modal, title="Custom Timer"):
         max_length=3,
     )
 
-    def __init__(self, cog: "BreakoutCog", num_groups: int, include_bots: bool, include_self: bool):
+    def __init__(
+        self,
+        cog: "BreakoutCog",
+        num_groups: int,
+        include_bots: bool,
+        include_self: bool,
+    ):
         super().__init__()
         self.cog = cog
         self.num_groups = num_groups
@@ -134,34 +147,46 @@ class TimerSelectView(discord.ui.View):
         self.distribution_label = distribution_label
 
     @discord.ui.button(label="4 min", style=discord.ButtonStyle.primary, row=0)
-    async def timer_4(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def timer_4(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
         await self.cog.run_breakout(
             interaction, self.num_groups, self.include_bots, self.include_self, 4
         )
         self.stop()
 
     @discord.ui.button(label="6 min", style=discord.ButtonStyle.primary, row=0)
-    async def timer_6(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def timer_6(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
         await self.cog.run_breakout(
             interaction, self.num_groups, self.include_bots, self.include_self, 6
         )
         self.stop()
 
     @discord.ui.button(label="8 min", style=discord.ButtonStyle.primary, row=0)
-    async def timer_8(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def timer_8(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
         await self.cog.run_breakout(
             interaction, self.num_groups, self.include_bots, self.include_self, 8
         )
         self.stop()
 
     @discord.ui.button(label="Custom", style=discord.ButtonStyle.secondary, row=0)
-    async def timer_custom(self, interaction: discord.Interaction, button: discord.ui.Button):
-        modal = TimerModal(self.cog, self.num_groups, self.include_bots, self.include_self)
+    async def timer_custom(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        modal = TimerModal(
+            self.cog, self.num_groups, self.include_bots, self.include_self
+        )
         await interaction.response.send_modal(modal)
         self.stop()
 
     @discord.ui.button(label="No limit", style=discord.ButtonStyle.secondary, row=0)
-    async def timer_none(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def timer_none(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
         await self.cog.run_breakout(
             interaction, self.num_groups, self.include_bots, self.include_self, None
         )
@@ -207,12 +232,14 @@ class BreakoutView(discord.ui.View):
 
     def _get_participant_count(self) -> int:
         """Get current participant count based on toggle settings."""
-        return len([
-            m
-            for m in self.channel.members
-            if (self.include_self or m.id != self.facilitator_id)
-            and (self.include_bots or not m.bot)
-        ])
+        return len(
+            [
+                m
+                for m in self.channel.members
+                if (self.include_self or m.id != self.facilitator_id)
+                and (self.include_bots or not m.bot)
+            ]
+        )
 
     def _rebuild_distribution_buttons(self):
         """Rebuild the distribution buttons based on current settings."""
@@ -265,6 +292,7 @@ class BreakoutView(discord.ui.View):
 
     def _make_distribution_callback(self, num_groups: int, label: str):
         """Create a callback for a distribution button."""
+
         async def callback(interaction: discord.Interaction):
             # Show timer selection view
             embed = discord.Embed(
@@ -277,6 +305,7 @@ class BreakoutView(discord.ui.View):
             )
             await interaction.response.edit_message(embed=embed, view=view)
             self.stop()
+
         return callback
 
     async def toggle_bots(self, interaction: discord.Interaction):
@@ -305,7 +334,9 @@ class BreakoutView(discord.ui.View):
 class CollectView(discord.ui.View):
     """Button to collect everyone from breakout rooms."""
 
-    def __init__(self, cog: "BreakoutCog", room_buttons: list[discord.ui.Button] = None):
+    def __init__(
+        self, cog: "BreakoutCog", room_buttons: list[discord.ui.Button] = None
+    ):
         super().__init__(timeout=None)  # No timeout - button stays active
         self.cog = cog
 
@@ -531,7 +562,9 @@ class BreakoutCog(commands.Cog):
         # Notify in source channel
         if source_channel:
             try:
-                await source_channel.send(f"✅ Breakout ended! Collected {collected_count} users.")
+                await source_channel.send(
+                    f"✅ Breakout ended! Collected {collected_count} users."
+                )
             except discord.HTTPException:
                 pass
 
@@ -622,9 +655,7 @@ class BreakoutCog(commands.Cog):
 
                 # Build room assignment text and button
                 member_names = [m.display_name for m in group]
-                room_assignments.append(
-                    f"**Breakout {i}:** {', '.join(member_names)}"
-                )
+                room_assignments.append(f"**Breakout {i}:** {', '.join(member_names)}")
                 # Create link button for this room
                 # Truncate names if too long for button label (max 80 chars)
                 names_str = ", ".join(member_names)
@@ -661,7 +692,11 @@ class BreakoutCog(commands.Cog):
             )
 
             # Send popup messages before moving (users can still see main room)
-            duration_msg = f"{timer_minutes} minute breakout" if timer_minutes else "Breakout starting"
+            duration_msg = (
+                f"{timer_minutes} minute breakout"
+                if timer_minutes
+                else "Breakout starting"
+            )
             try:
                 await source_channel.send(f"👋 {duration_msg}!")
                 await source_channel.send("Switch your screen to see your group.")
@@ -758,14 +793,20 @@ class BreakoutCog(commands.Cog):
         view = BreakoutView(self, channel, member.id)
         await interaction.response.send_message(embed=embed, view=view)
 
-    async def run_collect(self, interaction: discord.Interaction, countdown: bool = True):
+    async def run_collect(
+        self, interaction: discord.Interaction, countdown: bool = True
+    ):
         """Core collect logic - can be called from command or button."""
         guild = interaction.guild
         member = interaction.user
 
         # Find session based on user's current voice channel
-        user_channel_id = member.voice.channel.id if member.voice and member.voice.channel else None
-        session = self._find_session_for_channel(user_channel_id) if user_channel_id else None
+        user_channel_id = (
+            member.voice.channel.id if member.voice and member.voice.channel else None
+        )
+        session = (
+            self._find_session_for_channel(user_channel_id) if user_channel_id else None
+        )
 
         if not session:
             await self._send_response(
@@ -892,9 +933,7 @@ class BreakoutCog(commands.Cog):
     @app_commands.describe(
         immediate="Skip the countdown warning (collect immediately)",
     )
-    async def collect(
-        self, interaction: discord.Interaction, immediate: bool = False
-    ):
+    async def collect(self, interaction: discord.Interaction, immediate: bool = False):
         """Move all users from breakout channels back and clean up."""
         await self.run_collect(interaction, countdown=not immediate)
 

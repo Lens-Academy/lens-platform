@@ -186,12 +186,6 @@ class TestIsFacilitatorByUserId:
 class TestBecomeFacilitator:
     """Tests for become_facilitator function."""
 
-    @pytest.mark.skip(
-        reason="""
-        Event loop mismatch between test fixture and core function.
-        See test_returns_true_if_already_facilitator for detailed explanation.
-        """
-    )
     @pytest.mark.asyncio
     async def test_adds_user_to_facilitators(self, db_conn):
         """Should add user to facilitators table."""
@@ -213,29 +207,6 @@ class TestBecomeFacilitator:
 
         assert result is True
 
-    @pytest.mark.skip(
-        reason="""
-        Event loop mismatch between test fixture and core function.
-
-        This test fails because:
-        1. The test fixture (db_conn) creates a fresh SQLAlchemy engine per test
-           to avoid event loop conflicts between tests.
-        2. The test sets up data using db_conn, then calls become_facilitator().
-        3. become_facilitator() internally uses get_transaction() which accesses
-           the global singleton engine from core.database.
-        4. That singleton engine was created in a DIFFERENT event loop than the
-           one running this test, causing "Future attached to a different loop".
-
-        The core function works correctly in production (single event loop).
-        The issue is purely test isolation - these "integration" functions don't
-        accept a connection parameter, so they can't share the test's transaction.
-
-        Fix options (for later):
-        - Refactor core functions to accept optional connection parameter
-        - Use a single session-scoped event loop for all tests
-        - Mock the database layer in these tests
-        """
-    )
     @pytest.mark.asyncio
     async def test_returns_true_if_already_facilitator(self, db_conn):
         """Should return True even if already a facilitator."""
@@ -258,12 +229,6 @@ class TestBecomeFacilitator:
 
         assert result is True
 
-    @pytest.mark.skip(
-        reason="""
-        Event loop mismatch between test fixture and core function.
-        See test_returns_true_if_already_facilitator for detailed explanation.
-        """
-    )
     @pytest.mark.asyncio
     async def test_returns_false_if_user_doesnt_exist(self, db_conn):
         """Should return False if user doesn't exist."""
@@ -278,19 +243,6 @@ from core.users import enroll_in_cohort
 class TestEnrollInCohort:
     """Tests for enroll_in_cohort function."""
 
-    @pytest.mark.skip(
-        reason="""
-        Event loop mismatch between test fixture and core function.
-
-        This test fails because enroll_in_cohort() uses get_transaction() internally,
-        which accesses the global singleton engine. The test fixture creates a fresh
-        engine per test to avoid event loop conflicts, but the core function's engine
-        was created in a different event loop.
-
-        See test_returns_true_if_already_facilitator for detailed explanation.
-        The core function works correctly in production (single event loop).
-        """
-    )
     @pytest.mark.asyncio
     async def test_creates_enrollment_record(self, db_conn):
         """Should create signup record."""
@@ -328,12 +280,6 @@ class TestEnrollInCohort:
         assert result["cohort_id"] == cohort["cohort_id"]
         assert result["role"] == "participant"
 
-    @pytest.mark.skip(
-        reason="""
-        Event loop mismatch between test fixture and core function.
-        See test_returns_true_if_already_facilitator for detailed explanation.
-        """
-    )
     @pytest.mark.asyncio
     async def test_enrolls_as_facilitator(self, db_conn):
         """Should create enrollment record with facilitator role."""
@@ -370,19 +316,6 @@ class TestEnrollInCohort:
         assert result is not None
         assert result["role"] == "facilitator"
 
-    @pytest.mark.skip(
-        reason="""
-        Event loop mismatch between test fixture and core function.
-
-        This test fails because enroll_in_cohort() uses get_transaction() internally,
-        which accesses the global singleton engine. The test fixture creates a fresh
-        engine per test to avoid event loop conflicts, but the core function's engine
-        was created in a different event loop.
-
-        See test_returns_true_if_already_facilitator for detailed explanation.
-        The core function works correctly in production (single event loop).
-        """
-    )
     @pytest.mark.asyncio
     async def test_returns_none_for_invalid_cohort(self, db_conn):
         """Should return None if cohort doesn't exist."""
@@ -400,19 +333,6 @@ class TestEnrollInCohort:
 
         assert result is None
 
-    @pytest.mark.skip(
-        reason="""
-        Event loop mismatch between test fixture and core function.
-
-        This test fails because enroll_in_cohort() uses get_transaction() internally,
-        which accesses the global singleton engine. The test fixture creates a fresh
-        engine per test to avoid event loop conflicts, but the core function's engine
-        was created in a different event loop.
-
-        See test_returns_true_if_already_facilitator for detailed explanation.
-        The core function works correctly in production (single event loop).
-        """
-    )
     @pytest.mark.asyncio
     async def test_returns_none_for_invalid_user(self, db_conn):
         """Should return None if user doesn't exist."""

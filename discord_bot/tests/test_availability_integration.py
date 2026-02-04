@@ -332,26 +332,6 @@ class TestAvailabilityLastUpdatedAt:
 
         assert result["availability_last_updated_at"] is None
 
-    @pytest.mark.skip(
-        reason="""
-        Event loop mismatch between test fixture and core function.
-
-        This test fails because update_user_profile() uses get_transaction() internally,
-        which accesses the global singleton engine. The test fixture creates a fresh
-        engine per test to avoid event loop conflicts, but the core function's engine
-        was created in a different event loop.
-
-        The pattern is:
-        1. Test fixture creates fresh engine in event loop A
-        2. Test sets up data using db_conn (engine from loop A)
-        3. Test calls update_user_profile() which uses get_transaction()
-        4. get_transaction() uses the global singleton engine from loop B
-        5. asyncpg fails: "Future attached to a different loop"
-
-        The core function works correctly in production (single event loop).
-        This is purely a test isolation issue.
-        """
-    )
     @pytest.mark.asyncio
     async def test_update_user_profile_sets_timestamp(self, db_conn):
         """update_user_profile should set availability_last_updated_at when availability changes."""

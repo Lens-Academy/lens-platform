@@ -23,10 +23,17 @@ class TestGetRetryDelay:
         assert delay_1 == 2
         assert delay_2 == 4
 
-    def test_caps_at_60_seconds(self):
-        """Delay should never exceed 60 seconds."""
-        delay = get_retry_delay(attempt=10, include_jitter=False)
-        assert delay == 60
+    def test_caps_at_30_minutes(self):
+        """Delay should cap at 1800 seconds (30 minutes)."""
+        # At attempt 10: 2^10 = 1024 (below cap)
+        delay_10 = get_retry_delay(attempt=10, include_jitter=False)
+        assert delay_10 == 1024
+        # At attempt 11: 2^11 = 2048, but capped at 1800
+        delay_11 = get_retry_delay(attempt=11, include_jitter=False)
+        assert delay_11 == 1800
+        # At attempt 20: still capped at 1800
+        delay_20 = get_retry_delay(attempt=20, include_jitter=False)
+        assert delay_20 == 1800
 
     def test_includes_jitter_by_default(self):
         """Should add random jitter to prevent thundering herd."""

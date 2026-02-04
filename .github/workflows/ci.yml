@@ -51,6 +51,17 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: content_processor/package-lock.json
+
+      - name: Install content processor dependencies
+        run: npm ci
+        working-directory: content_processor
+
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
@@ -66,4 +77,4 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_SERVER_ID: ${{ secrets.DISCORD_SERVER_ID }}
           TEST_CHANNEL_ID: ${{ secrets.TEST_CHANNEL_ID }}
-        run: pytest --tb=short -q
+        run: pytest --tb=short -q --durations=20

@@ -196,10 +196,10 @@ describe("Module rendering tests for all fixtures", () => {
           it("renders module title and slug", () => {
             render(<TestModuleRenderer module={module} />);
             expect(screen.getByTestId("module-title")).toHaveTextContent(
-              module.title
+              module.title,
             );
             expect(screen.getByTestId("module-slug")).toHaveTextContent(
-              module.slug
+              module.slug,
             );
           });
 
@@ -207,7 +207,7 @@ describe("Module rendering tests for all fixtures", () => {
             render(<TestModuleRenderer module={module} />);
             module.sections.forEach((_, sectionIndex) => {
               expect(
-                screen.getByTestId(`section-${sectionIndex}`)
+                screen.getByTestId(`section-${sectionIndex}`),
               ).toBeInTheDocument();
             });
           });
@@ -218,7 +218,7 @@ describe("Module rendering tests for all fixtures", () => {
               const sectionEl = screen.getByTestId(`section-${sectionIndex}`);
               expect(sectionEl).toHaveAttribute(
                 "data-section-type",
-                section.type
+                section.type,
               );
             });
 
@@ -228,8 +228,8 @@ describe("Module rendering tests for all fixtures", () => {
                 section.segments.forEach((_, segIndex) => {
                   expect(
                     screen.getByTestId(
-                      `section-${sectionIndex}-segment-${segIndex}`
-                    )
+                      `section-${sectionIndex}-segment-${segIndex}`,
+                    ),
                   ).toBeInTheDocument();
                 });
               });
@@ -238,11 +238,11 @@ describe("Module rendering tests for all fixtures", () => {
                 it(`section ${sectionIndex} segment ${segIndex} has type: ${segment.type}`, () => {
                   render(<TestModuleRenderer module={module} />);
                   const segmentEl = screen.getByTestId(
-                    `section-${sectionIndex}-segment-${segIndex}`
+                    `section-${sectionIndex}-segment-${segIndex}`,
                   );
                   expect(segmentEl).toHaveAttribute(
                     "data-segment-type",
-                    segment.type
+                    segment.type,
                   );
                 });
               });
@@ -263,7 +263,7 @@ describe("Section type-specific rendering", () => {
     // The section should render even without videoId
     expect(screen.getByTestId("section-0")).toBeInTheDocument();
     expect(screen.getByTestId("section-0-videoId")).toHaveTextContent(
-      "No video ID"
+      "No video ID",
     );
   });
 
@@ -274,7 +274,7 @@ describe("Section type-specific rendering", () => {
 
     expect(screen.getByTestId("section-0")).toBeInTheDocument();
     expect(screen.getByTestId("section-0-videoId")).toHaveTextContent(
-      "dQw4w9WgXcQ"
+      "dQw4w9WgXcQ",
     );
   });
 
@@ -285,7 +285,7 @@ describe("Section type-specific rendering", () => {
     // Section 1 is lens-article
     expect(screen.getByTestId("section-1")).toBeInTheDocument();
     expect(screen.getByTestId("section-1-author")).toHaveTextContent(
-      "Jane Doe"
+      "Jane Doe",
     );
   });
 
@@ -295,7 +295,7 @@ describe("Section type-specific rendering", () => {
 
     expect(screen.getByTestId("section-0")).toBeInTheDocument();
     expect(screen.getByTestId("section-0-title")).toHaveTextContent(
-      "What is AI Safety?"
+      "What is AI Safety?",
     );
   });
 });
@@ -308,7 +308,7 @@ describe("Segment type-specific rendering", () => {
     const segment = screen.getByTestId("section-0-segment-0");
     expect(segment).toHaveAttribute("data-segment-type", "text");
     expect(segment).toHaveTextContent(
-      "This is the core content about AI Safety."
+      "This is the core content about AI Safety.",
     );
   });
 
@@ -320,13 +320,13 @@ describe("Segment type-specific rendering", () => {
     const segment = screen.getByTestId("section-0-segment-1");
     expect(segment).toHaveAttribute("data-segment-type", "video-excerpt");
     expect(screen.getByTestId("section-0-segment-1-from")).toHaveTextContent(
-      "0"
+      "0",
     );
     expect(screen.getByTestId("section-0-segment-1-to")).toHaveTextContent(
-      "60"
+      "60",
     );
     expect(
-      screen.getByTestId("section-0-segment-1-transcript")
+      screen.getByTestId("section-0-segment-1-transcript"),
     ).toHaveTextContent("0:00 - Welcome to AI safety.");
   });
 

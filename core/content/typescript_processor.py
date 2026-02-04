@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class TypeScriptProcessorError(Exception):
     """Raised when TypeScript processing fails."""
+
     pass
 
 
@@ -79,9 +80,7 @@ async def process_content_typescript(files: dict[str, str]) -> dict[str, Any]:
         try:
             result = json.loads(stdout_text)
         except json.JSONDecodeError as e:
-            raise TypeScriptProcessorError(
-                f"TypeScript CLI returned invalid JSON: {e}"
-            )
+            raise TypeScriptProcessorError(f"TypeScript CLI returned invalid JSON: {e}")
 
         logger.info(
             f"TypeScript processed {len(result.get('modules', []))} modules, "
@@ -91,9 +90,7 @@ async def process_content_typescript(files: dict[str, str]) -> dict[str, Any]:
         return result
 
     except FileNotFoundError:
-        raise TypeScriptProcessorError(
-            "npx not found. Is Node.js installed?"
-        )
+        raise TypeScriptProcessorError("npx not found. Is Node.js installed?")
     except Exception as e:
         if isinstance(e, TypeScriptProcessorError):
             raise

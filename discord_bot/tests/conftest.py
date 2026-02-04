@@ -52,11 +52,14 @@ async def db_conn():
     All changes made during the test are visible within the test,
     but rolled back afterward so DB stays clean.
 
-    Creates a fresh engine per test to avoid event loop issues.
+    Creates a fresh engine per test and injects it into core.database
+    so that functions using get_connection()/get_transaction() use the
+    same engine (avoiding event loop mismatch).
     """
     load_dotenv(".env.local")
 
     import os
+    from core.database import set_engine
 
     database_url = os.environ.get("DATABASE_URL", "")
     if database_url.startswith("postgresql://"):
@@ -68,6 +71,10 @@ async def db_conn():
         connect_args={"statement_cache_size": 0},
     )
 
+    # Inject engine into core.database singleton so functions using
+    # get_connection()/get_transaction() use this same engine
+    set_engine(engine)
+
     async with engine.connect() as conn:
         txn = await conn.begin()
         try:
@@ -75,4 +82,6 @@ async def db_conn():
         finally:
             await txn.rollback()
 
+    # Clean up: remove injected engine
+    set_engine(None)
     await engine.dispose()

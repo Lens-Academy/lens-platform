@@ -12,6 +12,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Install content processor dependencies (TypeScript parser for educational content)
+WORKDIR /app/content_processor
+RUN npm ci
+
 # Build frontend
 WORKDIR /app/web_frontend
 RUN npm ci && npm run build

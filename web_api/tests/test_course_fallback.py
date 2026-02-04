@@ -3,7 +3,6 @@
 
 import pytest
 from datetime import datetime
-from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -20,6 +19,7 @@ from core.modules.flattened_types import (
 def app():
     """Create FastAPI app for testing."""
     from main import app
+
     return app
 
 
@@ -79,7 +79,9 @@ class TestCourseFallback:
         response = client.get("/api/courses/nonexistent-slug/progress")
 
         # Should NOT return 404
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"Expected 200, got {response.status_code}: {response.text}"
+        )
 
         data = response.json()
 

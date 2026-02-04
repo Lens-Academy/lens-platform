@@ -434,8 +434,9 @@ async def _check_module_progress(
                     cohorts.c.course_slug,
                 )
                 .select_from(
-                    meetings.join(groups, meetings.c.group_id == groups.c.group_id)
-                    .join(cohorts, groups.c.cohort_id == cohorts.c.cohort_id)
+                    meetings.join(
+                        groups, meetings.c.group_id == groups.c.group_id
+                    ).join(cohorts, groups.c.cohort_id == cohorts.c.cohort_id)
                 )
                 .where(meetings.c.meeting_id == meeting_id)
             )
@@ -495,8 +496,10 @@ async def _check_module_progress(
 
                 # Count completed modules
                 completed = sum(
-                    1 for content_id in module_content_ids
-                    if content_id in progress and progress[content_id].get("completed_at")
+                    1
+                    for content_id in module_content_ids
+                    if content_id in progress
+                    and progress[content_id].get("completed_at")
                 )
 
                 completion_rate = completed / len(module_content_ids)

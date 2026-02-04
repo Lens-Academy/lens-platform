@@ -78,7 +78,7 @@ describe("CourseOverview Contract Tests", () => {
 
     // Collect all unique module titles from the fixture
     const allModuleTitles = courseProgressFixture.units.flatMap((unit) =>
-      unit.modules.map((m) => m.title)
+      unit.modules.map((m) => m.title),
     );
     const uniqueTitles = [...new Set(allModuleTitles)];
 
@@ -86,7 +86,7 @@ describe("CourseOverview Contract Tests", () => {
       // At least some module titles should be rendered
       // Use queryAllByText to handle multiple matches
       const foundTitles = uniqueTitles.filter(
-        (title) => screen.queryAllByText(title).length > 0
+        (title) => screen.queryAllByText(title).length > 0,
       );
       expect(foundTitles.length).toBeGreaterThan(0);
     });

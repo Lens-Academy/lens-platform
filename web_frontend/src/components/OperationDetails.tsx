@@ -43,7 +43,9 @@ function CountBadge({
   };
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[variant]}`}>
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[variant]}`}
+    >
       {count} {label}
     </span>
   );
@@ -52,11 +54,7 @@ function CountBadge({
 // Single group result display
 function GroupResultDetails({ result }: { result: GroupSyncResult }) {
   if (result.error) {
-    return (
-      <div className="text-red-600 text-sm">
-        Error: {result.error}
-      </div>
-    );
+    return <div className="text-red-600 text-sm">Error: {result.error}</div>;
   }
 
   if (result.needs_infrastructure) {
@@ -91,10 +89,16 @@ function GroupResultDetails({ result }: { result: GroupSyncResult }) {
                 <span className="text-gray-500 w-24">Meetings:</span>
                 <span>
                   {result.infrastructure.meetings.created > 0 && (
-                    <CountBadge label="created" count={result.infrastructure.meetings.created} variant="success" />
+                    <CountBadge
+                      label="created"
+                      count={result.infrastructure.meetings.created}
+                      variant="success"
+                    />
                   )}
                   {result.infrastructure.meetings.existed > 0 && (
-                    <span className="text-gray-500 ml-1">{result.infrastructure.meetings.existed} existed</span>
+                    <span className="text-gray-500 ml-1">
+                      {result.infrastructure.meetings.existed} existed
+                    </span>
                   )}
                 </span>
               </div>
@@ -103,10 +107,20 @@ function GroupResultDetails({ result }: { result: GroupSyncResult }) {
               <div className="flex gap-2">
                 <span className="text-gray-500 w-24">Discord events:</span>
                 <div className="flex gap-1 flex-wrap">
-                  <CountBadge label="created" count={result.infrastructure.discord_events.created} variant="success" />
-                  <CountBadge label="failed" count={result.infrastructure.discord_events.failed} variant="error" />
+                  <CountBadge
+                    label="created"
+                    count={result.infrastructure.discord_events.created}
+                    variant="success"
+                  />
+                  <CountBadge
+                    label="failed"
+                    count={result.infrastructure.discord_events.failed}
+                    variant="error"
+                  />
                   {result.infrastructure.discord_events.existed > 0 && (
-                    <span className="text-gray-500">{result.infrastructure.discord_events.existed} existed</span>
+                    <span className="text-gray-500">
+                      {result.infrastructure.discord_events.existed} existed
+                    </span>
                   )}
                 </div>
               </div>
@@ -120,14 +134,30 @@ function GroupResultDetails({ result }: { result: GroupSyncResult }) {
         <div>
           <div className="font-medium text-gray-700">Discord permissions:</div>
           <div className="ml-4 flex gap-2 flex-wrap">
-            <CountBadge label="granted" count={result.discord.granted} variant="success" />
-            <CountBadge label="revoked" count={result.discord.revoked} variant="warning" />
-            <CountBadge label="failed" count={result.discord.failed} variant="error" />
+            <CountBadge
+              label="granted"
+              count={result.discord.granted}
+              variant="success"
+            />
+            <CountBadge
+              label="revoked"
+              count={result.discord.revoked}
+              variant="warning"
+            />
+            <CountBadge
+              label="failed"
+              count={result.discord.failed}
+              variant="error"
+            />
             {result.discord.unchanged > 0 && (
-              <span className="text-gray-500 text-xs">{result.discord.unchanged} unchanged</span>
+              <span className="text-gray-500 text-xs">
+                {result.discord.unchanged} unchanged
+              </span>
             )}
             {result.discord.error && (
-              <span className="text-red-600 text-xs">Error: {result.discord.error}</span>
+              <span className="text-red-600 text-xs">
+                Error: {result.discord.error}
+              </span>
             )}
           </div>
         </div>
@@ -139,15 +169,31 @@ function GroupResultDetails({ result }: { result: GroupSyncResult }) {
           <div className="font-medium text-gray-700">Calendar:</div>
           <div className="ml-4 flex gap-2 flex-wrap">
             {result.calendar.created_recurring && (
-              <CountBadge label="recurring event created" count={1} variant="success" />
+              <CountBadge
+                label="recurring event created"
+                count={1}
+                variant="success"
+              />
             )}
-            <CountBadge label="patched" count={result.calendar.patched} variant="success" />
-            <CountBadge label="failed" count={result.calendar.failed} variant="error" />
+            <CountBadge
+              label="patched"
+              count={result.calendar.patched}
+              variant="success"
+            />
+            <CountBadge
+              label="failed"
+              count={result.calendar.failed}
+              variant="error"
+            />
             {result.calendar.reason && (
-              <span className="text-gray-500 text-xs">{result.calendar.reason}</span>
+              <span className="text-gray-500 text-xs">
+                {result.calendar.reason}
+              </span>
             )}
             {result.calendar.error && (
-              <span className="text-red-600 text-xs">Error: {result.calendar.error}</span>
+              <span className="text-red-600 text-xs">
+                Error: {result.calendar.error}
+              </span>
             )}
           </div>
         </div>
@@ -164,17 +210,24 @@ function GroupResultDetails({ result }: { result: GroupSyncResult }) {
       )}
 
       {/* Notifications */}
-      {result.notifications && (result.notifications.sent > 0 || result.notifications.skipped > 0) && (
-        <div>
-          <div className="font-medium text-gray-700">Notifications:</div>
-          <div className="ml-4 flex gap-2 flex-wrap">
-            <CountBadge label="sent" count={result.notifications.sent} variant="success" />
-            {result.notifications.skipped > 0 && (
-              <span className="text-gray-500 text-xs">{result.notifications.skipped} skipped (already sent)</span>
-            )}
+      {result.notifications &&
+        (result.notifications.sent > 0 || result.notifications.skipped > 0) && (
+          <div>
+            <div className="font-medium text-gray-700">Notifications:</div>
+            <div className="ml-4 flex gap-2 flex-wrap">
+              <CountBadge
+                label="sent"
+                count={result.notifications.sent}
+                variant="success"
+              />
+              {result.notifications.skipped > 0 && (
+                <span className="text-gray-500 text-xs">
+                  {result.notifications.skipped} skipped (already sent)
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }
@@ -206,7 +259,8 @@ export function CohortOperationDetails({
   return (
     <div className="mt-2">
       <div className="text-sm text-gray-600 mb-2">
-        {operationType === "sync" ? "Synced" : "Realized"} {count} group{count !== 1 ? "s" : ""}
+        {operationType === "sync" ? "Synced" : "Realized"} {count} group
+        {count !== 1 ? "s" : ""}
       </div>
 
       {result.results && result.results.length > 0 && (
@@ -218,7 +272,9 @@ export function CohortOperationDetails({
                 className="w-full px-3 py-2 text-left text-sm font-medium flex justify-between items-center hover:bg-gray-100"
               >
                 <span>Group {group_id}</span>
-                <span className="text-gray-400">{expandedGroups.has(group_id) ? "▼" : "▶"}</span>
+                <span className="text-gray-400">
+                  {expandedGroups.has(group_id) ? "▼" : "▶"}
+                </span>
               </button>
               {expandedGroups.has(group_id) && (
                 <div className="px-3 pb-3 border-t bg-white">

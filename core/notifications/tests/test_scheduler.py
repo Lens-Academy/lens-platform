@@ -787,8 +787,12 @@ class TestReminderConfig:
 
         for reminder_type, config in REMINDER_CONFIG.items():
             assert "offset" in config, f"{reminder_type} missing offset"
-            assert "message_template" in config, f"{reminder_type} missing message_template"
-            assert "send_to_channel" in config, f"{reminder_type} missing send_to_channel"
+            assert "message_template" in config, (
+                f"{reminder_type} missing message_template"
+            )
+            assert "send_to_channel" in config, (
+                f"{reminder_type} missing send_to_channel"
+            )
 
     def test_module_nudge_has_condition(self):
         """module_nudge_3d should have a condition for module progress."""
@@ -805,7 +809,9 @@ class TestReminderConfig:
         from core.notifications.scheduler import REMINDER_CONFIG
 
         for reminder_type, config in REMINDER_CONFIG.items():
-            assert config["offset"] < timedelta(0), f"{reminder_type} offset should be negative"
+            assert config["offset"] < timedelta(0), (
+                f"{reminder_type} offset should be negative"
+            )
 
 
 # =============================================================================
@@ -831,9 +837,7 @@ class TestCheckModuleProgressEdgeCases:
         """Should return False if user_ids is empty."""
         from core.notifications.scheduler import _check_module_progress
 
-        result = await _check_module_progress(
-            user_ids=[], meeting_id=42, threshold=0.5
-        )
+        result = await _check_module_progress(user_ids=[], meeting_id=42, threshold=0.5)
         assert result is False
 
     @pytest.mark.asyncio
@@ -858,7 +862,6 @@ class TestCheckModuleProgressEdgeCases:
 
 import pytest_asyncio
 from uuid import UUID
-from datetime import datetime
 from sqlalchemy import text
 
 
@@ -944,7 +947,10 @@ async def test_user_for_progress():
                 VALUES (:discord_id, :username)
                 RETURNING user_id
             """),
-            {"discord_id": f"progress_test_{unique_id}", "username": f"progress_user_{unique_id}"},
+            {
+                "discord_id": f"progress_test_{unique_id}",
+                "username": f"progress_user_{unique_id}",
+            },
         )
         user_id = result.fetchone()[0]
 
@@ -1026,6 +1032,7 @@ async def cleanup_db_engine():
     """Clean up database engine after each test."""
     yield
     from core.database import close_engine
+
     await close_engine()
 
 

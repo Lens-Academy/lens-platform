@@ -139,9 +139,7 @@ async def manual_incremental_refresh(commit_sha: str | None = None):
         return result
     except Exception as e:
         logger.error(f"Incremental refresh failed: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Incremental refresh failed: {e}"
-        )
+        raise HTTPException(status_code=500, detail=f"Incremental refresh failed: {e}")
 
 
 @router.post("/set-commit-sha")

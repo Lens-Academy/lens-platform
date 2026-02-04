@@ -2,7 +2,7 @@
 Test helper functions for creating test data.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.tables import cohorts, users, signups, groups
+from core.tables import cohorts, users, signups, groups, facilitators
 from core.enums import CohortRole
 
 
@@ -87,6 +87,16 @@ async def create_test_user(
             role=role_enum,
         )
     )
+
+    # If facilitator, also add to facilitators table with certification
+    # (the scheduler skips uncertified facilitators)
+    if role == "facilitator":
+        await conn.execute(
+            insert(facilitators).values(
+                user_id=user["user_id"],
+                certified_at=datetime.now(timezone.utc),
+            )
+        )
 
     return user
 

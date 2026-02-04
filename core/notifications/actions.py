@@ -9,7 +9,11 @@ from datetime import datetime
 
 from core.enums import NotificationReferenceType
 from core.notifications.dispatcher import send_notification
-from core.notifications.scheduler import schedule_reminder, cancel_reminders, REMINDER_CONFIG
+from core.notifications.scheduler import (
+    schedule_reminder,
+    cancel_reminders,
+    REMINDER_CONFIG,
+)
 from core.notifications.urls import (
     build_profile_url,
     build_discord_channel_url,

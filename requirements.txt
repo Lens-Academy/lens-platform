@@ -39,4 +39,4 @@ google-auth>=2.25.0
 sentry-sdk[fastapi]>=1.40.0
 
 # Development
-ruff>=0.8.0
+ruff==0.15.0  # Pin version for consistent formatting across envs
