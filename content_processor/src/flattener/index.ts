@@ -112,15 +112,7 @@ export function flattenModule(
         sectionVisitedPaths
       );
       errors.push(...result.errors);
-
-      if (result.section) {
-        flattenedSections.push(result.section);
-      } else if (result.errorMessage) {
-        // Record the first error as the module-level error
-        if (!moduleError) {
-          moduleError = result.errorMessage;
-        }
-      }
+      flattenedSections.push(...result.sections);
     } else if (section.type === 'page') {
       // Page sections don't have LO references, they have inline content
       // Parse the section body for ## Text subsections
@@ -179,41 +171,41 @@ interface FlattenMultipleSectionsResult {
 
 /**
  * Flatten a Learning Outcome section by resolving its LO file and all referenced lenses.
+ * Each lens in the LO becomes its own section.
  */
 function flattenLearningOutcomeSection(
   section: { type: string; title: string; fields: Record<string, string>; line: number },
   modulePath: string,
   files: Map<string, string>,
   visitedPaths: Set<string>
-): FlattenSectionResult {
+): FlattenMultipleSectionsResult {
   const errors: ContentError[] = [];
+  const sections: Section[] = [];
 
   // Get the source wikilink
   const source = section.fields.source;
   if (!source) {
-    const err: ContentError = {
+    errors.push({
       file: modulePath,
       line: section.line,
       message: 'Learning Outcome section missing source:: field',
       suggestion: "Add 'source:: [[../Learning Outcomes/filename.md|Display]]'",
       severity: 'error',
-    };
-    errors.push(err);
-    return { section: null, errors, errorMessage: err.message };
+    });
+    return { sections: [], errors };
   }
 
   // Parse and resolve the wikilink
   const wikilink = parseWikilink(source);
   if (!wikilink) {
-    const err: ContentError = {
+    errors.push({
       file: modulePath,
       line: section.line,
       message: `Invalid wikilink format: ${source}`,
       suggestion: 'Use format [[../Learning Outcomes/filename.md|Display Text]]',
       severity: 'error',
-    };
-    errors.push(err);
-    return { section: null, errors, errorMessage: err.message };
+    });
+    return { sections: [], errors };
   }
 
   const loPathResolved = resolveWikilinkPath(wikilink.path, modulePath);
@@ -221,27 +213,25 @@ function flattenLearningOutcomeSection(
 
   // Get the LO file content
   if (!loPath) {
-    const err: ContentError = {
+    errors.push({
       file: modulePath,
       line: section.line,
       message: `Referenced file not found: ${loPathResolved}`,
       suggestion: 'Check the file path in the wiki-link',
       severity: 'error',
-    };
-    errors.push(err);
-    return { section: null, errors, errorMessage: err.message };
+    });
+    return { sections: [], errors };
   }
 
   // Check for circular reference
   if (visitedPaths.has(loPath)) {
-    const err: ContentError = {
+    errors.push({
       file: modulePath,
       line: section.line,
       message: `Circular reference detected: ${loPath}`,
       severity: 'error',
-    };
-    errors.push(err);
-    return { section: null, errors, errorMessage: err.message };
+    });
+    return { sections: [], errors };
   }
   visitedPaths.add(loPath);
 
@@ -252,33 +242,21 @@ function flattenLearningOutcomeSection(
   errors.push(...loResult.errors);
 
   if (!loResult.learningOutcome) {
-    return {
-      section: null,
-      errors,
-      errorMessage: `Failed to parse Learning Outcome: ${loPath}`,
-    };
+    return { sections: [], errors };
   }
 
   const lo = loResult.learningOutcome;
 
-  // Flatten all lenses in this LO
-  // For now, we'll take all segments from all lenses and combine them
-  const allSegments: Segment[] = [];
-  let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
-  const meta: SectionMeta = { title: section.title };
-  let lensId: string | undefined;
-  let videoId: string | undefined;
-
+  // Each lens becomes its own section
   for (const lensRef of lo.lenses) {
     const lensPath = findFileWithExtension(lensRef.resolvedPath, files);
     if (!lensPath) {
-      const err: ContentError = {
+      errors.push({
         file: loPath,
         message: `Referenced lens file not found: ${lensRef.resolvedPath}`,
         suggestion: 'Check the file path in the wiki-link',
         severity: 'error',
-      };
-      errors.push(err);
+      });
       continue;
     }
 
@@ -305,8 +283,11 @@ function flattenLearningOutcomeSection(
 
     const lens = lensResult.lens;
 
-    // Capture the lens ID (use the last successfully parsed lens's ID)
-    lensId = lens.id;
+    // Each lens becomes its own section
+    let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
+    const meta: SectionMeta = { title: section.title };
+    const segments: Segment[] = [];
+    let videoId: string | undefined;
 
     // Process each section in the lens
     for (const lensSection of lens.sections) {
@@ -381,23 +362,26 @@ function flattenLearningOutcomeSection(
         errors.push(...segmentResult.errors);
 
         if (segmentResult.segment) {
-          allSegments.push(segmentResult.segment);
+          segments.push(segmentResult.segment);
         }
       }
     }
+
+    // Create a section for this lens
+    const resultSection: Section = {
+      type: sectionType,
+      meta,
+      segments,
+      optional: section.fields.optional === 'true',
+      learningOutcomeId: lo.id ?? null,
+      contentId: lens.id ?? null,
+      videoId: videoId ?? null,
+    };
+
+    sections.push(resultSection);
   }
 
-  const resultSection: Section = {
-    type: sectionType,
-    meta,
-    segments: allSegments,
-    optional: section.fields.optional === 'true',
-    learningOutcomeId: lo.id ?? null,
-    contentId: lensId ?? null,
-    videoId: videoId ?? null,
-  };
-
-  return { section: resultSection, errors };
+  return { sections, errors };
 }
 
 /**

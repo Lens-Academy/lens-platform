@@ -47,8 +47,8 @@
         {
           "type": "lens-article",
           "meta": {
-            "title": "Speculations Concerning the First Ultraintelligent Machine",
-            "author": "Irving John Good"
+            "title": "Cascades, Cycles, Insight... — LessWrong",
+            "author": "Eliezer Yudkowsky"
           },
           "segments": [
             {
@@ -66,7 +66,20 @@
             {
               "type": "chat",
               "instructions": "TLDR of what the user just read:\nAn article that explains positive feedback loops especially with regards to civilisational competence. It explains \"cascades\" as breakthroughs which probabilisticly  opens up other breakthroughs in related fields and \"cycles\" as processes which generate some excess quantity that can be reinvested into the same process. Examples provided are neutron multiplication in radioactive materials as a cycle  and the development of writing leading to various civilisational breakthroughs as a cascade. \n\ntopics to explore:\n- Does it seem like intelligence has some universal equivalent that can be directly reinvested?\n- What is AI's neutron multiplication factor?\n- What are the properties that make something a cycle?\n- How do cycles and cascades cause discontinuity in an otherwise gradual growth?\n- How applicable do these concepts seem to artificial intelligence?\n\nThis is a good stage to raise worry about the ability to predict a system's abilities at time t+1 based on its abilities at time t."
-            },
+            }
+          ],
+          "optional": false,
+          "learningOutcomeId": "7635aa6d-ce02-407d-a1ad-0247479b963c",
+          "contentId": "3dd47fce-a0fe-4e03-916d-a160fe697dd0",
+          "videoId": null
+        },
+        {
+          "type": "lens-article",
+          "meta": {
+            "title": "Speculations Concerning the First Ultraintelligent Machine",
+            "author": "Irving John Good"
+          },
+          "segments": [
             {
               "type": "text",
               "content": "The issue with self amplifying loops is that plans become obsolete very quickly. The system a few steps down the line will be dominated by effects that are almost impossible to foresee from the starting line. I.J. Good recognised this when he wrote the following:"
@@ -96,8 +109,8 @@
         {
           "type": "lens-article",
           "meta": {
-            "title": "...Recursion, Magic — LessWrong",
-            "author": "Eliezer Yudkowsky"
+            "title": "What are the differences between a singularity, an intelligence explosion, and a hard takeoff?",
+            "author": "AISafety.info"
           },
           "segments": [
             {
@@ -119,7 +132,20 @@
             {
               "type": "chat",
               "instructions": "The user just read \"What are the differences between a singularity, an intelligence explosion, and a hard takeoff?\" Help them with any questions they have, ideally Socratic style."
-            },
+            }
+          ],
+          "optional": false,
+          "learningOutcomeId": "5ed688d4-61bf-4df7-8a87-9b3bfd1776c4",
+          "contentId": "c42889f8-e7bc-4e36-a3b6-faf408280102",
+          "videoId": null
+        },
+        {
+          "type": "lens-article",
+          "meta": {
+            "title": "...Recursion, Magic — LessWrong",
+            "author": "Eliezer Yudkowsky"
+          },
+          "segments": [
             {
               "type": "text",
               "content": "Getting to plug the outputs of a process back into the input does not necessarily lead to an explosion though. Consider the case of EURISKO:"
@@ -166,11 +192,10 @@
           "videoId": null
         },
         {
-          "type": "lens-article",
+          "type": "lens-video",
           "meta": {
-            "title": "Existential risk from artificial intelligence",
-            "channel": "Kurzgesagt – In a Nutshell",
-            "author": "Wikipedia"
+            "title": "A.I. ‐ Humanity's Final Invention?",
+            "channel": "Kurzgesagt – In a Nutshell"
           },
           "segments": [
             {
@@ -190,7 +215,20 @@
             {
               "type": "chat",
               "instructions": "TLDR of what the user just watched:\nHumans dominate Earth because general intelligence enabled cumulative knowledge. Modern AI evolved from narrow tools into opaque \"black box\" learning systems. AGI matters because digital minds can run faster, scale, and be copied—potentially outcompeting humans and concentrating power. An intelligence explosion could lead to superintelligence with uncertain outcomes.\n\nDiscussion topics to explore:\n- What is intelligence as \"problem-solving ability\" and why is it a source of power?\n- Why are neural networks called \"black boxes\"?\n- What's the difference between narrow AI (like ChatGPT) and AGI?\n- How could an \"intelligence explosion\" happen through recursive self-improvement?\n\nUse Socratic questioning to check their understanding of these concepts. Don't lecture—help them articulate their own thinking.\n\nThe user has just answered the following question: \"What surprised you or stood out to you while watching this video?\""
-            },
+            }
+          ],
+          "optional": false,
+          "learningOutcomeId": "e8f86891-a3b8-4176-b917-044b4015e0bd",
+          "contentId": "8a701cd5-82b1-46a2-8ebb-e08d10588177",
+          "videoId": "fa8k8IQ1_X0"
+        },
+        {
+          "type": "lens-article",
+          "meta": {
+            "title": "Existential risk from artificial intelligence",
+            "author": "Wikipedia"
+          },
+          "segments": [
             {
               "type": "text",
               "content": "We continue with an overview of the main concepts regarding AI as a source of existential threat: what capabilities of this technology are considered first and foremost, and why the task of eliminating AI risks differs from similar tasks for other impressive technologies created by humanity."
@@ -211,7 +249,7 @@
           "optional": false,
           "learningOutcomeId": "e8f86891-a3b8-4176-b917-044b4015e0bd",
           "contentId": "01f6df31-099f-48ed-adef-773cc4f947e4",
-          "videoId": "fa8k8IQ1_X0"
+          "videoId": null
         },
         {
           "type": "lens-video",

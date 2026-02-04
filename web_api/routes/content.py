@@ -88,7 +88,7 @@ async def github_webhook(
 @router.post("/refresh")
 async def manual_refresh():
     """
-    Manually refresh the content cache.
+    Manually refresh the content cache (full refresh).
 
     For local development when webhooks aren't available.
     TODO: Add admin authentication
@@ -98,10 +98,70 @@ async def manual_refresh():
     try:
         await refresh_cache()
         logger.info("Content cache refreshed successfully via manual request")
-        return {"status": "ok", "message": "Cache refreshed"}
+        return {"status": "ok", "message": "Cache refreshed (full)"}
     except Exception as e:
         logger.error(f"Cache refresh failed: {e}")
         raise HTTPException(status_code=500, detail=f"Cache refresh failed: {e}")
+
+
+@router.post("/refresh-incremental")
+async def manual_incremental_refresh(commit_sha: str | None = None):
+    """
+    Manually trigger an incremental refresh (dev only).
+
+    Simulates a GitHub webhook without signature verification.
+    If commit_sha is not provided, fetches the latest from GitHub.
+
+    TODO: Add admin authentication or disable in production
+    """
+    import httpx
+
+    from core.content.github_fetcher import CONTENT_REPO, get_content_branch
+
+    # If no commit SHA provided, fetch the latest from GitHub
+    if not commit_sha:
+        branch = get_content_branch()
+        url = f"https://api.github.com/repos/{CONTENT_REPO}/commits/{branch}"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Failed to fetch latest commit: {resp.status_code}",
+                )
+            commit_sha = resp.json()["sha"]
+
+    logger.info(f"Manual incremental refresh requested for commit {commit_sha[:8]}...")
+
+    try:
+        result = await handle_content_update(commit_sha)
+        logger.info(f"Incremental refresh completed: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Incremental refresh failed: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Incremental refresh failed: {e}"
+        )
+
+
+@router.post("/set-commit-sha")
+async def set_commit_sha(commit_sha: str):
+    """
+    Set the cache's commit SHA (dev only, for testing incremental refresh).
+
+    This allows simulating being at an older commit to test incremental updates.
+    """
+    try:
+        cache = get_cache()
+        old_sha = cache.last_commit_sha
+        cache.last_commit_sha = commit_sha
+        return {
+            "status": "ok",
+            "old_commit_sha": old_sha,
+            "new_commit_sha": commit_sha,
+        }
+    except CacheNotInitializedError:
+        raise HTTPException(status_code=400, detail="Cache not initialized")
 
 
 @router.get("/cache-status")

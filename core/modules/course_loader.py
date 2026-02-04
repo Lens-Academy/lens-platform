@@ -2,7 +2,7 @@
 """Load course definitions from cache."""
 
 from core.content import get_cache
-from core.modules.markdown_parser import ParsedCourse, ModuleRef, MeetingMarker
+from core.modules.flattened_types import ParsedCourse, ModuleRef, MeetingMarker
 from .loader import load_narrative_module, ModuleNotFoundError
 
 

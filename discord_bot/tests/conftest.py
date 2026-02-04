@@ -17,7 +17,7 @@ def init_content_cache():
     load_course("default") will find the mock course in the cache.
     """
     from core.content.cache import set_cache, clear_cache, ContentCache
-    from core.modules.markdown_parser import ParsedCourse
+    from core.modules.flattened_types import ParsedCourse
 
     # Create minimal cache with "default" course
     test_cache = ContentCache(

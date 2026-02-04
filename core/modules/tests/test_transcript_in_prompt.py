@@ -4,9 +4,12 @@ End-to-end test verifying video transcripts reach the AI tutor prompt.
 
 This traces the full path:
 1. Cache has video_timestamps populated
-2. bundle_video_section() extracts transcript using get_text_at_time()
+2. TypeScript processor extracts transcript using timestamp data
 3. gather_section_context() includes transcript in context
 4. _build_system_prompt() includes context in prompt
+
+NOTE: bundle_video_section() was removed - content bundling is now handled
+by the TypeScript processor. Tests for that function have been removed.
 """
 
 from datetime import datetime
@@ -173,61 +176,13 @@ class TestSystemPromptIncludesContext:
         assert "This should NOT appear" not in prompt
 
 
-class TestBundleVideoSection:
-    """Test that bundle_video_section populates transcript from cache."""
-
-    def test_bundle_video_section_uses_cache(self, cache_with_timestamps):
-        """bundle_video_section should get transcript from cache."""
-        from core.modules.content import bundle_video_section
-        from core.modules.markdown_parser import (
-            VideoSection,
-            VideoExcerptSegment,
-            ChatSegment,
-        )
-
-        # Also add video transcript .md to cache for metadata lookup
-        cache = get_cache()
-        cache.video_transcripts[
-            "video_transcripts/test_video_id_Test_Title.md"
-        ] = """---
-title: Test Video Title
-url: https://www.youtube.com/watch?v=test_video_id
-channel: Test Channel
----
-
-Transcript content here
-"""
-
-        section = VideoSection(
-            source="[[../video_transcripts/test_video_id_Test_Title]]",
-            title=None,
-            segments=[
-                VideoExcerptSegment(from_time="0:00", to_time="0:05"),
-                ChatSegment(
-                    instructions="Discuss",
-                    hide_previous_content_from_user=False,
-                    hide_previous_content_from_tutor=False,
-                ),
-            ],
-        )
-
-        result = bundle_video_section(section)
-
-        # Check the video-excerpt segment has a transcript
-        video_excerpt = result["segments"][0]
-        assert video_excerpt["type"] == "video-excerpt"
-        transcript = video_excerpt.get("transcript", "")
-
-        # This is the key assertion - transcript should NOT be empty
-        print(f"DEBUG: transcript = '{transcript}'")
-        print(f"DEBUG: video_id in result = '{result.get('videoId')}'")
-        assert transcript != "", f"Transcript is empty! Result: {result}"
-        assert "AI" in transcript or "Hello" in transcript
+# NOTE: TestBundleVideoSection was removed because bundle_video_section()
+# was deleted - content bundling is now handled by the TypeScript processor.
 
 
 class TestEndToEndTranscriptFlow:
     """
-    End-to-end test: cache → get_text_at_time → section → context → prompt
+    End-to-end test: cache -> get_text_at_time -> section -> context -> prompt
 
     This simulates what happens when a user chats after watching a video.
     """
@@ -238,12 +193,12 @@ class TestEndToEndTranscriptFlow:
         cache = get_cache()
         assert "test_video_id" in cache.video_timestamps
 
-        # Step 2: Get transcript text (simulates what bundle_video_section does)
+        # Step 2: Get transcript text (simulates what TypeScript processor does)
         transcript = get_text_at_time("test_video_id", start=0.0, end=5.0)
         assert "AI" in transcript
         assert "safety" in transcript
 
-        # Step 3: Create a section with this transcript (simulates bundled output)
+        # Step 3: Create a section with this transcript (simulates TypeScript output)
         section = {
             "type": "video",
             "videoId": "test_video_id",

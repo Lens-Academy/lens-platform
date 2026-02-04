@@ -140,54 +140,5 @@ class TestContentCache:
         retrieved = get_cache()
         assert retrieved.last_refreshed == refresh_time
 
-    def test_cache_stores_parsed_learning_outcomes(self):
-        """Should store and retrieve parsed learning outcomes from cache."""
-        from core.modules.markdown_parser import ParsedLearningOutcome
-
-        lo = ParsedLearningOutcome(
-            content_id=UUID("00000000-0000-0000-0000-000000000010"),
-            lenses=[],
-        )
-
-        cache = ContentCache(
-            courses={},
-            flattened_modules={},
-            articles={},
-            video_transcripts={},
-            parsed_learning_outcomes={"AI Risks": lo},
-            parsed_lenses={},
-            last_refreshed=datetime.now(),
-        )
-        set_cache(cache)
-
-        retrieved = get_cache()
-        assert "AI Risks" in retrieved.parsed_learning_outcomes
-        assert retrieved.parsed_learning_outcomes["AI Risks"].content_id == UUID(
-            "00000000-0000-0000-0000-000000000010"
-        )
-
-    def test_cache_stores_parsed_lenses(self):
-        """Should store and retrieve parsed lenses from cache."""
-        from core.modules.markdown_parser import ParsedLens
-
-        lens = ParsedLens(
-            content_id=UUID("00000000-0000-0000-0000-000000000020"),
-            sections=[],
-        )
-
-        cache = ContentCache(
-            courses={},
-            flattened_modules={},
-            articles={},
-            video_transcripts={},
-            parsed_learning_outcomes={},
-            parsed_lenses={"Video Lens": lens},
-            last_refreshed=datetime.now(),
-        )
-        set_cache(cache)
-
-        retrieved = get_cache()
-        assert "Video Lens" in retrieved.parsed_lenses
-        assert retrieved.parsed_lenses["Video Lens"].content_id == UUID(
-            "00000000-0000-0000-0000-000000000020"
-        )
+    # NOTE: Tests for parsed_learning_outcomes and parsed_lenses were removed
+    # because the TypeScript processor now handles these - they're always empty dicts.

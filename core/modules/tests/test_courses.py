@@ -20,12 +20,12 @@ from core.modules.course_loader import (
     CourseNotFoundError,
     _extract_slug_from_path,
 )
-from core.modules.markdown_parser import (
+from core.modules.flattened_types import (
+    FlattenedModule,
     ParsedCourse,
     ModuleRef,
     MeetingMarker,
 )
-from core.modules.flattened_types import FlattenedModule
 
 
 @pytest.fixture

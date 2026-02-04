@@ -703,7 +703,7 @@ class TestIncrementalRefresh:
         self, last_commit_sha: str | None = "oldsha123"
     ) -> ContentCache:
         """Create a test cache with some initial content using new field names."""
-        from core.modules.markdown_parser import ParsedCourse
+        from core.modules.flattened_types import ParsedCourse
 
         cache = ContentCache(
             flattened_modules={
@@ -1056,7 +1056,7 @@ class TestApplyFileChange:
 
     def _create_test_cache(self) -> ContentCache:
         """Create a test cache with some initial content using new field names."""
-        from core.modules.markdown_parser import ParsedCourse
+        from core.modules.flattened_types import ParsedCourse
 
         cache = ContentCache(
             flattened_modules={

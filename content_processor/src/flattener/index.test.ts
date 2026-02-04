@@ -4,6 +4,7 @@ import { flattenModule } from './index.js';
 
 describe('flattenModule', () => {
   it('resolves learning outcome references', () => {
+    // LO with 2 lenses should produce 2 sections (one per lens)
     const files = new Map([
       ['modules/intro.md', `---
 slug: intro
@@ -17,17 +18,50 @@ source:: [[../Learning Outcomes/lo1.md|LO1]]
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
 
-## Lens: Basic
-source:: [[../Lenses/lens1.md|Lens]]
+## Lens:
+source:: [[../Lenses/video-lens.md|Video Lens]]
+
+## Lens:
+source:: [[../Lenses/article-lens.md|Article Lens]]
 `],
-      ['Lenses/lens1.md', `---
+      ['Lenses/video-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-### Text: Content
+### Video: Introduction Video
+source:: [[../video_transcripts/intro.md|Intro Video]]
 
-#### Text
-content:: The actual content here.
+#### Video-excerpt
+from:: 0:00
+to:: 1:00
+`],
+      ['Lenses/article-lens.md', `---
+id: 550e8400-e29b-41d4-a716-446655440003
+---
+
+### Article: Deep Dive
+source:: [[../articles/deep-dive.md|Article]]
+
+#### Article-excerpt
+from:: "Start here"
+to:: "end here"
+`],
+      ['video_transcripts/intro.md', `---
+title: Intro Video
+channel: Test Channel
+url: https://youtube.com/watch?v=abc123
+---
+
+0:00 - Welcome to the video.
+1:00 - End of excerpt.
+`],
+      ['articles/deep-dive.md', `---
+title: Deep Dive Article
+author: Jane Doe
+sourceUrl: https://example.com/article
+---
+
+Start here with some content and end here.
 `],
     ]);
 
@@ -36,14 +70,22 @@ content:: The actual content here.
     expect(result.module).toBeDefined();
     expect(result.module?.slug).toBe('intro');
     expect(result.module?.title).toBe('Intro');
-    expect(result.module?.sections).toHaveLength(1);
-    expect(result.module?.sections[0].type).toBe('page');
-    expect(result.module?.sections[0].meta.title).toBe('Topic');
-    expect(result.module?.sections[0].learningOutcomeId).toBe('550e8400-e29b-41d4-a716-446655440001');
-    expect(result.module?.sections[0].segments).toHaveLength(1);
-    expect(result.module?.sections[0].segments[0].type).toBe('text');
-    expect((result.module?.sections[0].segments[0] as { type: 'text'; content: string }).content).toBe('The actual content here.');
     expect(result.errors).toHaveLength(0);
+
+    // Each lens should become its own section
+    expect(result.module?.sections).toHaveLength(2);
+
+    // First section: video lens
+    expect(result.module?.sections[0].type).toBe('lens-video');
+    expect(result.module?.sections[0].learningOutcomeId).toBe('550e8400-e29b-41d4-a716-446655440001');
+    expect(result.module?.sections[0].meta.title).toBe('Intro Video');
+    expect(result.module?.sections[0].meta.channel).toBe('Test Channel');
+
+    // Second section: article lens
+    expect(result.module?.sections[1].type).toBe('lens-article');
+    expect(result.module?.sections[1].learningOutcomeId).toBe('550e8400-e29b-41d4-a716-446655440001');
+    expect(result.module?.sections[1].meta.title).toBe('Deep Dive Article');
+    expect(result.module?.sections[1].meta.author).toBe('Jane Doe');
   });
 
   it('returns error for missing reference', () => {
@@ -62,10 +104,10 @@ source:: [[../Learning Outcomes/nonexistent.md|Missing]]
 
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0].message).toContain('not found');
-    // Module should still be returned with error field for partial success
+    // Module should still be returned for partial success (with empty sections)
     expect(result.module).toBeDefined();
     expect(result.module?.slug).toBe('broken');
-    expect(result.module?.error).toContain('not found');
+    expect(result.module?.sections).toHaveLength(0);
   });
 
   it('resolves article excerpt references', () => {

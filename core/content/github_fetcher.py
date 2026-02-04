@@ -270,69 +270,88 @@ async def fetch_all_content() -> ContentCache:
     Raises:
         GitHubFetchError: If any fetch fails
     """
+    import asyncio
+
     async with httpx.AsyncClient() as client:
         # Get the latest commit SHA for tracking
         commit_sha = await _get_latest_commit_sha_with_client(client)
 
-        # List all files in each directory
-        module_files = await _list_directory_with_client(client, "modules")
-        course_files = await _list_directory_with_client(client, "courses")
-        article_files = await _list_directory_with_client(client, "articles")
-        transcript_files = await _list_directory_with_client(
-            client, "video_transcripts"
+        # List all directories in parallel
+        (
+            module_files,
+            course_files,
+            article_files,
+            transcript_files,
+            learning_outcome_files,
+            lens_files,
+        ) = await asyncio.gather(
+            _list_directory_with_client(client, "modules"),
+            _list_directory_with_client(client, "courses"),
+            _list_directory_with_client(client, "articles"),
+            _list_directory_with_client(client, "video_transcripts"),
+            _list_directory_with_client(client, "Learning Outcomes"),
+            _list_directory_with_client(client, "Lenses"),
         )
-        learning_outcome_files = await _list_directory_with_client(
-            client, "Learning Outcomes"
-        )
-        lens_files = await _list_directory_with_client(client, "Lenses")
 
-        # Collect ALL files for TypeScript processing
-        all_files: dict[str, str] = {}
+        # Collect all file paths to fetch
+        paths_to_fetch: list[str] = []
 
-        # Fetch and collect all markdown files
         for path in module_files:
             if path.endswith(".md"):
-                content = await _fetch_file_with_client(client, path, ref=commit_sha)
-                all_files[path] = content
+                paths_to_fetch.append(path)
 
         for path in course_files:
             if path.endswith(".md"):
-                content = await _fetch_file_with_client(client, path, ref=commit_sha)
-                all_files[path] = content
+                paths_to_fetch.append(path)
 
         for path in learning_outcome_files:
             if path.endswith(".md"):
-                content = await _fetch_file_with_client(client, path, ref=commit_sha)
-                all_files[path] = content
+                paths_to_fetch.append(path)
 
         for path in lens_files:
             if path.endswith(".md"):
-                content = await _fetch_file_with_client(client, path, ref=commit_sha)
-                all_files[path] = content
+                paths_to_fetch.append(path)
 
-        # Fetch articles (also stored separately for metadata extraction)
-        articles: dict[str, str] = {}
         for path in article_files:
             if path.endswith(".md"):
-                content = await _fetch_file_with_client(client, path, ref=commit_sha)
-                articles[path] = content
-                all_files[path] = content
+                paths_to_fetch.append(path)
 
-        # Fetch video transcripts (also stored separately)
-        video_transcripts: dict[str, str] = {}
         for path in transcript_files:
-            if path.endswith(".md"):
-                content = await _fetch_file_with_client(client, path, ref=commit_sha)
-                video_transcripts[path] = content
-                all_files[path] = content
+            if path.endswith(".md") or path.endswith(".timestamps.json"):
+                paths_to_fetch.append(path)
 
-        # Fetch timestamp files
+        # Fetch all files in parallel with concurrency limit
+        logger.info(f"Fetching {len(paths_to_fetch)} files from GitHub...")
+        semaphore = asyncio.Semaphore(20)  # Limit concurrent requests
+
+        async def fetch_with_semaphore(path: str) -> str:
+            async with semaphore:
+                return await _fetch_file_with_client(client, path, ref=commit_sha)
+
+        contents = await asyncio.gather(
+            *[fetch_with_semaphore(path) for path in paths_to_fetch]
+        )
+
+        # Build path -> content mapping
+        all_files: dict[str, str] = dict(zip(paths_to_fetch, contents))
+
+        # Extract articles and video_transcripts into separate dicts
+        articles: dict[str, str] = {
+            path: content
+            for path, content in all_files.items()
+            if path.startswith("articles/") and path.endswith(".md")
+        }
+
+        video_transcripts: dict[str, str] = {
+            path: content
+            for path, content in all_files.items()
+            if path.startswith("video_transcripts/") and path.endswith(".md")
+        }
+
+        # Parse timestamp files
         video_timestamps: dict[str, list[dict]] = {}
-        for path in transcript_files:
+        for path, content in all_files.items():
             if path.endswith(".timestamps.json"):
-                content = await _fetch_file_with_client(client, path, ref=commit_sha)
-                all_files[path] = content
-                # Also parse for video_timestamps dict (keyed by video_id)
                 try:
                     timestamps_data = json.loads(content)
                     md_path = path.replace(".timestamps.json", ".md")
@@ -390,6 +409,7 @@ async def fetch_all_content() -> ContentCache:
             video_timestamps=video_timestamps,
             last_refreshed=datetime.now(),
             last_commit_sha=commit_sha,
+            raw_files=all_files,  # Store for incremental updates
         )
         set_cache(cache)
         return cache
@@ -606,25 +626,27 @@ async def _apply_file_change(
 async def incremental_refresh(new_commit_sha: str) -> None:
     """Refresh cache incrementally based on changed files.
 
-    1. Get current cache's last_commit_sha
-    2. If None, do full refresh (first run)
-    3. Compare commits to get changed files
-    4. If truncated, do full refresh
-    5. For each changed file:
-       - added/modified: fetch and update cache (parse modules/courses, store articles/transcripts raw)
-       - removed: delete from cache
-       - renamed: delete old path, fetch new path
-    6. Update last_commit_sha and last_refreshed
+    Strategy:
+    1. Fetch only changed files from GitHub
+    2. Merge changes into cached raw_files
+    3. Re-run TypeScript processing on all files
+    4. Update cache with new results
 
-    Falls back to full refresh on any error.
+    Falls back to full refresh if:
+    - Cache not initialized
+    - No previous commit SHA
+    - No raw_files in cache (old cache format)
+    - Too many changes (GitHub's 300 file limit)
+    - Any error during processing
 
     Args:
         new_commit_sha: The SHA of the commit to update to
     """
+    import asyncio
+
     try:
         cache = get_cache()
     except Exception:
-        # Cache not initialized - do full refresh
         logger.info("Cache not initialized, performing full refresh")
         await refresh_cache()
         return
@@ -632,6 +654,12 @@ async def incremental_refresh(new_commit_sha: str) -> None:
     # Fallback: no previous SHA (first run or cache was cleared)
     if not cache.last_commit_sha:
         logger.info("No previous commit SHA, performing full refresh")
+        await refresh_cache()
+        return
+
+    # Fallback: no raw_files (old cache format)
+    if cache.raw_files is None:
+        logger.info("No raw_files in cache, performing full refresh")
         await refresh_cache()
         return
 
@@ -652,29 +680,135 @@ async def incremental_refresh(new_commit_sha: str) -> None:
             await refresh_cache()
             return
 
-        # Apply incremental changes
+        # Filter to only tracked files
+        tracked_changes = [
+            c for c in comparison.files if _get_tracked_directory(c.path) is not None
+        ]
+
+        if not tracked_changes:
+            # No tracked files changed, just update commit SHA
+            print(f"No tracked files changed, updating commit SHA to {new_commit_sha[:8]}")
+            cache.last_commit_sha = new_commit_sha
+            cache.last_refreshed = datetime.now()
+            return
+
         print(
-            f"Applying {len(comparison.files)} file changes "
+            f"Incremental update: {len(tracked_changes)} tracked files changed "
             f"({cache.last_commit_sha[:8]}...{new_commit_sha[:8]})"
         )
         logger.info(
-            f"Applying {len(comparison.files)} file changes "
+            f"Incremental update: {len(tracked_changes)} tracked files changed "
             f"({cache.last_commit_sha[:8]}...{new_commit_sha[:8]})"
         )
 
-        needs_full_refresh = False
+        # Fetch changed files in parallel
+        files_to_fetch = [
+            c for c in tracked_changes
+            if c.status in ("added", "modified", "renamed")
+        ]
+
         async with httpx.AsyncClient() as client:
-            for change in comparison.files:
-                if await _apply_file_change(client, cache, change, ref=new_commit_sha):
-                    needs_full_refresh = True
-                    break  # No need to continue if we need full refresh
+            if files_to_fetch:
+                contents = await asyncio.gather(
+                    *[
+                        _fetch_file_with_client(client, c.path, ref=new_commit_sha)
+                        for c in files_to_fetch
+                    ]
+                )
+                fetched = dict(zip([c.path for c in files_to_fetch], contents))
+            else:
+                fetched = {}
 
-        if needs_full_refresh:
-            logger.info("Module/LO/Lens change detected, performing full refresh")
-            await refresh_cache()
-            return
+        # Apply changes to raw_files
+        raw_files = dict(cache.raw_files)  # Make a copy
 
-        # Update cache metadata
+        for change in tracked_changes:
+            if change.status == "removed":
+                raw_files.pop(change.path, None)
+                logger.info(f"Removed: {change.path}")
+            elif change.status == "renamed":
+                # Remove old path
+                if change.previous_path:
+                    raw_files.pop(change.previous_path, None)
+                # Add new path
+                if change.path in fetched:
+                    raw_files[change.path] = fetched[change.path]
+                logger.info(f"Renamed: {change.previous_path} -> {change.path}")
+            else:  # added or modified
+                if change.path in fetched:
+                    raw_files[change.path] = fetched[change.path]
+                logger.info(f"{change.status.title()}: {change.path}")
+
+        # Re-run TypeScript processing on all files
+        logger.info(f"Re-processing {len(raw_files)} files with TypeScript...")
+        try:
+            ts_result = await process_content_typescript(raw_files)
+        except TypeScriptProcessorError as e:
+            logger.error(f"TypeScript processing failed: {e}")
+            raise GitHubFetchError(f"Content processing failed: {e}")
+
+        # Update cache with new results
+        flattened_modules: dict[str, FlattenedModule] = {}
+        for mod in ts_result.get("modules", []):
+            flattened_modules[mod["slug"]] = FlattenedModule(
+                slug=mod["slug"],
+                title=mod["title"],
+                content_id=UUID(mod["contentId"]) if mod.get("contentId") else None,
+                sections=mod["sections"],
+                error=mod.get("error"),
+            )
+
+        courses: dict[str, ParsedCourse] = {}
+        for course in ts_result.get("courses", []):
+            courses[course["slug"]] = ParsedCourse(
+                slug=course["slug"],
+                title=course["title"],
+                progression=course.get("progression", []),
+            )
+
+        # Update articles and video_transcripts dicts
+        articles = {
+            path: content
+            for path, content in raw_files.items()
+            if path.startswith("articles/") and path.endswith(".md")
+        }
+
+        video_transcripts = {
+            path: content
+            for path, content in raw_files.items()
+            if path.startswith("video_transcripts/") and path.endswith(".md")
+        }
+
+        # Parse timestamp files
+        video_timestamps: dict[str, list[dict]] = {}
+        for path, content in raw_files.items():
+            if path.endswith(".timestamps.json"):
+                try:
+                    timestamps_data = json.loads(content)
+                    md_path = path.replace(".timestamps.json", ".md")
+                    if md_path in video_transcripts:
+                        metadata = _parse_frontmatter(video_transcripts[md_path])
+                        video_id = metadata.get("video_id", "")
+                        if not video_id and metadata.get("url"):
+                            url = metadata["url"].strip("\"'")
+                            match = re.search(
+                                r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]+)",
+                                url,
+                            )
+                            if match:
+                                video_id = match.group(1)
+                        if video_id:
+                            video_timestamps[video_id] = timestamps_data
+                except Exception as e:
+                    logger.warning(f"Failed to parse timestamps {path}: {e}")
+
+        # Update cache in place
+        cache.courses = courses
+        cache.flattened_modules = flattened_modules
+        cache.articles = articles
+        cache.video_transcripts = video_transcripts
+        cache.video_timestamps = video_timestamps
+        cache.raw_files = raw_files
         cache.last_commit_sha = new_commit_sha
         cache.last_refreshed = datetime.now()
 

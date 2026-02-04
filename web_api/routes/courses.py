@@ -13,7 +13,7 @@ from core.modules.course_loader import (
     CourseNotFoundError,
     _extract_slug_from_path,
 )
-from core.modules.markdown_parser import ModuleRef, MeetingMarker
+from core.modules.flattened_types import ModuleRef, MeetingMarker
 from core.modules import (
     load_narrative_module,
     ModuleNotFoundError,

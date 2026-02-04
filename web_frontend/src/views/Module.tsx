@@ -1041,15 +1041,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     optional={section.optional}
                     title={section.meta?.title}
                   />
-                  {/* Render the main video first (full video, not excerpt) */}
-                  <VideoEmbed
-                    videoId={section.videoId}
-                    start={0}
-                    end={null}
-                    title={section.meta.title}
-                    channel={section.meta.channel}
-                  />
-                  {/* Then render any segments (text, video-excerpt, chat) */}
+                  {/* Render segments (text, video-excerpt, chat) */}
                   {section.segments?.map((segment, segmentIndex) =>
                     renderSegment(segment, section, sectionIndex, segmentIndex),
                   )}

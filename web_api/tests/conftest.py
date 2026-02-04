@@ -10,12 +10,12 @@ from datetime import datetime
 from uuid import UUID
 
 from core.content import ContentCache, set_cache, clear_cache
-from core.modules.markdown_parser import (
+from core.modules.flattened_types import (
+    FlattenedModule,
     ParsedCourse,
     ModuleRef,
     MeetingMarker,
 )
-from core.modules.flattened_types import FlattenedModule
 
 
 @pytest.fixture(autouse=True)

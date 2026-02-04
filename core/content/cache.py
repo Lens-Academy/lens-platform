@@ -34,6 +34,8 @@ class ContentCache:
         None  # video_id -> timestamp word list
     )
     last_commit_sha: str | None = None  # Git commit SHA of current cache state
+    # Raw files for incremental updates - all files sent to TypeScript processor
+    raw_files: dict[str, str] | None = None  # path -> raw content
 
 
 # Global cache singleton

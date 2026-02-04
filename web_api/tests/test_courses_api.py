@@ -16,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 from main import app
 from core.modules.course_loader import load_course, _extract_slug_from_path
-from core.modules.markdown_parser import ModuleRef, MeetingMarker
+from core.modules.flattened_types import ModuleRef, MeetingMarker
 
 client = TestClient(app)
 
