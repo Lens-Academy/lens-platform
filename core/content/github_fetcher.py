@@ -12,12 +12,40 @@ from uuid import UUID
 
 import httpx
 
-from core.modules.flattened_types import FlattenedModule, ParsedCourse
+from core.modules.flattened_types import FlattenedModule, ParsedCourse, ModuleRef, MeetingMarker
 from core.content.typescript_processor import (
     process_content_typescript,
     TypeScriptProcessorError,
 )
 from .cache import ContentCache, set_cache, get_cache
+
+
+def _convert_ts_course_to_parsed_course(ts_course: dict) -> ParsedCourse:
+    """Convert TypeScript course output to ParsedCourse with proper dataclass instances.
+
+    TypeScript outputs progression items as dicts:
+        {"type": "module", "slug": "intro", "optional": false}
+        {"type": "meeting", "number": 1}
+
+    This function converts them to ModuleRef and MeetingMarker instances.
+    """
+    progression = []
+    for item in ts_course.get("progression", []):
+        if item.get("type") == "module":
+            progression.append(
+                ModuleRef(
+                    path=f"modules/{item['slug']}",
+                    optional=item.get("optional", False),
+                )
+            )
+        elif item.get("type") == "meeting":
+            progression.append(MeetingMarker(number=item["number"]))
+
+    return ParsedCourse(
+        slug=ts_course["slug"],
+        title=ts_course["title"],
+        progression=progression,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -392,11 +420,7 @@ async def fetch_all_content() -> ContentCache:
         # Convert courses from TypeScript result
         courses: dict[str, ParsedCourse] = {}
         for course in ts_result.get("courses", []):
-            courses[course["slug"]] = ParsedCourse(
-                slug=course["slug"],
-                title=course["title"],
-                progression=course.get("progression", []),
-            )
+            courses[course["slug"]] = _convert_ts_course_to_parsed_course(course)
 
         # Build and return cache
         cache = ContentCache(
@@ -760,11 +784,7 @@ async def incremental_refresh(new_commit_sha: str) -> None:
 
         courses: dict[str, ParsedCourse] = {}
         for course in ts_result.get("courses", []):
-            courses[course["slug"]] = ParsedCourse(
-                slug=course["slug"],
-                title=course["title"],
-                progression=course.get("progression", []),
-            )
+            courses[course["slug"]] = _convert_ts_course_to_parsed_course(course)
 
         # Update articles and video_transcripts dicts
         articles = {

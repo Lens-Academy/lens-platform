@@ -98,9 +98,42 @@ def test_get_next_module_end_of_course():
 
 
 def test_get_next_module_invalid_course():
-    """Should return 404 for invalid course."""
-    response = client.get("/api/courses/nonexistent/next-module?current=any-module")
-    assert response.status_code == 404
+    """Should return 404 for invalid course when multiple courses exist.
+
+    Note: When only one course exists, the API returns that course for any slug
+    (graceful fallback). This test sets up multiple courses to test 404 behavior.
+    """
+    from datetime import datetime
+    from core.content.cache import ContentCache, set_cache, get_cache, clear_cache
+    from core.modules.flattened_types import ParsedCourse
+
+    # Save current cache
+    original_cache = get_cache()
+
+    # Set up cache with multiple courses
+    cache = ContentCache(
+        courses={
+            "course-one": ParsedCourse(slug="course-one", title="Course One", progression=[]),
+            "course-two": ParsedCourse(slug="course-two", title="Course Two", progression=[]),
+        },
+        flattened_modules=original_cache.flattened_modules,
+        parsed_learning_outcomes={},
+        parsed_lenses={},
+        articles={},
+        video_transcripts={},
+        video_timestamps={},
+        last_refreshed=datetime.now(),
+        last_commit_sha="test",
+        raw_files={},
+    )
+    set_cache(cache)
+
+    try:
+        response = client.get("/api/courses/nonexistent/next-module?current=any-module")
+        assert response.status_code == 404
+    finally:
+        # Restore original cache
+        set_cache(original_cache)
 
 
 def test_get_next_module_invalid_module():
@@ -149,6 +182,39 @@ def test_get_course_progress_returns_units():
 
 
 def test_get_course_progress_invalid_course():
-    """Should return 404 for invalid course."""
-    response = client.get("/api/courses/nonexistent/progress")
-    assert response.status_code == 404
+    """Should return 404 for invalid course when multiple courses exist.
+
+    Note: When only one course exists, the API returns that course for any slug
+    (graceful fallback). This test sets up multiple courses to test 404 behavior.
+    """
+    from datetime import datetime
+    from core.content.cache import ContentCache, set_cache, get_cache
+    from core.modules.flattened_types import ParsedCourse
+
+    # Save current cache
+    original_cache = get_cache()
+
+    # Set up cache with multiple courses
+    cache = ContentCache(
+        courses={
+            "course-one": ParsedCourse(slug="course-one", title="Course One", progression=[]),
+            "course-two": ParsedCourse(slug="course-two", title="Course Two", progression=[]),
+        },
+        flattened_modules={},
+        parsed_learning_outcomes={},
+        parsed_lenses={},
+        articles={},
+        video_transcripts={},
+        video_timestamps={},
+        last_refreshed=datetime.now(),
+        last_commit_sha="test",
+        raw_files={},
+    )
+    set_cache(cache)
+
+    try:
+        response = client.get("/api/courses/nonexistent/progress")
+        assert response.status_code == 404
+    finally:
+        # Restore original cache
+        set_cache(original_cache)

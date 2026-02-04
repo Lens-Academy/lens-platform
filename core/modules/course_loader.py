@@ -13,13 +13,28 @@ class CourseNotFoundError(Exception):
 
 
 def load_course(course_slug: str) -> ParsedCourse:
-    """Load a course by slug from the cache."""
+    """Load a course by slug from the cache.
+
+    If the requested course doesn't exist but there's only one course
+    in the cache, returns that course as a graceful fallback. This prevents
+    frontend breakage if the course slug changes (e.g., frontend hardcodes
+    'default' but actual course has a different slug).
+
+    Raises CourseNotFoundError if course not found AND multiple courses exist.
+    """
     cache = get_cache()
 
-    if course_slug not in cache.courses:
-        raise CourseNotFoundError(f"Course not found: {course_slug}")
+    # Exact match - return it
+    if course_slug in cache.courses:
+        return cache.courses[course_slug]
 
-    return cache.courses[course_slug]
+    # Fallback: if only one course exists, return it regardless of slug
+    if len(cache.courses) == 1:
+        only_course = next(iter(cache.courses.values()))
+        return only_course
+
+    # Multiple courses but slug not found - that's a real 404
+    raise CourseNotFoundError(f"Course not found: {course_slug}")
 
 
 def _extract_slug_from_path(path: str) -> str:

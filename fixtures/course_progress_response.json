@@ -1,0 +1,129 @@
+{
+  "course": {
+    "slug": "default",
+    "title": "AI Safety Fundamentals"
+  },
+  "units": [
+    {
+      "meetingNumber": 1,
+      "modules": [
+        {
+          "slug": "introduction",
+          "title": "Introduction to AI Safety",
+          "optional": false,
+          "stages": [
+            {
+              "type": "video",
+              "title": "Intro Video",
+              "duration": null,
+              "optional": false,
+              "contentId": "00000000-0000-0000-0000-000000000102",
+              "completed": false
+            },
+            {
+              "type": "page",
+              "title": "Discussion",
+              "duration": null,
+              "optional": false,
+              "contentId": "00000000-0000-0000-0000-000000000103",
+              "completed": false
+            }
+          ],
+          "status": "not_started",
+          "completedLenses": 0,
+          "totalLenses": 2
+        },
+        {
+          "slug": "core-concepts",
+          "title": "Core Concepts in AI Alignment",
+          "optional": false,
+          "stages": [
+            {
+              "type": "article",
+              "title": "Core Concepts Article",
+              "duration": null,
+              "optional": false,
+              "contentId": "00000000-0000-0000-0000-000000000202",
+              "completed": false
+            },
+            {
+              "type": "page",
+              "title": "Discussion",
+              "duration": null,
+              "optional": false,
+              "contentId": "00000000-0000-0000-0000-000000000203",
+              "completed": false
+            }
+          ],
+          "status": "not_started",
+          "completedLenses": 0,
+          "totalLenses": 2
+        }
+      ]
+    },
+    {
+      "meetingNumber": 2,
+      "modules": [
+        {
+          "slug": "advanced-topics",
+          "title": "Advanced Topics",
+          "optional": false,
+          "stages": [
+            {
+              "type": "page",
+              "title": "Deep Dive",
+              "duration": null,
+              "optional": false,
+              "contentId": "00000000-0000-0000-0000-000000000302",
+              "completed": false
+            }
+          ],
+          "status": "not_started",
+          "completedLenses": 0,
+          "totalLenses": 1
+        },
+        {
+          "slug": "supplementary-reading",
+          "title": "Supplementary Reading",
+          "optional": true,
+          "stages": [
+            {
+              "type": "article",
+              "title": "Supplementary Article",
+              "duration": null,
+              "optional": true,
+              "contentId": "00000000-0000-0000-0000-000000000402",
+              "completed": false
+            }
+          ],
+          "status": "not_started",
+          "completedLenses": 0,
+          "totalLenses": 0
+        }
+      ]
+    },
+    {
+      "meetingNumber": 3,
+      "modules": [
+        {
+          "slug": "final-discussion",
+          "title": "Final Discussion",
+          "optional": false,
+          "stages": [
+            {
+              "type": "page",
+              "title": "Synthesis",
+              "duration": null,
+              "optional": false,
+              "contentId": "00000000-0000-0000-0000-000000000502",
+              "completed": false
+            }
+          ],
+          "status": "not_started",
+          "completedLenses": 0,
+          "totalLenses": 1
+        }
+      ]
+    }
+  ]
+}
