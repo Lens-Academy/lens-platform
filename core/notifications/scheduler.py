@@ -247,7 +247,8 @@ async def sync_meeting_reminders(meeting_id: int) -> None:
         user_ids = [row["user_id"] for row in members_result.mappings()]
 
     # Update all reminder jobs for this meeting
-    job_suffixes = ["reminder_24h", "reminder_1h", "module_nudge_3d", "module_nudge_1d"]
+    # Note: No module_nudge_1d - the 24h reminder already includes module info
+    job_suffixes = ["reminder_24h", "reminder_1h", "module_nudge_3d"]
 
     for suffix in job_suffixes:
         job_id = f"meeting_{meeting_id}_{suffix}"

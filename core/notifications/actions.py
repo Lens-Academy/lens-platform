@@ -192,6 +192,7 @@ def schedule_meeting_reminders(
     )
 
     # 3d module nudge (conditional: <50% complete)
+    # This is a standalone "you're behind" nudge, separate from meeting reminders
     schedule_reminder(
         job_id=f"meeting_{meeting_id}_module_nudge_3d",
         run_at=meeting_time - timedelta(days=3),
@@ -204,20 +205,7 @@ def schedule_meeting_reminders(
             "threshold": 0.5,
         },
     )
-
-    # 1d module nudge (conditional: <100% complete)
-    schedule_reminder(
-        job_id=f"meeting_{meeting_id}_module_nudge_1d",
-        run_at=meeting_time - timedelta(days=1),
-        message_type="module_nudge",
-        user_ids=user_ids,
-        context=context,
-        condition={
-            "type": "module_progress",
-            "meeting_id": meeting_id,
-            "threshold": 1.0,
-        },
-    )
+    # Note: No 1d module nudge - the 24h meeting reminder already includes module info
 
 
 def cancel_meeting_reminders(meeting_id: int) -> int:
