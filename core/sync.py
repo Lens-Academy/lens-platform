@@ -1532,7 +1532,7 @@ async def sync_group_reminders(group_id: int) -> dict:
 
     Calls sync_meeting_reminders for each future meeting.
 
-    Returns dict with counts.
+    Returns dict with aggregated counts from all meeting syncs.
     """
     from .database import get_connection
     from .tables import meetings
@@ -1550,14 +1550,20 @@ async def sync_group_reminders(group_id: int) -> dict:
         meeting_ids = [row["meeting_id"] for row in meetings_result.mappings()]
 
     if not meeting_ids:
-        return {"meetings": 0}
+        return {"meetings": 0, "created": 0, "deleted": 0, "unchanged": 0, "errors": 0}
 
-    synced = 0
+    totals = {"meetings": 0, "created": 0, "deleted": 0, "unchanged": 0, "errors": 0}
     for meeting_id in meeting_ids:
-        await sync_meeting_reminders(meeting_id)
-        synced += 1
+        result = await sync_meeting_reminders(meeting_id)
+        totals["meetings"] += 1
+        if result.get("error"):
+            totals["errors"] += 1
+        else:
+            totals["created"] += result.get("created", 0)
+            totals["deleted"] += result.get("deleted", 0)
+            totals["unchanged"] += result.get("unchanged", 0)
 
-    return {"meetings": synced}
+    return totals
 
 
 async def sync_group_rsvps(group_id: int) -> dict:

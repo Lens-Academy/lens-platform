@@ -5,88 +5,32 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestSyncMeetingReminders:
-    """Test reminder sync logic."""
+    """Test reminder sync logic.
 
-    @pytest.mark.asyncio
-    async def test_updates_job_user_ids_from_database(self):
-        """Should update job kwargs with current group members from DB."""
-        from core.notifications.scheduler import sync_meeting_reminders
-
-        # Mock the scheduler
-        mock_job = MagicMock()
-        mock_job.kwargs = {"user_ids": [1, 2], "meeting_id": 5}
-
-        mock_scheduler = MagicMock()
-        mock_scheduler.get_job.return_value = mock_job
-
-        # Mock DB to return new member list
-        mock_conn = AsyncMock()
-
-        # First query: get group_id from meeting
-        mock_meeting_result = MagicMock()
-        mock_meeting_result.mappings.return_value.first.return_value = {"group_id": 10}
-
-        # Second query: get active members
-        mock_members_result = MagicMock()
-        mock_members_result.mappings.return_value = [
-            {"user_id": 1},
-            {"user_id": 3},
-            {"user_id": 4},
-        ]
-
-        mock_conn.execute = AsyncMock(
-            side_effect=[mock_meeting_result, mock_members_result]
-        )
-
-        with patch("core.notifications.scheduler._scheduler", mock_scheduler):
-            with patch("core.database.get_connection") as mock_get_conn:
-                mock_get_conn.return_value.__aenter__.return_value = mock_conn
-                await sync_meeting_reminders(meeting_id=5)
-
-        # Verify job was updated with new user_ids
-        mock_scheduler.modify_job.assert_called()
-        call_args = mock_scheduler.modify_job.call_args
-        assert call_args[1]["kwargs"]["user_ids"] == [1, 3, 4]
-
-    @pytest.mark.asyncio
-    async def test_removes_job_when_no_members_left(self):
-        """Should remove job if group has no active members."""
-        from core.notifications.scheduler import sync_meeting_reminders
-
-        mock_job = MagicMock()
-        mock_job.kwargs = {"user_ids": [1, 2], "meeting_id": 5}
-
-        mock_scheduler = MagicMock()
-        mock_scheduler.get_job.return_value = mock_job
-
-        mock_conn = AsyncMock()
-        mock_meeting_result = MagicMock()
-        mock_meeting_result.mappings.return_value.first.return_value = {"group_id": 10}
-
-        # Empty member list
-        mock_members_result = MagicMock()
-        mock_members_result.mappings.return_value = []
-
-        mock_conn.execute = AsyncMock(
-            side_effect=[mock_meeting_result, mock_members_result]
-        )
-
-        with patch("core.notifications.scheduler._scheduler", mock_scheduler):
-            with patch("core.database.get_connection") as mock_get_conn:
-                mock_get_conn.return_value.__aenter__.return_value = mock_conn
-                await sync_meeting_reminders(meeting_id=5)
-
-        # Job should be removed
-        mock_job.remove.assert_called()
+    Note: The old tests for user_ids updating and job removal were deleted
+    because the new sync_meeting_reminders is diff-based and doesn't modify
+    job kwargs. Tests for the new behavior are in
+    core/notifications/tests/test_scheduler.py::TestSyncMeetingReminders.
+    """
 
     @pytest.mark.asyncio
     async def test_does_nothing_when_scheduler_unavailable(self):
-        """Should exit gracefully if scheduler is not initialized."""
+        """Should return zero counts if scheduler is not initialized."""
         from core.notifications.scheduler import sync_meeting_reminders
 
-        with patch("core.notifications.scheduler._scheduler", None):
-            # Should not raise
-            await sync_meeting_reminders(meeting_id=5)
+        # Mock the context fetch to avoid DB call
+        with patch(
+            "core.notifications.context.get_meeting_with_group",
+            new_callable=AsyncMock,
+        ) as mock_get:
+            mock_get.return_value = None  # Meeting not found
+            with patch("core.notifications.scheduler._scheduler", None):
+                result = await sync_meeting_reminders(meeting_id=5)
+
+        # When meeting not found and scheduler unavailable, returns zero counts
+        assert result["created"] == 0
+        assert result["deleted"] == 0
+        assert result["unchanged"] == 0
 
 
 class TestSyncGroupDiscordPermissions:
@@ -417,7 +361,13 @@ class TestSyncGroupReminders:
             mock_get_conn.return_value.__aenter__.return_value = mock_conn
             result = await sync_group_reminders(group_id=1)
 
-        assert result == {"meetings": 0}
+        assert result == {
+            "meetings": 0,
+            "created": 0,
+            "deleted": 0,
+            "unchanged": 0,
+            "errors": 0,
+        }
 
     @pytest.mark.asyncio
     async def test_calls_sync_meeting_reminders_for_each_meeting(self):
@@ -438,11 +388,13 @@ class TestSyncGroupReminders:
             with patch(
                 "core.notifications.scheduler.sync_meeting_reminders"
             ) as mock_sync:
-                mock_sync.return_value = None
+                mock_sync.return_value = {"created": 3, "deleted": 0, "unchanged": 0}
                 result = await sync_group_reminders(group_id=1)
 
         assert mock_sync.call_count == 3
-        assert result == {"meetings": 3}
+        assert result["meetings"] == 3
+        assert result["created"] == 9  # 3 meetings x 3 jobs each
+        assert result["errors"] == 0
 
 
 class TestSyncGroupRsvps:

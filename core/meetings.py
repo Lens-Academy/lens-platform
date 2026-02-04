@@ -12,7 +12,6 @@ from core.queries.meetings import (
     get_meeting,
     get_meetings_for_group,
     reschedule_meeting as db_reschedule_meeting,
-    get_group_member_user_ids,
 )
 from core.calendar import update_meeting_event
 from core.notifications.actions import (
@@ -76,13 +75,15 @@ async def create_meetings_for_group(
 
 async def schedule_reminders_for_group(
     group_id: int,
-    group_name: str,
     meeting_ids: list[int],
-    discord_channel_id: str,
 ) -> None:
-    """Schedule APScheduler reminders for all meetings in a group."""
+    """
+    Schedule APScheduler reminders for all meetings in a group.
+
+    With lightweight jobs, we only need meeting_id and meeting_time -
+    group membership and context are fetched fresh at execution time.
+    """
     async with get_connection() as conn:
-        user_ids = await get_group_member_user_ids(conn, group_id)
         meetings_list = await get_meetings_for_group(conn, group_id)
 
     for meeting in meetings_list:
@@ -92,23 +93,22 @@ async def schedule_reminders_for_group(
         schedule_meeting_reminders(
             meeting_id=meeting["meeting_id"],
             meeting_time=meeting["scheduled_at"],
-            user_ids=user_ids,
-            group_name=group_name,
-            discord_channel_id=discord_channel_id,
         )
 
 
 async def reschedule_meeting(
     meeting_id: int,
     new_time: datetime,
-    group_name: str,
-    discord_channel_id: str,
 ) -> bool:
     """
     Reschedule a single meeting.
 
     Updates database, Google Calendar, and APScheduler reminders.
     Discord event update is NOT handled here (requires bot context).
+
+    Args:
+        meeting_id: Database meeting ID
+        new_time: New scheduled time
 
     Returns:
         True if successful
@@ -128,17 +128,11 @@ async def reschedule_meeting(
                 start=new_time,
             )
 
-        # Get user IDs for rescheduling reminders
-        user_ids = await get_group_member_user_ids(conn, meeting["group_id"])
-
-    # Reschedule APScheduler reminders
+    # Reschedule APScheduler reminders (lightweight - only needs meeting_id and time)
     cancel_meeting_reminders(meeting_id)
     schedule_meeting_reminders(
         meeting_id=meeting_id,
         meeting_time=new_time,
-        user_ids=user_ids,
-        group_name=group_name,
-        discord_channel_id=discord_channel_id,
     )
 
     return True
