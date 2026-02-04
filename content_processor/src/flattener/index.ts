@@ -18,6 +18,24 @@ import { parseFrontmatter } from '../parser/frontmatter.js';
 import { extractArticleExcerpt } from '../bundler/article.js';
 import { extractVideoExcerpt, type TimestampEntry } from '../bundler/video.js';
 
+/**
+ * Extract YouTube video ID from a YouTube URL.
+ *
+ * Supported formats:
+ * - https://www.youtube.com/watch?v=VIDEO_ID
+ * - https://youtube.com/watch?v=VIDEO_ID
+ * - https://youtu.be/VIDEO_ID
+ * - https://www.youtube.com/embed/VIDEO_ID
+ *
+ * @returns Video ID string, or null if URL format is not recognized
+ */
+function extractVideoIdFromUrl(url: string): string | null {
+  const match = url.match(
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/
+  );
+  return match ? match[1] : null;
+}
+
 export interface FlattenModuleResult {
   module: FlattenedModule | null;
   errors: ContentError[];
@@ -113,12 +131,10 @@ export function flattenModule(
         meta: { title: section.title },
         segments: textSegments,
         optional: section.fields.optional === 'true',
+        contentId: section.fields.id ?? null,
+        learningOutcomeId: null,
+        videoId: null,
       };
-
-      // Extract contentId from id:: field
-      if (section.fields.id) {
-        pageSection.contentId = section.fields.id;
-      }
 
       flattenedSections.push(pageSection);
     } else if (section.type === 'uncategorized') {
@@ -251,6 +267,7 @@ function flattenLearningOutcomeSection(
   let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
   const meta: SectionMeta = { title: section.title };
   let lensId: string | undefined;
+  let videoId: string | undefined;
 
   for (const lensRef of lo.lenses) {
     const lensPath = findFileWithExtension(lensRef.resolvedPath, files);
@@ -340,6 +357,13 @@ function flattenLearningOutcomeSection(
               if (videoFrontmatter.frontmatter.channel) {
                 meta.channel = videoFrontmatter.frontmatter.channel as string;
               }
+              // Extract video ID from YouTube URL
+              if (videoFrontmatter.frontmatter.url) {
+                const extractedVideoId = extractVideoIdFromUrl(videoFrontmatter.frontmatter.url as string);
+                if (extractedVideoId) {
+                  videoId = extractedVideoId;
+                }
+              }
             }
           }
         }
@@ -368,8 +392,9 @@ function flattenLearningOutcomeSection(
     meta,
     segments: allSegments,
     optional: section.fields.optional === 'true',
-    learningOutcomeId: lo.id,
-    contentId: lensId,
+    learningOutcomeId: lo.id ?? null,
+    contentId: lensId ?? null,
+    videoId: videoId ?? null,
   };
 
   return { section: resultSection, errors };
@@ -436,6 +461,7 @@ function flattenUncategorizedSection(
     let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
     const meta: SectionMeta = { title: section.title };
     const segments: Segment[] = [];
+    let videoId: string | undefined;
 
     // Process each section in the lens
     for (const lensSection of lens.sections) {
@@ -486,6 +512,13 @@ function flattenUncategorizedSection(
               if (videoFrontmatter.frontmatter.channel) {
                 meta.channel = videoFrontmatter.frontmatter.channel as string;
               }
+              // Extract video ID from YouTube URL
+              if (videoFrontmatter.frontmatter.url) {
+                const extractedVideoId = extractVideoIdFromUrl(videoFrontmatter.frontmatter.url as string);
+                if (extractedVideoId) {
+                  videoId = extractedVideoId;
+                }
+              }
             }
           }
         }
@@ -514,6 +547,9 @@ function flattenUncategorizedSection(
       meta,
       segments,
       optional: lensRef.optional,
+      learningOutcomeId: null,
+      contentId: lens.id ?? null,
+      videoId: videoId ?? null,
     };
 
     sections.push(resultSection);

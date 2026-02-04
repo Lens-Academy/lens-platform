@@ -96,9 +96,11 @@ export type ChatSection = {
  */
 export type PageSection = {
   type: "page";
-  contentId?: string | null;
+  contentId: string | null;
+  learningOutcomeId: string | null;
   meta: { title: string | null };
   segments: ModuleSegment[];
+  optional: boolean;
 };
 
 /**
@@ -107,9 +109,9 @@ export type PageSection = {
  */
 export type LensVideoSection = {
   type: "lens-video";
-  contentId: string;
+  contentId: string | null;
   learningOutcomeId: string | null;
-  videoId: string;
+  videoId: string | null;
   meta: { title: string; channel: string | null };
   segments: ModuleSegment[];
   optional: boolean;
@@ -121,7 +123,7 @@ export type LensVideoSection = {
  */
 export type LensArticleSection = {
   type: "lens-article";
-  contentId: string;
+  contentId: string | null;
   learningOutcomeId: string | null;
   meta: { title: string; author: string | null; sourceUrl: string | null };
   segments: ModuleSegment[];

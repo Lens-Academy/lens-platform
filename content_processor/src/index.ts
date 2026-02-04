@@ -25,9 +25,9 @@ export interface Section {
   meta: SectionMeta;
   segments: Segment[];
   optional?: boolean;
-  contentId?: string;
-  learningOutcomeId?: string | null;
-  videoId?: string;  // video sections only
+  contentId: string | null;
+  learningOutcomeId: string | null;
+  videoId: string | null;  // video sections only
 }
 
 export interface SectionMeta {

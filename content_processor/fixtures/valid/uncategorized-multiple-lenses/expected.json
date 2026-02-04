@@ -23,7 +23,10 @@
               "transcript": "0:00 - Welcome to AI safety."
             }
           ],
-          "optional": false
+          "optional": false,
+          "learningOutcomeId": null,
+          "contentId": "a1b2c3d4-0000-0000-0000-000000000010",
+          "videoId": "dQw4w9WgXcQ"
         },
         {
           "type": "lens-article",
@@ -41,7 +44,10 @@
               "content": "The key insight."
             }
           ],
-          "optional": false
+          "optional": false,
+          "learningOutcomeId": null,
+          "contentId": "a1b2c3d4-0000-0000-0000-000000000020",
+          "videoId": null
         }
       ]
     }
