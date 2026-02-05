@@ -20,6 +20,7 @@ class GroupStatus(str, enum.Enum):
     preview = "preview"
     active = "active"
     completed = "completed"
+    merged = "merged"  # When groups are combined
     cancelled = "cancelled"
 
 
