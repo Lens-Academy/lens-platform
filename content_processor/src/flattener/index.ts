@@ -368,11 +368,14 @@ function flattenLearningOutcomeSection(
     }
 
     // Create a section for this lens
+    // Optional can come from either:
+    // 1. The LO reference in the module (section.fields.optional) - makes ALL lenses optional
+    // 2. The individual lens reference in the LO (lensRef.optional) - makes just this lens optional
     const resultSection: Section = {
       type: sectionType,
       meta,
       segments,
-      optional: section.fields.optional === 'true',
+      optional: section.fields.optional === 'true' || lensRef.optional,
       learningOutcomeId: lo.id ?? null,
       contentId: lens.id ?? null,
       videoId: videoId ?? null,

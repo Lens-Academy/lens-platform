@@ -234,7 +234,9 @@ source:: [[../Lenses/nonexistent.md|Missing]]
     expect(result.errors.some(e => e.message.includes('not found'))).toBe(true);
   });
 
-  it('handles optional learning outcomes', () => {
+  it('optional LO in module makes ALL its lenses optional', () => {
+    // When a Learning Outcome reference in the module has optional:: true,
+    // ALL lenses within that LO should inherit the optional flag.
     const files = new Map([
       ['modules/optional.md', `---
 slug: optional
@@ -242,25 +244,28 @@ title: Optional Module
 ---
 
 # Learning Outcome: Required Topic
-source:: [[../Learning Outcomes/lo1.md|LO1]]
+source:: [[../Learning Outcomes/lo-required.md|Required LO]]
 
 # Learning Outcome: Optional Topic
-source:: [[../Learning Outcomes/lo2.md|LO2]]
+source:: [[../Learning Outcomes/lo-optional.md|Optional LO]]
 optional:: true
 `],
-      ['Learning Outcomes/lo1.md', `---
+      ['Learning Outcomes/lo-required.md', `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
 
-## Lens: Lens 1
-source:: [[../Lenses/lens1.md|Lens]]
+## Lens:
+source:: [[../Lenses/lens1.md|Lens 1]]
 `],
-      ['Learning Outcomes/lo2.md', `---
+      ['Learning Outcomes/lo-optional.md', `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-## Lens: Lens 2
-source:: [[../Lenses/lens2.md|Lens]]
+## Lens:
+source:: [[../Lenses/lens2.md|Lens 2]]
+
+## Lens:
+source:: [[../Lenses/lens3.md|Lens 3]]
 `],
       ['Lenses/lens1.md', `---
 id: 550e8400-e29b-41d4-a716-446655440010
@@ -269,7 +274,7 @@ id: 550e8400-e29b-41d4-a716-446655440010
 ### Text: Content 1
 
 #### Text
-content:: First content.
+content:: Required content.
 `],
       ['Lenses/lens2.md', `---
 id: 550e8400-e29b-41d4-a716-446655440011
@@ -278,16 +283,30 @@ id: 550e8400-e29b-41d4-a716-446655440011
 ### Text: Content 2
 
 #### Text
-content:: Second content.
+content:: Optional content A.
+`],
+      ['Lenses/lens3.md', `---
+id: 550e8400-e29b-41d4-a716-446655440012
+---
+
+### Text: Content 3
+
+#### Text
+content:: Optional content B.
 `],
     ]);
 
     const result = flattenModule('modules/optional.md', files);
 
     expect(result.module).toBeDefined();
-    expect(result.module?.sections).toHaveLength(2);
+    expect(result.errors).toHaveLength(0);
+    // 1 lens from required LO + 2 lenses from optional LO = 3 sections
+    expect(result.module?.sections).toHaveLength(3);
+    // Lens from required LO: NOT optional
     expect(result.module?.sections[0].optional).toBe(false);
+    // Both lenses from optional LO: SHOULD BE optional (inherited from LO)
     expect(result.module?.sections[1].optional).toBe(true);
+    expect(result.module?.sections[2].optional).toBe(true);
   });
 
   it('flattens Page section with ## Text content segments', () => {
@@ -550,6 +569,74 @@ content:: Second lens content.
     expect(result.module?.sections[1].segments).toHaveLength(1);
     expect((result.module?.sections[0].segments[0] as any).content).toBe('First lens content.');
     expect((result.module?.sections[1].segments[0] as any).content).toBe('Second lens content.');
+  });
+
+  it('individual lens within LO can be marked optional', () => {
+    // When an individual lens reference within an LO has optional:: true,
+    // only THAT specific lens should be optional (not all lenses in the LO).
+    const files = new Map([
+      ['modules/test.md', `---
+slug: test
+title: Test
+---
+
+# Learning Outcome: Topic
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`],
+      ['Learning Outcomes/lo1.md', `---
+id: 550e8400-e29b-41d4-a716-446655440001
+---
+
+## Lens:
+source:: [[../Lenses/lens1.md|Lens 1]]
+
+## Lens:
+optional:: true
+source:: [[../Lenses/lens2.md|Lens 2]]
+
+## Lens:
+source:: [[../Lenses/lens3.md|Lens 3]]
+`],
+      ['Lenses/lens1.md', `---
+id: 550e8400-e29b-41d4-a716-446655440010
+---
+
+### Text: Content 1
+
+#### Text
+content:: Required content A.
+`],
+      ['Lenses/lens2.md', `---
+id: 550e8400-e29b-41d4-a716-446655440011
+---
+
+### Text: Content 2
+
+#### Text
+content:: Optional content.
+`],
+      ['Lenses/lens3.md', `---
+id: 550e8400-e29b-41d4-a716-446655440012
+---
+
+### Text: Content 3
+
+#### Text
+content:: Required content B.
+`],
+    ]);
+
+    const result = flattenModule('modules/test.md', files);
+
+    expect(result.module).toBeDefined();
+    expect(result.errors).toHaveLength(0);
+    expect(result.module?.sections).toHaveLength(3);
+    // First lens: NOT optional
+    expect(result.module?.sections[0].optional).toBe(false);
+    // Second lens: SHOULD BE optional (from LO's individual lens reference)
+    expect(result.module?.sections[1].optional).toBe(true);
+    // Third lens: NOT optional
+    expect(result.module?.sections[2].optional).toBe(false);
   });
 
   it('detects circular reference and returns error', () => {
