@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // src/cli.ts
 import { readVaultFiles } from './fs/read-vault.js';
 import { processContent, ProcessResult } from './index.js';

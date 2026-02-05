@@ -1,15 +1,37 @@
 {
-  "name": "@lens/content-processor",
+  "name": "lens-content-processor",
   "version": "0.1.0",
+  "description": "Parser and validator for Lens educational content (Markdown modules, lenses, learning outcomes)",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "lens-content-processor": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "validate": "tsx src/cli.ts validate",
     "process": "tsx src/cli.ts process"
+  },
+  "keywords": [
+    "lens",
+    "education",
+    "markdown",
+    "validator",
+    "parser",
+    "content"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lens-Academy/lens-platform.git",
+    "directory": "content_processor"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
