@@ -27,6 +27,15 @@ export function resolveWikilinkPath(linkPath: string, sourceFile: string): strin
 }
 
 /**
+ * Check if a wikilink path contains a relative path indicator (slash).
+ * We always expect source:: paths to be relative (e.g., ../Lenses/foo.md),
+ * never just a filename (e.g., foo.md).
+ */
+export function hasRelativePath(path: string): boolean {
+  return path.includes('/');
+}
+
+/**
  * Find a file in the files Map, trying with and without .md extension.
  * Returns the key that exists in the map, or null if not found.
  */

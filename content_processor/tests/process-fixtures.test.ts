@@ -3,6 +3,86 @@ import { describe, it, expect } from 'vitest';
 import { listFixtures, loadFixture } from './fixture-loader.js';
 import { processContent } from '../src/index.js';
 
+describe('source path validation', () => {
+  it('errors when source:: wikilink has no relative path (no slash)', () => {
+    // source:: [[just-filename.md]] should error - we always expect relative paths
+    const files = new Map([
+      ['Learning Outcomes/lo1.md', `---
+id: 550e8400-e29b-41d4-a716-446655440001
+---
+
+## Lens:
+source:: [[lens1.md|Lens 1]]
+`],
+    ]);
+
+    const result = processContent(files);
+
+    // Should have an error about missing relative path
+    const pathError = result.errors.find(
+      e => e.message.includes('relative') || e.message.includes('/')
+    );
+    expect(pathError).toBeDefined();
+    expect(pathError?.severity).toBe('error');
+  });
+
+  it('accepts source:: wikilink with relative path', () => {
+    // source:: [[../Lenses/lens1.md]] is valid
+    const files = new Map([
+      ['Learning Outcomes/lo1.md', `---
+id: 550e8400-e29b-41d4-a716-446655440001
+---
+
+## Lens:
+source:: [[../Lenses/lens1.md|Lens 1]]
+`],
+      ['Lenses/lens1.md', `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Text: Content
+
+#### Text
+content:: Some content.
+`],
+    ]);
+
+    const result = processContent(files);
+
+    // Should NOT have an error about relative path
+    const pathError = result.errors.find(
+      e => e.message.includes('relative') || e.message.includes('/')
+    );
+    expect(pathError).toBeUndefined();
+  });
+
+  it('errors when lens source:: has no relative path', () => {
+    // Lens files can also have source:: for articles/videos
+    const files = new Map([
+      ['Lenses/lens1.md', `---
+id: 550e8400-e29b-41d4-a716-446655440001
+---
+
+### Article: Test Article
+source:: [[article.md|Article]]
+
+#### Article-excerpt
+from:: "Start"
+to:: "End"
+`],
+    ]);
+
+    const result = processContent(files);
+
+    // Should have an error about missing relative path
+    const pathError = result.errors.find(
+      e => e.message.includes('relative') || e.message.includes('/')
+    );
+    expect(pathError).toBeDefined();
+    expect(pathError?.severity).toBe('error');
+  });
+});
+
 describe('field typo detection', () => {
   it('warns about likely typos in lens segment fields', () => {
     // 'contnet' is a likely typo for 'content'

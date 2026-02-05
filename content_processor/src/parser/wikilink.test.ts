@@ -1,6 +1,6 @@
 // src/parser/wikilink.test.ts
 import { describe, it, expect } from 'vitest';
-import { parseWikilink, resolveWikilinkPath, findFileWithExtension } from './wikilink';
+import { parseWikilink, resolveWikilinkPath, findFileWithExtension, hasRelativePath } from './wikilink';
 
 describe('parseWikilink', () => {
   it('extracts path and display text', () => {
@@ -64,6 +64,19 @@ describe('resolveWikilinkPath', () => {
     );
 
     expect(resolved).toBe('modules/introduction');
+  });
+});
+
+describe('hasRelativePath', () => {
+  it('returns true for paths with slash', () => {
+    expect(hasRelativePath('../Lenses/lens1.md')).toBe(true);
+    expect(hasRelativePath('path/to/file.md')).toBe(true);
+    expect(hasRelativePath('./file.md')).toBe(true);
+  });
+
+  it('returns false for paths without slash', () => {
+    expect(hasRelativePath('filename.md')).toBe(false);
+    expect(hasRelativePath('just-a-name')).toBe(false);
   });
 });
 

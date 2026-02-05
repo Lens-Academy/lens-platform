@@ -5,6 +5,7 @@ import { parseSections, LENS_SECTION_TYPES, LENS_OUTPUT_TYPE } from './sections.
 import { validateSegmentFields } from '../validator/segment-fields.js';
 import { validateFieldValues } from '../validator/field-values.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
+import { parseWikilink, hasRelativePath } from './wikilink.js';
 
 // Segment types for parsed lens content (before bundling/flattening)
 export interface ParsedTextSegment {
@@ -394,6 +395,20 @@ export function parseLens(content: string, file: string): LensParseResult {
         suggestion: `Add 'source:: [[../path/to/file.md|Display]]' to the ${rawSection.rawType.toLowerCase()} section`,
         severity: 'error',
       });
+    }
+
+    // Validate source:: path is relative (contains /)
+    if (source) {
+      const wikilink = parseWikilink(source);
+      if (wikilink && !hasRelativePath(wikilink.path)) {
+        errors.push({
+          file,
+          line: rawSection.line,
+          message: `source:: path must be relative (contain /): ${wikilink.path}`,
+          suggestion: 'Use format [[../path/to/file.md|Display]] with relative path',
+          severity: 'error',
+        });
+      }
     }
 
     // Parse H4 segments within this section
