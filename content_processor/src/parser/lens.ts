@@ -4,6 +4,8 @@ import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, LENS_SECTION_TYPES, LENS_OUTPUT_TYPE } from './sections.js';
 import { validateSegmentFields } from '../validator/segment-fields.js';
 import { validateFieldValues } from '../validator/field-values.js';
+import { detectFieldTypos } from '../validator/field-typos.js';
+import { parseWikilink, hasRelativePath } from './wikilink.js';
 
 // Segment types for parsed lens content (before bundling/flattening)
 export interface ParsedTextSegment {
@@ -226,10 +228,37 @@ function convertSegment(
     }
 
     case 'chat': {
+      const hasInstructionsField = 'instructions' in raw.fields;
+      const instructions = raw.fields.instructions;
+
+      if (!hasInstructionsField) {
+        // Field completely missing - error
+        errors.push({
+          file,
+          line: raw.line,
+          message: 'Chat segment missing instructions:: field',
+          suggestion: "Add 'instructions:: Your instructions here' to the chat segment",
+          severity: 'error',
+        });
+        return { segment: null, errors };
+      }
+
+      if (!instructions || instructions.trim() === '') {
+        // Field present but empty - warning
+        errors.push({
+          file,
+          line: raw.line,
+          message: 'Chat segment has empty instructions:: field',
+          suggestion: 'Add instructions text after instructions::',
+          severity: 'warning',
+        });
+        // Still create the segment with empty instructions
+      }
+
       const segment: ParsedChatSegment = {
         type: 'chat',
         title: raw.title,
-        instructions: raw.fields.instructions,
+        instructions: instructions || '',
         hidePreviousContentFromUser: raw.fields.hidePreviousContentFromUser === 'true' ? true : undefined,
         hidePreviousContentFromTutor: raw.fields.hidePreviousContentFromTutor === 'true' ? true : undefined,
         optional: raw.fields.optional === 'true' ? true : undefined,
@@ -395,6 +424,20 @@ export function parseLens(content: string, file: string): LensParseResult {
       });
     }
 
+    // Validate source:: path is relative (contains /)
+    if (source) {
+      const wikilink = parseWikilink(source);
+      if (wikilink && !hasRelativePath(wikilink.path)) {
+        errors.push({
+          file,
+          line: rawSection.line,
+          message: `source:: path must be relative (contain /): ${wikilink.path}`,
+          suggestion: 'Use format [[../path/to/file.md|Display]] with relative path',
+          severity: 'error',
+        });
+      }
+    }
+
     // Parse H4 segments within this section
     const { segments: rawSegments, errors: segmentErrors } = parseSegments(
       rawSection.body,
@@ -419,6 +462,10 @@ export function parseLens(content: string, file: string): LensParseResult {
       // Validate field values (e.g., boolean fields should have 'true' or 'false')
       const valueWarnings = validateFieldValues(rawSeg.fields, file, rawSeg.line);
       errors.push(...valueWarnings);
+
+      // Detect likely typos in field names
+      const typoWarnings = detectFieldTypos(rawSeg.fields, file, rawSeg.line);
+      errors.push(...typoWarnings);
 
       const { segment, errors: conversionErrors } = convertSegment(rawSeg, outputType, file);
       errors.push(...conversionErrors);

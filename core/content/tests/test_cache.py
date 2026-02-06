@@ -140,5 +140,32 @@ class TestContentCache:
         retrieved = get_cache()
         assert retrieved.last_refreshed == refresh_time
 
+    def test_cache_stores_three_stage_shas(self):
+        """Should store known, fetched, and processed SHAs with timestamps."""
+        now = datetime(2026, 2, 6, 12, 0, 0)
+        cache = ContentCache(
+            courses={},
+            flattened_modules={},
+            articles={},
+            video_transcripts={},
+            parsed_learning_outcomes={},
+            parsed_lenses={},
+            last_refreshed=now,
+            known_sha="aaa111",
+            known_sha_timestamp=now,
+            fetched_sha="bbb222",
+            fetched_sha_timestamp=now,
+            processed_sha="ccc333",
+            processed_sha_timestamp=now,
+        )
+        set_cache(cache)
+        retrieved = get_cache()
+        assert retrieved.known_sha == "aaa111"
+        assert retrieved.known_sha_timestamp == now
+        assert retrieved.fetched_sha == "bbb222"
+        assert retrieved.fetched_sha_timestamp == now
+        assert retrieved.processed_sha == "ccc333"
+        assert retrieved.processed_sha_timestamp == now
+
     # NOTE: Tests for parsed_learning_outcomes and parsed_lenses were removed
     # because the TypeScript processor now handles these - they're always empty dicts.

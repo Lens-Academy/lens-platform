@@ -18,13 +18,13 @@ export interface SectionsResult {
 // Valid section types per file type (exported for use by other parsers)
 export const MODULE_SECTION_TYPES = new Set(['learning outcome', 'page', 'uncategorized']);
 export const LO_SECTION_TYPES = new Set(['lens', 'test']);
-// Lens sections: input headers are `### Article:`, `### Video:`, `### Text:`
-// Output types are `lens-article`, `lens-video`, `text` (v2 format)
-export const LENS_SECTION_TYPES = new Set(['text', 'article', 'video']);
+// Lens sections: input headers are `### Article:`, `### Video:`, `### Page:`
+// Output types are `lens-article`, `lens-video`, `page` (v2 format)
+export const LENS_SECTION_TYPES = new Set(['page', 'article', 'video']);
 
 // Map input section names to output types for Lens files
 export const LENS_OUTPUT_TYPE: Record<string, string> = {
-  'text': 'text',
+  'page': 'page',
   'article': 'lens-article',
   'video': 'lens-video',
 };
@@ -32,10 +32,13 @@ export const LENS_OUTPUT_TYPE: Record<string, string> = {
 // Header pattern is parameterized by level (1-4)
 function makeSectionPattern(level: number): RegExp {
   const hashes = '#'.repeat(level);
-  // Match: ^#{level} <type>: <title>$
-  // Captures: group 1 = type, group 2 = title
-  return new RegExp(`^${hashes}\\s+([^:]+):\\s*(.*)$`, 'i');
+  // Match: ^#{level} <type>  OR  ^#{level} <type>: <optional title>
+  // Captures: group 1 = type, group 2 = title (may be undefined)
+  return new RegExp(`^${hashes}\\s+([^:]+?)(?::\\s*(.*))?$`, 'i');
 }
+
+// Note: unrecognized headers are now caught by makeSectionPattern matching all
+// ### headers, with unknown types reported as "Unknown section type" errors.
 
 export function parseSections(
   content: string,
@@ -68,14 +71,15 @@ export function parseSections(
 
       const rawType = headerMatch[1].trim();
       const normalizedType = rawType.toLowerCase();
-      const title = headerMatch[2].trim();
+      const title = (headerMatch[2] ?? '').trim();
 
       if (!validTypes.has(normalizedType)) {
+        const capitalized = [...validTypes].map(t => t.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' '));
         errors.push({
           file,
           line: lineNum,
           message: `Unknown section type: ${rawType}`,
-          suggestion: `Valid types: ${[...validTypes].join(', ')}`,
+          suggestion: `Valid types: ${capitalized.join(', ')}`,
           severity: 'error',
         });
       }
@@ -89,8 +93,10 @@ export function parseSections(
         line: lineNum,
       };
       currentBody = [];
-    } else if (currentSection) {
-      currentBody.push(line);
+    } else {
+      if (currentSection) {
+        currentBody.push(line);
+      }
     }
   }
 

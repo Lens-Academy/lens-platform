@@ -5,9 +5,12 @@ import hmac
 import hashlib
 import logging
 import os
+from datetime import UTC, datetime
 from typing import Optional
 
+from .cache import get_cache, CacheNotInitializedError
 from .github_fetcher import incremental_refresh
+from .validation_broadcaster import broadcaster
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +78,26 @@ async def handle_content_update(commit_sha: str) -> dict:
         logger.info(f"Refresh already in progress, queued commit {commit_sha[:8]}")
         return {"status": "queued", "message": "Refresh already in progress, queued"}
 
+    # Phase 1: Immediately update known_sha and broadcast "new commit detected"
+    if broadcaster.subscriber_count > 0:
+        try:
+            cache = get_cache()
+            cache.known_sha = commit_sha
+            cache.known_sha_timestamp = datetime.now(UTC)
+            cache.last_diff = None  # Clear stale diff from previous refresh
+        except CacheNotInitializedError:
+            pass
+        await broadcaster.broadcast(broadcaster._build_cache_snapshot())
+
     async with _fetch_lock:
         current_sha = commit_sha
         refreshes = 0
+        validation_errors: list[dict] = []
 
         while True:
             _refetch_pending = False
             logger.info(f"Starting refresh for commit {current_sha[:8]}")
-            await incremental_refresh(current_sha)
+            validation_errors = await incremental_refresh(current_sha)
             refreshes += 1
 
             if not _refetch_pending:
@@ -92,11 +107,30 @@ async def handle_content_update(commit_sha: str) -> dict:
             current_sha = _pending_commit_sha or current_sha
             logger.info(f"Pending refresh detected, continuing with {current_sha[:8]}")
 
-        return {
+        # Build summary
+        error_count = len(
+            [e for e in validation_errors if e.get("severity") == "error"]
+        )
+        warning_count = len(
+            [e for e in validation_errors if e.get("severity") == "warning"]
+        )
+
+        result = {
             "status": "ok",
             "message": f"Cache refreshed ({refreshes} refresh(es))",
             "commit_sha": current_sha,
+            "summary": {
+                "errors": error_count,
+                "warnings": warning_count,
+            },
+            "issues": validation_errors,
         }
+
+        # Phase 2: Broadcast full results after refresh
+        if broadcaster.subscriber_count > 0:
+            await broadcaster.broadcast(broadcaster._build_cache_snapshot())
+
+        return result
 
 
 def _reset_fetch_state() -> None:

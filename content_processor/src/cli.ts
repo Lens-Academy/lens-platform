@@ -86,7 +86,11 @@ async function main(): Promise<void> {
 }
 
 // Run if executed directly (not imported as a module)
-const isMainModule = process.argv[1]?.includes('cli.ts') || process.argv[1]?.includes('cli.js');
+// Check for cli.ts, cli.js, or lens-content-processor (when run as npx binary)
+const scriptName = process.argv[1] || '';
+const isMainModule = scriptName.includes('cli.ts') ||
+                     scriptName.includes('cli.js') ||
+                     scriptName.endsWith('lens-content-processor');
 if (isMainModule) {
   main();
 }

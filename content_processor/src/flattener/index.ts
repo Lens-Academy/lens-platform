@@ -13,7 +13,7 @@ import type {
 import { parseModule, parsePageTextSegments } from '../parser/module.js';
 import { parseLearningOutcome } from '../parser/learning-outcome.js';
 import { parseLens, type ParsedLensSegment, type ParsedLensSection } from '../parser/lens.js';
-import { parseWikilink, resolveWikilinkPath, findFileWithExtension } from '../parser/wikilink.js';
+import { parseWikilink, resolveWikilinkPath, findFileWithExtension, findSimilarFiles, formatSuggestion } from '../parser/wikilink.js';
 import { parseFrontmatter } from '../parser/frontmatter.js';
 import { extractArticleExcerpt } from '../bundler/article.js';
 import { extractVideoExcerpt, type TimestampEntry } from '../bundler/video.js';
@@ -116,12 +116,13 @@ export function flattenModule(
     } else if (section.type === 'page') {
       // Page sections don't have LO references, they have inline content
       // Parse the section body for ## Text subsections
-      const textSegments = parsePageTextSegments(section.body);
+      const textResult = parsePageTextSegments(section.body, modulePath, section.line);
+      errors.push(...textResult.errors);
 
       const pageSection: Section = {
         type: 'page',
         meta: { title: section.title },
-        segments: textSegments,
+        segments: textResult.segments,
         optional: section.fields.optional === 'true',
         contentId: section.fields.id ?? null,
         learningOutcomeId: null,
@@ -213,11 +214,15 @@ function flattenLearningOutcomeSection(
 
   // Get the LO file content
   if (!loPath) {
+    // Find similar files to suggest
+    const similarFiles = findSimilarFiles(loPathResolved, files, 'Learning Outcomes');
+    const suggestion = formatSuggestion(similarFiles, modulePath) ?? 'Check the file path in the wiki-link';
+
     errors.push({
       file: modulePath,
       line: section.line,
       message: `Referenced file not found: ${loPathResolved}`,
-      suggestion: 'Check the file path in the wiki-link',
+      suggestion,
       severity: 'error',
     });
     return { sections: [], errors };
@@ -251,10 +256,14 @@ function flattenLearningOutcomeSection(
   for (const lensRef of lo.lenses) {
     const lensPath = findFileWithExtension(lensRef.resolvedPath, files);
     if (!lensPath) {
+      // Find similar files to suggest
+      const similarFiles = findSimilarFiles(lensRef.resolvedPath, files, 'Lenses');
+      const suggestion = formatSuggestion(similarFiles, loPath) ?? 'Check the file path in the wiki-link';
+
       errors.push({
         file: loPath,
         message: `Referenced lens file not found: ${lensRef.resolvedPath}`,
-        suggestion: 'Check the file path in the wiki-link',
+        suggestion,
         severity: 'error',
       });
       continue;
@@ -317,6 +326,12 @@ function flattenLearningOutcomeSection(
               }
             }
           }
+        }
+      } else if (lensSection.type === 'page') {
+        sectionType = 'page';
+        // For page sections, use the title from the ### Page: header
+        if (lensSection.title) {
+          meta.title = lensSection.title;
         }
       } else if (lensSection.type === 'lens-video') {
         sectionType = 'lens-video';
@@ -368,11 +383,14 @@ function flattenLearningOutcomeSection(
     }
 
     // Create a section for this lens
+    // Optional can come from either:
+    // 1. The LO reference in the module (section.fields.optional) - makes ALL lenses optional
+    // 2. The individual lens reference in the LO (lensRef.optional) - makes just this lens optional
     const resultSection: Section = {
       type: sectionType,
       meta,
       segments,
-      optional: section.fields.optional === 'true',
+      optional: section.fields.optional === 'true' || lensRef.optional,
       learningOutcomeId: lo.id ?? null,
       contentId: lens.id ?? null,
       videoId: videoId ?? null,
@@ -409,10 +427,14 @@ function flattenUncategorizedSection(
   for (const lensRef of lensRefs) {
     const lensPath = findFileWithExtension(lensRef.resolvedPath, files);
     if (!lensPath) {
+      // Find similar files to suggest
+      const similarFiles = findSimilarFiles(lensRef.resolvedPath, files, 'Lenses');
+      const suggestion = formatSuggestion(similarFiles, modulePath) ?? 'Check the file path in the wiki-link';
+
       errors.push({
         file: modulePath,
         message: `Referenced lens file not found: ${lensRef.resolvedPath}`,
-        suggestion: 'Check the file path in the wiki-link',
+        suggestion,
         severity: 'error',
       });
       continue;
@@ -475,6 +497,12 @@ function flattenUncategorizedSection(
               }
             }
           }
+        }
+      } else if (lensSection.type === 'page') {
+        sectionType = 'page';
+        // For page sections, use the title from the ### Page: header
+        if (lensSection.title) {
+          meta.title = lensSection.title;
         }
       } else if (lensSection.type === 'lens-video') {
         sectionType = 'lens-video';
@@ -741,10 +769,14 @@ function convertSegment(
       const articlePath = findFileWithExtension(articlePathResolved, files);
 
       if (!articlePath) {
+        // Find similar files to suggest
+        const similarFiles = findSimilarFiles(articlePathResolved, files, 'articles');
+        const suggestion = formatSuggestion(similarFiles, lensPath) ?? 'Check the file path in the wiki-link';
+
         errors.push({
           file: lensPath,
           message: `Referenced article file not found: ${articlePathResolved}`,
-          suggestion: 'Check the file path in the wiki-link',
+          suggestion,
           severity: 'error',
         });
         return { segment: null, errors };
@@ -813,10 +845,14 @@ function convertSegment(
       const videoPath = findFileWithExtension(videoPathResolved, files);
 
       if (!videoPath) {
+        // Find similar files to suggest
+        const similarFiles = findSimilarFiles(videoPathResolved, files, 'video_transcripts');
+        const suggestion = formatSuggestion(similarFiles, lensPath) ?? 'Check the file path in the wiki-link';
+
         errors.push({
           file: lensPath,
           message: `Referenced video transcript file not found: ${videoPathResolved}`,
-          suggestion: 'Check the file path in the wiki-link',
+          suggestion,
           severity: 'error',
         });
         return { segment: null, errors };

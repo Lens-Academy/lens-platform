@@ -33,9 +33,26 @@ class ContentCache:
     video_timestamps: dict[str, list[dict]] | None = (
         None  # video_id -> timestamp word list
     )
-    last_commit_sha: str | None = None  # Git commit SHA of current cache state
+    # --- Three-stage SHA tracking ---
+    # Latest commit we've heard about (from webhook or polling GitHub API)
+    known_sha: str | None = None
+    known_sha_timestamp: datetime | None = None  # commit's author timestamp
+    # Raw files in cache are from this commit
+    fetched_sha: str | None = None
+    fetched_sha_timestamp: datetime | None = None
+    # Validation results (parsed/processed) are from this commit
+    processed_sha: str | None = None
+    processed_sha_timestamp: datetime | None = None
+    # Legacy — keep for backward compat during migration, alias for processed_sha
+    last_commit_sha: str | None = None
     # Raw files for incremental updates - all files sent to TypeScript processor
     raw_files: dict[str, str] | None = None  # path -> raw content
+    # Validation errors/warnings from last content processing
+    validation_errors: list[dict] | None = (
+        None  # [{file, line, message, suggestion, severity}]
+    )
+    # Diff from last incremental refresh (from GitHub Compare API)
+    last_diff: list[dict] | None = None
 
 
 # Global cache singleton

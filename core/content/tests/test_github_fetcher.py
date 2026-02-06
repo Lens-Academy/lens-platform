@@ -660,6 +660,45 @@ class TestCompareCommits:
                 assert result.files[0].status == "modified"
 
 
+class TestCompareCommitsDiffData:
+    """Test that compare_commits captures diff data from GitHub API."""
+
+    @pytest.mark.asyncio
+    async def test_compare_commits_captures_diff_stats(self):
+        """Should capture additions, deletions, and patch from GitHub Compare API."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "files": [
+                {
+                    "filename": "modules/intro.md",
+                    "status": "modified",
+                    "additions": 3,
+                    "deletions": 1,
+                    "patch": "@@ -1,4 +1,6 @@\n old line\n+new line",
+                },
+            ]
+        }
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client.get.return_value = mock_response
+            mock_client_class.return_value = mock_client
+
+            with patch.dict(
+                os.environ,
+                {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "test"},
+            ):
+                result = await compare_commits("old_sha", "new_sha")
+
+        assert len(result.files) == 1
+        assert result.files[0].additions == 3
+        assert result.files[0].deletions == 1
+        assert result.files[0].patch == "@@ -1,4 +1,6 @@\n old line\n+new line"
+
+
 class TestGetTrackedDirectory:
     """Test _get_tracked_directory helper function."""
 
@@ -1197,3 +1236,124 @@ class TestApplyFileChange:
             # Client should not have been called
             mock_client.get.assert_not_called()
             assert needs_refresh is False
+
+
+class TestIncrementalRefreshSHATracking:
+    """Test three-stage SHA tracking in incremental_refresh."""
+
+    def setup_method(self):
+        clear_cache()
+
+    def teardown_method(self):
+        clear_cache()
+
+    @pytest.mark.asyncio
+    async def test_incremental_refresh_updates_three_shas(self):
+        """After incremental refresh, fetched_sha and processed_sha should be set."""
+        # Set up initial cache at old SHA
+        initial_cache = ContentCache(
+            courses={},
+            flattened_modules={},
+            articles={},
+            video_transcripts={},
+            parsed_learning_outcomes={},
+            parsed_lenses={},
+            last_refreshed=datetime.now(),
+            last_commit_sha="old_sha_111",
+            processed_sha="old_sha_111",
+            raw_files={"modules/test.md": "---\ntitle: Test\nslug: test\n---\n"},
+        )
+        set_cache(initial_cache)
+
+        mock_comparison = CommitComparison(
+            files=[
+                ChangedFile(
+                    path="modules/test.md",
+                    status="modified",
+                    additions=2,
+                    deletions=1,
+                    patch="@@ -1 +1,2 @@\n+new line",
+                )
+            ],
+            is_truncated=False,
+        )
+
+        with patch(
+            "core.content.github_fetcher.compare_commits",
+            new_callable=AsyncMock,
+            return_value=mock_comparison,
+        ):
+            with patch(
+                "core.content.github_fetcher._fetch_file_with_client",
+                new_callable=AsyncMock,
+                return_value="---\ntitle: Test Updated\nslug: test\n---\n",
+            ):
+                with patch(
+                    "core.content.github_fetcher.process_content_typescript",
+                    new_callable=AsyncMock,
+                    return_value={"modules": [], "courses": [], "errors": []},
+                ):
+                    await incremental_refresh("new_sha_222")
+
+        cache = get_cache()
+        assert cache.fetched_sha == "new_sha_222"
+        assert cache.processed_sha == "new_sha_222"
+        assert cache.last_commit_sha == "new_sha_222"
+        assert cache.fetched_sha_timestamp is not None
+        assert cache.processed_sha_timestamp is not None
+
+    @pytest.mark.asyncio
+    async def test_incremental_refresh_stores_diff(self):
+        """After incremental refresh, last_diff should contain file change info."""
+        initial_cache = ContentCache(
+            courses={},
+            flattened_modules={},
+            articles={},
+            video_transcripts={},
+            parsed_learning_outcomes={},
+            parsed_lenses={},
+            last_refreshed=datetime.now(),
+            last_commit_sha="old_sha_111",
+            processed_sha="old_sha_111",
+            raw_files={"modules/test.md": "---\ntitle: Test\nslug: test\n---\n"},
+        )
+        set_cache(initial_cache)
+
+        mock_comparison = CommitComparison(
+            files=[
+                ChangedFile(
+                    path="modules/test.md",
+                    status="modified",
+                    additions=2,
+                    deletions=1,
+                    patch="@@ -1 +1,2 @@\n+new line",
+                )
+            ],
+            is_truncated=False,
+        )
+
+        with patch(
+            "core.content.github_fetcher.compare_commits",
+            new_callable=AsyncMock,
+            return_value=mock_comparison,
+        ):
+            with patch(
+                "core.content.github_fetcher._fetch_file_with_client",
+                new_callable=AsyncMock,
+                return_value="updated content",
+            ):
+                with patch(
+                    "core.content.github_fetcher.process_content_typescript",
+                    new_callable=AsyncMock,
+                    return_value={"modules": [], "courses": [], "errors": []},
+                ):
+                    await incremental_refresh("new_sha_222")
+
+        cache = get_cache()
+        assert cache.last_diff is not None
+        assert len(cache.last_diff) == 1
+        assert cache.last_diff[0]["filename"] == "modules/test.md"
+        assert cache.last_diff[0]["status"] == "modified"
+        assert cache.last_diff[0]["additions"] == 2
+        assert cache.last_diff[0]["deletions"] == 1
+        assert cache.last_diff[0]["patch"] == "@@ -1 +1,2 @@\n+new line"

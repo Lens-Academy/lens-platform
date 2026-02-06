@@ -8,6 +8,7 @@ import type { ContentError } from '../index.js';
 const KNOWN_FIELDS = [
   // Common fields
   'content',
+  'contentId',
   'instructions',
   'source',
   'optional',
@@ -25,6 +26,8 @@ const KNOWN_FIELDS = [
   // Chat segment fields
   'hidePreviousContentFromUser',
   'hidePreviousContentFromTutor',
+  // Learning outcome fields
+  'learningOutcomeId',
 ];
 
 /**

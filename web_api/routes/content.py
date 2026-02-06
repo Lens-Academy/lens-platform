@@ -4,18 +4,24 @@ Content management API routes.
 Endpoints:
 - POST /api/content/webhook - Handle GitHub push webhook to refresh cache
 - POST /api/content/refresh - Manual refresh for development
+- GET /api/content/validation-stream - SSE endpoint for live validation updates
+- POST /api/content/refresh-validation - Manual refresh trigger for validation dashboard
 """
 
+import asyncio
+import json
 import logging
 import sys
 from pathlib import Path
 
 from fastapi import APIRouter, Request, HTTPException, Header
+from starlette.responses import StreamingResponse
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.content import refresh_cache, get_cache, CacheNotInitializedError
 from core.content.github_fetcher import get_content_branch
+from core.content.validation_broadcaster import broadcaster
 from core.content.webhook_handler import (
     handle_content_update,
     verify_webhook_signature,
@@ -153,6 +159,9 @@ async def set_commit_sha(commit_sha: str):
         cache = get_cache()
         old_sha = cache.last_commit_sha
         cache.last_commit_sha = commit_sha
+        cache.known_sha = commit_sha
+        cache.fetched_sha = commit_sha
+        cache.processed_sha = commit_sha
         return {
             "status": "ok",
             "old_commit_sha": old_sha,
@@ -179,6 +188,18 @@ async def cache_status():
         return {
             "status": "ok",
             "watching_branch": branch,
+            "known_sha": cache.known_sha,
+            "known_sha_timestamp": cache.known_sha_timestamp.isoformat()
+            if cache.known_sha_timestamp
+            else None,
+            "fetched_sha": cache.fetched_sha,
+            "fetched_sha_timestamp": cache.fetched_sha_timestamp.isoformat()
+            if cache.fetched_sha_timestamp
+            else None,
+            "processed_sha": cache.processed_sha,
+            "processed_sha_timestamp": cache.processed_sha_timestamp.isoformat()
+            if cache.processed_sha_timestamp
+            else None,
             "last_commit_sha": cache.last_commit_sha,
             "last_refreshed": cache.last_refreshed.isoformat()
             if cache.last_refreshed
@@ -196,3 +217,73 @@ async def cache_status():
             "watching_branch": branch,
             "message": "Cache not yet initialized",
         }
+
+
+@router.get("/validation-stream")
+async def validation_stream(request: Request):
+    """
+    SSE endpoint for live validation updates.
+
+    Returns a text/event-stream that:
+    1. Immediately sends current cached validation state
+    2. Pushes new events whenever validation results change
+    3. Stays open until the client disconnects
+    """
+    queue = await broadcaster.subscribe()
+
+    async def event_generator():
+        try:
+            while True:
+                # Check if client disconnected
+                if await request.is_disconnected():
+                    break
+
+                try:
+                    # Wait for next message with timeout (for disconnect checking)
+                    msg = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    data = json.dumps(msg, default=str)
+                    yield f"event: validation\ndata: {data}\n\n"
+                except asyncio.TimeoutError:
+                    # Send keepalive comment to prevent connection timeout
+                    yield ": keepalive\n\n"
+        finally:
+            await broadcaster.unsubscribe(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        },
+    )
+
+
+@router.post("/refresh-validation")
+async def refresh_validation():
+    """
+    Manual refresh fallback. Triggers incremental refresh.
+
+    The SSE stream will push updated results to connected clients.
+    """
+    from core.content.github_fetcher import get_latest_commit_sha
+
+    try:
+        commit_sha = await get_latest_commit_sha()
+    except Exception as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to fetch latest commit: {e}",
+        )
+
+    # Fire in background — SSE will push results when done
+    async def _refresh_with_error_handling():
+        try:
+            await handle_content_update(commit_sha)
+        except Exception as e:
+            logger.error(f"Background refresh failed: {e}")
+
+    asyncio.create_task(_refresh_with_error_handling())
+
+    return {"status": "ok", "message": "Refresh triggered"}

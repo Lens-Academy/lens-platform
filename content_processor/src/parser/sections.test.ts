@@ -25,7 +25,7 @@ Some content here.
 
   it('splits content by H3 headers for lens files', () => {
     const content = `
-### Text: Introduction
+### Page: Introduction
 
 #### Text
 content:: Hello world.
@@ -37,7 +37,7 @@ source:: [[../articles/deep.md|Article]]
     const result = parseSections(content, 3, LENS_SECTION_TYPES);
 
     expect(result.sections).toHaveLength(2);
-    expect(result.sections[0].type).toBe('text');
+    expect(result.sections[0].type).toBe('page');
     expect(result.sections[1].type).toBe('article');
   });
 
@@ -69,7 +69,7 @@ content:: here
   describe('multiline fields', () => {
     it('parses content:: spanning multiple lines', () => {
       const content = `
-### Text: Intro
+### Page: Intro
 
 #### Text
 content::
@@ -117,7 +117,7 @@ source:: [[test.md|Test]]
 
     it('parses multiline field that continues until end of section', () => {
       const content = `
-### Text: Notes
+### Page: Notes
 
 #### Text
 content::
@@ -294,7 +294,7 @@ Discuss what the user learned from the video.
 
     it('still warns about actual duplicates within the same sub-section', () => {
       const content = `
-### Text: Intro
+### Page: Intro
 
 #### Text
 content:: First paragraph

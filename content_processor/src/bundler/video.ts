@@ -135,8 +135,8 @@ export function extractVideoExcerpt(
     return {
       error: {
         file,
-        message: `Invalid start timestamp format: '${fromTime}'`,
-        suggestion: 'Use MM:SS (e.g., 1:30) or H:MM:SS (e.g., 1:30:00) format',
+        message: `Invalid timestamp format: '${fromTime}'`,
+        suggestion: 'Valid formats: M:SS (e.g., 1:30), MM:SS (e.g., 01:30), H:MM:SS (e.g., 1:30:00), M:SS.ms (e.g., 1:30.50)',
         severity: 'error',
       },
     };
@@ -147,8 +147,8 @@ export function extractVideoExcerpt(
     return {
       error: {
         file,
-        message: `Invalid end timestamp format: '${toTime}'`,
-        suggestion: 'Use MM:SS (e.g., 1:30) or H:MM:SS (e.g., 1:30:00) format',
+        message: `Invalid timestamp format: '${toTime}'`,
+        suggestion: 'Valid formats: M:SS (e.g., 1:30), MM:SS (e.g., 01:30), H:MM:SS (e.g., 1:30:00), M:SS.ms (e.g., 1:30.50)',
         severity: 'error',
       },
     };

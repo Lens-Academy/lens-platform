@@ -11,6 +11,12 @@
   "courses": [],
   "errors": [
     {
+      "file": "Learning Outcomes/lo1.md",
+      "message": "Referenced lens file not found: Lenses/lens1.md",
+      "suggestion": "Check the file path in the wiki-link",
+      "severity": "error"
+    },
+    {
       "file": "modules/broken.md",
       "line": 6,
       "message": "Referenced file not found: Learning Outcomes/nonexistent.md",

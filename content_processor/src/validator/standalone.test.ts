@@ -10,7 +10,7 @@ describe('standalone file validation', () => {
         ['Lenses/orphan-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
-### Text: Missing Content
+### Page: Missing Content
 
 #### Text
 `],  // Missing content:: field
@@ -30,7 +30,7 @@ id: 550e8400-e29b-41d4-a716-446655440001
         ['Lenses/no-id-lens.md', `---
 title: Missing ID
 ---
-### Text: Intro
+### Page: Intro
 
 #### Text
 content:: Hello world
@@ -192,7 +192,7 @@ Just some text, no Lens section.
         ['Lenses/valid-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440020
 ---
-### Text: Intro
+### Page: Intro
 
 #### Text
 content:: This is valid content.
@@ -219,7 +219,7 @@ source:: [[../Lenses/intro.md]]
         ['Lenses/intro.md', `---
 id: 550e8400-e29b-41d4-a716-446655440022
 ---
-### Text: Intro
+### Page: Intro
 
 #### Text
 content:: Hello

@@ -1,6 +1,74 @@
 // src/validator/field-values.test.ts
 import { describe, it, expect } from 'vitest';
-import { validateFieldValues } from './field-values.js';
+import { validateFieldValues, validateSlugFormat } from './field-values.js';
+
+describe('validateSlugFormat', () => {
+  describe('valid slugs', () => {
+    it('accepts lowercase letters only', () => {
+      const result = validateSlugFormat('basics', 'test.md', 1);
+      expect(result).toBeNull();
+    });
+
+    it('accepts lowercase letters with hyphens', () => {
+      const result = validateSlugFormat('my-valid-slug', 'test.md', 1);
+      expect(result).toBeNull();
+    });
+
+    it('accepts lowercase letters with numbers', () => {
+      const result = validateSlugFormat('intro-101', 'test.md', 1);
+      expect(result).toBeNull();
+    });
+
+    it('accepts numbers only', () => {
+      const result = validateSlugFormat('123', 'test.md', 1);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('invalid slugs', () => {
+    it('rejects slugs with special characters', () => {
+      const result = validateSlugFormat('!!!invalid@@@', 'test.md', 1);
+      expect(result).not.toBeNull();
+      expect(result!.severity).toBe('error');
+      expect(result!.message).toContain('slug');
+    });
+
+    it('rejects slugs with spaces', () => {
+      const result = validateSlugFormat('my slug', 'test.md', 1);
+      expect(result).not.toBeNull();
+      expect(result!.message).toContain('slug');
+    });
+
+    it('rejects slugs starting with hyphen', () => {
+      const result = validateSlugFormat('-invalid', 'test.md', 1);
+      expect(result).not.toBeNull();
+      expect(result!.message).toContain('hyphen');
+    });
+
+    it('rejects slugs ending with hyphen', () => {
+      const result = validateSlugFormat('invalid-', 'test.md', 1);
+      expect(result).not.toBeNull();
+      expect(result!.message).toContain('hyphen');
+    });
+
+    it('rejects uppercase letters', () => {
+      const result = validateSlugFormat('UPPERCASE', 'test.md', 1);
+      expect(result).not.toBeNull();
+      expect(result!.message).toContain('uppercase');
+    });
+
+    it('rejects mixed case', () => {
+      const result = validateSlugFormat('MySlug', 'test.md', 1);
+      expect(result).not.toBeNull();
+      expect(result!.message).toContain('uppercase');
+    });
+
+    it('provides suggestion for uppercase slugs', () => {
+      const result = validateSlugFormat('UPPERCASE', 'test.md', 1);
+      expect(result!.suggestion).toContain('uppercase');
+    });
+  });
+});
 
 describe('validateFieldValues', () => {
   describe('boolean field validation', () => {

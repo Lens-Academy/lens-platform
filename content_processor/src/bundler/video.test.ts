@@ -20,6 +20,70 @@ describe('parseTimestamp', () => {
   });
 });
 
+describe('extractVideoExcerpt - timestamp format validation', () => {
+  const transcript = '0:00 - Content here.\n1:00 - More content.\n2:00 - End.';
+
+  it('returns clear error for non-timestamp from:: value', () => {
+    const result = extractVideoExcerpt(transcript, 'not a time', '1:00', 'video.md');
+
+    expect(result.error).toBeDefined();
+    expect(result.error?.message).toContain('Invalid');
+    expect(result.error?.message).toContain('timestamp');
+    expect(result.error?.message).toContain('not a time');
+    // Should list ALL valid formats in suggestion
+    expect(result.error?.suggestion).toMatch(/M:SS/);
+    expect(result.error?.suggestion).toMatch(/H:MM:SS/);
+    expect(result.error?.suggestion).toMatch(/\.ms/i); // milliseconds format
+  });
+
+  it('returns clear error for abc:def format', () => {
+    const result = extractVideoExcerpt(transcript, 'abc:def', '1:00', 'video.md');
+
+    expect(result.error).toBeDefined();
+    expect(result.error?.message).toContain('Invalid');
+    expect(result.error?.message).toContain('timestamp');
+    expect(result.error?.message).toContain('abc:def');
+    // Should list valid formats
+    expect(result.error?.suggestion).toMatch(/M:SS/);
+  });
+
+  it('returns clear error for invalid to:: timestamp', () => {
+    const result = extractVideoExcerpt(transcript, '0:00', 'invalid time', 'video.md');
+
+    expect(result.error).toBeDefined();
+    expect(result.error?.message).toContain('Invalid');
+    expect(result.error?.message).toContain('timestamp');
+    expect(result.error?.message).toContain('invalid time');
+    // Should list valid formats
+    expect(result.error?.suggestion).toMatch(/M:SS/);
+    expect(result.error?.suggestion).toMatch(/H:MM:SS/);
+  });
+
+  it('accepts valid M:SS format', () => {
+    const transcript = '0:00 - Start.\n1:30 - Middle.\n2:00 - End.';
+    const result = extractVideoExcerpt(transcript, '1:30', '2:00', 'video.md');
+    expect(result.error).toBeUndefined();
+    expect(result.from).toBe(90);
+  });
+
+  it('accepts valid MM:SS format', () => {
+    // MM:SS format like 01:30 - note that the transcript parser needs matching markers
+    const transcript = '0:00 - Start.\n1:30 - Middle.\n2:00 - End.';
+    // 01:30 parses to 90 seconds which matches 1:30 in the transcript
+    const result = extractVideoExcerpt(transcript, '0:00', '1:30', 'video.md');
+    expect(result.error).toBeUndefined();
+    expect(result.from).toBe(0);
+    expect(result.to).toBe(90);
+  });
+
+  it('accepts valid H:MM:SS format', () => {
+    const transcript = '0:00 - Start.\n1:30:00 - End.';
+    const result = extractVideoExcerpt(transcript, '0:00', '1:30:00', 'video.md');
+    expect(result.error).toBeUndefined();
+    expect(result.to).toBe(5400);
+  });
+});
+
 describe('extractVideoExcerpt', () => {
   it('extracts transcript between timestamps and returns seconds', () => {
     const transcript = `0:00 - Welcome to this video.

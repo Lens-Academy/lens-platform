@@ -59,4 +59,42 @@ describe('field typo detection', () => {
 
     expect(warnings).toHaveLength(2);
   });
+
+  // Additional typo detection tests for Task 3
+  describe('additional typo variants', () => {
+    it('suggests correction for "contetnId" -> "contentId"', () => {
+      const warnings = detectFieldTypos({ contetnId: 'value' }, 'test.md', 10);
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].suggestion).toContain("'contentId'");
+    });
+
+    it('suggests correction for "learningOutcomeID" -> "learningOutcomeId"', () => {
+      const warnings = detectFieldTypos({ learningOutcomeID: 'value' }, 'test.md', 10);
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].suggestion).toContain("'learningOutcomeId'");
+    });
+
+    it('suggests correction for "srouce" -> "source"', () => {
+      const warnings = detectFieldTypos({ srouce: 'value' }, 'test.md', 10);
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].suggestion).toContain("'source'");
+    });
+
+    it('suggests correction for "insructions" -> "instructions"', () => {
+      const warnings = detectFieldTypos({ insructions: 'value' }, 'test.md', 10);
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].suggestion).toContain("'instructions'");
+    });
+
+    it('suggests correction for "optoinal" -> "optional"', () => {
+      const warnings = detectFieldTypos({ optoinal: 'value' }, 'test.md', 10);
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].suggestion).toContain("'optional'");
+    });
+  });
 });

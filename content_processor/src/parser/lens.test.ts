@@ -3,12 +3,12 @@ import { describe, it, expect } from 'vitest';
 import { parseLens } from './lens.js';
 
 describe('parseLens', () => {
-  it('parses lens with text segment (H3 section, H4 segment)', () => {
+  it('parses lens with page section (H3 section, H4 segment)', () => {
     const content = `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-### Text: Introduction
+### Page: Introduction
 
 #### Text
 content:: This is introductory content.
@@ -18,7 +18,7 @@ content:: This is introductory content.
 
     expect(result.lens?.id).toBe('550e8400-e29b-41d4-a716-446655440002');
     expect(result.lens?.sections).toHaveLength(1);
-    expect(result.lens?.sections[0].type).toBe('text');
+    expect(result.lens?.sections[0].type).toBe('page');
     expect(result.lens?.sections[0].segments[0].type).toBe('text');
     expect(result.lens?.sections[0].segments[0].content).toBe('This is introductory content.');
   });
@@ -91,7 +91,7 @@ to:: "End"
 id: test-id
 ---
 
-### Text: Introduction
+### Page: Introduction
 
 #### Text
 content::
@@ -135,7 +135,7 @@ to:: 14:49
 id: test-id
 ---
 
-### Text: Discussion
+### Page: Discussion
 
 #### Chat
 instructions::
@@ -222,7 +222,7 @@ source:: [[../articles/test.md|Article]]
 id: test-id
 ---
 
-### Text: Discussion
+### Page: Discussion
 
 #### Chat: Discussion on AI Basics
 instructions:: Talk about AI basics.
@@ -242,7 +242,7 @@ instructions:: Talk about AI basics.
 id: test-id
 ---
 
-### Text: Wrong Field
+### Page: Wrong Field
 
 #### Text
 content:: Some text.
@@ -263,7 +263,7 @@ from:: "This is wrong"
 id: test-id
 ---
 
-### Text: Wrong Field
+### Page: Wrong Field
 
 #### Chat
 instructions:: Do something.
@@ -307,7 +307,7 @@ to:: "End"
 id: test-id
 ---
 
-### Text: Empty Content
+### Page: Empty Content
 
 #### Text
 content::
@@ -326,7 +326,7 @@ content::
 id: test-id
 ---
 
-### Text: Whitespace Only
+### Page: Whitespace Only
 
 #### Text
 content::
@@ -345,7 +345,7 @@ content::
 id: test-id
 ---
 
-### Text: Has Content
+### Page: Has Content
 
 #### Text
 content:: This is real content.
@@ -367,7 +367,7 @@ content:: This is real content.
 id: test-id
 ---
 
-### Text: Has Empty
+### Page: Has Empty
 
 #### Chat
 
@@ -389,7 +389,7 @@ content:: Real content here.
 id: test-id
 ---
 
-### Text: Has Empty
+### Page: Has Empty
 
 #### Text
 
@@ -412,7 +412,7 @@ instructions:: Do something.
 id: test-id
 ---
 
-### Text: Has Content
+### Page: Has Content
 
 #### Text
 content:: Some content.
@@ -456,7 +456,7 @@ source:: [[../articles/test.md|Article]]
 id: test-id
 ---
 
-### Text: Empty Text Section
+### Page: Empty Text Section
 `;
 
       const result = parseLens(content, 'Lenses/test.md');
@@ -497,7 +497,7 @@ to:: "End"
 id: test-id
 ---
 
-### Text: Test
+### Page: Test
 
 #### Text
 content:: Some content.
@@ -518,7 +518,7 @@ optional:: yes
 id: test-id
 ---
 
-### Text: Test
+### Page: Test
 
 #### Chat
 instructions:: Do something.
@@ -539,7 +539,7 @@ hidePreviousContentFromUser:: 1
 id: test-id
 ---
 
-### Text: Test
+### Page: Test
 
 #### Chat
 instructions:: Do something.
@@ -554,6 +554,398 @@ optional:: true
       expect(result.errors.filter(e =>
         e.severity === 'warning' &&
         e.message.includes('non-boolean')
+      )).toHaveLength(0);
+    });
+  });
+
+  // Task 6: Empty segment validation - required fields per segment type
+  describe('empty segment validation - required fields', () => {
+    it('errors on text segment without content:: field', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Missing Content
+#### Text
+optional:: true
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('content') &&
+        e.message.includes('missing')
+      )).toBe(true);
+    });
+
+    it('errors on chat segment without instructions:: field', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Missing Instructions
+#### Chat
+optional:: true
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('instructions') &&
+        e.message.includes('missing')
+      )).toBe(true);
+    });
+
+    it('errors on article-excerpt segment in section without source:: field', () => {
+      const content = `---
+id: test-id
+---
+
+### Article: Missing Source
+#### Article-excerpt
+from:: "Start"
+to:: "End"
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('source')
+      )).toBe(true);
+    });
+
+    it('errors on video-excerpt segment in section without source:: field', () => {
+      const content = `---
+id: test-id
+---
+
+### Video: Missing Source
+#### Video-excerpt
+from:: 0:00
+to:: 1:00
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('source')
+      )).toBe(true);
+    });
+
+    it('accepts valid segments with all required fields', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Valid Page
+#### Text
+content:: Some content here.
+
+#### Chat
+instructions:: Do something here.
+
+### Article: Valid Article
+source:: [[../articles/test.md|Article]]
+#### Article-excerpt
+from:: "Start"
+to:: "End"
+
+### Video: Valid Video
+source:: [[../video_transcripts/test.md|Video]]
+#### Video-excerpt
+from:: 0:00
+to:: 1:00
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      // No errors about missing required fields
+      const missingFieldErrors = result.errors.filter(e =>
+        e.severity === 'error' &&
+        e.message.toLowerCase().includes('missing')
+      );
+      expect(missingFieldErrors).toHaveLength(0);
+    });
+  });
+
+  // Task 7: Unknown segment type detection (H4 segments)
+  describe('unknown H4 segment type detection', () => {
+    it('errors on #### Quiz (unknown segment type)', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Test Page
+#### Quiz
+question:: What is AI?
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('Unknown segment type') &&
+        e.message.includes('Quiz')
+      )).toBe(true);
+      // Should include suggestion with valid types
+      expect(result.errors.some(e =>
+        e.suggestion?.includes('text') &&
+        e.suggestion?.includes('chat') &&
+        e.suggestion?.includes('article-excerpt') &&
+        e.suggestion?.includes('video-excerpt')
+      )).toBe(true);
+    });
+
+    it('errors on #### Unknown (unknown segment type)', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Test Page
+#### Unknown
+content:: This uses an invalid segment type.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('Unknown segment type') &&
+        e.message.includes('Unknown')
+      )).toBe(true);
+    });
+
+    it('errors on #### Summary (unknown segment type)', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Test Page
+#### Summary
+content:: This segment type does not exist.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('Unknown segment type') &&
+        e.message.includes('Summary')
+      )).toBe(true);
+    });
+
+    it('accepts valid segment type #### Text', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Test Page
+#### Text
+content:: Valid text segment.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.filter(e =>
+        e.message.includes('Unknown segment type')
+      )).toHaveLength(0);
+    });
+
+    it('accepts valid segment type #### Chat', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Test Page
+#### Chat
+instructions:: Valid chat segment.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.filter(e =>
+        e.message.includes('Unknown segment type')
+      )).toHaveLength(0);
+    });
+
+    it('accepts valid segment type #### Article-excerpt', () => {
+      const content = `---
+id: test-id
+---
+
+### Article: Test Article
+source:: [[../articles/test.md|Article]]
+#### Article-excerpt
+from:: "Start"
+to:: "End"
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.filter(e =>
+        e.message.includes('Unknown segment type')
+      )).toHaveLength(0);
+    });
+
+    it('accepts valid segment type #### Video-excerpt', () => {
+      const content = `---
+id: test-id
+---
+
+### Video: Test Video
+source:: [[../video_transcripts/test.md|Video]]
+#### Video-excerpt
+from:: 0:00
+to:: 1:00
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.filter(e =>
+        e.message.includes('Unknown segment type')
+      )).toHaveLength(0);
+    });
+
+    it('handles case-insensitive matching (#### TEXT is valid)', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Test Page
+#### TEXT
+content:: Case insensitive text segment.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.filter(e =>
+        e.message.includes('Unknown segment type')
+      )).toHaveLength(0);
+      expect(result.lens?.sections[0].segments[0].type).toBe('text');
+    });
+
+    it('handles case-insensitive matching (#### CHAT is valid)', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Test Page
+#### CHAT
+instructions:: Case insensitive chat segment.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.filter(e =>
+        e.message.includes('Unknown segment type')
+      )).toHaveLength(0);
+      expect(result.lens?.sections[0].segments[0].type).toBe('chat');
+    });
+  });
+
+  describe('invalid H3 section types', () => {
+    it('returns error for ### Text (unknown section type)', () => {
+      const content = `---
+id: test-id
+---
+
+### Text
+#### Text
+content:: Text is not a valid H3 section type.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('Unknown section type')
+      )).toBe(true);
+    });
+
+    it('returns error for any unknown H3 section type', () => {
+      const content = `---
+id: test-id
+---
+
+### Something Random Here
+#### Text
+content:: Whatever.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('Unknown section type')
+      )).toBe(true);
+    });
+
+    it('returns error for ### Text: (renamed to ### Page:)', () => {
+      const content = `---
+id: test-id
+---
+
+### Text: Old Syntax
+#### Text
+content:: This uses the old ### Text syntax.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('Unknown section type') &&
+        e.message.includes('Text')
+      )).toBe(true);
+    });
+
+    it('returns error for ### Chat: (Chat is only valid at H4 segment level)', () => {
+      const content = `---
+id: test-id
+---
+
+### Chat: Invalid Section
+instructions:: This incorrectly uses Chat as a section type.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('Unknown section type') &&
+        e.message.includes('Chat')
+      )).toBe(true);
+    });
+
+    it('accepts valid section types: Page, Article, Video', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Valid Page
+#### Text
+content:: Page content.
+
+### Article: Valid Article
+source:: [[../articles/test.md|Article]]
+#### Article-excerpt
+
+### Video: Valid Video
+source:: [[../video_transcripts/test.md|Video]]
+#### Video-excerpt
+from:: 0:00
+to:: 1:00
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      // No errors about unknown section types
+      expect(result.errors.filter(e =>
+        e.message.includes('Unknown section type')
       )).toHaveLength(0);
     });
   });

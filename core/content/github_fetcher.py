@@ -6,7 +6,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -75,6 +75,9 @@ class ChangedFile:
     path: str
     status: Literal["added", "modified", "removed", "renamed"]
     previous_path: str | None = None  # For renamed files
+    additions: int = 0
+    deletions: int = 0
+    patch: str | None = None
 
 
 @dataclass
@@ -269,6 +272,9 @@ async def compare_commits(base_sha: str, head_sha: str) -> CommitComparison:
                     path=file_info["filename"],
                     status=status,
                     previous_path=previous_path,
+                    additions=file_info.get("additions", 0),
+                    deletions=file_info.get("deletions", 0),
+                    patch=file_info.get("patch"),
                 )
             )
 
@@ -428,7 +434,11 @@ async def fetch_all_content() -> ContentCache:
         for course in ts_result.get("courses", []):
             courses[course["slug"]] = _convert_ts_course_to_parsed_course(course)
 
+        # Extract validation errors from TypeScript result
+        validation_errors = ts_result.get("errors", [])
+
         # Build and return cache
+        now = datetime.now(UTC)
         cache = ContentCache(
             courses=courses,
             flattened_modules=flattened_modules,
@@ -437,9 +447,16 @@ async def fetch_all_content() -> ContentCache:
             articles=articles,
             video_transcripts=video_transcripts,
             video_timestamps=video_timestamps,
-            last_refreshed=datetime.now(),
+            last_refreshed=now,
             last_commit_sha=commit_sha,
+            known_sha=commit_sha,
+            known_sha_timestamp=now,
+            fetched_sha=commit_sha,
+            fetched_sha_timestamp=now,
+            processed_sha=commit_sha,
+            processed_sha_timestamp=now,
             raw_files=all_files,  # Store for incremental updates
+            validation_errors=validation_errors,
         )
         set_cache(cache)
         return cache
@@ -533,15 +550,24 @@ async def initialize_cache() -> None:
     print("Content cache initialized (TypeScript processor handles LO/lens parsing)")
 
 
-async def refresh_cache() -> None:
+async def refresh_cache() -> list[dict]:
     """Re-fetch all content and update the cache.
 
     Called by webhook endpoint.
+
+    Returns:
+        List of validation errors/warnings from content processing.
     """
     print("Refreshing educational content cache...")
     cache = await fetch_all_content()
     set_cache(cache)
-    print(f"Cache refreshed at {cache.last_refreshed}")
+    errors = cache.validation_errors or []
+    error_count = len([e for e in errors if e.get("severity") == "error"])
+    warning_count = len([e for e in errors if e.get("severity") == "warning"])
+    print(
+        f"Cache refreshed at {cache.last_refreshed} ({error_count} errors, {warning_count} warnings)"
+    )
+    return errors
 
 
 # Tracked directories for incremental updates
@@ -550,8 +576,8 @@ TRACKED_DIRECTORIES = (
     "courses/",
     "articles/",
     "video_transcripts/",
-    "learning_outcomes/",
-    "lenses/",
+    "Learning Outcomes/",
+    "Lenses/",
 )
 
 
@@ -653,7 +679,7 @@ async def _apply_file_change(
     return False
 
 
-async def incremental_refresh(new_commit_sha: str) -> None:
+async def incremental_refresh(new_commit_sha: str) -> list[dict]:
     """Refresh cache incrementally based on changed files.
 
     Strategy:
@@ -671,6 +697,9 @@ async def incremental_refresh(new_commit_sha: str) -> None:
 
     Args:
         new_commit_sha: The SHA of the commit to update to
+
+    Returns:
+        List of validation errors/warnings from content processing.
     """
     import asyncio
 
@@ -678,37 +707,47 @@ async def incremental_refresh(new_commit_sha: str) -> None:
         cache = get_cache()
     except Exception:
         logger.info("Cache not initialized, performing full refresh")
-        await refresh_cache()
-        return
+        return await refresh_cache()
 
     # Fallback: no previous SHA (first run or cache was cleared)
     if not cache.last_commit_sha:
         logger.info("No previous commit SHA, performing full refresh")
-        await refresh_cache()
-        return
+        return await refresh_cache()
 
     # Fallback: no raw_files (old cache format)
     if cache.raw_files is None:
         logger.info("No raw_files in cache, performing full refresh")
-        await refresh_cache()
-        return
+        return await refresh_cache()
 
-    # Same commit, nothing to do
+    # Same commit, return cached errors without reprocessing
     if cache.last_commit_sha == new_commit_sha:
-        print(f"Cache already at commit {new_commit_sha[:8]}, skipping refresh")
-        logger.info(f"Cache already at commit {new_commit_sha}, skipping refresh")
-        return
+        print(f"Cache already at commit {new_commit_sha[:8]}, returning cached errors")
+        logger.info(
+            f"Cache already at commit {new_commit_sha}, returning cached errors"
+        )
+        return cache.validation_errors or []
 
     try:
         comparison = await compare_commits(cache.last_commit_sha, new_commit_sha)
+
+        # Store diff for frontend display
+        diff_data = [
+            {
+                "filename": c.path,
+                "status": c.status,
+                "additions": c.additions,
+                "deletions": c.deletions,
+                "patch": c.patch,
+            }
+            for c in comparison.files
+        ]
 
         # Fallback: too many changes (GitHub's 300 file limit)
         if comparison.is_truncated:
             logger.warning(
                 "Compare result truncated (>= 300 files), performing full refresh"
             )
-            await refresh_cache()
-            return
+            return await refresh_cache()
 
         # Filter to only tracked files
         tracked_changes = [
@@ -716,13 +755,19 @@ async def incremental_refresh(new_commit_sha: str) -> None:
         ]
 
         if not tracked_changes:
-            # No tracked files changed, just update commit SHA
+            # No tracked files changed, just update commit SHA and return cached errors
             print(
                 f"No tracked files changed, updating commit SHA to {new_commit_sha[:8]}"
             )
+            now = datetime.now(UTC)
             cache.last_commit_sha = new_commit_sha
-            cache.last_refreshed = datetime.now()
-            return
+            cache.fetched_sha = new_commit_sha
+            cache.fetched_sha_timestamp = now
+            cache.processed_sha = new_commit_sha
+            cache.processed_sha_timestamp = now
+            cache.last_diff = diff_data
+            cache.last_refreshed = now
+            return cache.validation_errors or []
 
         print(
             f"Incremental update: {len(tracked_changes)} tracked files changed "
@@ -749,6 +794,10 @@ async def incremental_refresh(new_commit_sha: str) -> None:
                 fetched = dict(zip([c.path for c in files_to_fetch], contents))
             else:
                 fetched = {}
+
+        # Mark raw files as fetched from this commit
+        cache.fetched_sha = new_commit_sha
+        cache.fetched_sha_timestamp = datetime.now(UTC)
 
         # Apply changes to raw_files
         raw_files = dict(cache.raw_files)  # Make a copy
@@ -829,6 +878,9 @@ async def incremental_refresh(new_commit_sha: str) -> None:
                 except Exception as e:
                     logger.warning(f"Failed to parse timestamps {path}: {e}")
 
+        # Extract validation errors from TypeScript result
+        validation_errors = ts_result.get("errors", [])
+
         # Update cache in place
         cache.courses = courses
         cache.flattened_modules = flattened_modules
@@ -837,11 +889,25 @@ async def incremental_refresh(new_commit_sha: str) -> None:
         cache.video_timestamps = video_timestamps
         cache.raw_files = raw_files
         cache.last_commit_sha = new_commit_sha
-        cache.last_refreshed = datetime.now()
+        cache.processed_sha = new_commit_sha
+        cache.processed_sha_timestamp = datetime.now(UTC)
+        cache.last_diff = diff_data
+        cache.last_refreshed = datetime.now(UTC)
+        cache.validation_errors = validation_errors
 
-        print(f"Incremental refresh complete, now at commit {new_commit_sha[:8]}")
+        error_count = len(
+            [e for e in validation_errors if e.get("severity") == "error"]
+        )
+        warning_count = len(
+            [e for e in validation_errors if e.get("severity") == "warning"]
+        )
+        print(
+            f"Incremental refresh complete, now at commit {new_commit_sha[:8]} ({error_count} errors, {warning_count} warnings)"
+        )
         logger.info(f"Incremental refresh complete, now at commit {new_commit_sha[:8]}")
+
+        return validation_errors
 
     except Exception as e:
         logger.warning(f"Incremental refresh failed, falling back to full refresh: {e}")
-        await refresh_cache()
+        return await refresh_cache()

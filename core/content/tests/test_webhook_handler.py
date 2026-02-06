@@ -3,6 +3,7 @@
 import asyncio
 import hmac
 import hashlib
+from datetime import datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -14,6 +15,7 @@ from core.content.webhook_handler import (
     _reset_fetch_state,
     _fetch_lock,
 )
+from core.content.cache import ContentCache, set_cache, clear_cache
 
 
 class TestVerifyWebhookSignature:
@@ -190,9 +192,10 @@ class TestHandleContentUpdate:
         refresh_started = asyncio.Event()
         refresh_continue = asyncio.Event()
 
-        async def slow_refresh(sha: str) -> None:
+        async def slow_refresh(sha: str) -> list[dict]:
             refresh_started.set()
             await refresh_continue.wait()
+            return []
 
         with patch(
             "core.content.webhook_handler.incremental_refresh",
@@ -228,13 +231,14 @@ class TestHandleContentUpdate:
         refresh_continue = asyncio.Event()
         first_call = True
 
-        async def tracking_refresh(sha: str) -> None:
+        async def tracking_refresh(sha: str) -> list[dict]:
             nonlocal first_call
             refresh_calls.append(sha)
             if first_call:
                 first_call = False
                 refresh_started.set()
                 await refresh_continue.wait()
+            return []
 
         with patch(
             "core.content.webhook_handler.incremental_refresh",
@@ -273,13 +277,14 @@ class TestHandleContentUpdate:
         refresh_continue = asyncio.Event()
         first_call = True
 
-        async def tracking_refresh(sha: str) -> None:
+        async def tracking_refresh(sha: str) -> list[dict]:
             nonlocal first_call
             refresh_calls.append(sha)
             if first_call:
                 first_call = False
                 refresh_started.set()
                 await refresh_continue.wait()
+            return []
 
         with patch(
             "core.content.webhook_handler.incremental_refresh",
@@ -339,3 +344,77 @@ class TestHandleContentUpdate:
 
             # Lock should be released
             assert not _fetch_lock.locked()
+
+
+class TestWebhookBroadcasting:
+    """Test that webhook handler broadcasts to SSE subscribers."""
+
+    def setup_method(self):
+        _reset_fetch_state()
+        clear_cache()
+
+    def teardown_method(self):
+        _reset_fetch_state()
+        clear_cache()
+
+    @pytest.mark.asyncio
+    async def test_handle_content_update_broadcasts_after_refresh(self):
+        """Should call broadcaster.broadcast() after refresh completes."""
+        commit_sha = "abc123def456789012345678901234567890abcd"
+
+        with patch(
+            "core.content.webhook_handler.incremental_refresh",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
+            with patch("core.content.webhook_handler.broadcaster") as mock_broadcaster:
+                mock_broadcaster.broadcast = AsyncMock()
+                mock_broadcaster.subscriber_count = 1
+                mock_broadcaster._build_cache_snapshot.return_value = {"status": "ok"}
+
+                result = await handle_content_update(commit_sha)
+
+                assert result["status"] == "ok"
+                # Should have broadcast at least twice:
+                # 1. Immediately with known_sha update
+                # 2. After refresh completes with full results
+                assert mock_broadcaster.broadcast.call_count >= 2
+
+    @pytest.mark.asyncio
+    async def test_handle_content_update_updates_known_sha_immediately(self):
+        """Should update known_sha in cache before starting refresh."""
+        commit_sha = "abc123def456789012345678901234567890abcd"
+
+        cache = ContentCache(
+            courses={},
+            flattened_modules={},
+            articles={},
+            video_transcripts={},
+            parsed_learning_outcomes={},
+            parsed_lenses={},
+            last_refreshed=datetime.now(),
+        )
+        set_cache(cache)
+
+        known_sha_during_refresh = None
+
+        async def capture_known_sha(sha):
+            nonlocal known_sha_during_refresh
+            from core.content.cache import get_cache
+
+            known_sha_during_refresh = get_cache().known_sha
+            return []
+
+        with patch(
+            "core.content.webhook_handler.incremental_refresh",
+            side_effect=capture_known_sha,
+        ):
+            with patch("core.content.webhook_handler.broadcaster") as mock_broadcaster:
+                mock_broadcaster.broadcast = AsyncMock()
+                mock_broadcaster.subscriber_count = 1
+                mock_broadcaster._build_cache_snapshot.return_value = {"status": "ok"}
+
+                await handle_content_update(commit_sha)
+
+        # known_sha should have been set BEFORE incremental_refresh was called
+        assert known_sha_during_refresh == commit_sha

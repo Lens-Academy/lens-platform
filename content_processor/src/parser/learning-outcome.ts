@@ -2,7 +2,8 @@
 import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, LO_SECTION_TYPES } from './sections.js';
-import { parseWikilink, resolveWikilinkPath } from './wikilink.js';
+import { parseWikilink, resolveWikilinkPath, hasRelativePath } from './wikilink.js';
+import { detectFieldTypos } from '../validator/field-typos.js';
 
 export interface ParsedLensRef {
   source: string;       // Raw wikilink
@@ -71,6 +72,10 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
   let testRef: ParsedTestRef | undefined;
 
   for (const section of sectionsResult.sections) {
+    // Detect likely typos in field names
+    const typoWarnings = detectFieldTypos(section.fields, file, section.line);
+    errors.push(...typoWarnings);
+
     if (section.type === 'lens') {
       const source = section.fields.source;
       if (!source) {
@@ -92,6 +97,18 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
           line: section.line,
           message: `Invalid wikilink format in source:: field: ${source}`,
           suggestion: 'Use format [[../Lenses/filename.md|Display Text]]',
+          severity: 'error',
+        });
+        continue;
+      }
+
+      // Require relative path (must contain /)
+      if (!hasRelativePath(wikilink.path)) {
+        errors.push({
+          file,
+          line: section.line,
+          message: `source:: path must be relative (contain /): ${wikilink.path}`,
+          suggestion: 'Use format [[../Lenses/filename.md|Display Text]] with relative path',
           severity: 'error',
         });
         continue;

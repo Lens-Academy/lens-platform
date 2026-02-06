@@ -97,7 +97,7 @@ source:: [[../Lenses/lens1.md]]
         ['Lenses/lens1.md', `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
-### Text: Intro
+### Page: Intro
 
 #### Text
 content:: Hello
@@ -117,7 +117,7 @@ content:: Hello
         ['Lenses/lens1.md', `---
 id: this-is-not-a-uuid
 ---
-### Text: Intro
+### Page: Intro
 
 #### Text
 content:: Hello
@@ -181,7 +181,7 @@ source:: [[../Lenses/lens1.md]]
         ['Lenses/lens1.md', `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
-### Text: Intro
+### Page: Intro
 
 #### Text
 content:: Hello
@@ -201,7 +201,7 @@ content:: Hello
         ['Lenses/lens1.md', `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
-### Text: Intro
+### Page: Intro
 
 #### Text
 content:: Hello
@@ -209,7 +209,7 @@ content:: Hello
         ['Lenses/lens2.md', `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
-### Text: Intro
+### Page: Intro
 
 #### Text
 content:: World
@@ -237,7 +237,7 @@ contentId: 550e8400-e29b-41d4-a716-446655440000
         ['Lenses/lens1.md', `---
 id: 550e8400-e29b-41d4-a716-446655440000
 ---
-### Text: Intro
+### Page: Intro
 
 #### Text
 content:: Hello
@@ -278,6 +278,90 @@ contentId: 550e8400-e29b-41d4-a716-446655440002
         e.message.toLowerCase().includes('duplicate')
       );
       expect(duplicateErrors).toHaveLength(0);
+    });
+  });
+
+  describe('section-level id:: field validation', () => {
+    it('rejects invalid UUID in section id:: field', () => {
+      const files = new Map([
+        ['modules/test.md', `---
+slug: test
+title: Test Module
+---
+
+# Page: Welcome
+id:: d1e2f3a4-b5c6-7890-d1e2-f3a4b5c67890-aaaa
+
+## Text
+content:: Hello
+`],
+      ]);
+
+      const result = processContent(files);
+
+      expect(result.errors.some(e =>
+        e.message.toLowerCase().includes('uuid') &&
+        e.message.includes('d1e2f3a4-b5c6-7890-d1e2-f3a4b5c67890-aaaa')
+      )).toBe(true);
+    });
+
+    it('accepts valid UUID in section id:: field', () => {
+      const files = new Map([
+        ['modules/test.md', `---
+slug: test
+title: Test Module
+---
+
+# Page: Welcome
+id:: 550e8400-e29b-41d4-a716-446655440000
+
+## Text
+content:: Hello
+`],
+      ]);
+
+      const result = processContent(files);
+
+      const uuidErrors = result.errors.filter(e =>
+        e.message.toLowerCase().includes('uuid') &&
+        e.message.includes('550e8400')
+      );
+      expect(uuidErrors).toHaveLength(0);
+    });
+
+    it('detects duplicate UUID between section id:: and frontmatter contentId', () => {
+      const files = new Map([
+        ['modules/module1.md', `---
+slug: module1
+title: Module One
+contentId: 550e8400-e29b-41d4-a716-446655440000
+---
+
+# Page: Welcome
+id:: 550e8400-e29b-41d4-a716-446655440099
+
+## Text
+content:: Hello
+`],
+        ['modules/module2.md', `---
+slug: module2
+title: Module Two
+---
+
+# Page: Hello
+id:: 550e8400-e29b-41d4-a716-446655440000
+
+## Text
+content:: World
+`],
+      ]);
+
+      const result = processContent(files);
+
+      expect(result.errors.some(e =>
+        e.message.toLowerCase().includes('duplicate') &&
+        e.message.includes('550e8400-e29b-41d4-a716-446655440000')
+      )).toBe(true);
     });
   });
 });
