@@ -82,6 +82,7 @@ export default function ContentValidator() {
           <button
             onClick={handleManualRefresh}
             disabled={isRefreshing}
+            title='Incremental refresh. Should also trigger automatically if status is "Live"'
             className="text-sm bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50
                        text-gray-700 px-3 py-1.5 rounded-md"
           >
@@ -208,32 +209,54 @@ function PipelineStatus({ state }: { state: ValidationState }) {
     state.processed_sha &&
     state.known_sha !== state.processed_sha;
 
-  const sha = state.processed_sha || state.known_sha;
-  const timestamp = state.processed_sha_timestamp || state.known_sha_timestamp;
-
   return (
-    <div className="mb-6 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
-      {isProcessing ? (
-        <div className="flex items-center gap-2">
+    <div className="mb-6 p-3 bg-gray-50 rounded-lg text-sm text-gray-600 space-y-1.5">
+      {isProcessing && (
+        <div className="flex items-center gap-2 text-blue-700 font-medium">
           <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <span>
-            New commit{" "}
-            <code className="text-xs bg-gray-200 px-1 rounded">
-              {state.known_sha?.slice(0, 8)}
-            </code>{" "}
-            detected.{" "}
             {state.fetched_sha === state.known_sha
               ? "Processing..."
               : "Fetching..."}
           </span>
         </div>
-      ) : (
-        <span>
-          Validated:{" "}
-          <code className="text-xs bg-gray-200 px-1 rounded">
-            {sha?.slice(0, 8)}
-          </code>
-          {timestamp && <> &middot; {formatRelativeTime(timestamp)}</>}
+      )}
+      <ShaRow
+        label="Detected"
+        sha={state.known_sha}
+        timestamp={state.known_sha_timestamp}
+      />
+      <ShaRow
+        label="Fetched"
+        sha={state.fetched_sha}
+        timestamp={state.fetched_sha_timestamp}
+      />
+      <ShaRow
+        label="Processed"
+        sha={state.processed_sha}
+        timestamp={state.processed_sha_timestamp}
+      />
+    </div>
+  );
+}
+
+function ShaRow({
+  label,
+  sha,
+  timestamp,
+}: {
+  label: string;
+  sha?: string;
+  timestamp?: string;
+}) {
+  if (!sha) return null;
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-20 text-gray-400">{label}</span>
+      <code className="text-xs bg-gray-200 px-1 rounded">{sha.slice(0, 8)}</code>
+      {timestamp && (
+        <span className="text-gray-400">
+          {formatRelativeTime(timestamp)}
         </span>
       )}
     </div>
@@ -317,14 +340,22 @@ function formatRelativeTime(isoString: string): string {
   const date = new Date(isoString);
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const absTime = `${date.getHours()}h${date.getMinutes().toString().padStart(2, "0")}`;
 
-  if (seconds < 10) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return date.toLocaleDateString();
+  let relative: string;
+  if (seconds < 10) relative = "Just now";
+  else if (seconds < 60) relative = `${seconds}s ago`;
+  else {
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) relative = `${minutes}min ago`;
+    else {
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) relative = `${hours}h ago`;
+      else return date.toLocaleDateString() + ` (${absTime})`;
+    }
+  }
+
+  return `${relative} (${absTime})`;
 }
 
 function IssueCard({ issue }: { issue: ValidationIssue }) {

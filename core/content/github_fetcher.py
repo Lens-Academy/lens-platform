@@ -759,8 +759,14 @@ async def incremental_refresh(new_commit_sha: str) -> list[dict]:
             print(
                 f"No tracked files changed, updating commit SHA to {new_commit_sha[:8]}"
             )
+            now = datetime.now()
             cache.last_commit_sha = new_commit_sha
-            cache.last_refreshed = datetime.now()
+            cache.fetched_sha = new_commit_sha
+            cache.fetched_sha_timestamp = now
+            cache.processed_sha = new_commit_sha
+            cache.processed_sha_timestamp = now
+            cache.last_diff = diff_data
+            cache.last_refreshed = now
             return cache.validation_errors or []
 
         print(

@@ -84,6 +84,7 @@ async def handle_content_update(commit_sha: str) -> dict:
             cache = get_cache()
             cache.known_sha = commit_sha
             cache.known_sha_timestamp = datetime.now()
+            cache.last_diff = None  # Clear stale diff from previous refresh
         except CacheNotInitializedError:
             pass
         await broadcaster.broadcast(broadcaster._build_cache_snapshot())
