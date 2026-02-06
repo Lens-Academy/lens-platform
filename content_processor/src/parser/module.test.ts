@@ -234,12 +234,12 @@ This is the welcome text.
 It spans multiple lines.
 `;
 
-    const segments = parsePageTextSegments(body);
+    const result = parsePageTextSegments(body);
 
-    expect(segments).toHaveLength(1);
-    expect(segments[0].type).toBe('text');
-    expect(segments[0].content).toContain('welcome text');
-    expect(segments[0].content).toContain('multiple lines');
+    expect(result.segments).toHaveLength(1);
+    expect(result.segments[0].type).toBe('text');
+    expect(result.segments[0].content).toContain('welcome text');
+    expect(result.segments[0].content).toContain('multiple lines');
   });
 
   it('parses multiple ## Text subsections', () => {
@@ -254,11 +254,11 @@ content::
 Second text segment.
 `;
 
-    const segments = parsePageTextSegments(body);
+    const result = parsePageTextSegments(body);
 
-    expect(segments).toHaveLength(2);
-    expect(segments[0].content).toContain('First text');
-    expect(segments[1].content).toContain('Second text');
+    expect(result.segments).toHaveLength(2);
+    expect(result.segments[0].content).toContain('First text');
+    expect(result.segments[1].content).toContain('Second text');
   });
 
   it('returns empty array when no ## Text subsections', () => {
@@ -266,9 +266,9 @@ Second text segment.
 no text subsections here
 `;
 
-    const segments = parsePageTextSegments(body);
+    const result = parsePageTextSegments(body);
 
-    expect(segments).toHaveLength(0);
+    expect(result.segments).toHaveLength(0);
   });
 
   it('handles content:: on same line', () => {
@@ -276,9 +276,105 @@ no text subsections here
 content:: Single line content.
 `;
 
-    const segments = parsePageTextSegments(body);
+    const result = parsePageTextSegments(body);
 
-    expect(segments).toHaveLength(1);
-    expect(segments[0].content).toBe('Single line content.');
+    expect(result.segments).toHaveLength(1);
+    expect(result.segments[0].content).toBe('Single line content.');
+  });
+
+  it('reports error for unknown ## header like ## Texta', () => {
+    const body = `id:: some-id
+
+## Texta
+content::
+Some text.
+`;
+
+    const result = parsePageTextSegments(body, 'modules/test.md', 5);
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].message).toContain('Unknown section type');
+    expect(result.errors[0].message).toContain('Texta');
+    expect(result.errors[0].suggestion).toContain('Text');
+    expect(result.errors[0].severity).toBe('error');
+    expect(result.errors[0].file).toBe('modules/test.md');
+  });
+
+  it('reports error for completely unknown ## header', () => {
+    const body = `id:: some-id
+
+## Foobar
+content::
+Something.
+`;
+
+    const result = parsePageTextSegments(body, 'modules/test.md', 5);
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].message).toContain('Unknown section type');
+    expect(result.errors[0].message).toContain('Foobar');
+    expect(result.errors[0].suggestion).toContain('Text');
+    expect(result.errors[0].severity).toBe('error');
+  });
+
+  it('accepts ## Text without errors', () => {
+    const body = `## Text
+content:: Hello.
+`;
+
+    const result = parsePageTextSegments(body, 'modules/test.md', 5);
+
+    expect(result.segments).toHaveLength(1);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('errors when ## Text has content: (single colon) instead of content::', () => {
+    const body = `## Text
+content:
+We begin by examining the potential of AI.
+`;
+
+    const result = parsePageTextSegments(body, 'modules/test.md', 5);
+
+    // content: (single colon) is not a valid field - should error
+    expect(result.segments).toHaveLength(0);
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.toLowerCase().includes('content')
+    )).toBe(true);
+  });
+
+  it('errors when ## Text section has no content:: field at all', () => {
+    const body = `## Text
+Just some plain text without any field.
+`;
+
+    const result = parsePageTextSegments(body, 'modules/test.md', 5);
+
+    expect(result.segments).toHaveLength(0);
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.toLowerCase().includes('content')
+    )).toBe(true);
+  });
+
+  it('reports multiple errors for multiple unknown ## headers', () => {
+    const body = `## Texta
+content:: Something.
+
+## Banana
+content:: Other.
+
+## Text
+content:: Valid content.
+`;
+
+    const result = parsePageTextSegments(body, 'modules/test.md', 5);
+
+    expect(result.segments).toHaveLength(1);
+    expect(result.segments[0].content).toBe('Valid content.');
+    expect(result.errors).toHaveLength(2);
+    expect(result.errors[0].message).toContain('Texta');
+    expect(result.errors[1].message).toContain('Banana');
   });
 });

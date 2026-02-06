@@ -116,12 +116,13 @@ export function flattenModule(
     } else if (section.type === 'page') {
       // Page sections don't have LO references, they have inline content
       // Parse the section body for ## Text subsections
-      const textSegments = parsePageTextSegments(section.body);
+      const textResult = parsePageTextSegments(section.body, modulePath, section.line);
+      errors.push(...textResult.errors);
 
       const pageSection: Section = {
         type: 'page',
         meta: { title: section.title },
-        segments: textSegments,
+        segments: textResult.segments,
         optional: section.fields.optional === 'true',
         contentId: section.fields.id ?? null,
         learningOutcomeId: null,

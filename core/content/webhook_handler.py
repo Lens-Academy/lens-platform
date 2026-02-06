@@ -5,7 +5,7 @@ import hmac
 import hashlib
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 
 from .cache import get_cache, CacheNotInitializedError
@@ -83,7 +83,7 @@ async def handle_content_update(commit_sha: str) -> dict:
         try:
             cache = get_cache()
             cache.known_sha = commit_sha
-            cache.known_sha_timestamp = datetime.now()
+            cache.known_sha_timestamp = datetime.now(UTC)
             cache.last_diff = None  # Clear stale diff from previous refresh
         except CacheNotInitializedError:
             pass

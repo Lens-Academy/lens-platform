@@ -86,12 +86,14 @@ export interface VideoExcerptSegment {
 export type Segment = TextSegment | ChatSegment | ArticleExcerptSegment | VideoExcerptSegment;
 
 import { flattenModule } from './flattener/index.js';
+import { parseModule } from './parser/module.js';
 import { parseCourse } from './parser/course.js';
 import { parseLearningOutcome } from './parser/learning-outcome.js';
 import { parseLens, type ParsedLens } from './parser/lens.js';
 import { parseWikilink, resolveWikilinkPath, findFileWithExtension, findSimilarFiles, formatSuggestion } from './parser/wikilink.js';
 import { validateUuids, type UuidEntry } from './validator/uuid.js';
 import { detectDuplicateSlugs, type SlugEntry } from './validator/duplicates.js';
+import { validateOutputIntegrity } from './validator/output-integrity.js';
 import { extractArticleExcerpt } from './bundler/article.js';
 import { extractVideoExcerpt, type TimestampEntry } from './bundler/video.js';
 
@@ -190,6 +192,7 @@ export function processContent(files: Map<string, string>): ProcessResult {
   const errors: ContentError[] = [];
   const uuidEntries: UuidEntry[] = [];
   const slugEntries: SlugEntry[] = [];
+  const slugToPath = new Map<string, string>();
 
   // Identify file types by path
   for (const [path, content] of files.entries()) {
@@ -198,6 +201,7 @@ export function processContent(files: Map<string, string>): ProcessResult {
 
       if (result.module) {
         modules.push(result.module);
+        slugToPath.set(result.module.slug, path);
 
         // Collect slug for duplicate detection
         slugEntries.push({
@@ -212,6 +216,21 @@ export function processContent(files: Map<string, string>): ProcessResult {
             file: path,
             field: 'contentId',
           });
+        }
+
+        // Collect section-level id:: fields from raw # Page: sections.
+        // (Lens-derived sections inherit lens.id which is validated separately.)
+        const rawParse = parseModule(content, path);
+        if (rawParse.module) {
+          for (const section of rawParse.module.sections) {
+            if (section.type === 'page' && section.fields.id) {
+              uuidEntries.push({
+                uuid: section.fields.id,
+                file: path,
+                field: 'section id',
+              });
+            }
+          }
         }
       }
 
@@ -285,6 +304,10 @@ export function processContent(files: Map<string, string>): ProcessResult {
   // Validate for duplicate slugs
   const duplicateSlugErrors = detectDuplicateSlugs(slugEntries);
   errors.push(...duplicateSlugErrors);
+
+  // Safety-net: catch empty sections/segments in final output
+  const integrityErrors = validateOutputIntegrity(modules, slugToPath);
+  errors.push(...integrityErrors);
 
   return { modules, courses, errors };
 }

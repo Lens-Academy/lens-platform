@@ -6,7 +6,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -438,7 +438,7 @@ async def fetch_all_content() -> ContentCache:
         validation_errors = ts_result.get("errors", [])
 
         # Build and return cache
-        now = datetime.now()
+        now = datetime.now(UTC)
         cache = ContentCache(
             courses=courses,
             flattened_modules=flattened_modules,
@@ -759,7 +759,7 @@ async def incremental_refresh(new_commit_sha: str) -> list[dict]:
             print(
                 f"No tracked files changed, updating commit SHA to {new_commit_sha[:8]}"
             )
-            now = datetime.now()
+            now = datetime.now(UTC)
             cache.last_commit_sha = new_commit_sha
             cache.fetched_sha = new_commit_sha
             cache.fetched_sha_timestamp = now
@@ -797,7 +797,7 @@ async def incremental_refresh(new_commit_sha: str) -> list[dict]:
 
         # Mark raw files as fetched from this commit
         cache.fetched_sha = new_commit_sha
-        cache.fetched_sha_timestamp = datetime.now()
+        cache.fetched_sha_timestamp = datetime.now(UTC)
 
         # Apply changes to raw_files
         raw_files = dict(cache.raw_files)  # Make a copy
@@ -890,9 +890,9 @@ async def incremental_refresh(new_commit_sha: str) -> list[dict]:
         cache.raw_files = raw_files
         cache.last_commit_sha = new_commit_sha
         cache.processed_sha = new_commit_sha
-        cache.processed_sha_timestamp = datetime.now()
+        cache.processed_sha_timestamp = datetime.now(UTC)
         cache.last_diff = diff_data
-        cache.last_refreshed = datetime.now()
+        cache.last_refreshed = datetime.now(UTC)
         cache.validation_errors = validation_errors
 
         error_count = len(

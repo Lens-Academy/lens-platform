@@ -39,9 +39,7 @@ export default function ContentValidator() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
-    const source = new EventSource(
-      `${API_URL}/api/content/validation-stream`
-    );
+    const source = new EventSource(`${API_URL}/api/content/validation-stream`);
 
     source.addEventListener("validation", (event) => {
       const data: ValidationState = JSON.parse(event.data);
@@ -92,13 +90,19 @@ export default function ContentValidator() {
       </div>
 
       <p className="text-gray-600 mb-6">
-        Live validation status. Updates automatically when content changes.
+        Live validation status. Updates automatically when content changes.{" "}
+        <a
+          href="https://github.com/Lens-Academy/lens-edu-relay/tree/staging"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:underline"
+        >
+          View repo on GitHub
+        </a>
       </p>
 
       {/* Pipeline status */}
-      {state && state.status !== "no_cache" && (
-        <PipelineStatus state={state} />
-      )}
+      {state && state.status !== "no_cache" && <PipelineStatus state={state} />}
 
       {state?.status === "no_cache" && (
         <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 mb-6">
@@ -231,11 +235,7 @@ function PipelineStatus({ state }: { state: ValidationState }) {
         sha={state.fetched_sha}
         timestamp={state.fetched_sha_timestamp}
       />
-      <ShaRow
-        label="Processed"
-        sha={state.processed_sha}
-        timestamp={state.processed_sha_timestamp}
-      />
+      <ShaRow label="Processed" timestamp={state.processed_sha_timestamp} />
     </div>
   );
 }
@@ -253,11 +253,11 @@ function ShaRow({
   return (
     <div className="flex items-center gap-2">
       <span className="w-20 text-gray-400">{label}</span>
-      <code className="text-xs bg-gray-200 px-1 rounded">{sha.slice(0, 8)}</code>
+      <code className="text-xs bg-gray-200 px-1 rounded">
+        {sha.slice(0, 8)}
+      </code>
       {timestamp && (
-        <span className="text-gray-400">
-          {formatRelativeTime(timestamp)}
-        </span>
+        <span className="text-gray-400">{formatRelativeTime(timestamp)}</span>
       )}
     </div>
   );
@@ -276,9 +276,7 @@ function DiffSummary({ diff }: { diff: DiffFile[] }) {
           <div key={file.filename}>
             <button
               onClick={() =>
-                setExpanded(
-                  expanded === file.filename ? null : file.filename
-                )
+                setExpanded(expanded === file.filename ? null : file.filename)
               }
               className="w-full text-left flex items-center gap-2 p-2 rounded
                          hover:bg-gray-50 text-sm font-mono"
@@ -325,7 +323,10 @@ function StatusBadge({ status }: { status: string }) {
     removed: { label: "D", color: "bg-red-100 text-red-700" },
     renamed: { label: "R", color: "bg-purple-100 text-purple-700" },
   };
-  const c = config[status] || { label: "?", color: "bg-gray-100 text-gray-700" };
+  const c = config[status] || {
+    label: "?",
+    color: "bg-gray-100 text-gray-700",
+  };
 
   return (
     <span
@@ -337,7 +338,12 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function formatRelativeTime(isoString: string): string {
-  const date = new Date(isoString);
+  // Server sends UTC timestamps (with +00:00 suffix). For any naive timestamps
+  // (no timezone info), assume UTC to avoid local-time misinterpretation.
+  const normalized = /[Z+-]\d{0,2}:?\d{0,2}$/.test(isoString)
+    ? isoString
+    : isoString + "Z";
+  const date = new Date(normalized);
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
   const absTime = `${date.getHours()}h${date.getMinutes().toString().padStart(2, "0")}`;
@@ -360,20 +366,34 @@ function formatRelativeTime(isoString: string): string {
 
 function IssueCard({ issue }: { issue: ValidationIssue }) {
   const isError = issue.severity === "error";
+  const githubBase = "https://github.com/Lens-Academy/lens-edu-relay/blob";
+  const fileUrl = `${githubBase}/staging/${issue.file}${issue.line ? `?plain=1#L${issue.line}` : ""}`;
+  const isLinkable = issue.file.includes("/");
 
   return (
     <div
       className={`p-4 rounded-lg border ${
-        isError
-          ? "bg-red-50 border-red-200"
-          : "bg-yellow-50 border-yellow-200"
+        isError ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"
       }`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="font-mono text-sm text-gray-600 mb-1">
             {issue.file}
-            {issue.line && `:${issue.line}`}
+            {issue.line != null && `:${issue.line}`}
+            {isLinkable && (
+              <>
+                {" "}
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline font-sans text-xs"
+                >
+                  Show on GitHub
+                </a>
+              </>
+            )}
           </div>
           <div
             className={`font-medium ${isError ? "text-red-800" : "text-yellow-800"}`}
@@ -381,9 +401,7 @@ function IssueCard({ issue }: { issue: ValidationIssue }) {
             {issue.message}
           </div>
           {issue.suggestion && (
-            <div className="mt-1 text-sm text-gray-600">
-              {issue.suggestion}
-            </div>
+            <div className="mt-1 text-sm text-gray-600">{issue.suggestion}</div>
           )}
         </div>
       </div>
