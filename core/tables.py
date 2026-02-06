@@ -342,7 +342,9 @@ user_content_progress = Table(
     Column("content_id", UUID(as_uuid=True), nullable=False),
     Column("content_type", Text, nullable=False),
     Column("content_title", Text, nullable=False),
-    Column("started_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    Column(
+        "started_at", DateTime(timezone=True), server_default=func.now(), nullable=False
+    ),
     Column("time_to_complete_s", Integer, server_default="0", nullable=False),
     Column("total_time_spent_s", Integer, server_default="0", nullable=False),
     Column("completed_at", DateTime(timezone=True), nullable=True),
@@ -388,8 +390,15 @@ chat_sessions = Table(
     Column("content_id", UUID(as_uuid=True), nullable=True),
     Column("content_type", Text, nullable=True),
     Column("messages", JSONB, server_default="[]", nullable=False),
-    Column("started_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
-    Column("last_active_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    Column(
+        "started_at", DateTime(timezone=True), server_default=func.now(), nullable=False
+    ),
+    Column(
+        "last_active_at",
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    ),
     Column("archived_at", DateTime(timezone=True), nullable=True),
     Index("idx_chat_sessions_user_content", "user_id", "content_id", "archived_at"),
     Index("idx_chat_sessions_token", "anonymous_token"),

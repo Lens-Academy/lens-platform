@@ -37,10 +37,25 @@ jobs:
       - name: Type check & Build
         run: npm run build
 
-  # Backend tests - needs staging database
+  # Backend tests - uses local PostgreSQL
   backend:
     name: Backend Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -71,9 +86,14 @@ jobs:
       - name: Check formatting
         run: ruff format --check .
 
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        run: alembic upgrade head
+
       - name: Run tests
         env:
-          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_SERVER_ID: ${{ secrets.DISCORD_SERVER_ID }}
           TEST_CHANNEL_ID: ${{ secrets.TEST_CHANNEL_ID }}
