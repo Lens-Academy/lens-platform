@@ -3,7 +3,7 @@
  * Units are identified by meeting number (or null for additional content).
  */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { UnitInfo, ModuleInfo } from "../../types/course";
 import { ChevronDown, ChevronRight, Check, Circle } from "lucide-react";
 
@@ -37,20 +37,10 @@ export default function CourseSidebar({
   selectedModuleSlug,
   onModuleSelect,
 }: CourseSidebarProps) {
-  // Track which units are expanded (by index)
-  const [expandedUnits, setExpandedUnits] = useState<Set<number>>(new Set());
-
-  // Auto-expand unit containing selected module on mount
-  useEffect(() => {
-    if (selectedModuleSlug) {
-      for (let i = 0; i < units.length; i++) {
-        if (units[i].modules.some((m) => m.slug === selectedModuleSlug)) {
-          setExpandedUnits((prev) => new Set(prev).add(i));
-          break;
-        }
-      }
-    }
-  }, [selectedModuleSlug, units]);
+  // Track which units are expanded (by index) - all expanded by default
+  const [expandedUnits, setExpandedUnits] = useState<Set<number>>(
+    () => new Set(units.map((_, i) => i)),
+  );
 
   const toggleUnit = (unitIndex: number) => {
     setExpandedUnits((prev) => {

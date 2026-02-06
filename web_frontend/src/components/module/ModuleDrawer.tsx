@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useMedia } from "react-use";
-import { PanelLeftOpen, PanelLeftClose } from "lucide-react";
+import { PanelLeftOpen, PanelLeftClose, ArrowLeft } from "lucide-react";
 import type { StageInfo } from "../../types/course";
 import ModuleOverview from "../course/ModuleOverview";
 
@@ -15,6 +15,7 @@ type ModuleDrawerProps = {
   completedStages: Set<number>;
   currentSectionIndex: number;
   onStageClick: (index: number) => void;
+  courseId: string;
 };
 
 export default function ModuleDrawer({
@@ -23,6 +24,7 @@ export default function ModuleDrawer({
   completedStages,
   currentSectionIndex,
   onStageClick,
+  courseId,
 }: ModuleDrawerProps) {
   // State is owned here - not in parent
   const [isOpen, setIsOpen] = useState(false);
@@ -105,6 +107,13 @@ export default function ModuleDrawer({
 
         {/* Content */}
         <div className="p-4 h-[calc(100%-4rem)] overflow-y-auto">
+          <a
+            href={courseId === "default" ? "/course" : `/course/${courseId}`}
+            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors mb-4"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to course overview
+          </a>
           <ModuleOverview
             moduleTitle={moduleTitle}
             stages={stages}

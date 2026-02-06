@@ -1250,6 +1250,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         completedStages={completedSections}
         currentSectionIndex={currentSectionIndex}
         onStageClick={handleStageClick}
+        courseId={courseId}
       />
 
       <ModuleCompleteModal
