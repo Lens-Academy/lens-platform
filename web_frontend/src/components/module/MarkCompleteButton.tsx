@@ -16,6 +16,8 @@ type MarkCompleteButtonProps = {
   moduleSlug?: string;
   // Custom button text (defaults to "Mark section complete")
   buttonText?: string;
+  // Short sections show minimal completed state (just "Next" button)
+  isShort?: boolean;
 };
 
 export default function MarkCompleteButton({
@@ -28,6 +30,7 @@ export default function MarkCompleteButton({
   contentTitle,
   moduleSlug,
   buttonText = "Mark section complete",
+  isShort = false,
 }: MarkCompleteButtonProps) {
   const { isAuthenticated } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,6 +66,33 @@ export default function MarkCompleteButton({
   };
 
   if (isCompleted) {
+    if (isShort) {
+      // Short sections: no "Section completed" sign, just a "Next" button
+      return hasNext && onNext ? (
+        <div className="flex items-center justify-center py-6">
+          <button
+            onClick={onNext}
+            className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
+          >
+            Next
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
+        </div>
+      ) : null;
+    }
+
     return (
       <div className="flex items-center justify-center py-6 gap-4">
         <div className="flex items-center gap-2 text-emerald-600">

@@ -47,7 +47,10 @@ import {
 } from "@/analytics";
 import { Skeleton, SkeletonText } from "@/components/Skeleton";
 import { getSectionSlug, findSectionBySlug } from "@/utils/sectionSlug";
-import { getCompletionButtonText } from "@/utils/completionButtonText";
+import {
+  getCompletionButtonText,
+  getSectionTextLength,
+} from "@/utils/completionButtonText";
 
 interface ModuleProps {
   courseId: string;
@@ -1236,6 +1239,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 }
                 moduleSlug={moduleId}
                 buttonText={getCompletionButtonText(section, sectionIndex)}
+                isShort={getSectionTextLength(section) < 1750}
               />
             </div>
           );
