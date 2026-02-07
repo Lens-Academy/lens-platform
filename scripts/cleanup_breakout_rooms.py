@@ -41,7 +41,7 @@ async def main():
             if channel.name.startswith("⛔ "):
                 prefix = "⛔ Not a breakout room. "
                 if channel.name.startswith(prefix):
-                    original = channel.name[len(prefix):]
+                    original = channel.name[len(prefix) :]
                 else:
                     original = channel.name[2:]  # Just strip "⛔ "
                 print(f"Restoring channel name: '{channel.name}' -> '{original}'")

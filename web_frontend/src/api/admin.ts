@@ -188,10 +188,13 @@ export async function getUserDetails(
  * Does NOT create infrastructure - use realizeGroup for that.
  */
 export async function syncGroup(groupId: number): Promise<GroupSyncResult> {
-  const res = await fetchWithRefresh(`${API_URL}/api/admin/groups/${groupId}/sync`, {
-    method: "POST",
-    credentials: "include",
-  });
+  const res = await fetchWithRefresh(
+    `${API_URL}/api/admin/groups/${groupId}/sync`,
+    {
+      method: "POST",
+      credentials: "include",
+    },
+  );
 
   if (!res.ok) {
     if (res.status === 403) {
@@ -208,10 +211,13 @@ export async function syncGroup(groupId: number): Promise<GroupSyncResult> {
  * Creates category, channels, calendar events, then syncs permissions.
  */
 export async function realizeGroup(groupId: number): Promise<GroupSyncResult> {
-  const res = await fetchWithRefresh(`${API_URL}/api/admin/groups/${groupId}/realize`, {
-    method: "POST",
-    credentials: "include",
-  });
+  const res = await fetchWithRefresh(
+    `${API_URL}/api/admin/groups/${groupId}/realize`,
+    {
+      method: "POST",
+      credentials: "include",
+    },
+  );
 
   if (!res.ok) {
     if (res.status === 403) {
@@ -229,9 +235,12 @@ export async function realizeGroup(groupId: number): Promise<GroupSyncResult> {
 export async function getCohortGroups(
   cohortId: number,
 ): Promise<GroupSummary[]> {
-  const res = await fetchWithRefresh(`${API_URL}/api/admin/cohorts/${cohortId}/groups`, {
-    credentials: "include",
-  });
+  const res = await fetchWithRefresh(
+    `${API_URL}/api/admin/cohorts/${cohortId}/groups`,
+    {
+      credentials: "include",
+    },
+  );
 
   if (!res.ok) {
     if (res.status === 403) {
@@ -248,10 +257,13 @@ export async function getCohortGroups(
  * Sync all groups in a cohort.
  */
 export async function syncCohort(cohortId: number): Promise<CohortSyncResult> {
-  const res = await fetchWithRefresh(`${API_URL}/api/admin/cohorts/${cohortId}/sync`, {
-    method: "POST",
-    credentials: "include",
-  });
+  const res = await fetchWithRefresh(
+    `${API_URL}/api/admin/cohorts/${cohortId}/sync`,
+    {
+      method: "POST",
+      credentials: "include",
+    },
+  );
 
   if (!res.ok) {
     if (res.status === 403) {
@@ -269,10 +281,13 @@ export async function syncCohort(cohortId: number): Promise<CohortSyncResult> {
 export async function realizeCohort(
   cohortId: number,
 ): Promise<CohortSyncResult> {
-  const res = await fetchWithRefresh(`${API_URL}/api/admin/cohorts/${cohortId}/realize`, {
-    method: "POST",
-    credentials: "include",
-  });
+  const res = await fetchWithRefresh(
+    `${API_URL}/api/admin/cohorts/${cohortId}/realize`,
+    {
+      method: "POST",
+      credentials: "include",
+    },
+  );
 
   if (!res.ok) {
     if (res.status === 403) {

@@ -395,9 +395,7 @@ class BreakoutCog(commands.Cog):
         else:
             await interaction.response.send_message(content, ephemeral=ephemeral)
 
-    def _get_group_roles(
-        self, channel: discord.VoiceChannel
-    ) -> list[discord.Role]:
+    def _get_group_roles(self, channel: discord.VoiceChannel) -> list[discord.Role]:
         """Get group roles on a channel (roles with connect=True, excluding staff roles)."""
         roles = []
         for target, overwrite in channel.overwrites.items():

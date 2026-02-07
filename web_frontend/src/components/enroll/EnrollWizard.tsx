@@ -112,9 +112,12 @@ export default function EnrollWizard() {
 
   const fetchCohortData = async () => {
     try {
-      const response = await fetchWithRefresh(`${API_URL}/api/cohorts/available`, {
-        credentials: "include",
-      });
+      const response = await fetchWithRefresh(
+        `${API_URL}/api/cohorts/available`,
+        {
+          credentials: "include",
+        },
+      );
       if (response.ok) {
         const data = await response.json();
         setEnrolledCohorts(data.enrolled);
@@ -143,10 +146,13 @@ export default function EnrollWizard() {
   };
 
   const handleBecomeFacilitator = async () => {
-    const response = await fetchWithRefresh(`${API_URL}/api/users/me/become-facilitator`, {
-      method: "POST",
-      credentials: "include",
-    });
+    const response = await fetchWithRefresh(
+      `${API_URL}/api/users/me/become-facilitator`,
+      {
+        method: "POST",
+        credentials: "include",
+      },
+    );
     if (response.ok) {
       setIsFacilitator(true);
       setFormData((prev) => ({ ...prev, selectedRole: "facilitator" }));

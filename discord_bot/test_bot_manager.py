@@ -72,7 +72,9 @@ class TestBotManager:
 
                 vc = guild.get_channel(channel.id)
                 if not vc:
-                    print(f"  Test bot {bot.user}: channel {channel.id} not found in guild")
+                    print(
+                        f"  Test bot {bot.user}: channel {channel.id} not found in guild"
+                    )
                     continue
 
                 # If already in voice, move; otherwise connect

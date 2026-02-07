@@ -41,9 +41,12 @@ export default function GroupPage() {
   const fetchUserGroupInfo = async () => {
     setIsLoading(true);
     try {
-      const response = await fetchWithRefresh(`${API_URL}/api/users/me/group-info`, {
-        credentials: "include",
-      });
+      const response = await fetchWithRefresh(
+        `${API_URL}/api/users/me/group-info`,
+        {
+          credentials: "include",
+        },
+      );
       if (response.ok) {
         const data = await response.json();
         setUserInfo(data);

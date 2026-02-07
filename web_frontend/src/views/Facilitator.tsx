@@ -54,9 +54,12 @@ export default function Facilitator() {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetchWithRefresh(`${API_URL}/api/facilitator/groups`, {
-          credentials: "include",
-        });
+        const res = await fetchWithRefresh(
+          `${API_URL}/api/facilitator/groups`,
+          {
+            credentials: "include",
+          },
+        );
         if (!res.ok) {
           if (res.status === 403) {
             setError("Access denied. You must be an admin or facilitator.");

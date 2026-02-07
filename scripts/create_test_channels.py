@@ -40,7 +40,9 @@ async def main():
         print(f"Found category: {category.name}")
 
         # Find existing cohort channel
-        cohort_channel = discord.utils.get(category.text_channels, name="general-test-cohort")
+        cohort_channel = discord.utils.get(
+            category.text_channels, name="general-test-cohort"
+        )
         if not cohort_channel:
             print("Cohort channel not found!")
             await client.close()
