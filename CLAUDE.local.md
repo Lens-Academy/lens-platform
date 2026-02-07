@@ -1,1 +1,1 @@
-@~/.claude/jj.md
+../CLAUDE.local.md
