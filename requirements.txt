@@ -3,6 +3,7 @@
 
 # Discord bot
 discord.py>=2.3.0
+PyNaCl>=1.5.0  # Required for Discord voice support
 pytz>=2023.3
 
 # Cohort scheduling algorithm

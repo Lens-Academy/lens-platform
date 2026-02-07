@@ -14,9 +14,6 @@ import random
 
 from test_bot_manager import test_bot_manager
 
-# How long to lock users out of the main room (seconds)
-LOCKOUT_DURATION = 15
-
 # Countdown before collecting everyone back (seconds)
 COLLECT_COUNTDOWN = 20
 
@@ -29,6 +26,9 @@ class BreakoutSession:
     breakout_channel_ids: list[int] = field(default_factory=list)
     facilitator_id: int = 0
     timer_task: asyncio.Task | None = None
+    original_channel_name: str = ""
+    rename_task: asyncio.Task | None = None
+    locked_role_ids: list[int] = field(default_factory=list)
 
 
 # Keycap emoji for numbers 1-9
@@ -395,23 +395,27 @@ class BreakoutCog(commands.Cog):
         else:
             await interaction.response.send_message(content, ephemeral=ephemeral)
 
-    async def _unlock_after_delay(
-        self,
-        channel: discord.VoiceChannel,
-        members: list[discord.Member],
-    ):
-        """Remove connect=False permission overwrites after a delay."""
-        await asyncio.sleep(LOCKOUT_DURATION)
-        for m in members:
-            try:
-                await channel.set_permissions(
-                    m,
-                    overwrite=None,
-                    reason="Breakout lockout period ended",
-                )
-            except discord.HTTPException:
-                # Member may have left, channel may be gone
-                pass
+    def _get_group_roles(
+        self, channel: discord.VoiceChannel
+    ) -> list[discord.Role]:
+        """Get group roles on a channel (roles with connect=True, excluding staff roles)."""
+        roles = []
+        for target, overwrite in channel.overwrites.items():
+            if not isinstance(target, discord.Role):
+                continue
+            if target.is_default():
+                continue
+            # Skip staff roles (admin/mod permissions)
+            if (
+                target.permissions.administrator
+                or target.permissions.manage_guild
+                or target.permissions.manage_channels
+            ):
+                continue
+            # Only roles that have explicit connect=True on this channel
+            if overwrite.connect is True:
+                roles.append(target)
+        return roles
 
     async def _run_timer(
         self,
@@ -479,58 +483,39 @@ class BreakoutCog(commands.Cog):
         # Auto-collect (this will handle the 20s + 5s warnings)
         session = self._active_sessions.get(source_channel_id)
         if session:
-            # Create a fake interaction-like context for run_collect
-            # We'll call the internal collect logic directly
             await self._auto_collect(guild, source_channel_id)
 
-    async def _auto_collect(self, guild: discord.Guild, source_channel_id: int):
-        """Auto-collect without interaction (called by timer)."""
-        session = self._active_sessions.get(source_channel_id)
-        if not session:
-            return
+    async def _countdown_and_collect(
+        self,
+        session: BreakoutSession,
+        source_channel: discord.VoiceChannel | None,
+        breakout_channels: list[discord.VoiceChannel],
+        countdown: bool = True,
+    ) -> int:
+        """Shared collect logic: countdown, move members, cleanup.
 
-        source_channel = guild.get_channel(source_channel_id)
-
-        # Get breakout channels
-        breakout_channels = []
-        for channel_id in session.breakout_channel_ids:
-            channel = guild.get_channel(channel_id)
-            if channel:
-                breakout_channels.append(channel)
-
-        # Send countdown warnings to main channel and breakout rooms
-        if breakout_channels:
-            # 20s warning to main channel
-            if source_channel:
+        Returns the number of members collected.
+        """
+        # Countdown warnings
+        if countdown and breakout_channels:
+            targets = ([source_channel] if source_channel else []) + breakout_channels
+            for ch in targets:
                 try:
-                    await source_channel.send("20 seconds remaining")
-                except discord.HTTPException:
-                    pass
-            # 20s warning to breakout rooms
-            for channel in breakout_channels:
-                try:
-                    await channel.send("20 seconds remaining")
+                    await ch.send("20 seconds remaining")
                 except discord.HTTPException:
                     pass
 
             await asyncio.sleep(COLLECT_COUNTDOWN - 5)
 
-            # 5s warning to main channel
-            if source_channel:
+            for ch in targets:
                 try:
-                    await source_channel.send("5 seconds remaining")
-                except discord.HTTPException:
-                    pass
-            # 5s warning to breakout rooms
-            for channel in breakout_channels:
-                try:
-                    await channel.send("5 seconds remaining")
+                    await ch.send("5 seconds remaining")
                 except discord.HTTPException:
                     pass
 
             await asyncio.sleep(5)
 
-        # Move everyone back
+        # Move everyone back and delete breakout channels
         collected_count = 0
         for channel in breakout_channels:
             if source_channel:
@@ -541,25 +526,69 @@ class BreakoutCog(commands.Cog):
                     except discord.HTTPException:
                         pass
             try:
-                await channel.delete(reason="Breakout timer ended")
+                await channel.delete(reason="Breakout session ended")
             except discord.HTTPException:
                 pass
 
-        # Restore permissions
+        # Cancel pending rename and restore source channel name
+        if session.rename_task and not session.rename_task.done():
+            session.rename_task.cancel()
+        if source_channel and session.original_channel_name:
+            try:
+                await source_channel.edit(name=session.original_channel_name)
+            except discord.HTTPException as e:
+                print(f"Failed to restore channel name: {e}")
+
+        # Restore connect on locked group roles
         if source_channel:
-            for target, overwrite in list(source_channel.overwrites.items()):
-                if isinstance(target, discord.Member):
+            guild = source_channel.guild
+            for role_id in session.locked_role_ids:
+                role = guild.get_role(role_id)
+                if role:
                     try:
                         await source_channel.set_permissions(
-                            target, overwrite=None, reason="Breakout session ended"
+                            role,
+                            connect=True,
+                            view_channel=True,
+                            speak=True,
+                            reason="Breakout session ended",
                         )
                     except discord.HTTPException:
                         pass
 
-        # Clean up session
-        del self._active_sessions[source_channel_id]
+            # Remove facilitator's member-level overwrite
+            facilitator = guild.get_member(session.facilitator_id)
+            if facilitator:
+                try:
+                    await source_channel.set_permissions(
+                        facilitator, overwrite=None, reason="Breakout session ended"
+                    )
+                except discord.HTTPException:
+                    pass
 
-        # Notify in source channel
+        # Clean up session
+        del self._active_sessions[session.source_channel_id]
+
+        return collected_count
+
+    async def _auto_collect(self, guild: discord.Guild, source_channel_id: int):
+        """Auto-collect without interaction (called by timer)."""
+        session = self._active_sessions.get(source_channel_id)
+        if not session:
+            return
+
+        source_channel = guild.get_channel(source_channel_id)
+
+        breakout_channels = []
+        for channel_id in session.breakout_channel_ids:
+            channel = guild.get_channel(channel_id)
+            if channel:
+                breakout_channels.append(channel)
+
+        collected_count = await self._countdown_and_collect(
+            session, source_channel, breakout_channels
+        )
+
         if source_channel:
             try:
                 await source_channel.send(
@@ -633,12 +662,21 @@ class BreakoutCog(commands.Cog):
         # Map each user to their assigned group/channel for later movement
         user_assignments: list[tuple[list[discord.Member], discord.VoiceChannel]] = []
 
+        # Copy role overwrites from source channel so breakout rooms
+        # have the same visibility/connect permissions as the main voice channel
+        role_overwrites = {
+            target: overwrite
+            for target, overwrite in source_channel.overwrites.items()
+            if isinstance(target, discord.Role)
+        }
+
         try:
             # PHASE 1: Create all breakout channels and invites (don't move anyone yet)
             for i, group in enumerate(groups, 1):
                 channel = await guild.create_voice_channel(
                     name=f"Breakout {i}",
                     category=category,
+                    overwrites=role_overwrites,
                     reason=f"Breakout room created by {member.display_name}",
                 )
                 breakout_channels.append(channel)
@@ -672,6 +710,9 @@ class BreakoutCog(commands.Cog):
                     )
                 )
 
+            # Save original name before any changes
+            original_name = source_channel.name
+
             # PHASE 2: Post the message with navigation buttons (before moving/locking)
             embed = discord.Embed(
                 title="Breakout Rooms Starting",
@@ -703,36 +744,59 @@ class BreakoutCog(commands.Cog):
             except discord.HTTPException:
                 pass
 
-            # PHASE 3: Lock users out of source channel, then move them
-            locked_members = []
+            # PHASE 3: Lock group roles out of source channel, then move participants
+            # Deny connect on group roles (instead of per-member overwrites)
+            group_roles = self._get_group_roles(source_channel)
+            for role in group_roles:
+                try:
+                    await source_channel.set_permissions(
+                        role,
+                        connect=False,
+                        view_channel=True,
+                        speak=True,
+                        reason="Breakout session active",
+                    )
+                except discord.HTTPException:
+                    pass
+
+            # Allow facilitator to stay in the source channel
+            try:
+                await source_channel.set_permissions(
+                    member,
+                    connect=True,
+                    reason="Facilitator access during breakout",
+                )
+            except discord.HTTPException:
+                pass
+
+            # Move participants to breakout channels
             for group, channel in user_assignments:
                 for m in group:
                     try:
-                        # Block from rejoining source channel first
-                        await source_channel.set_permissions(
-                            m,
-                            connect=False,
-                            reason="Breakout session active - preventing accidental rejoin",
-                        )
-                        locked_members.append(m)
-                        # Then move to breakout channel
                         await m.move_to(channel)
                     except discord.HTTPException:
-                        # Member may have left, skip
                         pass
-
-            # Schedule unlock after delay (don't await - runs in background)
-            asyncio.create_task(
-                self._unlock_after_delay(source_channel, locked_members)
-            )
 
             # Store session (keyed by source channel for concurrent support)
             session = BreakoutSession(
                 source_channel_id=source_channel.id,
                 breakout_channel_ids=[c.id for c in breakout_channels],
                 facilitator_id=member.id,
+                original_channel_name=original_name,
+                locked_role_ids=[r.id for r in group_roles],
             )
             self._active_sessions[source_channel.id] = session
+
+            # Rename source channel in the background (can be rate-limited)
+            async def _rename_source():
+                try:
+                    await source_channel.edit(
+                        name=f"⛔ Not a breakout room. {original_name}"
+                    )
+                except discord.HTTPException as e:
+                    print(f"Failed to rename source channel: {e}")
+
+            session.rename_task = asyncio.create_task(_rename_source())
 
             # Send duration message to each breakout room
             if timer_minutes:
@@ -834,7 +898,7 @@ class BreakoutCog(commands.Cog):
         if not source_channel and member.voice and member.voice.channel:
             source_channel = member.voice.channel
 
-        # Get all breakout channels first (for warnings)
+        # Get all breakout channels
         breakout_channels = []
         for channel_id in session.breakout_channel_ids:
             channel = guild.get_channel(channel_id)
@@ -845,78 +909,10 @@ class BreakoutCog(commands.Cog):
                     continue
             breakout_channels.append(channel)
 
-        # Send warning messages to main channel and breakout rooms
-        if countdown and breakout_channels:
-            # 20s warning to main channel
-            if source_channel:
-                try:
-                    await source_channel.send("20 seconds remaining")
-                except discord.HTTPException:
-                    pass
-            # 20s warning to breakout rooms
-            for channel in breakout_channels:
-                try:
-                    await channel.send("20 seconds remaining")
-                except discord.HTTPException:
-                    pass
+        collected_count = await self._countdown_and_collect(
+            session, source_channel, breakout_channels, countdown=countdown
+        )
 
-            # Wait until 5 seconds remaining
-            await asyncio.sleep(COLLECT_COUNTDOWN - 5)
-
-            # 5s warning to main channel
-            if source_channel:
-                try:
-                    await source_channel.send("5 seconds remaining")
-                except discord.HTTPException:
-                    pass
-            # 5s warning to breakout rooms
-            for channel in breakout_channels:
-                try:
-                    await channel.send("5 seconds remaining")
-                except discord.HTTPException:
-                    pass
-
-            # Final 5 seconds
-            await asyncio.sleep(5)
-
-        # Collect members from breakout channels
-        collected_count = 0
-        for channel in breakout_channels:
-            # Move all members back
-            if source_channel:
-                for m in channel.members:
-                    try:
-                        await m.move_to(source_channel)
-                        collected_count += 1
-                    except discord.HTTPException:
-                        pass
-
-            # Delete the breakout channel
-            try:
-                await channel.delete(reason="Breakout session ended")
-            except discord.HTTPException:
-                pass
-
-        # Restore connect permissions on source channel (safety cleanup)
-        # Normally permissions auto-unlock after LOCKOUT_DURATION, but if collect
-        # happens before that, we need to clean up any remaining overwrites
-        if source_channel:
-            for target, overwrite in list(source_channel.overwrites.items()):
-                # Only remove Member overwrites, not Role overwrites
-                if isinstance(target, discord.Member):
-                    try:
-                        await source_channel.set_permissions(
-                            target,
-                            overwrite=None,
-                            reason="Breakout session ended - restoring permissions",
-                        )
-                    except discord.HTTPException:
-                        pass
-
-        # Remove session
-        del self._active_sessions[session.source_channel_id]
-
-        # Response
         if source_channel:
             await interaction.followup.send(
                 f"Collected {collected_count} users back to **{source_channel.name}**. "
@@ -953,7 +949,7 @@ class BreakoutCog(commands.Cog):
         channel = member.voice.channel
         await interaction.response.defer(ephemeral=True)
 
-        # Remove all member-specific permission overwrites
+        # Remove member-specific overwrites
         removed_count = 0
         for target, overwrite in list(channel.overwrites.items()):
             if isinstance(target, discord.Member):
@@ -967,8 +963,24 @@ class BreakoutCog(commands.Cog):
                 except discord.HTTPException:
                     pass
 
+        # Restore connect=True on group roles that may have been locked
+        for role in self._get_group_roles(channel):
+            overwrite = channel.overwrites_for(role)
+            if overwrite.connect is False:
+                try:
+                    await channel.set_permissions(
+                        role,
+                        connect=True,
+                        view_channel=True,
+                        speak=True,
+                        reason=f"Permission reset by {member.display_name}",
+                    )
+                    removed_count += 1
+                except discord.HTTPException:
+                    pass
+
         await interaction.followup.send(
-            f"Removed {removed_count} user permission override(s) from **{channel.name}**.",
+            f"Reset {removed_count} permission override(s) on **{channel.name}**.",
             ephemeral=True,
         )
 

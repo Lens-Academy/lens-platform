@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useMedia } from "react-use";
 import { navigate } from "vike/client/router";
-import { ChevronRight, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { getCourseProgress } from "../api/modules";
 import type { CourseProgress, ModuleInfo } from "../types/course";
 import CourseSidebar from "../components/course/CourseSidebar";
@@ -137,16 +137,6 @@ export default function CourseOverview({
     }
   }, [isMobile, sidebarOpen]);
 
-  // Find unit for breadcrumb
-  const selectedUnit = courseProgress?.units.find((u) =>
-    u.modules.some((m) => m.slug === selectedModule?.slug),
-  );
-  const selectedUnitLabel = selectedUnit
-    ? selectedUnit.meetingNumber !== null
-      ? `Unit ${selectedUnit.meetingNumber}`
-      : "Additional Content"
-    : null;
-
   // Loading state - skeleton layout mirrors module cards
   if (loading) {
     return (
@@ -217,29 +207,6 @@ export default function CourseOverview({
           </div>
         </div>
       </nav>
-
-      {/* Breadcrumb */}
-      <div className="border-b border-slate-200 px-6 py-3 flex items-center gap-2 text-sm">
-        <a href="/" className="text-slate-500 hover:text-slate-700">
-          Home
-        </a>
-        <ChevronRight className="w-4 h-4 text-slate-400" />
-        <span className="text-slate-700 font-medium">
-          {courseProgress.course.title}
-        </span>
-        {selectedUnitLabel && (
-          <>
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-500">{selectedUnitLabel}</span>
-          </>
-        )}
-        {selectedModule && (
-          <>
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-900">{selectedModule.title}</span>
-          </>
-        )}
-      </div>
 
       {/* Two-panel layout */}
       <div className="flex-1 flex overflow-hidden relative">

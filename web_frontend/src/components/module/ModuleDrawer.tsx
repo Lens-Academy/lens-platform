@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useMedia } from "react-use";
-import { PanelLeftOpen, PanelLeftClose } from "lucide-react";
+import { PanelLeftOpen, PanelLeftClose, ChevronRight } from "lucide-react";
 import type { StageInfo } from "../../types/course";
 import ModuleOverview from "../course/ModuleOverview";
 
@@ -15,6 +15,8 @@ type ModuleDrawerProps = {
   completedStages: Set<number>;
   currentSectionIndex: number;
   onStageClick: (index: number) => void;
+  courseId?: string;
+  courseTitle?: string;
 };
 
 export default function ModuleDrawer({
@@ -23,6 +25,8 @@ export default function ModuleDrawer({
   completedStages,
   currentSectionIndex,
   onStageClick,
+  courseId,
+  courseTitle,
 }: ModuleDrawerProps) {
   // State is owned here - not in parent
   const [isOpen, setIsOpen] = useState(false);
@@ -89,14 +93,31 @@ export default function ModuleDrawer({
           paddingBottom: "var(--safe-bottom)",
         }}
       >
-        {/* Header */}
+        {/* Header with breadcrumb */}
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
-          <h3 className="text-lg font-medium text-slate-900">
-            Module Overview
-          </h3>
+          <div className="flex items-center gap-1.5 min-w-0 text-sm">
+            {courseId ? (
+              <>
+                <a
+                  href={`/course/${courseId}`}
+                  className="text-slate-500 hover:text-slate-900 transition-colors truncate shrink-0"
+                >
+                  {courseTitle || "Course"}
+                </a>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="font-medium text-slate-900 truncate">
+                  {moduleTitle}
+                </span>
+              </>
+            ) : (
+              <span className="font-medium text-slate-900 truncate">
+                {moduleTitle}
+              </span>
+            )}
+          </div>
           <button
             onMouseDown={handleClose}
-            className="p-3 min-h-[44px] min-w-[44px] hover:bg-slate-100 rounded-lg transition-all active:scale-95 flex items-center justify-center"
+            className="p-3 min-h-[44px] min-w-[44px] hover:bg-slate-100 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
             title="Close sidebar"
           >
             <PanelLeftClose className="w-5 h-5 text-slate-500" />

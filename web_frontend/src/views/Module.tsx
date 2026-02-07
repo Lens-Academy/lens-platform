@@ -107,7 +107,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         // Fetch module, course progress, and module progress in parallel
         const [moduleResult, courseResult, progressResult] = await Promise.all([
           getModule(moduleId),
-          courseId && courseId !== "default"
+          courseId
             ? getCourseProgress(courseId).catch(() => null)
             : Promise.resolve(null),
           getModuleProgress(moduleId).catch(() => null),
@@ -1250,6 +1250,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         completedStages={completedSections}
         currentSectionIndex={currentSectionIndex}
         onStageClick={handleStageClick}
+        courseId={courseId}
+        courseTitle={courseProgress?.course.title}
       />
 
       <ModuleCompleteModal
