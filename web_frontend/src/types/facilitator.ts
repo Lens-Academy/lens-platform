@@ -10,26 +10,31 @@ export interface FacilitatorGroup {
 export interface GroupMember {
   user_id: number;
   name: string;
-  lessons_completed: number;
+  sections_completed: number;
   total_time_seconds: number;
   last_active_at: string | null;
 }
 
-export interface StageProgress {
-  stage_index: number;
-  stage_type: "article" | "video" | "chat";
+export interface SectionProgress {
+  content_id: string;
+  title: string;
+  type: string;
+  completed: boolean;
   time_spent_seconds: number;
 }
 
-export interface LessonProgress {
-  lesson_slug: string;
-  completed: boolean;
+export interface ModuleProgress {
+  slug: string;
+  title: string;
+  status: "not_started" | "in_progress" | "completed";
+  completed_count: number;
+  total_count: number;
   time_spent_seconds: number;
-  stages: StageProgress[];
+  sections: SectionProgress[];
 }
 
 export interface UserProgress {
-  lessons: LessonProgress[];
+  modules: ModuleProgress[];
   total_time_seconds: number;
   last_active_at: string | null;
 }
@@ -41,9 +46,11 @@ export interface ChatMessage {
 
 export interface ChatSession {
   session_id: number;
-  lesson_slug: string;
+  content_id: string | null;
+  module_slug: string | null;
+  module_title: string | null;
   messages: ChatMessage[];
   started_at: string | null;
-  completed_at: string | null;
-  duration_seconds: number;
+  last_active_at: string | null;
+  is_archived: boolean;
 }

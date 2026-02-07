@@ -68,9 +68,13 @@ DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET")
 _api_port = get_api_port()
 
 if is_dev_mode():
-    # Dev mode: Next.js runs on separate port (auto-assigned by workspace)
-    DISCORD_REDIRECT_URI = f"http://localhost:{_api_port}/auth/discord/callback"
-    FRONTEND_URL = f"http://localhost:{get_frontend_port()}"
+    # Dev mode: separate frontend port, allow env var override for non-localhost access
+    DISCORD_REDIRECT_URI = os.environ.get(
+        "DISCORD_REDIRECT_URI", f"http://localhost:{_api_port}/auth/discord/callback"
+    )
+    FRONTEND_URL = os.environ.get(
+        "FRONTEND_URL", f"http://localhost:{get_frontend_port()}"
+    ).rstrip("/")
 elif is_production():
     # Production: use explicit env vars
     DISCORD_REDIRECT_URI = os.environ.get(
