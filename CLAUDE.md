@@ -56,6 +56,10 @@ pytest discord_bot/tests/     # Discord bot tests
 pytest web_api/tests/         # Web API tests
 ```
 
+## Chrome DevTools MCP
+
+The Chrome DevTools MCP connects to Chrome on the **user's Windows device**, not the VPS. The VPS localhost ports are tunneled to the user's device as `dev.vps`. So when navigating in Chrome DevTools, use `http://dev.vps:<port>/...` (not `localhost`).
+
 ## Dev Server Management
 
 Ports are auto-assigned based on workspace number (offset by 100 to avoid collisions when servers auto-increment):

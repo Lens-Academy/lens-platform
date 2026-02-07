@@ -968,19 +968,17 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   return (
     <div className="min-h-dvh bg-white overflow-x-clip">
-      <div className="sticky top-0 z-50 bg-white">
-        <ModuleHeader
-          moduleTitle={module.title}
-          stages={stages}
-          completedStages={completedSections}
-          currentSectionIndex={currentSectionIndex}
-          canGoPrevious={currentSectionIndex > 0}
-          canGoNext={currentSectionIndex < module.sections.length - 1}
-          onStageClick={handleStageClick}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-        />
-      </div>
+      <ModuleHeader
+        moduleTitle={module.title}
+        stages={stages}
+        completedStages={completedSections}
+        currentSectionIndex={currentSectionIndex}
+        canGoPrevious={currentSectionIndex > 0}
+        canGoNext={currentSectionIndex < module.sections.length - 1}
+        onStageClick={handleStageClick}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+      />
 
       {/* Main content - padding-top accounts for fixed header */}
       <main className="pt-[var(--module-header-height)]">
