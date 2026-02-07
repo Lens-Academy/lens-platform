@@ -4,8 +4,8 @@ Authentication routes for Discord OAuth and code-based auth.
 Endpoints:
 - GET /auth/discord - Start Discord OAuth flow
 - GET /auth/discord/callback - Handle OAuth callback
-- GET /auth/code - Validate temp code from Discord bot
-- POST /auth/logout - Clear session
+- POST /auth/refresh - Rotate refresh token and issue new JWT
+- POST /auth/logout - Clear session and revoke refresh tokens
 - GET /auth/me - Get current user info
 """
 
@@ -13,8 +13,10 @@ import os
 import secrets
 import sys
 import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from uuid import UUID
 
 import httpx
@@ -23,11 +25,20 @@ from fastapi.responses import RedirectResponse
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core import get_or_create_user, get_user_profile, validate_and_use_auth_code
+from core import get_or_create_user, get_user_profile
 from core.database import get_connection, get_transaction
 from core.modules.progress import claim_progress_records
 from core.modules.chat_sessions import claim_chat_sessions
-from core.queries.users import get_user_enrollment_status
+from core.queries.refresh_tokens import (
+    get_refresh_token_by_hash,
+    revoke_family,
+    revoke_token,
+    store_refresh_token,
+)
+from core.queries.users import (
+    get_user_by_id,
+    get_user_enrollment_status,
+)
 from core.config import (
     is_dev_mode,
     is_production,
@@ -35,7 +46,17 @@ from core.config import (
     get_frontend_port,
     get_allowed_origins,
 )
-from web_api.auth import create_jwt, get_optional_user, set_session_cookie
+from web_api.auth import (
+    create_jwt,
+    delete_refresh_cookie,
+    delete_session_cookie,
+    generate_refresh_token,
+    get_optional_user,
+    hash_token,
+    set_refresh_cookie,
+    set_session_cookie,
+)
+from web_api.rate_limit import oauth_start_limiter, refresh_limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -74,6 +95,16 @@ def _validate_origin(origin: str | None) -> str:
     return FRONTEND_URL
 
 
+def _validate_next_path(next_path: str) -> str:
+    """Sanitize the 'next' redirect path to prevent open redirects.
+
+    Ensures the path is a relative path starting with '/'.
+    """
+    if not next_path or not next_path.startswith("/") or next_path.startswith("//"):
+        return "/"
+    return next_path
+
+
 # In-memory state storage for OAuth CSRF protection
 # In production, use Redis or database
 _oauth_states: dict[str, dict] = {}
@@ -87,6 +118,17 @@ def _cleanup_expired_oauth_states():
     expired = [k for k, v in _oauth_states.items() if v.get("created_at", 0) < cutoff]
     for key in expired:
         del _oauth_states[key]
+
+
+async def _issue_refresh_token(response: Response, user_id: int) -> None:
+    """Generate a refresh token, store its hash in DB, and set the cookie."""
+    raw_token, token_hash = generate_refresh_token()
+    family_id = str(uuid.uuid4())
+
+    async with get_transaction() as conn:
+        await store_refresh_token(conn, token_hash, user_id, family_id)
+
+    set_refresh_cookie(response, raw_token)
 
 
 @router.get("/discord")
@@ -109,6 +151,8 @@ async def discord_oauth_start(
         origin: Frontend origin URL (validated against whitelist)
         anonymous_token: Optional anonymous session token to claim on login
     """
+    oauth_start_limiter.check(request)
+
     # Validate origin against whitelist
     validated_origin = _validate_origin(origin)
 
@@ -125,7 +169,7 @@ async def discord_oauth_start(
     _cleanup_expired_oauth_states()  # Prevent memory leak
     state = secrets.token_urlsafe(32)
     _oauth_states[state] = {
-        "next": next,
+        "next": _validate_next_path(next),
         "origin": validated_origin,
         "anonymous_token": anonymous_token,
         "created_at": time.time(),
@@ -159,7 +203,7 @@ async def discord_oauth_callback(
     """
     # Handle OAuth errors
     if error:
-        return RedirectResponse(url=f"{FRONTEND_URL}/enroll?error={error}")
+        return RedirectResponse(url=f"{FRONTEND_URL}/enroll?error={quote(error)}")
 
     if not code or not state:
         return RedirectResponse(url=f"{FRONTEND_URL}/enroll?error=missing_params")
@@ -244,120 +288,98 @@ async def discord_oauth_callback(
 
     response = RedirectResponse(url=f"{origin}{next_url}")
     set_session_cookie(response, token)
+    await _issue_refresh_token(response, user["user_id"])
 
     return response
 
 
-@router.get("/code")
-async def validate_auth_code_endpoint(
-    code: str,
-    next: str = "/",
-    origin: str | None = None,
-    anonymous_token: str | None = None,
-):
+@router.post("/refresh")
+async def refresh_token_endpoint(request: Request, response: Response):
     """
-    Validate a temporary auth code from the Discord bot.
+    Rotate refresh token and issue a new JWT.
 
-    The Discord bot creates codes and stores them in the auth_codes table.
-    This endpoint validates the code, marks it as used, and creates a session.
-
-    Args:
-        code: The auth code to validate
-        next: Path to redirect to after auth (default: "/")
-        origin: Frontend origin URL (validated against whitelist)
+    Reads the refresh_token cookie, validates it, revokes the old token,
+    issues a new refresh token in the same family, and returns a new JWT.
     """
-    # Validate origin against whitelist
-    redirect_base = _validate_origin(origin)
+    refresh_limiter.check(request)
 
-    if not code:
-        return RedirectResponse(url=f"{redirect_base}/enroll?error=missing_code")
+    raw_refresh = request.cookies.get("refresh_token")
 
-    auth_code, error = await validate_and_use_auth_code(code)
-    if error:
-        return RedirectResponse(url=f"{redirect_base}/enroll?error={error}")
+    if raw_refresh:
+        # Normal flow: validate and rotate the refresh token
+        # Single transaction with FOR UPDATE to prevent concurrent rotation
+        token_hash = hash_token(raw_refresh)
+        new_raw, new_hash = generate_refresh_token()
+        error = None
+        user = None
 
-    # Get or create user
-    discord_id = auth_code["discord_id"]
-    user = await get_or_create_user(discord_id)
-    discord_username = user.get("discord_username") or f"User_{discord_id[:8]}"
+        async with get_transaction() as conn:
+            db_token = await get_refresh_token_by_hash(
+                conn, token_hash, for_update=True
+            )
 
-    # Claim anonymous sessions if token provided
-    if anonymous_token:
-        try:
-            anonymous_uuid = UUID(anonymous_token)
-        except ValueError:
-            anonymous_uuid = None
+            if not db_token:
+                error = "Invalid refresh token"
+            elif db_token["revoked_at"] is not None:
+                # Reuse detected — revoke entire family
+                await revoke_family(conn, db_token["family_id"])
+                error = "Refresh token reuse detected"
+            else:
+                # Check expiry
+                expires_at = db_token["expires_at"]
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) > expires_at:
+                    await revoke_token(conn, db_token["token_id"])
+                    error = "Refresh token expired"
+                else:
+                    # Valid — rotate: revoke old, issue new in same family
+                    await revoke_token(conn, db_token["token_id"])
+                    user = await get_user_by_id(conn, db_token["user_id"])
+                    if user:
+                        await store_refresh_token(
+                            conn,
+                            new_hash,
+                            user["user_id"],
+                            db_token["family_id"],
+                        )
+                    else:
+                        error = "User not found"
 
-        if anonymous_uuid:
-            async with get_transaction() as conn:
-                await claim_progress_records(
-                    conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
-                )
-                await claim_chat_sessions(
-                    conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
-                )
+        # Raise errors after transaction commits (so revoke_family persists)
+        if error:
+            delete_refresh_cookie(response)
+            if error == "Refresh token reuse detected":
+                delete_session_cookie(response)
+            raise HTTPException(status_code=401, detail=error)
 
-    # Create JWT and set cookie
-    token = create_jwt(discord_id, discord_username)
+        # Issue new JWT + refresh cookie
+        discord_id = user["discord_id"]
+        discord_username = user.get("discord_username") or f"User_{discord_id[:8]}"
+        jwt_token = create_jwt(discord_id, discord_username)
+        set_session_cookie(response, jwt_token)
+        set_refresh_cookie(response, new_raw)
 
-    response = RedirectResponse(url=f"{redirect_base}{next}")
-    set_session_cookie(response, token)
+        return {"status": "refreshed"}
 
-    return response
-
-
-@router.post("/code")
-async def validate_auth_code_api(
-    response: Response,
-    code: str,
-    next: str = "/",
-    anonymous_token: str | None = None,
-):
-    """
-    Validate a temporary auth code from the Discord bot (API version).
-
-    Returns JSON response instead of redirect, for frontend fetch calls.
-    Sets the session cookie on the response.
-    """
-    if not code:
-        raise HTTPException(status_code=400, detail="missing_code")
-
-    auth_code, error = await validate_and_use_auth_code(code)
-    if error:
-        raise HTTPException(status_code=400, detail=error)
-
-    # Get or create user
-    discord_id = auth_code["discord_id"]
-    user = await get_or_create_user(discord_id)
-    discord_username = user.get("discord_username") or f"User_{discord_id[:8]}"
-
-    # Claim anonymous sessions if token provided
-    if anonymous_token:
-        try:
-            anonymous_uuid = UUID(anonymous_token)
-        except ValueError:
-            anonymous_uuid = None
-
-        if anonymous_uuid:
-            async with get_transaction() as conn:
-                await claim_progress_records(
-                    conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
-                )
-                await claim_chat_sessions(
-                    conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
-                )
-
-    # Create JWT and set cookie
-    token = create_jwt(discord_id, discord_username)
-    set_session_cookie(response, token)
-
-    return {"status": "ok", "next": next}
+    # No valid refresh token
+    raise HTTPException(status_code=401, detail="Not authenticated")
 
 
 @router.post("/logout")
-async def logout(response: Response):
-    """Clear the session cookie."""
-    response.delete_cookie(key="session")
+async def logout(request: Request, response: Response):
+    """Clear session and refresh cookies, revoke refresh token family."""
+    # Revoke the refresh token family in DB
+    raw_refresh = request.cookies.get("refresh_token")
+    if raw_refresh:
+        token_hash = hash_token(raw_refresh)
+        async with get_transaction() as conn:
+            db_token = await get_refresh_token_by_hash(conn, token_hash)
+            if db_token:
+                await revoke_family(conn, db_token["family_id"])
+
+    delete_session_cookie(response)
+    delete_refresh_cookie(response)
     return {"status": "logged_out"}
 
 

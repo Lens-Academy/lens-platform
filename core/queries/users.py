@@ -10,6 +10,16 @@ from ..enums import GroupUserStatus
 from ..tables import cohorts, facilitators, groups, groups_users, signups, users
 
 
+async def get_user_by_id(
+    conn: AsyncConnection,
+    user_id: int,
+) -> dict[str, Any] | None:
+    """Get a user by their database user_id."""
+    result = await conn.execute(select(users).where(users.c.user_id == user_id))
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
 async def get_user_by_discord_id(
     conn: AsyncConnection,
     discord_id: str,

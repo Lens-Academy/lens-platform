@@ -26,6 +26,16 @@ pytest                # Run tests
 
 Fix any errors before pushing. CI will run these same checks.
 
+## Python Virtual Environment
+
+A shared venv lives at the repo root (`../.venv/` relative to any workspace). Use it for running Python tools:
+
+```bash
+../.venv/bin/python main.py    # Run server
+../.venv/bin/alembic            # Run alembic
+../.venv/bin/pytest             # Run tests
+```
+
 ## Commands
 
 Run the server: `python main.py`. This is a unified backend (FastAPI + Discord Bot) that also serves the frontend.
@@ -129,7 +139,7 @@ ai-safety-course-platform/
 1. **Edit SQLAlchemy schema** in `core/tables.py`
 2. **Auto-generate migration** with Alembic:
    ```bash
-   alembic revision --autogenerate -m "description of change"
+   ../.venv/bin/alembic revision --autogenerate -m "description of change"
    ```
 3. **Manually review and fix** the generated migration file in `alembic/versions/`
    - Alembic autogenerate is imperfect - always verify the SQL is correct

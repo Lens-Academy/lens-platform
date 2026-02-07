@@ -4,6 +4,7 @@
 
 import { API_URL } from "../config";
 import { getAnonymousToken } from "../hooks/useAnonymousToken";
+import { fetchWithRefresh } from "./fetchWithRefresh";
 import type { LensProgress } from "./modules";
 
 const API_BASE = API_URL;
@@ -40,7 +41,7 @@ export async function markComplete(
   request: MarkCompleteRequest,
   isAuthenticated: boolean,
 ): Promise<MarkCompleteResponse> {
-  const res = await fetch(`${API_BASE}/api/progress/complete`, {
+  const res = await fetchWithRefresh(`${API_BASE}/api/progress/complete`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -62,7 +63,7 @@ export async function updateTimeSpent(
   timeDeltaS: number,
   isAuthenticated: boolean,
 ): Promise<void> {
-  await fetch(`${API_BASE}/api/progress/time`, {
+  await fetchWithRefresh(`${API_BASE}/api/progress/time`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

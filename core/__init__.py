@@ -69,8 +69,8 @@ from .availability import (
     availability_json_to_interval_string,
 )
 
-# Auth (Discord-to-Web flow)
-from .auth import create_auth_code, get_or_create_user, validate_and_use_auth_code
+# Auth
+from .auth import get_or_create_user
 
 # Stampy chatbot
 from . import stampy
@@ -179,9 +179,7 @@ __all__ = [
     "availability_json_to_intervals",
     "availability_json_to_interval_string",
     # Auth
-    "create_auth_code",
     "get_or_create_user",
-    "validate_and_use_auth_code",
     # Stampy
     "stampy",
     # Configuration

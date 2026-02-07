@@ -10,6 +10,7 @@ import {
   getBrowserTimezone,
 } from "../types/enroll";
 import { API_URL } from "../config";
+import { fetchWithRefresh } from "../api/fetchWithRefresh";
 
 export default function Availability() {
   const { isAuthenticated, isLoading, user, login } = useAuth();
@@ -42,7 +43,7 @@ export default function Availability() {
     setIsSaving(true);
     setSaveStatus("idle");
     try {
-      const response = await fetch(`${API_URL}/api/users/me`, {
+      const response = await fetchWithRefresh(`${API_URL}/api/users/me`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

@@ -302,25 +302,25 @@ notification_log = Table(
 
 
 # =====================================================
-# 10. AUTH_CODES
+# 10. REFRESH_TOKENS
 # =====================================================
-auth_codes = Table(
-    "auth_codes",
+refresh_tokens = Table(
+    "refresh_tokens",
     metadata,
-    Column("code_id", Integer, primary_key=True, autoincrement=True),
-    Column("code", Text, nullable=False, unique=True),
+    Column("token_id", Integer, primary_key=True, autoincrement=True),
+    Column("token_hash", Text, nullable=False, unique=True),
     Column(
         "user_id",
         Integer,
         ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False,
     ),
-    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column("family_id", Text, nullable=False),  # UUID grouping a rotation chain
     Column("expires_at", TIMESTAMP(timezone=True), nullable=False),
-    Column("used_at", TIMESTAMP(timezone=True)),
-    Column("discord_id", Text),
-    Index("idx_auth_codes_code", "code"),
-    Index("idx_auth_codes_user_id", "user_id"),
+    Column("revoked_at", TIMESTAMP(timezone=True)),  # NULL = active
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Index("idx_refresh_tokens_user_id", "user_id"),
+    Index("idx_refresh_tokens_family_id", "family_id"),
 )
 
 

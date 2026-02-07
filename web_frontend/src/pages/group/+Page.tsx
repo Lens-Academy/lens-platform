@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { API_URL } from "../../config";
+import { fetchWithRefresh } from "../../api/fetchWithRefresh";
 import Layout from "@/components/Layout";
 import GroupSelectionStep from "../../components/enroll/GroupSelectionStep";
 import { getBrowserTimezone } from "../../types/enroll";
@@ -40,7 +41,7 @@ export default function GroupPage() {
   const fetchUserGroupInfo = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/users/me/group-info`, {
+      const response = await fetchWithRefresh(`${API_URL}/api/users/me/group-info`, {
         credentials: "include",
       });
       if (response.ok) {
@@ -64,7 +65,7 @@ export default function GroupPage() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/groups/join`, {
+      const response = await fetchWithRefresh(`${API_URL}/api/groups/join`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

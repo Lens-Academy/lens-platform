@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Info } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { API_URL } from "../config";
+import { fetchWithRefresh } from "../api/fetchWithRefresh";
 import { DiscordIconLarge } from "./icons/DiscordIcon";
 
 export default function TosConsentModal() {
@@ -43,7 +44,7 @@ export default function TosConsentModal() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/users/me`, {
+      const response = await fetchWithRefresh(`${API_URL}/api/users/me`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
