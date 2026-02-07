@@ -31,8 +31,10 @@ def get_frontend_port() -> int:
 def get_frontend_url() -> str:
     """Get frontend URL based on mode."""
     if is_dev_mode():
-        # Next.js dev server runs on separate port (auto-assigned by workspace)
-        return f"http://localhost:{get_frontend_port()}"
+        # Allow env var override for non-localhost access (e.g. dev.vps)
+        return os.environ.get(
+            "FRONTEND_URL", f"http://localhost:{get_frontend_port()}"
+        ).rstrip("/")
     if is_production():
         return os.environ.get("FRONTEND_URL", f"http://localhost:{get_api_port()}")
     return f"http://localhost:{get_api_port()}"
@@ -48,11 +50,9 @@ def get_allowed_origins() -> list[str]:
     workspace_api_ports = [8000 + i * 100 for i in range(4)]
     workspace_frontend_ports = [3000 + i * 100 for i in range(4)]
     all_ports = workspace_api_ports + workspace_frontend_ports
-    origins = [
-        f"http://{host}:{port}"
-        for host in ("localhost", "127.0.0.1")
-        for port in all_ports
-    ]
+    # Include dev.vps for remote development access
+    hosts = ["localhost", "127.0.0.1", "dev.vps"]
+    origins = [f"http://{host}:{port}" for host in hosts for port in all_ports]
 
     # Add production frontend URL if not already in list
     frontend_url = get_frontend_url()

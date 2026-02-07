@@ -2083,3 +2083,180 @@ source:: [[../video_transcripts/vid]]
         errors = validate_lens(text)
         # Should be valid - no slug required
         assert errors == []
+
+
+class TestSetextHeadersRejected:
+    """Setext-style headers (=== and ---) must be rejected."""
+
+    def test_setext_h1_in_module(self):
+        """Setext H1 (===) should produce a validation error with useful guidance."""
+        text = """\
+---
+slug: test
+title: Test
+---
+
+Bad Header
+==========
+
+# Page: Real Page
+id:: 11111111-1111-1111-1111-111111111111
+## Text
+content::
+Hello
+"""
+        errors = validate_module(text)
+        setext_errors = [e for e in errors if "setext" in e.message.lower()]
+        assert len(setext_errors) >= 1
+        msg = setext_errors[0].message
+        # Must mention what's wrong AND what to use instead
+        assert "===" in msg, "Should mention the === syntax that was found"
+        assert "# " in msg, "Should show the ATX-style syntax to use instead"
+
+    def test_setext_h2_in_module(self):
+        """Setext H2 (---) should produce a validation error with useful guidance."""
+        text = """\
+---
+slug: test
+title: Test
+---
+
+# Page: Test
+id:: 11111111-1111-1111-1111-111111111111
+## Text
+content::
+
+Bad Subheader
+-------------
+"""
+        errors = validate_module(text)
+        setext_errors = [e for e in errors if "setext" in e.message.lower()]
+        assert len(setext_errors) >= 1
+        msg = setext_errors[0].message
+        # Must mention what's wrong AND what to use instead
+        assert "---" in msg, "Should mention the --- syntax that was found"
+        assert "## " in msg, "Should show the ATX-style syntax to use instead"
+
+    def test_setext_h1_in_course(self):
+        """Setext H1 (===) in a course file should be rejected with guidance."""
+        text = """\
+---
+slug: test-course
+title: Test Course
+---
+
+Bad Header
+==========
+"""
+        errors = validate_course(text)
+        setext_errors = [e for e in errors if "setext" in e.message.lower()]
+        assert len(setext_errors) >= 1
+        assert "# " in setext_errors[0].message
+
+    def test_setext_h1_in_learning_outcome(self):
+        """Setext H1 (===) in a learning outcome file should be rejected with guidance."""
+        text = """\
+---
+id: 11111111-1111-1111-1111-111111111111
+---
+
+Bad Header
+==========
+
+## Lens: Test
+source:: [[test]]
+"""
+        errors = validate_learning_outcome(text)
+        setext_errors = [e for e in errors if "setext" in e.message.lower()]
+        assert len(setext_errors) >= 1
+        assert "# " in setext_errors[0].message
+
+    def test_setext_h1_in_lens(self):
+        """Setext H1 (===) in a lens file should be rejected with guidance."""
+        text = """\
+---
+id: 11111111-1111-1111-1111-111111111111
+---
+
+Bad Header
+==========
+"""
+        errors = validate_lens(text)
+        setext_errors = [e for e in errors if "setext" in e.message.lower()]
+        assert len(setext_errors) >= 1
+        assert "# " in setext_errors[0].message
+
+    def test_frontmatter_dashes_not_flagged(self):
+        """Frontmatter --- delimiters must NOT be flagged as Setext."""
+        text = """\
+---
+slug: test
+title: Test
+---
+
+# Page: Test
+id:: 11111111-1111-1111-1111-111111111111
+## Text
+content::
+Hello
+"""
+        errors = validate_module(text)
+        setext_errors = [e for e in errors if "setext" in e.message.lower()]
+        assert setext_errors == []
+
+    def test_thematic_break_not_flagged(self):
+        """A --- on a line after a blank line (thematic break) must NOT be flagged."""
+        text = """\
+---
+slug: test
+title: Test
+---
+
+# Page: Test
+id:: 11111111-1111-1111-1111-111111111111
+## Text
+content::
+Some text.
+
+---
+
+More text.
+"""
+        errors = validate_module(text)
+        setext_errors = [e for e in errors if "setext" in e.message.lower()]
+        assert setext_errors == []
+
+    def test_short_equals_not_flagged(self):
+        """A single = sign in content should not be flagged."""
+        text = """\
+---
+slug: test
+title: Test
+---
+
+# Page: Test
+id:: 11111111-1111-1111-1111-111111111111
+## Text
+content::
+x = 5
+"""
+        errors = validate_module(text)
+        setext_errors = [e for e in errors if "setext" in e.message.lower()]
+        assert setext_errors == []
+
+    def test_atx_headers_still_work(self):
+        """ATX-style headers should continue to work normally."""
+        text = """\
+---
+slug: test
+title: Test
+---
+
+# Page: Test
+id:: 11111111-1111-1111-1111-111111111111
+## Text
+content::
+Hello
+"""
+        errors = validate_module(text)
+        assert errors == []

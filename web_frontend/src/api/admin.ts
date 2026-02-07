@@ -110,7 +110,6 @@ export interface RsvpsResult {
 export interface NotificationsResult {
   sent: number;
   skipped: number;
-  channel_announcements: number;
 }
 
 export interface GroupSyncResult {

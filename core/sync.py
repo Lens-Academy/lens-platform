@@ -1010,10 +1010,9 @@ async def _send_sync_notifications(
     """
     from .notifications.dispatcher import was_notification_sent
     from .notifications.actions import notify_group_assigned, notify_member_joined
-    from .discord_outbound import send_channel_message
     from .enums import NotificationReferenceType
 
-    result = {"sent": 0, "skipped": 0, "channel_announcements": 0}
+    result = {"sent": 0, "skipped": 0}
 
     if not notification_context:
         logger.warning(
@@ -1076,20 +1075,6 @@ async def _send_sync_notifications(
                     discord_channel_id=discord_channel_id,
                     discord_user_id=discord_user_id,
                 )
-
-                # Also send channel announcement for late joins
-                if discord_channel_id and discord_user_id:
-                    try:
-                        user_name = member_info.get("name", "Someone")
-                        await send_channel_message(
-                            channel_id=discord_channel_id,
-                            message=f"**Welcome {user_name}!** <@{discord_user_id}> has joined the group.",
-                        )
-                        result["channel_announcements"] += 1
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to send channel announcement for user {user_id}: {e}"
-                        )
 
             result["sent"] += 1
         except Exception as e:

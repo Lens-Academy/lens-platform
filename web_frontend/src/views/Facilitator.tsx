@@ -33,6 +33,26 @@ function formatTimeAgo(isoString: string | null): string {
   return `${diffDays} days ago`;
 }
 
+function statusBadge(status: string) {
+  const colors: Record<string, string> = {
+    completed: "bg-green-100 text-green-800",
+    in_progress: "bg-yellow-100 text-yellow-800",
+    not_started: "bg-gray-100 text-gray-600",
+  };
+  const labels: Record<string, string> = {
+    completed: "Completed",
+    in_progress: "In Progress",
+    not_started: "Not Started",
+  };
+  return (
+    <span
+      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${colors[status] || colors.not_started}`}
+    >
+      {labels[status] || status}
+    </span>
+  );
+}
+
 export default function Facilitator() {
   const { isAuthenticated, isLoading: authLoading, user, login } = useAuth();
 
@@ -238,7 +258,7 @@ export default function Facilitator() {
               >
                 <td className="px-4 py-3">{member.name}</td>
                 <td className="px-4 py-3">
-                  {member.lessons_completed} lessons
+                  {member.sections_completed} sections
                 </td>
                 <td className="px-4 py-3">
                   {formatDuration(member.total_time_seconds)}
@@ -264,66 +284,93 @@ export default function Facilitator() {
         <div className="bg-white border rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4">{selectedMember.name}</h2>
 
-          {/* Lesson Progress with integrated Chat History */}
+          {/* Module Progress */}
           <div>
-            <h3 className="font-medium mb-3">Lesson Progress</h3>
-            {userProgress && userProgress.lessons.length > 0 ? (
+            <h3 className="font-medium mb-3">Module Progress</h3>
+            {userProgress && userProgress.modules.length > 0 ? (
               <div className="space-y-3">
-                {userProgress.lessons.map((lesson) => {
-                  const chatForLesson = userChats.find(
-                    (chat) => chat.lesson_slug === lesson.lesson_slug,
+                {userProgress.modules.map((mod) => {
+                  const chatsForModule = userChats.filter(
+                    (chat) => chat.module_slug === mod.slug,
                   );
                   return (
-                    <details
-                      key={lesson.lesson_slug}
-                      className="border rounded"
-                    >
+                    <details key={mod.slug} className="border rounded">
                       <summary className="px-4 py-3 cursor-pointer hover:bg-gray-50">
                         <div className="inline-flex justify-between items-center w-[calc(100%-1rem)]">
-                          <span className="font-medium">
-                            {lesson.lesson_slug}
-                          </span>
-                          <span className="text-sm text-gray-600">
-                            {lesson.completed ? "Completed" : "In Progress"} |{" "}
-                            {formatDuration(lesson.time_spent_seconds)}
+                          <span className="font-medium">{mod.title}</span>
+                          <span className="text-sm text-gray-600 flex items-center gap-2">
+                            {statusBadge(mod.status)}
+                            <span>
+                              {mod.completed_count}/{mod.total_count} sections
+                            </span>
+                            <span>
+                              {formatDuration(mod.time_spent_seconds)}
+                            </span>
                           </span>
                         </div>
                       </summary>
                       <div className="px-4 py-3 border-t bg-gray-50">
-                        {/* Stage breakdown */}
-                        <div className="flex gap-4 text-sm text-gray-600 mb-4">
-                          {lesson.stages.map((stage) => (
-                            <span key={stage.stage_index}>
-                              {stage.stage_type}:{" "}
-                              {formatDuration(stage.time_spent_seconds)}
-                            </span>
+                        {/* Section breakdown */}
+                        <div className="space-y-1 mb-4">
+                          {mod.sections.map((section) => (
+                            <div
+                              key={section.content_id}
+                              className="flex justify-between text-sm"
+                            >
+                              <span
+                                className={
+                                  section.completed
+                                    ? "text-green-700"
+                                    : "text-gray-600"
+                                }
+                              >
+                                {section.completed ? "\u2713" : "\u2013"}{" "}
+                                {section.title}
+                                <span className="text-gray-400 ml-1">
+                                  ({section.type})
+                                </span>
+                              </span>
+                              <span className="text-gray-500">
+                                {formatDuration(section.time_spent_seconds)}
+                              </span>
+                            </div>
                           ))}
                         </div>
 
-                        {/* Chat history for this lesson */}
-                        {chatForLesson && chatForLesson.messages.length > 0 ? (
+                        {/* Chat history for this module */}
+                        {chatsForModule.length > 0 ? (
                           <div>
-                            <div className="text-sm font-medium text-gray-700 mb-2">
-                              Chat History ({chatForLesson.messages.length}{" "}
-                              messages)
-                            </div>
-                            <div className="max-h-64 overflow-y-auto bg-white rounded border p-3">
-                              {chatForLesson.messages.map((msg, idx) => (
-                                <div
-                                  key={idx}
-                                  className={`mb-3 last:mb-0 ${
-                                    msg.role === "user"
-                                      ? "text-blue-800"
-                                      : "text-gray-700"
-                                  }`}
-                                >
-                                  <span className="font-medium capitalize">
-                                    {msg.role}:
-                                  </span>{" "}
-                                  {msg.content}
+                            {chatsForModule.map((chat) => (
+                              <div key={chat.session_id} className="mb-3">
+                                <div className="text-sm font-medium text-gray-700 mb-2">
+                                  Chat ({chat.messages.length} messages)
+                                  {chat.is_archived && (
+                                    <span className="ml-2 text-gray-400">
+                                      (archived)
+                                    </span>
+                                  )}
                                 </div>
-                              ))}
-                            </div>
+                                {chat.messages.length > 0 && (
+                                  <div className="max-h-64 overflow-y-auto bg-white rounded border p-3">
+                                    {chat.messages.map((msg, idx) => (
+                                      <div
+                                        key={idx}
+                                        className={`mb-3 last:mb-0 ${
+                                          msg.role === "user"
+                                            ? "text-blue-800"
+                                            : "text-gray-700"
+                                        }`}
+                                      >
+                                        <span className="font-medium capitalize">
+                                          {msg.role}:
+                                        </span>{" "}
+                                        {msg.content}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         ) : (
                           <p className="text-sm text-gray-500">
@@ -336,7 +383,7 @@ export default function Facilitator() {
                 })}
               </div>
             ) : (
-              <p className="text-gray-500">No lesson progress recorded</p>
+              <p className="text-gray-500">No module progress recorded</p>
             )}
           </div>
         </div>

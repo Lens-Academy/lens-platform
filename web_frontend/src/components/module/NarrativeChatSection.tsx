@@ -15,19 +15,19 @@ import { Tooltip } from "@/components/Tooltip";
 import { StageIcon } from "@/components/module/StageProgressBar";
 import { triggerHaptic } from "@/utils/haptics";
 
-// Minimal markdown for chat - just inline formatting, no block elements
+// Markdown renderer for chat messages - compact styling for chat context
 function ChatMarkdown({ children }: { children: string }) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
+        // Paragraphs - compact spacing for chat
+        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
         // Inline formatting
         strong: ({ children }) => (
           <strong className="font-semibold">{children}</strong>
         ),
         em: ({ children }) => <em className="italic">{children}</em>,
-        // Render paragraphs as spans to avoid block-level spacing
-        p: ({ children }) => <span>{children}</span>,
         // Links
         a: ({ href, children }) => (
           <a
@@ -39,18 +39,49 @@ function ChatMarkdown({ children }: { children: string }) {
             {children}
           </a>
         ),
-        // Disable block elements - render as plain text
-        h1: ({ children }) => <span>{children}</span>,
-        h2: ({ children }) => <span>{children}</span>,
-        h3: ({ children }) => <span>{children}</span>,
-        blockquote: ({ children }) => <span>{children}</span>,
-        ul: ({ children }) => <span>{children}</span>,
-        ol: ({ children }) => <span>{children}</span>,
-        li: ({ children }) => <span>{children} </span>,
-        pre: ({ children }) => <span>{children}</span>,
+        // Headings - compact for chat
+        h1: ({ children }) => (
+          <h1 className="text-base font-bold mt-3 mb-1 first:mt-0">
+            {children}
+          </h1>
+        ),
+        h2: ({ children }) => (
+          <h2 className="text-base font-bold mt-3 mb-1 first:mt-0">
+            {children}
+          </h2>
+        ),
+        h3: ({ children }) => (
+          <h3 className="text-sm font-bold mt-2 mb-1 first:mt-0">{children}</h3>
+        ),
+        // Lists
+        ul: ({ children }) => (
+          <ul className="list-disc pl-5 mb-2 last:mb-0 space-y-0.5">
+            {children}
+          </ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="list-decimal pl-5 mb-2 last:mb-0 space-y-0.5">
+            {children}
+          </ol>
+        ),
+        li: ({ children }) => <li>{children}</li>,
+        // Blockquotes
+        blockquote: ({ children }) => (
+          <blockquote className="border-l-3 border-gray-300 pl-3 my-2 text-gray-600">
+            {children}
+          </blockquote>
+        ),
+        // Code
+        pre: ({ children }) => (
+          <pre className="bg-gray-100 rounded p-2 my-2 overflow-x-auto text-sm">
+            {children}
+          </pre>
+        ),
         code: ({ children }) => (
           <code className="bg-gray-100 px-1 rounded text-sm">{children}</code>
         ),
+        // Horizontal rule
+        hr: () => <hr className="my-3 border-gray-200" />,
       }}
     >
       {children}
@@ -478,7 +509,13 @@ export default function NarrativeChatSection({
                         <div className="text-xs text-gray-500 mb-1">
                           {msg.role === "assistant" ? "Tutor" : "You"}
                         </div>
-                        <div className="whitespace-pre-wrap">
+                        <div
+                          className={
+                            msg.role === "assistant"
+                              ? ""
+                              : "whitespace-pre-wrap"
+                          }
+                        >
                           {msg.role === "assistant" ? (
                             <ChatMarkdown>{msg.content}</ChatMarkdown>
                           ) : (
@@ -528,7 +565,13 @@ export default function NarrativeChatSection({
                         <div className="text-xs text-gray-500 mb-1">
                           {msg.role === "assistant" ? "Tutor" : "You"}
                         </div>
-                        <div className="whitespace-pre-wrap">
+                        <div
+                          className={
+                            msg.role === "assistant"
+                              ? ""
+                              : "whitespace-pre-wrap"
+                          }
+                        >
                           {msg.role === "assistant" ? (
                             <ChatMarkdown>{msg.content}</ChatMarkdown>
                           ) : (
@@ -573,7 +616,7 @@ export default function NarrativeChatSection({
                   {isLoading && streamingContent && (
                     <div className="bg-blue-50 p-3 rounded-lg">
                       <div className="text-xs text-gray-500 mb-1">Tutor</div>
-                      <div className="whitespace-pre-wrap">
+                      <div>
                         <ChatMarkdown>{streamingContent}</ChatMarkdown>
                       </div>
                     </div>

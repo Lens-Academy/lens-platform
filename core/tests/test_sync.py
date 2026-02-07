@@ -2210,7 +2210,7 @@ class TestSendSyncNotifications:
 
     @pytest.mark.asyncio
     async def test_sends_member_joined_for_late_join(self):
-        """Should send member_joined notification and channel announcement for late join."""
+        """Should send member_joined notification for late join."""
         from core.sync import _send_sync_notifications
 
         notification_context = {
@@ -2232,14 +2232,9 @@ class TestSendSyncNotifications:
                 "core.notifications.actions.notify_member_joined",
                 new_callable=AsyncMock,
             ) as mock_notify_joined,
-            patch(
-                "core.discord_outbound.send_channel_message",
-                new_callable=AsyncMock,
-            ) as mock_channel_msg,
         ):
             mock_was_sent.return_value = False
             mock_notify_joined.return_value = {"email": True, "discord": True}
-            mock_channel_msg.return_value = True
 
             # granted_discord_ids are Discord user IDs (333 matches member discord_id)
             result = await _send_sync_notifications(
@@ -2250,12 +2245,9 @@ class TestSendSyncNotifications:
                 notification_context=notification_context,
             )
 
-        # Should have called notify_member_joined
+        # Should have called notify_member_joined (handles both DM and channel message)
         mock_notify_joined.assert_called_once()
-        # Should have sent channel announcement
-        mock_channel_msg.assert_called_once()
         assert result["sent"] == 1
-        assert result["channel_announcements"] == 1
 
     @pytest.mark.asyncio
     async def test_skips_already_notified_users(self):

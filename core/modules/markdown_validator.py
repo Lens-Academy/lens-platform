@@ -42,6 +42,50 @@ def _strip_critic_markup(text: str) -> str:
     return text
 
 
+def _check_no_setext_headers(text: str, fm_end: int | None) -> list[ValidationError]:
+    """Detect Setext-style headers and return errors.
+
+    Setext H1: a non-blank line followed by a line of ===
+    Setext H2: a non-blank line followed by a line of ---
+
+    Skips frontmatter lines. Distinguishes --- thematic breaks (preceded by
+    a blank line) from Setext H2 underlines (preceded by text).
+    """
+    errors: list[ValidationError] = []
+    lines = text.split("\n")
+    start = fm_end if fm_end is not None else 0
+
+    for i in range(start, len(lines)):
+        line = lines[i]
+        stripped = line.strip()
+
+        # Setext H1: line of 3+ '=' chars, previous line is non-blank text
+        if re.match(r"^={3,}\s*$", stripped):
+            if i > 0 and lines[i - 1].strip():
+                errors.append(
+                    ValidationError(
+                        "Setext-style header (===) is not allowed. "
+                        "Use ATX-style: # Header",
+                        line=i + 1,
+                        context=lines[i - 1].strip(),
+                    )
+                )
+
+        # Setext H2: line of 3+ '-' chars, previous line is non-blank text
+        elif re.match(r"^-{3,}\s*$", stripped):
+            if i > 0 and lines[i - 1].strip():
+                errors.append(
+                    ValidationError(
+                        "Setext-style header (---) is not allowed. "
+                        "Use ATX-style: ## Header",
+                        line=i + 1,
+                        context=lines[i - 1].strip(),
+                    )
+                )
+
+    return errors
+
+
 # -----------------------------------------------------------------------------
 # Wiki-link utilities (shared with markdown_parser.py and path_resolver.py)
 # -----------------------------------------------------------------------------
@@ -353,6 +397,7 @@ def validate_module(text: str) -> list[ValidationError]:
 
     # 1. Validate frontmatter
     metadata, fm_start, fm_end = _parse_frontmatter_for_validation(text)
+    errors.extend(_check_no_setext_headers(text, fm_end))
 
     if fm_start is None:
         errors.append(ValidationError("Missing frontmatter (---)", line=1))
@@ -838,6 +883,7 @@ def validate_course(text: str) -> list[ValidationError]:
 
     # 1. Validate frontmatter
     metadata, fm_start, fm_end = _parse_frontmatter_for_validation(text)
+    errors.extend(_check_no_setext_headers(text, fm_end))
 
     if fm_start is None:
         errors.append(ValidationError("Missing frontmatter (---)", line=1))
@@ -939,6 +985,7 @@ def validate_learning_outcome(text: str) -> list[ValidationError]:
 
     # 1. Validate frontmatter
     metadata, fm_start, fm_end = _parse_frontmatter_for_validation(text)
+    errors.extend(_check_no_setext_headers(text, fm_end))
 
     if fm_start is None:
         errors.append(ValidationError("Missing frontmatter (---)", line=1))
@@ -1054,6 +1101,7 @@ def validate_lens(text: str) -> list[ValidationError]:
 
     # 1. Validate frontmatter
     metadata, fm_start, fm_end = _parse_frontmatter_for_validation(text)
+    errors.extend(_check_no_setext_headers(text, fm_end))
 
     if fm_start is None:
         errors.append(ValidationError("Missing frontmatter (---)", line=1))
