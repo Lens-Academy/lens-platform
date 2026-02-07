@@ -5,7 +5,8 @@ Endpoints:
 - GET /auth/discord - Start Discord OAuth flow
 - GET /auth/discord/callback - Handle OAuth callback
 - GET /auth/code - Validate temp code from Discord bot
-- POST /auth/logout - Clear session
+- POST /auth/refresh - Rotate refresh token and issue new JWT
+- POST /auth/logout - Clear session and revoke refresh tokens
 - GET /auth/me - Get current user info
 """
 
@@ -13,6 +14,8 @@ import os
 import secrets
 import sys
 import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
 from uuid import UUID
@@ -27,7 +30,16 @@ from core import get_or_create_user, get_user_profile, validate_and_use_auth_cod
 from core.database import get_connection, get_transaction
 from core.modules.progress import claim_progress_records
 from core.modules.chat_sessions import claim_chat_sessions
-from core.queries.users import get_user_enrollment_status
+from core.queries.refresh_tokens import (
+    get_refresh_token_by_hash,
+    revoke_family,
+    revoke_token,
+    store_refresh_token,
+)
+from core.queries.users import (
+    get_user_by_id,
+    get_user_enrollment_status,
+)
 from core.config import (
     is_dev_mode,
     is_production,
@@ -35,7 +47,16 @@ from core.config import (
     get_frontend_port,
     get_allowed_origins,
 )
-from web_api.auth import create_jwt, get_optional_user, set_session_cookie
+from web_api.auth import (
+    create_jwt,
+    delete_refresh_cookie,
+    delete_session_cookie,
+    generate_refresh_token,
+    get_optional_user,
+    hash_token,
+    set_refresh_cookie,
+    set_session_cookie,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -87,6 +108,17 @@ def _cleanup_expired_oauth_states():
     expired = [k for k, v in _oauth_states.items() if v.get("created_at", 0) < cutoff]
     for key in expired:
         del _oauth_states[key]
+
+
+async def _issue_refresh_token(response: Response, user_id: int) -> None:
+    """Generate a refresh token, store its hash in DB, and set the cookie."""
+    raw_token, token_hash = generate_refresh_token()
+    family_id = str(uuid.uuid4())
+
+    async with get_transaction() as conn:
+        await store_refresh_token(conn, token_hash, user_id, family_id)
+
+    set_refresh_cookie(response, raw_token)
 
 
 @router.get("/discord")
@@ -244,6 +276,7 @@ async def discord_oauth_callback(
 
     response = RedirectResponse(url=f"{origin}{next_url}")
     set_session_cookie(response, token)
+    await _issue_refresh_token(response, user["user_id"])
 
     return response
 
@@ -302,6 +335,7 @@ async def validate_auth_code_endpoint(
 
     response = RedirectResponse(url=f"{redirect_base}{next}")
     set_session_cookie(response, token)
+    await _issue_refresh_token(response, user["user_id"])
 
     return response
 
@@ -350,14 +384,99 @@ async def validate_auth_code_api(
     # Create JWT and set cookie
     token = create_jwt(discord_id, discord_username)
     set_session_cookie(response, token)
+    await _issue_refresh_token(response, user["user_id"])
 
     return {"status": "ok", "next": next}
 
 
+@router.post("/refresh")
+async def refresh_token_endpoint(request: Request, response: Response):
+    """
+    Rotate refresh token and issue a new JWT.
+
+    Reads the refresh_token cookie, validates it, revokes the old token,
+    issues a new refresh token in the same family, and returns a new JWT.
+
+    Migration grace: if no refresh cookie but a valid session JWT exists,
+    bootstrap the user into the refresh token system.
+    """
+    raw_refresh = request.cookies.get("refresh_token")
+
+    if raw_refresh:
+        # Normal flow: validate and rotate the refresh token
+        # Single transaction with FOR UPDATE to prevent concurrent rotation
+        token_hash = hash_token(raw_refresh)
+        new_raw, new_hash = generate_refresh_token()
+        error = None
+        user = None
+
+        async with get_transaction() as conn:
+            db_token = await get_refresh_token_by_hash(
+                conn, token_hash, for_update=True
+            )
+
+            if not db_token:
+                error = "Invalid refresh token"
+            elif db_token["revoked_at"] is not None:
+                # Reuse detected — revoke entire family
+                await revoke_family(conn, db_token["family_id"])
+                error = "Refresh token reuse detected"
+            else:
+                # Check expiry
+                expires_at = db_token["expires_at"]
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) > expires_at:
+                    await revoke_token(conn, db_token["token_id"])
+                    error = "Refresh token expired"
+                else:
+                    # Valid — rotate: revoke old, issue new in same family
+                    await revoke_token(conn, db_token["token_id"])
+                    user = await get_user_by_id(conn, db_token["user_id"])
+                    if user:
+                        await store_refresh_token(
+                            conn,
+                            new_hash,
+                            user["user_id"],
+                            db_token["family_id"],
+                        )
+                    else:
+                        error = "User not found"
+
+        # Raise errors after transaction commits (so revoke_family persists)
+        if error:
+            delete_refresh_cookie(response)
+            if error == "Refresh token reuse detected":
+                delete_session_cookie(response)
+            raise HTTPException(status_code=401, detail=error)
+
+        # Issue new JWT + refresh cookie
+        discord_id = user["discord_id"]
+        discord_username = user.get("discord_username") or f"User_{discord_id[:8]}"
+        jwt_token = create_jwt(discord_id, discord_username)
+        set_session_cookie(response, jwt_token)
+        set_refresh_cookie(response, new_raw)
+
+        return {"status": "refreshed"}
+
+    # No valid refresh token
+    raise HTTPException(status_code=401, detail="Not authenticated")
+
+
 @router.post("/logout")
-async def logout(response: Response):
-    """Clear the session cookie."""
-    response.delete_cookie(key="session")
+async def logout(request: Request, response: Response):
+    """Clear session and refresh cookies, revoke refresh token family."""
+    # Revoke the refresh token family in DB
+    raw_refresh = request.cookies.get("refresh_token")
+    if raw_refresh:
+        token_hash = hash_token(raw_refresh)
+        async with get_transaction() as conn:
+            db_token = await get_refresh_token_by_hash(conn, token_hash)
+            if db_token:
+                await revoke_family(conn, db_token["family_id"])
+
+    delete_session_cookie(response)
+    delete_refresh_cookie(response)
     return {"status": "logged_out"}
 
 

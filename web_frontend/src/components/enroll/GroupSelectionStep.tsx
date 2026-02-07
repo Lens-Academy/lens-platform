@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { Group } from "../../types/enroll";
 import { COMMON_TIMEZONES, formatTimezoneDisplay } from "../../types/enroll";
 import { API_URL } from "../../config";
+import { fetchWithRefresh } from "../../api/fetchWithRefresh";
 
 interface GroupSelectionStepProps {
   cohortId: number;
@@ -46,7 +47,7 @@ export default function GroupSelectionStep({
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(
+      const response = await fetchWithRefresh(
         `${API_URL}/api/cohorts/${cohortId}/groups`,
         { credentials: "include" },
       );

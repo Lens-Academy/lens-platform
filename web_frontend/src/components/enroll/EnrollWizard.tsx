@@ -8,6 +8,7 @@ import GroupSelectionStep from "./GroupSelectionStep";
 import EnrollSuccessMessage from "./EnrollSuccessMessage";
 import { useAuth } from "../../hooks/useAuth";
 import { API_URL } from "../../config";
+import { fetchWithRefresh } from "../../api/fetchWithRefresh";
 import {
   trackEnrollmentStarted,
   trackEnrollmentStepCompleted,
@@ -111,7 +112,7 @@ export default function EnrollWizard() {
 
   const fetchCohortData = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/cohorts/available`, {
+      const response = await fetchWithRefresh(`${API_URL}/api/cohorts/available`, {
         credentials: "include",
       });
       if (response.ok) {
@@ -126,7 +127,7 @@ export default function EnrollWizard() {
 
   const fetchFacilitatorStatus = async () => {
     try {
-      const response = await fetch(
+      const response = await fetchWithRefresh(
         `${API_URL}/api/users/me/facilitator-status`,
         {
           credentials: "include",
@@ -142,7 +143,7 @@ export default function EnrollWizard() {
   };
 
   const handleBecomeFacilitator = async () => {
-    const response = await fetch(`${API_URL}/api/users/me/become-facilitator`, {
+    const response = await fetchWithRefresh(`${API_URL}/api/users/me/become-facilitator`, {
       method: "POST",
       credentials: "include",
     });
@@ -165,7 +166,7 @@ export default function EnrollWizard() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/users/me`, {
+      const response = await fetchWithRefresh(`${API_URL}/api/users/me`, {
         method: "PATCH",
         credentials: "include",
         headers: {

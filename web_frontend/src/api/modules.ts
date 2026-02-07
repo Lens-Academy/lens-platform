@@ -6,6 +6,7 @@ import type { Module } from "../types/module";
 import type { CourseProgress } from "../types/course";
 import { Sentry } from "../errorTracking";
 import { getAnonymousToken } from "../hooks/useAnonymousToken";
+import { fetchWithRefresh } from "./fetchWithRefresh";
 
 import { API_URL } from "../config";
 
@@ -65,7 +66,7 @@ async function fetchWithTimeout(
   const startTime = Date.now();
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithRefresh(url, {
       ...options,
       signal: controller.signal,
     });
@@ -132,7 +133,7 @@ export async function* sendMessage(
   segmentIndex: number,
   message: string,
 ): AsyncGenerator<{ type: string; content?: string; name?: string }> {
-  const res = await fetch(`${API_BASE}/api/chat/module`, {
+  const res = await fetchWithRefresh(`${API_BASE}/api/chat/module`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

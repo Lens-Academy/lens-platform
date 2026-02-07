@@ -325,6 +325,29 @@ auth_codes = Table(
 
 
 # =====================================================
+# 10b. REFRESH_TOKENS
+# =====================================================
+refresh_tokens = Table(
+    "refresh_tokens",
+    metadata,
+    Column("token_id", Integer, primary_key=True, autoincrement=True),
+    Column("token_hash", Text, nullable=False, unique=True),
+    Column(
+        "user_id",
+        Integer,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("family_id", Text, nullable=False),  # UUID grouping a rotation chain
+    Column("expires_at", TIMESTAMP(timezone=True), nullable=False),
+    Column("revoked_at", TIMESTAMP(timezone=True)),  # NULL = active
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Index("idx_refresh_tokens_user_id", "user_id"),
+    Index("idx_refresh_tokens_family_id", "family_id"),
+)
+
+
+# =====================================================
 # 11. USER_CONTENT_PROGRESS
 # =====================================================
 # Progress tracking - new UUID-based system

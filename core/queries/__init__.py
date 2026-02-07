@@ -1,6 +1,14 @@
 """Query layer for database operations using SQLAlchemy Core."""
 
 from .auth import create_auth_code, validate_auth_code
+from .refresh_tokens import (
+    store_refresh_token,
+    get_refresh_token_by_hash,
+    revoke_token,
+    revoke_family,
+    revoke_all_user_tokens,
+    cleanup_expired_tokens,
+)
 from .users import (
     create_user,
     get_or_create_user,
@@ -77,6 +85,13 @@ __all__ = [
     "get_accessible_groups",
     "can_access_group",
     # Progress - removed, needs reimplementation with new tables
+    # Refresh tokens
+    "store_refresh_token",
+    "get_refresh_token_by_hash",
+    "revoke_token",
+    "revoke_family",
+    "revoke_all_user_tokens",
+    "cleanup_expired_tokens",
     # Meetings
     "create_meeting",
     "get_meetings_for_group",

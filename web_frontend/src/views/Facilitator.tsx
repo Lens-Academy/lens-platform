@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { API_URL } from "../config";
+import { fetchWithRefresh } from "../api/fetchWithRefresh";
 import { Skeleton, SkeletonText } from "../components/Skeleton";
 import type {
   FacilitatorGroup,
@@ -53,7 +54,7 @@ export default function Facilitator() {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${API_URL}/api/facilitator/groups`, {
+        const res = await fetchWithRefresh(`${API_URL}/api/facilitator/groups`, {
           credentials: "include",
         });
         if (!res.ok) {
@@ -86,7 +87,7 @@ export default function Facilitator() {
     const fetchMembers = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(
+        const res = await fetchWithRefresh(
           `${API_URL}/api/facilitator/groups/${selectedGroupId}/members`,
           { credentials: "include" },
         );
@@ -114,11 +115,11 @@ export default function Facilitator() {
       setIsLoading(true);
       try {
         const [progressRes, chatsRes] = await Promise.all([
-          fetch(
+          fetchWithRefresh(
             `${API_URL}/api/facilitator/groups/${selectedGroupId}/users/${selectedUserId}/progress`,
             { credentials: "include" },
           ),
-          fetch(
+          fetchWithRefresh(
             `${API_URL}/api/facilitator/groups/${selectedGroupId}/users/${selectedUserId}/chats`,
             { credentials: "include" },
           ),

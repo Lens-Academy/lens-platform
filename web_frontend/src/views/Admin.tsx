@@ -21,6 +21,7 @@ import {
   CohortOperationDetails,
 } from "../components/OperationDetails";
 import { API_URL } from "../config";
+import { fetchWithRefresh } from "../api/fetchWithRefresh";
 
 type TabType = "users" | "groups";
 
@@ -107,7 +108,7 @@ export default function Admin() {
   useEffect(() => {
     async function fetchCohorts() {
       try {
-        const res = await fetch(`${API_URL}/api/admin/cohorts`, {
+        const res = await fetchWithRefresh(`${API_URL}/api/admin/cohorts`, {
           credentials: "include",
         });
         if (!res.ok) return;

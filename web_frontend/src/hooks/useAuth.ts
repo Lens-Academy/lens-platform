@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { API_URL } from "../config";
+import { fetchWithRefresh } from "../api/fetchWithRefresh";
 import { identifyUser, resetUser, hasConsent } from "../analytics";
 import {
   identifySentryUser,
@@ -58,7 +59,7 @@ export function useAuth(): UseAuthReturn {
 
   const fetchUser = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/auth/me`, {
+      const response = await fetchWithRefresh(`${API_URL}/auth/me`, {
         credentials: "include", // Include cookies
       });
 

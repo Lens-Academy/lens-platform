@@ -220,6 +220,15 @@ async def lifespan(app: FastAPI):
                 "Server cannot start without database. Use --no-db to skip.",
             )
         print(f"✓ Database: {db_msg}")
+
+        # Clean up expired refresh tokens (runs once per deploy)
+        from core.database import get_transaction
+        from core.queries.refresh_tokens import cleanup_expired_tokens
+
+        async with get_transaction() as conn:
+            deleted = await cleanup_expired_tokens(conn)
+            if deleted:
+                print(f"  Cleaned up {deleted} expired refresh tokens")
     else:
         print("Running in --no-db mode (database operations will fail)")
 
