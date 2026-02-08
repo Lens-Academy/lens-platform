@@ -10,7 +10,7 @@ import type {
   ContentError,
   SectionMeta,
 } from '../index.js';
-import { parseModule, parsePageTextSegments } from '../parser/module.js';
+import { parseModule, parsePageSegments } from '../parser/module.js';
 import { parseLearningOutcome } from '../parser/learning-outcome.js';
 import { parseLens, type ParsedLensSegment, type ParsedLensSection } from '../parser/lens.js';
 import { parseWikilink, resolveWikilinkPath, findFileWithExtension, findSimilarFiles, formatSuggestion } from '../parser/wikilink.js';
@@ -116,7 +116,7 @@ export function flattenModule(
     } else if (section.type === 'page') {
       // Page sections don't have LO references, they have inline content
       // Parse the section body for ## Text subsections
-      const textResult = parsePageTextSegments(section.body, modulePath, section.line);
+      const textResult = parsePageSegments(section.body, modulePath, section.line);
       errors.push(...textResult.errors);
 
       const pageSection: Section = {
