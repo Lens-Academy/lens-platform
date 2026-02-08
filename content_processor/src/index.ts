@@ -27,6 +27,7 @@ export interface Section {
   optional?: boolean;
   contentId: string | null;
   learningOutcomeId: string | null;
+  learningOutcomeName: string | null;
   videoId: string | null;  // video sections only
 }
 

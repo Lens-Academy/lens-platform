@@ -126,6 +126,7 @@ export function flattenModule(
         optional: section.fields.optional === 'true',
         contentId: section.fields.id ?? null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       };
 
@@ -392,6 +393,7 @@ function flattenLearningOutcomeSection(
       segments,
       optional: section.fields.optional === 'true' || lensRef.optional,
       learningOutcomeId: lo.id ?? null,
+      learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
       contentId: lens.id ?? null,
       videoId: videoId ?? null,
     };
@@ -560,6 +562,7 @@ function flattenUncategorizedSection(
       segments,
       optional: lensRef.optional,
       learningOutcomeId: null,
+      learningOutcomeName: null,
       contentId: lens.id ?? null,
       videoId: videoId ?? null,
     };

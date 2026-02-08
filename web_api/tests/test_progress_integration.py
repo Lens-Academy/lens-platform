@@ -73,7 +73,6 @@ def make_complete_request(
 
 def make_time_request(
     content_id: str,
-    time_delta_s: int = 30,
     anonymous_token: str | None = None,
     auth_cookie: str | None = None,
     use_query_param: bool = False,
@@ -95,7 +94,6 @@ def make_time_request(
         "/api/progress/time",
         json={
             "content_id": content_id,
-            "time_delta_s": time_delta_s,
         },
         headers=headers,
         cookies=cookies,
@@ -138,7 +136,6 @@ class TestProgressAuthentication:
             "/api/progress/time",
             json={
                 "content_id": random_uuid_str(),
-                "time_delta_s": 30,
             },
         )
         assert response.status_code == 401
@@ -275,16 +272,22 @@ class TestAnonymousProgress:
                 return_value=mock_db_connection(),
             ),
             patch(
+                "web_api.routes.progress.get_or_create_progress",
+                new_callable=AsyncMock,
+            ) as mock_create,
+            patch(
                 "web_api.routes.progress.update_time_spent", new_callable=AsyncMock
             ) as mock_update,
         ):
+            mock_create.return_value = {"id": 1, "total_time_spent_s": 0}
+
             response = make_time_request(
                 content_id=content_id,
-                time_delta_s=30,
                 anonymous_token=anonymous_token,
             )
 
             assert response.status_code == 204
+            mock_create.assert_called_once()
             mock_update.assert_called_once()
 
     def test_time_with_anonymous_token_query_param(self):
@@ -298,12 +301,17 @@ class TestAnonymousProgress:
                 return_value=mock_db_connection(),
             ),
             patch(
+                "web_api.routes.progress.get_or_create_progress",
+                new_callable=AsyncMock,
+            ) as mock_create,
+            patch(
                 "web_api.routes.progress.update_time_spent", new_callable=AsyncMock
             ) as mock_update,
         ):
+            mock_create.return_value = {"id": 1, "total_time_spent_s": 0}
+
             response = make_time_request(
                 content_id=content_id,
-                time_delta_s=30,
                 anonymous_token=anonymous_token,
                 use_query_param=True,
             )
@@ -574,8 +582,8 @@ class TestProgressEdgeCases:
 
             assert response.status_code == 200
 
-    def test_time_update_with_zero_delta(self):
-        """Should accept time_delta_s=0."""
+    def test_time_ping_succeeds(self):
+        """A simple ping should return 204."""
         anonymous_token = random_uuid_str()
 
         with (
@@ -583,11 +591,15 @@ class TestProgressEdgeCases:
                 "web_api.routes.progress.get_transaction",
                 return_value=mock_db_connection(),
             ),
+            patch(
+                "web_api.routes.progress.get_or_create_progress",
+                new_callable=AsyncMock,
+                return_value={"id": 1, "total_time_spent_s": 0},
+            ),
             patch("web_api.routes.progress.update_time_spent", new_callable=AsyncMock),
         ):
             response = make_time_request(
                 content_id=random_uuid_str(),
-                time_delta_s=0,
                 anonymous_token=anonymous_token,
             )
 

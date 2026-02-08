@@ -1,77 +1,97 @@
 import { useEffect, useRef, useCallback } from "react";
 import { API_URL } from "../config";
-import { updateTimeSpent } from "../api/progress";
+import { sendHeartbeatPing } from "../api/progress";
 import { getAnonymousToken } from "./useAnonymousToken";
 
 interface ActivityTrackerOptions {
-  // New progress API options
   contentId?: string;
+  loId?: string | null;
+  moduleId?: string | null;
   isAuthenticated?: boolean;
+  contentTitle?: string;
+  moduleTitle?: string;
+  loTitle?: string;
 
   inactivityTimeout?: number; // ms, default 180000 (3 min)
-  heartbeatInterval?: number; // ms, default 60000 (60 sec)
+  heartbeatInterval?: number; // ms, default 20000 (20 sec)
   enabled?: boolean;
 }
 
 export function useActivityTracker({
   contentId,
+  loId,
+  moduleId,
   isAuthenticated = false,
+  contentTitle,
+  moduleTitle,
+  loTitle,
   inactivityTimeout = 180_000,
-  heartbeatInterval = 60_000, // Changed from 30s to 60s
+  heartbeatInterval = 20_000,
   enabled = true,
 }: ActivityTrackerOptions) {
   const isActiveRef = useRef(false);
-  // Initialize to null, set on first activity to avoid impure Date.now() during render
   const lastActivityRef = useRef<number | null>(null);
   const heartbeatIntervalRef = useRef<number | null>(null);
-  // Track accumulated time for progress API
-  const lastHeartbeatTimeRef = useRef<number | null>(null);
 
-  // Heartbeat for UUID-based progress API
-  const sendProgressHeartbeat = useCallback(async () => {
-    if (!enabled || !contentId) return;
+  // Build sendBeacon payload (no time_delta_s — server computes time)
+  const buildBeaconPayload = useCallback(() => {
+    if (!contentId) return null;
+    return JSON.stringify({
+      content_id: contentId,
+      ...(loId ? { lo_id: loId } : {}),
+      ...(moduleId ? { module_id: moduleId } : {}),
+      ...(contentTitle ? { content_title: contentTitle } : {}),
+      ...(moduleTitle ? { module_title: moduleTitle } : {}),
+      ...(loTitle ? { lo_title: loTitle } : {}),
+    });
+  }, [contentId, loId, moduleId, contentTitle, moduleTitle, loTitle]);
 
-    const now = Date.now();
-    const lastTime = lastHeartbeatTimeRef.current;
+  // Fire a sendBeacon ping (for visibility hidden + cleanup)
+  const sendBeacon = useCallback(() => {
+    if (!contentId || !isActiveRef.current) return;
+    const payload = buildBeaconPayload();
+    if (!payload) return;
 
-    // Calculate time delta since last heartbeat
-    const timeDeltaS = lastTime ? Math.floor((now - lastTime) / 1000) : 0;
-    lastHeartbeatTimeRef.current = now;
-
-    // Only send if we have actual time to report
-    if (timeDeltaS <= 0) return;
-
-    try {
-      await updateTimeSpent(contentId, timeDeltaS, isAuthenticated);
-    } catch (error) {
-      // Fire-and-forget, ignore errors
-      console.debug("Progress heartbeat failed:", error);
+    const url = `${API_URL}/api/progress/time`;
+    if (!isAuthenticated) {
+      const token = getAnonymousToken();
+      navigator.sendBeacon(`${url}?anonymous_token=${token}`, payload);
+    } else {
+      navigator.sendBeacon(url, payload);
     }
-  }, [contentId, isAuthenticated, enabled]);
+  }, [contentId, isAuthenticated, buildBeaconPayload]);
 
+  // Heartbeat: just ping the server, no time computation
   const sendHeartbeat = useCallback(async () => {
     if (!enabled || !contentId) return;
-    await sendProgressHeartbeat();
-  }, [enabled, contentId, sendProgressHeartbeat]);
+    try {
+      await sendHeartbeatPing(
+        contentId,
+        isAuthenticated,
+        loId,
+        moduleId,
+        contentTitle,
+        moduleTitle,
+        loTitle,
+      );
+    } catch (error) {
+      console.debug("Progress heartbeat failed:", error);
+    }
+  }, [
+    contentId,
+    loId,
+    moduleId,
+    isAuthenticated,
+    enabled,
+    contentTitle,
+    moduleTitle,
+    loTitle,
+  ]);
 
   const handleActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
-
-    // Initialize heartbeat time on first activity
-    if (lastHeartbeatTimeRef.current === null) {
-      lastHeartbeatTimeRef.current = Date.now();
-    }
-
-    if (!isActiveRef.current) {
-      isActiveRef.current = true;
-      // Send immediate heartbeat when becoming active
-      sendHeartbeat();
-    }
-  }, [sendHeartbeat]);
-
-  const handleScroll = useCallback(() => {
-    handleActivity();
-  }, [handleActivity]);
+    isActiveRef.current = true;
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
@@ -81,11 +101,11 @@ export function useActivityTracker({
     events.forEach((event) => {
       window.addEventListener(event, handleActivity, { passive: true });
     });
-    window.addEventListener("scroll", handleScroll, { passive: true });
 
-    // Visibility change
+    // Visibility change — flush beacon when tab is hidden
     const handleVisibility = () => {
       if (document.hidden) {
+        sendBeacon();
         isActiveRef.current = false;
       }
     };
@@ -93,7 +113,6 @@ export function useActivityTracker({
 
     // Heartbeat interval
     heartbeatIntervalRef.current = window.setInterval(() => {
-      // If no activity recorded yet, don't mark as inactive
       if (lastActivityRef.current === null) return;
 
       const timeSinceActivity = Date.now() - lastActivityRef.current;
@@ -110,44 +129,22 @@ export function useActivityTracker({
     // Initial activity
     handleActivity();
 
-    // sendBeacon on page unload for reliable time tracking
+    // Send initial heartbeat to establish last_heartbeat_at on the server
+    sendHeartbeat();
+
+    // sendBeacon on page unload
     const handleBeforeUnload = () => {
-      if (!contentId || !isActiveRef.current) return;
-
-      const now = Date.now();
-      const lastTime = lastHeartbeatTimeRef.current;
-      const timeDeltaS = lastTime ? Math.floor((now - lastTime) / 1000) : 0;
-
-      if (timeDeltaS <= 0) return;
-
-      // Use sendBeacon for reliable delivery on page unload
-      const payload = JSON.stringify({
-        content_id: contentId,
-        time_delta_s: timeDeltaS,
-      });
-
-      // Build URL with session token for anonymous users
-      const url = `${API_URL}/api/progress/time`;
-
-      // sendBeacon sends as text/plain by default, but our endpoint handles raw JSON
-      // For authenticated users, cookies are sent automatically
-      // For anonymous users, we need to append the token as a query param since
-      // sendBeacon doesn't support custom headers
-      if (!isAuthenticated) {
-        const token = getAnonymousToken();
-        navigator.sendBeacon(`${url}?anonymous_token=${token}`, payload);
-      } else {
-        navigator.sendBeacon(url, payload);
-      }
+      sendBeacon();
     };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
+      // Flush a final beacon on cleanup (e.g., section switch)
+      sendBeacon();
+
       events.forEach((event) => {
         window.removeEventListener(event, handleActivity);
       });
-      window.removeEventListener("scroll", handleScroll);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("beforeunload", handleBeforeUnload);
 
@@ -158,15 +155,17 @@ export function useActivityTracker({
   }, [
     enabled,
     contentId,
+    loId,
+    moduleId,
     isAuthenticated,
     handleActivity,
-    handleScroll,
     sendHeartbeat,
+    sendBeacon,
     heartbeatInterval,
     inactivityTimeout,
   ]);
 
-  // Manual activity trigger (for video play events)
+  // Manual activity trigger (for video play events, chat streaming)
   const triggerActivity = useCallback(() => {
     handleActivity();
   }, [handleActivity]);

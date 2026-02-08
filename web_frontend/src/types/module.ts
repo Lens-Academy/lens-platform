@@ -98,6 +98,7 @@ export type PageSection = {
   type: "page";
   contentId: string | null;
   learningOutcomeId: string | null;
+  learningOutcomeName: string | null;
   meta: { title: string | null };
   segments: ModuleSegment[];
   optional: boolean;
@@ -111,6 +112,7 @@ export type LensVideoSection = {
   type: "lens-video";
   contentId: string | null;
   learningOutcomeId: string | null;
+  learningOutcomeName: string | null;
   videoId: string | null;
   meta: { title: string; channel: string | null };
   segments: ModuleSegment[];
@@ -125,6 +127,7 @@ export type LensArticleSection = {
   type: "lens-article";
   contentId: string | null;
   learningOutcomeId: string | null;
+  learningOutcomeName: string | null;
   meta: { title: string; author: string | null; sourceUrl: string | null };
   segments: ModuleSegment[];
   optional: boolean;

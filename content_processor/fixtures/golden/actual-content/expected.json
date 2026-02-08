@@ -19,6 +19,7 @@
           "optional": false,
           "contentId": "b2c3d4e5-6789-01bc-def2-3456789012cd",
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "videoId": null
         }
       ]
@@ -42,6 +43,7 @@
           "optional": false,
           "contentId": "e0f8913a-66a2-4fc9-bbe8-bf72a95b003e",
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "videoId": null
         },
         {
@@ -70,6 +72,7 @@
           ],
           "optional": false,
           "learningOutcomeId": "7635aa6d-ce02-407d-a1ad-0247479b963c",
+          "learningOutcomeName": "Feedback cycles create discontinuity",
           "contentId": "3dd47fce-a0fe-4e03-916d-a160fe697dd0",
           "videoId": null
         },
@@ -103,6 +106,7 @@
           ],
           "optional": false,
           "learningOutcomeId": "7635aa6d-ce02-407d-a1ad-0247479b963c",
+          "learningOutcomeName": "Feedback cycles create discontinuity",
           "contentId": "8a7ca9c4-c111-467b-2c2b-e08d10698767",
           "videoId": null
         },
@@ -136,6 +140,7 @@
           ],
           "optional": false,
           "learningOutcomeId": "5ed688d4-61bf-4df7-8a87-9b3bfd1776c4",
+          "learningOutcomeName": "Fizzle or Foom",
           "contentId": "c42889f8-e7bc-4e36-a3b6-faf408280102",
           "videoId": null
         },
@@ -165,6 +170,7 @@
           ],
           "optional": false,
           "learningOutcomeId": "5ed688d4-61bf-4df7-8a87-9b3bfd1776c4",
+          "learningOutcomeName": "Fizzle or Foom",
           "contentId": "e79dd07a-e837-483f-8534-b53b86d509b4",
           "videoId": null
         }
@@ -189,6 +195,7 @@
           "optional": false,
           "contentId": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "videoId": null
         },
         {
@@ -219,6 +226,7 @@
           ],
           "optional": false,
           "learningOutcomeId": "e8f86891-a3b8-4176-b917-044b4015e0bd",
+          "learningOutcomeName": "Unknown intro outcome 1",
           "contentId": "8a701cd5-82b1-46a2-8ebb-e08d10588177",
           "videoId": "fa8k8IQ1_X0"
         },
@@ -248,6 +256,7 @@
           ],
           "optional": false,
           "learningOutcomeId": "e8f86891-a3b8-4176-b917-044b4015e0bd",
+          "learningOutcomeName": "Unknown intro outcome 1",
           "contentId": "01f6df31-099f-48ed-adef-773cc4f947e4",
           "videoId": null
         },
@@ -275,6 +284,7 @@
           ],
           "optional": false,
           "learningOutcomeId": "23015073-0877-418d-ac9a-ae3868a1d1f2",
+          "learningOutcomeName": "Objections L1 - Realize objections and rebuttals exist",
           "contentId": "3f1fc921-560f-4d47-8eb6-3c4dab872b9d",
           "videoId": "9i1WlcCudpU"
         },
@@ -296,6 +306,7 @@
           ],
           "optional": true,
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "contentId": "c3d4e5f6-a7b8-9012-cdef-345678901234",
           "videoId": null
         },
@@ -317,6 +328,7 @@
           ],
           "optional": true,
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "contentId": "2e4f6a8b-0c2d-4e6f-8a0b-2c4d6e8f0a2b",
           "videoId": null
         }

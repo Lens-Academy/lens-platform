@@ -19,6 +19,7 @@
           "optional": false,
           "contentId": "d1e2f3a4-b5c6-7890-d1e2-f3a4b5c67890",
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "videoId": null
         },
         {
@@ -51,6 +52,7 @@
           ],
           "optional": false,
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "contentId": "8a7ca9c4-c111-467b-2c2b-e08d10698767",
           "videoId": null
         },
@@ -80,6 +82,7 @@
           ],
           "optional": false,
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "contentId": "3dd47fce-a0fe-4e03-916d-a160fe697dd0",
           "videoId": null
         },
@@ -125,6 +128,7 @@
           ],
           "optional": false,
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "contentId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
           "videoId": "fa8k8IQ1_X0"
         },
@@ -174,6 +178,7 @@
           ],
           "optional": false,
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "contentId": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
           "videoId": null
         },
@@ -195,6 +200,7 @@
           ],
           "optional": false,
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "contentId": "c3d4e5f6-a7b8-9012-cdef-345678901234",
           "videoId": null
         },
@@ -212,6 +218,7 @@
           "optional": false,
           "contentId": "5ec4268f-757c-4ef7-89c1-a24b35cea850",
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "videoId": null
         },
         {
@@ -228,6 +235,7 @@
           "optional": false,
           "contentId": "e2f3a4b5-c6d7-8901-e2f3-a4b5c6d78901",
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "videoId": null
         }
       ]

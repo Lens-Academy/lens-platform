@@ -21,6 +21,7 @@ describe('validateOutputIntegrity', () => {
         segments: [{ type: 'text', content: 'Hello world.' }],
         contentId: null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       }],
     });
@@ -37,6 +38,7 @@ describe('validateOutputIntegrity', () => {
         segments: [],
         contentId: null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       }],
     });
@@ -56,6 +58,7 @@ describe('validateOutputIntegrity', () => {
         segments: [{ type: 'text', content: '' }],
         contentId: null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       }],
     });
@@ -75,6 +78,7 @@ describe('validateOutputIntegrity', () => {
         segments: [{ type: 'text', content: '   \n  ' }],
         contentId: null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       }],
     });
@@ -92,6 +96,7 @@ describe('validateOutputIntegrity', () => {
         segments: [{ type: 'article-excerpt', content: '' }],
         contentId: null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       }],
     });
@@ -109,6 +114,7 @@ describe('validateOutputIntegrity', () => {
         segments: [{ type: 'video-excerpt', from: 0, to: 60, transcript: '' }],
         contentId: null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       }],
     });
@@ -127,6 +133,7 @@ describe('validateOutputIntegrity', () => {
         segments: [],
         contentId: null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       }],
     });
@@ -146,6 +153,7 @@ describe('validateOutputIntegrity', () => {
         segments: [],
         contentId: null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       }],
     });
@@ -164,6 +172,7 @@ describe('validateOutputIntegrity', () => {
         segments: [],
         contentId: null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       }],
     });
@@ -175,6 +184,7 @@ describe('validateOutputIntegrity', () => {
         segments: [{ type: 'text', content: '' }],
         contentId: null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       }],
     });
@@ -193,6 +203,7 @@ describe('validateOutputIntegrity', () => {
         segments: [{ type: 'chat' }],
         contentId: null,
         learningOutcomeId: null,
+        learningOutcomeName: null,
         videoId: null,
       }],
     });

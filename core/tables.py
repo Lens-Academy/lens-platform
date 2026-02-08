@@ -347,6 +347,7 @@ user_content_progress = Table(
     ),
     Column("time_to_complete_s", Integer, server_default="0", nullable=False),
     Column("total_time_spent_s", Integer, server_default="0", nullable=False),
+    Column("last_heartbeat_at", DateTime(timezone=True), nullable=True),
     Column("completed_at", DateTime(timezone=True), nullable=True),
     Index(
         "idx_user_content_progress_user",

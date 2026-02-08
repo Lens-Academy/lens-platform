@@ -25,6 +25,7 @@
           ],
           "optional": false,
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "contentId": "a1b2c3d4-0000-0000-0000-000000000010",
           "videoId": "dQw4w9WgXcQ"
         },
@@ -46,6 +47,7 @@
           ],
           "optional": false,
           "learningOutcomeId": null,
+          "learningOutcomeName": null,
           "contentId": "a1b2c3d4-0000-0000-0000-000000000020",
           "videoId": null
         }

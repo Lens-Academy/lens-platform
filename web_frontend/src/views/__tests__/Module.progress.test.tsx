@@ -15,7 +15,7 @@ vi.mock("@/api/modules", () => ({
 
 vi.mock("@/api/progress", () => ({
   markComplete: vi.fn(),
-  updateTimeSpent: vi.fn(),
+  sendHeartbeatPing: vi.fn(),
 }));
 
 // useAuth mock - we'll configure the return value in tests

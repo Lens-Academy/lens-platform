@@ -58,10 +58,14 @@ export async function markComplete(
   return res.json();
 }
 
-export async function updateTimeSpent(
+export async function sendHeartbeatPing(
   contentId: string,
-  timeDeltaS: number,
   isAuthenticated: boolean,
+  loId?: string | null,
+  moduleId?: string | null,
+  contentTitle?: string,
+  moduleTitle?: string,
+  loTitle?: string,
 ): Promise<void> {
   await fetchWithRefresh(`${API_BASE}/api/progress/time`, {
     method: "POST",
@@ -72,7 +76,11 @@ export async function updateTimeSpent(
     credentials: "include",
     body: JSON.stringify({
       content_id: contentId,
-      time_delta_s: timeDeltaS,
+      ...(loId ? { lo_id: loId } : {}),
+      ...(moduleId ? { module_id: moduleId } : {}),
+      ...(contentTitle ? { content_title: contentTitle } : {}),
+      ...(moduleTitle ? { module_title: moduleTitle } : {}),
+      ...(loTitle ? { lo_title: loTitle } : {}),
     }),
   });
   // Fire and forget - don't throw on error

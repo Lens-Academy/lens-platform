@@ -15,6 +15,7 @@ describe("URL Hash Navigation Integration", () => {
       type: "lens-article",
       contentId: "abc",
       learningOutcomeId: null,
+      learningOutcomeName: null,
       meta: {
         title: "Worst-Case Thinking (Optional)",
         author: "Nick Bostrom",
@@ -27,6 +28,7 @@ describe("URL Hash Navigation Integration", () => {
       type: "lens-video",
       contentId: "def",
       learningOutcomeId: null,
+      learningOutcomeName: null,
       videoId: "xyz123",
       meta: { title: "AI Alignment Introduction", channel: "AI Safety" },
       segments: [],
@@ -67,6 +69,7 @@ describe("URL Hash Navigation Integration", () => {
         type: "lens-article",
         contentId: "abc",
         learningOutcomeId: null,
+        learningOutcomeName: null,
         meta: {
           title: "What's the Deal? (A Question!)",
           author: null,

@@ -9,6 +9,7 @@ describe("getSectionSlug", () => {
       type: "lens-article",
       contentId: "abc",
       learningOutcomeId: null,
+      learningOutcomeName: null,
       meta: {
         title: "Worst-Case Thinking (Optional)",
         author: null,
@@ -25,6 +26,7 @@ describe("getSectionSlug", () => {
       type: "lens-video",
       contentId: "def",
       learningOutcomeId: null,
+      learningOutcomeName: null,
       videoId: "xyz",
       meta: { title: "Introduction to AI Safety", channel: null },
       segments: [],
@@ -82,6 +84,7 @@ describe("getSectionSlug", () => {
       type: "lens-article",
       contentId: "abc",
       learningOutcomeId: null,
+      learningOutcomeName: null,
       meta: {
         title:
           "This Is A Very Long Title That Should Be Truncated To Fifty Characters Maximum",
@@ -107,6 +110,7 @@ describe("findSectionBySlug", () => {
       type: "lens-article",
       contentId: "abc",
       learningOutcomeId: null,
+      learningOutcomeName: null,
       meta: {
         title: "Worst-Case Thinking (Optional)",
         author: null,
@@ -119,6 +123,7 @@ describe("findSectionBySlug", () => {
       type: "lens-video",
       contentId: "def",
       learningOutcomeId: null,
+      learningOutcomeName: null,
       videoId: "xyz",
       meta: { title: "Introduction Video", channel: null },
       segments: [],

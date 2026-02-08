@@ -7,7 +7,7 @@ Supports both authenticated users (user_id) and anonymous users (anonymous_token
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select, update, and_, case
+from sqlalchemy import select, update, and_, case, func, cast, Integer, extract
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -50,12 +50,24 @@ async def get_or_create_progress(
     else:
         raise ValueError("Either user_id or anonymous_token must be provided")
 
-    # INSERT ... ON CONFLICT DO UPDATE (no-op update to return existing row)
+    # INSERT ... ON CONFLICT DO UPDATE
+    # Backfill content_title if existing record has empty title and new value is non-empty
     stmt = pg_insert(user_content_progress).values(**insert_values)
     stmt = stmt.on_conflict_do_update(
         index_elements=conflict_target,
         index_where=conflict_where,
-        set_={"started_at": user_content_progress.c.started_at},  # No-op update
+        set_={
+            "content_title": case(
+                (
+                    and_(
+                        user_content_progress.c.content_title == "",
+                        stmt.excluded.content_title != "",
+                    ),
+                    stmt.excluded.content_title,
+                ),
+                else_=user_content_progress.c.content_title,
+            ),
+        },
     ).returning(user_content_progress)
 
     result = await conn.execute(stmt)
@@ -92,14 +104,14 @@ async def mark_content_complete(
     if progress.get("completed_at"):
         return progress
 
-    # Update to mark complete
+    # Update to mark complete — snapshot accumulated time, not the parameter
     now = datetime.now(timezone.utc)
     result = await conn.execute(
         update(user_content_progress)
         .where(user_content_progress.c.id == progress["id"])
         .values(
             completed_at=now,
-            time_to_complete_s=time_spent_s,
+            time_to_complete_s=progress["total_time_spent_s"],
         )
         .returning(user_content_progress)
     )
@@ -108,15 +120,22 @@ async def mark_content_complete(
     return dict(row._mapping)
 
 
+MAX_HEARTBEAT_DELTA_S = 40  # 2x the 20s heartbeat interval
+
+
 async def update_time_spent(
     conn: AsyncConnection,
     *,
     user_id: int | None,
     anonymous_token: UUID | None,
     content_id: UUID,
-    time_delta_s: int,
 ) -> None:
-    """Add time to total_time_spent_s (and time_to_complete_s if not yet completed)."""
+    """Compute time delta from last_heartbeat_at and add to total_time_spent_s.
+
+    Uses a single atomic UPDATE to prevent concurrent-ping double-counting.
+    First ping (last_heartbeat_at is NULL): sets timestamp, adds 0 time.
+    Subsequent pings: computes delta = clamp(now - last_heartbeat_at, 0, MAX_HEARTBEAT_DELTA_S).
+    """
     # Build WHERE clause
     if user_id is not None:
         where_clause = and_(
@@ -129,26 +148,28 @@ async def update_time_spent(
             user_content_progress.c.content_id == content_id,
         )
     else:
-        return  # No identity, can't track
+        return
 
-    # Update time columns
-    # time_to_complete_s only updates if not yet completed (SQL CASE expression)
+    # Compute clamped delta entirely in SQL
+    now = func.now()
+    raw_delta = extract("epoch", now - user_content_progress.c.last_heartbeat_at)
+    clamped_delta = case(
+        (user_content_progress.c.last_heartbeat_at.is_(None), 0),
+        else_=func.least(
+            func.greatest(cast(func.round(raw_delta), Integer), 0),
+            MAX_HEARTBEAT_DELTA_S,
+        ),
+    )
+
     await conn.execute(
         update(user_content_progress)
         .where(where_clause)
         .values(
+            last_heartbeat_at=now,
             total_time_spent_s=user_content_progress.c.total_time_spent_s
-            + time_delta_s,
-            time_to_complete_s=case(
-                (
-                    user_content_progress.c.completed_at.is_(None),
-                    user_content_progress.c.time_to_complete_s + time_delta_s,
-                ),
-                else_=user_content_progress.c.time_to_complete_s,
-            ),
+            + clamped_delta,
         )
     )
-    # No explicit commit - let the caller's transaction context handle it
 
 
 async def get_module_progress(
