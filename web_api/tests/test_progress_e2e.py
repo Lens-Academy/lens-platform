@@ -244,8 +244,13 @@ class TestCompletionPropagation:
 
             # Complete lens 1
             await client.post(
-                "/api/modules/test-module/progress",
-                json={"contentId": lens_1, "completed": True},
+                "/api/progress/complete",
+                json={
+                    "content_id": lens_1,
+                    "content_type": "lens",
+                    "content_title": "Lens 1",
+                    "module_slug": "test-module",
+                },
                 headers=headers,
             )
 
@@ -255,8 +260,13 @@ class TestCompletionPropagation:
 
             # Complete lens 2
             await client.post(
-                "/api/modules/test-module/progress",
-                json={"contentId": lens_2, "completed": True},
+                "/api/progress/complete",
+                json={
+                    "content_id": lens_2,
+                    "content_type": "lens",
+                    "content_title": "Lens 2",
+                    "module_slug": "test-module",
+                },
                 headers=headers,
             )
 
@@ -328,7 +338,7 @@ class TestCompletionPropagation:
             headers = {"X-Anonymous-Token": anon_token}
 
             # Accumulate time and complete both lenses -> LO auto-completes
-            for lens in [lens_1, lens_2]:
+            for i, lens in enumerate([lens_1, lens_2]):
                 await client.post(
                     "/api/progress/time",
                     json={
@@ -340,8 +350,13 @@ class TestCompletionPropagation:
                     headers=headers,
                 )
                 await client.post(
-                    "/api/modules/test-module/progress",
-                    json={"contentId": lens, "completed": True},
+                    "/api/progress/complete",
+                    json={
+                        "content_id": lens,
+                        "content_type": "lens",
+                        "content_title": f"Lens {i + 1}",
+                        "module_slug": "test-module",
+                    },
                     headers=headers,
                 )
 
@@ -378,8 +393,13 @@ class TestCompletionPropagation:
                 headers=headers,
             )
             await client.post(
-                "/api/modules/test-module/progress",
-                json={"contentId": lens_3, "completed": True},
+                "/api/progress/complete",
+                json={
+                    "content_id": lens_3,
+                    "content_type": "lens",
+                    "content_title": "Lens 3",
+                    "module_slug": "test-module",
+                },
                 headers=headers,
             )
 
@@ -391,72 +411,3 @@ class TestCompletionPropagation:
         clear_cache()
 
 
-# --- Module Progress Endpoint Multi-Level Tests ---
-
-
-class TestModuleProgressEndpointMultiLevel:
-    """POST /api/modules/{slug}/progress writes time at all levels."""
-
-    @pytest.mark.asyncio
-    async def test_module_progress_heartbeat_writes_all_levels(self, anon_token):
-        """Heartbeat via module progress endpoint should update lens, LO, and module time."""
-        from main import app
-        from core.content import set_cache, clear_cache, ContentCache
-        from core.modules.flattened_types import FlattenedModule
-        from datetime import datetime
-
-        lens = str(uuid.uuid4())
-        lo = str(uuid.uuid4())
-        mod = str(uuid.uuid4())
-
-        cache = ContentCache(
-            courses={},
-            flattened_modules={
-                "test-mod": FlattenedModule(
-                    slug="test-mod",
-                    title="Test",
-                    content_id=UUID(mod),
-                    sections=[
-                        {
-                            "type": "article",
-                            "contentId": lens,
-                            "learningOutcomeId": lo,
-                            "meta": {"title": "Lens"},
-                            "segments": [],
-                            "optional": False,
-                        }
-                    ],
-                ),
-            },
-            parsed_learning_outcomes={},
-            parsed_lenses={},
-            articles={},
-            video_transcripts={},
-            last_refreshed=datetime.now(),
-        )
-        set_cache(cache)
-
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.post(
-                "/api/modules/test-mod/progress",
-                json={"contentId": lens, "timeSpentS": 30, "completed": False},
-                headers={"X-Anonymous-Token": anon_token},
-            )
-        assert response.status_code == 200
-
-        lens_rec = await get_progress_record(lens, anon_token)
-        lo_rec = await get_progress_record(lo, anon_token)
-        mod_rec = await get_progress_record(mod, anon_token)
-
-        assert lens_rec is not None
-        assert lens_rec["total_time_spent_s"] == 30
-
-        assert lo_rec is not None, "LO record should exist"
-        assert lo_rec["total_time_spent_s"] == 30
-
-        assert mod_rec is not None, "Module record should exist"
-        assert mod_rec["total_time_spent_s"] == 30
-
-        clear_cache()
