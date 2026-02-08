@@ -686,6 +686,38 @@ instructions:: Discuss what you learned from the external resource.
     expect(result.module?.sections[0].segments[1].type).toBe('chat');
   });
 
+  it('flattens Page section with ## Text and ## Chat segments', () => {
+    const files = new Map([
+      ['modules/chat-test.md', `---
+slug: chat-test
+title: Chat Test Module
+---
+
+# Page: Discussion Page
+id:: d1e2f3a4-5678-90ab-cdef-1234567890ab
+
+## Text
+content::
+Read the following material carefully.
+
+## Chat
+instructions:: Discuss what you learned from the material above.
+`],
+    ]);
+
+    const result = flattenModule('modules/chat-test.md', files);
+
+    expect(result.module).toBeDefined();
+    expect(result.errors).toHaveLength(0);
+    expect(result.module?.sections).toHaveLength(1);
+    expect(result.module?.sections[0].type).toBe('page');
+    expect(result.module?.sections[0].segments).toHaveLength(2);
+    expect(result.module?.sections[0].segments[0].type).toBe('text');
+    expect(result.module?.sections[0].segments[1].type).toBe('chat');
+    const chatSeg = result.module?.sections[0].segments[1] as { type: 'chat'; instructions: string };
+    expect(chatSeg.instructions).toContain('Discuss');
+  });
+
   it('detects circular reference and returns error', () => {
     // Create a cycle: Module -> LO-A -> Lens-B -> (references back to LO-A)
     // The lens has an article section that points back to the LO file
