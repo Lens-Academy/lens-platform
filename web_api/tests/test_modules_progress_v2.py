@@ -272,8 +272,9 @@ class TestModuleProgressUpdate:
             assert data["success"] is True
             assert data["completed"] is False
 
-            # Verify time was updated
-            mock_update_time.assert_called_once()
+            # Verify time was updated (called for lens, LO, and module levels)
+            assert mock_update_time.call_count >= 1
+            mock_get_progress.assert_called()
 
     def test_post_progress_completed_marks_complete(
         self, mock_flattened_cache_for_progress
@@ -295,6 +296,10 @@ class TestModuleProgressUpdate:
                 "web_api.routes.modules.mark_content_complete",
                 new_callable=AsyncMock,
             ) as mock_complete,
+            patch(
+                "web_api.routes.modules.propagate_completion",
+                new_callable=AsyncMock,
+            ),
         ):
             mock_complete.return_value = {
                 "id": 1,

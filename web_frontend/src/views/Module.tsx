@@ -76,6 +76,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   );
   const [loadingModule, setLoadingModule] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Module content UUID for multi-level time tracking (from progress API)
+  const [moduleContentId, setModuleContentId] = useState<string | null>(null);
 
   // Extract all module slugs from course for navigation
   const courseModules = useMemo(() => {
@@ -128,6 +130,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             }
           });
           setCompletedSections(completed);
+
+          // Store module content UUID for multi-level time tracking
+          if (progressResult.module?.id) {
+            setModuleContentId(progressResult.module.id);
+          }
 
           // If module already complete, set flag and mark as complete on load
           if (progressResult.status === "completed") {
@@ -487,32 +494,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Activity tracking for current section
   const currentSection = module?.sections[currentSectionIndex];
-  const currentSectionType =
-    currentSection?.type === "text" ? "article" : currentSection?.type;
 
-  // Article/text activity tracking (3 min inactivity timeout)
-  useActivityTracker({
-    contentId: currentSection?.contentId ?? undefined,
-    isAuthenticated,
-    inactivityTimeout: 180_000,
-    enabled:
-      !!currentSection?.contentId &&
-      (currentSectionType === "article" || currentSection?.type === "text"),
-  });
-
-  // Video activity tracking (3 min inactivity timeout)
-  useActivityTracker({
-    contentId: currentSection?.contentId ?? undefined,
-    isAuthenticated,
-    inactivityTimeout: 180_000,
-    enabled: !!currentSection?.contentId && currentSectionType === "video",
-  });
-
-  // Chat activity tracking (5 min inactivity timeout)
-  // Chat segments can appear within any section type, so we keep the tracker
-  // ready and trigger it manually via triggerChatActivity() in handleSendMessage
+  // Unified activity tracking for current section (5 min inactivity timeout)
+  // Covers article, video, and chat — triggerActivity() keeps it alive during chat
   const { triggerActivity: triggerChatActivity } = useActivityTracker({
     contentId: currentSection?.contentId ?? undefined,
+    loId: currentSection && "learningOutcomeId" in currentSection
+      ? currentSection.learningOutcomeId
+      : undefined,
+    moduleId: moduleContentId,
     isAuthenticated,
     inactivityTimeout: 300_000,
     enabled: !!currentSection?.contentId,
@@ -596,6 +586,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           if (chunk.type === "text" && chunk.content) {
             assistantContent += chunk.content;
             setStreamingContent(assistantContent);
+            triggerChatActivity(); // Keep user active while AI response streams
           }
         }
 

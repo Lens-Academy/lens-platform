@@ -29,6 +29,7 @@ from core.modules.progress import (
     update_time_spent,
     mark_content_complete,
 )
+from core.modules.completion import propagate_completion
 from core.modules.chat_sessions import get_or_create_chat_session
 from core.database import get_connection, get_transaction
 from core import get_or_create_user
@@ -300,6 +301,17 @@ async def update_module_progress(
                 content_title=content_title,
                 time_spent_s=body.timeSpentS,
             )
+
+            # Propagate completion to LO and module if all required lenses are done
+            if module.content_id:
+                await propagate_completion(
+                    conn,
+                    user_id=user_id,
+                    anonymous_token=anonymous_token,
+                    module_sections=module.sections,
+                    module_content_id=module.content_id,
+                    completed_lens_id=body.contentId,
+                )
         else:
             # Heartbeat: ensure record exists and update time
             progress = await get_or_create_progress(
@@ -311,7 +323,7 @@ async def update_module_progress(
                 content_title=content_title,
             )
 
-            # Update time spent
+            # Update time spent at lens, LO, and module levels
             if body.timeSpentS > 0:
                 await update_time_spent(
                     conn,
@@ -324,6 +336,44 @@ async def update_module_progress(
                 progress["total_time_spent_s"] = (
                     progress.get("total_time_spent_s", 0) + body.timeSpentS
                 )
+
+                # Update LO time
+                lo_id_str = matching_section.get("learningOutcomeId")
+                if lo_id_str:
+                    lo_uuid = UUID(lo_id_str)
+                    await get_or_create_progress(
+                        conn,
+                        user_id=user_id,
+                        anonymous_token=anonymous_token,
+                        content_id=lo_uuid,
+                        content_type="lo",
+                        content_title="",
+                    )
+                    await update_time_spent(
+                        conn,
+                        user_id=user_id,
+                        anonymous_token=anonymous_token,
+                        content_id=lo_uuid,
+                        time_delta_s=body.timeSpentS,
+                    )
+
+                # Update module time
+                if module.content_id:
+                    await get_or_create_progress(
+                        conn,
+                        user_id=user_id,
+                        anonymous_token=anonymous_token,
+                        content_id=module.content_id,
+                        content_type="module",
+                        content_title="",
+                    )
+                    await update_time_spent(
+                        conn,
+                        user_id=user_id,
+                        anonymous_token=anonymous_token,
+                        content_id=module.content_id,
+                        time_delta_s=body.timeSpentS,
+                    )
 
     return ProgressUpdateResponse(
         success=True,

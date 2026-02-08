@@ -6,6 +6,8 @@ import { getAnonymousToken } from "./useAnonymousToken";
 interface ActivityTrackerOptions {
   // New progress API options
   contentId?: string;
+  loId?: string | null;
+  moduleId?: string | null;
   isAuthenticated?: boolean;
 
   inactivityTimeout?: number; // ms, default 180000 (3 min)
@@ -15,6 +17,8 @@ interface ActivityTrackerOptions {
 
 export function useActivityTracker({
   contentId,
+  loId,
+  moduleId,
   isAuthenticated = false,
   inactivityTimeout = 180_000,
   heartbeatInterval = 60_000, // Changed from 30s to 60s
@@ -42,12 +46,12 @@ export function useActivityTracker({
     if (timeDeltaS <= 0) return;
 
     try {
-      await updateTimeSpent(contentId, timeDeltaS, isAuthenticated);
+      await updateTimeSpent(contentId, timeDeltaS, isAuthenticated, loId, moduleId);
     } catch (error) {
       // Fire-and-forget, ignore errors
       console.debug("Progress heartbeat failed:", error);
     }
-  }, [contentId, isAuthenticated, enabled]);
+  }, [contentId, loId, moduleId, isAuthenticated, enabled]);
 
   const sendHeartbeat = useCallback(async () => {
     if (!enabled || !contentId) return;
@@ -124,6 +128,8 @@ export function useActivityTracker({
       const payload = JSON.stringify({
         content_id: contentId,
         time_delta_s: timeDeltaS,
+        ...(loId ? { lo_id: loId } : {}),
+        ...(moduleId ? { module_id: moduleId } : {}),
       });
 
       // Build URL with session token for anonymous users
@@ -158,6 +164,8 @@ export function useActivityTracker({
   }, [
     enabled,
     contentId,
+    loId,
+    moduleId,
     isAuthenticated,
     handleActivity,
     handleScroll,

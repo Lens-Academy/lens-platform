@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from core import get_or_create_user
 from core.database import get_transaction
 from core.modules.progress import (
+    get_or_create_progress,
     mark_content_complete,
     update_time_spent,
     get_module_progress,
@@ -57,6 +58,8 @@ class MarkCompleteResponse(BaseModel):
 class TimeUpdateRequest(BaseModel):
     content_id: UUID
     time_delta_s: int
+    lo_id: UUID | None = None
+    module_id: UUID | None = None
 
 
 async def get_user_or_token(
@@ -132,12 +135,24 @@ async def complete_content(
             time_spent_s=body.time_spent_s,
         )
 
-        # If module_slug provided, return full module progress
+        # If module_slug provided, propagate completion and return full module progress
         if body.module_slug:
             from core.modules.loader import load_flattened_module, ModuleNotFoundError
+            from core.modules.completion import propagate_completion
 
             try:
                 module = load_flattened_module(body.module_slug)
+
+                # Propagate completion to LO and module
+                if module.content_id:
+                    await propagate_completion(
+                        conn,
+                        user_id=user_id,
+                        anonymous_token=anonymous_token,
+                        module_sections=module.sections,
+                        module_content_id=module.content_id,
+                        completed_lens_id=body.content_id,
+                    )
                 content_ids = [
                     UUID(s["contentId"]) for s in module.sections if s.get("contentId")
                 ]
@@ -265,13 +280,26 @@ async def update_time_endpoint(
             data = json.loads(raw)
             content_id = UUID(data["content_id"])
             time_delta_s = data["time_delta_s"]
+            lo_id = UUID(data["lo_id"]) if data.get("lo_id") else None
+            module_id = UUID(data["module_id"]) if data.get("module_id") else None
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             raise HTTPException(400, f"Invalid request body: {e}")
     else:
         content_id = body.content_id
         time_delta_s = body.time_delta_s
+        lo_id = body.lo_id
+        module_id = body.module_id
 
     async with get_transaction() as conn:
+        # Ensure lens record exists, then update time
+        await get_or_create_progress(
+            conn,
+            user_id=user_id,
+            anonymous_token=anonymous_token,
+            content_id=content_id,
+            content_type="lens",
+            content_title="",
+        )
         await update_time_spent(
             conn,
             user_id=user_id,
@@ -279,3 +307,37 @@ async def update_time_endpoint(
             content_id=content_id,
             time_delta_s=time_delta_s,
         )
+
+        if lo_id:
+            await get_or_create_progress(
+                conn,
+                user_id=user_id,
+                anonymous_token=anonymous_token,
+                content_id=lo_id,
+                content_type="lo",
+                content_title="",
+            )
+            await update_time_spent(
+                conn,
+                user_id=user_id,
+                anonymous_token=anonymous_token,
+                content_id=lo_id,
+                time_delta_s=time_delta_s,
+            )
+
+        if module_id:
+            await get_or_create_progress(
+                conn,
+                user_id=user_id,
+                anonymous_token=anonymous_token,
+                content_id=module_id,
+                content_type="module",
+                content_title="",
+            )
+            await update_time_spent(
+                conn,
+                user_id=user_id,
+                anonymous_token=anonymous_token,
+                content_id=module_id,
+                time_delta_s=time_delta_s,
+            )

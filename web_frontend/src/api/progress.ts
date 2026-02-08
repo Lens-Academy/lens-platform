@@ -62,6 +62,8 @@ export async function updateTimeSpent(
   contentId: string,
   timeDeltaS: number,
   isAuthenticated: boolean,
+  loId?: string | null,
+  moduleId?: string | null,
 ): Promise<void> {
   await fetchWithRefresh(`${API_BASE}/api/progress/time`, {
     method: "POST",
@@ -73,6 +75,8 @@ export async function updateTimeSpent(
     body: JSON.stringify({
       content_id: contentId,
       time_delta_s: timeDeltaS,
+      ...(loId ? { lo_id: loId } : {}),
+      ...(moduleId ? { module_id: moduleId } : {}),
     }),
   });
   // Fire and forget - don't throw on error

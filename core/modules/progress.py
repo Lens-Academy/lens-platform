@@ -92,14 +92,14 @@ async def mark_content_complete(
     if progress.get("completed_at"):
         return progress
 
-    # Update to mark complete
+    # Update to mark complete — snapshot accumulated time, not the parameter
     now = datetime.now(timezone.utc)
     result = await conn.execute(
         update(user_content_progress)
         .where(user_content_progress.c.id == progress["id"])
         .values(
             completed_at=now,
-            time_to_complete_s=time_spent_s,
+            time_to_complete_s=progress["total_time_spent_s"],
         )
         .returning(user_content_progress)
     )

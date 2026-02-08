@@ -112,6 +112,26 @@ async def test_get_or_create_progress_anonymous_user(anonymous_token, content_id
 @pytest.mark.asyncio
 async def test_mark_content_complete_creates_and_completes(test_user_id, content_id):
     """mark_content_complete should create record if none exists and mark it complete."""
+    # Accumulate time first via heartbeats
+    async with get_transaction() as conn:
+        await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test Lens",
+        )
+
+    async with get_transaction() as conn:
+        await update_time_spent(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            time_delta_s=120,
+        )
+
     async with get_transaction() as conn:
         progress = await mark_content_complete(
             conn,
@@ -120,7 +140,6 @@ async def test_mark_content_complete_creates_and_completes(test_user_id, content
             content_id=content_id,
             content_type="lens",
             content_title="Test Lens",
-            time_spent_s=120,
         )
 
     assert progress["completed_at"] is not None
@@ -130,6 +149,26 @@ async def test_mark_content_complete_creates_and_completes(test_user_id, content
 @pytest.mark.asyncio
 async def test_mark_content_complete_idempotent(test_user_id, content_id):
     """Calling mark_content_complete twice should return same record."""
+    # Accumulate time first
+    async with get_transaction() as conn:
+        await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test Lens",
+        )
+
+    async with get_transaction() as conn:
+        await update_time_spent(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            time_delta_s=120,
+        )
+
     async with get_transaction() as conn:
         progress1 = await mark_content_complete(
             conn,
@@ -138,7 +177,16 @@ async def test_mark_content_complete_idempotent(test_user_id, content_id):
             content_id=content_id,
             content_type="lens",
             content_title="Test Lens",
-            time_spent_s=120,
+        )
+
+    # More time accumulated after completion
+    async with get_transaction() as conn:
+        await update_time_spent(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            time_delta_s=80,
         )
 
     async with get_transaction() as conn:
@@ -149,7 +197,6 @@ async def test_mark_content_complete_idempotent(test_user_id, content_id):
             content_id=content_id,
             content_type="lens",
             content_title="Test Lens",
-            time_spent_s=200,  # Different time
         )
 
     assert progress1["id"] == progress2["id"]
@@ -198,7 +245,27 @@ async def test_update_time_spent(test_user_id, content_id):
 @pytest.mark.asyncio
 async def test_update_time_spent_after_completion(test_user_id, content_id):
     """update_time_spent after completion should only update total_time_spent_s."""
-    # Create and complete
+    # Create and accumulate time
+    async with get_transaction() as conn:
+        await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test",
+        )
+
+    async with get_transaction() as conn:
+        await update_time_spent(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            time_delta_s=100,
+        )
+
+    # Complete — snapshots time_to_complete_s = 100
     async with get_transaction() as conn:
         await mark_content_complete(
             conn,
@@ -207,7 +274,6 @@ async def test_update_time_spent_after_completion(test_user_id, content_id):
             content_id=content_id,
             content_type="lens",
             content_title="Test",
-            time_spent_s=100,
         )
 
     # Update time after completion
@@ -231,8 +297,8 @@ async def test_update_time_spent_after_completion(test_user_id, content_id):
             content_title="Test",
         )
 
-    assert progress["total_time_spent_s"] == 60  # Updated
-    assert progress["time_to_complete_s"] == 100  # Unchanged
+    assert progress["total_time_spent_s"] == 160  # 100 + 60
+    assert progress["time_to_complete_s"] == 100  # Frozen at completion
 
 
 @pytest.mark.asyncio
@@ -434,7 +500,27 @@ async def test_mark_content_complete_sets_time_to_complete_once(
     test_user_id, content_id
 ):
     """time_to_complete_s should be set on first completion and never change."""
-    # First complete with 100s
+    # Accumulate 100s of time
+    async with get_transaction() as conn:
+        await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test",
+        )
+
+    async with get_transaction() as conn:
+        await update_time_spent(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            time_delta_s=100,
+        )
+
+    # First completion — snapshots time_to_complete_s = 100
     async with get_transaction() as conn:
         progress1 = await mark_content_complete(
             conn,
@@ -443,13 +529,22 @@ async def test_mark_content_complete_sets_time_to_complete_once(
             content_id=content_id,
             content_type="lens",
             content_title="Test",
-            time_spent_s=100,
         )
 
     assert progress1["time_to_complete_s"] == 100
     first_completed_at = progress1["completed_at"]
 
-    # Try to complete again with different time
+    # Accumulate more time after completion
+    async with get_transaction() as conn:
+        await update_time_spent(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            time_delta_s=200,
+        )
+
+    # Try to complete again — should be idempotent
     async with get_transaction() as conn:
         progress2 = await mark_content_complete(
             conn,
@@ -458,7 +553,6 @@ async def test_mark_content_complete_sets_time_to_complete_once(
             content_id=content_id,
             content_type="lens",
             content_title="Test",
-            time_spent_s=999,  # Should be ignored
         )
 
     # Values should be unchanged from first completion
@@ -561,3 +655,44 @@ async def test_get_module_progress_no_identity():
         )
 
     assert progress == {}
+
+
+@pytest.mark.asyncio
+async def test_mark_content_complete_snapshots_accumulated_time(
+    test_user_id, content_id
+):
+    """mark_content_complete should snapshot total_time_spent_s, not use the time_spent_s parameter."""
+    # Accumulate time via heartbeats
+    async with get_transaction() as conn:
+        await get_or_create_progress(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test",
+        )
+
+    async with get_transaction() as conn:
+        await update_time_spent(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            time_delta_s=120,
+        )
+
+    # Complete with time_spent_s=0 (simulating frontend not sending time)
+    async with get_transaction() as conn:
+        progress = await mark_content_complete(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            content_id=content_id,
+            content_type="lens",
+            content_title="Test",
+            time_spent_s=0,
+        )
+
+    # time_to_complete_s should be 120 (accumulated), not 0 (parameter)
+    assert progress["time_to_complete_s"] == 120
