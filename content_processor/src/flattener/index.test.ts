@@ -58,7 +58,7 @@ url: https://youtube.com/watch?v=abc123
       ['articles/deep-dive.md', `---
 title: Deep Dive Article
 author: Jane Doe
-sourceUrl: https://example.com/article
+source_url: https://example.com/article
 ---
 
 Start here with some content and end here.
@@ -429,7 +429,7 @@ to:: "End here"
       ['articles/test-article.md', `---
 title: The Article Title
 author: John Doe
-sourceUrl: https://example.com/article
+source_url: https://example.com/article
 ---
 
 Start here with some content. End here with more.
@@ -569,6 +569,27 @@ content:: Second lens content.
     expect(result.module?.sections[1].segments).toHaveLength(1);
     expect((result.module?.sections[0].segments[0] as any).content).toBe('First lens content.');
     expect((result.module?.sections[1].segments[0] as any).content).toBe('Second lens content.');
+  });
+
+  it('warns when Uncategorized section has no lens references', () => {
+    const files = new Map<string, string>();
+    files.set('modules/test.md', `---
+slug: test
+title: Test Module
+id: 550e8400-e29b-41d4-a716-446655440099
+---
+
+# Uncategorized:
+Just some notes, no ## Lens: references here.
+`);
+
+    const result = flattenModule('modules/test.md', files);
+
+    expect(result.errors.some(e =>
+      e.severity === 'warning' &&
+      e.message.includes('Uncategorized') &&
+      (e.message.includes('no') || e.message.includes('Lens'))
+    )).toBe(true);
   });
 
   it('individual lens within LO can be marked optional', () => {

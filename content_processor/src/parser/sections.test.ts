@@ -352,6 +352,68 @@ content:: The beginning.
       expect(result.sections[0].title).toBe('Part 1: Introduction');
     });
 
+    it('warns when content appears before first section header', () => {
+      const content = `
+This text is before any section header.
+It should trigger a warning.
+
+# Page: First Section
+content:: Hello.
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+
+      expect(result.sections).toHaveLength(1);
+      expect(result.errors.some(e =>
+        e.message.includes('before') &&
+        e.severity === 'warning'
+      )).toBe(true);
+    });
+
+    it('warns when section header uses wrong heading level', () => {
+      // Lens files use ### (level 3), but user writes ## (level 2)
+      const content = `
+## Page: Introduction
+content:: Hello world.
+`;
+
+      const result = parseSections(content, 3, LENS_SECTION_TYPES, 'Lenses/test.md');
+
+      expect(result.sections).toHaveLength(0); // not parsed as a section
+      expect(result.errors.some(e =>
+        e.message.includes('heading level') &&
+        e.message.includes('Page') &&
+        e.severity === 'warning'
+      )).toBe(true);
+    });
+
+    it('warns when module section header uses H2 instead of H1', () => {
+      const content = `
+## Learning Outcome: First Topic
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'modules/test.md');
+
+      expect(result.sections).toHaveLength(0);
+      expect(result.errors.some(e =>
+        e.message.includes('heading level') &&
+        e.severity === 'warning'
+      )).toBe(true);
+    });
+
+    it('does not warn for blank lines before first section header', () => {
+      const content = `
+
+# Page: First Section
+content:: Hello.
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+
+      expect(result.errors.filter(e => e.message.includes('before'))).toHaveLength(0);
+    });
+
     it('handles multiple special characters in section title', () => {
       const content = `
 # Page: AI Safety & Alignment: What's at Stake?
@@ -362,6 +424,81 @@ content:: Important questions.
 
       expect(result.sections).toHaveLength(1);
       expect(result.sections[0].title).toBe("AI Safety & Alignment: What's at Stake?");
+    });
+  });
+
+  it('warns when single colon field: is used instead of field::', () => {
+    const content = `## Lens: Test\nsource: [[../Lenses/lens1.md|Lens]]`;
+
+    const result = parseSections(content, 2, LO_SECTION_TYPES, 'test.md');
+
+    expect(result.errors.some(e =>
+      e.severity === 'warning' &&
+      e.message.includes('source') &&
+      e.message.includes('::')
+    )).toBe(true);
+  });
+
+  describe('free text warnings', () => {
+    it('warns when free text appears before first field in section body', () => {
+      const content = `
+# Learning Outcome: Test LO
+Here is a description of this learning outcome.
+- It covers topic A
+source:: [[../Learning Outcomes/lo1.md|LO 1]]
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+
+      expect(result.sections).toHaveLength(1);
+      expect(result.errors.some(e =>
+        e.severity === 'warning' &&
+        e.message.includes('ignored')
+      )).toBe(true);
+    });
+
+    it('does not warn for blank lines before first field', () => {
+      const content = `
+# Learning Outcome: Test LO
+
+source:: [[../Learning Outcomes/lo1.md|LO 1]]
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+
+      expect(result.errors.filter(e =>
+        e.message.includes('ignored')
+      )).toHaveLength(0);
+    });
+
+    it('does not warn for text that is part of a multiline field value', () => {
+      const content = `
+# Page: Test Page
+id:: 550e8400-e29b-41d4-a716-446655440000
+Here is continued text that is part of the id field.
+`;
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+
+      expect(result.errors.filter(e =>
+        e.message.includes('ignored')
+      )).toHaveLength(0);
+    });
+
+    it('only warns once per section for multiple free text lines', () => {
+      const content = `
+# Learning Outcome: Test LO
+Line one of free text.
+Line two of free text.
+Line three of free text.
+source:: [[../Learning Outcomes/lo1.md|LO 1]]
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+
+      const freeTextWarnings = result.errors.filter(e =>
+        e.message.includes('ignored')
+      );
+      expect(freeTextWarnings).toHaveLength(1);
     });
   });
 });

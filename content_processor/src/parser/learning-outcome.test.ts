@@ -36,7 +36,7 @@ source:: [[../Tests/test1.md|Test]]
 
   it('requires id in frontmatter', () => {
     const content = `---
-title: Missing ID
+discussion: some-link
 ---
 
 ## Lens: Test
@@ -82,5 +82,23 @@ source:: [[../Lenses/lens1.md|Lens 1]]
     expect(result.learningOutcome?.lenses).toHaveLength(1);
     // Test should be undefined since no source was provided
     expect(result.learningOutcome?.test).toBeUndefined();
+  });
+
+  it('errors when id is a number', () => {
+    const content = `---
+id: 12345
+---
+
+## Lens: Test
+source:: [[../Lenses/lens1.md|Lens]]
+`;
+
+    const result = parseLearningOutcome(content, 'Learning Outcomes/bad.md');
+
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.includes('id') &&
+      e.message.includes('string')
+    )).toBe(true);
   });
 });

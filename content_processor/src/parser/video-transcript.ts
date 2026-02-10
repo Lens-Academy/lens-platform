@@ -1,6 +1,7 @@
 // src/parser/video-transcript.ts
 import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
+import { detectFrontmatterTypos } from '../validator/field-typos.js';
 
 export interface ParsedVideoTranscript {
   title: string;
@@ -23,6 +24,10 @@ export function parseVideoTranscript(content: string, file: string): VideoTransc
   }
 
   const { frontmatter } = frontmatterResult;
+
+  // Check for frontmatter field typos
+  const VALID_VT_FIELDS = ['title', 'channel', 'url'];
+  errors.push(...detectFrontmatterTypos(frontmatter, VALID_VT_FIELDS, file));
 
   // Validate required fields
   const requiredFields = ['title', 'channel', 'url'] as const;

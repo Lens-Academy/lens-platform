@@ -37,7 +37,7 @@ const KNOWN_FIELDS = [
  * This measures the minimum number of single-character edits
  * (insertions, deletions, substitutions) needed to change one string into another.
  */
-function levenshtein(a: string, b: string): number {
+export function levenshtein(a: string, b: string): number {
   const matrix: number[][] = [];
 
   // Initialize first column (delete operations)
@@ -109,6 +109,55 @@ export function detectFieldTypos(
         line,
         message: `Unrecognized field '${fieldName}'`,
         suggestion: `Did you mean '${closest}'?`,
+        severity: 'warning',
+      });
+    }
+  }
+
+  return warnings;
+}
+
+/**
+ * Detect likely typos in frontmatter field names by comparing against
+ * the valid fields for a specific file type.
+ */
+export function detectFrontmatterTypos(
+  frontmatter: Record<string, unknown>,
+  validFields: string[],
+  file: string,
+): ContentError[] {
+  const warnings: ContentError[] = [];
+  const validSet = new Set(validFields);
+
+  for (const fieldName of Object.keys(frontmatter)) {
+    if (validSet.has(fieldName)) continue;
+
+    // Find closest valid field by Levenshtein distance
+    let closest = '';
+    let minDistance = Infinity;
+
+    for (const valid of validFields) {
+      const dist = levenshtein(fieldName.toLowerCase(), valid.toLowerCase());
+      if (dist < minDistance && dist <= 2) {
+        minDistance = dist;
+        closest = valid;
+      }
+    }
+
+    if (closest) {
+      warnings.push({
+        file,
+        line: 2, // Frontmatter starts at line 2
+        message: `Unrecognized frontmatter field '${fieldName}'`,
+        suggestion: `Did you mean '${closest}'?`,
+        severity: 'warning',
+      });
+    } else {
+      warnings.push({
+        file,
+        line: 2,
+        message: `Unrecognized frontmatter field '${fieldName}'`,
+        suggestion: `Valid fields: ${validFields.join(', ')}`,
         severity: 'warning',
       });
     }

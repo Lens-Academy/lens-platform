@@ -4,6 +4,7 @@ import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, type ParsedSection } from './sections.js';
 import { parseWikilink } from './wikilink.js';
 import { basename } from 'path';
+import { validateSlugFormat } from '../validator/field-values.js';
 
 // Valid section types for course files
 export const COURSE_SECTION_TYPES = new Set(['module', 'meeting']);
@@ -46,7 +47,7 @@ function parseModuleSection(
   }
 
   const slug = extractSlugFromPath(wikilink.path);
-  const optional = section.fields.optional === 'true';
+  const optional = section.fields.optional?.toLowerCase() === 'true';
 
   return { slug, optional };
 }
@@ -117,6 +118,14 @@ export function parseCourse(content: string, file: string): CourseParseResult {
       suggestion: "Add 'title: Your Course Title' to frontmatter",
       severity: 'error',
     });
+  }
+
+  // Validate slug format
+  if (frontmatter.slug && typeof frontmatter.slug === 'string' && frontmatter.slug.trim() !== '') {
+    const slugFormatError = validateSlugFormat(frontmatter.slug as string, file, 2);
+    if (slugFormatError) {
+      errors.push(slugFormatError);
+    }
   }
 
   if (errors.length > 0) {

@@ -108,6 +108,7 @@ import { extractVideoExcerpt, type TimestampEntry } from './bundler/video.js';
 import { parseArticle } from './parser/article.js';
 import { parseVideoTranscript } from './parser/video-transcript.js';
 import { validateTimestamps } from './validator/timestamps.js';
+import { levenshtein } from './validator/field-typos.js';
 
 /**
  * Validate lens excerpts by checking if source files exist and anchors/timestamps are valid.
@@ -340,6 +341,29 @@ export function processContent(files: Map<string, string>, options: ProcessOptio
       errors.push(...result.errors);
       if (result.transcript) {
         urlsToValidate.push({ url: result.transcript.url, file: path, line: 2, label: 'url' });
+      }
+    } else {
+      // File didn't match any known directory pattern — check for near-misses via Levenshtein distance
+      const dir = path.split('/')[0];
+      const VALID_DIRS = ['modules', 'courses', 'articles', 'Lenses', 'video_transcripts', 'Learning Outcomes'];
+      let closest = '';
+      let minDist = Infinity;
+      for (const valid of VALID_DIRS) {
+        const dist = levenshtein(dir.toLowerCase(), valid.toLowerCase());
+        if (dist < minDist) {
+          minDist = dist;
+          closest = valid;
+        }
+      }
+      // Threshold: distance <= 3 or <= 40% of the directory name length (whichever is smaller)
+      const threshold = Math.min(3, Math.ceil(dir.length * 0.4));
+      if (minDist > 0 && minDist <= threshold) {
+        errors.push({
+          file: path,
+          message: `File in directory '${dir}/' not recognized as content`,
+          suggestion: `Did you mean '${closest}/'?`,
+          severity: 'warning',
+        });
       }
     }
   }

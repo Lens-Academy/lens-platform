@@ -4,8 +4,9 @@ import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, LENS_SECTION_TYPES, LENS_OUTPUT_TYPE } from './sections.js';
 import { validateSegmentFields } from '../validator/segment-fields.js';
 import { validateFieldValues } from '../validator/field-values.js';
-import { detectFieldTypos } from '../validator/field-typos.js';
+import { detectFieldTypos, detectFrontmatterTypos } from '../validator/field-typos.js';
 import { parseWikilink, hasRelativePath } from './wikilink.js';
+import { parseTimestamp } from '../bundler/video.js';
 
 // Segment types for parsed lens content (before bundling/flattening)
 export interface ParsedTextSegment {
@@ -65,6 +66,13 @@ export interface LensParseResult {
 // Valid segment types for lens H4 headers
 const LENS_SEGMENT_TYPES = new Set(['text', 'chat', 'article-excerpt', 'video-excerpt']);
 
+
+// Valid segment types per section output type
+const VALID_SEGMENTS_PER_SECTION: Record<string, Set<string>> = {
+  'page': new Set(['text', 'chat']),
+  'lens-article': new Set(['text', 'chat', 'article-excerpt']),
+  'lens-video': new Set(['text', 'chat', 'video-excerpt']),
+};
 // H4 segment header pattern: #### <type> or #### <type>: <title>
 const SEGMENT_HEADER_PATTERN = /^####\s+(\S+)(?::\s*(.*))?$/i;
 
@@ -93,6 +101,7 @@ function parseSegments(
 
   let currentSegment: RawSegment | null = null;
   let currentFieldLines: string[] = [];
+  let preSegmentWarned = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -129,7 +138,30 @@ function parseSegments(
       };
       currentFieldLines = [];
     } else if (currentSegment) {
+      // Check for single-colon field that should be double-colon
+      const singleColonMatch = line.match(/^(\w+):\s+(.*)$/);
+      if (singleColonMatch && !line.match(/^https?:/) && !FIELD_PATTERN.test(line)) {
+        errors.push({
+          file,
+          line: lineNum,
+          message: `Found '${singleColonMatch[1]}:' with single colon — did you mean '${singleColonMatch[1]}::'?`,
+          suggestion: `Change '${singleColonMatch[1]}:' to '${singleColonMatch[1]}::' (double colon)`,
+          severity: 'warning',
+        });
+      }
       currentFieldLines.push(line);
+    } else {
+      // No segment started yet — check for free text (not fields, not blank)
+      if (line.trim() && !FIELD_PATTERN.test(line) && !preSegmentWarned) {
+        preSegmentWarned = true;
+        errors.push({
+          file,
+          line: lineNum,
+          message: 'Text before first segment header (####) will be ignored',
+          suggestion: 'Move this text into a segment (e.g., #### Text with content:: field), or remove it',
+          severity: 'warning',
+        });
+      }
     }
   }
 
@@ -214,7 +246,7 @@ function convertSegment(
         const segment: ParsedTextSegment = {
           type: 'text',
           content: '',
-          optional: raw.fields.optional === 'true' ? true : undefined,
+          optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
         };
         return { segment, errors };
       }
@@ -222,7 +254,7 @@ function convertSegment(
       const segment: ParsedTextSegment = {
         type: 'text',
         content,
-        optional: raw.fields.optional === 'true' ? true : undefined,
+        optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
       };
       return { segment, errors };
     }
@@ -259,9 +291,9 @@ function convertSegment(
         type: 'chat',
         title: raw.title,
         instructions: instructions || '',
-        hidePreviousContentFromUser: raw.fields.hidePreviousContentFromUser === 'true' ? true : undefined,
-        hidePreviousContentFromTutor: raw.fields.hidePreviousContentFromTutor === 'true' ? true : undefined,
-        optional: raw.fields.optional === 'true' ? true : undefined,
+        hidePreviousContentFromUser: raw.fields.hidePreviousContentFromUser?.toLowerCase() === 'true' ? true : undefined,
+        hidePreviousContentFromTutor: raw.fields.hidePreviousContentFromTutor?.toLowerCase() === 'true' ? true : undefined,
+        optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
       };
       return { segment, errors };
     }
@@ -283,7 +315,7 @@ function convertSegment(
         type: 'article-excerpt',
         fromAnchor,
         toAnchor,
-        optional: raw.fields.optional === 'true' ? true : undefined,
+        optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
       };
       return { segment, errors };
     }
@@ -304,11 +336,32 @@ function convertSegment(
         return { segment: null, errors };
       }
 
+
+      // Validate timestamp formats at parse time for better error reporting
+      const fromStr = fromField || '0:00';
+      if (parseTimestamp(fromStr) === null) {
+        errors.push({
+          file,
+          line: raw.line,
+          message: `Invalid timestamp format in from:: field: '${fromStr}'`,
+          suggestion: "Expected format: M:SS (e.g., 1:30) or H:MM:SS (e.g., 1:30:00)",
+          severity: 'warning',
+        });
+      }
+      if (parseTimestamp(toField) === null) {
+        errors.push({
+          file,
+          line: raw.line,
+          message: `Invalid timestamp format in to:: field: '${toField}'`,
+          suggestion: "Expected format: M:SS (e.g., 5:45) or H:MM:SS (e.g., 1:30:00)",
+          severity: 'warning',
+        });
+      }
       const segment: ParsedVideoExcerptSegment = {
         type: 'video-excerpt',
         fromTimeStr: fromField || '0:00',  // Default to start of video
         toTimeStr: toField,
-        optional: raw.fields.optional === 'true' ? true : undefined,
+        optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
       };
       return { segment, errors };
     }
@@ -376,6 +429,10 @@ export function parseLens(content: string, file: string): LensParseResult {
 
   const { frontmatter, body, bodyStartLine } = frontmatterResult;
 
+  // Check for frontmatter field typos
+  const VALID_LENS_FIELDS = ['id'];
+  errors.push(...detectFrontmatterTypos(frontmatter, VALID_LENS_FIELDS, file));
+
   // Validate required id field
   if (!frontmatter.id) {
     errors.push({
@@ -383,6 +440,17 @@ export function parseLens(content: string, file: string): LensParseResult {
       line: 2,
       message: 'Missing required field: id',
       suggestion: "Add 'id: <uuid>' to frontmatter",
+      severity: 'error',
+    });
+    return { lens: null, errors };
+  }
+
+  if (typeof frontmatter.id !== 'string') {
+    errors.push({
+      file,
+      line: 2,
+      message: `Field 'id' must be a string, got ${typeof frontmatter.id}`,
+      suggestion: "Use quotes: id: '12345'",
       severity: 'error',
     });
     return { lens: null, errors };
@@ -467,6 +535,18 @@ export function parseLens(content: string, file: string): LensParseResult {
       const typoWarnings = detectFieldTypos(rawSeg.fields, file, rawSeg.line);
       errors.push(...typoWarnings);
 
+
+      // Check segment/section type compatibility
+      const validSegs = VALID_SEGMENTS_PER_SECTION[outputType];
+      if (validSegs && !validSegs.has(rawSeg.type)) {
+        errors.push({
+          file,
+          line: rawSeg.line,
+          message: `Segment type '${rawSeg.type}' is not valid in a ${rawSection.rawType} section`,
+          suggestion: `Valid segment types for ${rawSection.rawType}: ${[...(validSegs)].join(', ')}`,
+          severity: 'warning',
+        });
+      }
       const { segment, errors: conversionErrors } = convertSegment(rawSeg, outputType, file);
       errors.push(...conversionErrors);
       if (segment) {
@@ -494,6 +574,21 @@ export function parseLens(content: string, file: string): LensParseResult {
     };
 
     parsedSections.push(parsedSection);
+  }
+
+  // Check for conflicting section types (Article + Video is nonsensical)
+  const sourceTypes = new Set(
+    parsedSections.map(s => s.type).filter(t => t !== 'page')
+  );
+  if (sourceTypes.size > 1) {
+    const typeList = [...sourceTypes].join(', ');
+    errors.push({
+      file,
+      line: parsedSections[0]?.line ?? bodyStartLine,
+      message: `Lens has conflicting section types: ${typeList}. Each lens should use a single source type.`,
+      suggestion: 'Split into separate lens files, one per source type',
+      severity: 'warning',
+    });
   }
 
   const lens: ParsedLens = {

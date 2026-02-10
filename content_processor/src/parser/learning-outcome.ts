@@ -3,7 +3,7 @@ import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, LO_SECTION_TYPES } from './sections.js';
 import { parseWikilink, resolveWikilinkPath, hasRelativePath } from './wikilink.js';
-import { detectFieldTypos } from '../validator/field-typos.js';
+import { detectFieldTypos, detectFrontmatterTypos } from '../validator/field-typos.js';
 
 export interface ParsedLensRef {
   source: string;       // Raw wikilink
@@ -40,6 +40,10 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
 
   const { frontmatter, body, bodyStartLine } = frontmatterResult;
 
+  // Check for frontmatter field typos
+  const VALID_LO_FIELDS = ['id', 'discussion'];
+  errors.push(...detectFrontmatterTypos(frontmatter, VALID_LO_FIELDS, file));
+
   // Validate required id field
   if (!frontmatter.id) {
     errors.push({
@@ -47,6 +51,17 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
       line: 2,
       message: 'Missing required field: id',
       suggestion: "Add 'id: <uuid>' to frontmatter",
+      severity: 'error',
+    });
+    return { learningOutcome: null, errors };
+  }
+
+  if (typeof frontmatter.id !== 'string') {
+    errors.push({
+      file,
+      line: 2,
+      message: `Field 'id' must be a string, got ${typeof frontmatter.id}`,
+      suggestion: "Use quotes: id: '12345'",
       severity: 'error',
     });
     return { learningOutcome: null, errors };
@@ -115,7 +130,7 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
       }
 
       const resolvedPath = resolveWikilinkPath(wikilink.path, file);
-      const optional = section.fields.optional === 'true';
+      const optional = section.fields.optional?.toLowerCase() === 'true';
 
       lenses.push({
         source,

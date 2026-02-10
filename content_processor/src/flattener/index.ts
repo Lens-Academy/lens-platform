@@ -123,7 +123,7 @@ export function flattenModule(
         type: 'page',
         meta: { title: section.title },
         segments: textResult.segments,
-        optional: section.fields.optional === 'true',
+        optional: section.fields.optional?.toLowerCase() === 'true',
         contentId: section.fields.id ?? null,
         learningOutcomeId: null,
         learningOutcomeName: null,
@@ -322,8 +322,8 @@ function flattenLearningOutcomeSection(
               if (articleFrontmatter.frontmatter.author) {
                 meta.author = articleFrontmatter.frontmatter.author as string;
               }
-              if (articleFrontmatter.frontmatter.sourceUrl) {
-                meta.sourceUrl = articleFrontmatter.frontmatter.sourceUrl as string;
+              if (articleFrontmatter.frontmatter.source_url) {
+                meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
               }
             }
           }
@@ -391,7 +391,7 @@ function flattenLearningOutcomeSection(
       type: sectionType,
       meta,
       segments,
-      optional: section.fields.optional === 'true' || lensRef.optional,
+      optional: section.fields.optional?.toLowerCase() === 'true' || lensRef.optional,
       learningOutcomeId: lo.id ?? null,
       learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
       contentId: lens.id ?? null,
@@ -420,8 +420,15 @@ function flattenUncategorizedSection(
   // Parse the section body for ## Lens: subsections
   const lensRefs = parseUncategorizedLensRefs(section.body, modulePath);
 
-  // If no lens refs found, return empty array
+  // If no lens refs found, warn and return empty array
   if (lensRefs.length === 0) {
+    errors.push({
+      file: modulePath,
+      line: section.line,
+      message: 'Uncategorized section has no ## Lens: references — this section will produce no output',
+      suggestion: "Add '## Lens: [[../Lenses/lens-name.md|Display]]' references",
+      severity: 'warning',
+    });
     return { sections: [], errors };
   }
 
@@ -494,8 +501,8 @@ function flattenUncategorizedSection(
               if (articleFrontmatter.frontmatter.author) {
                 meta.author = articleFrontmatter.frontmatter.author as string;
               }
-              if (articleFrontmatter.frontmatter.sourceUrl) {
-                meta.sourceUrl = articleFrontmatter.frontmatter.sourceUrl as string;
+              if (articleFrontmatter.frontmatter.source_url) {
+                meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
               }
             }
           }
@@ -613,7 +620,7 @@ function parseUncategorizedLensRefs(
             lensRefs.push({
               source: currentFields.source,
               resolvedPath,
-              optional: currentFields.optional === 'true',
+              optional: currentFields.optional?.toLowerCase() === 'true',
             });
           }
         }
@@ -640,7 +647,7 @@ function parseUncategorizedLensRefs(
           lensRefs.push({
             source: currentFields.source,
             resolvedPath,
-            optional: currentFields.optional === 'true',
+            optional: currentFields.optional?.toLowerCase() === 'true',
           });
         }
       }
@@ -689,7 +696,7 @@ function parseUncategorizedLensRefs(
         lensRefs.push({
           source: currentFields.source,
           resolvedPath,
-          optional: currentFields.optional === 'true',
+          optional: currentFields.optional?.toLowerCase() === 'true',
         });
       }
     }

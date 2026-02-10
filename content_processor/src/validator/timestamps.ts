@@ -82,6 +82,13 @@ export function validateTimestamps(content: string, file: string): ContentError[
         }
         prevSeconds = seconds;
       }
+    } else {
+      errors.push({
+        file,
+        message: `Entry ${i}: 'start' must be a string, got ${typeof entry.start}`,
+        suggestion: "Use string format like '0:01.32' instead of a number",
+        severity: 'error',
+      });
     }
   }
 

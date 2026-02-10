@@ -494,4 +494,80 @@ content:: Hello
       expect(loErrors).toHaveLength(0);
     });
   });
+
+  describe('unrecognized file warnings', () => {
+    it('warns about files in near-miss directory "Module" instead of "modules"', () => {
+      const files = new Map([
+        ['Module/intro.md', `---
+slug: intro
+title: Introduction
+---
+# Page: Intro
+`],
+      ]);
+
+      const result = processContent(files);
+
+      expect(result.errors.some(e =>
+        e.severity === 'warning' &&
+        e.file === 'Module/intro.md' &&
+        e.message.includes('not recognized')
+      )).toBe(true);
+    });
+
+    it('suggests correct directory for near-miss "course"', () => {
+      const files = new Map([
+        ['course/my-course.md', `---
+slug: my-course
+title: My Course
+---
+`],
+      ]);
+
+      const result = processContent(files);
+
+      expect(result.errors.some(e =>
+        e.file === 'course/my-course.md' &&
+        e.suggestion?.includes('courses/')
+      )).toBe(true);
+    });
+
+    it('suggests correct directory for near-miss "Lens" (singular)', () => {
+      const files = new Map([
+        ['Lens/my-lens.md', `---
+id: 550e8400-e29b-41d4-a716-446655440001
+---
+### Page: Intro
+#### Text
+content:: Hello
+`],
+      ]);
+
+      const result = processContent(files);
+
+      expect(result.errors.some(e =>
+        e.file === 'Lens/my-lens.md' &&
+        e.suggestion?.includes('Lenses/')
+      )).toBe(true);
+    });
+
+    it('does not warn about files in correctly named directories', () => {
+      const files = new Map([
+        ['modules/valid.md', `---
+slug: valid
+title: Valid
+---
+# Page: Test
+## Text
+content:: Hello
+`],
+      ]);
+
+      const result = processContent(files);
+
+      expect(result.errors.filter(e =>
+        e.message.includes('not recognized')
+      )).toHaveLength(0);
+    });
+  });
 });

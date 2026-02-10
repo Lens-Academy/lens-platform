@@ -3,6 +3,7 @@ import type { ContentError, TextSegment, ChatSegment, Segment } from '../index.j
 import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, MODULE_SECTION_TYPES, type ParsedSection } from './sections.js';
 import { validateSlugFormat } from '../validator/field-values.js';
+import { detectFrontmatterTypos } from '../validator/field-typos.js';
 
 export interface PageSegmentResult {
   segments: (TextSegment | ChatSegment)[];
@@ -24,12 +25,14 @@ interface RawSubsection {
 function collectRawSubsections(
   body: string,
   baseLineNum: number
-): { subsections: RawSubsection[]; unknownHeaders: { rawType: string; line: number }[] } {
+): { subsections: RawSubsection[]; unknownHeaders: { rawType: string; line: number }[]; warnings: ContentError[] } {
   const subsections: RawSubsection[] = [];
   const unknownHeaders: { rawType: string; line: number }[] = [];
+  const warnings: ContentError[] = [];
   const lines = body.split('\n');
 
   let current: RawSubsection | null = null;
+  let freeTextWarned = false;
   let currentFieldName: string | null = null;
   let currentFieldLines: string[] = [];
 
@@ -57,6 +60,7 @@ function collectRawSubsections(
     const headerMatch = line.match(/^##\s+(\S.*?)\s*$/);
     if (headerMatch) {
       finalizeSubsection();
+      freeTextWarned = false;
 
       const rawType = headerMatch[1].trim();
       const normalizedType = rawType.toLowerCase();
@@ -81,11 +85,20 @@ function collectRawSubsections(
     } else if (currentFieldName) {
       // Continue multiline field value
       currentFieldLines.push(line);
+    } else if (line.trim() && !freeTextWarned) {
+      freeTextWarned = true;
+      warnings.push({
+        file: '',
+        line: lineNum,
+        message: 'Text outside of a field:: definition will be ignored',
+        suggestion: 'Place this text inside a field (e.g., content:: your text), or remove it',
+        severity: 'warning' as const,
+      });
     }
   }
 
   finalizeSubsection();
-  return { subsections, unknownHeaders };
+  return { subsections, unknownHeaders, warnings };
 }
 
 /**
@@ -149,8 +162,8 @@ function convertSubsections(
         const segment: ChatSegment = {
           type: 'chat',
           instructions: instructions || '',
-          hidePreviousContentFromUser: sub.fields.hidePreviousContentFromUser === 'true' ? true : undefined,
-          hidePreviousContentFromTutor: sub.fields.hidePreviousContentFromTutor === 'true' ? true : undefined,
+          hidePreviousContentFromUser: sub.fields.hidePreviousContentFromUser?.toLowerCase() === 'true' ? true : undefined,
+          hidePreviousContentFromTutor: sub.fields.hidePreviousContentFromTutor?.toLowerCase() === 'true' ? true : undefined,
         };
         segments.push(segment);
         break;
@@ -177,7 +190,12 @@ export function parsePageSegments(
 ): PageSegmentResult {
   const errors: ContentError[] = [];
 
-  const { subsections, unknownHeaders } = collectRawSubsections(body, baseLineNum);
+  const { subsections, unknownHeaders, warnings } = collectRawSubsections(body, baseLineNum);
+
+  // Forward free-text warnings with file path
+  for (const w of warnings) {
+    errors.push({ ...w, file });
+  }
 
   // Report unknown headers
   for (const unk of unknownHeaders) {
@@ -223,6 +241,10 @@ export function parseModule(content: string, file: string): ModuleParseResult {
   }
 
   const { frontmatter, body, bodyStartLine } = frontmatterResult;
+
+  // Check for frontmatter field typos
+  const VALID_MODULE_FIELDS = ['slug', 'title', 'contentId', 'id', 'discussion'];
+  errors.push(...detectFrontmatterTypos(frontmatter, VALID_MODULE_FIELDS, file));
 
   // Validate required frontmatter fields
   const slug = frontmatter.slug;
@@ -288,6 +310,16 @@ export function parseModule(content: string, file: string): ModuleParseResult {
     section.line += bodyStartLine - 1;
   }
 
+
+  if (sectionsResult.sections.length === 0) {
+    errors.push({
+      file,
+      line: bodyStartLine,
+      message: 'Module has no sections',
+      suggestion: "Add sections like '# Page:', '# Learning Outcome:', or '# Uncategorized:'",
+      severity: 'warning',
+    });
+  }
   const module: ParsedModule = {
     slug: frontmatter.slug as string,
     title: frontmatter.title as string,

@@ -83,7 +83,7 @@ title: Valid Title
       expect(result.module).not.toBeNull();
       expect(result.module?.slug).toBe('valid-slug');
       expect(result.module?.title).toBe('Valid Title');
-      expect(result.errors).toHaveLength(0);
+      expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
     });
   });
 
@@ -164,8 +164,25 @@ title: Valid Title
 
       expect(result.module).not.toBeNull();
       expect(result.module?.slug).toBe('intro-101');
-      expect(result.errors).toHaveLength(0);
+      expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
     });
+  });
+
+  it('warns when module has no sections', () => {
+    const content = `---
+slug: empty-module
+title: Empty Module
+---
+
+Just some notes here, no sections.
+`;
+
+    const result = parseModule(content, 'modules/empty.md');
+
+    expect(result.errors.some(e =>
+      e.severity === 'warning' &&
+      e.message.includes('no sections')
+    )).toBe(true);
   });
 
   it('parses complete module', () => {
@@ -482,5 +499,78 @@ instructions::
       e.severity === 'warning' &&
       e.message.toLowerCase().includes('empty')
     )).toBe(true);
+  });
+});
+
+describe('parsePageSegments free text warnings', () => {
+  it('warns when free text appears before first field in Text subsection', () => {
+    const body = `## Text
+Here is some introductory text I wanted to add.
+content:: The actual content
+`;
+
+    const result = parsePageSegments(body, 'modules/test.md', 10);
+
+    expect(result.errors.some(e =>
+      e.severity === 'warning' &&
+      e.message.includes('ignored')
+    )).toBe(true);
+    expect(result.segments).toHaveLength(1);
+    expect(result.segments[0].type).toBe('text');
+  });
+
+  it('warns when free text appears before first field in Chat subsection', () => {
+    const body = `## Chat
+Please discuss the following topics.
+instructions:: Discuss AI safety concepts
+`;
+
+    const result = parsePageSegments(body, 'modules/test.md', 10);
+
+    expect(result.errors.some(e =>
+      e.severity === 'warning' &&
+      e.message.includes('ignored')
+    )).toBe(true);
+  });
+
+  it('does not warn for blank lines before first field', () => {
+    const body = `## Text
+
+content:: The actual content
+`;
+
+    const result = parsePageSegments(body, 'modules/test.md', 10);
+
+    expect(result.errors.filter(e =>
+      e.message.includes('ignored')
+    )).toHaveLength(0);
+  });
+
+  it('only warns once per subsection for multiple free text lines', () => {
+    const body = `## Text
+Line one of free text.
+Line two of free text.
+content:: The actual content
+`;
+
+    const result = parsePageSegments(body, 'modules/test.md', 10);
+
+    const freeTextWarnings = result.errors.filter(e =>
+      e.message.includes('ignored')
+    );
+    expect(freeTextWarnings).toHaveLength(1);
+  });
+
+  it('handles capitalized boolean values in Page Chat subsection', () => {
+    const body = `## Chat
+instructions:: Discuss the key concepts.
+hidePreviousContentFromUser:: True
+`;
+
+    const result = parsePageSegments(body, 'modules/test.md', 10);
+
+    const chatSeg = result.segments.find(s => s.type === 'chat');
+    expect(chatSeg).toBeDefined();
+    expect((chatSeg as any).hidePreviousContentFromUser).toBe(true);
   });
 });

@@ -79,3 +79,20 @@ describe('validateTimestamps', () => {
     expect(errors.some(e => e.severity === 'warning')).toBe(true);
   });
 });
+
+// GAP 18: Numeric start values should be caught
+describe('validateTimestamps - numeric start field', () => {
+  it('reports error when start field is a number instead of string', () => {
+    const content = JSON.stringify([
+      { text: 'Hello', start: 0.4 },
+      { text: 'World', start: 0.88 },
+    ]);
+
+    const errors = validateTimestamps(content, 'video_transcripts/test.timestamps.json');
+    expect(errors.some(e =>
+      e.severity === 'error' &&
+      e.message.includes('Entry 0') &&
+      e.message.includes('string')
+    )).toBe(true);
+  });
+});

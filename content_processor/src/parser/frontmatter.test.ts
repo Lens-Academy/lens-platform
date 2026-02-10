@@ -51,6 +51,19 @@ title: Never Closed`;
     expect(result.error?.file).toBe('modules/test.md');
   });
 
+  it('handles Windows \\r\\n line endings', () => {
+    const content = "---\r\nslug: my-module\r\ntitle: My Module\r\n---\r\n\r\n# Content here";
+
+    const result = parseFrontmatter(content);
+
+    expect(result.error).toBeUndefined();
+    expect(result.frontmatter).toEqual({
+      slug: 'my-module',
+      title: 'My Module',
+    });
+    expect(result.body).toBe('\n# Content here');
+  });
+
   it('handles invalid YAML syntax', () => {
     const content = `---
 slug: test
