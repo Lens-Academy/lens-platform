@@ -50,6 +50,7 @@ async def record_voice_attendance(
                 )
             )
             .order_by(meetings.c.scheduled_at)
+            .limit(1)
         )
         meeting_result = await conn.execute(meeting_query)
         meeting_row = meeting_result.mappings().first()

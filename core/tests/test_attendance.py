@@ -61,7 +61,7 @@ class TestRecordVoiceAttendance:
         read_conn, write_conn, conn_ctx, tx_ctx = _setup_conn_mock(
             [
                 _make_mapping_result([meeting_row]),  # meeting lookup: match
-                _make_mapping_result([]),              # user lookup: no match
+                _make_mapping_result([]),  # user lookup: no match
             ]
         )
         with conn_ctx as mock_conn_ctx, tx_ctx as mock_tx_ctx:
@@ -84,7 +84,7 @@ class TestRecordVoiceAttendance:
         read_conn, write_conn, conn_ctx, tx_ctx = _setup_conn_mock(
             [
                 _make_mapping_result([meeting_row]),  # meeting lookup
-                _make_mapping_result([user_row]),     # user lookup
+                _make_mapping_result([user_row]),  # user lookup
             ]
         )
         # Upsert returns rowcount=0 (conflict, nothing inserted)
@@ -109,7 +109,7 @@ class TestRecordVoiceAttendance:
         read_conn, write_conn, conn_ctx, tx_ctx = _setup_conn_mock(
             [
                 _make_mapping_result([meeting_row]),  # meeting lookup
-                _make_mapping_result([user_row]),     # user lookup
+                _make_mapping_result([user_row]),  # user lookup
             ]
         )
         # Upsert returns rowcount=1 (inserted)
@@ -152,7 +152,9 @@ class TestRecordVoiceAttendance:
             )
 
             with conn_ctx as mock_conn_ctx, tx_ctx as mock_tx_ctx:
-                mock_conn_ctx.return_value.__aenter__ = AsyncMock(return_value=read_conn)
+                mock_conn_ctx.return_value.__aenter__ = AsyncMock(
+                    return_value=read_conn
+                )
                 mock_conn_ctx.return_value.__aexit__ = AsyncMock()
                 mock_tx_ctx.return_value.__aenter__ = AsyncMock(return_value=write_conn)
                 mock_tx_ctx.return_value.__aexit__ = AsyncMock()
