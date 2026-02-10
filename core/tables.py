@@ -12,6 +12,7 @@ from sqlalchemy import (
     MetaData,
     Table,
     Text,
+    UniqueConstraint,
     func,
     text,
 )
@@ -262,6 +263,7 @@ attendances = Table(
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Index("idx_attendances_meeting_id", "meeting_id"),
     Index("idx_attendances_user_id", "user_id"),
+    UniqueConstraint("meeting_id", "user_id", name="attendances_meeting_user_unique"),
 )
 
 
