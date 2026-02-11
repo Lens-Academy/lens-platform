@@ -2,6 +2,7 @@
 import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { detectFrontmatterTypos } from '../validator/field-typos.js';
+import { CONTENT_SCHEMAS } from '../content-schema.js';
 
 export interface ParsedArticle {
   title: string;
@@ -28,8 +29,7 @@ export function parseArticle(content: string, file: string): ArticleParseResult 
   const { frontmatter } = frontmatterResult;
 
   // Check for frontmatter field typos
-  const VALID_ARTICLE_FIELDS = ['title', 'author', 'source_url', 'date'];
-  errors.push(...detectFrontmatterTypos(frontmatter, VALID_ARTICLE_FIELDS, file));
+  errors.push(...detectFrontmatterTypos(frontmatter, CONTENT_SCHEMAS['article'].allFields, file));
 
   // Validate required fields
   const requiredFields = ['title', 'author', 'source_url'] as const;

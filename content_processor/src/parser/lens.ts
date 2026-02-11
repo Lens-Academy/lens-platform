@@ -5,6 +5,7 @@ import { parseSections, LENS_SECTION_TYPES, LENS_OUTPUT_TYPE } from './sections.
 import { validateSegmentFields } from '../validator/segment-fields.js';
 import { validateFieldValues } from '../validator/field-values.js';
 import { detectFieldTypos, detectFrontmatterTypos } from '../validator/field-typos.js';
+import { CONTENT_SCHEMAS } from '../content-schema.js';
 import { parseWikilink, hasRelativePath } from './wikilink.js';
 import { parseTimestamp } from '../bundler/video.js';
 
@@ -430,8 +431,7 @@ export function parseLens(content: string, file: string): LensParseResult {
   const { frontmatter, body, bodyStartLine } = frontmatterResult;
 
   // Check for frontmatter field typos
-  const VALID_LENS_FIELDS = ['id'];
-  errors.push(...detectFrontmatterTypos(frontmatter, VALID_LENS_FIELDS, file));
+  errors.push(...detectFrontmatterTypos(frontmatter, CONTENT_SCHEMAS['lens'].allFields, file));
 
   // Validate required id field
   if (!frontmatter.id) {

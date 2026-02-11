@@ -30,7 +30,7 @@ function segmentSchema(required: string[], optional: string[], booleanFields: st
 
 export const CONTENT_SCHEMAS: Record<string, ContentTypeSchema> = {
   'module': contentSchema(['slug', 'title'], ['contentId', 'id', 'discussion']),
-  'course': contentSchema(['slug', 'title'], []),
+  'course': contentSchema(['slug', 'title'], ['id']),
   'lens': contentSchema(['id'], []),
   'learning-outcome': contentSchema(['id'], ['discussion']),
   'article': contentSchema(['title', 'author', 'source_url'], ['date']),

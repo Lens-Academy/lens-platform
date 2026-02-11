@@ -5,6 +5,8 @@ import { parseSections, type ParsedSection } from './sections.js';
 import { parseWikilink } from './wikilink.js';
 import { basename } from 'path';
 import { validateSlugFormat } from '../validator/field-values.js';
+import { detectFrontmatterTypos } from '../validator/field-typos.js';
+import { CONTENT_SCHEMAS } from '../content-schema.js';
 
 // Valid section types for course files
 export const COURSE_SECTION_TYPES = new Set(['module', 'meeting']);
@@ -99,6 +101,9 @@ export function parseCourse(content: string, file: string): CourseParseResult {
 
   const { frontmatter, body, bodyStartLine } = frontmatterResult;
 
+  // Check for frontmatter field typos
+  errors.push(...detectFrontmatterTypos(frontmatter, CONTENT_SCHEMAS['course'].allFields, file));
+
   // Validate required frontmatter fields
   if (!frontmatter.slug) {
     errors.push({
@@ -128,7 +133,7 @@ export function parseCourse(content: string, file: string): CourseParseResult {
     }
   }
 
-  if (errors.length > 0) {
+  if (errors.some(e => e.severity === 'error')) {
     return { course: null, errors };
   }
 

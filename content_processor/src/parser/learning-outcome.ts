@@ -4,6 +4,7 @@ import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, LO_SECTION_TYPES } from './sections.js';
 import { parseWikilink, resolveWikilinkPath, hasRelativePath } from './wikilink.js';
 import { detectFieldTypos, detectFrontmatterTypos } from '../validator/field-typos.js';
+import { CONTENT_SCHEMAS } from '../content-schema.js';
 
 export interface ParsedLensRef {
   source: string;       // Raw wikilink
@@ -41,8 +42,7 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
   const { frontmatter, body, bodyStartLine } = frontmatterResult;
 
   // Check for frontmatter field typos
-  const VALID_LO_FIELDS = ['id', 'discussion'];
-  errors.push(...detectFrontmatterTypos(frontmatter, VALID_LO_FIELDS, file));
+  errors.push(...detectFrontmatterTypos(frontmatter, CONTENT_SCHEMAS['learning-outcome'].allFields, file));
 
   // Validate required id field
   if (!frontmatter.id) {

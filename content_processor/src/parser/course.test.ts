@@ -156,6 +156,22 @@ title: Test Course
     )).toBe(true);
   });
 
+  it('warns about typos in frontmatter fields', () => {
+    const content = [
+      '---',
+      'slug: my-course',
+      'tilte: My Course',
+      '---',
+      '# Module: [[../modules/intro.md|Intro]]',
+    ].join('\n');
+
+    const { errors } = parseCourse(content, 'courses/test.md');
+
+    const typoWarning = errors.find(e => e.message.includes("'tilte'"));
+    expect(typoWarning).toBeDefined();
+    expect(typoWarning!.suggestion).toContain("'title'");
+  });
+
   it('accepts valid slug format', () => {
     const content = `---
 slug: my-course

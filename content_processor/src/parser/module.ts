@@ -4,6 +4,7 @@ import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, MODULE_SECTION_TYPES, type ParsedSection } from './sections.js';
 import { validateSlugFormat } from '../validator/field-values.js';
 import { detectFrontmatterTypos } from '../validator/field-typos.js';
+import { CONTENT_SCHEMAS } from '../content-schema.js';
 
 export interface PageSegmentResult {
   segments: (TextSegment | ChatSegment)[];
@@ -243,8 +244,7 @@ export function parseModule(content: string, file: string): ModuleParseResult {
   const { frontmatter, body, bodyStartLine } = frontmatterResult;
 
   // Check for frontmatter field typos
-  const VALID_MODULE_FIELDS = ['slug', 'title', 'contentId', 'id', 'discussion'];
-  errors.push(...detectFrontmatterTypos(frontmatter, VALID_MODULE_FIELDS, file));
+  errors.push(...detectFrontmatterTypos(frontmatter, CONTENT_SCHEMAS['module'].allFields, file));
 
   // Validate required frontmatter fields
   const slug = frontmatter.slug;
