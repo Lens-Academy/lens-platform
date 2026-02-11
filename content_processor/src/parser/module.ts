@@ -1,10 +1,9 @@
 // src/parser/module.ts
-import type { ContentError, TextSegment, ChatSegment, Segment } from '../index.js';
+import type { ContentError, TextSegment, ChatSegment } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, MODULE_SECTION_TYPES, type ParsedSection } from './sections.js';
 import { validateSlugFormat } from '../validator/field-values.js';
-import { detectFrontmatterTypos } from '../validator/field-typos.js';
-import { CONTENT_SCHEMAS } from '../content-schema.js';
+import { validateFrontmatter } from '../validator/validate-frontmatter.js';
 
 export interface PageSegmentResult {
   segments: (TextSegment | ChatSegment)[];
@@ -243,52 +242,16 @@ export function parseModule(content: string, file: string): ModuleParseResult {
 
   const { frontmatter, body, bodyStartLine } = frontmatterResult;
 
-  // Check for frontmatter field typos
-  errors.push(...detectFrontmatterTypos(frontmatter, CONTENT_SCHEMAS['module'].allFields, file));
+  const frontmatterErrors = validateFrontmatter(frontmatter, 'module', file);
+  errors.push(...frontmatterErrors);
 
-  // Validate required frontmatter fields
+  // Module-specific: validate slug format (only if slug is present and non-empty)
   const slug = frontmatter.slug;
-  if (slug === undefined || slug === null) {
-    errors.push({
-      file,
-      line: 2,
-      message: 'Missing required field: slug',
-      suggestion: "Add 'slug: your-module-slug' to frontmatter",
-      severity: 'error',
-    });
-  } else if (typeof slug === 'string' && slug.trim() === '') {
-    errors.push({
-      file,
-      line: 2,
-      message: 'Field slug cannot be empty or whitespace-only',
-      suggestion: 'Provide a non-empty value for slug',
-      severity: 'error',
-    });
-  } else if (typeof slug === 'string') {
-    // Validate slug format (after empty check)
+  if (typeof slug === 'string' && slug.trim() !== '') {
     const slugFormatError = validateSlugFormat(slug, file, 2);
     if (slugFormatError) {
       errors.push(slugFormatError);
     }
-  }
-
-  const title = frontmatter.title;
-  if (title === undefined || title === null) {
-    errors.push({
-      file,
-      line: 2,
-      message: 'Missing required field: title',
-      suggestion: "Add 'title: Your Module Title' to frontmatter",
-      severity: 'error',
-    });
-  } else if (typeof title === 'string' && title.trim() === '') {
-    errors.push({
-      file,
-      line: 2,
-      message: 'Field title cannot be empty or whitespace-only',
-      suggestion: 'Provide a non-empty value for title',
-      severity: 'error',
-    });
   }
 
   if (errors.length > 0) {

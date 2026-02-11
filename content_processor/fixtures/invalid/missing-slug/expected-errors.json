@@ -6,7 +6,7 @@
       "file": "modules/no-slug.md",
       "line": 2,
       "message": "Missing required field: slug",
-      "suggestion": "Add 'slug: your-module-slug' to frontmatter",
+      "suggestion": "Add 'slug' to frontmatter",
       "severity": "error"
     }
   ]

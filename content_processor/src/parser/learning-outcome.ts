@@ -3,8 +3,8 @@ import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, LO_SECTION_TYPES } from './sections.js';
 import { parseWikilink, resolveWikilinkPath, hasRelativePath } from './wikilink.js';
-import { detectFieldTypos, detectFrontmatterTypos } from '../validator/field-typos.js';
-import { CONTENT_SCHEMAS } from '../content-schema.js';
+import { detectFieldTypos } from '../validator/field-typos.js';
+import { validateFrontmatter } from '../validator/validate-frontmatter.js';
 
 export interface ParsedLensRef {
   source: string;       // Raw wikilink
@@ -41,21 +41,14 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
 
   const { frontmatter, body, bodyStartLine } = frontmatterResult;
 
-  // Check for frontmatter field typos
-  errors.push(...detectFrontmatterTypos(frontmatter, CONTENT_SCHEMAS['learning-outcome'].allFields, file));
+  const frontmatterErrors = validateFrontmatter(frontmatter, 'learning-outcome', file);
+  errors.push(...frontmatterErrors);
 
-  // Validate required id field
-  if (!frontmatter.id) {
-    errors.push({
-      file,
-      line: 2,
-      message: 'Missing required field: id',
-      suggestion: "Add 'id: <uuid>' to frontmatter",
-      severity: 'error',
-    });
+  if (frontmatterErrors.some(e => e.severity === 'error')) {
     return { learningOutcome: null, errors };
   }
 
+  // LO-specific: id must be a string
   if (typeof frontmatter.id !== 'string') {
     errors.push({
       file,
