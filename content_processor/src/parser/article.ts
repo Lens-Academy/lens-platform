@@ -1,8 +1,7 @@
 // src/parser/article.ts
 import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
-import { detectFrontmatterTypos } from '../validator/field-typos.js';
-import { CONTENT_SCHEMAS } from '../content-schema.js';
+import { validateFrontmatter } from '../validator/validate-frontmatter.js';
 
 export interface ParsedArticle {
   title: string;
@@ -28,36 +27,11 @@ export function parseArticle(content: string, file: string): ArticleParseResult 
 
   const { frontmatter } = frontmatterResult;
 
-  // Check for frontmatter field typos
-  errors.push(...detectFrontmatterTypos(frontmatter, CONTENT_SCHEMAS['article'].allFields, file));
+  // Validate frontmatter against schema (typo detection + required fields)
+  const frontmatterErrors = validateFrontmatter(frontmatter, 'article', file);
+  errors.push(...frontmatterErrors);
 
-  // Validate required fields
-  const requiredFields = ['title', 'author', 'source_url'] as const;
-  let hasRequiredError = false;
-
-  for (const field of requiredFields) {
-    const value = frontmatter[field];
-    if (value === undefined || value === null) {
-      errors.push({
-        file,
-        line: 2,
-        message: `Missing required field: ${field}`,
-        suggestion: `Add '${field}' to frontmatter`,
-        severity: 'error',
-      });
-      hasRequiredError = true;
-    } else if (typeof value === 'string' && value.trim() === '') {
-      errors.push({
-        file,
-        line: 2,
-        message: `Field '${field}' must not be empty`,
-        suggestion: `Provide a value for '${field}'`,
-        severity: 'error',
-      });
-      hasRequiredError = true;
-    }
-  }
-
+  const hasRequiredError = frontmatterErrors.some(e => e.severity === 'error');
   if (hasRequiredError) {
     return { article: null, errors };
   }
