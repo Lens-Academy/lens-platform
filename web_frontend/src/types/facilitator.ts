@@ -69,11 +69,17 @@ export interface TimelineItem {
   is_past?: boolean;
 }
 
+export interface ModuleStats {
+  time_seconds: number;
+  chat_count: number;
+}
+
 export interface TimelineMember {
   user_id: number;
   name: string;
   completed_ids: string[];
   meetings: Record<string, "attended" | "missed">;
+  module_stats: Record<string, ModuleStats>;
 }
 
 export interface TimelineData {

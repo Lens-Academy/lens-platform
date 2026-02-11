@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, Fragment } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { API_URL } from "../config";
 import { fetchWithRefresh } from "../api/fetchWithRefresh";
@@ -10,6 +10,7 @@ import type {
   ChatSession,
   MeetingAttendance,
   ModuleProgress,
+  ModuleStats,
   TimelineData,
   TimelineItem,
 } from "../types/facilitator";
@@ -17,11 +18,11 @@ import type {
 // --- Utilities ---
 
 function fmtDuration(seconds: number): string {
-  if (seconds < 60) return "<1m";
+  if (seconds < 60) return "<1min";
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  return `${m}m`;
+  if (h > 0) return m > 0 ? `${h}h ${m}min` : `${h}h`;
+  return `${m}min`;
 }
 
 function fmtTimeAgo(iso: string | null): { text: string; color: string } {
@@ -862,11 +863,12 @@ export default function Facilitator() {
                           <td className="sticky left-0 z-10 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 truncate max-w-[160px]">
                             {tm.name}
                           </td>
-                          <td className="px-2 py-1.5">
+                          <td className="px-2 py-1">
                             <TimelineRow
                               items={timeline.timeline_items}
                               completedSet={completedSet}
                               meetings={tm.meetings}
+                              moduleStats={tm.module_stats}
                             />
                           </td>
                         </tr>
@@ -878,41 +880,79 @@ export default function Facilitator() {
             </div>
           </div>
         )}
+
+      {/* Vertical Progress Timeline */}
+      {timeline &&
+        timeline.timeline_items.length > 0 &&
+        timeline.members.length > 0 && (
+          <div className="mt-6">
+            <h2 className="text-sm font-semibold text-slate-700 mb-2">
+              Progress Timeline (Vertical)
+            </h2>
+            <VerticalTimeline timeline={timeline} />
+          </div>
+        )}
     </div>
   );
 }
 
 // --- Timeline subcomponents ---
 
-function TimelineHeader({ items }: { items: TimelineItem[] }) {
-  return (
-    <div className="flex items-end gap-[3px]">
-      {items.map((item, i) => {
-        const prev = i > 0 ? items[i - 1] : null;
-        const moduleBreak =
-          item.type === "section" &&
-          prev?.type === "section" &&
-          prev.module_slug !== item.module_slug;
+/** Group flat timeline items into segments: consecutive sections of same module, or meetings. */
+interface TimelineSegment {
+  type: "module" | "meeting";
+  items: TimelineItem[];
+  slug?: string;
+  meetingNumber?: number;
+}
 
-        if (item.type === "meeting") {
+function buildSegments(items: TimelineItem[]): TimelineSegment[] {
+  const segs: TimelineSegment[] = [];
+  for (const item of items) {
+    if (item.type === "meeting") {
+      segs.push({
+        type: "meeting",
+        items: [item],
+        meetingNumber: item.number,
+      });
+    } else {
+      const last = segs[segs.length - 1];
+      if (last?.type === "module" && last.slug === item.module_slug) {
+        last.items.push(item);
+      } else {
+        segs.push({
+          type: "module",
+          items: [item],
+          slug: item.module_slug,
+        });
+      }
+    }
+  }
+  return segs;
+}
+
+function TimelineHeader({ items }: { items: TimelineItem[] }) {
+  const segs = useMemo(() => buildSegments(items), [items]);
+  return (
+    <div className="flex items-end gap-0">
+      {segs.map((seg, i) => {
+        if (seg.type === "meeting") {
           return (
             <div
               key={i}
-              className="w-4 h-4 flex items-center justify-center shrink-0 ml-0.5"
+              className="w-5 flex items-center justify-center shrink-0"
             >
               <span className="text-[9px] font-semibold text-slate-500">
-                {item.number}
+                {seg.meetingNumber}
               </span>
             </div>
           );
         }
-
-        return (
-          <Fragment key={i}>
-            {moduleBreak && <span className="w-0.5 shrink-0" />}
-            <span className="w-2 h-2 shrink-0" />
-          </Fragment>
-        );
+        // Module segment: one spacer per dot + gaps
+        const dotCount = seg.items.length;
+        // width = dots*8 + gaps*(dotCount-1)*3 + 2px inter-module gap
+        const w = dotCount * 8 + (dotCount - 1) * 3 + (i > 0 ? 2 : 0);
+        return <span key={i} className="shrink-0" style={{ width: w }} />;
       })}
     </div>
   );
@@ -922,51 +962,259 @@ function TimelineRow({
   items,
   completedSet,
   meetings,
+  moduleStats,
 }: {
   items: TimelineItem[];
   completedSet: Set<string>;
   meetings: Record<string, "attended" | "missed">;
+  moduleStats: Record<string, ModuleStats>;
 }) {
+  const segs = useMemo(() => buildSegments(items), [items]);
+
   return (
-    <div className="flex items-center gap-[3px]">
-      {items.map((item, i) => {
-        const prev = i > 0 ? items[i - 1] : null;
-        const moduleBreak =
-          item.type === "section" &&
-          prev?.type === "section" &&
-          prev.module_slug !== item.module_slug;
+    <div>
+      {/* Dots row */}
+      <div className="flex items-center gap-0">
+        {segs.map((seg, si) => {
+          if (seg.type === "meeting") {
+            const status = meetings[String(seg.meetingNumber)];
+            const color = status
+              ? status === "attended"
+                ? "bg-emerald-500"
+                : "bg-red-400"
+              : "bg-slate-200";
+            return (
+              <div key={si} className="w-5 flex items-center justify-center shrink-0">
+                <span
+                  className={`w-3.5 h-3.5 rounded-full border-2 border-white ${color}`}
+                  title={`Meeting ${seg.meetingNumber}: ${status || "upcoming"}`}
+                />
+              </div>
+            );
+          }
 
-        if (item.type === "meeting") {
-          const status = meetings[String(item.number)];
-          const color = status
-            ? status === "attended"
-              ? "bg-emerald-500"
-              : "bg-red-400"
-            : "bg-slate-200";
           return (
-            <span
-              key={i}
-              className={`w-4 h-4 rounded-full shrink-0 ml-0.5 border-2 border-white ${color}`}
-              title={`Meeting ${item.number}: ${status || "upcoming"}`}
-            />
+            <div
+              key={si}
+              className={`flex items-center gap-[3px] shrink-0 ${si > 0 ? "ml-0.5" : ""}`}
+            >
+              {seg.items.map((item, ii) => {
+                const done = item.content_id
+                  ? completedSet.has(item.content_id)
+                  : false;
+                return (
+                  <span
+                    key={ii}
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      done ? "bg-emerald-500" : "bg-slate-200"
+                    }`}
+                    title={item.module_slug || ""}
+                  />
+                );
+              })}
+            </div>
           );
-        }
+        })}
+      </div>
+      {/* Per-module annotation row */}
+      <div className="flex items-center gap-0 mt-px">
+        {segs.map((seg, si) => {
+          if (seg.type === "meeting") {
+            return <span key={si} className="w-5 shrink-0" />;
+          }
+          const dotCount = seg.items.length;
+          const w = dotCount * 8 + (dotCount - 1) * 3;
+          const stats = seg.slug ? moduleStats[seg.slug] : undefined;
+          const hasData = stats && (stats.time_seconds > 0 || stats.chat_count > 0);
+          return (
+            <div
+              key={si}
+              className={`shrink-0 overflow-hidden ${si > 0 ? "ml-0.5" : ""}`}
+              style={{ width: w }}
+            >
+              {hasData ? (
+                <div className="text-[10px] leading-tight text-slate-600 tabular-nums whitespace-nowrap">
+                  {stats.time_seconds > 0 && (
+                    <div>{fmtDuration(stats.time_seconds)}</div>
+                  )}
+                  {stats.chat_count > 0 && (
+                    <div>
+                      {stats.chat_count}
+                      {"\uD83D\uDCAC"}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <span className="text-[10px] leading-tight">&nbsp;</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
-        const done = item.content_id
-          ? completedSet.has(item.content_id)
-          : false;
-        return (
-          <Fragment key={i}>
-            {moduleBreak && <span className="w-0.5 shrink-0" />}
-            <span
-              className={`w-2 h-2 rounded-full shrink-0 ${
-                done ? "bg-emerald-500" : "bg-slate-200"
-              }`}
-              title={item.module_slug || ""}
-            />
-          </Fragment>
-        );
-      })}
+// --- Vertical timeline ---
+
+/** Column-based vertical timeline with tight dot clusters and inline stats. */
+function VerticalTimeline({ timeline }: { timeline: TimelineData }) {
+  const segs = useMemo(
+    () => buildSegments(timeline.timeline_items),
+    [timeline.timeline_items],
+  );
+
+  // Pixel constants — shared across label + member columns for alignment
+  const DOT_H = 10; // height per dot row (dot 8px + 2px gap)
+  const MOD_PAD = 6; // top+bottom padding per module block (3+3)
+  const MTG_H = 18; // meeting row height
+
+  const moduleH = (n: number) => n * DOT_H + MOD_PAD;
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <div className="inline-flex min-w-full">
+          {/* Left labels column */}
+          <div className="shrink-0 sticky left-0 z-10 bg-white border-r border-slate-200">
+            <div className="h-10 border-b border-slate-200" />
+            {segs.map((seg, si) =>
+              seg.type === "meeting" ? (
+                <div
+                  key={si}
+                  className="px-2 flex items-center"
+                  style={{ height: MTG_H }}
+                >
+                  <span className="text-[10px] font-semibold text-slate-600">
+                    Meeting {seg.meetingNumber}
+                  </span>
+                </div>
+              ) : (
+                <div
+                  key={si}
+                  className="px-2 flex items-center overflow-hidden"
+                  style={{ height: moduleH(seg.items.length) }}
+                >
+                  <span className="text-[10px] text-slate-500 truncate max-w-[100px] leading-tight">
+                    {seg.slug?.replace(/-/g, " ")}
+                  </span>
+                </div>
+              ),
+            )}
+          </div>
+
+          {/* Member columns */}
+          {timeline.members.map((tm) => {
+            const completedSet = new Set(tm.completed_ids);
+            return (
+              <div
+                key={tm.user_id}
+                className="shrink-0"
+                style={{ width: 64 }}
+              >
+                {/* Name */}
+                <div className="h-10 border-b border-slate-200 px-1 flex items-end pb-1">
+                  <span
+                    className="text-[10px] font-medium text-slate-700 leading-tight line-clamp-2"
+                    title={tm.name}
+                  >
+                    {tm.name}
+                  </span>
+                </div>
+
+                {/* Segments */}
+                {segs.map((seg, si) => {
+                  if (seg.type === "meeting") {
+                    const status =
+                      tm.meetings[String(seg.meetingNumber)];
+                    const color = status
+                      ? status === "attended"
+                        ? "bg-emerald-500"
+                        : "bg-red-400"
+                      : "bg-slate-200";
+                    return (
+                      <div
+                        key={si}
+                        className="flex items-center overflow-hidden"
+                        style={{ height: MTG_H, paddingLeft: 3 }}
+                      >
+                        <span
+                          className={`w-3.5 h-3.5 rounded-full shrink-0 ${color}`}
+                          title={`Meeting ${seg.meetingNumber}: ${status || "upcoming"}`}
+                        />
+                      </div>
+                    );
+                  }
+
+                  const stats = seg.slug
+                    ? tm.module_stats[seg.slug]
+                    : undefined;
+                  const hasStats =
+                    stats &&
+                    (stats.time_seconds > 0 || stats.chat_count > 0);
+
+                  return (
+                    <div
+                      key={si}
+                      className="flex items-start gap-1 px-1 overflow-hidden"
+                      style={{ height: moduleH(seg.items.length) }}
+                    >
+                      {/* Dots — each at a fixed offset */}
+                      <div
+                        className="relative shrink-0"
+                        style={{
+                          width: 12,
+                          height: moduleH(seg.items.length),
+                        }}
+                      >
+                        {seg.items.map((item, ii) => {
+                          const done = item.content_id
+                            ? completedSet.has(item.content_id)
+                            : false;
+                          return (
+                            <span
+                              key={ii}
+                              className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full ${
+                                done
+                                  ? "bg-emerald-500"
+                                  : "bg-slate-200"
+                              }`}
+                              style={{
+                                top: MOD_PAD / 2 + ii * DOT_H + 1,
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                      {/* Stats beside dots */}
+                      {hasStats && (
+                        <div
+                          className="min-w-0 flex flex-col justify-center"
+                          style={{
+                            height: moduleH(seg.items.length),
+                          }}
+                        >
+                          {stats.time_seconds > 0 && (
+                            <div className="text-[10px] text-slate-600 leading-tight tabular-nums whitespace-nowrap">
+                              {fmtDuration(stats.time_seconds)}
+                            </div>
+                          )}
+                          {stats.chat_count > 0 && (
+                            <div className="text-[10px] text-slate-600 leading-tight tabular-nums whitespace-nowrap">
+                              {stats.chat_count}
+                              {"\uD83D\uDCAC"}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

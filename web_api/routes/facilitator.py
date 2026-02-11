@@ -27,6 +27,7 @@ from core.queries.facilitator import (
     get_accessible_groups,
     get_group_completion_data,
     get_group_members_with_progress,
+    get_group_time_and_chat_data,
     get_user_all_progress,
     get_user_chat_sessions_for_facilitator,
     get_user_meeting_attendance,
@@ -116,6 +117,7 @@ async def get_group_timeline(
         completions, attendance, past_meetings = await get_group_completion_data(
             conn, group_id
         )
+        time_data, chat_data = await get_group_time_and_chat_data(conn, group_id)
 
     # Build timeline structure from course progression
     try:
@@ -123,6 +125,8 @@ async def get_group_timeline(
     except Exception:
         return {"timeline_items": [], "members": []}
 
+    # Map content_id -> module_slug for aggregation
+    content_to_slug: dict[str, str] = {}
     timeline_items: list[dict[str, Any]] = []
     for item in course.progression:
         if isinstance(item, ModuleRef):
@@ -134,6 +138,7 @@ async def get_group_timeline(
             for section in module.sections:
                 content_id = section.get("contentId")
                 if content_id:
+                    content_to_slug[content_id] = slug
                     timeline_items.append(
                         {
                             "type": "section",
@@ -150,7 +155,7 @@ async def get_group_timeline(
                 }
             )
 
-    # Build per-member data
+    # Build per-member data with module_stats
     members_out = []
     for m in members:
         uid = m["user_id"]
@@ -158,12 +163,25 @@ async def get_group_timeline(
         user_att: dict[str, str] = {}
         for num, attended in attendance.get(uid, {}).items():
             user_att[str(num)] = "attended" if attended else "missed"
+
+        # Aggregate time and chat counts by module slug
+        module_stats: dict[str, dict[str, int]] = {}
+        user_time = time_data.get(uid, {})
+        user_chats = chat_data.get(uid, {})
+        for cid, slug in content_to_slug.items():
+            if cid in user_time or cid in user_chats:
+                if slug not in module_stats:
+                    module_stats[slug] = {"time_seconds": 0, "chat_count": 0}
+                module_stats[slug]["time_seconds"] += user_time.get(cid, 0)
+                module_stats[slug]["chat_count"] += user_chats.get(cid, 0)
+
         members_out.append(
             {
                 "user_id": uid,
                 "name": m["name"],
                 "completed_ids": user_comps,
                 "meetings": user_att,
+                "module_stats": module_stats,
             }
         )
 

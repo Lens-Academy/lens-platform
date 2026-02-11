@@ -296,6 +296,62 @@ async def get_group_completion_data(
     return completions, attendance, past_meeting_numbers
 
 
+async def get_group_time_and_chat_data(
+    conn: AsyncConnection, group_id: int
+) -> tuple[dict[int, dict[str, int]], dict[int, dict[str, int]]]:
+    """Get bulk time-spent and chat-message-count data for all active participants.
+
+    Returns:
+        (time_data, chat_data)
+        - time_data: user_id -> {content_id_str: total_time_spent_s}
+        - chat_data: user_id -> {content_id_str: user_message_count}
+    """
+    # Time spent per user per content_id
+    time_result = await conn.execute(
+        select(
+            user_content_progress.c.user_id,
+            user_content_progress.c.content_id,
+            user_content_progress.c.total_time_spent_s,
+        )
+        .join(groups_users, user_content_progress.c.user_id == groups_users.c.user_id)
+        .where(
+            (groups_users.c.group_id == group_id)
+            & (groups_users.c.role == "participant")
+            & (groups_users.c.status == "active")
+            & (user_content_progress.c.total_time_spent_s > 0)
+        )
+    )
+    time_data: dict[int, dict[str, int]] = {}
+    for row in time_result:
+        time_data.setdefault(row.user_id, {})[str(row.content_id)] = (
+            row.total_time_spent_s
+        )
+
+    # Chat user-message counts per user per content_id
+    from sqlalchemy import text
+
+    chat_result = await conn.execute(
+        text("""
+            SELECT cs.user_id, cs.content_id::text, COUNT(*) as msg_count
+            FROM chat_sessions cs
+            CROSS JOIN LATERAL jsonb_array_elements(cs.messages) msg
+            JOIN groups_users gu ON gu.user_id = cs.user_id
+            WHERE gu.group_id = :group_id
+            AND gu.role = 'participant'
+            AND gu.status = 'active'
+            AND cs.content_id IS NOT NULL
+            AND msg.value->>'role' = 'user'
+            GROUP BY cs.user_id, cs.content_id
+        """),
+        {"group_id": group_id},
+    )
+    chat_data: dict[int, dict[str, int]] = {}
+    for row in chat_result:
+        chat_data.setdefault(row.user_id, {})[str(row.content_id)] = row.msg_count
+
+    return time_data, chat_data
+
+
 async def is_user_in_group(conn: AsyncConnection, user_id: int, group_id: int) -> bool:
     """Check if a user is an active member of a group."""
     result = await conn.execute(
