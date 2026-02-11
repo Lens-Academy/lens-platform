@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CONTENT_SCHEMAS, SEGMENT_SCHEMAS, ALL_KNOWN_FIELDS, ALL_BOOLEAN_FIELDS } from './content-schema.js';
+import { CONTENT_SCHEMAS, SEGMENT_SCHEMAS, ALL_KNOWN_FIELDS, ALL_BOOLEAN_FIELDS, VALID_FIELDS_BY_SEGMENT_TYPE } from './content-schema.js';
 
 describe('CONTENT_SCHEMAS', () => {
   it('defines schemas for all 6 content types', () => {
@@ -130,5 +130,25 @@ describe('derived field lists', () => {
   it('ALL_BOOLEAN_FIELDS has no duplicates', () => {
     const unique = new Set(ALL_BOOLEAN_FIELDS);
     expect(unique.size).toBe(ALL_BOOLEAN_FIELDS.length);
+  });
+});
+
+describe('VALID_FIELDS_BY_SEGMENT_TYPE (derived)', () => {
+  it('text segment allows content and optional', () => {
+    expect(VALID_FIELDS_BY_SEGMENT_TYPE['text']).toEqual(new Set(['content', 'optional']));
+  });
+
+  it('chat segment allows instructions, optional, and hide fields', () => {
+    expect(VALID_FIELDS_BY_SEGMENT_TYPE['chat']).toEqual(new Set([
+      'instructions', 'optional', 'hidePreviousContentFromUser', 'hidePreviousContentFromTutor',
+    ]));
+  });
+
+  it('article-excerpt allows from, to, optional', () => {
+    expect(VALID_FIELDS_BY_SEGMENT_TYPE['article-excerpt']).toEqual(new Set(['from', 'to', 'optional']));
+  });
+
+  it('video-excerpt allows from, to, optional', () => {
+    expect(VALID_FIELDS_BY_SEGMENT_TYPE['video-excerpt']).toEqual(new Set(['from', 'to', 'optional']));
   });
 });

@@ -1,21 +1,6 @@
 // src/validator/segment-fields.ts
 import type { ContentError } from '../index.js';
-
-/**
- * Define which fields are valid for each segment type.
- * This allows us to warn when a field appears in the wrong segment type.
- */
-const VALID_FIELDS_BY_SEGMENT_TYPE: Record<string, Set<string>> = {
-  text: new Set(['content', 'optional']),
-  chat: new Set([
-    'instructions',
-    'optional',
-    'hidePreviousContentFromUser',
-    'hidePreviousContentFromTutor',
-  ]),
-  'article-excerpt': new Set(['from', 'to', 'optional']),
-  'video-excerpt': new Set(['from', 'to', 'optional']),
-};
+import { VALID_FIELDS_BY_SEGMENT_TYPE } from '../content-schema.js';
 
 /**
  * Fields that are specific to excerpt segments (not valid in text/chat).

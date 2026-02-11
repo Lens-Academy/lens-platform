@@ -49,6 +49,14 @@ export const SEGMENT_SCHEMAS: Record<string, SegmentTypeSchema> = {
 };
 
 /**
+ * Valid fields per segment type, derived from SEGMENT_SCHEMAS.
+ * Used by segment-fields.ts to check for misplaced fields.
+ */
+export const VALID_FIELDS_BY_SEGMENT_TYPE: Record<string, Set<string>> = Object.fromEntries(
+  Object.entries(SEGMENT_SCHEMAS).map(([type, schema]) => [type, new Set(schema.allFields)])
+);
+
+/**
  * Section-level fields used in body sections (not frontmatter, not segments).
  * These are fields like source:: and learningOutcomeId:: used in LO/lens sections.
  */
