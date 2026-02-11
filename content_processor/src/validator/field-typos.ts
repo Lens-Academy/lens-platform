@@ -1,36 +1,6 @@
 // src/validator/field-typos.ts
 import type { ContentError } from '../index.js';
-
-/**
- * Known valid field names across all content types.
- * Used to detect likely typos via Levenshtein distance.
- */
-const KNOWN_FIELDS = [
-  // Common fields
-  'content',
-  'contentId',
-  'instructions',
-  'source',
-  'optional',
-  'from',
-  'to',
-  'id',
-  'slug',
-  'title',
-  // Article metadata (frontmatter)
-  'author',
-  'source_url',
-  'date',
-  'sourceUrl',
-  // Video metadata (frontmatter)
-  'channel',
-  'url',
-  // Chat segment fields
-  'hidePreviousContentFromUser',
-  'hidePreviousContentFromTutor',
-  // Learning outcome fields
-  'learningOutcomeId',
-];
+import { ALL_KNOWN_FIELDS } from '../content-schema.js';
 
 /**
  * Calculate the Levenshtein (edit) distance between two strings.
@@ -85,7 +55,7 @@ export function detectFieldTypos(
 
   for (const fieldName of Object.keys(fields)) {
     // Skip if it's a known valid field (case-sensitive match)
-    if (KNOWN_FIELDS.includes(fieldName)) {
+    if (ALL_KNOWN_FIELDS.includes(fieldName)) {
       continue;
     }
 
@@ -93,7 +63,7 @@ export function detectFieldTypos(
     let closest = '';
     let minDistance = Infinity;
 
-    for (const known of KNOWN_FIELDS) {
+    for (const known of ALL_KNOWN_FIELDS) {
       const dist = levenshtein(fieldName.toLowerCase(), known.toLowerCase());
       if (dist < minDistance && dist <= 2) {
         // Only suggest if distance <= 2 (likely typo)

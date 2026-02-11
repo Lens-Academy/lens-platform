@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CONTENT_SCHEMAS, SEGMENT_SCHEMAS } from './content-schema.js';
+import { CONTENT_SCHEMAS, SEGMENT_SCHEMAS, ALL_KNOWN_FIELDS, ALL_BOOLEAN_FIELDS } from './content-schema.js';
 
 describe('CONTENT_SCHEMAS', () => {
   it('defines schemas for all 6 content types', () => {
@@ -92,5 +92,43 @@ describe('SEGMENT_SCHEMAS', () => {
     );
     const textSchema = SEGMENT_SCHEMAS['text'];
     expect(textSchema.booleanFields).toEqual(['optional']);
+  });
+});
+
+describe('derived field lists', () => {
+  it('ALL_KNOWN_FIELDS includes all frontmatter fields from all content types', () => {
+    expect(ALL_KNOWN_FIELDS).toContain('slug');
+    expect(ALL_KNOWN_FIELDS).toContain('author');
+    expect(ALL_KNOWN_FIELDS).toContain('channel');
+    expect(ALL_KNOWN_FIELDS).toContain('discussion');
+  });
+
+  it('ALL_KNOWN_FIELDS includes all segment fields', () => {
+    expect(ALL_KNOWN_FIELDS).toContain('content');
+    expect(ALL_KNOWN_FIELDS).toContain('instructions');
+    expect(ALL_KNOWN_FIELDS).toContain('hidePreviousContentFromUser');
+    expect(ALL_KNOWN_FIELDS).toContain('from');
+    expect(ALL_KNOWN_FIELDS).toContain('to');
+  });
+
+  it('ALL_KNOWN_FIELDS includes section-level fields not in segments', () => {
+    expect(ALL_KNOWN_FIELDS).toContain('source');
+    expect(ALL_KNOWN_FIELDS).toContain('learningOutcomeId');
+  });
+
+  it('ALL_KNOWN_FIELDS has no duplicates', () => {
+    const unique = new Set(ALL_KNOWN_FIELDS);
+    expect(unique.size).toBe(ALL_KNOWN_FIELDS.length);
+  });
+
+  it('ALL_BOOLEAN_FIELDS includes optional and hide fields', () => {
+    expect(ALL_BOOLEAN_FIELDS).toContain('optional');
+    expect(ALL_BOOLEAN_FIELDS).toContain('hidePreviousContentFromUser');
+    expect(ALL_BOOLEAN_FIELDS).toContain('hidePreviousContentFromTutor');
+  });
+
+  it('ALL_BOOLEAN_FIELDS has no duplicates', () => {
+    const unique = new Set(ALL_BOOLEAN_FIELDS);
+    expect(unique.size).toBe(ALL_BOOLEAN_FIELDS.length);
   });
 });

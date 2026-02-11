@@ -47,3 +47,36 @@ export const SEGMENT_SCHEMAS: Record<string, SegmentTypeSchema> = {
   'article-excerpt': segmentSchema([], ['from', 'to', 'optional'], ['optional']),
   'video-excerpt': segmentSchema(['to'], ['from', 'optional'], ['optional']),
 };
+
+/**
+ * Section-level fields used in body sections (not frontmatter, not segments).
+ * These are fields like source:: and learningOutcomeId:: used in LO/lens sections.
+ */
+const SECTION_LEVEL_FIELDS = ['source', 'learningOutcomeId', 'sourceUrl'];
+
+/**
+ * All known field names across all content types, derived from schemas.
+ * Used by typo detection to suggest corrections for unrecognized fields.
+ */
+export const ALL_KNOWN_FIELDS: string[] = (() => {
+  const fields = new Set<string>();
+  for (const schema of Object.values(CONTENT_SCHEMAS)) {
+    for (const field of schema.allFields) fields.add(field);
+  }
+  for (const schema of Object.values(SEGMENT_SCHEMAS)) {
+    for (const field of schema.allFields) fields.add(field);
+  }
+  for (const field of SECTION_LEVEL_FIELDS) fields.add(field);
+  return [...fields];
+})();
+
+/**
+ * All boolean fields across all segment types, derived from schemas.
+ */
+export const ALL_BOOLEAN_FIELDS: string[] = (() => {
+  const fields = new Set<string>();
+  for (const schema of Object.values(SEGMENT_SCHEMAS)) {
+    for (const field of schema.booleanFields) fields.add(field);
+  }
+  return [...fields];
+})();
