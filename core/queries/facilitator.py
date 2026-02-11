@@ -235,14 +235,15 @@ async def get_user_meeting_attendance(
 
 async def get_group_completion_data(
     conn: AsyncConnection, group_id: int
-) -> tuple[dict[int, set[str]], dict[int, dict[int, bool]], set[int]]:
+) -> tuple[dict[int, set[str]], dict[int, dict[int, bool]], set[int], dict[int, dict[int, str]]]:
     """Get bulk completion and attendance data for all active participants.
 
     Returns:
-        (completions, attendance, past_meeting_numbers)
+        (completions, attendance, past_meeting_numbers, rsvps)
         - completions: user_id -> set of completed content_id strings
         - attendance: user_id -> {meeting_number: attended_bool}
         - past_meeting_numbers: set of meeting numbers that have occurred
+        - rsvps: user_id -> {meeting_number: rsvp_status_str}
     """
     # Completed content_ids per member
     comp_result = await conn.execute(
@@ -262,38 +263,49 @@ async def get_group_completion_data(
     for row in comp_result:
         completions.setdefault(row.user_id, set()).add(str(row.content_id))
 
-    # Past meetings for this group
-    mtg_result = await conn.execute(
-        select(meetings.c.meeting_id, meetings.c.meeting_number).where(
+    # All meetings for this group (need all for RSVPs, past subset for attendance)
+    all_mtg_result = await conn.execute(
+        select(meetings.c.meeting_id, meetings.c.meeting_number, meetings.c.scheduled_at).where(
             (meetings.c.group_id == group_id)
-            & (meetings.c.scheduled_at < func.now())
             & (meetings.c.meeting_number.isnot(None))
         )
     )
-    mtg_rows = list(mtg_result)
-    past_meeting_numbers = {r.meeting_number for r in mtg_rows}
-    meeting_id_to_num = {r.meeting_id: r.meeting_number for r in mtg_rows}
+    all_mtg_rows = list(all_mtg_result)
+    all_meeting_id_to_num = {r.meeting_id: r.meeting_number for r in all_mtg_rows}
+    past_meeting_numbers = {r.meeting_number for r in all_mtg_rows if r.scheduled_at < func.now().compile().params.get('now_1', r.scheduled_at)}
 
-    # Attendance per member for past meetings
+    # Determine past meetings by comparing scheduled_at
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    past_meeting_numbers = {r.meeting_number for r in all_mtg_rows if r.scheduled_at < now}
+    past_meeting_ids = {r.meeting_id for r in all_mtg_rows if r.scheduled_at < now}
+
+    # Attendance (past only) + RSVP (all meetings) per member
     attendance: dict[int, dict[int, bool]] = {}
-    if mtg_rows:
+    rsvps: dict[int, dict[int, str]] = {}
+    if all_mtg_rows:
         att_result = await conn.execute(
             select(
                 attendances.c.user_id,
                 attendances.c.meeting_id,
                 attendances.c.checked_in_at,
+                attendances.c.rsvp_status,
             ).where(
-                attendances.c.meeting_id.in_([r.meeting_id for r in mtg_rows])
+                attendances.c.meeting_id.in_([r.meeting_id for r in all_mtg_rows])
             )
         )
         for row in att_result:
-            mnum = meeting_id_to_num.get(row.meeting_id)
+            mnum = all_meeting_id_to_num.get(row.meeting_id)
             if mnum is not None:
-                attendance.setdefault(row.user_id, {})[mnum] = (
-                    row.checked_in_at is not None
-                )
+                # Only record attendance for past meetings
+                if row.meeting_id in past_meeting_ids:
+                    attendance.setdefault(row.user_id, {})[mnum] = (
+                        row.checked_in_at is not None
+                    )
+                if row.rsvp_status:
+                    rsvps.setdefault(row.user_id, {})[mnum] = row.rsvp_status
 
-    return completions, attendance, past_meeting_numbers
+    return completions, attendance, past_meeting_numbers, rsvps
 
 
 async def get_group_time_and_chat_data(

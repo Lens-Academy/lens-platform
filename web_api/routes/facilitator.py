@@ -114,7 +114,7 @@ async def get_group_timeline(
             raise HTTPException(403, "Access denied to this group")
 
         members = await get_group_members_with_progress(conn, group_id)
-        completions, attendance, past_meetings = await get_group_completion_data(
+        completions, attendance, past_meetings, rsvps = await get_group_completion_data(
             conn, group_id
         )
         time_data, chat_data = await get_group_time_and_chat_data(conn, group_id)
@@ -139,11 +139,17 @@ async def get_group_timeline(
                 content_id = section.get("contentId")
                 if content_id:
                     content_to_slug[content_id] = slug
+                    title = (
+                        section.get("meta", {}).get("title")
+                        or section.get("title")
+                        or "Untitled"
+                    )
                     timeline_items.append(
                         {
                             "type": "section",
                             "content_id": content_id,
                             "module_slug": slug,
+                            "title": title,
                         }
                     )
         elif isinstance(item, MeetingMarker):
@@ -163,6 +169,9 @@ async def get_group_timeline(
         user_att: dict[str, str] = {}
         for num, attended in attendance.get(uid, {}).items():
             user_att[str(num)] = "attended" if attended else "missed"
+        user_rsvps: dict[str, str] = {}
+        for num, status in rsvps.get(uid, {}).items():
+            user_rsvps[str(num)] = status
 
         # Aggregate time and chat counts by module slug
         module_stats: dict[str, dict[str, int]] = {}
@@ -175,13 +184,25 @@ async def get_group_timeline(
                 module_stats[slug]["time_seconds"] += user_time.get(cid, 0)
                 module_stats[slug]["chat_count"] += user_chats.get(cid, 0)
 
+        # Per-section time and chat data
+        section_times: dict[str, int] = {}
+        section_chats: dict[str, int] = {}
+        for cid in content_to_slug:
+            if cid in user_time:
+                section_times[cid] = user_time[cid]
+            if cid in user_chats:
+                section_chats[cid] = user_chats[cid]
+
         members_out.append(
             {
                 "user_id": uid,
                 "name": m["name"],
                 "completed_ids": user_comps,
                 "meetings": user_att,
+                "rsvps": user_rsvps,
                 "module_stats": module_stats,
+                "section_times": section_times,
+                "section_chats": section_chats,
             }
         )
 

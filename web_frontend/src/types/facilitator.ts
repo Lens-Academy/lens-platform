@@ -65,6 +65,7 @@ export interface TimelineItem {
   type: "section" | "meeting";
   content_id?: string;
   module_slug?: string;
+  title?: string;
   number?: number;
   is_past?: boolean;
 }
@@ -79,7 +80,10 @@ export interface TimelineMember {
   name: string;
   completed_ids: string[];
   meetings: Record<string, "attended" | "missed">;
+  rsvps: Record<string, "pending" | "attending" | "not_attending" | "tentative">;
   module_stats: Record<string, ModuleStats>;
+  section_times: Record<string, number>;
+  section_chats: Record<string, number>;
 }
 
 export interface TimelineData {

@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { API_URL } from "../config";
 import { fetchWithRefresh } from "../api/fetchWithRefresh";
 import { Skeleton, SkeletonText } from "../components/Skeleton";
+import { Check, ChevronDown, ChevronRight, Clock, MessageCircle, Minus, X } from "lucide-react";
 import type {
   FacilitatorGroup,
   GroupMember,
@@ -1057,19 +1058,112 @@ function TimelineRow({
 
 // --- Vertical timeline ---
 
+/** Animated section titles column for the vertical timeline. */
+function SectionTitlesColumn({
+  segs,
+  expanded,
+  onToggle,
+  moduleH,
+  mtgH,
+  dotH,
+}: {
+  segs: TimelineSegment[];
+  expanded: boolean;
+  onToggle: () => void;
+  moduleH: (n: number) => number;
+  mtgH: number;
+  dotH: number;
+}) {
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [contentWidth, setContentWidth] = useState(0);
+
+  // Measure natural width of expanded content
+  useEffect(() => {
+    if (innerRef.current) {
+      // Temporarily make visible to measure
+      const el = innerRef.current;
+      el.style.width = "auto";
+      el.style.position = "absolute";
+      el.style.visibility = "hidden";
+      const w = el.scrollWidth;
+      el.style.width = "";
+      el.style.position = "";
+      el.style.visibility = "";
+      if (w > 0) setContentWidth(w);
+    }
+  }, [segs]);
+
+  const BUTTON_W = 20;
+  const MAX_TITLES_W = 180;
+  const animatedWidth = expanded ? Math.min(Math.max(contentWidth, 60) + BUTTON_W, MAX_TITLES_W) : BUTTON_W;
+
+  return (
+    <div
+      className="shrink-0 border-r border-slate-200 overflow-hidden"
+      style={{
+        width: animatedWidth,
+        transition: "width 200ms ease-in-out",
+      }}
+    >
+      <div className="h-10 border-b border-slate-200 flex items-center justify-center" style={{ width: BUTTON_W }}>
+        <button
+          className="text-[10px] text-slate-400 hover:text-slate-600 cursor-pointer px-1"
+          onClick={onToggle}
+          title={expanded ? "Collapse sections" : "Expand sections"}
+        >
+          {expanded ? "›‹" : "‹›"}
+        </button>
+      </div>
+      <div ref={innerRef}>
+        {segs.map((seg, si) => {
+          if (seg.type === "meeting") {
+            return <div key={si} style={{ height: mtgH }} />;
+          }
+          return (
+            <div
+              key={si}
+              className="overflow-hidden flex flex-col justify-center"
+              style={{ height: moduleH(seg.items.length) }}
+            >
+              {seg.items.map((item, ii) => (
+                <div
+                  key={ii}
+                  className="flex items-center"
+                  style={{ height: dotH, paddingLeft: BUTTON_W, paddingRight: 8 }}
+                >
+                  <span
+                    className="text-[9px] text-slate-400 whitespace-nowrap leading-none"
+                    style={{
+                      opacity: expanded ? 1 : 0,
+                      transition: "opacity 200ms ease-in-out",
+                    }}
+                  >
+                    {item.title || "Untitled"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /** Column-based vertical timeline with tight dot clusters and inline stats. */
 function VerticalTimeline({ timeline }: { timeline: TimelineData }) {
   const segs = useMemo(
     () => buildSegments(timeline.timeline_items),
     [timeline.timeline_items],
   );
+  const [sectionsExpanded, setSectionsExpanded] = useState(false);
 
   // Pixel constants — shared across label + member columns for alignment
   const DOT_H = 10; // height per dot row (dot 8px + 2px gap)
-  const MOD_PAD = 6; // top+bottom padding per module block (3+3)
-  const MTG_H = 18; // meeting row height
-
-  const moduleH = (n: number) => n * DOT_H + MOD_PAD;
+  const V_PAD = 4; // vertical padding above/below every element (module or meeting)
+  const DOT_COL = 14; // fixed dot column width (fits 14px meeting dot)
+  const moduleH = (n: number) => n * DOT_H + V_PAD * 2;
+  const mtgH = 12 + V_PAD * 2; // 12px dot + symmetric padding
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
@@ -1083,7 +1177,7 @@ function VerticalTimeline({ timeline }: { timeline: TimelineData }) {
                 <div
                   key={si}
                   className="px-2 flex items-center"
-                  style={{ height: MTG_H }}
+                  style={{ height: mtgH }}
                 >
                   <span className="text-[10px] font-semibold text-slate-600">
                     Meeting {seg.meetingNumber}
@@ -1103,15 +1197,23 @@ function VerticalTimeline({ timeline }: { timeline: TimelineData }) {
             )}
           </div>
 
+          {/* Section titles column — always present, animates between collapsed/expanded */}
+          <SectionTitlesColumn
+            segs={segs}
+            expanded={sectionsExpanded}
+            onToggle={() => setSectionsExpanded((v) => !v)}
+            moduleH={moduleH}
+            mtgH={mtgH}
+            dotH={DOT_H}
+          />
+
           {/* Member columns */}
           {timeline.members.map((tm) => {
             const completedSet = new Set(tm.completed_ids);
+            const sectionTimes = tm.section_times ?? {};
+            const sectionChats = tm.section_chats ?? {};
             return (
-              <div
-                key={tm.user_id}
-                className="shrink-0"
-                style={{ width: 64 }}
-              >
+              <div key={tm.user_id} className="shrink-0">
                 {/* Name */}
                 <div className="h-10 border-b border-slate-200 px-1 flex items-end pb-1">
                   <span
@@ -1127,86 +1229,90 @@ function VerticalTimeline({ timeline }: { timeline: TimelineData }) {
                   if (seg.type === "meeting") {
                     const status =
                       tm.meetings[String(seg.meetingNumber)];
+                    const rsvp =
+                      (tm.rsvps ?? {})[String(seg.meetingNumber)];
                     const color = status
                       ? status === "attended"
                         ? "bg-emerald-500"
                         : "bg-red-400"
                       : "bg-slate-200";
+                    const rsvpIcon =
+                      rsvp === "attending" ? (
+                        <Check size={8} className="text-emerald-500" />
+                      ) : rsvp === "not_attending" ? (
+                        <X size={8} className="text-red-400" />
+                      ) : rsvp === "tentative" ? (
+                        <Minus size={8} className="text-amber-400" />
+                      ) : null;
                     return (
                       <div
                         key={si}
                         className="flex items-center overflow-hidden"
-                        style={{ height: MTG_H, paddingLeft: 3 }}
+                        style={{ height: mtgH }}
                       >
-                        <span
-                          className={`w-3.5 h-3.5 rounded-full shrink-0 ${color}`}
-                          title={`Meeting ${seg.meetingNumber}: ${status || "upcoming"}`}
-                        />
+                        <span className="shrink-0 flex items-center justify-center" style={{ width: DOT_COL }}>
+                          <span
+                            className={`w-3 h-3 rounded-full ${color}`}
+                            title={`Meeting ${seg.meetingNumber}: ${status || "upcoming"}`}
+                          />
+                        </span>
+                        {rsvpIcon && (
+                          <span className="inline-flex items-center gap-px shrink-0 ml-1" title={`RSVP: ${rsvp}`}>
+                            <span className="text-[8px] text-slate-400 leading-none">RSVP:</span>
+                            {rsvpIcon}
+                          </span>
+                        )}
                       </div>
                     );
                   }
 
-                  const stats = seg.slug
-                    ? tm.module_stats[seg.slug]
-                    : undefined;
-                  const hasStats =
-                    stats &&
-                    (stats.time_seconds > 0 || stats.chat_count > 0);
-
                   return (
                     <div
                       key={si}
-                      className="flex items-start gap-1 px-1 overflow-hidden"
+                      className="overflow-hidden flex flex-col justify-center"
                       style={{ height: moduleH(seg.items.length) }}
                     >
-                      {/* Dots — each at a fixed offset */}
-                      <div
-                        className="relative shrink-0"
-                        style={{
-                          width: 12,
-                          height: moduleH(seg.items.length),
-                        }}
-                      >
-                        {seg.items.map((item, ii) => {
-                          const done = item.content_id
-                            ? completedSet.has(item.content_id)
-                            : false;
-                          return (
-                            <span
-                              key={ii}
-                              className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full ${
-                                done
-                                  ? "bg-emerald-500"
-                                  : "bg-slate-200"
-                              }`}
-                              style={{
-                                top: MOD_PAD / 2 + ii * DOT_H + 1,
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                      {/* Stats beside dots */}
-                      {hasStats && (
-                        <div
-                          className="min-w-0 flex flex-col justify-center"
-                          style={{
-                            height: moduleH(seg.items.length),
-                          }}
-                        >
-                          {stats.time_seconds > 0 && (
-                            <div className="text-[10px] text-slate-600 leading-tight tabular-nums whitespace-nowrap">
-                              {fmtDuration(stats.time_seconds)}
-                            </div>
-                          )}
-                          {stats.chat_count > 0 && (
-                            <div className="text-[10px] text-slate-600 leading-tight tabular-nums whitespace-nowrap">
-                              {stats.chat_count}
-                              {"\uD83D\uDCAC"}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {seg.items.map((item, ii) => {
+                        const cid = item.content_id;
+                        const done = cid ? completedSet.has(cid) : false;
+                        const time = cid ? sectionTimes[cid] ?? 0 : 0;
+                        const chatCount = cid ? sectionChats[cid] ?? 0 : 0;
+                        return (
+                          <div
+                            key={ii}
+                            className="flex items-center"
+                            style={{ height: DOT_H }}
+                          >
+                            <span className="shrink-0 flex items-center justify-center" style={{ width: DOT_COL }}>
+                              <span
+                                className={`w-2 h-2 rounded-full ${
+                                  done ? "bg-emerald-500" : "bg-slate-200"
+                                }`}
+                              />
+                            </span>
+                            <span className="inline-flex items-center justify-end gap-px shrink-0" style={{ width: 18 }}>
+                              {time > 0 && (
+                                <>
+                                  <span className="text-[9px] text-slate-400 leading-none tabular-nums">
+                                    {Math.round(time / 60)}
+                                  </span>
+                                  <Clock size={7} className="text-slate-400" />
+                                </>
+                              )}
+                            </span>
+                            <span className="inline-flex items-center justify-end gap-px shrink-0" style={{ width: 16 }}>
+                              {chatCount > 0 && (
+                                <>
+                                  <span className="text-[9px] text-indigo-400 leading-none tabular-nums">
+                                    {chatCount}
+                                  </span>
+                                  <MessageCircle size={7} className="text-indigo-400" />
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
