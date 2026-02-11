@@ -1,0 +1,49 @@
+// content-schema.ts — Single source of truth for content type and segment type field definitions.
+
+export interface ContentTypeSchema {
+  /** Fields that must be present and non-empty in frontmatter */
+  requiredFields: string[];
+  /** Fields that may be present in frontmatter */
+  optionalFields: string[];
+  /** Combined required + optional (derived, for convenience) */
+  allFields: string[];
+}
+
+export interface SegmentTypeSchema {
+  /** Fields that must be present in this segment type */
+  requiredFields: string[];
+  /** Fields that may be present in this segment type */
+  optionalFields: string[];
+  /** Combined required + optional (derived, for convenience) */
+  allFields: string[];
+  /** Fields that must be 'true' or 'false' */
+  booleanFields: string[];
+}
+
+function contentSchema(required: string[], optional: string[]): ContentTypeSchema {
+  return { requiredFields: required, optionalFields: optional, allFields: [...required, ...optional] };
+}
+
+function segmentSchema(required: string[], optional: string[], booleanFields: string[]): SegmentTypeSchema {
+  return { requiredFields: required, optionalFields: optional, allFields: [...required, ...optional], booleanFields };
+}
+
+export const CONTENT_SCHEMAS: Record<string, ContentTypeSchema> = {
+  'module': contentSchema(['slug', 'title'], ['contentId', 'id', 'discussion']),
+  'course': contentSchema(['slug', 'title'], []),
+  'lens': contentSchema(['id'], []),
+  'learning-outcome': contentSchema(['id'], ['discussion']),
+  'article': contentSchema(['title', 'author', 'source_url'], ['date']),
+  'video-transcript': contentSchema(['title', 'channel', 'url'], []),
+};
+
+export const SEGMENT_SCHEMAS: Record<string, SegmentTypeSchema> = {
+  'text': segmentSchema(['content'], ['optional'], ['optional']),
+  'chat': segmentSchema(
+    ['instructions'],
+    ['optional', 'hidePreviousContentFromUser', 'hidePreviousContentFromTutor'],
+    ['optional', 'hidePreviousContentFromUser', 'hidePreviousContentFromTutor'],
+  ),
+  'article-excerpt': segmentSchema([], ['from', 'to', 'optional'], ['optional']),
+  'video-excerpt': segmentSchema(['to'], ['from', 'optional'], ['optional']),
+};
