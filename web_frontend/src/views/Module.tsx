@@ -47,6 +47,7 @@ import ArticleExcerptGroup from "@/components/module/ArticleExcerptGroup";
 import { ModuleHeader } from "@/components/ModuleHeader";
 import ModuleDrawer from "@/components/module/ModuleDrawer";
 import type { ModuleDrawerHandle } from "@/components/module/ModuleDrawer";
+import { ChatSidebar } from "@/components/module/ChatSidebar";
 import ModuleCompleteModal from "@/components/module/ModuleCompleteModal";
 import AuthPromptModal from "@/components/module/AuthPromptModal";
 import {
@@ -417,6 +418,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     null,
   );
 
+  // Chat sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // TOC portal container for 3-column grid layout (set by callback ref)
+  const [tocContainer, setTocContainer] = useState<HTMLElement | null>(null);
+
   // Convert sections to Stage format for progress bar
   const stages: Stage[] = useMemo(() => {
     if (!module) return [];
@@ -552,6 +559,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Activity tracking for current section
   const currentSection = module?.sections[currentSectionIndex];
+  const isArticleSection =
+    currentSection?.type === "lens-article" ||
+    currentSection?.type === "article";
+
+  // Close chat sidebar when leaving article sections
+  useEffect(() => {
+    if (!isArticleSection) setIsSidebarOpen(false);
+  }, [isArticleSection]);
 
   // Unified activity tracking for current section (5 min inactivity timeout)
   // Covers article, video, and chat — triggerActivity() keeps it alive during chat
@@ -1134,8 +1149,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         testModeActive={testModeActive}
       />
 
-      {/* Main content - padding-top accounts for fixed header */}
-      <main className="pt-[var(--module-header-height)]">
+      {/* Layout: optional TOC column (xl+) + content + optional chat sidebar */}
+      <div
+        className={`pt-[var(--module-header-height)] ${
+          isArticleSection ? "xl:grid xl:grid-cols-12" : ""
+        }`}
+      >
+      {/* TOC column — article sections, xl+ only */}
+      {isArticleSection && (
+        <aside className="hidden xl:block xl:col-span-3">
+          <div
+            ref={setTocContainer}
+            className="sticky top-[calc(var(--module-header-height)+12px)] ml-auto w-[250px] pr-6 pt-4"
+          />
+        </aside>
+      )}
+
+      {/* Content + sidebar wrapper */}
+      <div className={`flex ${isArticleSection ? "xl:col-span-9" : ""}`}>
+      <main className="flex-1 min-w-0">
         {module.sections.map((section, sectionIndex) => {
           // In paginated mode, only render current section
           if (
@@ -1219,7 +1251,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     title={section.meta?.title}
                     duration={sectionDur}
                   />
-                  <ArticleSectionWrapper>
+                  <ArticleSectionWrapper tocPortalContainer={tocContainer}>
                     {(() => {
                       // Split segments into pre-excerpt, excerpt, post-excerpt groups
                       const segments = section.segments ?? [];
@@ -1295,7 +1327,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     title={section.meta?.title}
                     duration={sectionDur}
                   />
-                  <ArticleSectionWrapper>
+                  <ArticleSectionWrapper tocPortalContainer={tocContainer}>
                     {(() => {
                       // Split segments into pre-excerpt, excerpt, post-excerpt groups
                       const segments = section.segments ?? [];
@@ -1532,6 +1564,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           );
         })}
       </main>
+
+      {isArticleSection && (
+        <ChatSidebar
+          isOpen={isSidebarOpen}
+          onOpen={() => setIsSidebarOpen(true)}
+          onClose={() => setIsSidebarOpen(false)}
+          sectionTitle={currentSection?.meta?.title}
+          messages={messages}
+          pendingMessage={pendingMessage}
+          streamingContent={streamingContent}
+          isLoading={isLoading}
+          onSendMessage={(content) =>
+            handleSendMessage(content, currentSectionIndex, 0)
+          }
+          onRetryMessage={handleRetryMessage}
+        />
+      )}
+      </div>{/* /flex content+sidebar */}
+      </div>{/* /grid wrapper */}
 
       <ModuleDrawer
         ref={drawerRef}
