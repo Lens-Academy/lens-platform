@@ -214,12 +214,35 @@ export default function ModuleOverview({
             }
 
             if (item.kind === "branch" && colors.kind === "branch") {
+              // Leading branch (first layout item) = no preceding trunk
+              const hasPrecedingTrunk = li > 0;
+              // Fork junction y-position: py-1 (4px) + py-2 (8px) + half circle (14px) = 26px
+              // This aligns the fork with the center of the first branch dot.
+              const forkY = "26px";
+
               return (
                 <div key={li} className="relative">
-                  {/* Trunk pass-through line (continues behind the branch) */}
-                  <div
-                    className={`absolute left-[0.875rem] top-0 bottom-0 w-0.5 -translate-x-1/2 ${colors.passColor}`}
-                  />
+                  {/* Trunk pass-through line — only when there's a trunk to connect */}
+                  {hasPrecedingTrunk && (
+                    <div
+                      className={`absolute left-[0.875rem] top-0 w-0.5 -translate-x-1/2 ${colors.passColor} ${
+                        isLast ? "" : "bottom-0"
+                      }`}
+                      style={isLast ? { height: forkY } : undefined}
+                    />
+                  )}
+                  {/* Fork connector: horizontal dashed line from trunk to first branch dot */}
+                  {hasPrecedingTrunk && (
+                    <div
+                      className="absolute border-t-2 border-dashed border-gray-300"
+                      style={{
+                        left: "15px" /* right edge of trunk line */,
+                        top: forkY,
+                        width: "25px" /* to left edge of branch items (ml-10 = 40px) */,
+                        transform: "translateY(-1px)",
+                      }}
+                    />
+                  )}
                   {/* Branch items, indented to the right */}
                   <div className="ml-10 py-1">
                     {item.items.map((branchItem, bi) => (
