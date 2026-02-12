@@ -1,5 +1,8 @@
 // web_frontend/src/components/unified-lesson/StageProgressBar.tsx
+import { useMemo } from "react";
 import type { Stage } from "../../types/module";
+import type { StageInfo } from "../../types/course";
+import { buildBranchLayout } from "../../utils/branchLayout";
 import { triggerHaptic } from "@/utils/haptics";
 import { Tooltip } from "../Tooltip";
 import {
@@ -128,6 +131,93 @@ export default function StageProgressBar({
     onStageClick(index);
   };
 
+  // Build branch layout from stages (adapter: Stage -> StageInfo)
+  const layoutInput = useMemo(
+    () =>
+      stages.map(
+        (s): StageInfo => ({
+          type: s.type as StageInfo["type"],
+          title: getStageTitle(s),
+          duration: null,
+          optional: s.optional ?? false,
+        }),
+      ),
+    [stages],
+  );
+  const layout = useMemo(() => buildBranchLayout(layoutInput), [layoutInput]);
+
+  // Precompute pass-through colors for branch blocks
+  let prevTrunkIndex = -1;
+  const layoutColors = layout.map((item) => {
+    if (item.kind === "trunk") {
+      const color = getBarColor(item.index);
+      prevTrunkIndex = item.index;
+      return { kind: "trunk" as const, color };
+    } else {
+      const passColor =
+        prevTrunkIndex >= 0 ? getBarColor(prevTrunkIndex) : "bg-gray-200";
+      return { kind: "branch" as const, passColor };
+    }
+  });
+
+  // Static color mappings for Tailwind CSS v4 scanner
+  const branchColorMap: Record<string, { text: string; border: string }> = {
+    "bg-blue-400": { text: "text-blue-400", border: "border-blue-400" },
+    "bg-gray-400": { text: "text-gray-400", border: "border-gray-400" },
+    "bg-gray-200": { text: "text-gray-200", border: "border-gray-200" },
+  };
+
+  const borderColorMap: Record<string, string> = {
+    "bg-blue-400": "border-blue-400",
+    "bg-gray-400": "border-gray-400",
+    "bg-gray-200": "border-gray-200",
+  };
+
+  // Find the last trunk item index for dashed trailing connector
+  const lastTrunkLi = (() => {
+    for (let i = layout.length - 1; i >= 0; i--) {
+      if (layout[i].kind === "trunk") return i;
+    }
+    return -1;
+  })();
+
+  function renderDot(stage: Stage, index: number) {
+    const isCompleted = completedStages.has(index);
+    const isViewing = index === currentSectionIndex;
+    const isOptional = "optional" in stage && stage.optional === true;
+
+    const fillClasses = getCircleFillClasses(
+      { isCompleted, isViewing, isOptional },
+      { includeHover: true },
+    );
+    const ringClasses = getRingClasses(isViewing, isCompleted);
+
+    return (
+      <Tooltip
+        content={getTooltipContent(stage, index, isCompleted, isViewing)}
+        placement="bottom"
+      >
+        <button
+          onClick={() => handleDotClick(index)}
+          className={`
+            relative rounded-full flex items-center justify-center
+            transition-all duration-150
+            ${compact ? "" : "active:scale-95 shrink-0"}
+            ${
+              compact
+                ? "w-7 h-7"
+                : "min-w-8 min-h-8 w-8 h-8 sm:min-w-[44px] sm:min-h-[44px] sm:w-11 sm:h-11"
+            }
+            ${fillClasses}
+            ${ringClasses}
+          `}
+        >
+          <StageIcon type={stage.type} small={compact} />
+        </button>
+      </Tooltip>
+    );
+  }
+
   return (
     <div className="flex items-center gap-2">
       {/* Previous button */}
@@ -158,55 +248,114 @@ export default function StageProgressBar({
       </Tooltip>
 
       {/* Stage dots */}
-      <div className="flex items-center">
-        {stages.map((stage, index) => {
-          const isCompleted = completedStages.has(index);
-          const isViewing = index === currentSectionIndex;
-          const isOptional = "optional" in stage && stage.optional === true;
+      <div className="flex items-start">
+        {layout.map((item, li) => {
+          if (item.kind === "branch") {
+            const dotSize = compact ? 28 : 32;
+            const r = 8;
+            const arcWidth = 2 * r + 2;
+            const arcHeight = dotSize + 2;
 
-          const fillClasses = getCircleFillClasses(
-            { isCompleted, isViewing, isOptional },
-            { includeHover: true },
-          );
-          const ringClasses = getRingClasses(isViewing, isCompleted);
+            const colors = layoutColors[li];
+            const passColor =
+              colors.kind === "branch" ? colors.passColor : "bg-gray-200";
+            const hasPrecedingTrunk = li > 0 && layout[li - 1]?.kind === "trunk";
+            const isAfterLastTrunk =
+              hasPrecedingTrunk &&
+              li - 1 === lastTrunkLi &&
+              lastTrunkLi < layout.length - 1;
+            const textColor =
+              branchColorMap[passColor]?.text ?? "text-gray-200";
+            const branchBorderColor =
+              branchColorMap[passColor]?.border ?? "border-gray-200";
+            const connectorBorderColor =
+              borderColorMap[passColor] ?? "border-gray-200";
+
+            return (
+              <div
+                key={li}
+                className="relative inline-flex flex-col items-start"
+              >
+                {/* Row 1: pass-through connector at trunk height */}
+                <div
+                  className="flex items-center"
+                  style={{ height: dotSize }}
+                >
+                  {li > 0 &&
+                    (isAfterLastTrunk ? (
+                      <div
+                        className={`border-t-2 border-dashed ${connectorBorderColor} ${compact ? "w-4" : "w-2 sm:w-4"}`}
+                      />
+                    ) : (
+                      <div
+                        className={`h-0.5 ${compact ? "w-4" : "w-2 sm:w-4"} ${passColor}`}
+                      />
+                    ))}
+                  {isAfterLastTrunk ? (
+                    <div
+                      className={`relative z-[2] flex-1 border-t-2 border-dashed ${connectorBorderColor}`}
+                    />
+                  ) : (
+                    <div
+                      className={`relative z-[2] h-0.5 flex-1 ${passColor}`}
+                    />
+                  )}
+                </div>
+
+                {/* Row 2: SVG arc + branch dots */}
+                <div className="flex items-center">
+                  {/* S-curve arc from trunk line to first branch dot (skip if no preceding trunk) */}
+                  {hasPrecedingTrunk && (
+                    <svg
+                      className={`shrink-0 ${textColor} z-[1]`}
+                      style={{
+                        width: arcWidth,
+                        height: arcHeight,
+                        marginTop: -(dotSize / 2 + 1),
+                      }}
+                      viewBox={`0 0 ${arcWidth} ${arcHeight}`}
+                      fill="none"
+                    >
+                      <path
+                        d={`M 1 1 A ${r} ${r} 0 0 1 ${r + 1} ${r + 1} L ${r + 1} ${dotSize - r + 1} A ${r} ${r} 0 0 0 ${2 * r + 1} ${dotSize + 1}`}
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeDasharray="4 3"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  )}
+
+                  {/* Branch dots */}
+                  {item.items.map((branchItem, bi) => (
+                    <div key={bi} className="flex items-center">
+                      {bi > 0 && (
+                        <div
+                          className={`border-t-2 border-dashed ${branchBorderColor} ${compact ? "w-3" : "w-2 sm:w-3"}`}
+                        />
+                      )}
+                      {renderDot(stages[branchItem.index], branchItem.index)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          // Trunk item
+          const index = item.index;
 
           return (
-            <div key={index} className="flex items-center">
+            <div key={li} className="flex items-center">
               {/* Connector line (except before first) */}
-              {index > 0 && (
+              {li > 0 && (
                 <div
                   className={`h-0.5 ${compact ? "w-4" : "w-2 sm:w-4"} ${getBarColor(index)}`}
                 />
               )}
 
               {/* Dot */}
-              <Tooltip
-                content={getTooltipContent(
-                  stage,
-                  index,
-                  isCompleted,
-                  isViewing,
-                )}
-                placement="bottom"
-              >
-                <button
-                  onClick={() => handleDotClick(index)}
-                  className={`
-                    relative rounded-full flex items-center justify-center
-                    transition-all duration-150
-                    ${compact ? "" : "active:scale-95 shrink-0"}
-                    ${
-                      compact
-                        ? "w-7 h-7"
-                        : "min-w-8 min-h-8 w-8 h-8 sm:min-w-[44px] sm:min-h-[44px] sm:w-11 sm:h-11"
-                    }
-                    ${fillClasses}
-                    ${ringClasses}
-                  `}
-                >
-                  <StageIcon type={stage.type} small={compact} />
-                </button>
-              </Tooltip>
+              {renderDot(stages[index], index)}
             </div>
           );
         })}
