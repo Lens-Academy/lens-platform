@@ -378,7 +378,7 @@ function SectionTitlesColumn({
   }, [segs]);
 
   const BUTTON_W = 20;
-  const MAX_TITLES_W = 180;
+  const MAX_TITLES_W = 200;
   const animatedWidth = expanded ? Math.min(Math.max(contentWidth, 60) + BUTTON_W, MAX_TITLES_W) : BUTTON_W;
 
   return (
@@ -389,9 +389,9 @@ function SectionTitlesColumn({
         transition: "width 200ms ease-in-out",
       }}
     >
-      <div className="h-10 border-b border-slate-200 flex items-center justify-center" style={{ width: BUTTON_W }}>
+      <div className="h-12 border-b border-slate-200 flex items-center justify-center" style={{ width: BUTTON_W }}>
         <button
-          className="text-[10px] text-slate-400 hover:text-slate-600 cursor-pointer px-1"
+          className="text-xs text-slate-400 hover:text-slate-600 cursor-pointer px-1"
           onClick={onToggle}
           title={expanded ? "Collapse sections" : "Expand sections"}
         >
@@ -416,7 +416,7 @@ function SectionTitlesColumn({
                   style={{ height: dotH, paddingLeft: BUTTON_W, paddingRight: 8 }}
                 >
                   <span
-                    className="text-[9px] text-slate-400 whitespace-nowrap leading-none"
+                    className="text-[11px] text-slate-400 whitespace-nowrap leading-none"
                     style={{
                       opacity: expanded ? 1 : 0,
                       transition: "opacity 200ms ease-in-out",
@@ -455,11 +455,11 @@ function VerticalTimeline({
   const [sectionsExpanded, setSectionsExpanded] = useState(false);
 
   // Pixel constants — shared across label + member columns for alignment
-  const DOT_H = 10; // height per dot row (dot 8px + 2px gap)
-  const V_PAD = 4; // vertical padding above/below every element (module or meeting)
-  const DOT_COL = 14; // fixed dot column width (fits 14px meeting dot)
+  const DOT_H = 14; // height per dot row
+  const V_PAD = 5; // vertical padding above/below every element (module or meeting)
+  const DOT_COL = 18; // fixed dot column width
   const moduleH = (n: number) => n * DOT_H + V_PAD * 2;
-  const mtgH = 12 + V_PAD * 2; // 12px dot + symmetric padding
+  const mtgH = 16 + V_PAD * 2; // meeting dot + symmetric padding
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg">
@@ -467,7 +467,7 @@ function VerticalTimeline({
         <div className="inline-flex min-w-full">
           {/* Left labels column */}
           <div className="shrink-0 sticky left-0 z-10 bg-white border-r border-slate-200">
-            <div className="h-10 border-b border-slate-200" />
+            <div className="h-12 border-b border-slate-200" />
             {segs.map((seg, si) =>
               seg.type === "meeting" ? (
                 <div
@@ -475,7 +475,7 @@ function VerticalTimeline({
                   className="px-2 flex items-center"
                   style={{ height: mtgH }}
                 >
-                  <span className="text-[10px] font-semibold text-slate-600">
+                  <span className="text-xs font-semibold text-slate-600">
                     Meeting {seg.meetingNumber}
                   </span>
                 </div>
@@ -485,7 +485,7 @@ function VerticalTimeline({
                   className="px-2 flex items-center overflow-hidden"
                   style={{ height: moduleH(seg.items.length) }}
                 >
-                  <span className="text-[10px] text-slate-500 truncate max-w-[100px] leading-tight">
+                  <span className="text-xs text-slate-500 truncate max-w-[120px] leading-tight">
                     {seg.slug?.replace(/-/g, " ")}
                   </span>
                 </div>
@@ -511,10 +511,10 @@ function VerticalTimeline({
             return (
               <div key={tm.user_id} className="shrink-0">
                 {/* Name + last active + DM link */}
-                <div className="h-10 border-b border-slate-200 px-1 flex flex-col justify-end pb-1">
+                <div className="h-12 border-b border-slate-200 px-1.5 flex flex-col justify-end pb-1">
                   <div className="flex items-center gap-0.5">
                     <span
-                      className="text-[10px] font-medium text-slate-700 leading-tight line-clamp-1"
+                      className="text-xs font-medium text-slate-700 leading-tight line-clamp-1"
                       title={tm.name}
                     >
                       {tm.name}
@@ -527,12 +527,12 @@ function VerticalTimeline({
                         className="shrink-0 text-slate-400 hover:text-indigo-500 transition-colors"
                         title="DM on Discord"
                       >
-                        <ExtLink className="w-2.5 h-2.5" />
+                        <ExtLink className="w-3 h-3" />
                       </a>
                     )}
                   </div>
                   {memberLastActive[tm.user_id] && (
-                    <span className="text-[8px] text-slate-400 leading-none">
+                    <span className="text-[10px] text-slate-400 leading-none">
                       {formatLastActive(memberLastActive[tm.user_id]!)}
                     </span>
                   )}
@@ -566,13 +566,13 @@ function VerticalTimeline({
                       >
                         <span className="shrink-0 flex items-center justify-center" style={{ width: DOT_COL }}>
                           <span
-                            className={`w-3 h-3 rounded-full ${color}`}
+                            className={`w-3.5 h-3.5 rounded-full ${color}`}
                             title={`Meeting ${seg.meetingNumber}: ${status || "upcoming"}`}
                           />
                         </span>
                         {rsvpIcon && (
                           <span className="inline-flex items-center gap-px shrink-0 ml-1" title={`RSVP: ${rsvp}`}>
-                            <span className="text-[8px] text-slate-400 leading-none">RSVP:</span>
+                            <span className="text-[10px] text-slate-400 leading-none">RSVP:</span>
                             {rsvpIcon}
                           </span>
                         )}
@@ -604,18 +604,18 @@ function VerticalTimeline({
                             >
                               <span className="shrink-0 flex items-center justify-center" style={{ width: DOT_COL }}>
                                 <span
-                                  className={`w-2 h-2 rounded-full ${
+                                  className={`w-2.5 h-2.5 rounded-full ${
                                     done ? "bg-emerald-500" : "bg-slate-200"
                                   }`}
                                 />
                               </span>
-                              <span className="relative inline-flex items-center justify-end gap-px shrink-0 group/time" style={{ width: 18 }}>
+                              <span className="relative inline-flex items-center justify-end gap-px shrink-0 group/time" style={{ width: 24 }}>
                                 {time > 0 && (
                                   <>
-                                    <span className="text-[9px] text-slate-400 leading-none tabular-nums">
+                                    <span className="text-[11px] text-slate-400 leading-none tabular-nums">
                                       {Math.round(time / 60)}
                                     </span>
-                                    <Clock size={7} className="text-slate-400" />
+                                    <Clock size={9} className="text-slate-400" />
                                     <span className="hidden group-hover/time:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-slate-800 rounded whitespace-nowrap z-20 pointer-events-none">
                                       Time spent: {Math.round(time / 60)} min
                                     </span>
@@ -629,7 +629,7 @@ function VerticalTimeline({
                       {/* Module-level chat bracket — clickable */}
                       <div
                         className={`shrink-0 flex flex-col ${modChat > 0 ? "cursor-pointer" : ""}`}
-                        style={{ width: 22, paddingTop: V_PAD, paddingBottom: V_PAD }}
+                        style={{ width: 28, paddingTop: V_PAD, paddingBottom: V_PAD }}
                         onClick={modChat > 0 && seg.slug ? () => {
                           const moduleTitle = seg.items[0]?.module_slug?.replace(/-/g, " ") ?? seg.slug ?? "";
                           onChatClick(tm.user_id, tm.name, seg.slug!, moduleTitle);
@@ -642,8 +642,8 @@ function VerticalTimeline({
                               style={{ marginLeft: 1, width: 6, minHeight: 2 }}
                             />
                             <div className="relative flex items-center gap-px shrink-0 group/chat" style={{ marginLeft: 2 }}>
-                              <span className={`text-[9px] ${chatColor} leading-none tabular-nums`}>{modChat}</span>
-                              <MessageCircle size={7} className={chatColor} />
+                              <span className={`text-[11px] ${chatColor} leading-none tabular-nums`}>{modChat}</span>
+                              <MessageCircle size={9} className={chatColor} />
                               <span className="hidden group-hover/chat:block absolute bottom-full left-0 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-slate-800 rounded whitespace-nowrap z-20 pointer-events-none">
                                 Messages to AI: {modChat}
                               </span>
