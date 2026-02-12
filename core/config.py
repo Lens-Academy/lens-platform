@@ -6,6 +6,14 @@ logic across main.py and web_api/routes/auth.py.
 """
 
 import os
+import re
+from pathlib import Path
+
+
+def _get_workspace_num() -> int:
+    """Detect workspace number from CWD (e.g., 'ws2' -> 2, 'platform-ws1' -> 1)."""
+    match = re.search(r"(?:^|-)ws(\d+)$", Path.cwd().name)
+    return int(match.group(1)) if match else 0
 
 
 def is_dev_mode() -> bool:
@@ -19,21 +27,30 @@ def is_production() -> bool:
 
 
 def get_api_port() -> int:
-    """Get API server port from env or default."""
-    return int(os.getenv("API_PORT", "8000"))
+    """Get API server port from env or workspace-aware default."""
+    if os.getenv("API_PORT"):
+        return int(os.getenv("API_PORT"))
+    return 8000 + _get_workspace_num() * 100
 
 
 def get_frontend_port() -> int:
-    """Get frontend dev server port from env or default."""
-    return int(os.getenv("FRONTEND_PORT", "3000"))
+    """Get frontend dev server port from env or workspace-aware default."""
+    if os.getenv("FRONTEND_PORT"):
+        return int(os.getenv("FRONTEND_PORT"))
+    return 3000 + _get_workspace_num() * 100
+
+
+def get_dev_host() -> str:
+    """Get hostname for dev URLs (e.g., 'dev.vps' for remote access)."""
+    return os.getenv("DEV_HOST", "localhost")
 
 
 def get_frontend_url() -> str:
     """Get frontend URL based on mode."""
     if is_dev_mode():
-        # Allow env var override for non-localhost access (e.g. dev.vps)
+        # Allow env var override, otherwise auto-detect from workspace + DEV_HOST
         return os.environ.get(
-            "FRONTEND_URL", f"http://localhost:{get_frontend_port()}"
+            "FRONTEND_URL", f"http://{get_dev_host()}:{get_frontend_port()}"
         ).rstrip("/")
     if is_production():
         return os.environ.get("FRONTEND_URL", f"http://localhost:{get_api_port()}")
@@ -50,8 +67,11 @@ def get_allowed_origins() -> list[str]:
     workspace_api_ports = [8000 + i * 100 for i in range(4)]
     workspace_frontend_ports = [3000 + i * 100 for i in range(4)]
     all_ports = workspace_api_ports + workspace_frontend_ports
-    # Include dev.vps for remote development access
-    hosts = ["localhost", "127.0.0.1", "dev.vps"]
+    # Include DEV_HOST for remote development access (e.g., dev.vps)
+    dev_host = get_dev_host()
+    hosts = ["localhost", "127.0.0.1"]
+    if dev_host not in hosts:
+        hosts.append(dev_host)
     origins = [f"http://{host}:{port}" for host in hosts for port in all_ports]
 
     # Add production frontend URL if not already in list
