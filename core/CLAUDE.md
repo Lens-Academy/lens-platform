@@ -89,7 +89,6 @@ This pattern allows core to use Discord APIs while keeping the bot instance inje
 - `loader.py` - Module loading
 - `course_loader.py` - Course loading
 - `markdown_parser.py` - Markdown parsing
-- `markdown_validator.py` - Content validation
 - `sessions.py` - Chat session management
 
 #### `discord_outbound/` - Discord API Operations

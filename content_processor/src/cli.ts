@@ -2,6 +2,7 @@
 // src/cli.ts
 import { readVaultFiles } from './fs/read-vault.js';
 import { processContent, ProcessResult } from './index.js';
+import { validateUrls } from './validator/url-reachability.js';
 import { writeFile } from 'fs/promises';
 
 export interface CliOptions {
@@ -57,7 +58,7 @@ export async function run(options: CliOptions): Promise<ProcessResult> {
     files = await readVaultFiles(options.vaultPath, { includeWip: options.includeWip });
   }
 
-  return processContent(files);
+  return processContent(files, { includeWip: options.includeWip });
 }
 
 async function main(): Promise<void> {
@@ -71,6 +72,13 @@ async function main(): Promise<void> {
 
   try {
     const result = await run(options);
+
+    // Async URL reachability validation
+    if (result.urlsToValidate.length > 0) {
+      const urlWarnings = await validateUrls(result.urlsToValidate);
+      result.errors.push(...urlWarnings);
+    }
+
     const json = JSON.stringify(result, null, 2);
 
     if (options.outputPath) {

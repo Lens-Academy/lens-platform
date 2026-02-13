@@ -20,7 +20,7 @@
               "type": "video-excerpt",
               "from": 0,
               "to": 300,
-              "transcript": "---\ntitle: \"Plain Video Without Timestamps\"\nchannel: \"Test Channel\"\nurl: \"https://example.com/video\"\n---\n\nThis is the first paragraph of the transcript. It contains some interesting content about AI safety and the importance of alignment research.\n\nThis is the second paragraph. It continues discussing the topic and provides more context about the challenges we face.\n\nThis is the third paragraph. It concludes the main points and summarizes the key takeaways from the video."
+              "transcript": "This is the first paragraph of the transcript. It contains some interesting content about AI safety and the importance of alignment research. This is the second paragraph. It continues discussing the topic and provides more context about the challenges we face. This is the third paragraph. It concludes the main points and summarizes the key takeaways from the video."
             },
             {
               "type": "text",
@@ -37,5 +37,13 @@
     }
   ],
   "courses": [],
-  "errors": []
+  "errors": [],
+  "urlsToValidate": [
+    {
+      "url": "https://example.com/video",
+      "file": "video_transcripts/plain-video.md",
+      "line": 2,
+      "label": "url"
+    }
+  ]
 }

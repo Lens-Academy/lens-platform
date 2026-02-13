@@ -1,5 +1,6 @@
 // src/validator/field-values.ts
 import type { ContentError } from '../index.js';
+import { ALL_BOOLEAN_FIELDS } from '../content-schema.js';
 
 /**
  * Valid slug pattern: lowercase letters, numbers, and hyphens only.
@@ -73,15 +74,6 @@ export function validateSlugFormat(
 }
 
 /**
- * Fields that should only contain boolean values ('true' or 'false').
- */
-const BOOLEAN_FIELDS = new Set([
-  'optional',
-  'hidePreviousContentFromUser',
-  'hidePreviousContentFromTutor',
-]);
-
-/**
  * Validate field values, checking for appropriate types.
  * Currently validates that boolean fields contain 'true' or 'false'.
  *
@@ -99,7 +91,7 @@ export function validateFieldValues(
 
   for (const [name, value] of Object.entries(fields)) {
     // Check if this is a boolean field
-    if (BOOLEAN_FIELDS.has(name)) {
+    if (ALL_BOOLEAN_FIELDS.includes(name)) {
       const normalizedValue = value.toLowerCase();
       if (normalizedValue !== 'true' && normalizedValue !== 'false') {
         warnings.push({

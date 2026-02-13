@@ -4,6 +4,8 @@ import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, type ParsedSection } from './sections.js';
 import { parseWikilink } from './wikilink.js';
 import { basename } from 'path';
+import { validateSlugFormat } from '../validator/field-values.js';
+import { validateFrontmatter } from '../validator/validate-frontmatter.js';
 
 // Valid section types for course files
 export const COURSE_SECTION_TYPES = new Set(['module', 'meeting']);
@@ -46,7 +48,7 @@ function parseModuleSection(
   }
 
   const slug = extractSlugFromPath(wikilink.path);
-  const optional = section.fields.optional === 'true';
+  const optional = section.fields.optional?.toLowerCase() === 'true';
 
   return { slug, optional };
 }
@@ -98,28 +100,19 @@ export function parseCourse(content: string, file: string): CourseParseResult {
 
   const { frontmatter, body, bodyStartLine } = frontmatterResult;
 
-  // Validate required frontmatter fields
-  if (!frontmatter.slug) {
-    errors.push({
-      file,
-      line: 2,
-      message: 'Missing required field: slug',
-      suggestion: "Add 'slug: your-course-slug' to frontmatter",
-      severity: 'error',
-    });
+  const frontmatterErrors = validateFrontmatter(frontmatter, 'course', file);
+  errors.push(...frontmatterErrors);
+
+  // Course-specific: validate slug format
+  const slug = frontmatter.slug;
+  if (typeof slug === 'string' && slug.trim() !== '') {
+    const slugFormatError = validateSlugFormat(slug, file, 2);
+    if (slugFormatError) {
+      errors.push(slugFormatError);
+    }
   }
 
-  if (!frontmatter.title) {
-    errors.push({
-      file,
-      line: 2,
-      message: 'Missing required field: title',
-      suggestion: "Add 'title: Your Course Title' to frontmatter",
-      severity: 'error',
-    });
-  }
-
-  if (errors.length > 0) {
+  if (errors.some(e => e.severity === 'error')) {
     return { course: null, errors };
   }
 

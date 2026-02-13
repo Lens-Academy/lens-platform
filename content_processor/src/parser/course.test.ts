@@ -137,4 +137,54 @@ title: Test Course
 
     expect(result.errors.some(e => e.message.includes('number'))).toBe(true);
   });
+
+  it('validates slug format', () => {
+    const content = `---
+slug: My Course!
+title: Test Course
+---
+
+# Module: [[../modules/intro.md|Introduction]]
+`;
+
+    const result = parseCourse(content, 'courses/bad-slug.md');
+
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.includes('slug') &&
+      e.message.includes('format')
+    )).toBe(true);
+  });
+
+  it('warns about typos in frontmatter fields', () => {
+    const content = [
+      '---',
+      'slug: my-course',
+      'tilte: My Course',
+      '---',
+      '# Module: [[../modules/intro.md|Intro]]',
+    ].join('\n');
+
+    const { errors } = parseCourse(content, 'courses/test.md');
+
+    const typoWarning = errors.find(e => e.message.includes("'tilte'"));
+    expect(typoWarning).toBeDefined();
+    expect(typoWarning!.suggestion).toContain("'title'");
+  });
+
+  it('accepts valid slug format', () => {
+    const content = `---
+slug: my-course
+title: Test Course
+---
+
+# Module: [[../modules/intro.md|Introduction]]
+`;
+
+    const result = parseCourse(content, 'courses/good-slug.md');
+
+    expect(result.errors.filter(e =>
+      e.message.includes('slug') && e.message.includes('format')
+    )).toHaveLength(0);
+  });
 });

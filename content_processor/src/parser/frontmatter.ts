@@ -13,6 +13,9 @@ export interface FrontmatterResult {
 const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
 export function parseFrontmatter(content: string, file: string = ''): FrontmatterResult {
+  // Normalize Windows line endings
+  content = content.replace(/\r\n/g, '\n');
+
   const match = content.match(FRONTMATTER_PATTERN);
 
   if (!match) {

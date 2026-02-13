@@ -123,7 +123,7 @@ export function flattenModule(
         type: 'page',
         meta: { title: section.title },
         segments: textResult.segments,
-        optional: section.fields.optional === 'true',
+        optional: section.fields.optional?.toLowerCase() === 'true',
         contentId: section.fields.id ?? null,
         learningOutcomeId: null,
         learningOutcomeName: null,
@@ -199,12 +199,15 @@ function flattenLearningOutcomeSection(
 
   // Parse and resolve the wikilink
   const wikilink = parseWikilink(source);
-  if (!wikilink) {
+  if (!wikilink || wikilink.error) {
+    const suggestion = wikilink?.correctedPath
+      ? `Did you mean '[[${wikilink.correctedPath}]]'?`
+      : 'Use format [[../Learning Outcomes/filename.md|Display Text]]';
     errors.push({
       file: modulePath,
       line: section.line,
       message: `Invalid wikilink format: ${source}`,
-      suggestion: 'Use format [[../Learning Outcomes/filename.md|Display Text]]',
+      suggestion,
       severity: 'error',
     });
     return { sections: [], errors };
@@ -308,7 +311,7 @@ function flattenLearningOutcomeSection(
         // Extract article metadata from the article file's frontmatter
         if (lensSection.source) {
           const articleWikilink = parseWikilink(lensSection.source);
-          if (articleWikilink) {
+          if (articleWikilink && !articleWikilink.error) {
             const articlePathResolved = resolveWikilinkPath(articleWikilink.path, lensPath);
             const articlePath = findFileWithExtension(articlePathResolved, files);
             if (articlePath) {
@@ -322,8 +325,8 @@ function flattenLearningOutcomeSection(
               if (articleFrontmatter.frontmatter.author) {
                 meta.author = articleFrontmatter.frontmatter.author as string;
               }
-              if (articleFrontmatter.frontmatter.sourceUrl) {
-                meta.sourceUrl = articleFrontmatter.frontmatter.sourceUrl as string;
+              if (articleFrontmatter.frontmatter.source_url) {
+                meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
               }
             }
           }
@@ -340,7 +343,7 @@ function flattenLearningOutcomeSection(
         // Extract video metadata from the video transcript file's frontmatter
         if (lensSection.source) {
           const videoWikilink = parseWikilink(lensSection.source);
-          if (videoWikilink) {
+          if (videoWikilink && !videoWikilink.error) {
             const videoPathResolved = resolveWikilinkPath(videoWikilink.path, lensPath);
             const videoPath = findFileWithExtension(videoPathResolved, files);
             if (videoPath) {
@@ -391,7 +394,7 @@ function flattenLearningOutcomeSection(
       type: sectionType,
       meta,
       segments,
-      optional: section.fields.optional === 'true' || lensRef.optional,
+      optional: section.fields.optional?.toLowerCase() === 'true' || lensRef.optional,
       learningOutcomeId: lo.id ?? null,
       learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
       contentId: lens.id ?? null,
@@ -420,8 +423,15 @@ function flattenUncategorizedSection(
   // Parse the section body for ## Lens: subsections
   const lensRefs = parseUncategorizedLensRefs(section.body, modulePath);
 
-  // If no lens refs found, return empty array
+  // If no lens refs found, warn and return empty array
   if (lensRefs.length === 0) {
+    errors.push({
+      file: modulePath,
+      line: section.line,
+      message: 'Uncategorized section has no ## Lens: references — this section will produce no output',
+      suggestion: "Add '## Lens: [[../Lenses/lens-name.md|Display]]' references",
+      severity: 'warning',
+    });
     return { sections: [], errors };
   }
 
@@ -480,7 +490,7 @@ function flattenUncategorizedSection(
         // Extract article metadata from the article file's frontmatter
         if (lensSection.source) {
           const articleWikilink = parseWikilink(lensSection.source);
-          if (articleWikilink) {
+          if (articleWikilink && !articleWikilink.error) {
             const articlePathResolved = resolveWikilinkPath(articleWikilink.path, lensPath);
             const articlePath = findFileWithExtension(articlePathResolved, files);
             if (articlePath) {
@@ -494,8 +504,8 @@ function flattenUncategorizedSection(
               if (articleFrontmatter.frontmatter.author) {
                 meta.author = articleFrontmatter.frontmatter.author as string;
               }
-              if (articleFrontmatter.frontmatter.sourceUrl) {
-                meta.sourceUrl = articleFrontmatter.frontmatter.sourceUrl as string;
+              if (articleFrontmatter.frontmatter.source_url) {
+                meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
               }
             }
           }
@@ -512,7 +522,7 @@ function flattenUncategorizedSection(
         // Extract video metadata from the video transcript file's frontmatter
         if (lensSection.source) {
           const videoWikilink = parseWikilink(lensSection.source);
-          if (videoWikilink) {
+          if (videoWikilink && !videoWikilink.error) {
             const videoPathResolved = resolveWikilinkPath(videoWikilink.path, lensPath);
             const videoPath = findFileWithExtension(videoPathResolved, files);
             if (videoPath) {
@@ -613,7 +623,7 @@ function parseUncategorizedLensRefs(
             lensRefs.push({
               source: currentFields.source,
               resolvedPath,
-              optional: currentFields.optional === 'true',
+              optional: currentFields.optional?.toLowerCase() === 'true',
             });
           }
         }
@@ -635,12 +645,12 @@ function parseUncategorizedLensRefs(
 
       if (currentFields.source) {
         const wikilink = parseWikilink(currentFields.source);
-        if (wikilink) {
+        if (wikilink && !wikilink.error) {
           const resolvedPath = resolveWikilinkPath(wikilink.path, parentPath);
           lensRefs.push({
             source: currentFields.source,
             resolvedPath,
-            optional: currentFields.optional === 'true',
+            optional: currentFields.optional?.toLowerCase() === 'true',
           });
         }
       }
@@ -689,7 +699,7 @@ function parseUncategorizedLensRefs(
         lensRefs.push({
           source: currentFields.source,
           resolvedPath,
-          optional: currentFields.optional === 'true',
+          optional: currentFields.optional?.toLowerCase() === 'true',
         });
       }
     }
@@ -759,10 +769,14 @@ function convertSegment(
       }
 
       const wikilink = parseWikilink(lensSection.source);
-      if (!wikilink) {
+      if (!wikilink || wikilink.error) {
+        const suggestion = wikilink?.correctedPath
+          ? `Did you mean '[[${wikilink.correctedPath}]]'?`
+          : undefined;
         errors.push({
           file: lensPath,
           message: `Invalid wikilink in article source: ${lensSection.source}`,
+          suggestion,
           severity: 'error',
         });
         return { segment: null, errors };
@@ -835,10 +849,14 @@ function convertSegment(
       }
 
       const wikilink = parseWikilink(lensSection.source);
-      if (!wikilink) {
+      if (!wikilink || wikilink.error) {
+        const suggestion = wikilink?.correctedPath
+          ? `Did you mean '[[${wikilink.correctedPath}]]'?`
+          : undefined;
         errors.push({
           file: lensPath,
           message: `Invalid wikilink in video source: ${lensSection.source}`,
+          suggestion,
           severity: 'error',
         });
         return { segment: null, errors };

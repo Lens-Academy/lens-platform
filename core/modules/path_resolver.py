@@ -1,7 +1,31 @@
 # core/modules/path_resolver.py
 """Resolve wiki-link paths to cache keys."""
 
-from core.modules.markdown_validator import extract_wiki_link_path
+import re
+
+# Regex pattern for wiki-links: [[path]] or ![[path]] (Obsidian embed)
+_WIKI_LINK_PATTERN = r"!?\[\[([^\]]+)\]\]"
+
+
+def extract_wiki_link_path(text: str) -> str | None:
+    """Extract path from [[wiki-link]] or ![[embed]] syntax.
+
+    Handles Obsidian display name syntax: [[path|display name]] -> path
+
+    Args:
+        text: Text that may contain a wiki-link
+
+    Returns:
+        The path portion of the wiki-link, or None if no wiki-link found
+    """
+    match = re.search(_WIKI_LINK_PATTERN, text)
+    if match:
+        path = match.group(1)
+        # Strip Obsidian display name (everything after |)
+        if "|" in path:
+            path = path.split("|", 1)[0]
+        return path
+    return None
 
 
 def extract_filename_stem(path: str) -> str:

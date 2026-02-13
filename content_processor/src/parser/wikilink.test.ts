@@ -11,14 +11,16 @@ describe('parseWikilink', () => {
   });
 
   describe('path traversal blocking', () => {
-    it('rejects wikilinks with multiple consecutive ../ at start', () => {
+    it('returns error with suggestion for multiple consecutive ../ at start', () => {
       const result = parseWikilink('[[../../../../etc/passwd]]');
-      expect(result).toBeNull();
+      expect(result?.error).toBe(`Path has too many '../' segments`);
+      expect(result?.correctedPath).toBe('../etc/passwd');
     });
 
-    it('rejects wikilinks with two consecutive ../ at start', () => {
+    it('returns error with suggestion for two consecutive ../ at start', () => {
       const result = parseWikilink('[[../../etc/passwd]]');
-      expect(result).toBeNull();
+      expect(result?.error).toBe(`Path has too many '../' segments`);
+      expect(result?.correctedPath).toBe('../etc/passwd');
     });
 
     it('rejects wikilinks with ../ after a path segment', () => {
@@ -71,9 +73,11 @@ describe('parseWikilink', () => {
       expect(result?.path).toBe('path/to/file.test.md');
     });
 
-    it('rejects embed wikilinks with path traversal', () => {
+    it('returns error with suggestion for embed wikilinks with multiple ../', () => {
       const result = parseWikilink('![[../../../etc/passwd]]');
-      expect(result).toBeNull();
+      expect(result?.error).toBe(`Path has too many '../' segments`);
+      expect(result?.correctedPath).toBe('../etc/passwd');
+      expect(result?.isEmbed).toBe(true);
     });
 
     it('allows embed wikilinks with single ../', () => {

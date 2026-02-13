@@ -1,41 +1,13 @@
 // src/validator/field-typos.ts
 import type { ContentError } from '../index.js';
-
-/**
- * Known valid field names across all content types.
- * Used to detect likely typos via Levenshtein distance.
- */
-const KNOWN_FIELDS = [
-  // Common fields
-  'content',
-  'contentId',
-  'instructions',
-  'source',
-  'optional',
-  'from',
-  'to',
-  'id',
-  'slug',
-  'title',
-  // Article metadata
-  'author',
-  'sourceUrl',
-  // Video metadata
-  'channel',
-  'url',
-  // Chat segment fields
-  'hidePreviousContentFromUser',
-  'hidePreviousContentFromTutor',
-  // Learning outcome fields
-  'learningOutcomeId',
-];
+import { ALL_KNOWN_FIELDS } from '../content-schema.js';
 
 /**
  * Calculate the Levenshtein (edit) distance between two strings.
  * This measures the minimum number of single-character edits
  * (insertions, deletions, substitutions) needed to change one string into another.
  */
-function levenshtein(a: string, b: string): number {
+export function levenshtein(a: string, b: string): number {
   const matrix: number[][] = [];
 
   // Initialize first column (delete operations)
@@ -83,7 +55,7 @@ export function detectFieldTypos(
 
   for (const fieldName of Object.keys(fields)) {
     // Skip if it's a known valid field (case-sensitive match)
-    if (KNOWN_FIELDS.includes(fieldName)) {
+    if (ALL_KNOWN_FIELDS.includes(fieldName)) {
       continue;
     }
 
@@ -91,7 +63,7 @@ export function detectFieldTypos(
     let closest = '';
     let minDistance = Infinity;
 
-    for (const known of KNOWN_FIELDS) {
+    for (const known of ALL_KNOWN_FIELDS) {
       const dist = levenshtein(fieldName.toLowerCase(), known.toLowerCase());
       if (dist < minDistance && dist <= 2) {
         // Only suggest if distance <= 2 (likely typo)
@@ -107,6 +79,55 @@ export function detectFieldTypos(
         line,
         message: `Unrecognized field '${fieldName}'`,
         suggestion: `Did you mean '${closest}'?`,
+        severity: 'warning',
+      });
+    }
+  }
+
+  return warnings;
+}
+
+/**
+ * Detect likely typos in frontmatter field names by comparing against
+ * the valid fields for a specific file type.
+ */
+export function detectFrontmatterTypos(
+  frontmatter: Record<string, unknown>,
+  validFields: string[],
+  file: string,
+): ContentError[] {
+  const warnings: ContentError[] = [];
+  const validSet = new Set(validFields);
+
+  for (const fieldName of Object.keys(frontmatter)) {
+    if (validSet.has(fieldName)) continue;
+
+    // Find closest valid field by Levenshtein distance
+    let closest = '';
+    let minDistance = Infinity;
+
+    for (const valid of validFields) {
+      const dist = levenshtein(fieldName.toLowerCase(), valid.toLowerCase());
+      if (dist < minDistance && dist <= 2) {
+        minDistance = dist;
+        closest = valid;
+      }
+    }
+
+    if (closest) {
+      warnings.push({
+        file,
+        line: 2, // Frontmatter starts at line 2
+        message: `Unrecognized frontmatter field '${fieldName}'`,
+        suggestion: `Did you mean '${closest}'?`,
+        severity: 'warning',
+      });
+    } else {
+      warnings.push({
+        file,
+        line: 2,
+        message: `Unrecognized frontmatter field '${fieldName}'`,
+        suggestion: `Valid fields: ${validFields.join(', ')}`,
         severity: 'warning',
       });
     }

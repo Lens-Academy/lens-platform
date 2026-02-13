@@ -4,6 +4,7 @@ import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, LO_SECTION_TYPES } from './sections.js';
 import { parseWikilink, resolveWikilinkPath, hasRelativePath } from './wikilink.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
+import { validateFrontmatter } from '../validator/validate-frontmatter.js';
 
 export interface ParsedLensRef {
   source: string;       // Raw wikilink
@@ -40,13 +41,20 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
 
   const { frontmatter, body, bodyStartLine } = frontmatterResult;
 
-  // Validate required id field
-  if (!frontmatter.id) {
+  const frontmatterErrors = validateFrontmatter(frontmatter, 'learning-outcome', file);
+  errors.push(...frontmatterErrors);
+
+  if (frontmatterErrors.some(e => e.severity === 'error')) {
+    return { learningOutcome: null, errors };
+  }
+
+  // LO-specific: id must be a string
+  if (typeof frontmatter.id !== 'string') {
     errors.push({
       file,
       line: 2,
-      message: 'Missing required field: id',
-      suggestion: "Add 'id: <uuid>' to frontmatter",
+      message: `Field 'id' must be a string, got ${typeof frontmatter.id}`,
+      suggestion: "Use quotes: id: '12345'",
       severity: 'error',
     });
     return { learningOutcome: null, errors };
@@ -91,12 +99,15 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
 
       // Parse wikilink and resolve path
       const wikilink = parseWikilink(source);
-      if (!wikilink) {
+      if (!wikilink || wikilink.error) {
+        const suggestion = wikilink?.correctedPath
+          ? `Did you mean '[[${wikilink.correctedPath}]]'?`
+          : 'Use format [[../Lenses/filename.md|Display Text]]';
         errors.push({
           file,
           line: section.line,
           message: `Invalid wikilink format in source:: field: ${source}`,
-          suggestion: 'Use format [[../Lenses/filename.md|Display Text]]',
+          suggestion,
           severity: 'error',
         });
         continue;
@@ -115,7 +126,7 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
       }
 
       const resolvedPath = resolveWikilinkPath(wikilink.path, file);
-      const optional = section.fields.optional === 'true';
+      const optional = section.fields.optional?.toLowerCase() === 'true';
 
       lenses.push({
         source,
@@ -131,12 +142,15 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
 
       // Parse wikilink and resolve path
       const wikilink = parseWikilink(source);
-      if (!wikilink) {
+      if (!wikilink || wikilink.error) {
+        const suggestion = wikilink?.correctedPath
+          ? `Did you mean '[[${wikilink.correctedPath}]]'?`
+          : 'Use format [[../Tests/filename.md|Display Text]]';
         errors.push({
           file,
           line: section.line,
           message: `Invalid wikilink format in source:: field: ${source}`,
-          suggestion: 'Use format [[../Tests/filename.md|Display Text]]',
+          suggestion,
           severity: 'error',
         });
         continue;

@@ -1,6 +1,6 @@
 // src/validator/field-typos.test.ts
 import { describe, it, expect } from 'vitest';
-import { detectFieldTypos } from './field-typos.js';
+import { detectFieldTypos, detectFrontmatterTypos } from './field-typos.js';
 
 describe('field typo detection', () => {
   it('suggests correction for misspelled field "contnet" -> "content"', () => {
@@ -96,5 +96,54 @@ describe('field typo detection', () => {
       expect(warnings).toHaveLength(1);
       expect(warnings[0].suggestion).toContain("'optional'");
     });
+  });
+});
+
+describe('detectFrontmatterTypos', () => {
+  const MODULE_FIELDS = ['slug', 'title', 'contentId'];
+
+  it('warns about typo in frontmatter field', () => {
+    const warnings = detectFrontmatterTypos(
+      { slgu: 'test', title: 'Test' },
+      MODULE_FIELDS,
+      'modules/test.md'
+    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain("'slgu'");
+    expect(warnings[0].suggestion).toContain("'slug'");
+  });
+
+  it('does not warn for valid fields', () => {
+    const warnings = detectFrontmatterTypos(
+      { slug: 'test', title: 'Test', contentId: '123' },
+      MODULE_FIELDS,
+      'modules/test.md'
+    );
+
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('warns about completely unknown fields with no close match', () => {
+    const warnings = detectFrontmatterTypos(
+      { slug: 'test', title: 'Test', foobar: 'value' },
+      MODULE_FIELDS,
+      'modules/test.md'
+    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain("'foobar'");
+    expect(warnings[0].message).toContain('Unrecognized');
+  });
+
+  it('warns about tilte -> title', () => {
+    const warnings = detectFrontmatterTypos(
+      { slug: 'test', tilte: 'Test' },
+      MODULE_FIELDS,
+      'modules/test.md'
+    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].suggestion).toContain("'title'");
   });
 });

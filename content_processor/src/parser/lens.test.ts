@@ -236,6 +236,31 @@ instructions:: Talk about AI basics.
     expect(chatSegment?.instructions).toBe('Talk about AI basics.');
   });
 
+  it('parses segment type case-insensitively (#### Chat, #### CHAT, #### chat all work)', () => {
+    const content = `---
+id: test-id
+---
+
+### Page: Mixed Case
+
+#### Chat
+instructions:: lowercase implicit
+#### Chat:
+instructions:: with trailing colon
+#### CHAT: Uppercase
+instructions:: uppercase variant
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    const segments = result.lens?.sections[0].segments ?? [];
+    expect(segments).toHaveLength(3);
+    expect(segments[0].type).toBe('chat');
+    expect(segments[1].type).toBe('chat');
+    expect(segments[2].type).toBe('chat');
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+  });
+
   // Task 7.2: Field in wrong segment type
   it('warns about from:: field in text segment', () => {
     const content = `---
@@ -948,5 +973,389 @@ to:: 1:00
         e.message.includes('Unknown section type')
       )).toHaveLength(0);
     });
+  });
+
+  describe('mixed section type detection', () => {
+    it('warns when lens has both Article and Video sections', () => {
+      const content = `---
+id: test-id
+---
+
+### Article: Reading
+source:: [[../articles/test.md|Article]]
+
+#### Article-excerpt
+
+### Video: Watching
+source:: [[../video_transcripts/test.md|Video]]
+
+#### Video-excerpt
+from:: 0:00
+to:: 5:00
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'warning' &&
+        e.message.includes('mixed') || e.message.includes('conflicting')
+      )).toBe(true);
+    });
+
+    it('does not warn when lens has only Page sections', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Intro
+#### Text
+content:: Hello.
+
+### Page: Discussion
+#### Chat
+instructions:: Discuss.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.filter(e =>
+        e.message.includes('mixed') || e.message.includes('conflicting')
+      )).toHaveLength(0);
+    });
+
+    it('does not warn when lens has Page + Article (Page is neutral)', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Intro
+#### Text
+content:: Hello.
+
+### Article: Reading
+source:: [[../articles/test.md|Article]]
+#### Article-excerpt
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.filter(e =>
+        e.message.includes('mixed') || e.message.includes('conflicting')
+      )).toHaveLength(0);
+    });
+  });
+
+  describe('non-string id validation', () => {
+    it('errors when id is a number', () => {
+      const content = `---
+id: 12345
+---
+
+### Page: Test
+#### Text
+content:: Hello.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('id') &&
+        e.message.includes('string')
+      )).toBe(true);
+    });
+
+    it('errors when id is a boolean', () => {
+      const content = `---
+id: true
+---
+
+### Page: Test
+#### Text
+content:: Hello.
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.includes('id') &&
+        e.message.includes('string')
+      )).toBe(true);
+    });
+  });
+
+  it('warns when single colon is used instead of :: in segment fields', () => {
+    const content = `---
+id: test-id
+---
+
+### Page: Test
+
+#### Text
+content: This uses single colon.
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    expect(result.errors.some(e =>
+      e.severity === 'warning' &&
+      e.message.includes('content') &&
+      e.message.includes('::')
+    )).toBe(true);
+  });
+
+  describe('segment/section type mismatch', () => {
+    it('warns about article-excerpt in a Page section', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Introduction
+
+#### Article-excerpt
+from:: "Start"
+to:: "End"
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'warning' &&
+        e.message.includes('article-excerpt') &&
+        e.message.includes('Page')
+      )).toBe(true);
+    });
+
+    it('warns about video-excerpt in a Page section', () => {
+      const content = `---
+id: test-id
+---
+
+### Page: Introduction
+
+#### Video-excerpt
+from:: 0:00
+to:: 5:00
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'warning' &&
+        e.message.includes('video-excerpt') &&
+        e.message.includes('Page')
+      )).toBe(true);
+    });
+
+    it('warns about video-excerpt in an Article section', () => {
+      const content = `---
+id: test-id
+---
+
+### Article: Test
+source:: [[../articles/test.md|Article]]
+
+#### Video-excerpt
+from:: 0:00
+to:: 5:00
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'warning' &&
+        e.message.includes('video-excerpt') &&
+        e.message.includes('Article')
+      )).toBe(true);
+    });
+
+    it('does not warn about article-excerpt in Article section', () => {
+      const content = `---
+id: test-id
+---
+
+### Article: Test
+source:: [[../articles/test.md|Article]]
+
+#### Article-excerpt
+from:: "Start"
+to:: "End"
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.filter(e =>
+        e.message.includes('not valid in')
+      )).toHaveLength(0);
+    });
+  });
+
+  describe('timestamp format validation', () => {
+    it('warns about invalid from:: timestamp format', () => {
+      const content = `---
+id: test-id
+---
+
+### Video: Test
+source:: [[../video_transcripts/test.md|Video]]
+
+#### Video-excerpt
+from:: 1 hour 30 min
+to:: 5:45
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'warning' &&
+        e.message.includes('from') &&
+        e.message.includes('timestamp')
+      )).toBe(true);
+    });
+
+    it('warns about invalid to:: timestamp format', () => {
+      const content = `---
+id: test-id
+---
+
+### Video: Test
+source:: [[../video_transcripts/test.md|Video]]
+
+#### Video-excerpt
+from:: 0:00
+to:: five minutes
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'warning' &&
+        e.message.includes('to') &&
+        e.message.includes('timestamp')
+      )).toBe(true);
+    });
+
+    it('accepts valid timestamp formats', () => {
+      const content = `---
+id: test-id
+---
+
+### Video: Test
+source:: [[../video_transcripts/test.md|Video]]
+
+#### Video-excerpt
+from:: 1:30
+to:: 5:45
+`;
+
+      const result = parseLens(content, 'Lenses/test.md');
+
+      expect(result.errors.filter(e =>
+        e.message.includes('timestamp')
+      )).toHaveLength(0);
+    });
+  });
+
+  it('handles capitalized boolean values in chat segment', () => {
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Page: Introduction
+
+#### Chat
+instructions:: Discuss the key concepts.
+hidePreviousContentFromUser:: True
+`;
+
+    const result = parseLens(content, 'Lenses/lens1.md');
+
+    const chatSeg = result.lens?.sections[0].segments[0];
+    expect(chatSeg?.type).toBe('chat');
+    expect((chatSeg as any).hidePreviousContentFromUser).toBe(true);
+  });
+
+  it('handles uppercase TRUE in optional field', () => {
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Page: Introduction
+
+#### Text
+content:: Some content here.
+optional:: TRUE
+`;
+
+    const result = parseLens(content, 'Lenses/lens1.md');
+
+    const textSeg = result.lens?.sections[0].segments[0];
+    expect(textSeg?.type).toBe('text');
+    expect((textSeg as any).optional).toBe(true);
+  });
+
+  it('warns about free text between section header and first segment', () => {
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Page: Introduction
+This text appears before any #### segment header.
+It should not be silently ignored.
+
+#### Text
+content:: Actual segment content here.
+`;
+
+    const result = parseLens(content, 'Lenses/lens1.md');
+
+    expect(result.errors.some(e =>
+      e.severity === 'warning' &&
+      e.message.includes('before first segment')
+    )).toBe(true);
+    expect(result.lens?.sections[0].segments).toHaveLength(1);
+  });
+
+  it('does not warn about blank lines between section header and first segment', () => {
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Page: Introduction
+
+#### Text
+content:: Actual segment content here.
+`;
+
+    const result = parseLens(content, 'Lenses/lens1.md');
+
+    // Filter to only "ignored" warnings from parseSegments (not from sections.ts parseFields)
+    const segmentIgnoredWarnings = result.errors.filter(e =>
+      e.message.includes('before first segment')
+    );
+    expect(segmentIgnoredWarnings).toHaveLength(0);
+  });
+
+  it('does not warn about field:: lines before first segment (they belong to section-level parsing)', () => {
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Article: Deep Dive
+source:: [[../articles/deep-dive.md|Article]]
+
+#### Article-excerpt
+from:: "The key insight is"
+to:: "understanding this concept."
+`;
+
+    const result = parseLens(content, 'Lenses/lens1.md');
+
+    // source:: is a section-level field, not free text — should NOT warn about it
+    const segmentIgnoredWarnings = result.errors.filter(e =>
+      e.message.includes('before first segment')
+    );
+    expect(segmentIgnoredWarnings).toHaveLength(0);
   });
 });
