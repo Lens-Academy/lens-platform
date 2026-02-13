@@ -29,9 +29,14 @@ export function getCircleFillClasses(
         ? "bg-white text-blue-500 border-2 border-dashed border-blue-400 hover:border-blue-500"
         : "bg-white text-blue-500 border-2 border-dashed border-blue-400";
     }
+    if (isViewing) {
+      return includeHover
+        ? "bg-white text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500"
+        : "bg-white text-gray-400 border-2 border-dashed border-gray-400";
+    }
     return includeHover
-      ? "bg-white text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500"
-      : "bg-white text-gray-400 border-2 border-dashed border-gray-400";
+      ? "bg-white text-gray-400 border-2 border-dashed border-gray-300 hover:border-gray-400"
+      : "bg-white text-gray-400 border-2 border-dashed border-gray-300";
   }
 
   if (isCompleted) {

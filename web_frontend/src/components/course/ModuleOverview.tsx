@@ -74,7 +74,7 @@ export default function ModuleOverview({
   const textColorMap: Record<string, string> = {
     "bg-blue-400": "text-blue-400",
     "bg-gray-400": "text-gray-400",
-    "bg-gray-200": "text-gray-200",
+    "bg-gray-200": "text-gray-300",
   };
 
   /** Render a stage row (circle + content). Used by both trunk and branch items. */
@@ -245,7 +245,7 @@ export default function ModuleOverview({
               const forkColors: Record<string, { text: string; border: string }> = {
                 "bg-blue-400": { text: "text-blue-400", border: "border-blue-400" },
                 "bg-gray-400": { text: "text-gray-400", border: "border-gray-400" },
-                "bg-gray-200": { text: "text-gray-200", border: "border-gray-200" },
+                "bg-gray-200": { text: "text-gray-300", border: "border-gray-200" },
               };
               const segmentColors = colors.segmentColors;
               const arcFork = forkColors[segmentColors[0]] ?? forkColors["bg-gray-200"];
@@ -278,8 +278,8 @@ export default function ModuleOverview({
                       <path
                         d={`M 1 0 A ${r} ${r} 0 0 0 ${1 + r} ${r} L ${endX - r} ${r} A ${r} ${r} 0 0 1 ${endX} ${2 * r}`}
                         stroke="currentColor"
-                        strokeWidth="2"
-                        strokeDasharray="0 4"
+                        strokeWidth="2.5"
+                        strokeDasharray="0 5"
                         strokeLinecap="round"
                       />
                     </svg>

@@ -153,7 +153,7 @@ export default function StageProgressBar({
   const branchColorMap: Record<string, { text: string; border: string }> = {
     "bg-blue-400": { text: "text-blue-400", border: "border-blue-400" },
     "bg-gray-400": { text: "text-gray-400", border: "border-gray-400" },
-    "bg-gray-200": { text: "text-gray-200", border: "border-gray-200" },
+    "bg-gray-200": { text: "text-gray-300", border: "border-gray-200" },
   };
 
   // Find the last trunk item index for dashed trailing connector
@@ -320,8 +320,8 @@ export default function StageProgressBar({
                     <path
                       d={`M 1 1 A ${r} ${r} 0 0 1 ${r + 1} ${r + 1} L ${r + 1} ${drop - r + 1} A ${r} ${r} 0 0 0 ${2 * r + 1} ${drop + 1}`}
                       stroke="currentColor"
-                      strokeWidth="2"
-                      strokeDasharray="0 4"
+                      strokeWidth="2.5"
+                      strokeDasharray="0 5"
                       strokeLinecap="round"
                     />
                   </svg>
