@@ -21,25 +21,12 @@ export interface ExcerptInput {
 }
 
 /**
- * Normalize smart/curly quotes to their straight equivalents.
- * This handles mismatches between content authored in rich text editors
- * (which produce curly quotes) and source articles (which may use straight quotes).
- */
-function normalizeQuotes(text: string): string {
-  return text
-    .replaceAll('\u2018', "'")  // left single quote
-    .replaceAll('\u2019', "'")  // right single quote (smart apostrophe)
-    .replaceAll('\u201C', '"')  // left double quote
-    .replaceAll('\u201D', '"'); // right double quote
-}
-
-/**
- * Find all occurrences of a substring in text (case-insensitive, quote-normalized).
- * Returns array of start indices in the ORIGINAL text.
+ * Find all occurrences of a substring in text (case-insensitive).
+ * Returns array of start indices.
  */
 function findAllOccurrences(text: string, anchor: string): number[] {
-  const lowerText = normalizeQuotes(text.toLowerCase());
-  const lowerAnchor = normalizeQuotes(anchor.toLowerCase());
+  const lowerText = text.toLowerCase();
+  const lowerAnchor = anchor.toLowerCase();
   const indices: number[] = [];
   let pos = 0;
 
