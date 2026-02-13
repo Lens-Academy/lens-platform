@@ -17,7 +17,7 @@ export default function Head() {
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet"
       />
-      <title>Lens Academy | AI Safety Course</title>
+
       <meta
         name="description"
         content="A free, high quality course on AI existential risk. No gatekeeping, no application process."

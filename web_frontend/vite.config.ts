@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import vike from "vike/plugin";
 import react from "@vitejs/plugin-react";
 import path from "path";
@@ -13,39 +13,50 @@ const wsNum = workspaceMatch ? parseInt(workspaceMatch[1], 10) : 0;
 const defaultApiPort = 8000 + wsNum * 100;
 const defaultFrontendPort = 3000 + wsNum * 100;
 
-export default defineConfig({
-  plugins: [
-    react(),
-    vike({
-      prerender: {
-        partial: true,
-      },
-    }),
-  ],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+export default defineConfig(({ mode }) => {
+  const wsEnv = loadEnv(mode, path.resolve(__dirname, ".."));
+  let envLabel = wsEnv.VITE_ENV_LABEL || "";
+  if (envLabel === "DEV" && wsNum > 0) {
+    envLabel = `Dev${wsNum}`;
+  }
+
+  return {
+    define: {
+      ...(envLabel ? { "import.meta.env.VITE_ENV_LABEL": JSON.stringify(envLabel) } : {}),
     },
-  },
-  server: {
-    host: true,
-    allowedHosts: ["dev.vps"],
-    port: parseInt(process.env.FRONTEND_PORT || String(defaultFrontendPort), 10),
-    proxy: {
-      "/api": {
-        target: process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
-        changeOrigin: true,
-      },
-      "/auth": {
-        target: process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
-        changeOrigin: true,
+    plugins: [
+      react(),
+      vike({
+        prerender: {
+          partial: true,
+        },
+      }),
+    ],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
       },
     },
-  },
-  build: {
-    target: "esnext",
-  },
-  ssr: {
-    noExternal: ["react-use"],
-  },
+    server: {
+      host: true,
+      allowedHosts: ["dev.vps"],
+      port: parseInt(process.env.FRONTEND_PORT || String(defaultFrontendPort), 10),
+      proxy: {
+        "/api": {
+          target: process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
+          changeOrigin: true,
+        },
+        "/auth": {
+          target: process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
+          changeOrigin: true,
+        },
+      },
+    },
+    build: {
+      target: "esnext",
+    },
+    ssr: {
+      noExternal: ["react-use"],
+    },
+  };
 });
