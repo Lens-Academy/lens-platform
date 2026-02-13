@@ -82,9 +82,10 @@ export default function ModuleOverview({
 
   // Precompute connector colors for each layout item.
   // Trunk items get incoming (top) and outgoing (bottom) colors.
-  // Branch groups get a pass-through color matching the preceding trunk.
+  // Branch groups get a pass-through color matching the next trunk's incoming
+  // color (the pass-through represents trunk continuing PAST the previous dot).
   let prevTrunkIndex = -1;
-  const layoutColors = layout.map((item) => {
+  const layoutColors = layout.map((item, li) => {
     if (item.kind === "trunk") {
       const ownColor = getLineColor(item.index);
       const incomingColor =
@@ -92,9 +93,31 @@ export default function ModuleOverview({
       prevTrunkIndex = item.index;
       return { kind: "trunk" as const, ownColor, incomingColor };
     } else {
+      // Trunk pass-through: color of connector into the next trunk
+      let nextTrunkIndex = -1;
+      for (let j = li + 1; j < layout.length; j++) {
+        if (layout[j].kind === "trunk") {
+          nextTrunkIndex = layout[j].index;
+          break;
+        }
+      }
       const passColor =
-        prevTrunkIndex >= 0 ? getLineColor(prevTrunkIndex) : "bg-gray-200";
-      return { kind: "branch" as const, passColor };
+        nextTrunkIndex >= 0 ? getLineColor(nextTrunkIndex) : "bg-gray-200";
+
+      // Branch-specific color: only reacts to branch items' own state
+      const hasCompleted = item.items.some((bi) =>
+        completedStages.has(bi.index),
+      );
+      const hasViewing = item.items.some(
+        (bi) => bi.index === currentSectionIndex,
+      );
+      const branchColor = hasCompleted
+        ? "bg-blue-400"
+        : hasViewing
+          ? "bg-gray-400"
+          : "bg-gray-200";
+
+      return { kind: "branch" as const, passColor, branchColor };
     }
   });
 
@@ -269,7 +292,7 @@ export default function ModuleOverview({
                 "bg-gray-200": { text: "text-gray-200", border: "border-gray-200" },
               };
               const { text: forkTextColor, border: forkBorderColor } =
-                forkColors[colors.passColor] ?? forkColors["bg-gray-200"];
+                forkColors[colors.branchColor] ?? forkColors["bg-gray-200"];
 
               return (
                 <div key={li} className="relative">

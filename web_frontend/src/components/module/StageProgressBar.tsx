@@ -146,17 +146,39 @@ export default function StageProgressBar({
   );
   const layout = useMemo(() => buildBranchLayout(layoutInput), [layoutInput]);
 
-  // Precompute pass-through colors for branch blocks
-  let prevTrunkIndex = -1;
-  const layoutColors = layout.map((item) => {
+  // Precompute colors for branch blocks. Two independent color channels:
+  // - passColor: trunk continuity line (follows trunk progress toward next trunk)
+  // - branchColor: SVG arc + dotted connectors (independent of trunk; only
+  //   darkens when viewing/completing items ON this branch)
+  const layoutColors = layout.map((item, li) => {
     if (item.kind === "trunk") {
-      const color = getBarColor(item.index);
-      prevTrunkIndex = item.index;
-      return { kind: "trunk" as const, color };
+      return { kind: "trunk" as const };
     } else {
+      // Trunk pass-through: color of connector into the next trunk
+      let nextTrunkIndex = -1;
+      for (let j = li + 1; j < layout.length; j++) {
+        if (layout[j].kind === "trunk") {
+          nextTrunkIndex = layout[j].index;
+          break;
+        }
+      }
       const passColor =
-        prevTrunkIndex >= 0 ? getBarColor(prevTrunkIndex) : "bg-gray-200";
-      return { kind: "branch" as const, passColor };
+        nextTrunkIndex >= 0 ? getBarColor(nextTrunkIndex) : "bg-gray-200";
+
+      // Branch-specific color: only reacts to branch items' own state
+      const hasCompleted = item.items.some((bi) =>
+        completedStages.has(bi.index),
+      );
+      const hasViewing = item.items.some(
+        (bi) => bi.index === currentSectionIndex,
+      );
+      const branchColor = hasCompleted
+        ? "bg-blue-400"
+        : hasViewing
+          ? "bg-gray-400"
+          : "bg-gray-200";
+
+      return { kind: "branch" as const, passColor, branchColor };
     }
   });
 
@@ -207,6 +229,7 @@ export default function StageProgressBar({
             relative rounded-full flex items-center justify-center
             transition-all duration-150
             ${compact ? "" : "active:scale-95 shrink-0"}
+            ${isViewing ? "z-[3]" : ""}
             ${sizeClasses}
             ${fillClasses}
             ${ringClasses}
@@ -262,15 +285,19 @@ export default function StageProgressBar({
             const colors = layoutColors[li];
             const passColor =
               colors.kind === "branch" ? colors.passColor : "bg-gray-200";
+            const branchColor =
+              colors.kind === "branch" ? colors.branchColor : "bg-gray-200";
             const hasPrecedingTrunk = li > 0 && layout[li - 1]?.kind === "trunk";
             const isAfterLastTrunk =
               hasPrecedingTrunk &&
               li - 1 === lastTrunkLi &&
               lastTrunkLi < layout.length - 1;
+            // Arc + dotted connectors use branch-specific color
             const textColor =
-              branchColorMap[passColor]?.text ?? "text-gray-200";
+              branchColorMap[branchColor]?.text ?? "text-gray-200";
             const branchBorderColor =
-              branchColorMap[passColor]?.border ?? "border-gray-200";
+              branchColorMap[branchColor]?.border ?? "border-gray-200";
+            // Trunk pass-through stub uses trunk color
             const connectorBorderColor =
               borderColorMap[passColor] ?? "border-gray-200";
 
