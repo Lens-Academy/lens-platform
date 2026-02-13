@@ -7,7 +7,8 @@
       "line": 2,
       "message": "Missing required field: slug",
       "suggestion": "Add 'slug' to frontmatter",
-      "severity": "error"
+      "severity": "error",
+      "category": "production"
     }
   ]
 }

@@ -8,7 +8,7 @@ import os
 from datetime import UTC, datetime
 from typing import Optional
 
-from .cache import get_cache, CacheNotInitializedError
+from .cache import get_cache, CacheNotInitializedError, build_category_summary
 from .github_fetcher import incremental_refresh
 from .validation_broadcaster import broadcaster
 
@@ -107,22 +107,14 @@ async def handle_content_update(commit_sha: str) -> dict:
             current_sha = _pending_commit_sha or current_sha
             logger.info(f"Pending refresh detected, continuing with {current_sha[:8]}")
 
-        # Build summary
-        error_count = len(
-            [e for e in validation_errors if e.get("severity") == "error"]
-        )
-        warning_count = len(
-            [e for e in validation_errors if e.get("severity") == "warning"]
-        )
+        # Build category-keyed summary
+        summary = build_category_summary(validation_errors)
 
         result = {
             "status": "ok",
             "message": f"Cache refreshed ({refreshes} refresh(es))",
             "commit_sha": current_sha,
-            "summary": {
-                "errors": error_count,
-                "warnings": warning_count,
-            },
+            "summary": summary,
             "issues": validation_errors,
         }
 

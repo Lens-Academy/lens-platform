@@ -252,28 +252,32 @@
       "line": 9,
       "message": "'# Understanding Existential Risk from AI' looks like a Markdown heading inside content:: field",
       "severity": "warning",
-      "suggestion": "Escape it as '!# Understanding Existential Risk from AI' so it's treated as content, not a section boundary"
+      "suggestion": "Escape it as '!# Understanding Existential Risk from AI' so it's treated as content, not a section boundary",
+      "category": "production"
     },
     {
       "file": "Lenses/WP Software demo.md",
       "line": 11,
       "message": "Text outside of a field:: definition will be ignored: \"Now let's read an overview of the main concepts regarding AI...\"",
       "severity": "warning",
-      "suggestion": "Place this text inside a field (e.g., content:: your text), or remove it"
+      "suggestion": "Place this text inside a field (e.g., content:: your text), or remove it",
+      "category": "production"
     },
     {
       "file": "Lenses/WP Software demo.md",
       "line": 9,
       "message": "'# Understanding Existential Risk from AI' looks like a Markdown heading inside content:: field",
       "severity": "warning",
-      "suggestion": "Escape it as '!# Understanding Existential Risk from AI' so it's treated as content, not a section boundary"
+      "suggestion": "Escape it as '!# Understanding Existential Risk from AI' so it's treated as content, not a section boundary",
+      "category": "production"
     },
     {
       "file": "Lenses/WP Software demo.md",
       "line": 11,
       "message": "Text outside of a field:: definition will be ignored: \"Now let's read an overview of the main concepts regarding AI...\"",
       "severity": "warning",
-      "suggestion": "Place this text inside a field (e.g., content:: your text), or remove it"
+      "suggestion": "Place this text inside a field (e.g., content:: your text), or remove it",
+      "category": "production"
     }
   ],
   "urlsToValidate": [

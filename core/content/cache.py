@@ -49,7 +49,7 @@ class ContentCache:
     raw_files: dict[str, str] | None = None  # path -> raw content
     # Validation errors/warnings from last content processing
     validation_errors: list[dict] | None = (
-        None  # [{file, line, message, suggestion, severity}]
+        None  # [{file, line, message, suggestion, severity, category}]
     )
     # Diff from last incremental refresh (from GitHub Compare API)
     last_diff: list[dict] | None = None
@@ -82,3 +82,18 @@ def clear_cache() -> None:
     """Clear the content cache (used by tests and refresh)."""
     global _cache
     _cache = None
+
+
+def build_category_summary(errors: list[dict]) -> dict[str, dict[str, int]]:
+    """Group validation errors by category into {category: {errors: N, warnings: N}}."""
+    summary: dict[str, dict[str, int]] = {}
+    for e in errors:
+        cat = e.get("category", "production")
+        if cat not in summary:
+            summary[cat] = {"errors": 0, "warnings": 0}
+        severity = e.get("severity", "error")
+        if severity == "error":
+            summary[cat]["errors"] += 1
+        elif severity == "warning":
+            summary[cat]["warnings"] += 1
+    return summary

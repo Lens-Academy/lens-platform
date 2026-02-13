@@ -3,7 +3,7 @@
 import asyncio
 import logging
 
-from core.content.cache import get_cache, CacheNotInitializedError
+from core.content.cache import get_cache, CacheNotInitializedError, build_category_summary
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,7 @@ class ValidationBroadcaster:
             return {"status": "no_cache"}
 
         errors = cache.validation_errors or []
-        error_count = len([e for e in errors if e.get("severity") == "error"])
-        warning_count = len([e for e in errors if e.get("severity") == "warning"])
+        summary = build_category_summary(errors)
 
         return {
             "status": "ok",
@@ -51,7 +50,7 @@ class ValidationBroadcaster:
                 if cache.processed_sha_timestamp
                 else None
             ),
-            "summary": {"errors": error_count, "warnings": warning_count},
+            "summary": summary,
             "issues": errors,
             "diff": cache.last_diff,
         }

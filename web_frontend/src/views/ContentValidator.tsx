@@ -7,6 +7,7 @@ interface ValidationIssue {
   message: string;
   suggestion?: string;
   severity: "error" | "warning";
+  category?: string;
 }
 
 interface DiffFile {
@@ -25,18 +26,31 @@ interface ValidationState {
   fetched_sha_timestamp?: string;
   processed_sha?: string;
   processed_sha_timestamp?: string;
-  summary?: { errors: number; warnings: number };
+  summary?: Record<string, { errors: number; warnings: number }>;
   issues?: ValidationIssue[];
   diff?: DiffFile[];
 }
 
 type ConnectionStatus = "connecting" | "connected" | "reconnecting";
 
+type CategorySummary = Record<string, { errors: number; warnings: number }>;
+
+function normalizeSummary(raw: unknown): CategorySummary {
+  if (!raw || typeof raw !== "object") return {};
+  // Old flat format: { errors: N, warnings: N }
+  if ("errors" in raw && typeof (raw as Record<string, unknown>).errors === "number") {
+    return { production: raw as { errors: number; warnings: number } };
+  }
+  // New category-keyed format: { production: {...}, wip: {...} }
+  return raw as CategorySummary;
+}
+
 export default function ContentValidator() {
   const [state, setState] = useState<ValidationState | null>(null);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("connecting");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("production");
 
   useEffect(() => {
     const source = new EventSource(`${API_URL}/api/content/validation-stream`);
@@ -67,9 +81,26 @@ export default function ContentValidator() {
     }
   };
 
-  const issues = state?.issues || [];
-  const errors = issues.filter((i) => i.severity === "error");
-  const warnings = issues.filter((i) => i.severity === "warning");
+  const allIssues = state?.issues || [];
+  const summary = normalizeSummary(state?.summary);
+  const categories = Object.keys(summary).sort((a, b) =>
+    a === "production" ? -1 : b === "production" ? 1 : a.localeCompare(b),
+  );
+
+  // Ensure activeCategory is valid (fall back to first available or "production")
+  const effectiveCategory =
+    categories.includes(activeCategory)
+      ? activeCategory
+      : categories[0] || "production";
+
+  const activeSummary = summary[effectiveCategory] || { errors: 0, warnings: 0 };
+
+  // Filter issues by active category
+  const filteredIssues = allIssues.filter(
+    (i) => (i.category || "production") === effectiveCategory,
+  );
+  const errors = filteredIssues.filter((i) => i.severity === "error");
+  const warnings = filteredIssues.filter((i) => i.severity === "warning");
 
   return (
     <div className="py-8 max-w-4xl mx-auto px-4">
@@ -118,41 +149,70 @@ export default function ContentValidator() {
       {/* Results */}
       {state && state.status !== "no_cache" && (
         <div className="space-y-6">
+          {/* Category tabs */}
+          {categories.length > 0 && (
+            <div className="flex gap-1 border-b border-gray-200">
+              {categories.map((cat) => {
+                const catSummary = summary[cat] || { errors: 0, warnings: 0 };
+                const isActive = cat === effectiveCategory;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`px-3 py-2 text-sm font-medium capitalize transition-colors
+                      ${
+                        isActive
+                          ? "border-b-2 border-blue-600 text-blue-700"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                  >
+                    {cat}
+                    {catSummary.errors > 0 && (
+                      <span className="ml-1.5 text-xs font-semibold text-red-600">
+                        {catSummary.errors}E
+                      </span>
+                    )}
+                    {catSummary.warnings > 0 && (
+                      <span className="ml-1 text-xs font-semibold text-yellow-600">
+                        {catSummary.warnings}W
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Summary badges */}
           <div className="flex items-center gap-4">
             <div
               className={`px-4 py-2 rounded-lg font-medium ${
-                (state.summary?.errors ?? errors.length) > 0
+                activeSummary.errors > 0
                   ? "bg-red-100 text-red-800"
                   : "bg-green-100 text-green-800"
               }`}
             >
-              {state.summary?.errors ?? errors.length}{" "}
-              {(state.summary?.errors ?? errors.length) === 1
-                ? "error"
-                : "errors"}
+              {activeSummary.errors}{" "}
+              {activeSummary.errors === 1 ? "error" : "errors"}
             </div>
             <div
               className={`px-4 py-2 rounded-lg font-medium ${
-                (state.summary?.warnings ?? warnings.length) > 0
+                activeSummary.warnings > 0
                   ? "bg-yellow-100 text-yellow-800"
                   : "bg-gray-100 text-gray-600"
               }`}
             >
-              {state.summary?.warnings ?? warnings.length}{" "}
-              {(state.summary?.warnings ?? warnings.length) === 1
-                ? "warning"
-                : "warnings"}
+              {activeSummary.warnings}{" "}
+              {activeSummary.warnings === 1 ? "warning" : "warnings"}
             </div>
           </div>
 
           {/* Success message */}
-          {(state.summary?.errors ?? 0) === 0 &&
-            (state.summary?.warnings ?? 0) === 0 && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-                All content is valid. No issues found.
-              </div>
-            )}
+          {activeSummary.errors === 0 && activeSummary.warnings === 0 && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
+              All content is valid. No issues found.
+            </div>
+          )}
 
           {/* Errors */}
           {errors.length > 0 && (

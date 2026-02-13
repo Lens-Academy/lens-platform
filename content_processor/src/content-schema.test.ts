@@ -12,25 +12,25 @@ describe('CONTENT_SCHEMAS', () => {
   it('module schema has correct required and optional fields', () => {
     const schema = CONTENT_SCHEMAS['module'];
     expect(schema.requiredFields).toEqual(['slug', 'title']);
-    expect(schema.optionalFields).toEqual(['contentId', 'id', 'discussion']);
+    expect(schema.optionalFields).toEqual(['contentId', 'id', 'discussion', 'tags']);
   });
 
   it('course schema has correct required and optional fields', () => {
     const schema = CONTENT_SCHEMAS['course'];
     expect(schema.requiredFields).toEqual(['slug', 'title']);
-    expect(schema.optionalFields).toEqual(['id']);
+    expect(schema.optionalFields).toEqual(['id', 'tags']);
   });
 
   it('lens schema has correct required and optional fields', () => {
     const schema = CONTENT_SCHEMAS['lens'];
     expect(schema.requiredFields).toEqual(['id']);
-    expect(schema.optionalFields).toEqual([]);
+    expect(schema.optionalFields).toEqual(['tags']);
   });
 
   it('learning-outcome schema has correct required and optional fields', () => {
     const schema = CONTENT_SCHEMAS['learning-outcome'];
     expect(schema.requiredFields).toEqual(['id']);
-    expect(schema.optionalFields).toEqual(['discussion', 'learning-outcome']);
+    expect(schema.optionalFields).toEqual(['discussion', 'learning-outcome', 'tags']);
   });
 
   it('article schema has correct required and optional fields', () => {
@@ -42,12 +42,12 @@ describe('CONTENT_SCHEMAS', () => {
   it('video-transcript schema has correct required and optional fields', () => {
     const schema = CONTENT_SCHEMAS['video-transcript'];
     expect(schema.requiredFields).toEqual(['title', 'channel', 'url']);
-    expect(schema.optionalFields).toEqual([]);
+    expect(schema.optionalFields).toEqual(['tags']);
   });
 
   it('allFields returns combined required + optional', () => {
     const schema = CONTENT_SCHEMAS['module'];
-    expect(schema.allFields).toEqual(['slug', 'title', 'contentId', 'id', 'discussion']);
+    expect(schema.allFields).toEqual(['slug', 'title', 'contentId', 'id', 'discussion', 'tags']);
   });
 });
 

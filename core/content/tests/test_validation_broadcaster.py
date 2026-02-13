@@ -41,7 +41,7 @@ class TestValidationBroadcaster:
             processed_sha="abc123",
             processed_sha_timestamp=datetime.now(),
             validation_errors=[
-                {"file": "test.md", "message": "error", "severity": "error"}
+                {"file": "test.md", "message": "error", "severity": "error", "category": "production"}
             ],
         )
         set_cache(cache)
@@ -49,7 +49,7 @@ class TestValidationBroadcaster:
         queue = await self.broadcaster.subscribe()
         msg = queue.get_nowait()
         assert msg["processed_sha"] == "abc123"
-        assert msg["summary"]["errors"] == 1
+        assert msg["summary"]["production"]["errors"] == 1
         await self.broadcaster.unsubscribe(queue)
 
     @pytest.mark.asyncio

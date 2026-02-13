@@ -2,24 +2,18 @@
 import { readdir, readFile } from 'fs/promises';
 import { join } from 'path';
 
-export interface ReadVaultOptions {
-  includeWip?: boolean;
-}
-
 export async function readVaultFiles(
-  vaultPath: string,
-  options: ReadVaultOptions = {}
+  vaultPath: string
 ): Promise<Map<string, string>> {
   const files = new Map<string, string>();
-  await readFilesRecursive(vaultPath, '', files, options);
+  await readFilesRecursive(vaultPath, '', files);
   return files;
 }
 
 async function readFilesRecursive(
   dir: string,
   prefix: string,
-  result: Map<string, string>,
-  options: ReadVaultOptions
+  result: Map<string, string>
 ): Promise<void> {
   const entries = await readdir(dir, { withFileTypes: true });
 
@@ -28,11 +22,7 @@ async function readFilesRecursive(
     const fullPath = join(dir, entry.name);
 
     if (entry.isDirectory()) {
-      // Skip WIP directories unless includeWip is true
-      if (!options.includeWip && entry.name.toLowerCase().includes('wip')) {
-        continue;
-      }
-      await readFilesRecursive(fullPath, relativePath, result, options);
+      await readFilesRecursive(fullPath, relativePath, result);
     } else if (entry.name.endsWith('.md') || entry.name.endsWith('.timestamps.json')) {
       // Load both .md files and .timestamps.json files (for video transcript timing data)
       const content = await readFile(fullPath, 'utf-8');

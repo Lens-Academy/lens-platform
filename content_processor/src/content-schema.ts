@@ -29,12 +29,12 @@ function segmentSchema(required: string[], optional: string[], booleanFields: st
 }
 
 export const CONTENT_SCHEMAS: Record<string, ContentTypeSchema> = {
-  'module': contentSchema(['slug', 'title'], ['contentId', 'id', 'discussion']),
-  'course': contentSchema(['slug', 'title'], ['id']),
-  'lens': contentSchema(['id'], []),
-  'learning-outcome': contentSchema(['id'], ['discussion', 'learning-outcome']),
+  'module': contentSchema(['slug', 'title'], ['contentId', 'id', 'discussion', 'tags']),
+  'course': contentSchema(['slug', 'title'], ['id', 'tags']),
+  'lens': contentSchema(['id'], ['tags']),
+  'learning-outcome': contentSchema(['id'], ['discussion', 'learning-outcome', 'tags']),
   'article': contentSchema(['title', 'author', 'source_url'], ['date', 'published', 'created', 'description', 'tags', 'url']),
-  'video-transcript': contentSchema(['title', 'channel', 'url'], []),
+  'video-transcript': contentSchema(['title', 'channel', 'url'], ['tags']),
 };
 
 export const SEGMENT_SCHEMAS: Record<string, SegmentTypeSchema> = {

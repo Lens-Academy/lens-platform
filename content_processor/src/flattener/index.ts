@@ -10,6 +10,8 @@ import type {
   ContentError,
   SectionMeta,
 } from '../index.js';
+import type { ContentTier } from '../validator/tier.js';
+import { checkTierViolation } from '../validator/tier.js';
 import { parseModule, parsePageSegments } from '../parser/module.js';
 import { parseLearningOutcome } from '../parser/learning-outcome.js';
 import { parseLens, type ParsedLensSegment, type ParsedLensSection } from '../parser/lens.js';
@@ -58,7 +60,8 @@ export interface FlattenModuleResult {
 export function flattenModule(
   modulePath: string,
   files: Map<string, string>,
-  visitedPaths: Set<string> = new Set()
+  visitedPaths: Set<string> = new Set(),
+  tierMap?: Map<string, ContentTier>
 ): FlattenModuleResult {
   // Check for circular reference
   if (visitedPaths.has(modulePath)) {
@@ -109,7 +112,8 @@ export function flattenModule(
         section,
         modulePath,
         files,
-        sectionVisitedPaths
+        sectionVisitedPaths,
+        tierMap
       );
       errors.push(...result.errors);
       flattenedSections.push(...result.sections);
@@ -139,7 +143,8 @@ export function flattenModule(
         section,
         modulePath,
         files,
-        sectionVisitedPaths
+        sectionVisitedPaths,
+        tierMap
       );
       errors.push(...result.errors);
       flattenedSections.push(...result.sections);
@@ -179,7 +184,8 @@ function flattenLearningOutcomeSection(
   section: { type: string; title: string; fields: Record<string, string>; line: number },
   modulePath: string,
   files: Map<string, string>,
-  visitedPaths: Set<string>
+  visitedPaths: Set<string>,
+  tierMap?: Map<string, ContentTier>
 ): FlattenMultipleSectionsResult {
   const errors: ContentError[] = [];
   const sections: Section[] = [];
@@ -232,6 +238,21 @@ function flattenLearningOutcomeSection(
     return { sections: [], errors };
   }
 
+  // Check tier violation (module → LO)
+  if (tierMap) {
+    const parentTier = tierMap.get(modulePath) ?? 'production';
+    const childTier = tierMap.get(loPath) ?? 'production';
+    const violation = checkTierViolation(modulePath, parentTier, loPath, childTier, 'learning outcome', section.line);
+    if (violation) {
+      errors.push(violation);
+      return { sections: [], errors };
+    }
+    // Skip ignored children silently (they're not processed)
+    if (childTier === 'ignored') {
+      return { sections: [], errors };
+    }
+  }
+
   // Check for circular reference
   if (visitedPaths.has(loPath)) {
     errors.push({
@@ -273,6 +294,20 @@ function flattenLearningOutcomeSection(
       continue;
     }
 
+    // Check tier violation (LO → Lens)
+    if (tierMap) {
+      const parentTier = tierMap.get(loPath) ?? 'production';
+      const childTier = tierMap.get(lensPath) ?? 'production';
+      const violation = checkTierViolation(loPath, parentTier, lensPath, childTier, 'lens');
+      if (violation) {
+        errors.push(violation);
+        continue;
+      }
+      if (childTier === 'ignored') {
+        continue;
+      }
+    }
+
     // Check for circular reference
     if (visitedPaths.has(lensPath)) {
       errors.push({
@@ -376,7 +411,8 @@ function flattenLearningOutcomeSection(
           lensSection,
           lensPath,
           files,
-          visitedPaths
+          visitedPaths,
+          tierMap
         );
         errors.push(...segmentResult.errors);
 
@@ -415,7 +451,8 @@ function flattenUncategorizedSection(
   section: { type: string; title: string; fields: Record<string, string>; body: string; line: number },
   modulePath: string,
   files: Map<string, string>,
-  visitedPaths: Set<string>
+  visitedPaths: Set<string>,
+  tierMap?: Map<string, ContentTier>
 ): FlattenMultipleSectionsResult {
   const errors: ContentError[] = [];
   const sections: Section[] = [];
@@ -450,6 +487,20 @@ function flattenUncategorizedSection(
         severity: 'error',
       });
       continue;
+    }
+
+    // Check tier violation (Uncategorized/Module → Lens)
+    if (tierMap) {
+      const parentTier = tierMap.get(modulePath) ?? 'production';
+      const childTier = tierMap.get(lensPath) ?? 'production';
+      const violation = checkTierViolation(modulePath, parentTier, lensPath, childTier, 'lens');
+      if (violation) {
+        errors.push(violation);
+        continue;
+      }
+      if (childTier === 'ignored') {
+        continue;
+      }
     }
 
     // Check for circular reference
@@ -555,7 +606,8 @@ function flattenUncategorizedSection(
           lensSection,
           lensPath,
           files,
-          visitedPaths
+          visitedPaths,
+          tierMap
         );
         errors.push(...segmentResult.errors);
 
@@ -722,7 +774,8 @@ function convertSegment(
   lensSection: ParsedLensSection,
   lensPath: string,
   files: Map<string, string>,
-  visitedPaths: Set<string>
+  visitedPaths: Set<string>,
+  tierMap?: Map<string, ContentTier>
 ): ConvertSegmentResult {
   const errors: ContentError[] = [];
 
@@ -797,6 +850,20 @@ function convertSegment(
           severity: 'error',
         });
         return { segment: null, errors };
+      }
+
+      // Check tier violation (Lens → Article)
+      if (tierMap) {
+        const parentTier = tierMap.get(lensPath) ?? 'production';
+        const childTier = tierMap.get(articlePath) ?? 'production';
+        const violation = checkTierViolation(lensPath, parentTier, articlePath, childTier, 'article');
+        if (violation) {
+          errors.push(violation);
+          return { segment: null, errors };
+        }
+        if (childTier === 'ignored') {
+          return { segment: null, errors };
+        }
       }
 
       // Check if the article path points back to an already-visited structural file
@@ -877,6 +944,20 @@ function convertSegment(
           severity: 'error',
         });
         return { segment: null, errors };
+      }
+
+      // Check tier violation (Lens → Video)
+      if (tierMap) {
+        const parentTier = tierMap.get(lensPath) ?? 'production';
+        const childTier = tierMap.get(videoPath) ?? 'production';
+        const violation = checkTierViolation(lensPath, parentTier, videoPath, childTier, 'video transcript');
+        if (violation) {
+          errors.push(violation);
+          return { segment: null, errors };
+        }
+        if (childTier === 'ignored') {
+          return { segment: null, errors };
+        }
       }
 
       // Check if the video path points back to an already-visited structural file
