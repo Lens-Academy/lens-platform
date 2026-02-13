@@ -225,6 +225,29 @@ body {
   }
 }
 
+/* Round-dotted lines — matches SVG strokeDasharray="0 4" strokeLinecap="round" */
+@utility dotted-round-v {
+  width: 2px;
+  background-image: radial-gradient(
+    circle at center,
+    currentColor 1px,
+    transparent 1px
+  );
+  background-size: 2px 4px;
+  background-repeat: repeat-y;
+}
+
+@utility dotted-round-h {
+  height: 2px;
+  background-image: radial-gradient(
+    circle at center,
+    currentColor 1px,
+    transparent 1px
+  );
+  background-size: 4px 2px;
+  background-repeat: repeat-x;
+}
+
 /* Hide scrollbar while allowing scroll */
 .scrollbar-hide {
   -ms-overflow-style: none;

@@ -156,12 +156,6 @@ export default function StageProgressBar({
     "bg-gray-200": { text: "text-gray-200", border: "border-gray-200" },
   };
 
-  const borderColorMap: Record<string, string> = {
-    "bg-blue-400": "border-blue-400",
-    "bg-gray-400": "border-gray-400",
-    "bg-gray-200": "border-gray-200",
-  };
-
   // Find the last trunk item index for dashed trailing connector
   const lastTrunkLi = (() => {
     for (let i = layout.length - 1; i >= 0; i--) {
@@ -252,21 +246,20 @@ export default function StageProgressBar({
             const colors = layoutColors[li];
             const passColor =
               colors.kind === "branch" ? colors.passColor : "bg-gray-200";
-            const branchColor =
-              colors.kind === "branch" ? colors.branchColor : "bg-gray-200";
+            const segmentColors =
+              colors.kind === "branch" ? colors.segmentColors : [];
             const hasPrecedingTrunk = li > 0 && layout[li - 1]?.kind === "trunk";
             const isAfterLastTrunk =
               hasPrecedingTrunk &&
               li - 1 === lastTrunkLi &&
               lastTrunkLi < layout.length - 1;
-            // Arc + dotted connectors use branch-specific color
-            const textColor =
-              branchColorMap[branchColor]?.text ?? "text-gray-200";
-            const branchBorderColor =
-              branchColorMap[branchColor]?.border ?? "border-gray-200";
+            // Arc color from first segment
+            const arcColor = segmentColors[0] ?? "bg-gray-200";
+            const arcTextColor =
+              branchColorMap[arcColor]?.text ?? "text-gray-200";
             // Trunk pass-through stub uses trunk color
-            const connectorBorderColor =
-              borderColorMap[passColor] ?? "border-gray-200";
+            const connectorTextColor =
+              branchColorMap[passColor]?.text ?? "text-gray-200";
 
             return (
               <div
@@ -281,7 +274,7 @@ export default function StageProgressBar({
                       compact ? "h-7" : "h-8 sm:h-11"
                     }`}
                   >
-                    <div className={`w-full border-t-2 border-dotted ${connectorBorderColor}`} />
+                    <div className={`w-full dotted-round-h ${connectorTextColor}`} />
                   </div>
                 ) : (
                   /* Mid-layout: solid line spanning full width for trunk continuity */
@@ -297,7 +290,7 @@ export default function StageProgressBar({
                 {/* S-curve arc — absolutely positioned from trunk center to branch row */}
                 {hasPrecedingTrunk && (
                   <svg
-                    className={`absolute ${textColor} z-[1] pointer-events-none ${compact ? "left-4" : "left-2 sm:left-4"}`}
+                    className={`absolute ${arcTextColor} z-[1] pointer-events-none ${compact ? "left-4" : "left-2 sm:left-4"}`}
                     style={{
                       top: dotSize / 2 - 1,
                       width: arcWidth,
@@ -331,7 +324,9 @@ export default function StageProgressBar({
                     <div key={bi} className="flex items-center">
                       {bi > 0 && (
                         <div
-                          className={`border-t-2 border-dotted ${branchBorderColor} ${compact ? "w-3" : "w-2 sm:w-3"}`}
+                          className={`dotted-round-h ${
+                            branchColorMap[segmentColors[bi]]?.text ?? "text-gray-200"
+                          } ${compact ? "w-3" : "w-2 sm:w-3"}`}
                         />
                       )}
                       {renderDot(stages[branchItem.index], branchItem.index, true)}

@@ -71,10 +71,10 @@ export default function ModuleOverview({
   })();
 
   // Static mapping so Tailwind's scanner sees full class names
-  const borderColorMap: Record<string, string> = {
-    "bg-blue-400": "border-blue-400",
-    "bg-gray-400": "border-gray-400",
-    "bg-gray-200": "border-gray-200",
+  const textColorMap: Record<string, string> = {
+    "bg-blue-400": "text-blue-400",
+    "bg-gray-400": "text-gray-400",
+    "bg-gray-200": "text-gray-200",
   };
 
   /** Render a stage row (circle + content). Used by both trunk and branch items. */
@@ -207,7 +207,7 @@ export default function ModuleOverview({
                   {!isLast && (
                     trailsIntoBranchOnly ? (
                       <div
-                        className={`absolute left-[0.875rem] top-1/2 bottom-0 -translate-x-1/2 z-[1] border-l-2 border-dotted ${borderColorMap[colors.outgoingColor] ?? "border-gray-200"}`}
+                        className={`absolute left-[0.875rem] top-1/2 bottom-0 -translate-x-1/2 z-[1] dotted-round-v ${textColorMap[colors.outgoingColor] ?? "text-gray-200"}`}
                       />
                     ) : (
                       <div
@@ -247,15 +247,17 @@ export default function ModuleOverview({
                 "bg-gray-400": { text: "text-gray-400", border: "border-gray-400" },
                 "bg-gray-200": { text: "text-gray-200", border: "border-gray-200" },
               };
-              const { text: forkTextColor, border: forkBorderColor } =
-                forkColors[colors.branchColor] ?? forkColors["bg-gray-200"];
+              const segmentColors = colors.segmentColors;
+              const arcFork = forkColors[segmentColors[0]] ?? forkColors["bg-gray-200"];
+              const forkDotColor = (i: number) =>
+                (forkColors[segmentColors[i]] ?? forkColors["bg-gray-200"]).text;
 
               return (
                 <div key={li} className="relative">
                   {/* SVG fork curve — rendered first so trunk pass-through paints over the overlap */}
                   {hasPrecedingTrunk && (
                     <svg
-                      className={`absolute z-[1] ${forkTextColor} pointer-events-none`}
+                      className={`absolute z-[1] ${arcFork.text} pointer-events-none`}
                       style={{
                         left: trunkX - 1,
                         top: 0,
@@ -289,15 +291,15 @@ export default function ModuleOverview({
                       <div key={bi} className="relative">
                         {/* Fork-to-circle connector for first item (adapts to row height via bottom-1/2) */}
                         {bi === 0 && hasPrecedingTrunk && (
-                          <div className={`absolute z-[2] left-[0.875rem] bottom-1/2 -translate-x-1/2 border-l-2 border-dotted ${forkBorderColor}`} style={{ top: forkConnectorTop }} />
+                          <div className={`absolute z-[2] left-[0.875rem] bottom-1/2 -translate-x-1/2 dotted-round-v ${forkDotColor(0)}`} style={{ top: forkConnectorTop }} />
                         )}
                         {/* Branch connector above (dashed, between items) */}
                         {bi > 0 && (
-                          <div className={`absolute z-[2] left-[0.875rem] top-0 bottom-1/2 -translate-x-1/2 border-l-2 border-dotted ${forkBorderColor}`} />
+                          <div className={`absolute z-[2] left-[0.875rem] top-0 bottom-1/2 -translate-x-1/2 dotted-round-v ${forkDotColor(bi)}`} />
                         )}
                         {/* Branch connector below */}
                         {bi < item.items.length - 1 && (
-                          <div className={`absolute z-[2] left-[0.875rem] top-1/2 bottom-0 -translate-x-1/2 border-l-2 border-dotted ${forkBorderColor}`} />
+                          <div className={`absolute z-[2] left-[0.875rem] top-1/2 bottom-0 -translate-x-1/2 dotted-round-v ${forkDotColor(bi + 1)}`} />
                         )}
                         {renderStageRow(branchItem.stage, branchItem.index)}
                       </div>
