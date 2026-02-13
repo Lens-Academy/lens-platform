@@ -261,6 +261,14 @@ export default function StageProgressBar({
             const connectorTextColor =
               branchColorMap[passColor]?.text ?? "text-gray-200";
 
+            // Fork color: preceding trunk's outgoing color (considers all branches)
+            // This may differ from passColor (trunk continuation only) when viewing optional content.
+            const precedingColors = li > 0 ? layoutColors[li - 1] : null;
+            const forkColor =
+              precedingColors?.kind === "trunk"
+                ? precedingColors.outgoingColor
+                : passColor;
+
             return (
               <div
                 key={li}
@@ -277,13 +285,16 @@ export default function StageProgressBar({
                     <div className={`w-full dotted-round-h ${connectorTextColor}`} />
                   </div>
                 ) : (
-                  /* Mid-layout: solid line spanning full width for trunk continuity */
+                  /* Mid-layout: fork segment (outgoing color) + continuation (pass color) */
                   <div
                     className={`absolute left-0 right-0 flex items-center z-[2] ${
                       compact ? "h-7" : "h-8 sm:h-11"
                     }`}
                   >
-                    <div className={`w-full h-0.5 ${passColor}`} />
+                    {hasPrecedingTrunk && (
+                      <div className={`h-0.5 ${compact ? "w-4" : "w-2 sm:w-4"} shrink-0 ${forkColor}`} />
+                    )}
+                    <div className={`flex-1 h-0.5 ${passColor}`} />
                   </div>
                 )}
 

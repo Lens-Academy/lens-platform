@@ -252,12 +252,20 @@ export default function ModuleOverview({
               const forkDotColor = (i: number) =>
                 (forkColors[segmentColors[i]] ?? forkColors["bg-gray-200"]).text;
 
+              // When branch lines are darker than the trunk pass-through,
+              // bump them above so the light solid line doesn't cover the dark dotted lines.
+              const colorRank: Record<string, number> = { "bg-gray-200": 0, "bg-gray-400": 1, "bg-blue-400": 2 };
+              const arcDarker = (colorRank[segmentColors[0]] ?? 0) > (colorRank[colors.passColor] ?? 0);
+              const arcZ = arcDarker ? "z-[2]" : "z-[1]";
+              const passZ = arcDarker ? "z-[1]" : "z-[2]";
+              const branchConnZ = arcDarker ? "z-[3]" : "z-[2]";
+
               return (
                 <div key={li} className="relative">
                   {/* SVG fork curve — rendered first so trunk pass-through paints over the overlap */}
                   {hasPrecedingTrunk && (
                     <svg
-                      className={`absolute z-[1] ${arcFork.text} pointer-events-none`}
+                      className={`absolute ${arcZ} ${arcFork.text} pointer-events-none`}
                       style={{
                         left: trunkX - 1,
                         top: 0,
@@ -279,7 +287,7 @@ export default function ModuleOverview({
                   {/* Trunk pass-through — on top of SVG so solid line hides the dashed overlap */}
                   {hasPrecedingTrunk && (
                     <div
-                      className={`absolute left-[0.875rem] top-0 w-0.5 -translate-x-1/2 z-[2] ${colors.passColor} ${
+                      className={`absolute left-[0.875rem] top-0 w-0.5 -translate-x-1/2 ${passZ} ${colors.passColor} ${
                         isLast ? "" : "bottom-0"
                       }`}
                       style={isLast ? { height: trunkEndY } : undefined}
@@ -291,15 +299,15 @@ export default function ModuleOverview({
                       <div key={bi} className="relative">
                         {/* Fork-to-circle connector for first item (adapts to row height via bottom-1/2) */}
                         {bi === 0 && hasPrecedingTrunk && (
-                          <div className={`absolute z-[2] left-[0.875rem] bottom-1/2 -translate-x-1/2 dotted-round-v ${forkDotColor(0)}`} style={{ top: forkConnectorTop }} />
+                          <div className={`absolute ${branchConnZ} left-[0.875rem] bottom-1/2 -translate-x-1/2 dotted-round-v ${forkDotColor(0)}`} style={{ top: forkConnectorTop }} />
                         )}
                         {/* Branch connector above (dashed, between items) */}
                         {bi > 0 && (
-                          <div className={`absolute z-[2] left-[0.875rem] top-0 bottom-1/2 -translate-x-1/2 dotted-round-v ${forkDotColor(bi)}`} />
+                          <div className={`absolute ${branchConnZ} left-[0.875rem] top-0 bottom-1/2 -translate-x-1/2 dotted-round-v ${forkDotColor(bi)}`} />
                         )}
                         {/* Branch connector below */}
                         {bi < item.items.length - 1 && (
-                          <div className={`absolute z-[2] left-[0.875rem] top-1/2 bottom-0 -translate-x-1/2 dotted-round-v ${forkDotColor(bi + 1)}`} />
+                          <div className={`absolute ${branchConnZ} left-[0.875rem] top-1/2 bottom-0 -translate-x-1/2 dotted-round-v ${forkDotColor(bi + 1)}`} />
                         )}
                         {renderStageRow(branchItem.stage, branchItem.index)}
                       </div>
