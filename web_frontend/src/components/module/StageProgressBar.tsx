@@ -292,17 +292,27 @@ export default function StageProgressBar({
                     <div className={`w-full dotted-round-h ${connectorTextColor}`} />
                   </div>
                 ) : (
-                  /* Mid-layout: fork segment (outgoing color) + continuation (pass color) */
-                  <div
-                    className={`absolute left-0 right-0 flex items-center ${passZ} ${
-                      compact ? "h-7" : "h-8 sm:h-11"
-                    }`}
-                  >
+                  /* Mid-layout: solid trunk pass-through + dotted fork overlay */
+                  <>
+                    {/* Layer 1: solid trunk continuation (mandatory→mandatory) */}
+                    <div
+                      className={`absolute left-0 right-0 flex items-center ${passZ} ${
+                        compact ? "h-7" : "h-8 sm:h-11"
+                      }`}
+                    >
+                      <div className={`flex-1 h-0.5 ${passColor}`} />
+                    </div>
+                    {/* Layer 2: dotted fork segment (mandatory→optional), same color as arc */}
                     {hasPrecedingTrunk && (
-                      <div className={`h-0.5 ${compact ? "w-4" : "w-2 sm:w-4"} shrink-0 ${forkColor}`} />
+                      <div
+                        className={`absolute left-0 flex items-center ${arcZ} ${
+                          compact ? "h-7" : "h-8 sm:h-11"
+                        }`}
+                      >
+                        <div className={`dotted-round-h ${arcTextColor} ${compact ? "w-4" : "w-2 sm:w-4"}`} />
+                      </div>
                     )}
-                    <div className={`flex-1 h-0.5 ${passColor}`} />
-                  </div>
+                  </>
                 )}
 
                 {/* S-curve arc — absolutely positioned from trunk center to branch row */}
