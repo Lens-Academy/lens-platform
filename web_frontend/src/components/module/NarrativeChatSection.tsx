@@ -4,13 +4,12 @@ import {
   useState,
   useRef,
   useEffect,
-  useCallback,
   useLayoutEffect,
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatMessage, PendingMessage } from "@/types/module";
-import { transcribeAudio } from "@/api/modules";
+import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { Tooltip } from "@/components/Tooltip";
 import { StageIcon } from "@/components/module/StageProgressBar";
 import { triggerHaptic } from "@/utils/haptics";
@@ -98,8 +97,6 @@ type NarrativeChatSectionProps = {
   onRetryMessage?: () => void;
 };
 
-type RecordingState = "idle" | "recording" | "transcribing";
-
 /**
  * Chat section for NarrativeLesson.
  * Copied from ChatPanel with stage-specific features removed.
@@ -124,30 +121,20 @@ export default function NarrativeChatSection({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Recording state
-  const [recordingState, setRecordingState] = useState<RecordingState>("idle");
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [volumeBars, setVolumeBars] = useState<number[]>([0, 0, 0, 0, 0]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showRecordingWarning, setShowRecordingWarning] = useState(false);
-
-  // Recording refs
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const timerIntervalRef = useRef<number | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const isRecordingRef = useRef(false);
-  const recordingTimeRef = useRef(0);
-  const smoothedVolumeRef = useRef(0);
-  const pcmDataRef = useRef<Float32Array<ArrayBuffer> | null>(null);
-
-  const MAX_RECORDING_TIME = 120;
-  const WARNING_TIME = 60;
-  const MIN_RECORDING_TIME = 0.5;
+  // Voice recording (extracted to shared hook)
+  const {
+    recordingState,
+    recordingTime,
+    volumeBars,
+    errorMessage,
+    showRecordingWarning,
+    handleMicClick,
+    formatTime,
+  } = useVoiceRecording({
+    onTranscription: (text) => {
+      setInput((prev) => (prev ? `${prev} ${text}` : text));
+    },
+  });
 
   // Scroll user's new message to top when they send
   useLayoutEffect(() => {
@@ -189,32 +176,6 @@ export default function NarrativeChatSection({
     }
   }, [input]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, []);
-
-  // Clear error message after 3 seconds
-  useEffect(() => {
-    if (errorMessage) {
-      const timer = setTimeout(() => setErrorMessage(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [errorMessage]);
-
   // Track scroll container height for min-height calculation
   useLayoutEffect(() => {
     if (!scrollContainerRef.current || !hasInteracted) return;
@@ -233,202 +194,6 @@ export default function NarrativeChatSection({
     observer.observe(container);
     return () => observer.disconnect();
   }, [hasInteracted]);
-
-  // Volume meter
-  const lastUpdateRef = useRef(0);
-  const updateAudioLevel = useCallback(() => {
-    if (!analyserRef.current || !isRecordingRef.current) return;
-
-    if (audioContextRef.current?.state === "suspended") {
-      audioContextRef.current.resume();
-    }
-
-    if (!pcmDataRef.current) {
-      pcmDataRef.current = new Float32Array(analyserRef.current.fftSize);
-    }
-    analyserRef.current.getFloatTimeDomainData(pcmDataRef.current);
-
-    let sumSquares = 0;
-    for (const amplitude of pcmDataRef.current) {
-      sumSquares += amplitude * amplitude;
-    }
-    const rms = Math.sqrt(sumSquares / pcmDataRef.current.length);
-    const instantVolume = Math.min(1, rms * 4);
-
-    const decay = 0.97;
-    smoothedVolumeRef.current = Math.max(
-      instantVolume,
-      smoothedVolumeRef.current * decay,
-    );
-
-    const now = performance.now();
-    if (now - lastUpdateRef.current > 150) {
-      lastUpdateRef.current = now;
-      const baseVol = smoothedVolumeRef.current;
-      setVolumeBars([
-        baseVol * (0.7 + Math.random() * 0.6),
-        baseVol * (0.7 + Math.random() * 0.6),
-        baseVol * (0.7 + Math.random() * 0.6),
-        baseVol * (0.7 + Math.random() * 0.6),
-        baseVol * (0.7 + Math.random() * 0.6),
-      ]);
-    }
-
-    animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
-  }, []);
-
-  const startRecording = async () => {
-    setErrorMessage(null);
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      audioContextRef.current = new AudioContext();
-      if (audioContextRef.current.state === "suspended") {
-        await audioContextRef.current.resume();
-      }
-      sourceRef.current =
-        audioContextRef.current.createMediaStreamSource(stream);
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      sourceRef.current.connect(analyserRef.current);
-
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported("audio/webm")
-          ? "audio/webm"
-          : "audio/mp4",
-      });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
-        }
-      };
-
-      mediaRecorder.start();
-      setRecordingState("recording");
-      isRecordingRef.current = true;
-      setRecordingTime(0);
-
-      recordingTimeRef.current = 0;
-      setShowRecordingWarning(false);
-      timerIntervalRef.current = window.setInterval(() => {
-        recordingTimeRef.current += 1;
-        const currentTime = recordingTimeRef.current;
-        setRecordingTime(currentTime);
-        if (currentTime >= WARNING_TIME && currentTime < MAX_RECORDING_TIME) {
-          setShowRecordingWarning(true);
-        }
-        if (currentTime >= MAX_RECORDING_TIME) {
-          setTimeout(() => stopRecording(), 0);
-        }
-      }, 1000);
-
-      animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
-    } catch (err) {
-      if (err instanceof Error && err.name === "NotAllowedError") {
-        setErrorMessage("Microphone access required");
-      } else {
-        setErrorMessage("Could not access microphone");
-      }
-    }
-  };
-
-  const stopRecording = async () => {
-    if (!mediaRecorderRef.current || !isRecordingRef.current) return;
-
-    isRecordingRef.current = false;
-
-    if (recordingTimeRef.current < MIN_RECORDING_TIME) {
-      mediaRecorderRef.current.stop();
-      cleanupRecording();
-      return;
-    }
-
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
-    }
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-
-    setRecordingState("transcribing");
-    setVolumeBars([0, 0, 0, 0, 0]);
-    smoothedVolumeRef.current = 0;
-
-    const mediaRecorder = mediaRecorderRef.current;
-
-    await new Promise<void>((resolve) => {
-      mediaRecorder.onstop = () => resolve();
-      mediaRecorder.stop();
-    });
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
-    const audioBlob = new Blob(audioChunksRef.current, {
-      type: mediaRecorder.mimeType,
-    });
-
-    try {
-      const text = await transcribeAudio(audioBlob);
-      if (text.trim()) {
-        // Append to existing input (input is now controlled via props)
-        setInput(input ? `${input} ${text}` : text);
-      } else {
-        setErrorMessage("No speech detected");
-      }
-    } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Transcription failed",
-      );
-    } finally {
-      cleanupRecording();
-    }
-  };
-
-  const cleanupRecording = () => {
-    setRecordingState("idle");
-    isRecordingRef.current = false;
-    recordingTimeRef.current = 0;
-    setRecordingTime(0);
-    setVolumeBars([0, 0, 0, 0, 0]);
-    setShowRecordingWarning(false);
-    smoothedVolumeRef.current = 0;
-    pcmDataRef.current = null;
-    mediaRecorderRef.current = null;
-    audioChunksRef.current = [];
-
-    if (sourceRef.current) {
-      sourceRef.current.disconnect();
-      sourceRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    analyserRef.current = null;
-  };
-
-  const handleMicClick = () => {
-    if (recordingState === "idle") {
-      startRecording();
-    } else if (recordingState === "recording") {
-      stopRecording();
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
