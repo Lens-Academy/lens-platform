@@ -14,9 +14,10 @@ import type { ContentTier } from '../validator/tier.js';
 import { checkTierViolation } from '../validator/tier.js';
 import { parseModule, parsePageSegments } from '../parser/module.js';
 import { parseLearningOutcome } from '../parser/learning-outcome.js';
-import { parseLens, type ParsedLensSegment, type ParsedLensSection } from '../parser/lens.js';
+import { parseLens, type ParsedLens, type ParsedLensSegment, type ParsedLensSection } from '../parser/lens.js';
 import { parseWikilink, resolveWikilinkPath, findFileWithExtension, findSimilarFiles, formatSuggestion } from '../parser/wikilink.js';
 import { parseFrontmatter } from '../parser/frontmatter.js';
+import { fileNameToSlug } from '../utils/slug.js';
 import { extractArticleExcerpt } from '../bundler/article.js';
 import { extractVideoExcerpt, type TimestampEntry } from '../bundler/video.js';
 
@@ -1016,4 +1017,147 @@ function convertSegment(
     default:
       return { segment: null, errors };
   }
+}
+
+/**
+ * Flatten a single Lens file into a FlattenedModule.
+ *
+ * This wraps a standalone Lens as a single-section module so it can be
+ * rendered by the frontend using the existing Module.tsx component.
+ *
+ * The resulting module has:
+ * - slug: 'lens/' + fileNameToSlug(lensPath)
+ * - title: extracted from source metadata or lens header
+ * - sections: exactly one section (lens-article, lens-video, or page)
+ *
+ * @param lensPath - Path to the lens file within the files Map
+ * @param files - Map of all file paths to their content
+ * @param tierMap - Optional tier map for filtering ignored content
+ * @param preParsedLens - Optional pre-parsed lens to avoid re-parsing
+ * @returns Flattened module with a single section, plus any errors
+ */
+export function flattenLens(
+  lensPath: string,
+  files: Map<string, string>,
+  tierMap?: Map<string, ContentTier>,
+  preParsedLens?: ParsedLens,
+): FlattenModuleResult {
+  const errors: ContentError[] = [];
+
+  // Skip ignored lenses
+  if (tierMap?.get(lensPath) === 'ignored') {
+    return { module: null, errors };
+  }
+
+  const lensContent = files.get(lensPath);
+  if (!lensContent) {
+    errors.push({
+      file: lensPath,
+      message: `Lens file not found: ${lensPath}`,
+      severity: 'error',
+    });
+    return { module: null, errors };
+  }
+
+  // Use pre-parsed lens if provided, otherwise parse
+  const lens = preParsedLens ?? (() => {
+    const lensResult = parseLens(lensContent, lensPath);
+    errors.push(...lensResult.errors);
+    return lensResult.lens;
+  })();
+
+  if (!lens) {
+    return { module: null, errors };
+  }
+
+  const visitedPaths = new Set<string>([lensPath]);
+
+  // Process lens sections into a single flattened Section
+  let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
+  const meta: SectionMeta = {};
+  const segments: Segment[] = [];
+  let videoId: string | undefined;
+
+  for (const lensSection of lens.sections) {
+    if (lensSection.type === 'lens-article') {
+      sectionType = 'lens-article';
+
+      // Extract article metadata from the article file's frontmatter
+      if (lensSection.source) {
+        const articleWikilink = parseWikilink(lensSection.source);
+        if (articleWikilink && !articleWikilink.error) {
+          const articlePathResolved = resolveWikilinkPath(articleWikilink.path, lensPath);
+          const articlePath = findFileWithExtension(articlePathResolved, files);
+          if (articlePath) {
+            const articleContent = files.get(articlePath)!;
+            const articleFrontmatter = parseFrontmatter(articleContent, articlePath);
+            if (articleFrontmatter.frontmatter.title)
+              meta.title = articleFrontmatter.frontmatter.title as string;
+            if (articleFrontmatter.frontmatter.author)
+              meta.author = articleFrontmatter.frontmatter.author as string;
+            if (articleFrontmatter.frontmatter.source_url)
+              meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
+          }
+        }
+      }
+    } else if (lensSection.type === 'page') {
+      sectionType = 'page';
+      if (lensSection.title) meta.title = lensSection.title;
+    } else if (lensSection.type === 'lens-video') {
+      sectionType = 'lens-video';
+
+      // Extract video metadata from the video transcript file's frontmatter
+      if (lensSection.source) {
+        const videoWikilink = parseWikilink(lensSection.source);
+        if (videoWikilink && !videoWikilink.error) {
+          const videoPathResolved = resolveWikilinkPath(videoWikilink.path, lensPath);
+          const videoPath = findFileWithExtension(videoPathResolved, files);
+          if (videoPath) {
+            const videoContent = files.get(videoPath)!;
+            const videoFrontmatter = parseFrontmatter(videoContent, videoPath);
+            if (videoFrontmatter.frontmatter.title)
+              meta.title = videoFrontmatter.frontmatter.title as string;
+            if (videoFrontmatter.frontmatter.channel)
+              meta.channel = videoFrontmatter.frontmatter.channel as string;
+            if (videoFrontmatter.frontmatter.url) {
+              const extractedId = extractVideoIdFromUrl(videoFrontmatter.frontmatter.url as string);
+              if (extractedId) videoId = extractedId;
+            }
+          }
+        }
+      }
+    }
+
+    // Process segments
+    for (const parsedSegment of lensSection.segments) {
+      const segmentResult = convertSegment(parsedSegment, lensSection, lensPath, files, visitedPaths, tierMap);
+      errors.push(...segmentResult.errors);
+      if (segmentResult.segment) segments.push(segmentResult.segment);
+    }
+  }
+
+  // Fallback title from filename if not extracted from source metadata
+  if (!meta.title) {
+    meta.title = fileNameToSlug(lensPath).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  const section: Section = {
+    type: sectionType,
+    meta,
+    segments,
+    optional: false,
+    learningOutcomeId: null,
+    learningOutcomeName: null,
+    contentId: lens.id ?? null,
+    videoId: videoId ?? null,
+  };
+
+  const flattenedModule: FlattenedModule = {
+    slug: 'lens/' + fileNameToSlug(lensPath),
+    title: meta.title ?? fileNameToSlug(lensPath),
+    contentId: lens.id ?? null,
+    sections: [section],
+  };
+
+  return { module: flattenedModule, errors };
 }
