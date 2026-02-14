@@ -24,7 +24,7 @@ Phase 5: Motion & Polish (4 plans)
 
 **Milestone Goal:** Add answer boxes and test sections to the module viewer so the platform can measure learning outcomes and start collecting assessment data.
 
-- [ ] **Phase 6: Data Foundation** - Database tables, API endpoints, and content parsing for tests
+- [x] **Phase 6: Data Foundation** - Database tables, API endpoints, and content parsing for tests
 - [ ] **Phase 7: Answer Box** - Free-text input component with voice support
 - [ ] **Phase 8: Test Sections** - Grouped assessment questions with test-mode UX
 - [ ] **Phase 9: AI Assessment** - LLM-powered scoring with rubrics and mode selection
@@ -43,8 +43,8 @@ Phase 5: Motion & Polish (4 plans)
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Database schema (assessment_responses + assessment_scores tables), Alembic migration, and core/assessments.py CRUD functions
-- [ ] 06-02-PLAN.md — Content processor: Question segment type + Test section parsing + comment stripping; Assessment API endpoints (POST/GET responses)
+- [x] 06-01-PLAN.md — Database schema (assessment_responses + assessment_scores tables), Alembic migration, and core/assessments.py CRUD functions
+- [x] 06-02-PLAN.md — Content processor: Question segment type + Test section parsing + comment stripping; Assessment API endpoints (POST/GET responses)
 
 ### Phase 7: Answer Box
 **Goal**: Students can type or speak answers into a free-text input component that appears within module content
@@ -55,11 +55,11 @@ Plans:
   2. Student can use voice input on an answer box (same as existing chat voice input), not enforced
   3. Answer box works both inside lesson sections (inline with teaching content) and inside test sections
   4. Submitted answers are persisted to the database via the Phase 6 API
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 07-01: Answer box React component with text input and submission
-- [ ] 07-02: Voice input mode with skip/text fallback
+- [ ] 07-01-PLAN.md — AnswerBox component with auto-expanding textarea, debounced auto-save (PATCH endpoint), completion flow, and Module.tsx integration
+- [ ] 07-02-PLAN.md — Voice input via extracted useVoiceRecording hook, NarrativeChatSection refactor, enforceVoice support
 
 ### Phase 8: Test Sections
 **Goal**: Modules can contain test sections at the end that group assessment questions and enforce test-mode behavior
@@ -101,7 +101,7 @@ Plans:
 | 3. Content Components | v1.0 | 2/2 | Complete | 2026-01-22 |
 | 4. Chat Interface | v1.0 | 2/2 | Complete | 2026-01-22 |
 | 5. Motion & Polish | v1.0 | 4/4 | Complete | 2026-01-22 |
-| 6. Data Foundation | v2.0 | 0/2 | Not started | - |
+| 6. Data Foundation | v2.0 | 2/2 | Complete | 2026-02-14 |
 | 7. Answer Box | v2.0 | 0/2 | Not started | - |
 | 8. Test Sections | v2.0 | 0/2 | Not started | - |
 | 9. AI Assessment | v2.0 | 0/2 | Not started | - |
