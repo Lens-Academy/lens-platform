@@ -3,6 +3,7 @@ import { COMMON_TIMEZONES, formatTimezoneDisplay } from "../../types/enroll";
 import ScheduleSelector from "../schedule/ScheduleSelector";
 
 interface AvailabilityStepProps {
+  isSubmitting?: boolean;
   availability: AvailabilityData;
   onAvailabilityChange: (data: AvailabilityData) => void;
   timezone: string;
@@ -13,6 +14,7 @@ interface AvailabilityStepProps {
 }
 
 export default function AvailabilityStep({
+  isSubmitting = false,
   availability,
   onAvailabilityChange,
   timezone,
@@ -108,9 +110,9 @@ export default function AvailabilityStep({
         <button
           type="button"
           onClick={onSubmit}
-          disabled={totalSlots === 0}
+          disabled={isSubmitting || totalSlots === 0}
           className={`flex-1 px-6 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
-            totalSlots === 0
+            isSubmitting || totalSlots === 0
               ? "bg-gray-300 text-gray-500"
               : "bg-blue-500 hover:bg-blue-600 text-white"
           }`}
