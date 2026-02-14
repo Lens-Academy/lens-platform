@@ -34,12 +34,12 @@
     "directory": "content_processor"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0",
+    "@types/node": "^22.0.0",
     "tsx": "^4.0.0",
-    "@types/node": "^22.0.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   },
   "dependencies": {
-    "yaml": "^2.5.0"
+    "yaml": "^2.8.2"
   }
 }

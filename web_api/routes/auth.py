@@ -406,14 +406,15 @@ async def get_me(request: Request):
     """
     Get current authenticated user info.
 
-    Returns 200 always:
-    - If authenticated: { authenticated: true, discord_id, discord_username, discord_avatar_url, user, is_in_signups_table, is_in_active_group }
-    - If not authenticated: { authenticated: false }
+    Returns:
+    - 401 if no valid JWT (triggers fetchWithRefresh to use refresh token)
+    - 200 { authenticated: false } if valid JWT but no DB user record
+    - 200 { authenticated: true, ... } if fully authenticated
     """
     user = await get_optional_user(request)
 
     if not user:
-        return {"authenticated": False}
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
     db_user = await get_user_profile(user["sub"])
 

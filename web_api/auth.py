@@ -61,7 +61,7 @@ def verify_jwt(token: str) -> dict | None:
         token: The JWT token string
 
     Returns:
-        Decoded payload dict if valid, None if invalid
+        Decoded payload dict if valid, None if invalid/no secret configured
     """
     if not JWT_SECRET:
         raise ValueError("JWT_SECRET environment variable not set")
