@@ -1,268 +1,273 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-02-14
 
 ## Directory Layout
 
 ```
 ai-safety-course-platform/
-├── core/                       # Layer 1: Business logic (platform-agnostic)
-│   ├── calendar/               # Google Calendar integration
-│   ├── content/                # GitHub content fetching
-│   ├── modules/                # Course/module management
-│   ├── notifications/          # Multi-channel notifications
-│   ├── queries/                # Database query builders
-│   ├── transcripts/            # Chat transcript storage
-│   ├── tests/                  # Core unit tests
-│   └── *.py                    # Base modules
-├── discord_bot/                # Layer 2a: Discord adapter
-│   ├── cogs/                   # Slash command handlers
-│   ├── utils/                  # Discord-specific utilities
-│   └── tests/
-├── web_api/                    # Layer 2b: FastAPI adapter
-│   ├── routes/                 # HTTP endpoint handlers
-│   └── tests/
-├── web_frontend/               # Layer 3: React frontend
-│   ├── src/
-│   │   ├── pages/              # Vike route pages
-│   │   ├── components/         # React components
-│   │   ├── views/              # Page view components
-│   │   ├── api/                # API client functions
-│   │   ├── hooks/              # Custom React hooks
-│   │   ├── types/              # TypeScript types
-│   │   ├── utils/              # Helper utilities
-│   │   ├── styles/             # CSS/Tailwind
-│   │   └── assets/             # Static assets
-│   ├── public/                 # Public static files
-│   └── dist/                   # Built SPA (gitignored)
-├── migrations/                 # Raw SQL migrations (manual)
-├── alembic/                    # Alembic migration config
-├── scripts/                    # Utility scripts
-├── static/                     # Backend static files
-├── docs/                       # Design documentation
-├── main.py                     # Unified backend entry point
-├── conftest.py                 # Pytest configuration
-├── requirements.txt            # Python dependencies
-└── CLAUDE.md                   # AI assistant instructions
+├── main.py                      # Unified entry point (FastAPI + Discord bot)
+├── requirements.txt             # Python dependencies
+├── requirements-dev.txt         # Dev dependencies (pytest, ruff, mypy)
+├── conftest.py                  # Pytest global fixtures
+├── alembic.ini                  # Alembic migration config
+├── package.json                 # Root npm package (minimal)
+│
+├── core/                        # Layer 1: Platform-agnostic business logic
+├── discord_bot/                 # Layer 2a: Discord adapter
+├── web_api/                     # Layer 2b: FastAPI HTTP adapter
+├── web_frontend/                # Layer 3: Vike + React frontend
+│
+├── alembic/                     # Alembic migration engine
+├── migrations/                  # Raw SQL migrations (legacy)
+├── fixtures/                    # Test data fixtures
+├── static/                      # Static files (legacy)
+├── scripts/                     # Utility scripts
+├── docs/                        # Design docs and notes
+│
+├── .planning/                   # GSD planning documents
+├── .github/workflows/           # CI/CD workflows
+└── .jj/                         # jj version control metadata
 ```
 
 ## Directory Purposes
 
-**`core/`:**
-- Purpose: All business logic shared between Discord and web
-- Contains: Database operations, scheduling algorithms, notifications, external API clients
-- Key files:
-  - `__init__.py` - Public API exports
-  - `database.py` - Async SQLAlchemy connection management
-  - `tables.py` - SQLAlchemy table definitions
-  - `users.py` - User CRUD operations
-  - `scheduling.py` - Cohort scheduling algorithm
-  - `config.py` - Environment configuration
+**core/**
+- Purpose: Platform-agnostic business logic, no Discord/FastAPI imports
+- Contains: User management, scheduling, cohorts, content fetching, notifications, database access
+- Key files: `database.py` (SQLAlchemy), `tables.py` (schema), `users.py`, `scheduling.py`, `__init__.py` (exports)
 
-**`core/modules/`:**
-- Purpose: Course and module content management
-- Contains: YAML loaders, markdown parsers, LLM chat, session management
-- Key files:
-  - `loader.py` - Load module from YAML
-  - `course_loader.py` - Load course structure
-  - `sessions.py` - Session state management
-  - `chat.py` - LLM conversation handling
-  - `llm.py` - LiteLLM provider abstraction
-  - `types.py` - Module/Stage type definitions
+**core/calendar/**
+- Purpose: Google Calendar API integration
+- Contains: `client.py` (Calendar API), `events.py` (event CRUD), `rsvp.py` (RSVP sync)
 
-**`core/notifications/`:**
-- Purpose: Multi-channel notification dispatch
-- Contains: Email (SendGrid), Discord DM, scheduling (APScheduler)
-- Key files:
-  - `dispatcher.py` - Route notifications to channels
-  - `scheduler.py` - Background job scheduling
-  - `templates.py` - Email/message templates
-  - `actions.py` - High-level notification actions
-  - `channels/email.py` - SendGrid integration
-  - `channels/discord.py` - Discord DM sending
+**core/content/**
+- Purpose: Educational content from GitHub
+- Contains: `cache.py` (in-memory cache), `github_fetcher.py` (fetch from GitHub), `webhook_handler.py` (GitHub webhook)
 
-**`core/queries/`:**
+**core/modules/**
+- Purpose: Course/module content management
+- Contains: `types.py` (type definitions), `content.py` (content operations), `chat.py` (LLM chat), `llm.py` (LiteLLM provider), `loader.py` (module loading), `course_loader.py` (course loading)
+
+**core/discord_outbound/**
+- Purpose: Discord API operations (keeps core platform-agnostic)
+- Contains: `bot.py` (bot instance), `messages.py` (DMs/messages), `channels.py` (channel creation), `permissions.py` (channel access), `events.py` (scheduled events)
+
+**core/notifications/**
+- Purpose: Multi-channel notification system
+- Contains: `dispatcher.py` (routing), `actions.py` (high-level actions), `scheduler.py` (APScheduler), `templates.py` (email/Discord templates), `channels/email.py` (SendGrid)
+
+**core/queries/**
 - Purpose: Reusable database query builders
-- Contains: SQLAlchemy Core queries organized by domain
-- Key files:
-  - `users.py` - User queries
-  - `cohorts.py` - Cohort queries
-  - `groups.py` - Group queries
-  - `meetings.py` - Meeting queries
-  - `progress.py` - Learning progress queries
+- Contains: `users.py`, `cohorts.py`, `groups.py`, `meetings.py`, `refresh_tokens.py`
 
-**`discord_bot/cogs/`:**
+**core/transcripts/**
+- Purpose: Chat transcript storage
+- Contains: Transcript management for module chat sessions
+
+**core/tests/**
+- Purpose: Core module unit tests
+- Contains: pytest test files for core business logic
+
+**discord_bot/**
+- Purpose: Discord UI adapter, delegates to core
+- Contains: `main.py` (bot entry), `cogs/` (slash commands)
+- Key files: `cogs/enrollment_cog.py`, `cogs/scheduler_cog.py`, `cogs/groups_cog.py`
+
+**discord_bot/cogs/**
 - Purpose: Discord slash command handlers
-- Contains: Cogs loaded by discord.py
-- Key files:
-  - `enrollment_cog.py` - `/signup` command
-  - `scheduler_cog.py` - `/schedule`, `/list-users`
-  - `groups_cog.py` - `/group` channel creation
-  - `breakout_cog.py` - Breakout room management
-  - `stampy_cog.py` - AI chatbot integration
-  - `ping_cog.py` - Health check
+- Contains: `ping_cog.py`, `enrollment_cog.py`, `scheduler_cog.py`, `groups_cog.py`, `breakout_cog.py`, `stampy_cog.py`, `attendance_cog.py`, `nickname_cog.py`, `sync_cog.py`
 
-**`web_api/routes/`:**
-- Purpose: FastAPI HTTP endpoints
-- Contains: Router modules grouped by domain
-- Key files:
-  - `auth.py` - `/auth/*` Discord OAuth, sessions
-  - `users.py` - `/api/users/*` profile endpoints
-  - `modules.py` - `/api/modules/*` module content
-  - `courses.py` - `/api/courses/*` course endpoints
-  - `cohorts.py` - `/api/cohorts/*` enrollment
-  - `facilitator.py` - `/api/facilitator/*` admin endpoints
+**discord_bot/tests/**
+- Purpose: Discord bot integration tests
+- Contains: pytest test files for Discord-specific functionality
 
-**`web_frontend/src/pages/`:**
-- Purpose: Vike file-based routing
-- Contains: Page components following `@param` convention for dynamic routes
-- Key files:
-  - `index/+Page.tsx` - Landing page `/`
-  - `course/+Page.tsx` - Course overview `/course`
-  - `course/@courseId/+Page.tsx` - Course detail `/course/:courseId`
-  - `course/@courseId/module/@moduleId/+Page.tsx` - Module page
-  - `enroll/+Page.tsx` - Enrollment flow
-  - `availability/+Page.tsx` - Availability picker
-  - `facilitator/+Page.tsx` - Facilitator dashboard
+**web_api/**
+- Purpose: FastAPI HTTP adapter, delegates to core
+- Contains: `auth.py` (JWT utilities), `routes/` (API endpoints), `rate_limit.py`
+- Key files: `routes/auth.py`, `routes/users.py`, `routes/courses.py`, `routes/module.py`
 
-**`web_frontend/src/components/`:**
+**web_api/routes/**
+- Purpose: FastAPI route handlers
+- Contains: `auth.py` (OAuth/JWT), `users.py`, `cohorts.py`, `courses.py`, `modules.py`, `module.py`, `content.py`, `facilitator.py`, `speech.py`, `groups.py`, `admin.py`, `progress.py`
+
+**web_api/tests/**
+- Purpose: Web API integration tests
+- Contains: pytest test files for API endpoints
+
+**web_frontend/**
+- Purpose: React frontend (Vike + Vite + Tailwind v4)
+- Contains: `src/` (source), `dist/` (build output), `public/` (static assets)
+- Key files: `vite.config.ts`, `package.json`, `tsconfig.json`
+
+**web_frontend/src/pages/**
+- Purpose: Vike file-based routes
+- Contains: Route page components (`+Page.tsx`), data loaders (`+data.ts`), layouts (`+Layout.tsx`)
+
+**web_frontend/src/components/**
 - Purpose: Reusable React components
-- Contains: UI components organized by feature
-- Key files:
-  - `Layout.tsx` - Page layout wrapper
-  - `ModuleHeader.tsx` - Module page header
-  - `nav/` - Navigation components
-  - `module/` - Module-specific components
-  - `course/` - Course-specific components
-  - `schedule/` - Availability scheduling UI
+- Contains: `nav/`, `module/`, `course/`, `enroll/`, `schedule/`, `icons/`
 
-**`web_frontend/src/views/`:**
-- Purpose: Page-level view components (heavier logic)
-- Contains: Full page implementations
-- Key files:
-  - `Module.tsx` - Module learning experience
-  - `CourseOverview.tsx` - Course listing/progress
-  - `Facilitator.tsx` - Facilitator dashboard
-  - `Availability.tsx` - Availability picker view
-
-**`web_frontend/src/api/`:**
+**web_frontend/src/api/**
 - Purpose: API client functions
-- Contains: Typed fetch wrappers for backend endpoints
-- Key files:
-  - `modules.ts` - Module/session API calls
-  - (other API clients)
+- Contains: TypeScript functions for calling backend API endpoints
+
+**web_frontend/src/hooks/**
+- Purpose: Custom React hooks
+- Contains: Reusable React hooks for auth, data fetching, UI state
+
+**web_frontend/src/utils/**
+- Purpose: Frontend utility functions
+- Contains: Helper functions for formatting, validation, etc.
+
+**web_frontend/dist/**
+- Purpose: Vike build output (served by FastAPI in production)
+- Contains: `client/` (SSG HTML + SPA assets), `server/` (Vike SSR server bundle)
+- Generated: Yes
+- Committed: No
+
+**alembic/**
+- Purpose: Alembic migration engine
+- Contains: `env.py` (Alembic config), `versions/` (migration files)
+
+**alembic/versions/**
+- Purpose: Database migration files (auto-generated + manual)
+- Contains: Python files with `upgrade()` and `downgrade()` functions
+
+**migrations/**
+- Purpose: Legacy raw SQL migrations (before Alembic)
+- Contains: Numbered SQL files
+
+**fixtures/**
+- Purpose: Test data fixtures
+- Contains: Sample data for pytest tests
+
+**scripts/**
+- Purpose: Utility scripts
+- Contains: `list-servers` (dev server management), other helper scripts
+
+**docs/**
+- Purpose: Design documents and notes
+- Contains: `architecture/`, `design/`, `plans/`, `notes/`, `reviews/`, `designs/`
+
+**.planning/**
+- Purpose: GSD planning documents
+- Contains: `codebase/` (this file), `phases/`, `todos/`, `milestones/`, `research/`
+
+**.github/workflows/**
+- Purpose: CI/CD workflows
+- Contains: `ci.yml` (lint + test), other workflow files
 
 ## Key File Locations
 
 **Entry Points:**
-- `main.py`: Unified backend entry point (FastAPI + Discord)
-- `discord_bot/main.py`: Discord bot factory (imported by root main.py)
-- `web_frontend/src/pages/+config.ts`: Vike configuration
+- `main.py`: Unified backend (FastAPI + Discord bot)
+- `discord_bot/main.py`: Bot-only mode (legacy)
+- `web_api/main.py`: API-only mode (legacy)
+- `web_frontend/src/pages/index/+Page.tsx`: Landing page
 
 **Configuration:**
-- `.env` / `.env.local`: Environment variables
+- `.env`: Environment variables (gitignored)
+- `.env.local`: Local overrides (gitignored, loaded first)
+- `alembic.ini`: Alembic migration config
 - `requirements.txt`: Python dependencies
-- `web_frontend/package.json`: Node dependencies
+- `web_frontend/package.json`: Frontend dependencies
 - `web_frontend/vite.config.ts`: Vite build config
-- `web_frontend/tsconfig.json`: TypeScript config
-- `alembic.ini`: Database migration config
 
 **Core Logic:**
-- `core/__init__.py`: Public API - import from here
-- `core/database.py`: Database connection management
-- `core/tables.py`: All database table definitions
+- `core/database.py`: SQLAlchemy async engine
+- `core/tables.py`: Database schema (SQLAlchemy Core)
+- `core/users.py`: User management
 - `core/scheduling.py`: Cohort scheduling algorithm
+- `core/sync.py`: External system sync operations
+- `core/notifications/actions.py`: Notification actions
 
 **Testing:**
-- `conftest.py`: Root pytest config
-- `core/tests/`: Core business logic tests
-- `discord_bot/tests/`: Discord adapter tests
-- `web_api/tests/`: FastAPI route tests
-- `core/*/tests/`: Submodule tests
+- `conftest.py`: Global pytest fixtures
+- `core/tests/`: Core unit tests
+- `discord_bot/tests/`: Discord integration tests
+- `web_api/tests/`: API integration tests
+- `web_frontend/src/**/__tests__/`: Frontend component tests
 
 ## Naming Conventions
 
 **Files:**
-- Python: `snake_case.py` (e.g., `module_sessions.py`)
-- TypeScript: `camelCase.ts` or `PascalCase.tsx` for components
-- Cogs: `*_cog.py` (e.g., `enrollment_cog.py`)
-- Tests: `test_*.py` (Python), `*.test.ts` (TypeScript)
+- Python modules: `snake_case.py` (e.g., `user_profile.py`)
+- TypeScript/React: `PascalCase.tsx` for components, `camelCase.ts` for utilities
+- Vike pages: `+Page.tsx`, `+data.ts`, `+Layout.tsx`
 
 **Directories:**
-- Lowercase with underscores for Python (e.g., `discord_bot/`)
-- Lowercase for frontend (e.g., `components/`, `pages/`)
-- Vike pages use `@param` for dynamic routes (e.g., `@courseId/`)
-
-**Database Tables:**
-- Plural nouns: `users`, `cohorts`, `groups`, `meetings`
-- Junction tables: `groups_users` (not `group_users`)
+- Python: `snake_case/` (e.g., `discord_bot/`, `web_api/`)
+- TypeScript: `camelCase/` or `kebab-case/` (e.g., `components/`, `api/`)
 
 ## Where to Add New Code
 
 **New Business Logic:**
-- Primary code: `core/` or `core/<subdomain>/`
-- Export in `core/__init__.py` for public API
-- Tests: `core/tests/` or `core/<subdomain>/tests/`
-
-**New API Endpoint:**
-- Route handler: `web_api/routes/<domain>.py`
-- Add router to `main.py` includes
-- Tests: `web_api/tests/test_<domain>.py`
+- Primary code: `core/my_feature.py`
+- Tests: `core/tests/test_my_feature.py`
+- Export: Add to `core/__init__.py`
 
 **New Discord Command:**
-- Cog: `discord_bot/cogs/<feature>_cog.py`
-- Add to `COGS` list in `discord_bot/main.py`
-- Tests: `discord_bot/tests/test_<feature>_cog.py`
+- Primary code: `discord_bot/cogs/my_cog.py`
+- Tests: `discord_bot/tests/test_my_cog.py`
+- Register: Add `"cogs.my_cog"` to `COGS` list in `discord_bot/main.py`
+
+**New API Endpoint:**
+- Primary code: `web_api/routes/my_route.py`
+- Tests: `web_api/tests/test_my_route.py`
+- Register: Import and `app.include_router()` in `main.py`
 
 **New Frontend Page:**
-- Page: `web_frontend/src/pages/<route>/+Page.tsx`
-- Dynamic params: `@paramName/+Page.tsx`
-- Data loading: `+data.ts` alongside `+Page.tsx`
+- Primary code: `web_frontend/src/pages/my-page/+Page.tsx`
+- Data loader (if needed): `web_frontend/src/pages/my-page/+data.ts`
+- Route: File path determines URL (e.g., `/my-page`)
 
 **New React Component:**
-- Shared: `web_frontend/src/components/<ComponentName>.tsx`
-- Feature-specific: `web_frontend/src/components/<feature>/<ComponentName>.tsx`
-
-**New API Client Function:**
-- Add to existing file in `web_frontend/src/api/` or create new
-- Export types from `web_frontend/src/types/`
+- Implementation: `web_frontend/src/components/my-component/MyComponent.tsx`
+- Tests: `web_frontend/src/components/my-component/__tests__/MyComponent.test.tsx`
 
 **Utilities:**
-- Python (shared): `core/<module>.py`
-- Frontend: `web_frontend/src/utils/<utility>.ts`
-- Discord-specific: `discord_bot/utils/<utility>.py`
+- Shared Python helpers: `core/utils.py` or `core/my_domain/utils.py`
+- Shared TypeScript helpers: `web_frontend/src/utils/myUtil.ts`
+
+**New Database Table:**
+1. Edit schema: `core/tables.py` (add SQLAlchemy Table definition)
+2. Generate migration: `.venv/bin/alembic revision --autogenerate -m "description"`
+3. Review migration: `alembic/versions/XXXX_description.py`
+4. Apply migration: `.venv/bin/alembic upgrade head`
 
 ## Special Directories
 
-**`migrations/`:**
-- Purpose: Raw SQL migration files (numbered, manual)
-- Generated: No (hand-written)
-- Committed: Yes
+**node_modules/**
+- Purpose: npm dependencies for frontend
+- Generated: Yes (by `npm install`)
+- Committed: No
 
-**`alembic/versions/`:**
-- Purpose: Alembic migration scripts
-- Generated: Via `alembic revision`
-- Committed: Yes
+**__pycache__/**
+- Purpose: Python bytecode cache
+- Generated: Yes (by Python interpreter)
+- Committed: No
 
-**`web_frontend/dist/`:**
-- Purpose: Built frontend for production
-- Generated: Via `npm run build`
-- Committed: No (gitignored)
+**.venv/**
+- Purpose: Python virtual environment (symlink to repo root venv)
+- Generated: Yes (by user)
+- Committed: No
 
-**`scripts/`:**
-- Purpose: Utility scripts for development/testing
-- Generated: No
-- Committed: Yes
-- Key scripts:
-  - `create_cohort.py` - Create test cohort
-  - `create_test_scheduling_data.py` - Generate test data
-  - `list-servers` - Show running dev servers
+**.pytest_cache/**
+- Purpose: pytest cache
+- Generated: Yes (by pytest)
+- Committed: No
 
-**`.planning/`:**
-- Purpose: GSD planning documents
-- Generated: By AI assistant
+**dist/**
+- Purpose: Vike build output
+- Generated: Yes (by `npm run build`)
+- Committed: No
+
+**static/spa/**
+- Purpose: Legacy static SPA files
+- Generated: No (manual)
 - Committed: Yes
 
 ---
 
-*Structure analysis: 2026-01-21*
+*Structure analysis: 2026-02-14*

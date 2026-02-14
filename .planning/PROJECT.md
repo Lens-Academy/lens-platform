@@ -2,27 +2,23 @@
 
 ## What This Is
 
-Full mobile responsiveness for the AI Safety Course Platform web frontend. Students can complete lessons, interact with the chatbot, and watch embedded videos on their phones in a mobile browser.
+Web platform for an AI Safety education course. Students read articles, watch videos, and discuss concepts with an AI tutor through interactive modules. The platform supports learning outcome measurement through answer boxes and test sections with AI-powered assessment.
 
 ## Core Value
 
-Students can consume course content on mobile — lessons, chatbot, videos all work on phone screens.
+Students can engage with course content and demonstrate understanding — through reading, discussion, and assessment — while the platform collects data to improve both teaching and measurement.
 
-## Current State (v1.0)
+## Current Milestone: v2.0 Tests & Answer Boxes
 
-**Shipped:** 2026-01-22
+**Goal:** Add answer boxes and test sections to the module viewer so the platform can measure learning outcomes and start collecting assessment data.
 
-Mobile responsiveness complete across all student-facing views:
-- Foundation: 18px typography, dvh viewport units, safe area insets
-- Navigation: Hamburger menu, hide-on-scroll header, bottom navigation
-- Content: Responsive video embeds, touch-friendly article layout
-- Chat: iOS keyboard handling, 44px touch targets, haptic feedback
-- Polish: Spring animations, View Transitions, skeleton loading
-
-**Tech Stack:**
-- React 19 + Vike
-- Tailwind CSS 4 with mobile-first responsive utilities
-- 10,507 lines TypeScript/CSS in frontend
+**Target features:**
+- Free-text answer box as a general-purpose input type (usable in lessons and tests)
+- Test sections that group assessment questions at the end of modules
+- AI-powered assessment scoring (stored internally, not shown to users initially)
+- Voice-only input enforcement per question (with skip/override option)
+- Content hiding during assessment (block access to previous pages)
+- Data storage for responses, scores, and learning outcome measurements
 
 ## Requirements
 
@@ -44,7 +40,7 @@ Mobile responsiveness complete across all student-facing views:
 
 ### Active
 
-(None — milestone just shipped. Next milestone to define new requirements.)
+(See REQUIREMENTS.md for v2.0 scoped requirements)
 
 ### Out of Scope
 
@@ -53,12 +49,34 @@ Mobile responsiveness complete across all student-facing views:
 - Offline support — requires significant architecture changes
 - Push notifications — would require native capabilities
 - Tablet-specific layouts — works but not optimized; phones are priority
+- Showing scores to users — grades will be inaccurate until AI assessor prompting is iterated
+- Multiple choice / structured question types — free-text only for now
+- Certificate generation — depends on reliable scoring, future milestone
+
+## Context
+
+**Content structure (Obsidian vault via Lens Relay):**
+- Course → Modules → Learning Outcomes → Lenses (teaching content)
+- Each Learning Outcome has a `## Test:` section in the template (currently always empty)
+- A Lens contains: article/video + intro text + AI chat discussion
+- Tests are designed to sit at the end of modules, with time gap between study and assessment
+
+**Two content models in codebase:**
+- Flat stages: `ArticleStage | VideoStage | ChatStage` (legacy)
+- Narrative sections: `NarrativeSection` → `NarrativeSegment` (text, article-excerpt, video-excerpt, chat)
+
+**Assessment design principles:**
+- Socratic feedback (helping learn) vs assessment (measuring learning) are distinct modes
+- Both should be supported as options per question
+- AI scoring is for internal data collection — improving course material and eventually grading certificates
 
 ## Constraints
 
-- **Stack**: Must use existing Tailwind CSS — no new CSS frameworks
-- **Scope**: Students only — facilitator views can stay desktop-focused
-- **Compatibility**: Modern mobile browsers (Safari iOS, Chrome Android)
+- **Stack**: React 19 + Vike + Tailwind CSS 4, Python FastAPI backend
+- **Content format**: Must work with existing Obsidian/Lens Relay content authoring
+- **LLM**: Use existing LiteLLM integration for AI assessment
+- **Data privacy**: Assessment scores stored but not exposed to students initially
+- **Accessibility**: Voice input enforcement must have escape hatch (skip/text fallback)
 
 ## Key Decisions
 
@@ -72,6 +90,9 @@ Mobile responsiveness complete across all student-facing views:
 | CSS linear() for spring easing | Native, no JS library needed | ✓ Good |
 | View Transitions API | Modern page transitions with fallback | ✓ Good |
 | Skeleton loading states | Consistent loading UX across views | ✓ Good |
+| Free-text answer box only (no MC) | Simpler to build, richer signal for AI assessment | — Pending |
+| Scores hidden from users | Scoring accuracy needs iteration before exposure | — Pending |
+| Tests at end of module | Time gap between study and test improves measurement | — Pending |
 
 ---
-*Last updated: 2026-01-22 after v1.0 milestone*
+*Last updated: 2026-02-14 after v2.0 milestone start*

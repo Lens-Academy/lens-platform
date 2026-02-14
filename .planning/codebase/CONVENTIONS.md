@@ -1,290 +1,281 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-02-14
 
 ## Naming Patterns
 
-**Python Files:**
-- snake_case for modules: `users.py`, `course_loader.py`, `markdown_parser.py`
-- Test files: `test_*.py` prefix: `test_sessions.py`, `test_courses.py`
-- Configuration files: lowercase with underscores: `conftest.py`
+**Files:**
+- Python: `snake_case.py` for modules (e.g., `scheduling.py`, `discord_outbound/bot.py`)
+- Python tests: `test_*.py` (e.g., `test_scheduler.py`, `test_dispatcher.py`)
+- TypeScript/TSX: `PascalCase.tsx` for components (e.g., `ModuleHeader.tsx`, `CourseOverview.tsx`)
+- TypeScript/TSX: `camelCase.ts` for utilities (e.g., `branchLayout.ts`, `sectionSlug.ts`)
+- TypeScript tests: `*.test.ts` or `*.test.tsx` co-located with source (e.g., `branchLayout.test.ts`)
+- Discord cogs: `*_cog.py` (e.g., `enrollment_cog.py`, `scheduler_cog.py`)
+- API routes: `*.py` in `web_api/routes/` (e.g., `auth.py`, `courses.py`)
 
-**TypeScript/React Files:**
-- PascalCase for components: `VideoEmbed.tsx`, `CookieBanner.tsx`
-- camelCase for utilities/hooks: `useAuth.ts`, `formatDuration.ts`
-- Lowercase for config: `config.ts`, `analytics.ts`
-- Index files for barrel exports: `index.ts`
+**Functions:**
+- Python: `snake_case` (e.g., `get_user_profile()`, `schedule_cohort()`)
+- Python async: `async def snake_case()` (e.g., `async def send_notification()`)
+- TypeScript: `camelCase` (e.g., `buildBranchLayout()`, `formatLocalTime()`)
+- React components: `PascalCase` (e.g., `ModuleHeader`, `CourseOverview`)
 
-**Python Functions/Variables:**
-- snake_case: `get_user_profile()`, `save_user_profile()`, `discord_id`
-- Private functions: underscore prefix: `_get_database_url()`, `_send_welcome_notification()`
-- Async functions: same naming, no prefix
+**Variables:**
+- Python: `snake_case` (e.g., `user_id`, `cohort_name`, `meeting_time`)
+- TypeScript/React: `camelCase` (e.g., `moduleTitle`, `completedStages`, `currentSectionIndex`)
+- Constants: `UPPER_SNAKE_CASE` in Python (e.g., `DAY_MAP`, `DISCORD_CLIENT_ID`)
 
-**TypeScript Functions/Variables:**
-- camelCase: `fetchUser()`, `isAuthenticated`, `sessionId`
-- Hooks: `use` prefix: `useAuth()`, `useScrollSpy()`
-- Event handlers: `on` prefix: `onPlay`, `onTimeUpdate`
-
-**Types/Interfaces (TypeScript):**
-- PascalCase: `User`, `AuthState`, `VideoEmbedProps`
-- Type aliases: PascalCase: `ModuleSegment`, `ChatMessage`
-- Props types: `ComponentNameProps` suffix: `VideoEmbedProps`
-
-**Constants:**
-- Python: SCREAMING_SNAKE_CASE: `DEFAULT_PROVIDER`, `FIXTURES_DIR`
-- TypeScript: SCREAMING_SNAKE_CASE: `API_URL`, `DEFAULT_TIMEOUT_MS`
+**Types:**
+- Python: `PascalCase` for classes and dataclasses (e.g., `Person`, `UngroupableDetail`, `CohortSchedulingResult`)
+- TypeScript: `PascalCase` for interfaces and types (e.g., `ModuleHeaderProps`, `StageInfo`, `Stage`)
+- Enums: `PascalCase` class with `snake_case` members in Python (e.g., `CohortRole.participant`)
 
 ## Code Style
 
-**Python Formatting:**
-- Tool: `ruff format`
-- Line length: 88 characters (configured in `pyproject.toml`)
-- Double quotes for strings
-- Spaces for indentation (4 spaces)
+**Formatting:**
+- Python: Ruff formatter (black-compatible)
+  - Line length: 88 characters
+  - Double quotes for strings
+  - Spaces for indentation
+  - Config: `pyproject.toml` at `/home/penguin/code/lens-platform/ws3/pyproject.toml`
+- TypeScript/React: ESLint v9 (flat config)
+  - Config: `/home/penguin/code/lens-platform/ws3/web_frontend/eslint.config.mjs`
+  - No explicit Prettier config (using defaults)
 
-**Python Linting:**
-- Tool: `ruff check`
-- Per-file ignores for E402 (imports not at top):
-  - `main.py`, `alembic/env.py`, `scripts/*.py`, `*/tests/*.py`
-
-**TypeScript/JavaScript Formatting:**
-- Tool: ESLint with TypeScript and React plugins
-- Config: `web_frontend/eslint.config.mjs`
-- Key rules:
-  - `@typescript-eslint/no-unused-vars`: error (with `^_` pattern ignored)
-  - `react-hooks/rules-of-hooks`: error
-  - `react-hooks/exhaustive-deps`: warn
+**Linting:**
+- Python: Ruff
+  - Target: Python 3.11
+  - Per-file ignores: E402 (imports after code) allowed in `main.py`, `alembic/env.py`, `scripts/*.py`, test files
+  - Run: `ruff check .` and `ruff format --check .`
+- TypeScript: ESLint with TypeScript, React, React Hooks plugins
+  - Key rules:
+    - `react-hooks/rules-of-hooks`: error
+    - `react-hooks/exhaustive-deps`: warn
+    - `@typescript-eslint/no-unused-vars`: error (allow `_` prefix for unused args)
+  - Run: `npm run lint` (from `web_frontend/`)
 
 ## Import Organization
 
-**Python Order:**
-1. Standard library imports (`os`, `asyncio`, `datetime`)
-2. Third-party imports (`discord`, `fastapi`, `sqlalchemy`)
-3. Local application imports (`from core import ...`, `from .database import ...`)
+**Python:**
+1. Standard library imports
+2. Third-party imports (alphabetical)
+3. Blank line
+4. Local imports from `core/`
+5. Relative imports
 
-Example from `core/users.py`:
+Example from `web_api/routes/auth.py`:
 ```python
-import asyncio
+import os
+import secrets
+import sys
 from datetime import datetime, timezone
-from typing import Any
+from pathlib import Path
 
-from .database import get_connection, get_transaction
-from .queries import users as user_queries
-from .tables import users as users_table
-from sqlalchemy import select, update as sql_update
+import httpx
+from fastapi import APIRouter, HTTPException
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from core import get_or_create_user, get_user_profile
+from core.database import get_connection
+from web_api.auth import create_jwt
 ```
 
-**TypeScript Order:**
-1. React imports (`import { useState, useEffect } from "react"`)
-2. Third-party imports
-3. Absolute imports with aliases (`@/components/...`)
-4. Relative imports (`../config`, `./VideoPlayer`)
+**TypeScript:**
+1. External packages (React, libraries)
+2. Internal absolute imports (via `@/` alias)
+3. Relative imports
 
-Example from `web_frontend/src/components/module/VideoEmbed.tsx`:
+Example from `web_frontend/src/components/ModuleHeader.tsx`:
 ```typescript
-import { useState, useRef, useEffect } from "react";
-import VideoPlayer from "@/components/module/VideoPlayer";
-import { formatDuration } from "@/utils/formatDuration";
+import { useMedia } from "react-use";
+import { useScrollDirection } from "../hooks/useScrollDirection";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { UserMenu } from "./nav/UserMenu";
+import StageProgressBar from "./module/StageProgressBar";
+import type { Stage } from "../types/module";
 ```
 
-**Path Aliases (TypeScript):**
-- `@/` maps to `src/`: `@/components/module/VideoPlayer`
+**Path Aliases:**
+- TypeScript: `@/` maps to `src/` (configured in `tsconfig.json` and `vitest.config.ts`)
 
 ## Error Handling
 
 **Python Patterns:**
-- Custom exception classes for domain errors:
-  - `SessionNotFoundError`, `SessionAlreadyClaimedError`, `ModuleNotFoundError`
-- HTTPException for API errors with appropriate status codes:
-  ```python
-  raise HTTPException(status_code=404, detail="Session not found")
-  raise HTTPException(status_code=403, detail="Session already claimed")
-  ```
-- Try/except for external service calls with graceful degradation:
-  ```python
-  try:
-      await some_external_call()
-  except Exception as e:
-      print(f"[Module] Failed: {e}")
-      return False
-  ```
+- Use `try`/`except` with specific exception types
+- Return `None` or error dicts for graceful degradation
+- FastAPI: Raise `HTTPException` with status codes
+```python
+from fastapi import HTTPException
+
+async def get_item(id: int):
+    item = await fetch_item(id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return item
+```
+
+- Discord: Catch `discord.Forbidden`, `discord.NotFound`, `discord.HTTPException`
+```python
+try:
+    await member.edit(nick=new_nickname)
+except discord.Forbidden:
+    await interaction.followup.send("I don't have permission...")
+except discord.HTTPException as e:
+    await interaction.followup.send(f"Failed: {e}")
+```
 
 **TypeScript Patterns:**
-- Custom error classes for specific failures:
-  ```typescript
-  export class RequestTimeoutError extends Error {
-    public readonly url: string;
-    public readonly timeoutMs: number;
-    constructor(url: string, timeoutMs: number) { ... }
-  }
-  ```
-- Throw errors in API functions, catch in components:
-  ```typescript
-  if (!res.ok) throw new Error("Failed to fetch modules");
-  ```
-- Console.error for caught exceptions:
-  ```typescript
-  } catch (error) {
-    console.error("Failed to fetch user:", error);
-  }
-  ```
+- Check response status before parsing JSON
+```typescript
+const res = await fetch('/api/...');
+if (!res.ok) throw new Error('Failed to fetch');
+return res.json();
+```
 
 ## Logging
 
-**Python Framework:** Print statements with module prefixes
-- Pattern: `print(f"[ModuleName] Message: {details}")`
-- Example: `print(f"[Notifications] Failed to send: {e}")`
-- No structured logging library currently in use
+**Framework:** Python uses standard library `logging` (imported but not heavily used); TypeScript uses `console` methods
 
-**TypeScript Framework:** Console methods
-- `console.error()` for errors
-- `console.log()` for debugging (should be removed in production)
+**Patterns:**
+- Minimal logging in production code
+- Error tracking via Sentry (`core/config.py` initializes Sentry, `web_frontend/src/errorTracking.ts`)
+- No structured logging framework currently in use
 
 ## Comments
 
 **When to Comment:**
-- Module-level docstrings explaining purpose
-- Function docstrings with Args/Returns for public APIs
-- Inline comments for non-obvious logic
-- TODO/FIXME for known issues (sparingly)
+- Module/file docstrings explaining purpose (especially in Python)
+- Function docstrings for public APIs
+- Inline comments for non-obvious logic (DST warnings, scheduling algorithm quirks)
+- Type annotations serve as documentation (TypeScript)
 
 **Python Docstrings:**
 ```python
 """
-User profile management.
-
-All functions are async and use the database.
+Test Cog - For testing nickname changes.
 """
 
-async def get_user_profile(discord_id: str) -> dict[str, Any] | None:
-    """
-    Get a user's full profile.
-
-    Args:
-        discord_id: Discord user ID
-
-    Returns:
-        User profile dict or None if not found
-    """
+def calculate_total_available_time(person: Person) -> int:
+    """Calculate total minutes of availability for a person."""
 ```
 
 **TypeScript JSDoc:**
 ```typescript
 /**
- * Hook to manage authentication state.
+ * Contract tests for CourseOverview component.
  *
- * Checks if the user is authenticated by calling /auth/me.
- * The session is stored in an HttpOnly cookie, so we can't read it directly.
+ * These tests verify the frontend can render the shared fixture.
+ * The same fixture is used by backend tests to verify API output.
  */
-export function useAuth(): UseAuthReturn { ... }
 ```
 
 ## Function Design
 
-**Size:** Functions tend to be focused and moderate-sized (20-80 lines typical)
+**Size:** No strict limit, but prefer focused functions. Scheduling algorithm has longer functions (~100 lines) due to complexity.
 
-**Parameters (Python):**
-- Use keyword arguments for optional parameters
-- Type hints for all parameters and return values
-- Default values for optional parameters:
-  ```python
-  async def save_user_profile(
-      discord_id: str,
-      nickname: str | None = None,
-      timezone_str: str | None = None,
-  ) -> dict[str, Any]:
-  ```
-
-**Parameters (TypeScript):**
-- Props objects for React components
-- Destructuring in function signatures:
-  ```typescript
-  export default function VideoEmbed({
-    videoId,
-    start,
-    end,
-    excerptNumber = 1,
-    title,
-    channel,
-  }: VideoEmbedProps) { ... }
-  ```
+**Parameters:**
+- Python: Use type hints (e.g., `user_id: int`, `conn: AsyncConnection`)
+- TypeScript: Use interface for complex props (e.g., `ModuleHeaderProps`)
+- Use dataclasses for structured data (Python) or interfaces (TypeScript)
 
 **Return Values:**
-- Python: Use `| None` for optional returns, dicts for complex data
-- TypeScript: Discriminated unions for different result types:
-  ```typescript
-  export type ModuleCompletionResult =
-    | { type: "next_module"; slug: string; title: string }
-    | { type: "unit_complete"; unitNumber: number }
-    | null;
-  ```
+- Python: Explicit return types in type hints (e.g., `-> dict`, `-> CohortSchedulingResult`)
+- TypeScript: Inferred or explicit return types
+- Async functions: `async def` in Python, `async function` in TypeScript
 
 ## Module Design
 
-**Python Exports:**
-- Public functions exposed in module `__init__.py`
-- Example in `core/__init__.py` exports public API
+**Exports:**
+- Python: Public functions exported via `core/__init__.py`
+```python
+# core/__init__.py
+from .scheduling import schedule_cohort
+from .users import get_user_profile
+```
 
-**TypeScript Exports:**
-- Named exports preferred over default exports for utilities
-- Default exports for React components
-- Barrel files (`index.ts`) for grouped re-exports:
-  ```typescript
-  // components/module/index.ts
-  export { default as VideoEmbed } from './VideoEmbed';
-  export { default as ArticleEmbed } from './ArticleEmbed';
-  ```
+- TypeScript: Named exports preferred over default
+```typescript
+export function buildBranchLayout(stages: StageInfo[]) { ... }
+export { UserMenu } from "./nav/UserMenu";
+```
+
+**Barrel Files:**
+- Used in `core/__init__.py` to expose core functionality to adapters
+- Minimal use in TypeScript (direct imports preferred)
+
+## Layer Separation
+
+**Critical:** Discord bot (`discord_bot/`) and Web API (`web_api/`) must never import from each other. Both delegate to `core/`.
+
+**Imports:**
+- `discord_bot/` → imports from `core/`
+- `web_api/` → imports from `core/`
+- `core/` → never imports from `discord_bot/` or `web_api/`
+- `web_frontend/` → makes HTTP calls to `web_api/`, no direct imports
+
+**Path manipulation for core imports:**
+```python
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from core import get_user_profile
+```
+
+## TypeScript Specific
+
+**Strict Mode:** Enabled in `tsconfig.json`
+```json
+{
+  "strict": true,
+  "noEmit": true,
+  "isolatedModules": true
+}
+```
+
+**Type Imports:**
+```typescript
+import type { Stage } from "../types/module";
+```
+
+**React Patterns:**
+- Functional components with TypeScript interfaces for props
+- Hooks: `useState`, `useEffect`, `useMemo`, custom hooks (e.g., `useScrollDirection`)
+- Conditional rendering with ternary or `&&`
+
+## Python Specific
+
+**Async/Await:**
+- Database operations: `async with get_connection()` or `async with get_transaction()`
+- Discord operations: `await interaction.response.defer()`
+- External APIs: `await httpx.AsyncClient().get(...)`
+
+**Dataclasses:**
+```python
+from dataclasses import dataclass, field
+
+@dataclass
+class Person:
+    id: str
+    name: str
+    intervals: list
+    if_needed_intervals: list = field(default_factory=list)
+    timezone: str = "UTC"
+```
+
+**Type Hints:**
+- Use `str | None` (Python 3.10+ union syntax) instead of `Optional[str]`
+- Use `list`, `dict` for simple generics
 
 ## UI/UX Patterns
 
-**Never use `cursor-not-allowed`** - Use `cursor-default` instead for non-interactive elements. The not-allowed cursor is visually aggressive.
+**Never use `cursor-not-allowed`** - use `cursor-default` instead for non-interactive elements.
 
-**Tailwind CSS v4** - Uses CSS-first configuration. Classes like:
-- Layout: `flex`, `items-center`, `justify-center`
-- Spacing: `px-4`, `py-2`, `mx-auto`
-- Colors: `bg-stone-100`, `text-stone-800`
-- Responsive: `max-w-[1100px]`
-
-## Async Patterns
-
-**Python:**
-- All database operations are async
-- Use `async with` for connection management:
-  ```python
-  async with get_connection() as conn:
-      result = await conn.execute(query)
-  ```
-- Fire-and-forget with `asyncio.create_task()`:
-  ```python
-  asyncio.create_task(_send_welcome_notification(user_id))
-  ```
-
-**TypeScript:**
-- Async generators for streaming responses:
-  ```typescript
-  export async function* sendMessage(...): AsyncGenerator<...> {
-    // ...
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      yield data;
-    }
-  }
-  ```
-- useCallback for memoized async functions in hooks
-
-## Database Patterns
-
-**Connection Management:**
-- `get_connection()` for read operations
-- `get_transaction()` for write operations (auto-commit/rollback)
-- Always use context managers (`async with`)
-
-**Query Patterns:**
-- Raw SQL with parameterized queries via SQLAlchemy text()
-- SQLAlchemy Core (not ORM) for table definitions
-- Result mapping: `result.mappings().first()` or `dict(row)`
+**Tailwind CSS v4:**
+- Utility-first CSS classes
+- Mobile-first responsive design (`md:`, `lg:` breakpoints)
+- Safe area support: `paddingTop: "var(--safe-top)"`
 
 ---
 
-*Convention analysis: 2026-01-21*
+*Convention analysis: 2026-02-14*
