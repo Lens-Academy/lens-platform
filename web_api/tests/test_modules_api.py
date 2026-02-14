@@ -200,3 +200,118 @@ def test_get_module_progress_omits_error_when_none(client):
     data = response.json()
     assert "error" not in data
     assert data["progress"]["total"] == 1  # 1 section in mock module
+
+
+def test_get_lens_module_by_slash_slug(client):
+    """GET /api/modules/lens/foo should pass 'lens/foo' to load_flattened_module."""
+    mock_lens_module = FlattenedModule(
+        slug="lens/four-background-claims",
+        title="Four Background Claims",
+        content_id=UUID("c3d4e5f6-a7b8-9012-cdef-345678901234"),
+        sections=[
+            {
+                "type": "lens-article",
+                "meta": {"title": "Four Background Claims", "author": "Nate Soares"},
+                "segments": [{"type": "text", "content": "Test content"}],
+                "optional": False,
+                "contentId": "c3d4e5f6-a7b8-9012-cdef-345678901234",
+                "learningOutcomeId": None,
+                "learningOutcomeName": None,
+                "videoId": None,
+            }
+        ],
+    )
+
+    with patch(
+        "web_api.routes.modules.load_flattened_module", return_value=mock_lens_module
+    ):
+        response = client.get("/api/modules/lens/four-background-claims")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["slug"] == "lens/four-background-claims"
+    assert data["title"] == "Four Background Claims"
+
+
+def test_progress_route_not_swallowed_by_path_param(client):
+    """GET /api/modules/lens/foo/progress must route to progress handler.
+
+    With {module_slug:path}, the progress route MUST be defined BEFORE
+    the catch-all so it isn't consumed as module_slug='lens/foo/progress'.
+    A 401 proves we hit the progress handler (no auth). A 200 or 404
+    would mean the wrong handler was matched.
+    """
+    response = client.get("/api/modules/lens/four-background-claims/progress")
+    # 401 = reached progress handler (no auth token) — correct!
+    assert response.status_code == 401
+
+
+def test_list_modules_includes_type_field(client):
+    """GET /api/modules should include type field distinguishing modules from lenses."""
+    mock_modules = {
+        "introduction": FlattenedModule(
+            slug="introduction",
+            title="Intro",
+            content_id=UUID("00000000-0000-0000-0000-000000000001"),
+            sections=[],
+        ),
+        "lens/test-lens": FlattenedModule(
+            slug="lens/test-lens",
+            title="Test Lens",
+            content_id=UUID("00000000-0000-0000-0000-000000000002"),
+            sections=[],
+        ),
+    }
+
+    with patch(
+        "web_api.routes.modules.get_available_modules",
+        return_value=list(mock_modules.keys()),
+    ):
+        with patch(
+            "web_api.routes.modules.load_flattened_module",
+            side_effect=lambda slug: mock_modules[slug],
+        ):
+            response = client.get("/api/modules")
+
+    assert response.status_code == 200
+    data = response.json()
+    modules = data["modules"]
+
+    mod = next(m for m in modules if m["slug"] == "introduction")
+    assert mod["type"] == "module"
+
+    lens = next(m for m in modules if m["slug"] == "lens/test-lens")
+    assert lens["type"] == "lens"
+
+
+def test_list_modules_filter_by_type(client):
+    """GET /api/modules?type=lens should only return lens-type entries."""
+    mock_modules = {
+        "introduction": FlattenedModule(
+            slug="introduction",
+            title="Intro",
+            content_id=UUID("00000000-0000-0000-0000-000000000001"),
+            sections=[],
+        ),
+        "lens/test-lens": FlattenedModule(
+            slug="lens/test-lens",
+            title="Test Lens",
+            content_id=UUID("00000000-0000-0000-0000-000000000002"),
+            sections=[],
+        ),
+    }
+
+    with patch(
+        "web_api.routes.modules.get_available_modules",
+        return_value=list(mock_modules.keys()),
+    ):
+        with patch(
+            "web_api.routes.modules.load_flattened_module",
+            side_effect=lambda slug: mock_modules[slug],
+        ):
+            response = client.get("/api/modules?type=lens")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["modules"]) == 1
+    assert data["modules"][0]["slug"] == "lens/test-lens"
