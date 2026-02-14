@@ -1337,4 +1337,83 @@ content:: Hello
       )).toHaveLength(0);
     });
   });
+
+  describe('standalone lens flattening', () => {
+    it('includes standalone lenses as lens/-prefixed modules in processContent output', () => {
+      const files = new Map([
+        ['Lenses/Test Lens.md', `---
+id: 99999999-aaaa-bbbb-cccc-dddddddddddd
+---
+### Page: Test Content
+
+#### Text
+content::
+Hello world
+`],
+      ]);
+
+      const result = processContent(files);
+
+      const lensModule = result.modules.find(m => m.slug === 'lens/test-lens');
+      expect(lensModule).toBeDefined();
+      expect(lensModule!.title).toBe('Test Content');
+      expect(lensModule!.sections).toHaveLength(1);
+      expect(lensModule!.sections[0].type).toBe('page');
+    });
+
+    it('excludes validator-ignore lenses from standalone modules', () => {
+      const files = new Map([
+        ['Lenses/Ignored Lens.md', `---
+id: 88888888-aaaa-bbbb-cccc-dddddddddddd
+tags: [validator-ignore]
+---
+### Page: Ignored
+
+#### Text
+content::
+Ignored content
+`],
+      ]);
+
+      const result = processContent(files);
+
+      const lensModule = result.modules.find(m => m.slug === 'lens/ignored-lens');
+      expect(lensModule).toBeUndefined();
+    });
+
+    it('does not create duplicate slug entries between regular modules and lens modules', () => {
+      const files = new Map([
+        ['modules/intro.md', `---
+slug: intro
+title: Intro
+id: 11111111-1111-1111-1111-111111111111
+---
+
+# Page: Welcome
+id:: 22222222-2222-2222-2222-222222222222
+
+## Text
+content::
+Hello
+`],
+        ['Lenses/Test Lens.md', `---
+id: 33333333-3333-3333-3333-333333333333
+---
+### Page: Test
+
+#### Text
+content::
+World
+`],
+      ]);
+
+      const result = processContent(files);
+
+      expect(result.modules.find(m => m.slug === 'intro')).toBeDefined();
+      expect(result.modules.find(m => m.slug === 'lens/test-lens')).toBeDefined();
+
+      const slugErrors = result.errors.filter(e => e.message.includes('Duplicate slug'));
+      expect(slugErrors).toHaveLength(0);
+    });
+  });
 });
