@@ -32,6 +32,7 @@ import AuthoredText from "@/components/module/AuthoredText";
 import ArticleEmbed from "@/components/module/ArticleEmbed";
 import VideoEmbed from "@/components/module/VideoEmbed";
 import NarrativeChatSection from "@/components/module/NarrativeChatSection";
+import AnswerBox from "@/components/module/AnswerBox";
 import MarkCompleteButton from "@/components/module/MarkCompleteButton";
 import SectionDivider from "@/components/module/SectionDivider";
 import ArticleSectionWrapper from "@/components/module/ArticleSectionWrapper";
@@ -892,6 +893,24 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               handleSendMessage(content, sectionIndex, segmentIndex)
             }
             onRetryMessage={handleRetryMessage}
+          />
+        );
+
+      case "question":
+        return (
+          <AnswerBox
+            key={`question-${keyPrefix}`}
+            segment={segment}
+            moduleSlug={module.slug}
+            sectionIndex={sectionIndex}
+            segmentIndex={segmentIndex}
+            learningOutcomeId={
+              "learningOutcomeId" in section
+                ? section.learningOutcomeId
+                : null
+            }
+            contentId={"contentId" in section ? section.contentId : null}
+            isAuthenticated={isAuthenticated}
           />
         );
 
