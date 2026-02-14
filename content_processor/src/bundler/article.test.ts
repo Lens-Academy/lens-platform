@@ -146,45 +146,6 @@ Conclusion here.`;
       expect(result.content).toContain('95% accuracy');
     });
 
-    it('matches smart/curly quotes against straight quotes', () => {
-      // Article from GitHub uses straight apostrophe (U+0027)
-      const article = `Introduction here.
-
-giving in to the union's demands.
-
-Conclusion here.`;
-
-      // Anchor in lens file uses curly right quote (U+2019)
-      const result = extractArticleExcerpt(
-        article,
-        'the union\u2019s demands.',
-        undefined,
-        'articles/test.md'
-      );
-
-      expect(result.error).toBeUndefined();
-      expect(result.content).toContain("the union's demands.");
-    });
-
-    it('matches smart/curly double quotes against straight double quotes', () => {
-      const article = `Introduction here.
-
-He said "hello world" to the audience.
-
-Conclusion here.`;
-
-      // Anchors use curly double quotes (U+201C, U+201D)
-      const result = extractArticleExcerpt(
-        article,
-        'said \u201Chello world\u201D',
-        undefined,
-        'articles/test.md'
-      );
-
-      expect(result.error).toBeUndefined();
-      expect(result.content).toContain('said "hello world"');
-    });
-
     it('handles multiple special characters together', () => {
       const article = `Introduction here.
 

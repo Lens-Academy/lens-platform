@@ -245,7 +245,6 @@ function flattenLearningOutcomeSection(
     const violation = checkTierViolation(modulePath, parentTier, loPath, childTier, 'learning outcome', section.line);
     if (violation) {
       errors.push(violation);
-      return { sections: [], errors };
     }
     // Skip ignored children silently (they're not processed)
     if (childTier === 'ignored') {
@@ -301,7 +300,6 @@ function flattenLearningOutcomeSection(
       const violation = checkTierViolation(loPath, parentTier, lensPath, childTier, 'lens');
       if (violation) {
         errors.push(violation);
-        continue;
       }
       if (childTier === 'ignored') {
         continue;
@@ -496,7 +494,6 @@ function flattenUncategorizedSection(
       const violation = checkTierViolation(modulePath, parentTier, lensPath, childTier, 'lens');
       if (violation) {
         errors.push(violation);
-        continue;
       }
       if (childTier === 'ignored') {
         continue;
@@ -859,7 +856,6 @@ function convertSegment(
         const violation = checkTierViolation(lensPath, parentTier, articlePath, childTier, 'article');
         if (violation) {
           errors.push(violation);
-          return { segment: null, errors };
         }
         if (childTier === 'ignored') {
           return { segment: null, errors };
@@ -953,7 +949,6 @@ function convertSegment(
         const violation = checkTierViolation(lensPath, parentTier, videoPath, childTier, 'video transcript');
         if (violation) {
           errors.push(violation);
-          return { segment: null, errors };
         }
         if (childTier === 'ignored') {
           return { segment: null, errors };

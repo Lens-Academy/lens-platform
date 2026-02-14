@@ -154,7 +154,7 @@ export default function StageProgressBar({
   const branchColorMap: Record<string, { text: string; border: string }> = {
     "bg-blue-400": { text: "text-blue-400", border: "border-blue-400" },
     "bg-gray-400": { text: "text-gray-400", border: "border-gray-400" },
-    "bg-gray-200": { text: "text-gray-200", border: "border-gray-200" },
+    "bg-gray-200": { text: "text-gray-300", border: "border-gray-200" },
   };
 
   // Find the last trunk item index for dashed trailing connector
@@ -265,14 +265,6 @@ export default function StageProgressBar({
             const connectorTextColor =
               branchColorMap[passColor]?.text ?? "text-gray-200";
 
-            // Fork color: preceding trunk's outgoing color (considers all branches)
-            // This may differ from passColor (trunk continuation only) when viewing optional content.
-            const precedingColors = li > 0 ? layoutColors[li - 1] : null;
-            const forkColor =
-              precedingColors?.kind === "trunk"
-                ? precedingColors.outgoingColor
-                : passColor;
-
             // When branch lines are darker than the trunk pass-through,
             // bump them above so the light solid line doesn't cover the dark dotted lines.
             const colorRank: Record<string, number> = {
@@ -303,19 +295,29 @@ export default function StageProgressBar({
                     />
                   </div>
                 ) : (
-                  /* Mid-layout: fork segment (outgoing color) + continuation (pass color) */
-                  <div
-                    className={`absolute left-0 right-0 flex items-center ${passZ} ${
-                      compact ? "h-7" : "h-8 sm:h-11"
-                    }`}
-                  >
+                  /* Mid-layout: solid trunk pass-through + dotted fork overlay */
+                  <>
+                    {/* Layer 1: solid trunk continuation (mandatory→mandatory) */}
+                    <div
+                      className={`absolute left-0 right-0 flex items-center ${passZ} ${
+                        compact ? "h-7" : "h-8 sm:h-11"
+                      }`}
+                    >
+                      <div className={`flex-1 h-0.5 ${passColor}`} />
+                    </div>
+                    {/* Layer 2: dotted fork segment (mandatory→optional), same color as arc */}
                     {hasPrecedingTrunk && (
                       <div
-                        className={`h-0.5 ${compact ? "w-4" : "w-2 sm:w-4"} shrink-0 ${forkColor}`}
-                      />
+                        className={`absolute left-0 flex items-center ${arcZ} ${
+                          compact ? "h-7" : "h-8 sm:h-11"
+                        }`}
+                      >
+                        <div
+                          className={`dotted-round-h ${arcTextColor} ${compact ? "w-4" : "w-2 sm:w-4"}`}
+                        />
+                      </div>
                     )}
-                    <div className={`flex-1 h-0.5 ${passColor}`} />
-                  </div>
+                  </>
                 )}
 
                 {/* S-curve arc — absolutely positioned from trunk center to branch row */}
@@ -333,8 +335,8 @@ export default function StageProgressBar({
                     <path
                       d={`M 1 1 A ${r} ${r} 0 0 1 ${r + 1} ${r + 1} L ${r + 1} ${drop - r + 1} A ${r} ${r} 0 0 0 ${2 * r + 1} ${drop + 1}`}
                       stroke="currentColor"
-                      strokeWidth="2"
-                      strokeDasharray="0 4"
+                      strokeWidth="2.5"
+                      strokeDasharray="0 5"
                       strokeLinecap="round"
                     />
                   </svg>

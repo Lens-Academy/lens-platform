@@ -611,6 +611,50 @@ content:: Hello
       );
       expect(tierErrors).toHaveLength(0);
     });
+
+    it('includes WIP content in output even when tier violation is reported', () => {
+      const files = new Map([
+        ['modules/prod-mod-passthrough.md', `---
+slug: prod-mod-passthrough
+title: Production Module
+---
+# Learning Outcome: WIP LO
+source:: [[../Learning Outcomes/wip-lo-passthrough.md|WIP LO]]
+`],
+        ['Learning Outcomes/wip-lo-passthrough.md', `---
+id: 550e8400-e29b-41d4-a716-446655440060
+tags: [wip]
+---
+## Lens: Test Lens
+source:: [[../Lenses/passthrough-lens.md]]
+`],
+        ['Lenses/passthrough-lens.md', `---
+id: 550e8400-e29b-41d4-a716-446655440061
+---
+### Page: Intro
+#### Text
+content:: Hello from WIP content
+`],
+      ]);
+
+      const result = processContent(files);
+
+      // Tier violation error IS reported
+      const tierError = result.errors.find(e =>
+        e.file === 'modules/prod-mod-passthrough.md' &&
+        e.message.includes('WIP')
+      );
+      expect(tierError).toBeDefined();
+      expect(tierError?.category).toBe('production');
+
+      // But content IS still present in output
+      const mod = result.modules.find(m => m.slug === 'prod-mod-passthrough');
+      expect(mod).toBeDefined();
+      expect(mod!.sections.length).toBeGreaterThan(0);
+      expect(mod!.sections.some(s =>
+        s.segments.some(seg => seg.type === 'text' && seg.content.includes('Hello from WIP content'))
+      )).toBe(true);
+    });
   });
 
   describe('tier violations: LO → Lens', () => {
@@ -878,6 +922,115 @@ End
         e.message.includes('WIP') && e.message.includes('article')
       );
       expect(tierErrors).toHaveLength(0);
+    });
+
+    it('includes WIP article content in output even when tier violation is reported', () => {
+      const files = new Map([
+        ['modules/prod-lens-article-passthrough.md', `---
+slug: prod-lens-article-passthrough
+title: Prod Module With Lens Article
+---
+# Learning Outcome: Test LO
+source:: [[../Learning Outcomes/lo-article-passthrough.md|Test LO]]
+`],
+        ['Learning Outcomes/lo-article-passthrough.md', `---
+id: 550e8400-e29b-41d4-a716-446655440070
+---
+## Lens: Test Lens
+source:: [[../Lenses/lens-article-passthrough.md]]
+`],
+        ['Lenses/lens-article-passthrough.md', `---
+id: 550e8400-e29b-41d4-a716-446655440071
+---
+### Article: WIP Article
+source:: [[../articles/wip-article-passthrough.md]]
+
+#### Article-excerpt
+from:: anchor-start
+to:: anchor-end
+`],
+        ['articles/wip-article-passthrough.md', `---
+source_url: https://example.com/article
+tags: [wip]
+---
+<!--anchor-start-->
+This is WIP article content between anchors.
+<!--anchor-end-->
+`],
+      ]);
+
+      const result = processContent(files);
+
+      // Tier violation error IS reported
+      const tierError = result.errors.find(e =>
+        e.message.includes('WIP') && e.message.includes('article')
+      );
+      expect(tierError).toBeDefined();
+
+      // But article excerpt content IS present in output
+      const mod = result.modules.find(m => m.slug === 'prod-lens-article-passthrough');
+      expect(mod).toBeDefined();
+      expect(mod!.sections.length).toBeGreaterThan(0);
+      expect(mod!.sections.some(s =>
+        s.segments.some(seg => seg.type === 'article-excerpt')
+      )).toBe(true);
+    });
+
+    it('includes WIP video content in output even when tier violation is reported', () => {
+      const files = new Map([
+        ['modules/prod-lens-video-passthrough.md', `---
+slug: prod-lens-video-passthrough
+title: Prod Module With Lens Video
+---
+# Learning Outcome: Test LO
+source:: [[../Learning Outcomes/lo-video-passthrough.md|Test LO]]
+`],
+        ['Learning Outcomes/lo-video-passthrough.md', `---
+id: 550e8400-e29b-41d4-a716-446655440080
+---
+## Lens: Test Lens
+source:: [[../Lenses/lens-video-passthrough.md]]
+`],
+        ['Lenses/lens-video-passthrough.md', `---
+id: 550e8400-e29b-41d4-a716-446655440081
+---
+### Video: WIP Video
+source:: [[../video_transcripts/wip-video-passthrough.md]]
+
+#### Video-excerpt
+from:: 0:00
+to:: 0:10
+`],
+        ['video_transcripts/wip-video-passthrough.md', `---
+url: https://youtube.com/watch?v=test123
+tags: [wip]
+---
+0:00 This is WIP video transcript content.
+0:05 More WIP content here.
+0:10 End of excerpt.
+`],
+        ['video_transcripts/wip-video-passthrough.timestamps.json', JSON.stringify([
+          { text: "This is WIP video transcript content.", start: "0:00.00" },
+          { text: "More WIP content here.", start: "0:05.00" },
+          { text: "End of excerpt.", start: "0:10.00" },
+        ])],
+      ]);
+
+      const result = processContent(files);
+
+      // Tier violation error IS reported
+      const tierError = result.errors.find(e =>
+        e.message.includes('WIP') && e.message.includes('video')
+      );
+      expect(tierError).toBeDefined();
+
+      // But video excerpt content IS present in output
+      const mod = result.modules.find(m => m.slug === 'prod-lens-video-passthrough');
+      expect(mod).toBeDefined();
+      expect(mod!.sections.length).toBeGreaterThan(0);
+      expect(mod!.sections.some(s =>
+        s.segments.some(seg => seg.type === 'video-excerpt')
+      )).toBe(true);
     });
   });
 

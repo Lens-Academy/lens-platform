@@ -76,14 +76,23 @@ export type SegmentColor = "bg-blue-400" | "bg-gray-400" | "bg-gray-200";
 /**
  * Unified color function for line segments.
  *
- * Checks whether any subscribed branch has completed/selected state
- * past the given previousIndex. Blue (completed) wins over gray (selected).
+ * Three-tier priority:
+ * - Blue: completion-backed reach (previous point is completed AND
+ *   the user has progressed past it via completion or viewing)
+ * - Gray: selected past this point (no completion backing)
+ * - Light: nothing past this point
  */
 export function getSegmentColor(
   previousIndex: number,
   subscribedBranches: BranchState[],
 ): SegmentColor {
-  if (subscribedBranches.some((b) => b.highestCompleted > previousIndex))
+  if (
+    subscribedBranches.some(
+      (b) =>
+        b.highestCompleted >= previousIndex &&
+        Math.max(b.highestCompleted, b.selected) > previousIndex,
+    )
+  )
     return "bg-blue-400";
   if (subscribedBranches.some((b) => b.selected > previousIndex))
     return "bg-gray-400";

@@ -227,24 +227,24 @@ body {
 
 /* Round-dotted lines — matches SVG strokeDasharray="0 4" strokeLinecap="round" */
 @utility dotted-round-v {
-  width: 2px;
+  width: 2.5px;
   background-image: radial-gradient(
     circle at center,
-    currentColor 1px,
-    transparent 1px
+    currentColor 1.25px,
+    transparent 1.25px
   );
-  background-size: 2px 4px;
+  background-size: 2.5px 5px;
   background-repeat: repeat-y;
 }
 
 @utility dotted-round-h {
-  height: 2px;
+  height: 2.5px;
   background-image: radial-gradient(
     circle at center,
-    currentColor 1px,
-    transparent 1px
+    currentColor 1.25px,
+    transparent 1.25px
   );
-  background-size: 4px 2px;
+  background-size: 5px 2.5px;
   background-repeat: repeat-x;
 }
 
