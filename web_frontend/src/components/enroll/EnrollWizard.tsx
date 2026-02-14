@@ -34,8 +34,7 @@ export default function EnrollWizard() {
     selectedRole: null,
     selectedGroupId: null,
   });
-  // Submission state tracked for future UI improvements (e.g., disable button during submit)
-  const [, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Force availability mode when user clicks "switch to availability" from GroupSelectionStep
   const [forceAvailabilityMode, setForceAvailabilityMode] = useState(false);
@@ -267,6 +266,7 @@ export default function EnrollWizard() {
         (selectedCohortHasGroups && !forceAvailabilityMode ? (
           <GroupSelectionStep
             cohortId={formData.selectedCohortId!}
+            isSubmitting={isSubmitting}
             timezone={formData.timezone}
             onTimezoneChange={(tz) =>
               setFormData((prev) => ({ ...prev, timezone: tz }))
@@ -293,6 +293,7 @@ export default function EnrollWizard() {
           />
         ) : (
           <AvailabilityStep
+            isSubmitting={isSubmitting}
             availability={formData.availability}
             onAvailabilityChange={(data) =>
               setFormData((prev) => ({ ...prev, availability: data }))
