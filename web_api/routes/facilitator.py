@@ -135,7 +135,7 @@ async def get_group_timeline(
     timeline_items: list[dict[str, Any]] = []
     for item in course.progression:
         if isinstance(item, ModuleRef):
-            slug = item.path.split("/")[-1]
+            slug = item.slug
             try:
                 module = load_flattened_module(slug)
             except Exception:
