@@ -206,6 +206,7 @@ signups = Table(
     Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Index("idx_signups_user_id", "user_id"),
     Index("idx_signups_cohort_id", "cohort_id"),
+    UniqueConstraint("user_id", "cohort_id", name="uq_signups_user_id_cohort_id"),
 )
 
 
