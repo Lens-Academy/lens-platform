@@ -4,9 +4,10 @@ Handles creating, querying, and claiming assessment responses.
 Supports both authenticated users (user_id) and anonymous users (anonymous_token).
 """
 
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, select, update
+from sqlalchemy import and_, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -51,14 +52,81 @@ async def submit_response(
     }
 
     stmt = (
-        pg_insert(assessment_responses)
+        pg_insert(assessment_responses).values(**values).returning(assessment_responses)
+    )
+
+    result = await conn.execute(stmt)
+    row = result.fetchone()
+    return dict(row._mapping)
+
+
+async def update_response(
+    conn: AsyncConnection,
+    *,
+    response_id: int,
+    user_id: int | None = None,
+    anonymous_token: UUID | None = None,
+    answer_text: str | None = None,
+    answer_metadata: dict | None = None,
+    completed_at: str | None = None,
+) -> dict | None:
+    """Update an existing assessment response (partial update).
+
+    Only updates fields that are explicitly provided (non-None).
+    Performs ownership check: the response must belong to the given user_id
+    or anonymous_token.
+
+    For completed_at: pass an ISO format string to set, or empty string to clear.
+
+    Returns the updated row as a dict, or None if no matching row found.
+    """
+    # Build SET clause with only provided fields
+    values: dict = {}
+    if answer_text is not None:
+        values["answer_text"] = answer_text
+    if answer_metadata is not None:
+        values["answer_metadata"] = answer_metadata
+    if completed_at is not None:
+        if completed_at == "" or completed_at.lower() == "null":
+            values["completed_at"] = None
+        else:
+            values["completed_at"] = datetime.fromisoformat(completed_at)
+
+    if not values:
+        # Nothing to update — just return the existing row
+        stmt = select(assessment_responses).where(
+            assessment_responses.c.response_id == response_id
+        )
+        result = await conn.execute(stmt)
+        row = result.fetchone()
+        return dict(row._mapping) if row else None
+
+    # Ownership check: must match user_id OR anonymous_token
+    ownership_conditions = []
+    if user_id is not None:
+        ownership_conditions.append(assessment_responses.c.user_id == user_id)
+    if anonymous_token is not None:
+        ownership_conditions.append(
+            assessment_responses.c.anonymous_token == anonymous_token
+        )
+    if not ownership_conditions:
+        raise ValueError("Either user_id or anonymous_token must be provided")
+
+    stmt = (
+        update(assessment_responses)
+        .where(
+            and_(
+                assessment_responses.c.response_id == response_id,
+                or_(*ownership_conditions),
+            )
+        )
         .values(**values)
         .returning(assessment_responses)
     )
 
     result = await conn.execute(stmt)
     row = result.fetchone()
-    return dict(row._mapping)
+    return dict(row._mapping) if row else None
 
 
 async def get_responses(

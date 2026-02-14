@@ -127,6 +127,7 @@ from .notifications.scheduler import sync_meeting_reminders
 # Assessments (async functions)
 from .assessments import (
     submit_response,
+    update_response,
     get_responses,
     get_responses_for_question,
     claim_assessment_responses,
@@ -228,6 +229,7 @@ __all__ = [
     "sync_meeting_reminders",
     # Assessments
     "submit_response",
+    "update_response",
     "get_responses",
     "get_responses_for_question",
     "claim_assessment_responses",

@@ -12,7 +12,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from core.assessments import get_responses, get_responses_for_question, submit_response
+from core.assessments import (
+    get_responses,
+    get_responses_for_question,
+    submit_response,
+    update_response,
+)
 from core.database import get_connection, get_transaction
 from web_api.auth import get_user_or_anonymous
 
@@ -36,6 +41,12 @@ class SubmitResponseResponse(BaseModel):
     created_at: str  # ISO format
 
 
+class UpdateResponseRequest(BaseModel):
+    answer_text: str | None = None
+    answer_metadata: dict | None = None
+    completed_at: str | None = None  # ISO format or empty string to clear
+
+
 class ResponseItem(BaseModel):
     response_id: int
     question_id: str
@@ -44,6 +55,7 @@ class ResponseItem(BaseModel):
     answer_text: str
     answer_metadata: dict
     created_at: str  # ISO format
+    completed_at: str | None  # ISO format or None if in progress
 
 
 class ResponseListResponse(BaseModel):
@@ -100,6 +112,9 @@ def _format_response_items(rows: list[dict]) -> list[ResponseItem]:
         created_at = row["created_at"]
         if isinstance(created_at, datetime):
             created_at = created_at.isoformat()
+        completed_at = row.get("completed_at")
+        if isinstance(completed_at, datetime):
+            completed_at = completed_at.isoformat()
         items.append(
             ResponseItem(
                 response_id=row["response_id"],
@@ -109,6 +124,7 @@ def _format_response_items(rows: list[dict]) -> list[ResponseItem]:
                 answer_text=row["answer_text"],
                 answer_metadata=row.get("answer_metadata", {}),
                 created_at=created_at,
+                completed_at=completed_at,
             )
         )
     return items
@@ -136,6 +152,43 @@ async def list_assessment_responses(
         )
 
     return ResponseListResponse(responses=_format_response_items(rows))
+
+
+@router.patch("/responses/{response_id}", response_model=SubmitResponseResponse)
+async def update_assessment_response(
+    response_id: int,
+    body: UpdateResponseRequest,
+    auth: tuple = Depends(get_user_or_anonymous),
+):
+    """Update an existing assessment response (partial update).
+
+    Supports updating answer_text, answer_metadata, and/or completed_at.
+    Performs ownership check — only the creator can update their response.
+    """
+    user_id, anonymous_token = auth
+
+    async with get_transaction() as conn:
+        row = await update_response(
+            conn,
+            response_id=response_id,
+            user_id=user_id,
+            anonymous_token=anonymous_token,
+            answer_text=body.answer_text,
+            answer_metadata=body.answer_metadata,
+            completed_at=body.completed_at,
+        )
+
+    if not row:
+        raise HTTPException(404, "Response not found")
+
+    created_at = row["created_at"]
+    if isinstance(created_at, datetime):
+        created_at = created_at.isoformat()
+
+    return SubmitResponseResponse(
+        response_id=row["response_id"],
+        created_at=created_at,
+    )
 
 
 @router.get("/responses/{question_id}", response_model=ResponseListResponse)

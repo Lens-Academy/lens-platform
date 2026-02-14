@@ -458,6 +458,7 @@ assessment_responses = Table(
     ),  # voice_used, time_taken_s, etc.
     # Timestamps
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column("completed_at", TIMESTAMP(timezone=True), nullable=True),
     # Indexes
     Index("idx_assessment_responses_user_id", "user_id"),
     Index("idx_assessment_responses_anon", "anonymous_token"),
@@ -482,7 +483,9 @@ assessment_scores = Table(
     # Score data
     Column("score_data", JSONB, nullable=False),  # Flexible AI assessment results
     Column("model_id", Text, nullable=True),  # Which LLM model scored this
-    Column("prompt_version", Text, nullable=True),  # Version tracking for scoring prompt
+    Column(
+        "prompt_version", Text, nullable=True
+    ),  # Version tracking for scoring prompt
     # Timestamps
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     # Indexes
