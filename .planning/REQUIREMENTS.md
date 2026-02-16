@@ -9,9 +9,9 @@ Requirements for the Tests & Answer Boxes milestone. Each maps to roadmap phases
 
 ### Answer Box
 
-- [ ] **AB-01**: Free-text answer box renders as a segment type in the module viewer, accepting typed input
-- [ ] **AB-02**: Answer box supports voice input (same as existing chat voice input), not enforced
-- [ ] **AB-03**: Answer box usable within lesson sections (inline with teaching content, not only in tests)
+- [x] **AB-01**: Free-text answer box renders as a segment type in the module viewer, accepting typed input
+- [x] **AB-02**: Answer box supports voice input (same as existing chat voice input), not enforced
+- [x] **AB-03**: Answer box usable within lesson sections (inline with teaching content, not only in tests)
 
 ### Test Section
 
@@ -78,13 +78,13 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DS-01 | Phase 6 | Pending |
-| DS-02 | Phase 6 | Pending |
-| DS-03 | Phase 6 | Pending |
-| TS-01 | Phase 6 | Pending |
-| AB-01 | Phase 7 | Pending |
-| AB-02 | Phase 7 | Pending |
-| AB-03 | Phase 7 | Pending |
+| DS-01 | Phase 6 | Complete |
+| DS-02 | Phase 6 | Complete |
+| DS-03 | Phase 6 | Complete |
+| TS-01 | Phase 6 | Complete |
+| AB-01 | Phase 7 | Complete |
+| AB-02 | Phase 7 | Complete |
+| AB-03 | Phase 7 | Complete |
 | TS-02 | Phase 8 | Pending |
 | TS-03 | Phase 8 | Pending |
 | TS-04 | Phase 8 | Pending |

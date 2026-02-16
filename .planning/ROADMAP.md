@@ -25,7 +25,7 @@ Phase 5: Motion & Polish (4 plans)
 **Milestone Goal:** Add answer boxes and test sections to the module viewer so the platform can measure learning outcomes and start collecting assessment data.
 
 - [x] **Phase 6: Data Foundation** - Database tables, API endpoints, and content parsing for tests
-- [ ] **Phase 7: Answer Box** - Free-text input component with voice support
+- [x] **Phase 7: Answer Box** - Free-text input component with voice support
 - [ ] **Phase 8: Test Sections** - Grouped assessment questions with test-mode UX
 - [ ] **Phase 9: AI Assessment** - LLM-powered scoring with rubrics and mode selection
 
@@ -58,8 +58,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — AnswerBox component with auto-expanding textarea, debounced auto-save (PATCH endpoint), completion flow, and Module.tsx integration
-- [ ] 07-02-PLAN.md — Voice input via extracted useVoiceRecording hook, NarrativeChatSection refactor, enforceVoice support
+- [x] 07-01-PLAN.md — AnswerBox component with auto-expanding textarea, debounced auto-save (PATCH endpoint), completion flow, and Module.tsx integration
+- [x] 07-02-PLAN.md — Voice input via extracted useVoiceRecording hook, NarrativeChatSection refactor, enforceVoice support
 
 ### Phase 8: Test Sections
 **Goal**: Modules can contain test sections at the end that group assessment questions and enforce test-mode behavior
@@ -102,6 +102,6 @@ Plans:
 | 4. Chat Interface | v1.0 | 2/2 | Complete | 2026-01-22 |
 | 5. Motion & Polish | v1.0 | 4/4 | Complete | 2026-01-22 |
 | 6. Data Foundation | v2.0 | 2/2 | Complete | 2026-02-14 |
-| 7. Answer Box | v2.0 | 0/2 | Not started | - |
+| 7. Answer Box | v2.0 | 2/2 | Complete | 2026-02-16 |
 | 8. Test Sections | v2.0 | 0/2 | Not started | - |
 | 9. AI Assessment | v2.0 | 0/2 | Not started | - |

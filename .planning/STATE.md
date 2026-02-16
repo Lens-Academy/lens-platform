@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Students can engage with course content and demonstrate understanding — through reading, discussion, and assessment — while the platform collects data to improve both teaching and measurement.
-**Current focus:** v2.0 Tests & Answer Boxes — Phase 7 in progress
+**Current focus:** v2.0 Tests & Answer Boxes — Phase 7 complete, Phase 8 next
 
 ## Current Position
 
-Phase: 7 of 9 (Answer Box)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-14 — Completed 07-01 (AnswerBox component with auto-save)
+Phase: 7 of 9 (Answer Box) — COMPLETE
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-02-16 — Completed Phase 7 (Answer Box)
 
-Progress: [================.........] 67% (16/24 plans across all milestones)
+Progress: [==================.......] 75% (18/24 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16 (13 v1.0 + 3 v2.0)
+- Total plans completed: 18 (13 v1.0 + 5 v2.0)
 - Average duration: ~45 min (v1.0 estimate)
 - Total execution time: ~10 hours (v1.0) + 19 min (v2.0)
 
@@ -42,6 +42,7 @@ Progress: [================.........] 67% (16/24 plans across all milestones)
 | 6. Data Foundation | 01 | 3 min | 2 | 4 |
 | 6. Data Foundation | 02 | 5 min | 2 | 10 |
 | 7. Answer Box | 01 | 11 min | 3 | 12 |
+| 7. Answer Box | 02 | manual | 3 | 5 |
 
 ## Accumulated Context
 
@@ -67,6 +68,8 @@ v2.0 decisions:
 - completed_at as nullable TIMESTAMP to distinguish finished from in-progress answers
 - 2.5s default debounce for auto-save
 - Ownership-checked PATCH with OR condition (user_id OR anonymous_token)
+- FIELD_PATTERN regex must use [\w-]+ to support hyphenated field names
+- Voice recording requires secure context guard (isSecureContext check before getUserMedia)
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-14
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-02-16
+Stopped at: Completed Phase 7 (Answer Box)
 Resume file: None
