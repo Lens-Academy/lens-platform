@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Students can engage with course content and demonstrate understanding — through reading, discussion, and assessment — while the platform collects data to improve both teaching and measurement.
-**Current focus:** v2.0 Tests & Answer Boxes — Phase 8 Plan 01 complete, Plan 02 next
+**Current focus:** v2.0 Tests & Answer Boxes — Phase 8 complete (Test Sections)
 
 ## Current Position
 
-Phase: 8 of 9 (Test Sections) — IN PROGRESS
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-02-16 — Completed 08-01 (Test Section UI)
+Phase: 8 of 9 (Test Sections) — COMPLETE
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-02-16 — Completed 08-02 (Content Hiding)
 
-Progress: [===================......] 79% (19/24 plans across all milestones)
+Progress: [====================.....] 83% (20/24 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18 (13 v1.0 + 5 v2.0)
+- Total plans completed: 20 (13 v1.0 + 7 v2.0)
 - Average duration: ~45 min (v1.0 estimate)
-- Total execution time: ~10 hours (v1.0) + 19 min (v2.0)
+- Total execution time: ~10 hours (v1.0) + 25 min (v2.0)
 
 **By Phase (v1.0):**
 
@@ -44,6 +44,7 @@ Progress: [===================......] 79% (19/24 plans across all milestones)
 | 7. Answer Box | 01 | 11 min | 3 | 12 |
 | 7. Answer Box | 02 | manual | 3 | 5 |
 | 8. Test Sections | 01 | 9 min | 3 | 11 |
+| 8. Test Sections | 02 | 6 min | 3 | 6 |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ v2.0 decisions:
 - AnswerBox gets optional onComplete callback for parent notification (used by TestSection)
 - Test stage type uses type assertion in progress bar (Stage union doesn't include 'test')
 - isActive is false when testState === 'completed' so all questions show collapsed
+- ModuleHeader.tsx needs testModeActive passthrough since it wraps StageProgressBar in mobile view
+- Content hiding is a speed bump, not a wall -- URL hash manipulation still works per user decision
+- All disabled navigation uses cursor-default, never cursor-not-allowed
 
 ### Pending Todos
 
@@ -87,5 +91,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 08-01-PLAN.md (Test Section UI)
+Stopped at: Completed 08-02-PLAN.md (Content Hiding)
 Resume file: None
