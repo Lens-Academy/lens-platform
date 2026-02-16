@@ -1,7 +1,7 @@
 // web_frontend/src/components/module/SectionDivider.tsx
 
 type SectionDividerProps = {
-  type: "video" | "article" | "chat" | "lens-video" | "lens-article" | "page";
+  type: "video" | "article" | "chat" | "lens-video" | "lens-article" | "page" | "test";
   optional?: boolean;
   title?: string;
 };

@@ -6,6 +6,9 @@ import type { ModuleSection } from "@/types/module";
  * Used to determine if a section is "short" for button text purposes.
  */
 export function getSectionTextLength(section: ModuleSection): number {
+  if (section.type === "test") {
+    return 0;
+  }
   if (section.type === "text") {
     return section.content.length;
   }
@@ -30,6 +33,7 @@ export function getCompletionButtonText(
   section: ModuleSection,
   sectionIndex: number,
 ): string {
+  if (section.type === "test") return "";
   const isTextOrPage = section.type === "text" || section.type === "page";
   if (!isTextOrPage) return "Mark section complete";
 

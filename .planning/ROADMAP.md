@@ -69,11 +69,11 @@ Plans:
   1. Test section appears as a distinct section type in the module viewer with its own progress dot
   2. Multiple answer boxes are grouped within a test section, each tied to a learning outcome
   3. Test sections render after all lesson content in the module progression
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: Test section component and module viewer integration
-- [ ] 08-02: Content hiding and test-mode navigation restrictions
+- [ ] 08-01-PLAN.md — TestSection/TestQuestionCard components, type system updates, Module.tsx integration (Begin screen, sequential reveal, collapse, timer, resume, auto-completion)
+- [ ] 08-02-PLAN.md — Content hiding: testModeActive state, navigation restrictions, progress bar dimming, drawer dimming, human verification
 
 ### Phase 9: AI Assessment
 **Goal**: The platform automatically scores student answers using AI and stores results internally for learning outcome measurement
