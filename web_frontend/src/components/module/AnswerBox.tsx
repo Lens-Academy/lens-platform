@@ -19,6 +19,7 @@ interface AnswerBoxProps {
   learningOutcomeId?: string | null;
   contentId?: string | null;
   isAuthenticated: boolean;
+  onComplete?: () => void;
 }
 
 export default function AnswerBox({
@@ -29,6 +30,7 @@ export default function AnswerBox({
   learningOutcomeId,
   contentId,
   isAuthenticated,
+  onComplete,
 }: AnswerBoxProps) {
   const questionId = `${moduleSlug}:${sectionIndex}:${segmentIndex}`;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -80,6 +82,12 @@ export default function AnswerBox({
       window.scrollTo(0, scrollY);
     }
   }, [text]);
+
+  // Wrap markComplete to also notify parent via onComplete callback
+  const handleFinish = async () => {
+    await markComplete();
+    onComplete?.();
+  };
 
   const isOverLimit = segment.maxChars ? text.length > segment.maxChars : false;
   const enforceVoice = segment.enforceVoice === true;
@@ -287,7 +295,7 @@ export default function AnswerBox({
 
               {/* Finish button */}
               <button
-                onClick={markComplete}
+                onClick={handleFinish}
                 disabled={!text.trim()}
                 className={`text-sm px-4 py-1.5 rounded-md transition-colors ${
                   text.trim()
