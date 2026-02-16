@@ -135,7 +135,7 @@ describe("ModuleOverview content hiding", () => {
   });
 
   it("dims lesson items when testModeActive is true", () => {
-    const { container } = render(
+    render(
       <ModuleOverview {...defaultProps} testModeActive={true} />,
     );
 

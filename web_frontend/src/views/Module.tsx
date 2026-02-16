@@ -385,6 +385,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Track if module was already complete when page loaded (for suppressing modal on review)
   const wasCompleteOnLoad = useRef(false);
 
+  // Test mode: dims lesson navigation during test
+  const [testModeActive, setTestModeActive] = useState(false);
+
   // View mode state (default to paginated)
   const [viewMode] = useState<ViewMode>("paginated");
 
@@ -732,6 +735,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   const handleStageClick = useCallback(
     (index: number) => {
+      // Block non-test navigation during test mode
+      if (testModeActive && module) {
+        const targetSection = module.sections[index];
+        if (targetSection?.type !== "test") return;
+      }
       if (viewMode === "continuous") {
         // Scroll to section
         const el = sectionRefs.current.get(index);
@@ -743,19 +751,21 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         setCurrentSectionIndex(index);
       }
     },
-    [viewMode],
+    [viewMode, testModeActive, module],
   );
 
   const handlePrevious = useCallback(() => {
+    if (testModeActive) return; // Block during test mode
     const prevIndex = Math.max(0, currentSectionIndex - 1);
     if (viewMode === "continuous") {
       handleStageClick(prevIndex);
     } else {
       setCurrentSectionIndex(prevIndex);
     }
-  }, [currentSectionIndex, viewMode, handleStageClick]);
+  }, [currentSectionIndex, viewMode, handleStageClick, testModeActive]);
 
   const handleNext = useCallback(() => {
+    if (testModeActive) return; // Block during test mode
     if (!module) return;
     const nextIndex = Math.min(
       module.sections.length - 1,
@@ -766,7 +776,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     } else {
       setCurrentSectionIndex(nextIndex);
     }
-  }, [currentSectionIndex, module, viewMode, handleStageClick]);
+  }, [currentSectionIndex, module, viewMode, handleStageClick, testModeActive]);
 
   const handleMarkComplete = useCallback(
     (sectionIndex: number, apiResponse?: MarkCompleteResponse) => {
@@ -1010,11 +1020,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         stages={stages}
         completedStages={completedSections}
         currentSectionIndex={currentSectionIndex}
-        canGoPrevious={currentSectionIndex > 0}
-        canGoNext={currentSectionIndex < module.sections.length - 1}
+        canGoPrevious={!testModeActive && currentSectionIndex > 0}
+        canGoNext={!testModeActive && currentSectionIndex < module.sections.length - 1}
         onStageClick={handleStageClick}
         onPrevious={handlePrevious}
         onNext={handleNext}
+        testModeActive={testModeActive}
       />
 
       {/* Main content - padding-top accounts for fixed header */}
@@ -1240,8 +1251,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                   moduleSlug={moduleId}
                   sectionIndex={sectionIndex}
                   isAuthenticated={isAuthenticated}
-                  onTestStart={() => {/* Phase 8 Plan 02 will add testModeActive */}}
-                  onTestComplete={() => {/* Phase 8 Plan 02 will add testModeActive */}}
+                  onTestStart={() => setTestModeActive(true)}
+                  onTestComplete={() => setTestModeActive(false)}
                   onMarkComplete={(response) => handleMarkComplete(sectionIndex, response)}
                 />
               ) : (
@@ -1327,6 +1338,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         onStageClick={handleStageClick}
         courseId={courseId}
         courseTitle={courseProgress?.course.title}
+        testModeActive={testModeActive}
       />
 
       <ModuleCompleteModal

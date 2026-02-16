@@ -25,6 +25,7 @@ type StageProgressBarProps = {
   canGoPrevious: boolean;
   canGoNext: boolean;
   compact?: boolean; // Smaller size for header use
+  testModeActive?: boolean; // Dims non-test dots and blocks their clicks during test mode
 };
 
 export function StageIcon({
@@ -122,8 +123,15 @@ export default function StageProgressBar({
   canGoPrevious,
   canGoNext,
   compact = false,
+  testModeActive = false,
 }: StageProgressBarProps) {
   const handleDotClick = (index: number) => {
+    // Block clicks on non-test dots during test mode
+    if (testModeActive) {
+      const stage = stages[index];
+      const isTestStage = (stage as unknown as { type: string }).type === "test";
+      if (!isTestStage) return;
+    }
     // Trigger haptic on any tap
     triggerHaptic(10);
     onStageClick(index);
@@ -180,9 +188,13 @@ export default function StageProgressBar({
     const isViewing = index === currentSectionIndex;
     const isOptional = "optional" in stage && stage.optional === true;
 
+    // Test mode dimming: dim non-test dots
+    const isTestDot = (stage as unknown as { type: string }).type === "test";
+    const isDimmed = testModeActive && !isTestDot;
+
     const fillClasses = getCircleFillClasses(
       { isCompleted, isViewing, isOptional },
-      { includeHover: true },
+      { includeHover: !isDimmed },
     );
     const ringClasses = getRingClasses(isViewing, isCompleted);
 
@@ -197,6 +209,7 @@ export default function StageProgressBar({
       >
         <button
           onClick={() => handleDotClick(index)}
+          disabled={isDimmed}
           className={`
             relative rounded-full flex items-center justify-center
             transition-all duration-150
@@ -205,6 +218,7 @@ export default function StageProgressBar({
             ${sizeClasses}
             ${fillClasses}
             ${ringClasses}
+            ${isDimmed ? "opacity-30 cursor-default" : ""}
           `}
         >
           <StageIcon type={stage.type} small={compact || branch} />

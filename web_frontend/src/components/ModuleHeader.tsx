@@ -15,6 +15,7 @@ interface ModuleHeaderProps {
   onStageClick: (index: number) => void;
   onPrevious: () => void;
   onNext: () => void;
+  testModeActive?: boolean;
 }
 
 export function ModuleHeader({
@@ -27,6 +28,7 @@ export function ModuleHeader({
   onStageClick,
   onPrevious,
   onNext,
+  testModeActive,
 }: ModuleHeaderProps) {
   const scrollDirection = useScrollDirection(100);
   const isMobile = useMedia("(max-width: 767px)", false);
@@ -107,6 +109,7 @@ export function ModuleHeader({
               canGoPrevious={canGoPrevious}
               canGoNext={canGoNext}
               compact
+              testModeActive={testModeActive}
             />
           </div>
         )}

@@ -17,6 +17,7 @@ type ModuleDrawerProps = {
   onStageClick: (index: number) => void;
   courseId?: string;
   courseTitle?: string;
+  testModeActive?: boolean;
 };
 
 export default function ModuleDrawer({
@@ -27,6 +28,7 @@ export default function ModuleDrawer({
   onStageClick,
   courseId,
   courseTitle,
+  testModeActive,
 }: ModuleDrawerProps) {
   // State is owned here - not in parent
   const [isOpen, setIsOpen] = useState(false);
@@ -134,6 +136,7 @@ export default function ModuleDrawer({
             currentSectionIndex={currentSectionIndex}
             onStageClick={onStageClick}
             showActions={false}
+            testModeActive={testModeActive}
           />
         </div>
       </div>
