@@ -19,12 +19,18 @@ vi.mock("@/hooks/useAuth", () => ({
 
 // Mock AnswerBox as a simple div with a Complete button
 vi.mock("@/components/module/AnswerBox", () => ({
-  default: ({ segment, onComplete, moduleSlug, sectionIndex, segmentIndex }: any) => {
-    const questionId = `${moduleSlug}:${sectionIndex}:${segmentIndex}`;
+  default: (props: {
+    segment: { userInstruction: string };
+    onComplete?: () => void;
+    moduleSlug: string;
+    sectionIndex: number;
+    segmentIndex: number;
+  }) => {
+    const questionId = `${props.moduleSlug}:${props.sectionIndex}:${props.segmentIndex}`;
     return (
       <div data-testid={`answer-box-${questionId}`}>
-        <span>{segment.userInstruction}</span>
-        <button onClick={() => onComplete?.()}>Complete</button>
+        <span>{props.segment.userInstruction}</span>
+        <button onClick={() => props.onComplete?.()}>Complete</button>
       </div>
     );
   },

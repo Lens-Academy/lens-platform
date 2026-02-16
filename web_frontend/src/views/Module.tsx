@@ -33,6 +33,7 @@ import ArticleEmbed from "@/components/module/ArticleEmbed";
 import VideoEmbed from "@/components/module/VideoEmbed";
 import NarrativeChatSection from "@/components/module/NarrativeChatSection";
 import AnswerBox from "@/components/module/AnswerBox";
+import TestSection from "@/components/module/TestSection";
 import MarkCompleteButton from "@/components/module/MarkCompleteButton";
 import SectionDivider from "@/components/module/SectionDivider";
 import ArticleSectionWrapper from "@/components/module/ArticleSectionWrapper";
@@ -308,6 +309,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         sectionTitle = currentSection.meta?.title ?? null;
         break;
       case "page":
+      case "test":
         sectionTitle = currentSection.meta?.title ?? null;
         break;
       case "article":
@@ -391,8 +393,21 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     if (!module) return [];
     return module.sections.map((section, index): Stage => {
       // Map section types to stage types
-      // v2 types: page, lens-video, lens-article
+      // v2 types: page, lens-video, lens-article, test
       // v1 types: text, article, video, chat
+
+      // Test sections get their own stage type (StageIcon handles "test")
+      if (section.type === "test") {
+        const title = section.meta?.title || "Test";
+        return {
+          type: "test",
+          source: "",
+          from: null,
+          to: null,
+          title,
+        } as unknown as Stage;
+      }
+
       let stageType: "article" | "video" | "chat";
       if (section.type === "video" || section.type === "lens-video") {
         stageType = "video";
@@ -466,6 +481,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         displayType = "lens-article";
       } else if (section.type === "page") {
         displayType = "page";
+      } else if (section.type === "test") {
+        displayType = "test";
       } else if (section.type === "text") {
         displayType = "article";
       } else {
@@ -1216,6 +1233,17 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     })()}
                   </ArticleSectionWrapper>
                 </>
+              ) : section.type === "test" ? (
+                // v2 Test section: grouped assessment questions
+                <TestSection
+                  section={section}
+                  moduleSlug={moduleId}
+                  sectionIndex={sectionIndex}
+                  isAuthenticated={isAuthenticated}
+                  onTestStart={() => {/* Phase 8 Plan 02 will add testModeActive */}}
+                  onTestComplete={() => {/* Phase 8 Plan 02 will add testModeActive */}}
+                  onMarkComplete={(response) => handleMarkComplete(sectionIndex, response)}
+                />
               ) : (
                 // v1 Video section and fallback
                 <>
@@ -1235,6 +1263,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     )}
                 </>
               )}
+              {section.type !== "test" && (
               <MarkCompleteButton
                 isCompleted={completedSections.has(sectionIndex)}
                 onComplete={(response) =>
@@ -1258,6 +1287,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 buttonText={getCompletionButtonText(section, sectionIndex)}
                 isShort={getSectionTextLength(section) < 1750}
               />
+              )}
               {/* Last section completed: show course navigation */}
               {sectionIndex === module.sections.length - 1 &&
                 completedSections.has(sectionIndex) &&
