@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Students can engage with course content and demonstrate understanding — through reading, discussion, and assessment — while the platform collects data to improve both teaching and measurement.
-**Current focus:** v2.0 Tests & Answer Boxes — Phase 8 complete (Test Sections)
+**Current focus:** v2.0 Tests & Answer Boxes — Phase 9 in progress (AI Assessment)
 
 ## Current Position
 
-Phase: 8 of 9 (Test Sections) — COMPLETE
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-02-16 — Completed 08-02 (Content Hiding)
+Phase: 9 of 9 (AI Assessment)
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-02-19 — Completed 09-01 (AI Scoring Module)
 
-Progress: [====================.....] 83% (20/24 plans across all milestones)
+Progress: [=====================....] 88% (21/24 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20 (13 v1.0 + 7 v2.0)
+- Total plans completed: 21 (13 v1.0 + 8 v2.0)
 - Average duration: ~45 min (v1.0 estimate)
-- Total execution time: ~10 hours (v1.0) + 25 min (v2.0)
+- Total execution time: ~10 hours (v1.0) + 31 min (v2.0)
 
 **By Phase (v1.0):**
 
@@ -45,6 +45,7 @@ Progress: [====================.....] 83% (20/24 plans across all milestones)
 | 7. Answer Box | 02 | manual | 3 | 5 |
 | 8. Test Sections | 01 | 9 min | 3 | 11 |
 | 8. Test Sections | 02 | 6 min | 3 | 6 |
+| 9. AI Assessment | 01 | 6 min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -78,6 +79,9 @@ v2.0 decisions:
 - ModuleHeader.tsx needs testModeActive passthrough since it wraps StageProgressBar in mobile view
 - Content hiding is a speed bump, not a wall -- URL hash manipulation still works per user decision
 - All disabled navigation uses cursor-default, never cursor-not-allowed
+- Socratic vs assessment mode determined by section type (test = assessment, all others = socratic)
+- SCORING_PROVIDER env var for independent model selection, defaults to DEFAULT_PROVIDER
+- Background scoring tasks tracked in module-level set to prevent garbage collection
 
 ### Pending Todos
 
@@ -90,6 +94,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-16
-Stopped at: Completed 08-02-PLAN.md (Content Hiding)
+Last session: 2026-02-19
+Stopped at: Completed 09-01-PLAN.md (AI Scoring Module)
 Resume file: None
