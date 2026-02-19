@@ -84,11 +84,11 @@ Plans:
   2. Scoring uses a rubric derived from the learning outcome definition associated with each question
   3. Questions can be configured as socratic (feedback-oriented) or assessment (measurement-oriented), affecting the AI prompt
   4. AI scores are stored in the database but do not appear anywhere in the student-facing UI
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 09-01: AI scoring pipeline with LiteLLM and rubric derivation
-- [ ] 09-02: Socratic vs assessment mode and score storage
+- [ ] 09-01-PLAN.md — Core scoring module (core/scoring.py) with LLM structured output, prompt building, socratic/assessment mode, question resolution from content cache, and unit tests
+- [ ] 09-02-PLAN.md — Wire scoring trigger into PATCH endpoint for fire-and-forget background scoring on answer completion
 
 ## Progress
 
