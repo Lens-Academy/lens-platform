@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Students can engage with course content and demonstrate understanding while the platform collects data to improve both teaching and measurement.
-**Current focus:** v3.0 Prompt Lab — defining requirements
+**Current focus:** v3.0 Prompt Lab — Phase 6: Chat Evaluation
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 6 of 7 (Chat Evaluation)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-02-20 — Milestone v3.0 started
+Status: Ready to plan
+Last activity: 2026-02-20 — Roadmap created for v3.0 Prompt Lab
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -24,13 +24,26 @@ Progress: [░░░░░░░░░░] 0%
 - 2 days from start to ship
 - Tagged: v1.0
 
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0 (v3.0)
+- Average duration: —
+- Total execution time: —
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
 ## Accumulated Context
 
 ### Decisions
 
-All v1.0 decisions are now archived in:
-- `.planning/milestones/v1.0-ROADMAP.md`
-- `.planning/PROJECT.md` Key Decisions table
+- Fixtures stored as JSON in repo, not database (version-controlled, curated)
+- Prompt Lab calls llm.py directly via core/promptlab/ — does not modify chat.py or scoring.py
+- Manual fixture extraction via Claude Code (small dataset, no UI needed)
 
 ### Pending Todos
 
@@ -39,10 +52,11 @@ All v1.0 decisions are now archived in:
 
 ### Blockers/Concerns
 
-v2.0 (Tests & Answer Boxes) is being developed in ws3. v3.0 Prompt Lab depends on assessment scoring code from v2.0 for the assessment evaluation mode. Chat tutor evaluation can be built independently.
+- Phase 7 (Assessment Evaluation) blocked until ws3 merges `complete()` function and `SCORE_SCHEMA`
+- ChatMarkdown component needs extraction from NarrativeChatSection.tsx before Phase 6 frontend work
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: v3.0 milestone initialization — defining requirements
+Stopped at: Roadmap created for v3.0 — ready to plan Phase 6
 Resume file: None

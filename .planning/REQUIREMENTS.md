@@ -74,33 +74,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FIX-01 | — | Pending |
-| FIX-02 | — | Pending |
-| FIX-03 | — | Pending |
-| FIX-04 | — | Pending |
-| FIX-05 | — | Pending |
-| CHAT-01 | — | Pending |
-| CHAT-02 | — | Pending |
-| CHAT-03 | — | Pending |
-| CHAT-04 | — | Pending |
-| CHAT-05 | — | Pending |
-| CHAT-06 | — | Pending |
-| CHAT-07 | — | Pending |
-| ASMNT-01 | — | Pending |
-| ASMNT-02 | — | Pending |
-| ASMNT-03 | — | Pending |
-| ASMNT-04 | — | Pending |
-| ASMNT-05 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
+| FIX-01 | Phase 6 | Pending |
+| FIX-02 | Phase 7 | Pending |
+| FIX-03 | Phase 6 | Pending |
+| FIX-04 | Phase 6 | Pending |
+| FIX-05 | Phase 7 | Pending |
+| CHAT-01 | Phase 6 | Pending |
+| CHAT-02 | Phase 6 | Pending |
+| CHAT-03 | Phase 6 | Pending |
+| CHAT-04 | Phase 6 | Pending |
+| CHAT-05 | Phase 6 | Pending |
+| CHAT-06 | Phase 6 | Pending |
+| CHAT-07 | Phase 6 | Pending |
+| ASMNT-01 | Phase 7 | Pending |
+| ASMNT-02 | Phase 7 | Pending |
+| ASMNT-03 | Phase 7 | Pending |
+| ASMNT-04 | Phase 7 | Pending |
+| ASMNT-05 | Phase 7 | Pending |
+| INFRA-01 | Phase 6 | Pending |
+| INFRA-02 | Phase 6 | Pending |
+| INFRA-03 | Phase 6 | Pending |
+| INFRA-04 | Phase 6 | Pending |
 
 **Coverage:**
 - v3.0 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21 ⚠️
+- Mapped to phases: 21
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 after initial definition*
+*Last updated: 2026-02-20 after roadmap creation*
