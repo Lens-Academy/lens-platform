@@ -466,11 +466,15 @@ function flattenLearningOutcomeSection(
     }
 
     if (testSegments.length > 0) {
+      const hasFeedback = testSegments.some(
+        (s) => s.type === 'question' && s.feedback
+      );
       sections.push({
         type: 'test',
         meta: { title: 'Test' },
         segments: testSegments,
         optional: false,
+        ...(hasFeedback && { feedback: true }),
         contentId: null,
         learningOutcomeId: lo.id ?? null,
         learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,

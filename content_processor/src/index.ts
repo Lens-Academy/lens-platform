@@ -33,6 +33,7 @@ export interface Section {
   meta: SectionMeta;
   segments: Segment[];
   optional?: boolean;
+  feedback?: boolean;
   contentId: string | null;
   learningOutcomeId: string | null;
   learningOutcomeName: string | null;
