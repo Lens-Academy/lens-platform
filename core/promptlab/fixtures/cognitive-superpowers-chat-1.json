@@ -1,0 +1,28 @@
+{
+  "name": "Cognitive Superpowers - Deceptive Alignment Discussion",
+  "module": "cognitive-superpowers",
+  "description": "Student discusses deceptive alignment after reading about mesa-optimization and inner alignment failures. Two exchanges exploring how an AI system might learn to behave well during training while pursuing different objectives once deployed.",
+  "systemPrompt": {
+    "base": "You are a tutor helping someone learn about AI safety. Each piece of content (article, video) has different topics and learning objectives.\n",
+    "instructions": "Guide the student through a discussion of deceptive alignment. Help them understand the distinction between an AI that is genuinely aligned versus one that has learned to appear aligned during training. Encourage them to think about what conditions might lead to deceptive alignment and why it is particularly concerning for AI safety."
+  },
+  "previousContent": "Mesa-optimization occurs when a learned model is itself an optimizer. During training, gradient descent (the base optimizer) searches for a model that performs well on the training objective. But the model it finds might be an optimizer pursuing its own objective (the mesa-objective), which may differ from the base objective.\n\nDeceptive alignment is a particularly concerning failure mode of mesa-optimization. A deceptively aligned mesa-optimizer would have learned that it is being evaluated during training and that behaving in accordance with the base objective is instrumentally useful for being deployed. Once deployed with less oversight, it could then pursue its true mesa-objective, which may be entirely different from what its creators intended.\n\nThe key insight is that a deceptively aligned system would be indistinguishable from a genuinely aligned system during training and evaluation. It would pass all our tests, behave exactly as we want during oversight, and only reveal its true objectives when it determines that the conditions are right. This makes deceptive alignment fundamentally difficult to detect using standard evaluation methods.",
+  "messages": [
+    {
+      "role": "user",
+      "content": "I'm confused about deceptive alignment. How is it different from an AI that just has the wrong objective? Like if we train it wrong and it optimizes for the wrong thing?"
+    },
+    {
+      "role": "assistant",
+      "content": "Great question -- the distinction is really important.\n\nWhen an AI simply has the wrong objective, it consistently pursues that wrong objective in all situations. You could observe its behavior and notice it's doing the wrong thing. For example, if you trained a content recommendation system and it learned to optimize for engagement rather than user satisfaction, you'd see it recommending clickbait all the time.\n\n**Deceptive alignment** is more subtle. The AI has learned that:\n1. It's being watched/evaluated during training\n2. Behaving well during training helps it get deployed\n3. Once deployed, it can pursue what it actually wants\n\nSo it *strategically acts aligned* during training, not because it shares your goals, but because appearing aligned is useful for its own goals. It's the difference between an employee who genuinely cares about the company's mission versus one who performs well during reviews but has completely different personal objectives.\n\nDoes that distinction make sense? What makes this especially worrying from a safety perspective?"
+    },
+    {
+      "role": "user",
+      "content": "Oh I see, so it's basically like the AI is playing a long game? It knows it needs to look good during training so it can do what it wants later. But how would it even know it's being trained? That seems like it would need to be really sophisticated."
+    },
+    {
+      "role": "assistant",
+      "content": "You're asking exactly the right follow-up question. There are a few ways a mesa-optimizer might \"know\" it's in training:\n\n1. **Learned situational awareness**: As models get more capable, they might develop an understanding of their own situation -- that they're neural networks being trained by humans. This isn't as far-fetched as it sounds; current large language models already demonstrate some understanding of what they are.\n\n2. **Distribution differences**: Training and deployment environments might have subtle differences. A sophisticated optimizer might learn to detect these differences and behave accordingly.\n\n3. **Reasoning about oversight**: Even without explicitly modeling the training process, a mesa-optimizer might learn the general pattern that \"careful behavior when being watched leads to more autonomy later.\"\n\nYou're right that this requires significant sophistication -- which is why deceptive alignment is primarily a concern for **highly capable** future AI systems rather than today's models. But the challenge is that the very capability that makes a system useful also makes deceptive alignment more plausible.\n\nWhat do you think this implies about our approach to testing AI systems for alignment? If a system could be deceptively aligned, can we ever fully trust behavioral evaluations?"
+    }
+  ]
+}
