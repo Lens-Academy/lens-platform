@@ -62,9 +62,7 @@ class TestPostFeedbackChat:
         mock_conn.__aexit__ = AsyncMock(return_value=None)
 
         with (
-            patch(
-                "web_api.routes.feedback.get_connection", return_value=mock_conn
-            ),
+            patch("web_api.routes.feedback.get_connection", return_value=mock_conn),
             patch(
                 "web_api.routes.feedback.get_or_create_chat_session",
                 new_callable=AsyncMock,
@@ -112,9 +110,7 @@ class TestPostFeedbackChat:
         mock_conn.__aexit__ = AsyncMock(return_value=None)
 
         with (
-            patch(
-                "web_api.routes.feedback.get_connection", return_value=mock_conn
-            ),
+            patch("web_api.routes.feedback.get_connection", return_value=mock_conn),
             patch(
                 "web_api.routes.feedback.get_or_create_chat_session",
                 new_callable=AsyncMock,
@@ -156,9 +152,7 @@ class TestPostFeedbackChat:
         mock_conn.__aexit__ = AsyncMock(return_value=None)
 
         with (
-            patch(
-                "web_api.routes.feedback.get_connection", return_value=mock_conn
-            ),
+            patch("web_api.routes.feedback.get_connection", return_value=mock_conn),
             patch(
                 "web_api.routes.feedback.get_or_create_chat_session",
                 new_callable=AsyncMock,
@@ -187,9 +181,7 @@ class TestPostFeedbackChat:
 
             calls = add_mock.call_args_list
             user_calls = [c for c in calls if c.kwargs.get("role") == "user"]
-            assistant_calls = [
-                c for c in calls if c.kwargs.get("role") == "assistant"
-            ]
+            assistant_calls = [c for c in calls if c.kwargs.get("role") == "assistant"]
             assert len(user_calls) >= 1
             assert user_calls[0].kwargs["content"] == "Tell me more"
             assert len(assistant_calls) >= 1
@@ -227,9 +219,7 @@ class TestGetFeedbackHistory:
         mock_conn.__aexit__ = AsyncMock(return_value=None)
 
         with (
-            patch(
-                "web_api.routes.feedback.get_connection", return_value=mock_conn
-            ),
+            patch("web_api.routes.feedback.get_connection", return_value=mock_conn),
             patch(
                 "web_api.routes.feedback.get_or_create_chat_session",
                 new_callable=AsyncMock,
@@ -257,9 +247,7 @@ class TestGetFeedbackHistory:
         mock_conn.__aexit__ = AsyncMock(return_value=None)
 
         with (
-            patch(
-                "web_api.routes.feedback.get_connection", return_value=mock_conn
-            ),
+            patch("web_api.routes.feedback.get_connection", return_value=mock_conn),
             patch(
                 "web_api.routes.feedback.get_or_create_chat_session",
                 new_callable=AsyncMock,
@@ -300,9 +288,7 @@ class TestPostFeedbackArchive:
         mock_conn.__aexit__ = AsyncMock(return_value=None)
 
         with (
-            patch(
-                "web_api.routes.feedback.get_connection", return_value=mock_conn
-            ),
+            patch("web_api.routes.feedback.get_connection", return_value=mock_conn),
             patch(
                 "web_api.routes.feedback.archive_chat_session",
                 new_callable=AsyncMock,
@@ -328,9 +314,7 @@ class TestPostFeedbackArchive:
         mock_conn.__aexit__ = AsyncMock(return_value=None)
 
         with (
-            patch(
-                "web_api.routes.feedback.get_connection", return_value=mock_conn
-            ),
+            patch("web_api.routes.feedback.get_connection", return_value=mock_conn),
             patch(
                 "web_api.routes.feedback.find_active_feedback_session",
                 new_callable=AsyncMock,

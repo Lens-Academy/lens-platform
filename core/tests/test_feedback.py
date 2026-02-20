@@ -15,7 +15,9 @@ class TestBuildFeedbackPrompt:
             learning_outcome_name=None,
             mode="socratic",
         )
-        assert any(word in prompt.lower() for word in ["supportive", "tutor", "socratic"])
+        assert any(
+            word in prompt.lower() for word in ["supportive", "tutor", "socratic"]
+        )
         assert "assessor" not in prompt.lower()
 
     def test_assessment_mode_prompt_is_evaluative(self):
