@@ -13,23 +13,23 @@ export interface FixtureSummary {
   description: string;
 }
 
-export interface FixtureSystemPrompt {
-  base: string;
-  instructions: string;
-}
-
 export interface FixtureMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+export interface FixtureConversation {
+  label: string;
+  messages: FixtureMessage[];
 }
 
 export interface Fixture {
   name: string;
   module: string;
   description: string;
-  systemPrompt: FixtureSystemPrompt;
-  previousContent: string;
-  messages: FixtureMessage[];
+  instructions: string;
+  context: string;
+  conversations: FixtureConversation[];
 }
 
 export interface StreamEvent {
