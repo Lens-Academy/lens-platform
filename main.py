@@ -149,7 +149,6 @@ from web_api.routes.groups import router as groups_router
 from web_api.routes.admin import router as admin_router
 from web_api.routes.progress import router as progress_router
 from web_api.routes.assessments import router as assessments_router
-from web_api.routes.feedback import router as feedback_router
 
 # Track bot task for cleanup
 _bot_task: asyncio.Task | None = None
@@ -316,7 +315,6 @@ app.include_router(groups_router)
 app.include_router(admin_router)
 app.include_router(progress_router)
 app.include_router(assessments_router)
-app.include_router(feedback_router)
 
 
 # New paths for static files

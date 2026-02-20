@@ -2,16 +2,8 @@
 AI feedback module for post-answer conversations.
 
 Builds feedback-specific system prompts from question context, student answer,
-and mode (socratic vs assessment). Streams responses via LiteLLM for multi-turn
-feedback conversations. Uses the same chat_sessions infrastructure as module chat.
+and mode (socratic vs assessment).
 """
-
-import logging
-from typing import AsyncIterator
-
-from core.modules.llm import stream_chat
-
-logger = logging.getLogger(__name__)
 
 
 def build_feedback_prompt(
@@ -65,42 +57,3 @@ def build_feedback_prompt(
     system += f"\n\nStudent's answer:\n{answer_text}"
 
     return system
-
-
-async def send_feedback_message(
-    messages: list[dict],
-    question_context: dict,
-    answer_text: str,
-    provider: str | None = None,
-) -> AsyncIterator[dict]:
-    """
-    Stream a feedback response from the LLM.
-
-    Builds the feedback system prompt from question context and answer,
-    then delegates to stream_chat for actual LLM interaction.
-
-    Args:
-        messages: Conversation history (user + assistant messages)
-        question_context: Dict from _resolve_question_details with keys:
-            user_instruction, assessment_prompt, learning_outcome_name, mode
-        answer_text: The student's answer text
-        provider: Optional LLM provider override
-
-    Yields:
-        Normalized events: {"type": "text", "content": str}, {"type": "done"}
-    """
-    system = build_feedback_prompt(
-        answer_text=answer_text,
-        user_instruction=question_context.get("user_instruction", ""),
-        assessment_prompt=question_context.get("assessment_prompt"),
-        learning_outcome_name=question_context.get("learning_outcome_name"),
-        mode=question_context.get("mode", "socratic"),
-    )
-
-    async for event in stream_chat(
-        messages=messages,
-        system=system,
-        provider=provider,
-        max_tokens=1024,
-    ):
-        yield event

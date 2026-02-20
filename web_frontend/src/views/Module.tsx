@@ -925,20 +925,41 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
       case "question":
         return (
-          <AnswerBox
-            key={`question-${keyPrefix}`}
-            segment={segment}
-            moduleSlug={module.slug}
-            sectionIndex={sectionIndex}
-            segmentIndex={segmentIndex}
-            learningOutcomeId={
-              "learningOutcomeId" in section
-                ? section.learningOutcomeId
-                : null
-            }
-            contentId={"contentId" in section ? section.contentId : null}
-            isAuthenticated={isAuthenticated}
-          />
+          <div key={`question-${keyPrefix}`}>
+            <AnswerBox
+              segment={segment}
+              moduleSlug={module.slug}
+              sectionIndex={sectionIndex}
+              segmentIndex={segmentIndex}
+              learningOutcomeId={
+                "learningOutcomeId" in section
+                  ? section.learningOutcomeId
+                  : null
+              }
+              contentId={"contentId" in section ? section.contentId : null}
+              isAuthenticated={isAuthenticated}
+              onFeedbackTrigger={(answerText) => {
+                const questionText = segment.userInstruction;
+                handleSendMessage(
+                  `I just answered this question: "${questionText}"\n\nMy answer: "${answerText}"\n\nCan you give me feedback?`,
+                  sectionIndex,
+                  segmentIndex,
+                );
+              }}
+            />
+            {segment.feedback && (
+              <NarrativeChatSection
+                messages={messages}
+                pendingMessage={pendingMessage}
+                streamingContent={streamingContent}
+                isLoading={isLoading}
+                onSendMessage={(content) =>
+                  handleSendMessage(content, sectionIndex, segmentIndex)
+                }
+                onRetryMessage={handleRetryMessage}
+              />
+            )}
+          </div>
         );
 
       default:

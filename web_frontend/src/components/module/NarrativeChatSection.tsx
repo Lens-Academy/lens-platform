@@ -157,6 +157,13 @@ export default function NarrativeChatSection({
     }
   }, [pendingMessage, scrollContainerHeight]);
 
+  // Auto-detect when parent sends a message (e.g. feedback trigger)
+  useEffect(() => {
+    if (!hasInteracted && (messages.length > 0 || pendingMessage || isLoading)) {
+      setHasInteracted(true);
+    }
+  }, [messages.length, pendingMessage, isLoading, hasInteracted]);
+
   // Scroll chat container into view when user first interacts
   useEffect(() => {
     if (hasInteracted && containerRef.current) {

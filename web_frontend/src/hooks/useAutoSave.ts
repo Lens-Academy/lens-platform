@@ -12,7 +12,6 @@ import {
   createResponse,
   updateResponse,
   getResponses,
-  archiveFeedbackSession,
 } from "@/api/assessments";
 
 export interface UseAutoSaveOptions {
@@ -219,8 +218,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
         setResponseId(result.response_id);
         setIsCompleted(false);
       }
-      // Archive stale feedback session (fire-and-forget, best-effort)
-      archiveFeedbackSession(questionId, isAuthenticated).catch(() => {});
     } catch {
       if (mountedRef.current) {
         setSaveStatus("error");

@@ -84,9 +84,28 @@ async def event_generator(
     # Get chat instructions from segment
     segments = section.get("segments", [])
     current_segment = segments[segment_index] if segment_index < len(segments) else {}
-    instructions = current_segment.get(
-        "instructions", "Help the user learn about AI safety."
-    )
+
+    # Question segments: build feedback-aware system prompt
+    if current_segment.get("type") == "question":
+        user_instruction = current_segment.get("userInstruction", "")
+        assessment_prompt = current_segment.get("assessmentPrompt")
+        learning_outcome_name = section.get("learningOutcomeName")
+
+        instructions = (
+            "You are a supportive tutor providing feedback on a student's response. "
+            "Focus on what the student understood well, gently point out gaps, and "
+            "ask Socratic questions to deepen their understanding. "
+            "Be encouraging and constructive."
+        )
+        instructions += f"\n\nQuestion: {user_instruction}"
+        if learning_outcome_name:
+            instructions += f"\nLearning Outcome: {learning_outcome_name}"
+        if assessment_prompt:
+            instructions += f"\nRubric:\n{assessment_prompt}"
+    else:
+        instructions = current_segment.get(
+            "instructions", "Help the user learn about AI safety."
+        )
 
     # Build messages for LLM (existing history + new message)
     llm_messages = [
