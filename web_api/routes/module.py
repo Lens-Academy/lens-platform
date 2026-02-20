@@ -85,8 +85,24 @@ async def event_generator(
     segments = section.get("segments", [])
     current_segment = segments[segment_index] if segment_index < len(segments) else {}
 
-    # Question segments: build feedback-aware system prompt
-    if current_segment.get("type") == "question":
+    # Test sections: holistic feedback prompt covering all questions
+    if section.get("type") == "test":
+        instructions = (
+            "You are a supportive tutor providing feedback on a student's test responses. "
+            "Evaluate the answers holistically — note patterns, connections between answers, "
+            "and overall understanding. Point out strengths, gently identify gaps, and "
+            "ask Socratic questions to deepen understanding. Be encouraging and constructive."
+        )
+        learning_outcome_name = section.get("learningOutcomeName")
+        if learning_outcome_name:
+            instructions += f"\n\nLearning Outcome: {learning_outcome_name}"
+        for seg in segments:
+            if seg.get("type") == "question":
+                instructions += f"\n\nQuestion: {seg.get('userInstruction', '')}"
+                if seg.get("assessmentPrompt"):
+                    instructions += f"\nRubric:\n{seg['assessmentPrompt']}"
+    # Standalone question segments: single-question feedback prompt
+    elif current_segment.get("type") == "question":
         user_instruction = current_segment.get("userInstruction", "")
         assessment_prompt = current_segment.get("assessmentPrompt")
         learning_outcome_name = section.get("learningOutcomeName")
