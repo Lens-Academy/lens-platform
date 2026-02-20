@@ -15,14 +15,13 @@ import { Tooltip } from "@/components/Tooltip";
 import { StageIcon } from "@/components/module/StageProgressBar";
 import { triggerHaptic } from "@/utils/haptics";
 
-// Markdown renderer for chat messages - compact styling for chat context
+// Markdown renderer for chat messages - matches article prose typography
 function ChatMarkdown({ children }: { children: string }) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        // Paragraphs - compact spacing for chat
-        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+        p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
         // Inline formatting
         strong: ({ children }) => (
           <strong className="font-semibold">{children}</strong>
@@ -39,19 +38,18 @@ function ChatMarkdown({ children }: { children: string }) {
             {children}
           </a>
         ),
-        // Headings - compact for chat
         h1: ({ children }) => (
-          <h1 className="text-base font-bold mt-3 mb-1 first:mt-0">
+          <h1 className="text-xl font-bold mt-6 mb-3 first:mt-0">
             {children}
           </h1>
         ),
         h2: ({ children }) => (
-          <h2 className="text-base font-bold mt-3 mb-1 first:mt-0">
+          <h2 className="text-xl font-bold mt-6 mb-3 first:mt-0">
             {children}
           </h2>
         ),
         h3: ({ children }) => (
-          <h3 className="text-sm font-bold mt-2 mb-1 first:mt-0">{children}</h3>
+          <h3 className="text-lg font-bold mt-5 mb-2 first:mt-0">{children}</h3>
         ),
         // Lists
         ul: ({ children }) => (
@@ -470,7 +468,7 @@ export default function NarrativeChatSection({
     <div className="py-4 px-4" style={{ overflowAnchor: "none" }}>
       <div
         ref={containerRef}
-        className="max-w-content mx-auto border border-gray-200 rounded-lg bg-white shadow-sm flex flex-col scroll-mb-8 relative"
+        className="max-w-content-padded mx-auto border border-gray-100 rounded-lg bg-white flex flex-col scroll-mb-8 relative"
         style={
           hasInteracted
             ? { height: "85dvh", overflowAnchor: "none" } // Fixed height when interacted to prevent jitter during streaming
@@ -480,7 +478,7 @@ export default function NarrativeChatSection({
         {/* Messages area */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto p-4"
+          className="flex-1 overflow-y-auto px-6 py-4 sm:px-10 text-base leading-relaxed"
           style={{ overflowAnchor: "none" }}
           onScroll={handleScroll}
         >
@@ -498,31 +496,23 @@ export default function NarrativeChatSection({
                         </span>
                       </div>
                     ) : (
-                      <div
-                        key={i}
-                        className={`p-3 rounded-lg ${
-                          msg.role === "assistant"
-                            ? "bg-blue-50 text-gray-800"
-                            : "bg-gray-100 text-gray-800 ml-8"
-                        }`}
-                      >
-                        <div className="text-xs text-gray-500 mb-1">
-                          {msg.role === "assistant" ? "Tutor" : "You"}
+                      msg.role === "assistant" ? (
+                        <div key={i} className="text-gray-800">
+                          <div className="text-xs text-gray-500 mb-1">
+                            Tutor
+                          </div>
+                          <ChatMarkdown>{msg.content}</ChatMarkdown>
                         </div>
+                      ) : (
                         <div
-                          className={
-                            msg.role === "assistant"
-                              ? ""
-                              : "whitespace-pre-wrap"
-                          }
+                          key={i}
+                          className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
                         >
-                          {msg.role === "assistant" ? (
-                            <ChatMarkdown>{msg.content}</ChatMarkdown>
-                          ) : (
-                            msg.content
-                          )}
+                          <div className="whitespace-pre-wrap">
+                            {msg.content}
+                          </div>
                         </div>
-                      </div>
+                      )
                     ),
                   )}
                 </div>
@@ -554,53 +544,44 @@ export default function NarrativeChatSection({
                         </span>
                       </div>
                     ) : (
-                      <div
-                        key={`current-${i}`}
-                        className={`p-3 rounded-lg ${
-                          msg.role === "assistant"
-                            ? "bg-blue-50 text-gray-800"
-                            : "bg-gray-100 text-gray-800 ml-8"
-                        }`}
-                      >
-                        <div className="text-xs text-gray-500 mb-1">
-                          {msg.role === "assistant" ? "Tutor" : "You"}
+                      msg.role === "assistant" ? (
+                        <div key={`current-${i}`} className="text-gray-800">
+                          <div className="text-xs text-gray-500 mb-1">
+                            Tutor
+                          </div>
+                          <ChatMarkdown>{msg.content}</ChatMarkdown>
                         </div>
+                      ) : (
                         <div
-                          className={
-                            msg.role === "assistant"
-                              ? ""
-                              : "whitespace-pre-wrap"
-                          }
+                          key={`current-${i}`}
+                          className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
                         >
-                          {msg.role === "assistant" ? (
-                            <ChatMarkdown>{msg.content}</ChatMarkdown>
-                          ) : (
-                            msg.content
-                          )}
+                          <div className="whitespace-pre-wrap">
+                            {msg.content}
+                          </div>
                         </div>
-                      </div>
+                      )
                     ),
                   )}
 
                   {/* Pending user message */}
                   {pendingMessage && (
                     <div
-                      className={`p-3 rounded-lg ml-8 ${
+                      className={`ml-auto max-w-[80%] p-3 rounded-2xl ${
                         pendingMessage.status === "failed"
                           ? "bg-red-50 border border-red-200"
                           : "bg-gray-100"
                       }`}
                     >
-                      <div className="text-xs text-gray-500 mb-1 flex items-center justify-between">
-                        <span>You</span>
+                      <div className="flex items-center justify-between mb-1">
                         {pendingMessage.status === "sending" && (
-                          <span className="text-gray-400">Sending...</span>
+                          <span className="text-xs text-gray-400 ml-auto">Sending...</span>
                         )}
                         {pendingMessage.status === "failed" &&
                           onRetryMessage && (
                             <button
                               onClick={onRetryMessage}
-                              className="text-red-600 hover:text-red-700 text-xs focus:outline-none focus:underline"
+                              className="text-red-600 hover:text-red-700 text-xs focus:outline-none focus:underline ml-auto"
                             >
                               Failed - Click to retry
                             </button>
@@ -614,19 +595,17 @@ export default function NarrativeChatSection({
 
                   {/* Streaming response */}
                   {isLoading && streamingContent && (
-                    <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="text-gray-800">
                       <div className="text-xs text-gray-500 mb-1">Tutor</div>
-                      <div>
-                        <ChatMarkdown>{streamingContent}</ChatMarkdown>
-                      </div>
+                      <ChatMarkdown>{streamingContent}</ChatMarkdown>
                     </div>
                   )}
 
                   {/* Loading indicator */}
                   {isLoading && !streamingContent && (
-                    <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="text-gray-800">
                       <div className="text-xs text-gray-500 mb-1">Tutor</div>
-                      <div className="text-gray-800">Thinking...</div>
+                      <div>Thinking...</div>
                     </div>
                   )}
                 </div>
@@ -703,7 +682,7 @@ export default function NarrativeChatSection({
         {/* Input form */}
         <form
           onSubmit={handleSubmit}
-          className="flex gap-2 p-4 border-t border-gray-200 items-end"
+          className="flex gap-2 px-6 py-4 sm:px-10 border-t border-gray-100 items-end"
         >
           <textarea
             ref={textareaRef}
