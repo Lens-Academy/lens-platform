@@ -27,14 +27,11 @@ class TestNotifyGuestRoleChanges:
         group_row = {"discord_text_channel_id": "999888777"}
         # Query 2: guest info (discord_id + name)
         guest_row = {"discord_id": "111222333", "name": "Alice"}
-        # Query 3: home group name
-        home_row = {"group_name": "Study Group B"}
 
         mock_conn.execute = AsyncMock(
             side_effect=[
                 _make_mapping_result([group_row]),
                 _make_mapping_result([guest_row]),
-                _make_mapping_result([home_row]),
             ]
         )
 
@@ -56,7 +53,7 @@ class TestNotifyGuestRoleChanges:
 
                 mock_send.assert_called_once_with(
                     "999888777",
-                    "Alice is joining this week's meeting as a guest from Study Group B.",
+                    "Alice is joining this week's meeting because they can't make it to their regular group's meeting. They've been added to this channel.",
                 )
 
     @pytest.mark.asyncio
@@ -94,7 +91,7 @@ class TestNotifyGuestRoleChanges:
 
                 mock_send.assert_called_once_with(
                     "999888777",
-                    "Bob's guest visit has ended.",
+                    "Bob joined as a guest for last week's meeting and will now be removed from this group channel again.",
                 )
 
     @pytest.mark.asyncio

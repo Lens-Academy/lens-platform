@@ -4,7 +4,7 @@ import logging
 
 from sqlalchemy import select, func
 from core.database import get_connection
-from core.tables import attendances, meetings, users, groups, groups_users
+from core.tables import attendances, meetings, users, groups
 from core.discord_outbound import send_channel_message
 
 logger = logging.getLogger(__name__)
@@ -50,23 +50,12 @@ async def notify_guest_role_changes(group_id: int, sync_result: dict) -> None:
         guest_grants = granted & set(guest_info.keys())
         guest_revokes = revoked & set(guest_info.keys())
 
-        # Send grant messages (with home group name)
+        # Send grant messages
         for discord_id in guest_grants:
-            home_result = await conn.execute(
-                select(groups.c.group_name)
-                .join(groups_users, groups.c.group_id == groups_users.c.group_id)
-                .join(users, groups_users.c.user_id == users.c.user_id)
-                .where(users.c.discord_id == discord_id)
-                .where(groups_users.c.status == "active")
-                .where(groups_users.c.group_id != group_id)
-                .limit(1)
-            )
-            home_row = home_result.mappings().first()
-            home_name = home_row["group_name"] if home_row else "another group"
             name = guest_info[discord_id]
             await send_channel_message(
                 text_channel_id,
-                f"{name} is joining this week's meeting as a guest from {home_name}.",
+                f"{name} is joining this week's meeting because they can't make it to their regular group's meeting. They've been added to this channel.",
             )
 
         # Send revoke messages
@@ -74,5 +63,5 @@ async def notify_guest_role_changes(group_id: int, sync_result: dict) -> None:
             name = guest_info.get(discord_id, "A guest")
             await send_channel_message(
                 text_channel_id,
-                f"{name}'s guest visit has ended.",
+                f"{name} joined as a guest for last week's meeting and will now be removed from this group channel again.",
             )

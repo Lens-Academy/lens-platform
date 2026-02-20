@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.calendar.events import get_event_instances, patch_event_instance
 from core.database import get_connection, get_transaction
+from core.discord_outbound import send_channel_message
 from core.guest_notifications import notify_guest_role_changes
 from core.guest_visits import (
     cancel_guest_visit,
@@ -152,6 +153,24 @@ async def delete_guest_visit_endpoint(
     # Transaction committed - now trigger side effects (fire-and-forget)
     host_group_id = result["host_group_id"]
     email = db_user.get("email")
+    guest_name = db_user.get("nickname") or db_user.get("discord_username") or "A guest"
+
+    # Send farewell message BEFORE revoking role (so group members see it)
+    try:
+        async with get_connection() as conn:
+            group_result = await conn.execute(
+                select(groups.c.discord_text_channel_id).where(
+                    groups.c.group_id == host_group_id
+                )
+            )
+            group_row = group_result.mappings().first()
+            if group_row and group_row.get("discord_text_channel_id"):
+                await send_channel_message(
+                    group_row["discord_text_channel_id"],
+                    f"{guest_name}'s guest visit has been cancelled. They will be removed from this group channel again.",
+                )
+    except Exception:
+        logger.exception("Failed to send guest departure message")
 
     try:
         sync_result = await sync_group_discord_permissions(host_group_id)
