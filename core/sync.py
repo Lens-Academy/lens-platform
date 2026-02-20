@@ -1152,9 +1152,10 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
         get_or_fetch_member,
         get_role_member_ids,
     )
-    from .tables import groups, groups_users, users
-    from .enums import GroupUserStatus, GroupUserRole
+    from .tables import groups, groups_users, users, meetings, attendances
+    from .enums import GroupUserStatus, GroupUserRole, RSVPStatus
     from sqlalchemy import select
+    from datetime import datetime, timezone, timedelta
 
     _bot = get_bot()
     if not _bot:
@@ -1256,13 +1257,31 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
 
     # Step 4: Get expected members from DB (who SHOULD have the role)
     async with get_connection() as conn:
-        members_result = await conn.execute(
+        # Permanent members (active group membership)
+        permanent_query = (
             select(users.c.discord_id)
             .join(groups_users, users.c.user_id == groups_users.c.user_id)
             .where(groups_users.c.group_id == group_id)
             .where(groups_users.c.status == GroupUserStatus.active)
             .where(users.c.discord_id.isnot(None))
         )
+
+        # Guest visitors: access window is 6 days before -> 3 days after meeting
+        now = datetime.now(timezone.utc)
+        guest_query = (
+            select(users.c.discord_id)
+            .join(attendances, users.c.user_id == attendances.c.user_id)
+            .join(meetings, attendances.c.meeting_id == meetings.c.meeting_id)
+            .where(meetings.c.group_id == group_id)
+            .where(attendances.c.is_guest.is_(True))
+            .where(attendances.c.rsvp_status == RSVPStatus.attending)
+            .where(meetings.c.scheduled_at > now - timedelta(days=3))
+            .where(meetings.c.scheduled_at < now + timedelta(days=6))
+            .where(users.c.discord_id.isnot(None))
+        )
+
+        combined = permanent_query.union(guest_query)
+        members_result = await conn.execute(combined)
         expected_discord_ids = {row["discord_id"] for row in members_result.mappings()}
 
     # Step 5: Get current role members from Discord (who CURRENTLY has the role)
