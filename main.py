@@ -144,6 +144,7 @@ from web_api.routes.speech import router as speech_router
 from web_api.routes.cohorts import router as cohorts_router
 from web_api.routes.courses import router as courses_router
 from web_api.routes.facilitator import router as facilitator_router
+from web_api.routes.promptlab import router as promptlab_router
 from web_api.routes.content import router as content_router
 from web_api.routes.groups import router as groups_router
 from web_api.routes.admin import router as admin_router
@@ -309,6 +310,7 @@ app.include_router(speech_router)
 app.include_router(cohorts_router)
 app.include_router(courses_router)
 app.include_router(facilitator_router)
+app.include_router(promptlab_router)
 app.include_router(content_router)
 app.include_router(groups_router)
 app.include_router(admin_router)
