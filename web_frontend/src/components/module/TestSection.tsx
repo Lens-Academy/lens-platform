@@ -30,6 +30,9 @@ interface TestSectionProps {
   onTestStart: () => void;
   onTestComplete: () => void;
   onMarkComplete: (response?: MarkCompleteResponse) => void;
+  onFeedbackTrigger?: (
+    questionsAndAnswers: Array<{ question: string; answer: string }>,
+  ) => void;
 }
 
 interface QuestionInfo {
@@ -45,6 +48,7 @@ export default function TestSection({
   onTestStart,
   onTestComplete,
   onMarkComplete,
+  onFeedbackTrigger,
 }: TestSectionProps) {
   const [testState, setTestState] = useState<TestState>("not_started");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -151,6 +155,41 @@ export default function TestSection({
         setTestState("completed");
         onTestComplete();
 
+        // Trigger feedback if enabled
+        if (onFeedbackTrigger) {
+          // Fetch all answers from API
+          Promise.all(
+            questions.map((q) => {
+              const questionId = `${moduleSlug}:${sectionIndex}:${q.segmentIndex}`;
+              return getResponses(
+                { moduleSlug, questionId },
+                isAuthenticated,
+              );
+            }),
+          )
+            .then((results) => {
+              const pairs = questions.map((q, idx) => {
+                // API returns newest-first; find the completed response
+                const completed = results[idx].responses.find(
+                  (r) => r.completed_at !== null,
+                );
+                return {
+                  question: q.segment.userInstruction,
+                  answer: completed?.answer_text || "",
+                };
+              });
+              onFeedbackTrigger(pairs);
+            })
+            .catch(() => {
+              // Still trigger feedback with whatever we have
+              const pairs = questions.map((q) => ({
+                question: q.segment.userInstruction,
+                answer: "(could not load answer)",
+              }));
+              onFeedbackTrigger(pairs);
+            });
+        }
+
         // Mark test section as complete via progress API
         const contentId = `test:${moduleSlug}:${sectionIndex}`;
         markComplete(
@@ -182,9 +221,10 @@ export default function TestSection({
     },
     [
       completedQuestions,
-      questions.length,
+      questions,
       onTestComplete,
       onMarkComplete,
+      onFeedbackTrigger,
       moduleSlug,
       sectionIndex,
       section.meta?.title,
