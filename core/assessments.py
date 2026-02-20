@@ -11,7 +11,7 @@ from sqlalchemy import and_, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from .tables import assessment_responses
+from .tables import assessment_responses, assessment_scores
 
 
 async def submit_response(
@@ -223,3 +223,46 @@ async def claim_assessment_responses(
         .values(user_id=user_id, anonymous_token=None)
     )
     return result.rowcount
+
+
+async def get_scores_for_response(
+    conn: AsyncConnection,
+    *,
+    response_id: int,
+    user_id: int | None = None,
+    anonymous_token: UUID | None = None,
+) -> list[dict]:
+    """Get assessment scores for a specific response, with ownership check.
+
+    Joins assessment_scores to assessment_responses to verify the caller
+    owns the response. Returns list of score dicts, ordered by created_at DESC.
+
+    Returns empty list if response has no scores (scoring may be in progress)
+    or if the response doesn't exist / doesn't belong to the caller.
+    """
+    if user_id is None and anonymous_token is None:
+        raise ValueError("Either user_id or anonymous_token must be provided")
+
+    ownership = []
+    if user_id is not None:
+        ownership.append(assessment_responses.c.user_id == user_id)
+    else:
+        ownership.append(assessment_responses.c.anonymous_token == anonymous_token)
+
+    stmt = (
+        select(assessment_scores)
+        .join(
+            assessment_responses,
+            assessment_scores.c.response_id == assessment_responses.c.response_id,
+        )
+        .where(
+            and_(
+                assessment_scores.c.response_id == response_id,
+                or_(*ownership),
+            )
+        )
+        .order_by(assessment_scores.c.created_at.desc())
+    )
+
+    result = await conn.execute(stmt)
+    return [dict(row._mapping) for row in result.fetchall()]
