@@ -39,12 +39,14 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
   3. Facilitator can edit the system prompt in a code editor, pick any AI message in the conversation, and regenerate it with the edited prompt -- the new response streams in via SSE in real time
   4. After regenerating a response, facilitator can write follow-up messages as the student and continue the conversation interactively
   5. Facilitator can see the original AI response alongside the regenerated one, and optionally view the LLM's chain-of-thought for regenerated responses
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
-- [ ] 06-03: TBD
+- [ ] 06-01-PLAN.md — Extract ChatMarkdown, create core/promptlab/ fixtures module with sample data
+- [ ] 06-02-PLAN.md — Backend regeneration with thinking support + API routes
+- [ ] 06-03-PLAN.md — Frontend page, API client, and fixture browser
+- [ ] 06-04-PLAN.md — Full interactive UI: two-panel layout, regeneration, comparison, CoT, follow-up
+- [ ] 06-05-PLAN.md — Integration verification and end-to-end manual testing
 
 ### Phase 7: Assessment Evaluation
 **Goal**: Facilitators can load student answer fixtures, edit scoring prompts, run AI assessment, and compare AI scores against human ground-truth
@@ -67,5 +69,5 @@ Phases execute in numeric order: 6 -> 6.x (if any) -> 7
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 6. Chat Evaluation | v3.0 | 0/TBD | Not started | - |
+| 6. Chat Evaluation | v3.0 | 0/5 | Not started | - |
 | 7. Assessment Evaluation | v3.0 | 0/TBD | Not started | - |
