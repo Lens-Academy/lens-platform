@@ -10,6 +10,7 @@ import { useEffect, useRef } from "react";
 import type { QuestionSegment } from "@/types/module";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
+import FeedbackChat from "./FeedbackChat";
 
 interface AnswerBoxProps {
   segment: QuestionSegment;
@@ -35,6 +36,7 @@ export default function AnswerBox({
   const questionId = `${moduleSlug}:${sectionIndex}:${segmentIndex}`;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const voiceUsedRef = useRef(false);
+  const justCompletedRef = useRef(false);
 
   const {
     text,
@@ -85,6 +87,7 @@ export default function AnswerBox({
 
   // Wrap markComplete to also notify parent via onComplete callback
   const handleFinish = async () => {
+    justCompletedRef.current = true;
     await markComplete();
     onComplete?.();
   };
@@ -132,6 +135,15 @@ export default function AnswerBox({
                 Answer again
               </button>
             </div>
+            {segment.feedback && (
+              <FeedbackChat
+                questionId={questionId}
+                moduleSlug={moduleSlug}
+                answerText={text}
+                isAuthenticated={isAuthenticated}
+                autoTrigger={justCompletedRef.current}
+              />
+            )}
           </div>
         ) : (
           /* Active editing state */

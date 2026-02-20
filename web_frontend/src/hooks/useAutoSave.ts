@@ -12,6 +12,7 @@ import {
   createResponse,
   updateResponse,
   getResponses,
+  archiveFeedbackSession,
 } from "@/api/assessments";
 
 export interface UseAutoSaveOptions {
@@ -200,7 +201,7 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
     }
   }, [flushSave, isAuthenticated]);
 
-  // reopenAnswer: create a new response (new attempt)
+  // reopenAnswer: create a new response (new attempt) and archive stale feedback
   const reopenAnswer = useCallback(async () => {
     try {
       const result = await createResponse(
@@ -218,6 +219,8 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
         setResponseId(result.response_id);
         setIsCompleted(false);
       }
+      // Archive stale feedback session (fire-and-forget, best-effort)
+      archiveFeedbackSession(questionId, isAuthenticated).catch(() => {});
     } catch {
       if (mountedRef.current) {
         setSaveStatus("error");
