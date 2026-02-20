@@ -1,6 +1,5 @@
 """Tests for guest visit sync scheduling (grant + revoke)."""
 
-import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta, timezone
 
@@ -8,7 +7,6 @@ from core.notifications.scheduler import schedule_guest_sync
 
 
 class TestScheduleGuestSync:
-
     def test_schedules_two_jobs_for_grant_and_revoke(self):
         """Should schedule a grant job at meeting-6d and revoke job at meeting+3d."""
         meeting_time = datetime(2026, 3, 15, 14, 0, tzinfo=timezone.utc)

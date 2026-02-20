@@ -1,13 +1,12 @@
 """Tests for patching individual Google Calendar event instances."""
 
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 
 from core.calendar.events import patch_event_instance
 
 
 class TestPatchEventInstance:
-
     @pytest.mark.asyncio
     async def test_patch_adds_attendee_to_instance(self):
         """Patching an instance should call events().patch() with correct args."""
@@ -23,8 +22,14 @@ class TestPatchEventInstance:
         mock_service.events.return_value.patch.return_value = mock_patch
         mock_patch.execute.return_value = {"id": "instance123"}
 
-        with patch("core.calendar.events.get_calendar_service", return_value=mock_service), \
-             patch("core.calendar.events.get_calendar_email", return_value="cal@test.com"):
+        with (
+            patch(
+                "core.calendar.events.get_calendar_service", return_value=mock_service
+            ),
+            patch(
+                "core.calendar.events.get_calendar_email", return_value="cal@test.com"
+            ),
+        ):
             result = await patch_event_instance(
                 instance_event_id="instance123",
                 attendees=[
@@ -56,9 +61,17 @@ class TestPatchEventInstance:
     async def test_returns_false_on_api_error(self):
         """Should return False and not raise on API errors."""
         mock_service = MagicMock()
-        mock_service.events.return_value.patch.return_value.execute.side_effect = Exception("API error")
+        mock_service.events.return_value.patch.return_value.execute.side_effect = (
+            Exception("API error")
+        )
 
-        with patch("core.calendar.events.get_calendar_service", return_value=mock_service), \
-             patch("core.calendar.events.get_calendar_email", return_value="cal@test.com"):
+        with (
+            patch(
+                "core.calendar.events.get_calendar_service", return_value=mock_service
+            ),
+            patch(
+                "core.calendar.events.get_calendar_email", return_value="cal@test.com"
+            ),
+        ):
             result = await patch_event_instance("inst123", [{"email": "a@b.com"}])
         assert result is False

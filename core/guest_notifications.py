@@ -21,8 +21,9 @@ async def notify_guest_role_changes(group_id: int, sync_result: dict) -> None:
     async with get_connection() as conn:
         # Get text channel for this group
         group_result = await conn.execute(
-            select(groups.c.discord_text_channel_id)
-            .where(groups.c.group_id == group_id)
+            select(groups.c.discord_text_channel_id).where(
+                groups.c.group_id == group_id
+            )
         )
         group_row = group_result.mappings().first()
         if not group_row or not group_row.get("discord_text_channel_id"):

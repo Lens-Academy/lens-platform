@@ -37,10 +37,12 @@ def _make_mapping_result(rows):
 
 def _compile_sql(query) -> str:
     """Compile a SQLAlchemy query to SQL string for inspection."""
-    return str(query.compile(
-        dialect=postgresql.dialect(),
-        compile_kwargs={"literal_binds": True},
-    ))
+    return str(
+        query.compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={"literal_binds": True},
+        )
+    )
 
 
 class TestGuestFiltering:

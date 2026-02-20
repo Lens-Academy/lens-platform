@@ -157,9 +157,7 @@ class TestNotifyGuestRoleChanges:
 
         # Query 1: group has no text channel
         group_row = {"discord_text_channel_id": None}
-        mock_conn.execute = AsyncMock(
-            return_value=_make_mapping_result([group_row])
-        )
+        mock_conn.execute = AsyncMock(return_value=_make_mapping_result([group_row]))
 
         sync_result = {
             "granted_discord_ids": ["111222333"],

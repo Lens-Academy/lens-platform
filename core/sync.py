@@ -993,8 +993,8 @@ async def _get_notification_context(
 
 async def _send_sync_notifications(
     group_id: int,
-    granted_discord_ids: list[int],
-    revoked_discord_ids: list[int],
+    granted_discord_ids: list[str],
+    revoked_discord_ids: list[str],
     is_initial_realization: bool,
     notification_context: dict,
 ) -> dict:
@@ -1025,7 +1025,7 @@ async def _send_sync_notifications(
     discord_channel_id = notification_context.get("discord_channel_id", "")
     member_names = notification_context.get("member_names", [])
     members_by_discord_id = {
-        int(m["discord_id"]): m
+        str(m["discord_id"]): m
         for m in notification_context.get("members", [])
         if m.get("discord_id")
     }
@@ -1387,7 +1387,7 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
         try:
             await member.add_roles(role, reason="Group sync")
             granted += 1
-            granted_discord_ids.append(int(discord_id))
+            granted_discord_ids.append(discord_id)
         except Exception as e:
             logger.error(f"Failed to add role to member {discord_id}: {e}")
             sentry_sdk.capture_exception(e)
@@ -1403,7 +1403,7 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
         try:
             await member.remove_roles(role, reason="Group sync")
             revoked += 1
-            revoked_discord_ids.append(int(discord_id))
+            revoked_discord_ids.append(discord_id)
         except Exception as e:
             logger.error(f"Failed to remove role from member {discord_id}: {e}")
             sentry_sdk.capture_exception(e)

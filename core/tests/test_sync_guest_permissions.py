@@ -211,7 +211,6 @@ class TestGuestVisitorsInExpectedMembers:
     @pytest.mark.asyncio
     async def test_guest_visitors_are_granted_role(self):
         """Guest visitors from the UNION query should be granted the role."""
-        import discord
 
         mock_conn, mock_bot, mock_fetch = self._build_mocks()
 
@@ -241,4 +240,4 @@ class TestGuestVisitorsInExpectedMembers:
 
         # All 3 users (111, 222 permanent + 444 guest) should be granted
         assert result["granted"] == 3
-        assert set(result["granted_discord_ids"]) == {111, 222, 444}
+        assert set(result["granted_discord_ids"]) == {"111", "222", "444"}
