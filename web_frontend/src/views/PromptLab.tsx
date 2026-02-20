@@ -1,256 +1,95 @@
 import { useState, useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import FixtureBrowser from "@/components/promptlab/FixtureBrowser";
-import PromptEditor from "@/components/promptlab/PromptEditor";
-import ConversationPanel from "@/components/promptlab/ConversationPanel";
-import type { ConversationMessage } from "@/components/promptlab/ConversationPanel";
-import {
-  regenerateResponse,
-  continueConversation,
-  type Fixture,
-  type FixtureMessage,
-} from "@/api/promptlab";
+import SystemPromptEditor from "@/components/promptlab/SystemPromptEditor";
+import StageGroup from "@/components/promptlab/StageGroup";
+import FixturePicker from "@/components/promptlab/FixturePicker";
+import type { ConversationColumnHandle } from "@/components/promptlab/ConversationColumn";
+import { DEFAULT_SYSTEM_PROMPT } from "@/utils/assemblePrompt";
+import type { Fixture } from "@/api/promptlab";
 
-/**
- * Assemble a full system prompt string from a fixture's parts.
- * Mirrors the _build_system_prompt() logic in core/modules/chat.py.
- */
-function buildSystemPrompt(fixture: Fixture): string {
-  let prompt = fixture.systemPrompt.base;
-  if (fixture.systemPrompt.instructions) {
-    prompt += "\n\nInstructions:\n" + fixture.systemPrompt.instructions;
-  }
-  if (fixture.previousContent) {
-    prompt +=
-      "\n\nThe user just engaged with this content:\n---\n" +
-      fixture.previousContent +
-      "\n---";
-  }
-  return prompt;
-}
+const MAX_CONCURRENT_REGENERATIONS = 10;
 
-/**
- * Prompt Lab view -- facilitator tool for testing system prompt variations.
- *
- * Two-panel layout: prompt editor on left, conversation on right.
- * Flow: load fixture -> edit prompt -> select AI message -> regenerate -> compare.
- */
 export default function PromptLab() {
   const { isAuthenticated, isLoading, login } = useAuth();
 
-  // Fixture state
-  const [fixture, setFixture] = useState<Fixture | null>(null);
-
-  // Conversation state
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
-
-  // Prompt state
-  const [systemPrompt, setSystemPrompt] = useState("");
-  const [originalSystemPrompt, setOriginalSystemPrompt] = useState("");
-
-  // Interaction state
-  const [selectedMessageIndex, setSelectedMessageIndex] = useState<
-    number | null
-  >(null);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState("");
-  const [streamingThinking, setStreamingThinking] = useState("");
-  const [hasRegenerated, setHasRegenerated] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // LLM config state (defaults match normal chat)
+  // Shared state
+  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [enableThinking, setEnableThinking] = useState(true);
   const [effort, setEffort] = useState<"low" | "medium" | "high">("low");
 
-  // Ref for aborting in-flight requests (not implemented in API client yet,
-  // but useful for preventing stale updates on fixture change)
-  const streamAbortRef = useRef(false);
+  // Multi-fixture state
+  const [stages, setStages] = useState<Fixture[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
 
-  // --- Handlers ---
+  // Refs to all conversation columns for "Regenerate All"
+  const columnRefsMap = useRef<Map<string, ConversationColumnHandle>>(new Map());
 
-  const handleLoadFixture = useCallback((loaded: Fixture) => {
-    setFixture(loaded);
-    setMessages(
-      loaded.messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    );
-    const assembled = buildSystemPrompt(loaded);
-    setSystemPrompt(assembled);
-    setOriginalSystemPrompt(assembled);
-    setSelectedMessageIndex(null);
-    setIsStreaming(false);
-    setStreamingContent("");
-    setStreamingThinking("");
-    setHasRegenerated(false);
-    setError(null);
-    streamAbortRef.current = true;
+  const handleAddFixture = useCallback((fixture: Fixture) => {
+    setStages((prev) => {
+      if (prev.some((s) => s.name === fixture.name)) return prev;
+      return [...prev, fixture];
+    });
+    setShowPicker(false);
   }, []);
 
-  const handleChangeFixture = useCallback(() => {
-    streamAbortRef.current = true;
-    setFixture(null);
-    setMessages([]);
-    setSystemPrompt("");
-    setOriginalSystemPrompt("");
-    setSelectedMessageIndex(null);
-    setIsStreaming(false);
-    setStreamingContent("");
-    setStreamingThinking("");
-    setHasRegenerated(false);
-    setError(null);
+  const handleRemoveStage = useCallback((name: string) => {
+    setStages((prev) => prev.filter((s) => s.name !== name));
   }, []);
 
-  const handleSelectMessage = useCallback(
-    (index: number) => {
-      // Only allow selecting assistant messages
-      if (messages[index]?.role !== "assistant") return;
-      setSelectedMessageIndex(index);
-      setHasRegenerated(false);
-      setError(null);
-    },
-    [messages],
-  );
+  const handleBack = useCallback(() => {
+    setStages([]);
+    setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+    setShowPicker(false);
+  }, []);
 
-  const handleRegenerate = useCallback(async () => {
-    if (selectedMessageIndex === null) return;
+  // Regenerate All summary state
+  const [regenSummary, setRegenSummary] = useState<string | null>(null);
 
-    setIsStreaming(true);
-    setStreamingContent("");
-    setStreamingThinking("");
-    setError(null);
-    streamAbortRef.current = false;
+  const handleRegenerateAll = useCallback(async () => {
+    const columns = Array.from(columnRefsMap.current.values());
+    if (columns.length === 0) return;
 
-    let accumulatedContent = "";
-    let accumulatedThinking = "";
-    const originalContent = messages[selectedMessageIndex].content;
-    const messagesToSend: FixtureMessage[] = messages
-      .slice(0, selectedMessageIndex)
-      .map((m) => ({ role: m.role, content: m.content }));
+    setRegenSummary(null);
 
-    try {
-      for await (const event of regenerateResponse(
-        messagesToSend,
-        systemPrompt,
-        enableThinking,
-        effort,
-      )) {
-        if (streamAbortRef.current) break;
-
-        if (event.type === "thinking" && event.content) {
-          accumulatedThinking += event.content;
-          setStreamingThinking(accumulatedThinking);
-        } else if (event.type === "text" && event.content) {
-          accumulatedContent += event.content;
-          setStreamingContent(accumulatedContent);
-        } else if (event.type === "error") {
-          console.error("Regeneration error:", event.message);
-          setError(event.message ?? "An error occurred during regeneration");
-        } else if (event.type === "done") {
-          // Finalize: replace from selectedMessageIndex onward with regenerated message
-          if (accumulatedContent) {
-            const regeneratedMessage: ConversationMessage = {
-              role: "assistant",
-              content: accumulatedContent,
-              isRegenerated: true,
-              originalContent,
-              thinkingContent: accumulatedThinking || undefined,
-            };
-            setMessages((prev) => [
-              ...prev.slice(0, selectedMessageIndex),
-              regeneratedMessage,
-            ]);
-            setHasRegenerated(true);
-          }
-          setSelectedMessageIndex(null);
-        }
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to regenerate response",
-      );
-    } finally {
-      setIsStreaming(false);
-      setStreamingContent("");
-      setStreamingThinking("");
+    // Auto-select last assistant message in each column
+    for (const col of columns) {
+      col.autoSelectLastAssistant();
     }
-  }, [selectedMessageIndex, messages, systemPrompt, enableThinking, effort]);
 
-  const handleSendFollowUp = useCallback(
-    async (message: string) => {
-      // Append user message
-      const userMessage: ConversationMessage = {
-        role: "user",
-        content: message,
-      };
-      setMessages((prev) => [...prev, userMessage]);
+    // Small delay so selection state updates
+    await new Promise((r) => setTimeout(r, 50));
 
-      setIsStreaming(true);
-      setStreamingContent("");
-      setStreamingThinking("");
-      setError(null);
-      streamAbortRef.current = false;
+    // Fire regenerations with concurrency cap, track results
+    let succeeded = 0;
+    let failed = 0;
+    const total = columns.length;
+    const queue = [...columns];
+    const active: Promise<void>[] = [];
 
-      let accumulatedContent = "";
-      let accumulatedThinking = "";
-
-      // Build full message list for the API (need current messages + new user message)
-      const allMessages: FixtureMessage[] = [
-        ...messages.map((m) => ({ role: m.role, content: m.content })),
-        { role: "user" as const, content: message },
-      ];
-
-      try {
-        for await (const event of continueConversation(
-          allMessages,
-          systemPrompt,
-          enableThinking,
-          effort,
-        )) {
-          if (streamAbortRef.current) break;
-
-          if (event.type === "thinking" && event.content) {
-            accumulatedThinking += event.content;
-            setStreamingThinking(accumulatedThinking);
-          } else if (event.type === "text" && event.content) {
-            accumulatedContent += event.content;
-            setStreamingContent(accumulatedContent);
-          } else if (event.type === "error") {
-            console.error("Continuation error:", event.message);
-            setError(
-              event.message ?? "An error occurred during continuation",
-            );
-          } else if (event.type === "done") {
-            if (accumulatedContent) {
-              const assistantMessage: ConversationMessage = {
-                role: "assistant",
-                content: accumulatedContent,
-                isRegenerated: true,
-                thinkingContent: accumulatedThinking || undefined,
-              };
-              setMessages((prev) => [...prev, assistantMessage]);
-            }
-          }
-        }
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to continue conversation",
-        );
-      } finally {
-        setIsStreaming(false);
-        setStreamingContent("");
-        setStreamingThinking("");
+    while (queue.length > 0 || active.length > 0) {
+      while (active.length < MAX_CONCURRENT_REGENERATIONS && queue.length > 0) {
+        const col = queue.shift()!;
+        const p = col.regenerate()
+          .then(() => { succeeded++; })
+          .catch(() => { failed++; })
+          .finally(() => { active.splice(active.indexOf(p), 1); });
+        active.push(p);
       }
-    },
-    [messages, systemPrompt, enableThinking, effort],
-  );
+      if (active.length > 0) {
+        await Promise.race(active);
+      }
+    }
 
-  const handleResetPrompt = useCallback(() => {
-    setSystemPrompt(originalSystemPrompt);
-  }, [originalSystemPrompt]);
+    // Show summary
+    if (failed > 0) {
+      setRegenSummary(`Regenerated ${succeeded}/${total} (${failed} failed)`);
+    } else {
+      setRegenSummary(`Regenerated ${succeeded}/${total}`);
+    }
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => setRegenSummary(null), 5000);
+  }, []);
 
   // --- Auth gates ---
 
@@ -283,9 +122,9 @@ export default function PromptLab() {
     );
   }
 
-  // --- Fixture browser (no fixture selected) ---
+  // --- Fixture browser (no stages loaded) ---
 
-  if (!fixture) {
+  if (stages.length === 0) {
     return (
       <div className="py-4">
         <div className="mb-4">
@@ -294,46 +133,29 @@ export default function PromptLab() {
             Test system prompt variations against saved conversation fixtures.
           </p>
         </div>
-        <FixtureBrowser onSelectFixture={handleLoadFixture} />
+        <FixtureBrowser onSelectFixture={handleAddFixture} />
       </div>
     );
   }
 
-  // --- Two-panel layout (fixture loaded) ---
+  // --- Multi-conversation grid ---
 
-  const isPromptModified = systemPrompt !== originalSystemPrompt;
+  const isPromptModified = systemPrompt !== DEFAULT_SYSTEM_PROMPT;
 
   return (
     <div className="flex flex-col" style={{ height: "calc(100dvh - 7rem)" }}>
-      {/* Header bar */}
+      {/* Toolbar */}
       <div className="flex items-center gap-3 py-2 shrink-0">
         <button
-          onClick={handleChangeFixture}
+          onClick={handleBack}
           className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
         >
-          &larr; Fixtures
+          &larr; Back
         </button>
         <span className="text-sm text-slate-300">|</span>
-        <h1 className="text-sm font-medium text-slate-700 truncate">
-          {fixture.name}
-        </h1>
-        {error && (
-          <span className="ml-auto text-xs text-red-600 bg-red-50 px-2 py-1 rounded flex items-center gap-1">
-            {error.length > 100 ? "Request failed. Check console for details." : error}
-            <button
-              onClick={() => setError(null)}
-              className="text-red-400 hover:text-red-600 ml-1"
-              aria-label="Dismiss error"
-            >
-              &times;
-            </button>
-          </span>
-        )}
-      </div>
 
-      {/* LLM config toolbar */}
-      <div className="flex items-center gap-4 py-1.5 shrink-0 text-xs text-slate-600">
-        <label className="flex items-center gap-1.5">
+        {/* LLM config */}
+        <label className="flex items-center gap-1.5 text-xs text-slate-600">
           <input
             type="checkbox"
             checked={enableThinking}
@@ -343,13 +165,11 @@ export default function PromptLab() {
           Reasoning
         </label>
         {enableThinking && (
-          <label className="flex items-center gap-1.5">
+          <label className="flex items-center gap-1.5 text-xs text-slate-600">
             Effort
             <select
               value={effort}
-              onChange={(e) =>
-                setEffort(e.target.value as "low" | "medium" | "high")
-              }
+              onChange={(e) => setEffort(e.target.value as "low" | "medium" | "high")}
               className="border border-slate-300 rounded px-1.5 py-0.5 text-xs bg-white"
             >
               <option value="low">Low</option>
@@ -358,34 +178,59 @@ export default function PromptLab() {
             </select>
           </label>
         )}
+
+        <div className="ml-auto flex items-center gap-2 relative">
+          {regenSummary && (
+            <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+              {regenSummary}
+            </span>
+          )}
+          <button
+            onClick={handleRegenerateAll}
+            className="text-xs font-medium bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition-colors"
+          >
+            Regenerate All
+          </button>
+          <button
+            onClick={() => setShowPicker(!showPicker)}
+            className="text-xs font-medium bg-slate-100 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-200 transition-colors"
+          >
+            + Add
+          </button>
+          {showPicker && (
+            <FixturePicker
+              loadedFixtureNames={stages.map((s) => s.name)}
+              onSelect={handleAddFixture}
+              onClose={() => setShowPicker(false)}
+            />
+          )}
+        </div>
       </div>
 
-      {/* Two-panel layout */}
-      <div className="flex flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden bg-white">
-        {/* Left panel: Prompt Editor */}
-        <div className="w-1/2 border-r border-gray-200 flex flex-col">
-          <PromptEditor
-            systemPrompt={systemPrompt}
-            onSystemPromptChange={setSystemPrompt}
-            onReset={handleResetPrompt}
-            isModified={isPromptModified}
-          />
-        </div>
+      {/* System prompt editor */}
+      <div className="shrink-0 mb-3">
+        <SystemPromptEditor
+          value={systemPrompt}
+          onChange={setSystemPrompt}
+          onReset={() => setSystemPrompt(DEFAULT_SYSTEM_PROMPT)}
+          isModified={isPromptModified}
+        />
+      </div>
 
-        {/* Right panel: Conversation */}
-        <div className="w-1/2 flex flex-col">
-          <ConversationPanel
-            messages={messages}
-            selectedMessageIndex={selectedMessageIndex}
-            streamingContent={streamingContent}
-            streamingThinking={streamingThinking}
-            isStreaming={isStreaming}
-            onSelectMessage={handleSelectMessage}
-            onRegenerate={handleRegenerate}
-            onSendFollowUp={handleSendFollowUp}
-            canRegenerate={selectedMessageIndex !== null}
-            canSendFollowUp={hasRegenerated && !isStreaming}
-          />
+      {/* Horizontal scroll grid of stage groups */}
+      <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
+        <div className="flex gap-3 h-full">
+          {stages.map((fixture) => (
+            <StageGroup
+              key={fixture.name}
+              fixture={fixture}
+              systemPrompt={systemPrompt}
+              enableThinking={enableThinking}
+              effort={effort}
+              onRemove={() => handleRemoveStage(fixture.name)}
+              columnRefs={columnRefsMap}
+            />
+          ))}
         </div>
       </div>
     </div>
