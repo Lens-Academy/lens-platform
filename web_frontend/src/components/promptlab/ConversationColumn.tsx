@@ -48,7 +48,7 @@ const ConversationColumn = forwardRef<ConversationColumnHandle, ConversationColu
     function toggleOriginal(index: number) {
       setExpandedOriginals((prev) => {
         const next = new Set(prev);
-        next.has(index) ? next.delete(index) : next.add(index);
+        if (next.has(index)) { next.delete(index); } else { next.add(index); }
         return next;
       });
     }
@@ -56,7 +56,7 @@ const ConversationColumn = forwardRef<ConversationColumnHandle, ConversationColu
     function toggleThinking(index: number) {
       setExpandedThinking((prev) => {
         const next = new Set(prev);
-        next.has(index) ? next.delete(index) : next.add(index);
+        if (next.has(index)) { next.delete(index); } else { next.add(index); }
         return next;
       });
     }

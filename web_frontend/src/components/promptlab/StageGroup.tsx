@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback } from "react";
 import ConversationColumn from "./ConversationColumn";
 import type { ConversationColumnHandle } from "./ConversationColumn";
 import type { Fixture } from "@/api/promptlab";
-import type { ConversationMessage } from "@/hooks/useConversationSlot";
 import { assemblePrompt } from "@/utils/assemblePrompt";
 
 interface StageGroupProps {
