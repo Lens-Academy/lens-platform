@@ -148,6 +148,7 @@ from web_api.routes.content import router as content_router
 from web_api.routes.groups import router as groups_router
 from web_api.routes.admin import router as admin_router
 from web_api.routes.progress import router as progress_router
+from web_api.routes.guest_visits import router as guest_visits_router
 
 # Track bot task for cleanup
 _bot_task: asyncio.Task | None = None
@@ -313,6 +314,7 @@ app.include_router(content_router)
 app.include_router(groups_router)
 app.include_router(admin_router)
 app.include_router(progress_router)
+app.include_router(guest_visits_router)
 
 
 # New paths for static files
