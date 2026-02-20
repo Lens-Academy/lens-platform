@@ -391,6 +391,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // View mode state (default to paginated)
   const [viewMode] = useState<ViewMode>("paginated");
 
+  // Track which question's feedback chat is currently visible (only one at a time)
+  const [activeFeedbackKey, setActiveFeedbackKey] = useState<string | null>(
+    null,
+  );
+
   // Convert sections to Stage format for progress bar
   const stages: Stage[] = useMemo(() => {
     if (!module) return [];
@@ -923,7 +928,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           />
         );
 
-      case "question":
+      case "question": {
+        const feedbackKey = `${sectionIndex}-${segmentIndex}`;
         return (
           <div key={`question-${keyPrefix}`}>
             <AnswerBox
@@ -939,6 +945,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               contentId={"contentId" in section ? section.contentId : null}
               isAuthenticated={isAuthenticated}
               onFeedbackTrigger={(answerText) => {
+                setActiveFeedbackKey(feedbackKey);
                 const questionText = segment.userInstruction;
                 handleSendMessage(
                   `I just answered this question: "${questionText}"\n\nMy answer: "${answerText}"\n\nCan you give me feedback?`,
@@ -947,7 +954,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 );
               }}
             />
-            {segment.feedback && (
+            {segment.feedback && activeFeedbackKey === feedbackKey && (
               <NarrativeChatSection
                 messages={messages}
                 pendingMessage={pendingMessage}
@@ -961,6 +968,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             )}
           </div>
         );
+      }
 
       default:
         return null;
