@@ -434,11 +434,13 @@ if __name__ == "__main__":
     import uvicorn
 
     # Extract workspace number from directory name (e.g., "platform-ws2" → 2)
-    # Used to auto-assign ports: ws1 gets 8001/3001, ws2 gets 8002/3002, etc.
-    workspace_match = re.search(r"-ws(\d+)$", Path.cwd().name)
+    # Used to auto-assign ports: ws1 gets 8100/3100, ws2 gets 8200/3200, etc.
+    # Offset by 100 so each workspace has a port range that won't collide if
+    # a server auto-increments to the next available port.
+    workspace_match = re.search(r"(?:^|-)ws(\d+)$", Path.cwd().name)
     ws_num = int(workspace_match.group(1)) if workspace_match else 0
-    default_api_port = 8000 + ws_num
-    default_frontend_port = 3000 + ws_num
+    default_api_port = 8000 + ws_num * 100
+    default_frontend_port = 3000 + ws_num * 100
 
     parser = argparse.ArgumentParser(description="AI Safety Course Platform Server")
     parser.add_argument(
@@ -499,7 +501,7 @@ if __name__ == "__main__":
         os.environ["API_PORT"] = str(args.port)
         os.environ["FRONTEND_PORT"] = str(default_frontend_port)
         print(
-            f"Dev mode enabled (ws{ws_num}): API :{args.port}, Next.js :{default_frontend_port}"
+            f"Dev mode enabled (ws{ws_num}): API :{args.port}, Vite :{default_frontend_port}"
         )
 
     # Check required environment variables
