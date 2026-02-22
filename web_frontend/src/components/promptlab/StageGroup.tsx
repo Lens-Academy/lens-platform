@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback, useRef } from "react";
 import ConversationColumn from "./ConversationColumn";
 import type { ConversationColumnHandle } from "./ConversationColumn";
 import type { FixtureSection } from "@/api/promptlab";
-import { assemblePrompt } from "@/utils/assemblePrompt";
 
 interface StageGroupProps {
   section: FixtureSection;
@@ -26,11 +25,6 @@ export default function StageGroup({
   const [instructions, setInstructions] = useState(section.instructions);
   const [context, setContext] = useState(section.context);
   const [contextExpanded, setContextExpanded] = useState(false);
-
-  const fullPrompt = useMemo(
-    () => assemblePrompt(systemPrompt, instructions, context),
-    [systemPrompt, instructions, context],
-  );
 
   const fixtureConversations = useMemo(
     () =>
@@ -152,7 +146,9 @@ export default function StageGroup({
             ref={setColumnRef(conv.label)}
             initialMessages={conv.messages}
             label={conv.label}
-            systemPrompt={fullPrompt}
+            baseSystemPrompt={systemPrompt}
+            instructions={instructions}
+            context={context}
             enableThinking={enableThinking}
             effort={effort}
           />
@@ -163,7 +159,9 @@ export default function StageGroup({
             ref={setColumnRef(chat.label)}
             initialMessages={[]}
             label={chat.label}
-            systemPrompt={fullPrompt}
+            baseSystemPrompt={systemPrompt}
+            instructions={instructions}
+            context={context}
             enableThinking={enableThinking}
             effort={effort}
             clearable

@@ -8,6 +8,7 @@ import os
 from typing import AsyncIterator
 
 from .llm import stream_chat
+from .prompts import assemble_chat_prompt, DEFAULT_BASE_PROMPT
 from .types import Stage, ArticleStage, VideoStage, ChatStage
 from .content import (
     load_article_with_metadata,
@@ -52,15 +53,18 @@ def _build_system_prompt(
         previous_content: Content from previous stage (for chat stages, unless hidePreviousContentFromTutor)
     """
 
-    base = """You are a tutor helping someone learn about AI safety. Each piece of content (article, video) has different topics and learning objectives.
-"""
+    base = DEFAULT_BASE_PROMPT
 
     if isinstance(current_stage, ChatStage):
-        # Active chat stage - use authored context
-        prompt = base + f"\n\nInstructions:\n{current_stage.instructions}"
-
-        if not current_stage.hide_previous_content_from_tutor and previous_content:
-            prompt += f"\n\nThe user just engaged with this content:\n---\n{previous_content}\n---"
+        # Active chat stage - use shared assembly
+        context = (
+            previous_content
+            if not current_stage.hide_previous_content_from_tutor
+            else None
+        )
+        prompt = assemble_chat_prompt(
+            base, current_stage.instructions, context
+        )
 
     elif isinstance(current_stage, (ArticleStage, VideoStage)):
         # User is consuming content - be helpful but brief

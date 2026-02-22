@@ -76,14 +76,18 @@ export async function loadFixture(name: string): Promise<Fixture> {
  */
 export async function* regenerateResponse(
   messages: FixtureMessage[],
-  systemPrompt: string,
+  baseSystemPrompt: string,
+  instructions: string,
+  context: string,
   enableThinking: boolean,
   effort?: string,
   model?: string,
 ): AsyncGenerator<StreamEvent> {
   const body: Record<string, unknown> = {
     messages,
-    systemPrompt,
+    baseSystemPrompt,
+    instructions,
+    context,
     enableThinking,
   };
   if (effort) body.effort = effort;
@@ -127,14 +131,18 @@ export async function* regenerateResponse(
  */
 export async function* continueConversation(
   messages: FixtureMessage[],
-  systemPrompt: string,
+  baseSystemPrompt: string,
+  instructions: string,
+  context: string,
   enableThinking: boolean,
   effort?: string,
   model?: string,
 ): AsyncGenerator<StreamEvent> {
   const body: Record<string, unknown> = {
     messages,
-    systemPrompt,
+    baseSystemPrompt,
+    instructions,
+    context,
     enableThinking,
   };
   if (effort) body.effort = effort;

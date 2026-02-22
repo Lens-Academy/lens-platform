@@ -12,14 +12,16 @@ export interface ConversationColumnHandle {
 interface ConversationColumnProps {
   initialMessages: ConversationMessage[];
   label: string;
-  systemPrompt: string;
+  baseSystemPrompt: string;
+  instructions: string;
+  context: string;
   enableThinking: boolean;
   effort: string;
   clearable?: boolean;
 }
 
 const ConversationColumn = forwardRef<ConversationColumnHandle, ConversationColumnProps>(
-  function ConversationColumn({ initialMessages, label, systemPrompt, enableThinking, effort, clearable }, ref) {
+  function ConversationColumn({ initialMessages, label, baseSystemPrompt, instructions, context, enableThinking, effort, clearable }, ref) {
     const slot = useConversationSlot(initialMessages);
     const scrollRef = useRef<HTMLDivElement>(null);
     const [userScrolledUp, setUserScrolledUp] = useState(false);
@@ -27,22 +29,26 @@ const ConversationColumn = forwardRef<ConversationColumnHandle, ConversationColu
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Expose regenerate to parent for "Regenerate All"
-    const systemPromptRef = useRef(systemPrompt);
+    const baseSystemPromptRef = useRef(baseSystemPrompt);
+    const instructionsRef = useRef(instructions);
+    const contextRef = useRef(context);
     const enableThinkingRef = useRef(enableThinking);
     const effortRef = useRef(effort);
-    systemPromptRef.current = systemPrompt;
+    baseSystemPromptRef.current = baseSystemPrompt;
+    instructionsRef.current = instructions;
+    contextRef.current = context;
     enableThinkingRef.current = enableThinking;
     effortRef.current = effort;
 
     useImperativeHandle(ref, () => ({
       regenerate: () =>
-        slot.regenerate(systemPromptRef.current, enableThinkingRef.current, effortRef.current),
+        slot.regenerate(baseSystemPromptRef.current, instructionsRef.current, contextRef.current, enableThinkingRef.current, effortRef.current),
       regenerateLastAssistant: () => {
         const lastIdx = slot.messages.findLastIndex((m) => m.role === "assistant");
         if (lastIdx < 0) return Promise.resolve();
         slot.selectMessage(lastIdx);
         return slot.regenerate(
-          systemPromptRef.current, enableThinkingRef.current, effortRef.current, lastIdx,
+          baseSystemPromptRef.current, instructionsRef.current, contextRef.current, enableThinkingRef.current, effortRef.current, lastIdx,
         );
       },
       autoSelectLastAssistant: () => {
@@ -100,7 +106,7 @@ const ConversationColumn = forwardRef<ConversationColumnHandle, ConversationColu
       e.preventDefault();
       const text = followUpInput.trim();
       if (text && !slot.isStreaming) {
-        slot.sendFollowUp(text, systemPrompt, enableThinking, effort);
+        slot.sendFollowUp(text, baseSystemPrompt, instructions, context, enableThinking, effort);
         setFollowUpInput("");
       }
     }
@@ -132,7 +138,7 @@ const ConversationColumn = forwardRef<ConversationColumnHandle, ConversationColu
           )}
           {canRegenerate && (
             <button
-              onClick={() => slot.regenerate(systemPrompt, enableThinking, effort)}
+              onClick={() => slot.regenerate(baseSystemPrompt, instructions, context, enableThinking, effort)}
               disabled={slot.isStreaming}
               className={`text-[10px] font-medium px-2 py-1 rounded transition-colors ${
                 slot.isStreaming

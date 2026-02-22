@@ -26,14 +26,18 @@ export interface ConversationSlotState {
 export interface ConversationSlotActions {
   selectMessage: (index: number) => void;
   regenerate: (
-    fullSystemPrompt: string,
+    baseSystemPrompt: string,
+    instructions: string,
+    context: string,
     enableThinking: boolean,
     effort: string,
     messageIndex?: number,
   ) => Promise<void>;
   sendFollowUp: (
     message: string,
-    fullSystemPrompt: string,
+    baseSystemPrompt: string,
+    instructions: string,
+    context: string,
     enableThinking: boolean,
     effort: string,
   ) => Promise<void>;
@@ -70,7 +74,7 @@ export function useConversationSlot(
   );
 
   const regenerate = useCallback(
-    async (fullSystemPrompt: string, enableThinking: boolean, effort: string, messageIndex?: number) => {
+    async (baseSystemPrompt: string, instructions: string, context: string, enableThinking: boolean, effort: string, messageIndex?: number) => {
       // Use provided messageIndex (from Regenerate All) or fall back to current selection
       const idx = messageIndex ?? selectedMessageIndexRef.current;
       if (idx === null) return;
@@ -93,7 +97,9 @@ export function useConversationSlot(
       try {
         for await (const event of regenerateResponse(
           messagesToSend,
-          fullSystemPrompt,
+          baseSystemPrompt,
+          instructions,
+          context,
           enableThinking,
           effort,
         )) {
@@ -138,7 +144,7 @@ export function useConversationSlot(
   );
 
   const sendFollowUp = useCallback(
-    async (message: string, fullSystemPrompt: string, enableThinking: boolean, effort: string) => {
+    async (message: string, baseSystemPrompt: string, instructions: string, context: string, enableThinking: boolean, effort: string) => {
       const userMessage: ConversationMessage = { role: "user", content: message };
       setMessages((prev) => [...prev, userMessage]);
 
@@ -159,7 +165,9 @@ export function useConversationSlot(
       try {
         for await (const event of continueConversation(
           allMessages,
-          fullSystemPrompt,
+          baseSystemPrompt,
+          instructions,
+          context,
           enableThinking,
           effort,
         )) {

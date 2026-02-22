@@ -5,8 +5,10 @@ import SystemPromptEditor from "@/components/promptlab/SystemPromptEditor";
 import StageGroup from "@/components/promptlab/StageGroup";
 import FixturePicker from "@/components/promptlab/FixturePicker";
 import type { ConversationColumnHandle } from "@/components/promptlab/ConversationColumn";
-import { DEFAULT_SYSTEM_PROMPT } from "@/utils/assemblePrompt";
 import type { Fixture, FixtureSection } from "@/api/promptlab";
+
+const DEFAULT_SYSTEM_PROMPT =
+  "You are a tutor helping someone learn about AI safety. Each piece of content (article, video) has different topics and learning objectives.";
 
 /** A section loaded into the grid, tagged with its parent fixture name. */
 interface LoadedStage {

@@ -23,6 +23,7 @@ from pydantic import BaseModel
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import get_connection
+from core.modules.prompts import assemble_chat_prompt
 from core.promptlab import (
     list_fixtures,
     load_fixture,
@@ -58,7 +59,9 @@ async def get_facilitator_user(user: dict = Depends(get_current_user)) -> dict:
 
 class RegenerateRequest(BaseModel):
     messages: list[dict]  # Conversation up to the point to regenerate
-    systemPrompt: str  # Full edited system prompt
+    baseSystemPrompt: str  # Base prompt (editable in UI)
+    instructions: str = ""  # Stage instructions
+    context: str = ""  # Previous content context
     enableThinking: bool = True  # Whether to include CoT (default matches normal chat)
     effort: str = "low"  # Thinking effort: "low", "medium", or "high"
     model: str | None = None  # Optional model override (e.g. "anthropic/claude-sonnet-4-6")
@@ -66,7 +69,9 @@ class RegenerateRequest(BaseModel):
 
 class ContinueRequest(BaseModel):
     messages: list[dict]  # Full conversation including the follow-up user message
-    systemPrompt: str  # Current system prompt
+    baseSystemPrompt: str  # Base prompt (editable in UI)
+    instructions: str = ""  # Stage instructions
+    context: str = ""  # Previous content context
     enableThinking: bool = True
     effort: str = "low"
     model: str | None = None
@@ -119,11 +124,17 @@ async def regenerate(
     Does NOT write to any database table.
     """
 
+    system_prompt = assemble_chat_prompt(
+        request.baseSystemPrompt,
+        request.instructions or None,
+        request.context or None,
+    )
+
     async def event_generator():
         try:
             async for event in regenerate_response(
                 messages=request.messages,
-                system_prompt=request.systemPrompt,
+                system_prompt=system_prompt,
                 enable_thinking=request.enableThinking,
                 effort=request.effort,
                 provider=request.model,
@@ -156,12 +167,17 @@ async def continue_chat(
     Returns Server-Sent Events with text/thinking/done/error events.
     Does NOT write to any database table.
     """
+    system_prompt = assemble_chat_prompt(
+        request.baseSystemPrompt,
+        request.instructions or None,
+        request.context or None,
+    )
 
     async def event_generator():
         try:
             async for event in continue_conversation(
                 messages=request.messages,
-                system_prompt=request.systemPrompt,
+                system_prompt=system_prompt,
                 enable_thinking=request.enableThinking,
                 effort=request.effort,
                 provider=request.model,
