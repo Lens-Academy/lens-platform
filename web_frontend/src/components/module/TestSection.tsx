@@ -191,23 +191,26 @@ export default function TestSection({
         }
 
         // Mark test section as complete via progress API
-        const contentId = `test:${moduleSlug}:${sectionIndex}`;
-        markComplete(
-          {
-            content_id: contentId,
-            content_type: "test",
-            content_title: section.meta?.title || "Test",
-            module_slug: moduleSlug,
-          },
-          isAuthenticated,
-        )
-          .then((response) => {
-            onMarkComplete(response);
-          })
-          .catch(() => {
-            // Still mark locally complete even if API fails
-            onMarkComplete();
-          });
+        // When feedback is enabled, defer markComplete to the Continue button
+        if (!onFeedbackTrigger) {
+          const contentId = `test:${moduleSlug}:${sectionIndex}`;
+          markComplete(
+            {
+              content_id: contentId,
+              content_type: "test",
+              content_title: section.meta?.title || "Test",
+              module_slug: moduleSlug,
+            },
+            isAuthenticated,
+          )
+            .then((response) => {
+              onMarkComplete(response);
+            })
+            .catch(() => {
+              // Still mark locally complete even if API fails
+              onMarkComplete();
+            });
+        }
       } else {
         // Advance to next unanswered question
         let nextIndex = questionIndex + 1;
