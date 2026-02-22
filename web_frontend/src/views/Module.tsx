@@ -27,6 +27,7 @@ import type { ModuleCompletionResult, LensProgress } from "@/api/modules";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
+import { markComplete } from "@/api/progress";
 import type { MarkCompleteResponse } from "@/api/progress";
 import AuthoredText from "@/components/module/AuthoredText";
 import ArticleEmbed from "@/components/module/ArticleEmbed";
@@ -1305,16 +1306,52 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         }
                       />
                       {section.feedback && activeFeedbackKey === feedbackKey && (
-                        <NarrativeChatSection
-                          messages={messages}
-                          pendingMessage={pendingMessage}
-                          streamingContent={streamingContent}
-                          isLoading={isLoading}
-                          onSendMessage={(content) =>
-                            handleSendMessage(content, sectionIndex, 0)
-                          }
-                          onRetryMessage={handleRetryMessage}
-                        />
+                        <>
+                          <NarrativeChatSection
+                            messages={messages}
+                            pendingMessage={pendingMessage}
+                            streamingContent={streamingContent}
+                            isLoading={isLoading}
+                            onSendMessage={(content) =>
+                              handleSendMessage(content, sectionIndex, 0)
+                            }
+                            onRetryMessage={handleRetryMessage}
+                          />
+                          <div className="flex items-center justify-center py-6">
+                            <button
+                              onClick={() => {
+                                const contentId = `test:${moduleId}:${sectionIndex}`;
+                                markComplete(
+                                  {
+                                    content_id: contentId,
+                                    content_type: "test",
+                                    content_title: section.meta?.title || "Test",
+                                    module_slug: moduleId,
+                                  },
+                                  isAuthenticated,
+                                )
+                                  .then((response) => handleMarkComplete(sectionIndex, response))
+                                  .catch(() => handleMarkComplete(sectionIndex));
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
+                            >
+                              Continue
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 5l7 7-7 7"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </>
                       )}
                     </>
                   );
