@@ -478,7 +478,7 @@ export default function NarrativeChatSection({
         {/* Messages area */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto px-6 py-4 sm:px-10 text-base leading-relaxed"
+          className="flex-1 overflow-y-auto px-4 py-4 sm:px-10 text-base leading-relaxed"
           style={{ overflowAnchor: "none" }}
           onScroll={handleScroll}
         >
@@ -486,7 +486,7 @@ export default function NarrativeChatSection({
             <div>
               {/* Previous messages - natural height */}
               {currentExchangeStartIndex > 0 && (
-                <div className="space-y-4 pb-4">
+                <div className="space-y-4 pb-4 max-w-content mx-auto">
                   {messages.slice(0, currentExchangeStartIndex).map((msg, i) =>
                     msg.role === "system" ? (
                       <div key={i} className="flex justify-center my-3">
@@ -530,7 +530,7 @@ export default function NarrativeChatSection({
                       : undefined,
                 }}
               >
-                <div className="space-y-4">
+                <div className="space-y-4 max-w-content mx-auto">
                   {/* Current exchange messages */}
                   {messages.slice(currentExchangeStartIndex).map((msg, i) =>
                     msg.role === "system" ? (
@@ -682,8 +682,9 @@ export default function NarrativeChatSection({
         {/* Input form */}
         <form
           onSubmit={handleSubmit}
-          className="flex gap-2 px-6 py-4 sm:px-10 border-t border-gray-100 items-end"
+          className="px-4 py-4 sm:px-10 border-t border-gray-100"
         >
+          <div className="flex gap-2 items-end max-w-content mx-auto">
           <textarea
             ref={textareaRef}
             value={input}
@@ -818,6 +819,7 @@ export default function NarrativeChatSection({
                 </button>
               )}
             </div>
+          </div>
           </div>
         </form>
       </div>
