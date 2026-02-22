@@ -117,6 +117,10 @@ export default function NarrativeChatSection({
   const [currentExchangeStartIndex, setCurrentExchangeStartIndex] = useState(0);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [scrollContainerHeight, setScrollContainerHeight] = useState(0);
+  const [userSentFollowup, setUserSentFollowup] = useState(false);
+
+  // scrollToResponse only applies to the first (auto-sent) message, not follow-ups
+  const activeScrollToResponse = scrollToResponse && !userSentFollowup;
 
   const currentExchangeRef = useRef<HTMLDivElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
@@ -140,7 +144,7 @@ export default function NarrativeChatSection({
   });
 
   // Scroll user's new message to top when they send
-  // When scrollToResponse is true, scroll to the response (Thinking.../streaming) instead
+  // When activeScrollToResponse is true, scroll to the response (Thinking.../streaming) instead
   useLayoutEffect(() => {
     // Need scrollContainerHeight > 0 so minHeight is applied before scrolling
     if (
@@ -149,7 +153,7 @@ export default function NarrativeChatSection({
       scrollContainerHeight > 0
     ) {
       // scrollToResponse: scroll past the user message to show the tutor's response
-      if (scrollToResponse && isLoading && responseRef.current) {
+      if (activeScrollToResponse && isLoading && responseRef.current) {
         responseRef.current.scrollIntoView({
           block: "start",
           behavior: "instant",
@@ -159,15 +163,13 @@ export default function NarrativeChatSection({
 
       // Default: scroll to the user's message at the top
       if (currentExchangeRef.current) {
-        const container = scrollContainerRef.current;
-        const elementTop = currentExchangeRef.current.offsetTop;
-        container.scrollTo({
-          top: elementTop - 24, // 24px matches the scrollMarginTop
+        currentExchangeRef.current.scrollIntoView({
+          block: "start",
           behavior: "instant",
         });
       }
     }
-  }, [pendingMessage, scrollContainerHeight, scrollToResponse, isLoading]);
+  }, [pendingMessage, scrollContainerHeight, activeScrollToResponse, isLoading]);
 
   // Auto-detect when parent sends a message (e.g. feedback trigger)
   useEffect(() => {
@@ -214,6 +216,18 @@ export default function NarrativeChatSection({
     return () => observer.disconnect();
   }, [hasInteracted]);
 
+  // When activeScrollToResponse, keep the completed assistant response in the wrapper
+  // (not space-y-4) so heights stay identical to the streaming layout — no jump.
+  const currentMessages = messages.slice(currentExchangeStartIndex);
+  const lastCurrentMsg = currentMessages[currentMessages.length - 1];
+  const renderLastInWrapper =
+    activeScrollToResponse &&
+    !isLoading &&
+    lastCurrentMsg?.role === "assistant";
+  const spaceY4Messages = renderLastInWrapper
+    ? currentMessages.slice(0, -1)
+    : currentMessages;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
@@ -222,6 +236,7 @@ export default function NarrativeChatSection({
       setCurrentExchangeStartIndex(messages.length);
       setShowScrollButton(false); // Reset scroll button when sending new message
       setHasInteracted(true);
+      if (scrollToResponse) setUserSentFollowup(true);
       onSendMessage(input.trim());
       setInput("");
     }
@@ -326,7 +341,7 @@ export default function NarrativeChatSection({
               >
                 <div className="space-y-4">
                   {/* Current exchange messages */}
-                  {messages.slice(currentExchangeStartIndex).map((msg, i) =>
+                  {spaceY4Messages.map((msg, i) =>
                     msg.role === "system" ? (
                       <div
                         key={`current-${i}`}
@@ -398,13 +413,13 @@ export default function NarrativeChatSection({
 
                 </div>
 
-                {/* Response + spacer wrapper. When scrollToResponse is true,
+                {/* Response + spacer wrapper. When activeScrollToResponse is true,
                    minHeight ensures the response can scroll to viewport top.
                    As the response grows, the flex-grow spacer shrinks. */}
                 <div
                   className="flex flex-col flex-grow"
                   style={
-                    scrollToResponse && isLoading && scrollContainerHeight > 0
+                    activeScrollToResponse && scrollContainerHeight > 0
                       ? { minHeight: `${scrollContainerHeight}px` }
                       : undefined
                   }
@@ -412,10 +427,10 @@ export default function NarrativeChatSection({
                   {/* Streaming response */}
                   {isLoading && streamingContent && (
                     <div
-                      ref={scrollToResponse ? responseRef : undefined}
+                      ref={activeScrollToResponse ? responseRef : undefined}
                       className="bg-blue-50 p-3 rounded-lg mt-4"
                       style={
-                        scrollToResponse
+                        activeScrollToResponse
                           ? { scrollMarginTop: "24px" }
                           : undefined
                       }
@@ -430,16 +445,27 @@ export default function NarrativeChatSection({
                   {/* Loading indicator */}
                   {isLoading && !streamingContent && (
                     <div
-                      ref={scrollToResponse ? responseRef : undefined}
+                      ref={activeScrollToResponse ? responseRef : undefined}
                       className="bg-blue-50 p-3 rounded-lg mt-4"
                       style={
-                        scrollToResponse
+                        activeScrollToResponse
                           ? { scrollMarginTop: "24px" }
                           : undefined
                       }
                     >
                       <div className="text-xs text-gray-500 mb-1">Tutor</div>
                       <div className="text-gray-800">Thinking...</div>
+                    </div>
+                  )}
+
+                  {/* Completed assistant response - kept in wrapper so
+                     heights match the streaming layout (no jump) */}
+                  {renderLastInWrapper && lastCurrentMsg && (
+                    <div className="bg-blue-50 p-3 rounded-lg mt-4 text-gray-800">
+                      <div className="text-xs text-gray-500 mb-1">Tutor</div>
+                      <div>
+                        <ChatMarkdown>{lastCurrentMsg.content}</ChatMarkdown>
+                      </div>
                     </div>
                   )}
 

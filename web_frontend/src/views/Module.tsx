@@ -965,6 +965,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                   handleSendMessage(content, sectionIndex, segmentIndex)
                 }
                 onRetryMessage={handleRetryMessage}
+                scrollToResponse
               />
             )}
           </div>
