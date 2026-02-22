@@ -1,6 +1,30 @@
 {
   "modules": [
     {
+      "slug": "lens/lens1",
+      "title": "Core Concepts",
+      "contentId": "550e8400-e29b-41d4-a716-446655440002",
+      "sections": [
+        {
+          "type": "page",
+          "meta": {
+            "title": "Core Concepts"
+          },
+          "segments": [
+            {
+              "type": "text",
+              "content": "This is the core content about AI Safety."
+            }
+          ],
+          "optional": false,
+          "learningOutcomeId": null,
+          "learningOutcomeName": null,
+          "contentId": "550e8400-e29b-41d4-a716-446655440002",
+          "videoId": null
+        }
+      ]
+    },
+    {
       "slug": "intro",
       "title": "Introduction to AI Safety",
       "contentId": null,

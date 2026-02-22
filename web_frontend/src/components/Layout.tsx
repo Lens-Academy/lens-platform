@@ -5,7 +5,7 @@ import CookieSettings from "./CookieSettings";
 import { BottomNav, DiscordInviteButton, MobileMenu, UserMenu } from "./nav";
 import { useScrollDirection } from "../hooks/useScrollDirection";
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children, hideFooter, fullWidth }: { children: React.ReactNode; hideFooter?: boolean; fullWidth?: boolean }) {
   const [showCookieSettings, setShowCookieSettings] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -64,30 +64,32 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 md:pb-0 flex-1">
+      <main className={`${fullWidth ? "px-3 pt-18" : "max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24"} pb-16 md:pb-0 flex-1`}>
         {children}
       </main>
 
-      <footer className="border-t border-slate-200 py-6 mt-auto">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-center gap-4 text-sm text-slate-500">
-            <a href="/privacy" className="hover:text-slate-700">
-              Privacy Policy
-            </a>
-            <span>·</span>
-            <a href="/terms" className="hover:text-slate-700">
-              Terms of Service
-            </a>
-            <span>·</span>
-            <button
-              onClick={() => setShowCookieSettings(true)}
-              className="hover:text-slate-700"
-            >
-              Cookie Settings
-            </button>
+      {!hideFooter && (
+        <footer className="border-t border-slate-200 py-6 mt-auto">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-center gap-4 text-sm text-slate-500">
+              <a href="/privacy" className="hover:text-slate-700">
+                Privacy Policy
+              </a>
+              <span>·</span>
+              <a href="/terms" className="hover:text-slate-700">
+                Terms of Service
+              </a>
+              <span>·</span>
+              <button
+                onClick={() => setShowCookieSettings(true)}
+                className="hover:text-slate-700"
+              >
+                Cookie Settings
+              </button>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       <CookieSettings
         isOpen={showCookieSettings}

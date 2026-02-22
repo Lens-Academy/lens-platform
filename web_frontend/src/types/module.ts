@@ -36,11 +36,23 @@ export type ChatSegment = {
   hidePreviousContentFromTutor: boolean;
 };
 
+export type QuestionSegment = {
+  type: "question";
+  userInstruction: string;
+  assessmentPrompt?: string;
+  maxTime?: string;
+  maxChars?: number;
+  enforceVoice?: boolean;
+  optional?: boolean;
+  feedback?: boolean;
+};
+
 export type ModuleSegment =
   | TextSegment
   | ArticleExcerptSegment
   | VideoExcerptSegment
-  | ChatSegment;
+  | ChatSegment
+  | QuestionSegment;
 
 // Metadata for article sections
 export type ArticleMeta = {
@@ -133,13 +145,29 @@ export type LensArticleSection = {
   optional: boolean;
 };
 
+/**
+ * A test section containing assessment questions.
+ * Rendered at the end of a module for time-gap measurement.
+ */
+export type TestSection = {
+  type: "test";
+  contentId: string | null;
+  learningOutcomeId: string | null;
+  learningOutcomeName: string | null;
+  meta: { title: string | null };
+  segments: ModuleSegment[];
+  optional: boolean;
+  feedback?: boolean;
+};
+
 // Union of all section types
-// v2 types: page, lens-video, lens-article (flattened, ready to render)
+// v2 types: page, lens-video, lens-article, test (flattened, ready to render)
 // v1 types: text, article, video, chat (legacy, still used for v1 content)
 export type ModuleSection =
   | PageSection
   | LensVideoSection
   | LensArticleSection
+  | TestSection
   | TextSection
   | ArticleSection
   | VideoSection

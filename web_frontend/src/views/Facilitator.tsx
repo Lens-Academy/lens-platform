@@ -574,14 +574,28 @@ function VerticalTimeline({
                 {/* Segments */}
                 {segs.map((seg, si) => {
                   if (seg.type === "meeting") {
-                    const status = tm.meetings[String(seg.meetingNumber)];
-                    const rsvp = (tm.rsvps ?? {})[String(seg.meetingNumber)];
-                    const color = status
-                      ? status === "attended"
+                    const mNum = String(seg.meetingNumber);
+                    const status = tm.meetings[mNum];
+                    const rsvp = (tm.rsvps ?? {})[mNum];
+                    const isGuestElsewhere =
+                      tm.guest_elsewhere?.includes(mNum) ?? false;
+                    const isPast = seg.items[0]?.is_past ?? false;
+
+                    // Guest visiting another group overrides normal display
+                    const color = isGuestElsewhere
+                      ? isPast
                         ? "bg-emerald-500"
-                        : "bg-red-400"
-                      : "bg-slate-200";
-                    const rsvpIcon =
+                        : "bg-slate-200"
+                      : status
+                        ? status === "attended"
+                          ? "bg-emerald-500"
+                          : "bg-red-400"
+                        : "bg-slate-200";
+                    const dotTitle = isGuestElsewhere
+                      ? `Meeting ${seg.meetingNumber}: ${isPast ? "joined another group" : "will join another group"}`
+                      : `Meeting ${seg.meetingNumber}: ${status || "upcoming"}`;
+
+                    const rsvpIcon = isGuestElsewhere ? null :
                       rsvp === "attending" ? (
                         <Check size={8} className="text-emerald-500" />
                       ) : rsvp === "not_attending" ? (
@@ -601,19 +615,27 @@ function VerticalTimeline({
                         >
                           <span
                             className={`w-3.5 h-3.5 rounded-full ${color}`}
-                            title={`Meeting ${seg.meetingNumber}: ${status || "upcoming"}`}
+                            title={dotTitle}
                           />
                         </span>
-                        {rsvpIcon && (
-                          <span
-                            className="inline-flex items-center gap-px shrink-0 ml-1"
-                            title={`RSVP: ${rsvp}`}
-                          >
-                            <span className="text-[10px] text-slate-400 leading-none">
-                              RSVP:
-                            </span>
-                            {rsvpIcon}
+                        {isGuestElsewhere ? (
+                          <span className="text-[10px] text-indigo-500 leading-none ml-1 whitespace-nowrap">
+                            {isPast
+                              ? "Joined another group"
+                              : "Will join another group"}
                           </span>
+                        ) : (
+                          rsvpIcon && (
+                            <span
+                              className="inline-flex items-center gap-px shrink-0 ml-1"
+                              title={`RSVP: ${rsvp}`}
+                            >
+                              <span className="text-[10px] text-slate-400 leading-none">
+                                RSVP:
+                              </span>
+                              {rsvpIcon}
+                            </span>
+                          )
                         )}
                       </div>
                     );

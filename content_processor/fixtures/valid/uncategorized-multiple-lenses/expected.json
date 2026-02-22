@@ -1,6 +1,67 @@
 {
   "modules": [
     {
+      "slug": "lens/article-lens",
+      "title": "Deep Dive Article",
+      "contentId": "a1b2c3d4-0000-0000-0000-000000000020",
+      "sections": [
+        {
+          "type": "lens-article",
+          "meta": {
+            "title": "Deep Dive Article",
+            "author": "Jane Doe",
+            "sourceUrl": "https://example.com/deep-dive"
+          },
+          "segments": [
+            {
+              "type": "text",
+              "content": "Read this article."
+            },
+            {
+              "type": "article-excerpt",
+              "content": "The key insight."
+            }
+          ],
+          "optional": false,
+          "learningOutcomeId": null,
+          "learningOutcomeName": null,
+          "contentId": "a1b2c3d4-0000-0000-0000-000000000020",
+          "videoId": null
+        }
+      ]
+    },
+    {
+      "slug": "lens/video-lens",
+      "title": "AI Safety Introduction",
+      "contentId": "a1b2c3d4-0000-0000-0000-000000000010",
+      "sections": [
+        {
+          "type": "lens-video",
+          "meta": {
+            "title": "AI Safety Introduction",
+            "channel": "Safety Channel"
+          },
+          "segments": [
+            {
+              "type": "text",
+              "content": "Watch this video introduction."
+            },
+            {
+              "type": "video-excerpt",
+              "from": 0,
+              "to": 60,
+              "transcript": "Welcome to AI safety. End of intro."
+            }
+          ],
+          "optional": false,
+          "learningOutcomeId": null,
+          "learningOutcomeName": null,
+          "contentId": "a1b2c3d4-0000-0000-0000-000000000010",
+          "videoId": "dQw4w9WgXcQ"
+        }
+      ]
+    },
+    {
       "slug": "test-uncategorized",
       "title": "Test Uncategorized Lenses",
       "contentId": "a1b2c3d4-0000-0000-0000-000000000001",

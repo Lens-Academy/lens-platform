@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useReducer, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { Skeleton, SkeletonText } from "../components/Skeleton";
 import {
@@ -10,11 +10,6 @@ import {
   syncCohort,
   realizeCohort,
   addMemberToGroup,
-  type UserSearchResult,
-  type UserDetails,
-  type GroupSummary,
-  type GroupSyncResult,
-  type CohortSyncResult,
 } from "../api/admin";
 import {
   GroupOperationDetails,
@@ -22,76 +17,54 @@ import {
 } from "../components/OperationDetails";
 import { API_URL } from "../config";
 import { fetchWithRefresh } from "../api/fetchWithRefresh";
-
-type TabType = "users" | "groups";
-
-interface Cohort {
-  cohort_id: number;
-  cohort_name: string;
-  course_name?: string;
-}
+import { adminReducer, initialAdminState } from "./adminReducer";
 
 export default function Admin() {
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+  const [state, dispatch] = useReducer(adminReducer, initialAdminState);
 
-  const [activeTab, setActiveTab] = useState<TabType>("users");
-  const [error, setError] = useState<string | null>(null);
-
-  // Users tab state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
-
-  // Add/Change group state (for Users tab)
-  const [addGroupCohortId, setAddGroupCohortId] = useState<number | null>(null);
-  const [addGroupId, setAddGroupId] = useState<number | null>(null);
-  const [addGroupOptions, setAddGroupOptions] = useState<GroupSummary[]>([]);
-  const [isAddingToGroup, setIsAddingToGroup] = useState(false);
-
-  // Groups tab state
-  const [cohorts, setCohorts] = useState<Cohort[]>([]);
-  const [selectedCohortId, setSelectedCohortId] = useState<number | null>(null);
-  const [groups, setGroups] = useState<GroupSummary[]>([]);
-  const [loadingGroups, setLoadingGroups] = useState(false);
-  const [cohortSyncing, setCohortSyncing] = useState(false);
-  const [cohortRealizing, setCohortRealizing] = useState(false);
-  const [groupSyncing, setGroupSyncing] = useState<Record<number, boolean>>({});
-  const [groupRealizing, setGroupRealizing] = useState<Record<number, boolean>>(
-    {},
-  );
-
-  // Operation results for detailed display
-  const [lastGroupResult, setLastGroupResult] = useState<{
-    groupId: number;
-    result: GroupSyncResult;
-    operationType: "sync" | "realize";
-  } | null>(null);
-  const [lastCohortResult, setLastCohortResult] = useState<{
-    result: CohortSyncResult;
-    operationType: "sync" | "realize";
-  } | null>(null);
+  const {
+    activeTab,
+    error,
+    searchQuery,
+    searchResults,
+    isSearching,
+    selectedUser,
+    isLoadingUser,
+    isSyncing,
+    syncMessage,
+    addGroupCohortId,
+    addGroupId,
+    addGroupOptions,
+    isAddingToGroup,
+    cohorts,
+    selectedCohortId,
+    groups,
+    loadingGroups,
+    cohortSyncing,
+    cohortRealizing,
+    groupSyncing,
+    groupRealizing,
+    lastGroupResult,
+    lastCohortResult,
+  } = state;
 
   // Debounced search
   const performSearch = useCallback(async (query: string) => {
     if (query.length < 2) {
-      setSearchResults([]);
+      dispatch({ type: "SEARCH_CLEAR" });
       return;
     }
 
-    setIsSearching(true);
-    setError(null);
+    dispatch({ type: "SEARCH_START" });
     try {
       const results = await searchUsers(query);
-      setSearchResults(results);
+      dispatch({ type: "SEARCH_SUCCESS", results });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed");
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
+      dispatch({
+        type: "SEARCH_ERROR",
+        error: err instanceof Error ? err.message : "Search failed",
+      });
     }
   }, []);
 
@@ -113,7 +86,7 @@ export default function Admin() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        setCohorts(data.cohorts || []);
+        dispatch({ type: "SET_COHORTS", cohorts: data.cohorts || [] });
       } catch {
         // Silently fail - cohorts will be empty
       }
@@ -127,19 +100,18 @@ export default function Admin() {
   useEffect(() => {
     async function fetchGroups() {
       if (!selectedCohortId) {
-        setGroups([]);
+        dispatch({ type: "LOAD_GROUPS_SUCCESS", groups: [] });
         return;
       }
-      setLoadingGroups(true);
-      setError(null);
+      dispatch({ type: "LOAD_GROUPS_START" });
       try {
         const groupsList = await getCohortGroups(selectedCohortId);
-        setGroups(groupsList);
+        dispatch({ type: "LOAD_GROUPS_SUCCESS", groups: groupsList });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load groups");
-        setGroups([]);
-      } finally {
-        setLoadingGroups(false);
+        dispatch({
+          type: "LOAD_GROUPS_ERROR",
+          error: err instanceof Error ? err.message : "Failed to load groups",
+        });
       }
     }
     fetchGroups();
@@ -147,17 +119,15 @@ export default function Admin() {
 
   // Load user details when selected
   const handleSelectUser = async (userId: number) => {
-    setIsLoadingUser(true);
-    setError(null);
-    setSyncMessage(null);
+    dispatch({ type: "SELECT_USER_START" });
     try {
       const details = await getUserDetails(userId);
-      setSelectedUser(details);
+      dispatch({ type: "SELECT_USER_SUCCESS", user: details! });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load user");
-      setSelectedUser(null);
-    } finally {
-      setIsLoadingUser(false);
+      dispatch({
+        type: "SELECT_USER_ERROR",
+        error: err instanceof Error ? err.message : "Failed to load user",
+      });
     }
   };
 
@@ -165,50 +135,48 @@ export default function Admin() {
   const handleSyncUserGroup = async () => {
     if (!selectedUser?.group_id) return;
 
-    setIsSyncing(true);
-    setSyncMessage(null);
-    setError(null);
-    setLastGroupResult(null);
+    dispatch({ type: "SYNC_USER_GROUP_START" });
     try {
       const result = await syncGroup(selectedUser.group_id);
-      setSyncMessage("Group synced successfully");
-      setLastGroupResult({
+      dispatch({
+        type: "SYNC_USER_GROUP_SUCCESS",
         groupId: selectedUser.group_id,
         result,
-        operationType: "sync",
+        message: "Group synced successfully",
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sync failed");
-    } finally {
-      setIsSyncing(false);
+      dispatch({
+        type: "SYNC_USER_GROUP_ERROR",
+        error: err instanceof Error ? err.message : "Sync failed",
+      });
     }
   };
 
   // Pre-select cohort when user with a group is selected
   useEffect(() => {
     if (selectedUser?.cohort_id) {
-      setAddGroupCohortId(selectedUser.cohort_id);
+      dispatch({ type: "SET_ADD_GROUP_COHORT_ID", cohortId: selectedUser.cohort_id });
     } else {
-      setAddGroupCohortId(null);
-      setAddGroupId(null);
+      dispatch({ type: "SET_ADD_GROUP_COHORT_ID", cohortId: null });
+      dispatch({ type: "SET_ADD_GROUP_ID", groupId: null });
     }
   }, [selectedUser?.user_id, selectedUser?.cohort_id]);
 
   // Load groups when cohort is selected for adding user
   useEffect(() => {
     if (!addGroupCohortId) {
-      setAddGroupOptions([]);
-      setAddGroupId(null);
+      dispatch({ type: "SET_ADD_GROUP_OPTIONS", options: [] });
+      dispatch({ type: "SET_ADD_GROUP_ID", groupId: null });
       return;
     }
 
     async function loadGroups() {
       try {
         const groups = await getCohortGroups(addGroupCohortId!);
-        setAddGroupOptions(groups);
-        setAddGroupId(null);
+        dispatch({ type: "SET_ADD_GROUP_OPTIONS", options: groups });
+        dispatch({ type: "SET_ADD_GROUP_ID", groupId: null });
       } catch {
-        setAddGroupOptions([]);
+        dispatch({ type: "SET_ADD_GROUP_OPTIONS", options: [] });
       }
     }
     loadGroups();
@@ -218,26 +186,25 @@ export default function Admin() {
   const handleAddToGroup = async () => {
     if (!selectedUser || !addGroupId) return;
 
-    setIsAddingToGroup(true);
-    setSyncMessage(null);
-    setError(null);
+    dispatch({ type: "ADD_TO_GROUP_START" });
     try {
       await addMemberToGroup(addGroupId, selectedUser.user_id);
       const action = selectedUser.group_id ? "moved to" : "added to";
       const groupName =
         addGroupOptions.find((g) => g.group_id === addGroupId)?.group_name ||
         "group";
-      setSyncMessage(`User ${action} ${groupName}`);
       // Refresh user details
       const updatedUser = await getUserDetails(selectedUser.user_id);
-      setSelectedUser(updatedUser);
-      // Reset selection
-      setAddGroupCohortId(null);
-      setAddGroupId(null);
+      dispatch({
+        type: "ADD_TO_GROUP_SUCCESS",
+        user: updatedUser!,
+        message: `User ${action} ${groupName}`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add to group");
-    } finally {
-      setIsAddingToGroup(false);
+      dispatch({
+        type: "ADD_TO_GROUP_ERROR",
+        error: err instanceof Error ? err.message : "Failed to add to group",
+      });
     }
   };
 
@@ -245,19 +212,19 @@ export default function Admin() {
   const handleSyncCohort = async () => {
     if (!selectedCohortId) return;
 
-    setCohortSyncing(true);
-    setSyncMessage(null);
-    setError(null);
-    setLastCohortResult(null);
-    setLastGroupResult(null);
+    dispatch({ type: "SYNC_COHORT_START" });
     try {
       const result = await syncCohort(selectedCohortId);
-      setSyncMessage(`Synced ${result.synced} groups successfully`);
-      setLastCohortResult({ result, operationType: "sync" });
+      dispatch({
+        type: "SYNC_COHORT_SUCCESS",
+        result,
+        message: `Synced ${result.synced} groups successfully`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Cohort sync failed");
-    } finally {
-      setCohortSyncing(false);
+      dispatch({
+        type: "SYNC_COHORT_ERROR",
+        error: err instanceof Error ? err.message : "Cohort sync failed",
+      });
     }
   };
 
@@ -265,40 +232,42 @@ export default function Admin() {
   const handleRealizeCohort = async () => {
     if (!selectedCohortId) return;
 
-    setCohortRealizing(true);
-    setSyncMessage(null);
-    setError(null);
-    setLastCohortResult(null);
-    setLastGroupResult(null);
+    dispatch({ type: "REALIZE_COHORT_START" });
     try {
       const result = await realizeCohort(selectedCohortId);
-      setSyncMessage(`Realized ${result.realized} groups successfully`);
-      setLastCohortResult({ result, operationType: "realize" });
       // Refresh groups list
       const groupsList = await getCohortGroups(selectedCohortId);
-      setGroups(groupsList);
+      dispatch({
+        type: "REALIZE_COHORT_SUCCESS",
+        result,
+        message: `Realized ${result.realized} groups successfully`,
+        groups: groupsList,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Cohort realize failed");
-    } finally {
-      setCohortRealizing(false);
+      dispatch({
+        type: "REALIZE_COHORT_ERROR",
+        error: err instanceof Error ? err.message : "Cohort realize failed",
+      });
     }
   };
 
   // Sync a single group (Groups tab)
   const handleSyncGroupById = async (groupId: number) => {
-    setGroupSyncing((prev) => ({ ...prev, [groupId]: true }));
-    setSyncMessage(null);
-    setError(null);
-    setLastGroupResult(null);
-    setLastCohortResult(null);
+    dispatch({ type: "SYNC_GROUP_START", groupId });
     try {
       const result = await syncGroup(groupId);
-      setSyncMessage("Group synced successfully");
-      setLastGroupResult({ groupId, result, operationType: "sync" });
+      dispatch({
+        type: "SYNC_GROUP_SUCCESS",
+        groupId,
+        result,
+        message: "Group synced successfully",
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Group sync failed");
-    } finally {
-      setGroupSyncing((prev) => ({ ...prev, [groupId]: false }));
+      dispatch({
+        type: "SYNC_GROUP_ERROR",
+        groupId,
+        error: err instanceof Error ? err.message : "Group sync failed",
+      });
     }
   };
 
@@ -306,22 +275,24 @@ export default function Admin() {
   const handleRealizeGroupById = async (groupId: number) => {
     if (!selectedCohortId) return;
 
-    setGroupRealizing((prev) => ({ ...prev, [groupId]: true }));
-    setSyncMessage(null);
-    setError(null);
-    setLastGroupResult(null);
-    setLastCohortResult(null);
+    dispatch({ type: "REALIZE_GROUP_START", groupId });
     try {
       const result = await realizeGroup(groupId);
-      setSyncMessage("Group realized successfully");
-      setLastGroupResult({ groupId, result, operationType: "realize" });
       // Refresh groups list
       const groupsList = await getCohortGroups(selectedCohortId);
-      setGroups(groupsList);
+      dispatch({
+        type: "REALIZE_GROUP_SUCCESS",
+        groupId,
+        result,
+        message: "Group realized successfully",
+        groups: groupsList,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Group realize failed");
-    } finally {
-      setGroupRealizing((prev) => ({ ...prev, [groupId]: false }));
+      dispatch({
+        type: "REALIZE_GROUP_ERROR",
+        groupId,
+        error: err instanceof Error ? err.message : "Group realize failed",
+      });
     }
   };
 
@@ -382,7 +353,7 @@ export default function Admin() {
       <div className="border-b mb-6">
         <nav className="flex gap-4">
           <button
-            onClick={() => setActiveTab("users")}
+            onClick={() => dispatch({ type: "SET_ACTIVE_TAB", tab: "users" })}
             className={`py-2 px-1 border-b-2 font-medium ${
               activeTab === "users"
                 ? "border-blue-600 text-blue-600"
@@ -392,7 +363,7 @@ export default function Admin() {
             Users
           </button>
           <button
-            onClick={() => setActiveTab("groups")}
+            onClick={() => dispatch({ type: "SET_ACTIVE_TAB", tab: "groups" })}
             className={`py-2 px-1 border-b-2 font-medium ${
               activeTab === "groups"
                 ? "border-blue-600 text-blue-600"
@@ -415,7 +386,9 @@ export default function Admin() {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) =>
+                dispatch({ type: "SET_SEARCH_QUERY", query: e.target.value })
+              }
               placeholder="Search by nickname or Discord username..."
               className="border rounded px-3 py-2 w-full max-w-md"
             />
@@ -575,9 +548,12 @@ export default function Admin() {
                     <select
                       value={addGroupCohortId || ""}
                       onChange={(e) =>
-                        setAddGroupCohortId(
-                          e.target.value ? Number(e.target.value) : null,
-                        )
+                        dispatch({
+                          type: "SET_ADD_GROUP_COHORT_ID",
+                          cohortId: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        })
                       }
                       className="border rounded px-3 py-2 w-full"
                     >
@@ -600,9 +576,12 @@ export default function Admin() {
                       <select
                         value={addGroupId || ""}
                         onChange={(e) =>
-                          setAddGroupId(
-                            e.target.value ? Number(e.target.value) : null,
-                          )
+                          dispatch({
+                            type: "SET_ADD_GROUP_ID",
+                            groupId: e.target.value
+                              ? Number(e.target.value)
+                              : null,
+                          })
                         }
                         className="border rounded px-3 py-2 w-full"
                         disabled={addGroupOptions.length === 0}
@@ -660,9 +639,10 @@ export default function Admin() {
             <select
               value={selectedCohortId || ""}
               onChange={(e) =>
-                setSelectedCohortId(
-                  e.target.value ? Number(e.target.value) : null,
-                )
+                dispatch({
+                  type: "SET_SELECTED_COHORT_ID",
+                  cohortId: e.target.value ? Number(e.target.value) : null,
+                })
               }
               className="border rounded px-3 py-2 w-full max-w-md"
             >

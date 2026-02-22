@@ -72,3 +72,6 @@ google-calendar-credentials.json
 
 
 backups/
+
+# Prod data exports (PII-stripped but not for version control)
+data/

@@ -2,27 +2,22 @@
 
 ## What This Is
 
-Full mobile responsiveness for the AI Safety Course Platform web frontend. Students can complete lessons, interact with the chatbot, and watch embedded videos on their phones in a mobile browser.
+Web platform for an AI Safety education course. Students read articles, watch videos, and discuss concepts with an AI tutor through interactive modules. The platform supports learning outcome measurement through answer boxes and test sections with AI-powered assessment.
 
 ## Core Value
 
-Students can consume course content on mobile — lessons, chatbot, videos all work on phone screens.
+Students can engage with course content and demonstrate understanding — through reading, discussion, and assessment — while the platform collects data to improve both teaching and measurement.
 
-## Current State (v1.0)
+## Current Milestone: v3.0 Prompt Lab
 
-**Shipped:** 2026-01-22
+**Goal:** Build a facilitator-only evaluation workbench for iterating on AI tutor system prompts and assessment scoring prompts using real student data.
 
-Mobile responsiveness complete across all student-facing views:
-- Foundation: 18px typography, dvh viewport units, safe area insets
-- Navigation: Hamburger menu, hide-on-scroll header, bottom navigation
-- Content: Responsive video embeds, touch-friendly article layout
-- Chat: iOS keyboard handling, 44px touch targets, haptic feedback
-- Polish: Spring animations, View Transitions, skeleton loading
-
-**Tech Stack:**
-- React 19 + Vike
-- Tailwind CSS 4 with mobile-first responsive utilities
-- 10,507 lines TypeScript/CSS in frontend
+**Target features:**
+- Curated conversation/answer fixtures extracted from production data (stored in repo)
+- Chat tutor evaluation: replay real conversations with editable system prompts, regenerate AI responses at any point, interactively continue as the student
+- Assessment evaluation: run AI scoring on student answers with editable scoring prompts, review chain-of-thought reasoning, compare against human ground-truth scores
+- Web UI in the platform (facilitator auth) with SSE streaming for regenerated responses
+- Architecture extensible for future evaluation types
 
 ## Requirements
 
@@ -44,7 +39,7 @@ Mobile responsiveness complete across all student-facing views:
 
 ### Active
 
-(None — milestone just shipped. Next milestone to define new requirements.)
+(See REQUIREMENTS.md for v3.0 scoped requirements)
 
 ### Out of Scope
 
@@ -52,13 +47,24 @@ Mobile responsiveness complete across all student-facing views:
 - Facilitator dashboard on mobile — admin tasks stay desktop
 - Offline support — requires significant architecture changes
 - Push notifications — would require native capabilities
-- Tablet-specific layouts — works but not optimized; phones are priority
+- Automated prompt optimization — humans review and decide, no auto-tuning
+- Batch evaluation with metrics/dashboards — start with manual review, add metrics later
+- Side-by-side comparison UI — useful but not needed for first iteration
+- LLM-as-judge automated scoring — humans judge quality for now
+
+## Context
+
+The AI tutor uses a two-level prompt: a hardcoded base system prompt in `core/modules/chat.py` plus per-chat-stage `instructions::` from content markdown. The assessment system (being built in ws3/v2.0) adds scoring prompts with socratic vs assessment modes and structured output (score + chain-of-thought + dimensions). Both prompt types need iterative human evaluation to improve quality.
+
+Current conversation data lives in the `chat_sessions` table (JSONB messages array). Assessment responses and scores live in `assessment_responses` and `assessment_scores` tables.
 
 ## Constraints
 
-- **Stack**: Must use existing Tailwind CSS — no new CSS frameworks
-- **Scope**: Students only — facilitator views can stay desktop-focused
-- **Compatibility**: Modern mobile browsers (Safari iOS, Chrome Android)
+- **Stack**: Must use existing React 19 + Vike + Tailwind CSS frontend and FastAPI backend
+- **Auth**: Facilitator role required — uses existing Discord OAuth + role system
+- **LLM**: Use existing LiteLLM integration — no new providers
+- **Data**: Fixtures stored as JSON in repo, not in database
+- **Production safety**: Prompt Lab never modifies production prompts — it's a read-only playground
 
 ## Key Decisions
 
@@ -66,12 +72,9 @@ Mobile responsiveness complete across all student-facing views:
 |----------|-----------|---------|
 | Tailwind responsive utilities | Already in stack, well-documented patterns | ✓ Good |
 | Mobile-first approach | Easier to scale up than down | ✓ Good |
-| 18px body text | Exceeds iOS 16px zoom threshold | ✓ Good |
-| dvh units for full-height | iOS Safari address bar compatibility | ✓ Good |
-| 44px touch targets | iOS Human Interface Guidelines minimum | ✓ Good |
-| CSS linear() for spring easing | Native, no JS library needed | ✓ Good |
-| View Transitions API | Modern page transitions with fallback | ✓ Good |
-| Skeleton loading states | Consistent loading UX across views | ✓ Good |
+| Fixtures in repo, not DB | Version-controlled, stable, curated, accessible to Claude Code | — Pending |
+| Prompt Lab in platform (not standalone) | Reuses auth, components, styling; content lives there | — Pending |
+| Manual extraction via Claude Code | Small dataset (5-15), curation needed, no UI overhead | — Pending |
 
 ---
-*Last updated: 2026-01-22 after v1.0 milestone*
+*Last updated: 2026-02-20 after v3.0 milestone start*

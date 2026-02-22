@@ -32,6 +32,8 @@ type ModuleOverviewProps = {
   // Lens progress (for new progress format)
   completedLenses?: number;
   totalLenses?: number;
+  // Test mode: dims non-test items during test
+  testModeActive?: boolean;
 };
 
 export default function ModuleOverview({
@@ -45,6 +47,7 @@ export default function ModuleOverview({
   showActions = true,
   completedLenses,
   totalLenses,
+  testModeActive = false,
 }: ModuleOverviewProps) {
   const layout = useMemo(() => buildBranchLayout(stages), [stages]);
 
@@ -84,6 +87,10 @@ export default function ModuleOverview({
     const isViewing = index === currentSectionIndex;
     const isClickable = onStageClick && stage.type !== "chat";
 
+    // Test mode dimming: dim non-test items
+    const isTestStage = stage.type === "test";
+    const isDimmed = testModeActive && !isTestStage;
+
     const fillClasses = getCircleFillClasses(
       { isCompleted, isViewing, isOptional: stage.optional },
       { includeHover: false },
@@ -93,9 +100,9 @@ export default function ModuleOverview({
     return (
       <div
         className={`group relative flex items-center gap-4 py-2 rounded-lg ${
-          isClickable ? "cursor-pointer" : ""
-        }`}
-        onClick={() => isClickable && onStageClick(index)}
+          isClickable && !isDimmed ? "cursor-pointer" : ""
+        } ${isDimmed ? "opacity-30 pointer-events-none" : ""}`}
+        onClick={() => isClickable && !isDimmed && onStageClick(index)}
       >
         {/* Hover background — absolutely positioned at z-auto, paints below z-[1]+ elements */}
         {isClickable && (

@@ -283,6 +283,82 @@ async def _execute_reminder(meeting_id: int, reminder_type: str) -> None:
 
 
 # =============================================================================
+# Guest visit sync scheduling
+# =============================================================================
+
+GUEST_ACCESS_LEAD = timedelta(days=6)
+GUEST_GRACE_PERIOD = timedelta(days=3)
+
+
+def schedule_guest_sync(
+    group_id: int,
+    meeting_scheduled_at: datetime,
+) -> None:
+    """
+    Schedule two one-shot Discord syncs for a guest visit.
+
+    Schedules:
+    - Grant job at meeting - 6 days (guest enters expected-members window)
+    - Revoke job at meeting + 3 days (guest exits expected-members window)
+
+    Both jobs call sync_group_discord_permissions which will diff and apply changes.
+
+    Args:
+        group_id: Host group ID to sync permissions for
+        meeting_scheduled_at: When the guest's meeting is scheduled
+    """
+    if not _scheduler:
+        logger.warning("Scheduler not available, cannot schedule guest sync")
+        return
+
+    meeting_ts = int(meeting_scheduled_at.timestamp())
+
+    _scheduler.add_job(
+        _execute_guest_sync,
+        trigger="date",
+        run_date=meeting_scheduled_at - GUEST_ACCESS_LEAD,
+        id=f"guest_grant_{group_id}_{meeting_ts}",
+        replace_existing=True,
+        kwargs={"group_id": group_id},
+    )
+
+    _scheduler.add_job(
+        _execute_guest_sync,
+        trigger="date",
+        run_date=meeting_scheduled_at + GUEST_GRACE_PERIOD,
+        id=f"guest_revoke_{group_id}_{meeting_ts}",
+        replace_existing=True,
+        kwargs={"group_id": group_id},
+    )
+
+    logger.info(
+        f"Scheduled guest sync for group {group_id} "
+        f"(grant at meeting-6d, revoke at meeting+3d)"
+    )
+
+
+async def _execute_guest_sync(group_id: int) -> None:
+    """
+    Run sync_group_discord_permissions for a guest visit.
+
+    Called by APScheduler at grant/revoke times. The sync function diffs
+    expected vs actual permissions and applies changes.
+
+    Args:
+        group_id: Group ID to sync Discord permissions for
+    """
+    from core.sync import sync_group_discord_permissions
+    from core.guest_notifications import notify_guest_role_changes
+
+    try:
+        sync_result = await sync_group_discord_permissions(group_id)
+        logger.info(f"Guest sync completed for group {group_id}")
+        await notify_guest_role_changes(group_id, sync_result)
+    except Exception as e:
+        logger.error(f"Guest sync failed for group {group_id}: {e}")
+
+
+# =============================================================================
 # Diff-based sync
 # =============================================================================
 

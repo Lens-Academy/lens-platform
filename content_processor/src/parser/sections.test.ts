@@ -427,16 +427,77 @@ content:: Important questions.
     });
   });
 
-  it('warns when single colon field: is used instead of field::', () => {
-    const content = `## Lens: Test\nsource: [[../Lenses/lens1.md|Lens]]`;
+  describe('single-colon field detection', () => {
+    it('warns when known field uses single colon instead of double colon', () => {
+      const content = `## Lens: Test\nsource: [[../Lenses/lens1.md|Lens]]`;
 
-    const result = parseSections(content, 2, LO_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 2, LO_SECTION_TYPES, 'test.md');
 
-    expect(result.errors.some(e =>
-      e.severity === 'warning' &&
-      e.message.includes('source') &&
-      e.message.includes('::')
-    )).toBe(true);
+      expect(result.errors.some(e =>
+        e.severity === 'warning' &&
+        e.message.includes('source') &&
+        e.message.includes('::')
+      )).toBe(true);
+    });
+
+    it('does NOT warn for unknown words with single colon (just markdown text)', () => {
+      // "Summary" is not a known field name, so "Summary: text" is just prose
+      const content = `## Lens: Test\nSummary: This is a summary of the topic.`;
+
+      const result = parseSections(content, 2, LO_SECTION_TYPES, 'test.md');
+
+      const singleColonWarnings = result.errors.filter(e =>
+        e.severity === 'warning' &&
+        e.message.includes("'Summary:'")
+      );
+      expect(singleColonWarnings).toHaveLength(0);
+    });
+
+    it('does NOT warn for unknown single-colon words after heading breaks content:: field', () => {
+      // Real-world case: a content:: field contains a markdown heading,
+      // which resets currentField. Subsequent "Summary: text" is still
+      // conceptually part of the content, not a mistyped field.
+      const content = `
+### Page: Security Mindset
+
+#### Text
+content::
+Some intro text about security.
+
+# Detailed Analysis
+Summary: The key points about security mindset are important.
+`;
+
+      const result = parseSections(content, 3, LENS_SECTION_TYPES, 'test.md');
+
+      const summaryWarnings = result.errors.filter(e =>
+        e.severity === 'warning' &&
+        e.message.includes("'Summary:'")
+      );
+      expect(summaryWarnings).toHaveLength(0);
+    });
+
+    it('still warns for known fields with single colon after heading breaks content:: field', () => {
+      // "source" IS a known field, so "source: value" should still warn
+      const content = `
+### Page: Intro
+
+#### Text
+content::
+Some text here.
+
+# A Heading
+source: [[../Lenses/lens1.md|Lens]]
+`;
+
+      const result = parseSections(content, 3, LENS_SECTION_TYPES, 'test.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'warning' &&
+        e.message.includes("'source:'") &&
+        e.message.includes('::')
+      )).toBe(true);
+    });
   });
 
   describe('markdown heading detection in content/instructions fields', () => {

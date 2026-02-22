@@ -173,7 +173,7 @@ class TestSyncGroupDiscordPermissions:
         # Verify user ID lists are returned
         assert "granted_discord_ids" in result
         assert "revoked_discord_ids" in result
-        assert set(result["granted_discord_ids"]) == {111, 222}
+        assert set(result["granted_discord_ids"]) == {"111", "222"}
         # 333 was in revoke set but member not found, so not in revoked_discord_ids
         assert result["revoked_discord_ids"] == []
         assert result["granted"] == 2
@@ -2194,10 +2194,10 @@ class TestSendSyncNotifications:
             mock_was_sent.return_value = False  # Not yet notified
             mock_notify_assigned.return_value = {"email": True, "discord": True}
 
-            # granted_discord_ids are Discord user IDs (111, 222)
+            # granted_discord_ids are Discord user IDs (as strings)
             result = await _send_sync_notifications(
                 group_id=1,
-                granted_discord_ids=[111, 222],  # Discord IDs that match members
+                granted_discord_ids=["111", "222"],  # Discord IDs that match members
                 revoked_discord_ids=[],
                 is_initial_realization=True,
                 notification_context=notification_context,
@@ -2236,10 +2236,10 @@ class TestSendSyncNotifications:
             mock_was_sent.return_value = False
             mock_notify_joined.return_value = {"email": True, "discord": True}
 
-            # granted_discord_ids are Discord user IDs (333 matches member discord_id)
+            # granted_discord_ids are Discord user IDs (as strings)
             result = await _send_sync_notifications(
                 group_id=1,
-                granted_discord_ids=[333],  # Discord ID that matches the member
+                granted_discord_ids=["333"],  # Discord ID that matches the member
                 revoked_discord_ids=[],
                 is_initial_realization=False,  # Late join
                 notification_context=notification_context,
@@ -2276,10 +2276,10 @@ class TestSendSyncNotifications:
         ):
             mock_was_sent.return_value = True  # Already notified
 
-            # granted_discord_ids are Discord user IDs (111 matches member discord_id)
+            # granted_discord_ids are Discord user IDs (as strings)
             result = await _send_sync_notifications(
                 group_id=1,
-                granted_discord_ids=[111],  # Discord ID that matches the member
+                granted_discord_ids=["111"],  # Discord ID that matches the member
                 revoked_discord_ids=[],
                 is_initial_realization=True,
                 notification_context=notification_context,

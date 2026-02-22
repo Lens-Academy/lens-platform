@@ -95,7 +95,12 @@ export function parseWikilink(text: string): WikilinkParts | null {
 
   // Block clearly malicious path traversal (Windows-style, mid-path escapes)
   if (path.includes('..\\') || /[^./][/]\.\./.test(path)) {
-    return null;
+    return {
+      path,
+      display: match[2]?.trim(),
+      isEmbed: text.startsWith('!'),
+      error: 'Path traversal not allowed',
+    };
   }
 
   // For multiple ../ at start: likely a mistake, suggest correction

@@ -7,10 +7,12 @@ Endpoints:
 """
 
 import json
+import logging
 import sys
 from pathlib import Path
 from uuid import UUID
 
+import sentry_sdk
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -25,6 +27,8 @@ from core.modules.context import gather_section_context
 from core.modules.loader import load_flattened_module
 from core.modules.types import ChatStage
 from web_api.auth import get_user_or_anonymous
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["module"])
 
@@ -84,9 +88,44 @@ async def event_generator(
     # Get chat instructions from segment
     segments = section.get("segments", [])
     current_segment = segments[segment_index] if segment_index < len(segments) else {}
-    instructions = current_segment.get(
-        "instructions", "Help the user learn about AI safety."
-    )
+
+    # Test sections: holistic feedback prompt covering all questions
+    if section.get("type") == "test":
+        instructions = (
+            "You are a supportive tutor providing feedback on a student's test responses. "
+            "Evaluate the answers holistically — note patterns, connections between answers, "
+            "and overall understanding. Point out strengths, gently identify gaps, and "
+            "ask Socratic questions to deepen understanding. Be encouraging and constructive."
+        )
+        learning_outcome_name = section.get("learningOutcomeName")
+        if learning_outcome_name:
+            instructions += f"\n\nLearning Outcome: {learning_outcome_name}"
+        for seg in segments:
+            if seg.get("type") == "question":
+                instructions += f"\n\nQuestion: {seg.get('userInstruction', '')}"
+                if seg.get("assessmentPrompt"):
+                    instructions += f"\nRubric:\n{seg['assessmentPrompt']}"
+    # Standalone question segments: single-question feedback prompt
+    elif current_segment.get("type") == "question":
+        user_instruction = current_segment.get("userInstruction", "")
+        assessment_prompt = current_segment.get("assessmentPrompt")
+        learning_outcome_name = section.get("learningOutcomeName")
+
+        instructions = (
+            "You are a supportive tutor providing feedback on a student's response. "
+            "Focus on what the student understood well, gently point out gaps, and "
+            "ask Socratic questions to deepen their understanding. "
+            "Be encouraging and constructive."
+        )
+        instructions += f"\n\nQuestion: {user_instruction}"
+        if learning_outcome_name:
+            instructions += f"\nLearning Outcome: {learning_outcome_name}"
+        if assessment_prompt:
+            instructions += f"\nRubric:\n{assessment_prompt}"
+    else:
+        instructions = current_segment.get(
+            "instructions", "Help the user learn about AI safety."
+        )
 
     # Build messages for LLM (existing history + new message)
     llm_messages = [
@@ -113,6 +152,8 @@ async def event_generator(
                 assistant_content += chunk.get("content", "")
             yield f"data: {json.dumps(chunk)}\n\n"
     except Exception as e:
+        logger.error("Chat LLM error: %s", e)
+        sentry_sdk.capture_exception(e)
         yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return

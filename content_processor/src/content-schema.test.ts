@@ -52,11 +52,11 @@ describe('CONTENT_SCHEMAS', () => {
 });
 
 describe('SEGMENT_SCHEMAS', () => {
-  it('defines schemas for all 4 segment types', () => {
+  it('defines schemas for all 5 segment types', () => {
     expect(Object.keys(SEGMENT_SCHEMAS)).toEqual(
-      expect.arrayContaining(['text', 'chat', 'article-excerpt', 'video-excerpt'])
+      expect.arrayContaining(['text', 'chat', 'article-excerpt', 'video-excerpt', 'question'])
     );
-    expect(Object.keys(SEGMENT_SCHEMAS)).toHaveLength(4);
+    expect(Object.keys(SEGMENT_SCHEMAS)).toHaveLength(5);
   });
 
   it('text segment has correct fields', () => {

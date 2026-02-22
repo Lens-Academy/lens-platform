@@ -261,6 +261,7 @@ attendances = Table(
     Column("rsvp_status", rsvp_status_enum, server_default="pending"),
     Column("rsvp_at", TIMESTAMP(timezone=True)),
     Column("checked_in_at", TIMESTAMP(timezone=True)),
+    Column("is_guest", Boolean, server_default=text("false"), nullable=False),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Index("idx_attendances_meeting_id", "meeting_id"),
     Index("idx_attendances_user_id", "user_id"),
@@ -422,7 +423,76 @@ chat_sessions = Table(
         postgresql_where=text("user_id IS NOT NULL AND archived_at IS NULL"),
     ),
     CheckConstraint(
-        "content_type IS NULL OR content_type IN ('module', 'lo', 'lens', 'test')",
+        "content_type IS NULL OR content_type IN ('module', 'lo', 'lens', 'test', 'feedback')",
         name="valid_chat_content_type",
     ),
+)
+
+
+# =====================================================
+# 13. QUESTION_RESPONSES
+# =====================================================
+question_responses = Table(
+    "question_responses",
+    metadata,
+    Column("response_id", Integer, primary_key=True, autoincrement=True),
+    Column("anonymous_token", UUID(as_uuid=True), nullable=True),
+    Column(
+        "user_id",
+        Integer,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=True,
+    ),
+    # What was answered
+    Column("question_id", Text, nullable=False),  # Content-derived ID (from markdown)
+    Column("module_slug", Text, nullable=False),  # Which module
+    Column(
+        "question_text", Text, nullable=False
+    ),  # Snapshot of question shown to student
+    Column(
+        "assessment_prompt", Text, nullable=True
+    ),  # Rubric/assessment criteria if any
+    Column(
+        "question_hash", Text, nullable=False
+    ),  # SHA-256 of question_text for analysis
+    # The answer
+    Column("answer_text", Text, nullable=False),
+    Column(
+        "answer_metadata", JSONB, server_default="{}", nullable=False
+    ),  # voice_used, time_taken_s, etc.
+    # Timestamps
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column("completed_at", TIMESTAMP(timezone=True), nullable=True),
+    # Indexes
+    Index("idx_question_responses_user_id", "user_id"),
+    Index("idx_question_responses_anon", "anonymous_token"),
+    Index("idx_question_responses_question", "question_id"),
+    Index("idx_question_responses_module", "module_slug"),
+    Index("idx_question_responses_hash", "question_hash"),
+)
+
+
+# =====================================================
+# 14. QUESTION_ASSESSMENTS
+# =====================================================
+question_assessments = Table(
+    "question_assessments",
+    metadata,
+    Column("score_id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "response_id",
+        Integer,
+        ForeignKey("question_responses.response_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    # Score data
+    Column("score_data", JSONB, nullable=False),  # Flexible AI assessment results
+    Column("model_id", Text, nullable=True),  # Which LLM model scored this
+    Column(
+        "prompt_version", Text, nullable=True
+    ),  # Version tracking for scoring prompt
+    # Timestamps
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    # Indexes
+    Index("idx_question_assessments_response_id", "response_id"),
 )

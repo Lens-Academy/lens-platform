@@ -5,6 +5,7 @@ import { parseSections, LO_SECTION_TYPES } from './sections.js';
 import { parseWikilink, resolveWikilinkPath, hasRelativePath } from './wikilink.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
+import { parseSegments, convertSegment, stripObsidianComments, type ParsedLensSegment } from './lens.js';
 
 export interface ParsedLensRef {
   source: string;       // Raw wikilink
@@ -13,8 +14,9 @@ export interface ParsedLensRef {
 }
 
 export interface ParsedTestRef {
-  source: string;
-  resolvedPath: string;
+  source?: string;           // Optional external file reference
+  resolvedPath?: string;     // Resolved path if source provided
+  segments: ParsedLensSegment[];  // Inline question/chat/text segments
 }
 
 export interface ParsedLearningOutcome {
@@ -31,6 +33,9 @@ export interface LearningOutcomeParseResult {
 
 export function parseLearningOutcome(content: string, file: string): LearningOutcomeParseResult {
   const errors: ContentError[] = [];
+
+  // Strip Obsidian comments before parsing
+  content = stripObsidianComments(content);
 
   // Step 1: Parse frontmatter and validate id field
   const frontmatterResult = parseFrontmatter(content, file);
@@ -106,7 +111,9 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
         errors.push({
           file,
           line: section.line,
-          message: `Invalid wikilink format in source:: field: ${source}`,
+          message: wikilink?.error
+            ? `${wikilink.error} in source:: field: ${source}`
+            : `Invalid wikilink format in source:: field: ${source}`,
           suggestion,
           severity: 'error',
         });
@@ -135,32 +142,63 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
       });
     } else if (section.type === 'test') {
       const source = section.fields.source;
-      // source:: is optional for test sections (tests not fully implemented yet)
-      if (!source) {
-        continue;
+      let resolvedPath: string | undefined;
+
+      if (source) {
+        // Parse wikilink and resolve path
+        const wikilink = parseWikilink(source);
+        if (!wikilink || wikilink.error) {
+          const suggestion = wikilink?.correctedPath
+            ? `Did you mean '[[${wikilink.correctedPath}]]'?`
+            : 'Use format [[../Tests/filename.md|Display Text]]';
+          errors.push({
+            file,
+            line: section.line,
+            message: wikilink?.error
+              ? `${wikilink.error} in source:: field: ${source}`
+              : `Invalid wikilink format in source:: field: ${source}`,
+            suggestion,
+            severity: 'error',
+          });
+          continue;
+        }
+
+        resolvedPath = resolveWikilinkPath(wikilink.path, file);
       }
 
-      // Parse wikilink and resolve path
-      const wikilink = parseWikilink(source);
-      if (!wikilink || wikilink.error) {
-        const suggestion = wikilink?.correctedPath
-          ? `Did you mean '[[${wikilink.correctedPath}]]'?`
-          : 'Use format [[../Tests/filename.md|Display Text]]';
-        errors.push({
-          file,
-          line: section.line,
-          message: `Invalid wikilink format in source:: field: ${source}`,
-          suggestion,
-          severity: 'error',
-        });
-        continue;
+      // Parse inline H4 segments (#### Question, #### Chat, #### Text) from body
+      const { segments: rawSegments, errors: segmentErrors } = parseSegments(
+        section.body,
+        section.line + 1,
+        file
+      );
+      // Adjust segment error line numbers for frontmatter offset
+      for (const err of segmentErrors) {
+        if (err.line) {
+          err.line += bodyStartLine - 1;
+        }
       }
+      errors.push(...segmentErrors);
 
-      const resolvedPath = resolveWikilinkPath(wikilink.path, file);
+      const testSegments: ParsedLensSegment[] = [];
+      for (const rawSeg of rawSegments) {
+        const { segment, errors: conversionErrors } = convertSegment(rawSeg, 'page', file);
+        // Adjust conversion error line numbers for frontmatter offset
+        for (const err of conversionErrors) {
+          if (err.line) {
+            err.line += bodyStartLine - 1;
+          }
+        }
+        errors.push(...conversionErrors);
+        if (segment) {
+          testSegments.push(segment);
+        }
+      }
 
       testRef = {
         source,
         resolvedPath,
+        segments: testSegments,
       };
     }
   }

@@ -23,29 +23,34 @@ describe('parseWikilink', () => {
       expect(result?.correctedPath).toBe('../etc/passwd');
     });
 
-    it('rejects wikilinks with ../ after a path segment', () => {
+    it('returns error for wikilinks with ../ after a path segment', () => {
       const result = parseWikilink('[[articles/../../../secrets/key]]');
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      expect(result?.error).toBe('Path traversal not allowed');
     });
 
-    it('rejects wikilinks with ../ in middle trying to escape', () => {
+    it('returns error for wikilinks with ../ in middle trying to escape', () => {
       const result = parseWikilink('[[foo/bar/../../../etc/passwd]]');
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      expect(result?.error).toBe('Path traversal not allowed');
     });
 
-    it('rejects wikilinks containing ..\\', () => {
+    it('returns error for wikilinks containing ..\\', () => {
       const result = parseWikilink('[[..\\..\\..\\windows\\system32]]');
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      expect(result?.error).toBe('Path traversal not allowed');
     });
 
-    it('rejects wikilinks with single ..\\', () => {
+    it('returns error for wikilinks with single ..\\', () => {
       const result = parseWikilink('[[..\\windows\\system32]]');
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      expect(result?.error).toBe('Path traversal not allowed');
     });
 
-    it('rejects wikilinks with mixed path separators ..\\/', () => {
+    it('returns error for wikilinks with mixed path separators ..\\/', () => {
       const result = parseWikilink('[[..\\../etc/passwd]]');
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      expect(result?.error).toBe('Path traversal not allowed');
     });
 
     it('allows single ../ for legitimate relative references', () => {

@@ -122,14 +122,6 @@ export function detectFrontmatterTypos(
         suggestion: `Did you mean '${closest}'?`,
         severity: 'warning',
       });
-    } else {
-      warnings.push({
-        file,
-        line: 2,
-        message: `Unrecognized frontmatter field '${fieldName}'`,
-        suggestion: `Valid fields: ${validFields.join(', ')}`,
-        severity: 'warning',
-      });
     }
   }
 

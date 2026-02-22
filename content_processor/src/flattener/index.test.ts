@@ -1,6 +1,6 @@
 // src/flattener/index.test.ts
 import { describe, it, expect } from 'vitest';
-import { flattenModule } from './index.js';
+import { flattenModule, flattenLens } from './index.js';
 
 describe('flattenModule', () => {
   it('resolves learning outcome references', () => {
@@ -739,6 +739,26 @@ instructions:: Discuss what you learned from the material above.
     expect(chatSeg.instructions).toContain('Discuss');
   });
 
+  it('uses specific error from parseWikilink instead of generic "Invalid wikilink format"', () => {
+    const files = new Map([
+      ['modules/bad-path.md', `---
+slug: bad-path
+title: Bad Path
+---
+
+# Learning Outcome: Bad
+source:: [[../../Learning Outcomes/lo1.md|Too Many Dots]]
+`],
+    ]);
+
+    const result = flattenModule('modules/bad-path.md', files);
+
+    expect(result.errors.length).toBeGreaterThan(0);
+    // Should use the specific error from parseWikilink, not "Invalid wikilink format"
+    expect(result.errors[0].message).not.toContain('Invalid wikilink format');
+    expect(result.errors[0].message).toContain("too many '../'");
+  });
+
   it('detects circular reference and returns error', () => {
     // Create a cycle: Module -> LO-A -> Lens-B -> (references back to LO-A)
     // The lens has an article section that points back to the LO file
@@ -774,5 +794,158 @@ to:: "End"
     const result = flattenModule('modules/circular.md', files);
 
     expect(result.errors.some(e => e.message.toLowerCase().includes('circular'))).toBe(true);
+  });
+});
+
+describe('flattenLens', () => {
+  it('wraps an article lens as a single-section FlattenedModule', () => {
+    const files = new Map([
+      ['Lenses/Four Background Claims.md', `---
+id: c3d4e5f6-a7b8-9012-cdef-345678901234
+---
+### Article: Four Background Claims
+source:: [[../articles/soares-four-background-claims]]
+
+#### Text
+content::
+This article explains the four key premises.
+
+#### Article-excerpt
+from:: # I. AI could be a really big deal
+to:: # II. We may be able to influence
+`],
+      ['articles/soares-four-background-claims.md', `---
+title: "Four Background Claims"
+author: "Nate Soares"
+source_url: "https://example.com/four-claims"
+---
+
+# I. AI could be a really big deal
+
+First section content here.
+
+# II. We may be able to influence
+
+Second section content.
+`],
+    ]);
+
+    const result = flattenLens('Lenses/Four Background Claims.md', files);
+
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    expect(result.module).toBeDefined();
+    expect(result.module!.slug).toBe('lens/four-background-claims');
+    expect(result.module!.title).toBe('Four Background Claims');
+    expect(result.module!.contentId).toBe('c3d4e5f6-a7b8-9012-cdef-345678901234');
+    expect(result.module!.sections).toHaveLength(1);
+    expect(result.module!.sections[0].type).toBe('lens-article');
+    expect(result.module!.sections[0].contentId).toBe('c3d4e5f6-a7b8-9012-cdef-345678901234');
+  });
+
+  it('wraps a video lens as a single-section FlattenedModule', () => {
+    const files = new Map([
+      ['Lenses/Kurzgesagt software demo.md', `---
+id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+---
+### Video: AI Humanity's Final Invention
+source:: [[../video_transcripts/kurzgesagt-ai-humanitys-final-invention]]
+
+#### Text
+content::
+Watch this introduction.
+
+#### Video-excerpt
+from:: 0:00
+to:: 1:00
+`],
+      ['video_transcripts/kurzgesagt-ai-humanitys-final-invention.md', `---
+title: "AI - Humanity's Final Invention?"
+channel: "Kurzgesagt"
+url: "https://www.youtube.com/watch?v=fa8k8IQ1_X0"
+---
+
+0:00 Hello and welcome
+0:30 Today we discuss
+1:00 The end
+`],
+      ['video_transcripts/kurzgesagt-ai-humanitys-final-invention.timestamps.json', `[
+        {"text": "Hello", "start": "0:00.00"},
+        {"text": "and", "start": "0:00.50"},
+        {"text": "welcome", "start": "0:00.70"},
+        {"text": "Today", "start": "0:30.00"},
+        {"text": "we", "start": "0:30.50"},
+        {"text": "discuss", "start": "0:30.70"},
+        {"text": "The", "start": "1:00.00"},
+        {"text": "end", "start": "1:00.50"}
+      ]`],
+    ]);
+
+    const result = flattenLens('Lenses/Kurzgesagt software demo.md', files);
+
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    expect(result.module).toBeDefined();
+    expect(result.module!.slug).toBe('lens/kurzgesagt-software-demo');
+    expect(result.module!.sections).toHaveLength(1);
+    expect(result.module!.sections[0].type).toBe('lens-video');
+    expect(result.module!.sections[0].videoId).toBe('fa8k8IQ1_X0');
+  });
+
+  it('wraps a page-only lens as a page-type section', () => {
+    const files = new Map([
+      ['Lenses/Simple Page.md', `---
+id: 55555555-6666-7777-8888-999999999999
+---
+### Page: My Custom Page
+
+#### Text
+content::
+Some page content here.
+
+#### Chat
+instructions::
+What did you think?
+`],
+    ]);
+
+    const result = flattenLens('Lenses/Simple Page.md', files);
+
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    expect(result.module).toBeDefined();
+    expect(result.module!.slug).toBe('lens/simple-page');
+    expect(result.module!.title).toBe('My Custom Page');
+    expect(result.module!.sections).toHaveLength(1);
+    expect(result.module!.sections[0].type).toBe('page');
+    expect(result.module!.sections[0].segments.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('returns null for ignored lenses', () => {
+    const files = new Map([
+      ['Lenses/Ignored.md', `---
+id: 11111111-2222-3333-4444-555555555555
+tags: [validator-ignore]
+---
+### Page: Test
+
+#### Text
+content::
+Hello
+`],
+    ]);
+
+    const tierMap = new Map([['Lenses/Ignored.md', 'ignored' as const]]);
+    const result = flattenLens('Lenses/Ignored.md', files, tierMap);
+
+    expect(result.module).toBeNull();
+  });
+
+  it('returns null for lenses with parse errors', () => {
+    const files = new Map([
+      ['Lenses/Bad.md', `not a valid lens file at all`],
+    ]);
+
+    const result = flattenLens('Lenses/Bad.md', files);
+
+    expect(result.module).toBeNull();
+    expect(result.errors.length).toBeGreaterThan(0);
   });
 });
