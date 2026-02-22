@@ -5,7 +5,7 @@ import CookieSettings from "./CookieSettings";
 import { BottomNav, DiscordInviteButton, MobileMenu, UserMenu } from "./nav";
 import { useScrollDirection } from "../hooks/useScrollDirection";
 
-export default function Layout({ children, hideFooter }: { children: React.ReactNode; hideFooter?: boolean }) {
+export default function Layout({ children, hideFooter, fullWidth }: { children: React.ReactNode; hideFooter?: boolean; fullWidth?: boolean }) {
   const [showCookieSettings, setShowCookieSettings] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -64,7 +64,7 @@ export default function Layout({ children, hideFooter }: { children: React.React
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 md:pb-0 flex-1">
+      <main className={`${fullWidth ? "px-3 pt-18" : "max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24"} pb-16 md:pb-0 flex-1`}>
         {children}
       </main>
 

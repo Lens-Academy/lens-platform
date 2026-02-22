@@ -231,34 +231,37 @@ export default function PromptLab() {
         </div>
       </div>
 
-      {/* System prompt editor */}
-      <div className="shrink-0 mb-3">
-        <SystemPromptEditor
-          value={systemPrompt}
-          onChange={setSystemPrompt}
-          onReset={() => setSystemPrompt(DEFAULT_SYSTEM_PROMPT)}
-          isModified={isPromptModified}
-        />
-      </div>
+      {/* System prompt (left) + stage groups (right, scrollable) */}
+      <div className="flex flex-1 min-h-0 gap-3">
+        {/* System prompt — anchored left */}
+        <div className="shrink-0 w-[280px] overflow-y-auto">
+          <SystemPromptEditor
+            value={systemPrompt}
+            onChange={setSystemPrompt}
+            onReset={() => setSystemPrompt(DEFAULT_SYSTEM_PROMPT)}
+            isModified={isPromptModified}
+          />
+        </div>
 
-      {/* Horizontal scroll grid of stage groups */}
-      <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
-        <div className="flex gap-3 h-full">
-          {stages.map((stage) => {
-            const key = `${stage.fixtureKey}::${stage.section.name}`;
-            return (
-              <StageGroup
-                key={key}
-                section={stage.section}
-                stageKey={key}
-                systemPrompt={systemPrompt}
-                enableThinking={enableThinking}
-                effort={effort}
-                onRemove={() => handleRemoveStage(key)}
-                columnRefs={columnRefsMap}
-              />
-            );
-          })}
+        {/* Horizontal scroll grid of stage groups */}
+        <div className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
+          <div className="flex gap-3 h-full">
+            {stages.map((stage) => {
+              const key = `${stage.fixtureKey}::${stage.section.name}`;
+              return (
+                <StageGroup
+                  key={key}
+                  section={stage.section}
+                  stageKey={key}
+                  systemPrompt={systemPrompt}
+                  enableThinking={enableThinking}
+                  effort={effort}
+                  onRemove={() => handleRemoveStage(key)}
+                  columnRefs={columnRefsMap}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
