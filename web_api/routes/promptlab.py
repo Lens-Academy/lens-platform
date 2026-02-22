@@ -64,7 +64,9 @@ class RegenerateRequest(BaseModel):
     context: str = ""  # Previous content context
     enableThinking: bool = True  # Whether to include CoT (default matches normal chat)
     effort: str = "low"  # Thinking effort: "low", "medium", or "high"
-    model: str | None = None  # Optional model override (e.g. "anthropic/claude-sonnet-4-6")
+    model: str | None = (
+        None  # Optional model override (e.g. "anthropic/claude-sonnet-4-6")
+    )
 
 
 class ContinueRequest(BaseModel):

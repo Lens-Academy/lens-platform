@@ -21,7 +21,9 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     # Drop old CHECK constraint and add new one with 'feedback' included
     # Use raw SQL to avoid naming convention issues with op.drop_constraint
-    op.execute("ALTER TABLE chat_sessions DROP CONSTRAINT ck_chat_sessions_valid_chat_content_type")
+    op.execute(
+        "ALTER TABLE chat_sessions DROP CONSTRAINT ck_chat_sessions_valid_chat_content_type"
+    )
     op.execute(
         "ALTER TABLE chat_sessions ADD CONSTRAINT ck_chat_sessions_valid_chat_content_type "
         "CHECK (content_type IS NULL OR content_type IN ('module', 'lo', 'lens', 'test', 'feedback'))"
@@ -30,7 +32,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Revert to old CHECK constraint without 'feedback'
-    op.execute("ALTER TABLE chat_sessions DROP CONSTRAINT ck_chat_sessions_valid_chat_content_type")
+    op.execute(
+        "ALTER TABLE chat_sessions DROP CONSTRAINT ck_chat_sessions_valid_chat_content_type"
+    )
     op.execute(
         "ALTER TABLE chat_sessions ADD CONSTRAINT ck_chat_sessions_valid_chat_content_type "
         "CHECK (content_type IS NULL OR content_type IN ('module', 'lo', 'lens', 'test'))"

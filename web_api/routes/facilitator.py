@@ -118,9 +118,13 @@ async def get_group_timeline(
             raise HTTPException(403, "Access denied to this group")
 
         members = await get_group_members_with_progress(conn, group_id)
-        completions, attendance, past_meetings, rsvps, guest_elsewhere = (
-            await get_group_completion_data(conn, group_id)
-        )
+        (
+            completions,
+            attendance,
+            past_meetings,
+            rsvps,
+            guest_elsewhere,
+        ) = await get_group_completion_data(conn, group_id)
         time_data, chat_data = await get_group_time_and_chat_data(conn, group_id)
 
     # Build timeline structure from course progression
@@ -203,9 +207,7 @@ async def get_group_timeline(
             if cid in user_time:
                 section_times[cid] = user_time[cid]
 
-        user_guest_elsewhere = [
-            str(num) for num in guest_elsewhere.get(uid, set())
-        ]
+        user_guest_elsewhere = [str(num) for num in guest_elsewhere.get(uid, set())]
 
         members_out.append(
             {

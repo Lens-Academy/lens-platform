@@ -108,7 +108,9 @@ async def create_guest_visit_endpoint(
     host_scheduled_at = result["host_scheduled_at"]
     home_group_id = result["home_group_id"]
     email = db_user.get("email")
-    guest_name = db_user.get("nickname") or db_user.get("discord_username") or "A member"
+    guest_name = (
+        db_user.get("nickname") or db_user.get("discord_username") or "A member"
+    )
 
     # Notify home group that this member is visiting another group
     try:

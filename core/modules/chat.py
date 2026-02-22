@@ -62,9 +62,7 @@ def _build_system_prompt(
             if not current_stage.hide_previous_content_from_tutor
             else None
         )
-        prompt = assemble_chat_prompt(
-            base, current_stage.instructions, context
-        )
+        prompt = assemble_chat_prompt(base, current_stage.instructions, context)
 
     elif isinstance(current_stage, (ArticleStage, VideoStage)):
         # User is consuming content - be helpful but brief

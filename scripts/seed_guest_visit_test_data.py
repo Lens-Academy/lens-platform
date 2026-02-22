@@ -26,7 +26,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sqlalchemy import insert, text
 
 from core.database import get_connection, get_engine
-from core.tables import attendances, cohorts, groups, groups_users, meetings, metadata, users
+from core.tables import (
+    cohorts,
+    groups,
+    groups_users,
+    meetings,
+    metadata,
+    users,
+)
 from web_api.auth import create_jwt
 
 DISCORD_ID = "1256932695297101936"
@@ -116,8 +123,13 @@ async def seed_data():
             day_name = gdata["time"].split()[0]
             hour = int(gdata["time"].split()[1].split(":")[0])
             days = [
-                "Monday", "Tuesday", "Wednesday", "Thursday",
-                "Friday", "Saturday", "Sunday",
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
             ]
             target_day = days.index(day_name)
             days_until = (target_day - now.weekday()) % 7
@@ -162,7 +174,9 @@ async def seed_data():
                     )
                 )
 
-            print(f"  Group {group_id}: {gdata['name']} ({gdata['members']} members, 6 meetings)")
+            print(
+                f"  Group {group_id}: {gdata['name']} ({gdata['members']} members, 6 meetings)"
+            )
 
         # Add admin as participant in the first group
         await conn.execute(
@@ -183,7 +197,9 @@ async def stamp_alembic():
     """Stamp alembic to head so future migrations work."""
     print("[4/5] Stamping alembic to head...")
     proc = await asyncio.create_subprocess_exec(
-        ".venv/bin/alembic", "stamp", "head",
+        ".venv/bin/alembic",
+        "stamp",
+        "head",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -221,7 +237,9 @@ async def main(api_port: int, skip_realize: bool):
 
     if skip_realize:
         print("\n[5/5] Skipping realize (--skip-realize)")
-        print("  Groups are in 'preview' status. Realize from admin UI or rerun without --skip-realize.")
+        print(
+            "  Groups are in 'preview' status. Realize from admin UI or rerun without --skip-realize."
+        )
     else:
         await realize_groups(group_ids, api_port)
 
@@ -238,8 +256,12 @@ async def main(api_port: int, skip_realize: bool):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed guest visit test data")
-    parser.add_argument("--port", type=int, default=8100, help="API port (default: 8100)")
-    parser.add_argument("--skip-realize", action="store_true", help="Skip Discord realize step")
+    parser.add_argument(
+        "--port", type=int, default=8100, help="API port (default: 8100)"
+    )
+    parser.add_argument(
+        "--skip-realize", action="store_true", help="Skip Discord realize step"
+    )
     args = parser.parse_args()
 
     asyncio.run(main(args.port, args.skip_realize))
