@@ -18,7 +18,7 @@ type AuthoredTextProps = {
 export default function AuthoredText({ content }: AuthoredTextProps) {
   return (
     <div className="py-6 px-4">
-      <article className="prose prose-gray max-w-content mx-auto">
+      <article className="prose prose-gray max-w-content mx-auto text-gray-800">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw]}
@@ -63,7 +63,7 @@ export default function AuthoredText({ content }: AuthoredTextProps) {
             em: ({ children }) => <em className="italic">{children}</em>,
             // Blockquotes
             blockquote: ({ children }) => (
-              <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4">
+              <blockquote className="not-prose border-l-3 border-gray-300 pl-4 my-4 text-gray-800 [&>p]:mb-0">
                 {children}
               </blockquote>
             ),

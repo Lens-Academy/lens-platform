@@ -111,7 +111,7 @@ export default function ArticleEmbed({
       <em className="italic">{children}</em>
     ),
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className="bg-blue-50 border-l-4 border-blue-400 pl-4 pr-4 py-3 my-4 rounded-r-lg">
+      <blockquote className="not-prose border-l-3 border-gray-300 pl-4 my-4 text-gray-800 [&>p]:mb-0">
         {children}
       </blockquote>
     ),
