@@ -518,10 +518,9 @@ export default function NarrativeChatSection({
                 </div>
               )}
 
-              {/* Current exchange - min height with spacer */}
+              {/* Current exchange - min height so user's message starts at top */}
               <div
                 ref={currentExchangeRef}
-                className="flex flex-col"
                 style={{
                   scrollMarginTop: "24px",
                   minHeight:
@@ -610,8 +609,6 @@ export default function NarrativeChatSection({
                   )}
                 </div>
 
-                {/* Spacer - fills remaining viewport space */}
-                <div className="flex-grow" />
               </div>
             </div>
           ) : (
