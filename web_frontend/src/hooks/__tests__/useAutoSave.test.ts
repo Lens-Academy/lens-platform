@@ -1,13 +1,13 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
-vi.mock("@/api/assessments", () => ({
+vi.mock("@/api/questions", () => ({
   createResponse: vi.fn(),
   updateResponse: vi.fn(),
   getResponses: vi.fn(),
 }));
 
-import { createResponse, updateResponse, getResponses } from "@/api/assessments";
+import { createResponse, updateResponse, getResponses } from "@/api/questions";
 import { useAutoSave } from "../useAutoSave";
 
 const mockedCreateResponse = vi.mocked(createResponse);
@@ -17,6 +17,7 @@ const mockedGetResponses = vi.mocked(getResponses);
 const defaultOpts = {
   questionId: "mod:0:0",
   moduleSlug: "test-module",
+  questionText: "What is AI safety?",
   isAuthenticated: false,
   debounceMs: 1000,
 };
@@ -200,7 +201,8 @@ describe("useAutoSave", () => {
           response_id: 99,
           question_id: "mod:0:0",
           module_slug: "test-module",
-          learning_outcome_id: null,
+          question_text: "What is AI safety?",
+          question_hash: "abc123",
           answer_text: "draft text",
           answer_metadata: {},
           created_at: "2025-01-01T00:00:00Z",
@@ -227,7 +229,8 @@ describe("useAutoSave", () => {
           response_id: 99,
           question_id: "mod:0:0",
           module_slug: "test-module",
-          learning_outcome_id: null,
+          question_text: "What is AI safety?",
+          question_hash: "abc123",
           answer_text: "done",
           answer_metadata: {},
           created_at: "2025-01-01T00:00:00Z",

@@ -1,5 +1,5 @@
-# web_api/tests/test_assessments_scoring.py
-"""Tests for AI scoring trigger conditions in assessment endpoints.
+# web_api/tests/test_questions_scoring.py
+"""Tests for AI scoring trigger conditions in question response endpoints.
 
 Verifies that enqueue_scoring is called only when a response is marked
 complete (completed_at transitions to a timestamp) via PATCH, and never
@@ -31,11 +31,13 @@ MOCK_ROW = {
     "response_id": 42,
     "question_id": "test-module:0:0",
     "module_slug": "test-module",
-    "learning_outcome_id": "lo-1",
+    "question_text": "What is AI safety?",
+    "question_hash": "abc123",
     "answer_text": "My answer",
     "answer_metadata": {},
     "created_at": "2026-01-01T00:00:00",
     "completed_at": "2026-01-01T00:00:00",
+    "assessment_prompt": None,
 }
 
 MOCK_ROW_DRAFT = {
@@ -47,11 +49,13 @@ MOCK_POST_ROW = {
     "response_id": 99,
     "question_id": "test-module:0:0",
     "module_slug": "test-module",
-    "learning_outcome_id": "lo-1",
+    "question_text": "What is AI safety?",
+    "question_hash": "abc123",
     "answer_text": "New answer",
     "answer_metadata": {},
     "created_at": "2026-01-01T00:00:00",
     "completed_at": None,
+    "assessment_prompt": None,
 }
 
 
@@ -87,9 +91,9 @@ def client():
 class TestScoringTrigger:
     """Tests for scoring trigger conditions on PATCH and POST endpoints."""
 
-    @patch("web_api.routes.assessments.get_transaction", return_value=mock_transaction())
-    @patch("web_api.routes.assessments.update_response", new_callable=AsyncMock)
-    @patch("web_api.routes.assessments.enqueue_scoring")
+    @patch("web_api.routes.questions.get_transaction", return_value=mock_transaction())
+    @patch("web_api.routes.questions.update_response", new_callable=AsyncMock)
+    @patch("web_api.routes.questions.enqueue_scoring")
     def test_patch_with_completed_at_triggers_scoring(
         self, mock_enqueue, mock_update, mock_tx, client
     ):
@@ -97,7 +101,7 @@ class TestScoringTrigger:
         mock_update.return_value = MOCK_ROW
 
         response = client.patch(
-            "/api/assessments/responses/42",
+            "/api/questions/responses/42",
             json={"completed_at": "2026-01-01T00:00:00Z"},
         )
 
@@ -107,14 +111,15 @@ class TestScoringTrigger:
             question_context={
                 "question_id": "test-module:0:0",
                 "module_slug": "test-module",
-                "learning_outcome_id": "lo-1",
                 "answer_text": "My answer",
+                "question_text": "What is AI safety?",
+                "assessment_prompt": None,
             },
         )
 
-    @patch("web_api.routes.assessments.get_transaction", return_value=mock_transaction())
-    @patch("web_api.routes.assessments.update_response", new_callable=AsyncMock)
-    @patch("web_api.routes.assessments.enqueue_scoring")
+    @patch("web_api.routes.questions.get_transaction", return_value=mock_transaction())
+    @patch("web_api.routes.questions.update_response", new_callable=AsyncMock)
+    @patch("web_api.routes.questions.enqueue_scoring")
     def test_patch_without_completed_at_does_not_trigger_scoring(
         self, mock_enqueue, mock_update, mock_tx, client
     ):
@@ -122,16 +127,16 @@ class TestScoringTrigger:
         mock_update.return_value = MOCK_ROW_DRAFT
 
         response = client.patch(
-            "/api/assessments/responses/42",
+            "/api/questions/responses/42",
             json={"answer_text": "updated draft"},
         )
 
         assert response.status_code == 200
         mock_enqueue.assert_not_called()
 
-    @patch("web_api.routes.assessments.get_transaction", return_value=mock_transaction())
-    @patch("web_api.routes.assessments.update_response", new_callable=AsyncMock)
-    @patch("web_api.routes.assessments.enqueue_scoring")
+    @patch("web_api.routes.questions.get_transaction", return_value=mock_transaction())
+    @patch("web_api.routes.questions.update_response", new_callable=AsyncMock)
+    @patch("web_api.routes.questions.enqueue_scoring")
     def test_patch_with_empty_completed_at_does_not_trigger_scoring(
         self, mock_enqueue, mock_update, mock_tx, client
     ):
@@ -139,16 +144,16 @@ class TestScoringTrigger:
         mock_update.return_value = MOCK_ROW_DRAFT
 
         response = client.patch(
-            "/api/assessments/responses/42",
+            "/api/questions/responses/42",
             json={"completed_at": ""},
         )
 
         assert response.status_code == 200
         mock_enqueue.assert_not_called()
 
-    @patch("web_api.routes.assessments.get_transaction", return_value=mock_transaction())
-    @patch("web_api.routes.assessments.submit_response", new_callable=AsyncMock)
-    @patch("web_api.routes.assessments.enqueue_scoring")
+    @patch("web_api.routes.questions.get_transaction", return_value=mock_transaction())
+    @patch("web_api.routes.questions.submit_response", new_callable=AsyncMock)
+    @patch("web_api.routes.questions.enqueue_scoring")
     def test_post_does_not_trigger_scoring(
         self, mock_enqueue, mock_submit, mock_tx, client
     ):
@@ -156,11 +161,11 @@ class TestScoringTrigger:
         mock_submit.return_value = MOCK_POST_ROW
 
         response = client.post(
-            "/api/assessments/responses",
+            "/api/questions/responses",
             json={
                 "question_id": "test-module:0:0",
                 "module_slug": "test-module",
-                "learning_outcome_id": "lo-1",
+                "question_text": "What is AI safety?",
                 "answer_text": "New answer",
                 "answer_metadata": {},
             },
@@ -169,9 +174,9 @@ class TestScoringTrigger:
         assert response.status_code == 201
         mock_enqueue.assert_not_called()
 
-    @patch("web_api.routes.assessments.get_transaction", return_value=mock_transaction())
-    @patch("web_api.routes.assessments.update_response", new_callable=AsyncMock)
-    @patch("web_api.routes.assessments.enqueue_scoring")
+    @patch("web_api.routes.questions.get_transaction", return_value=mock_transaction())
+    @patch("web_api.routes.questions.update_response", new_callable=AsyncMock)
+    @patch("web_api.routes.questions.enqueue_scoring")
     def test_patch_returns_without_waiting_for_scoring(
         self, mock_enqueue, mock_update, mock_tx, client
     ):
@@ -179,7 +184,7 @@ class TestScoringTrigger:
         mock_update.return_value = MOCK_ROW
 
         response = client.patch(
-            "/api/assessments/responses/42",
+            "/api/questions/responses/42",
             json={"completed_at": "2026-01-01T00:00:00Z"},
         )
 

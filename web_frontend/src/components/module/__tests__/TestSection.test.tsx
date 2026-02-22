@@ -5,7 +5,7 @@ import TestSection from "../TestSection";
 import type { TestSection as TestSectionType } from "@/types/module";
 
 // Mock dependencies
-vi.mock("@/api/assessments", () => ({
+vi.mock("@/api/questions", () => ({
   getResponses: vi.fn(),
 }));
 
@@ -36,7 +36,7 @@ vi.mock("@/components/module/AnswerBox", () => ({
   },
 }));
 
-import { getResponses } from "@/api/assessments";
+import { getResponses } from "@/api/questions";
 import { markComplete } from "@/api/progress";
 
 function makeTestSection(questionCount: number): TestSectionType {
@@ -360,7 +360,8 @@ describe("TestSection resume", () => {
                 response_id: 1,
                 question_id: "test-module:2:0",
                 module_slug: "test-module",
-                learning_outcome_id: null,
+                question_text: "What is AI safety?",
+                question_hash: "abc123",
                 answer_text: "My answer to Q1",
                 answer_metadata: {},
                 created_at: "2026-02-16T11:00:00Z",
@@ -407,7 +408,8 @@ describe("TestSection resume", () => {
                 response_id: 1,
                 question_id: "test-module:2:0",
                 module_slug: "test-module",
-                learning_outcome_id: null,
+                question_text: "What is AI safety?",
+                question_hash: "abc123",
                 answer_text: "My answer to Q1",
                 answer_metadata: {},
                 created_at: "2026-02-16T11:00:00Z",
@@ -423,7 +425,8 @@ describe("TestSection resume", () => {
                 response_id: 2,
                 question_id: "test-module:2:1",
                 module_slug: "test-module",
-                learning_outcome_id: null,
+                question_text: "What is AI safety?",
+                question_hash: "abc123",
                 answer_text: "My answer to Q2",
                 answer_metadata: {},
                 created_at: "2026-02-16T11:02:00Z",

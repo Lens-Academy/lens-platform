@@ -938,12 +938,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               moduleSlug={module.slug}
               sectionIndex={sectionIndex}
               segmentIndex={segmentIndex}
-              learningOutcomeId={
-                "learningOutcomeId" in section
-                  ? section.learningOutcomeId
-                  : null
-              }
-              contentId={"contentId" in section ? section.contentId : null}
               isAuthenticated={isAuthenticated}
               onFeedbackTrigger={(answerText) => {
                 setActiveFeedbackKey(feedbackKey);

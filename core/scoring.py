@@ -1,8 +1,8 @@
 """
-AI scoring module for assessment responses.
+AI scoring module for question responses.
 
 Builds prompts from question context, calls LiteLLM with structured output,
-and writes scores to the assessment_scores table. Supports socratic vs
+and writes scores to the question_assessments table. Supports socratic vs
 assessment mode. Runs as a background task without blocking API responses.
 """
 
@@ -16,14 +16,14 @@ import sentry_sdk
 from core.database import get_transaction
 from core.modules.llm import DEFAULT_PROVIDER, complete
 from core.modules.loader import ModuleNotFoundError, load_flattened_module
-from core.tables import assessment_scores
+from core.tables import question_assessments
 
 logger = logging.getLogger(__name__)
 
 # Scoring-specific model (may differ from chat model)
 SCORING_PROVIDER = os.environ.get("SCORING_PROVIDER") or DEFAULT_PROVIDER
 
-# Prompt version for tracking in assessment_scores.prompt_version
+# Prompt version for tracking in question_assessments.prompt_version
 PROMPT_VERSION = "v1"
 
 # Track running tasks to prevent GC (asyncio only keeps weak references)
@@ -73,7 +73,7 @@ def enqueue_scoring(response_id: int, question_context: dict) -> None:
     Fire-and-forget: score a response in the background.
 
     Args:
-        response_id: The assessment_responses.response_id to score
+        response_id: The question_responses.response_id to score
         question_context: Dict with keys: question_id, module_slug, answer_text
     """
     task = asyncio.create_task(
@@ -227,32 +227,48 @@ def _resolve_question_details(module_slug: str, question_id: str) -> dict:
 
 async def _score_response(response_id: int, ctx: dict) -> None:
     """
-    Score a single response and write to assessment_scores.
+    Score a single response and write to question_assessments.
 
     Args:
         response_id: The response to score
-        ctx: Context dict with question_id, module_slug, answer_text
+        ctx: Context dict with question_id, module_slug, answer_text,
+             and optionally question_text, assessment_prompt
     """
-    # Look up question details from content cache
+    # Prefer question_text from the row snapshot (new path),
+    # fall back to content cache lookup (deployment safety during rollout)
+    user_instruction = ctx.get("question_text")
+    assessment_prompt = ctx.get("assessment_prompt")
+
+    # Resolve mode and learning_outcome_name from content cache
+    # (these are not stored on the row)
     question_details = _resolve_question_details(
         module_slug=ctx["module_slug"],
         question_id=ctx["question_id"],
     )
 
-    if not question_details:
-        logger.warning(
-            "Could not resolve question details for response %d, skipping scoring",
-            response_id,
-        )
-        return
+    if not user_instruction:
+        # Fallback: read from content cache
+        if not question_details:
+            logger.warning(
+                "Could not resolve question details for response %d, skipping scoring",
+                response_id,
+            )
+            return
+        user_instruction = question_details["user_instruction"]
+        assessment_prompt = question_details.get("assessment_prompt")
+
+    mode = question_details.get("mode", "socratic") if question_details else "socratic"
+    learning_outcome_name = (
+        question_details.get("learning_outcome_name") if question_details else None
+    )
 
     # Build prompt
     system, messages = _build_scoring_prompt(
         answer_text=ctx["answer_text"],
-        user_instruction=question_details["user_instruction"],
-        assessment_prompt=question_details.get("assessment_prompt"),
-        learning_outcome_name=question_details.get("learning_outcome_name"),
-        mode=question_details["mode"],
+        user_instruction=user_instruction,
+        assessment_prompt=assessment_prompt,
+        learning_outcome_name=learning_outcome_name,
+        mode=mode,
     )
 
     # Call LLM
@@ -270,7 +286,7 @@ async def _score_response(response_id: int, ctx: dict) -> None:
     # Write to DB
     async with get_transaction() as conn:
         await conn.execute(
-            assessment_scores.insert().values(
+            question_assessments.insert().values(
                 response_id=response_id,
                 score_data=score_data,
                 model_id=SCORING_PROVIDER,

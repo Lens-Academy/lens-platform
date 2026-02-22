@@ -1,7 +1,7 @@
-# web_api/tests/test_score_retrieval.py
-"""Tests for assessment score retrieval endpoint.
+# web_api/tests/test_question_score_retrieval.py
+"""Tests for question score retrieval endpoint.
 
-Verifies that GET /api/assessments/scores?response_id=X returns score data
+Verifies that GET /api/questions/scores?response_id=X returns score data
 extracted from JSONB, handles empty results, and validates required parameters.
 Uses unit+1 style: mocks at the core query boundary.
 """
@@ -74,17 +74,17 @@ def client():
 
 
 class TestScoreRetrieval:
-    """Tests for GET /api/assessments/scores endpoint."""
+    """Tests for GET /api/questions/scores endpoint."""
 
-    @patch("web_api.routes.assessments.get_connection", return_value=mock_connection())
-    @patch("web_api.routes.assessments.get_scores_for_response", new_callable=AsyncMock)
+    @patch("web_api.routes.questions.get_connection", return_value=mock_connection())
+    @patch("web_api.routes.questions.get_scores_for_response", new_callable=AsyncMock)
     def test_get_scores_returns_extracted_fields(
         self, mock_get_scores, mock_conn, client
     ):
         """GET /scores?response_id=42 with one score returns extracted JSONB fields."""
         mock_get_scores.return_value = [MOCK_SCORE_ROW]
 
-        response = client.get("/api/assessments/scores?response_id=42")
+        response = client.get("/api/questions/scores?response_id=42")
 
         assert response.status_code == 200
         data = response.json()
@@ -105,29 +105,29 @@ class TestScoreRetrieval:
         assert score["prompt_version"] == "v1"
         assert score["created_at"] == "2026-01-01T00:00:00"
 
-    @patch("web_api.routes.assessments.get_connection", return_value=mock_connection())
-    @patch("web_api.routes.assessments.get_scores_for_response", new_callable=AsyncMock)
+    @patch("web_api.routes.questions.get_connection", return_value=mock_connection())
+    @patch("web_api.routes.questions.get_scores_for_response", new_callable=AsyncMock)
     def test_get_scores_returns_empty_list_when_no_scores(
         self, mock_get_scores, mock_conn, client
     ):
         """GET /scores?response_id=42 with no scores returns empty list."""
         mock_get_scores.return_value = []
 
-        response = client.get("/api/assessments/scores?response_id=42")
+        response = client.get("/api/questions/scores?response_id=42")
 
         assert response.status_code == 200
         data = response.json()
         assert data == {"scores": []}
 
-    @patch("web_api.routes.assessments.get_connection", return_value=mock_connection())
-    @patch("web_api.routes.assessments.get_scores_for_response", new_callable=AsyncMock)
+    @patch("web_api.routes.questions.get_connection", return_value=mock_connection())
+    @patch("web_api.routes.questions.get_scores_for_response", new_callable=AsyncMock)
     def test_get_scores_handles_missing_jsonb_fields(
         self, mock_get_scores, mock_conn, client
     ):
         """GET /scores with empty score_data returns None for extracted fields."""
         mock_get_scores.return_value = [MOCK_EMPTY_SCORE_ROW]
 
-        response = client.get("/api/assessments/scores?response_id=42")
+        response = client.get("/api/questions/scores?response_id=42")
 
         assert response.status_code == 200
         data = response.json()
@@ -140,6 +140,6 @@ class TestScoreRetrieval:
 
     def test_get_scores_requires_response_id_param(self, client):
         """GET /scores without ?response_id returns 422 validation error."""
-        response = client.get("/api/assessments/scores")
+        response = client.get("/api/questions/scores")
 
         assert response.status_code == 422

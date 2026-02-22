@@ -29,6 +29,7 @@ from core import get_or_create_user, get_user_profile
 from core.database import get_connection, get_transaction
 from core.modules.progress import claim_progress_records
 from core.modules.chat_sessions import claim_chat_sessions
+from core.questions import claim_question_responses
 from core.queries.refresh_tokens import (
     get_refresh_token_by_hash,
     revoke_family,
@@ -286,6 +287,9 @@ async def discord_oauth_callback(
                     conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
                 )
                 await claim_chat_sessions(
+                    conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
+                )
+                await claim_question_responses(
                     conn, anonymous_token=anonymous_uuid, user_id=user["user_id"]
                 )
 

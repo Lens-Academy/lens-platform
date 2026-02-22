@@ -429,10 +429,10 @@ chat_sessions = Table(
 
 
 # =====================================================
-# 13. ASSESSMENT_RESPONSES
+# 13. QUESTION_RESPONSES
 # =====================================================
-assessment_responses = Table(
-    "assessment_responses",
+question_responses = Table(
+    "question_responses",
     metadata,
     Column("response_id", Integer, primary_key=True, autoincrement=True),
     Column("anonymous_token", UUID(as_uuid=True), nullable=True),
@@ -446,11 +446,14 @@ assessment_responses = Table(
     Column("question_id", Text, nullable=False),  # Content-derived ID (from markdown)
     Column("module_slug", Text, nullable=False),  # Which module
     Column(
-        "learning_outcome_id", Text, nullable=True
-    ),  # LO UUID if available, nullable for inline questions
+        "question_text", Text, nullable=False
+    ),  # Snapshot of question shown to student
     Column(
-        "content_id", UUID(as_uuid=True), nullable=True
-    ),  # Lens/section UUID if available
+        "assessment_prompt", Text, nullable=True
+    ),  # Rubric/assessment criteria if any
+    Column(
+        "question_hash", Text, nullable=False
+    ),  # SHA-256 of question_text for analysis
     # The answer
     Column("answer_text", Text, nullable=False),
     Column(
@@ -460,24 +463,25 @@ assessment_responses = Table(
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("completed_at", TIMESTAMP(timezone=True), nullable=True),
     # Indexes
-    Index("idx_assessment_responses_user_id", "user_id"),
-    Index("idx_assessment_responses_anon", "anonymous_token"),
-    Index("idx_assessment_responses_question", "question_id"),
-    Index("idx_assessment_responses_module", "module_slug"),
+    Index("idx_question_responses_user_id", "user_id"),
+    Index("idx_question_responses_anon", "anonymous_token"),
+    Index("idx_question_responses_question", "question_id"),
+    Index("idx_question_responses_module", "module_slug"),
+    Index("idx_question_responses_hash", "question_hash"),
 )
 
 
 # =====================================================
-# 14. ASSESSMENT_SCORES
+# 14. QUESTION_ASSESSMENTS
 # =====================================================
-assessment_scores = Table(
-    "assessment_scores",
+question_assessments = Table(
+    "question_assessments",
     metadata,
     Column("score_id", Integer, primary_key=True, autoincrement=True),
     Column(
         "response_id",
         Integer,
-        ForeignKey("assessment_responses.response_id", ondelete="CASCADE"),
+        ForeignKey("question_responses.response_id", ondelete="CASCADE"),
         nullable=False,
     ),
     # Score data
@@ -489,5 +493,5 @@ assessment_scores = Table(
     # Timestamps
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     # Indexes
-    Index("idx_assessment_scores_response_id", "response_id"),
+    Index("idx_question_assessments_response_id", "response_id"),
 )

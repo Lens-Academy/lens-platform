@@ -12,13 +12,13 @@ import {
   createResponse,
   updateResponse,
   getResponses,
-} from "@/api/assessments";
+} from "@/api/questions";
 
 export interface UseAutoSaveOptions {
   questionId: string;
   moduleSlug: string;
-  learningOutcomeId?: string | null;
-  contentId?: string | null;
+  questionText: string;
+  assessmentPrompt?: string | null;
   isAuthenticated: boolean;
   debounceMs?: number;
 }
@@ -39,8 +39,8 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
   const {
     questionId,
     moduleSlug,
-    learningOutcomeId,
-    contentId,
+    questionText,
+    assessmentPrompt,
     isAuthenticated,
     debounceMs = 2500,
   } = options;
@@ -100,8 +100,8 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
           {
             questionId,
             moduleSlug,
-            learningOutcomeId: learningOutcomeId ?? null,
-            contentId: contentId ?? null,
+            questionText,
+            assessmentPrompt: assessmentPrompt ?? null,
             answerText: textToSave,
             answerMetadata: metadata,
           },
@@ -147,8 +147,8 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
   }, [
     questionId,
     moduleSlug,
-    learningOutcomeId,
-    contentId,
+    questionText,
+    assessmentPrompt,
     isAuthenticated,
   ]);
 
@@ -207,8 +207,8 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
         {
           questionId,
           moduleSlug,
-          learningOutcomeId: learningOutcomeId ?? null,
-          contentId: contentId ?? null,
+          questionText,
+          assessmentPrompt: assessmentPrompt ?? null,
           answerText: latestTextRef.current,
         },
         isAuthenticated,
@@ -223,7 +223,7 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
         setSaveStatus("error");
       }
     }
-  }, [questionId, moduleSlug, learningOutcomeId, contentId, isAuthenticated]);
+  }, [questionId, moduleSlug, questionText, assessmentPrompt, isAuthenticated]);
 
   // Load existing answer on mount
   useEffect(() => {
@@ -303,8 +303,8 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
             {
               questionId,
               moduleSlug,
-              learningOutcomeId: learningOutcomeId ?? null,
-              contentId: contentId ?? null,
+              questionText,
+              assessmentPrompt: assessmentPrompt ?? null,
               answerText: textToSave,
               answerMetadata: metadata,
             },
@@ -322,7 +322,7 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
         }
       }
     };
-  }, [questionId, moduleSlug, learningOutcomeId, contentId, isAuthenticated]);
+  }, [questionId, moduleSlug, questionText, assessmentPrompt, isAuthenticated]);
 
   return {
     text,

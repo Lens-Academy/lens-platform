@@ -16,7 +16,7 @@ import type {
   QuestionSegment,
 } from "@/types/module";
 import type { MarkCompleteResponse } from "@/api/progress";
-import { getResponses } from "@/api/assessments";
+import { getResponses } from "@/api/questions";
 import { markComplete } from "@/api/progress";
 import TestQuestionCard from "./TestQuestionCard";
 
@@ -283,8 +283,6 @@ export default function TestSection({
             moduleSlug={moduleSlug}
             sectionIndex={sectionIndex}
             segmentIndex={q.segmentIndex}
-            learningOutcomeId={section.learningOutcomeId}
-            contentId={section.contentId}
             isAuthenticated={isAuthenticated}
             onComplete={() => handleQuestionComplete(qIndex)}
           />

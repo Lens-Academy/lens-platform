@@ -1,6 +1,6 @@
-"""Assessment response and score management.
+"""Question response and score management.
 
-Handles creating, querying, and claiming assessment responses.
+Handles creating, querying, and claiming question responses.
 Supports both authenticated users (user_id) and anonymous users (anonymous_token).
 """
 
@@ -11,7 +11,7 @@ from sqlalchemy import and_, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from .tables import assessment_responses, assessment_scores
+from .tables import question_responses, question_assessments
 
 
 async def submit_response(
@@ -21,14 +21,15 @@ async def submit_response(
     anonymous_token: UUID | None = None,
     question_id: str,
     module_slug: str,
-    learning_outcome_id: str | None = None,
-    content_id: UUID | None = None,
+    question_text: str,
+    question_hash: str,
+    assessment_prompt: str | None = None,
     answer_text: str,
     answer_metadata: dict | None = None,
 ) -> dict:
-    """Submit an assessment response.
+    """Submit a question response.
 
-    Creates a new record in assessment_responses. Each submission creates a
+    Creates a new record in question_responses. Each submission creates a
     separate record (multiple attempts per question are supported).
 
     Exactly one of user_id or anonymous_token must be provided.
@@ -45,15 +46,14 @@ async def submit_response(
         "anonymous_token": anonymous_token,
         "question_id": question_id,
         "module_slug": module_slug,
-        "learning_outcome_id": learning_outcome_id,
-        "content_id": content_id,
+        "question_text": question_text,
+        "question_hash": question_hash,
+        "assessment_prompt": assessment_prompt,
         "answer_text": answer_text,
         "answer_metadata": answer_metadata if answer_metadata is not None else {},
     }
 
-    stmt = (
-        pg_insert(assessment_responses).values(**values).returning(assessment_responses)
-    )
+    stmt = pg_insert(question_responses).values(**values).returning(question_responses)
 
     result = await conn.execute(stmt)
     row = result.fetchone()
@@ -70,7 +70,7 @@ async def update_response(
     answer_metadata: dict | None = None,
     completed_at: str | None = None,
 ) -> dict | None:
-    """Update an existing assessment response (partial update).
+    """Update an existing question response (partial update).
 
     Only updates fields that are explicitly provided (non-None).
     Performs ownership check: the response must belong to the given user_id
@@ -94,8 +94,8 @@ async def update_response(
 
     if not values:
         # Nothing to update — just return the existing row
-        stmt = select(assessment_responses).where(
-            assessment_responses.c.response_id == response_id
+        stmt = select(question_responses).where(
+            question_responses.c.response_id == response_id
         )
         result = await conn.execute(stmt)
         row = result.fetchone()
@@ -104,24 +104,24 @@ async def update_response(
     # Ownership check: must match user_id OR anonymous_token
     ownership_conditions = []
     if user_id is not None:
-        ownership_conditions.append(assessment_responses.c.user_id == user_id)
+        ownership_conditions.append(question_responses.c.user_id == user_id)
     if anonymous_token is not None:
         ownership_conditions.append(
-            assessment_responses.c.anonymous_token == anonymous_token
+            question_responses.c.anonymous_token == anonymous_token
         )
     if not ownership_conditions:
         raise ValueError("Either user_id or anonymous_token must be provided")
 
     stmt = (
-        update(assessment_responses)
+        update(question_responses)
         .where(
             and_(
-                assessment_responses.c.response_id == response_id,
+                question_responses.c.response_id == response_id,
                 or_(*ownership_conditions),
             )
         )
         .values(**values)
-        .returning(assessment_responses)
+        .returning(question_responses)
     )
 
     result = await conn.execute(stmt)
@@ -137,7 +137,7 @@ async def get_responses(
     module_slug: str | None = None,
     question_id: str | None = None,
 ) -> list[dict]:
-    """Query assessment responses with optional filters.
+    """Query question responses with optional filters.
 
     Must filter by user_id OR anonymous_token (at least one required).
     Optional additional filters: module_slug, question_id.
@@ -150,19 +150,19 @@ async def get_responses(
     # Build WHERE clauses
     conditions = []
     if user_id is not None:
-        conditions.append(assessment_responses.c.user_id == user_id)
+        conditions.append(question_responses.c.user_id == user_id)
     else:
-        conditions.append(assessment_responses.c.anonymous_token == anonymous_token)
+        conditions.append(question_responses.c.anonymous_token == anonymous_token)
 
     if module_slug is not None:
-        conditions.append(assessment_responses.c.module_slug == module_slug)
+        conditions.append(question_responses.c.module_slug == module_slug)
     if question_id is not None:
-        conditions.append(assessment_responses.c.question_id == question_id)
+        conditions.append(question_responses.c.question_id == question_id)
 
     stmt = (
-        select(assessment_responses)
+        select(question_responses)
         .where(and_(*conditions))
-        .order_by(assessment_responses.c.created_at.desc())
+        .order_by(question_responses.c.created_at.desc())
     )
 
     result = await conn.execute(stmt)
@@ -188,15 +188,15 @@ async def get_responses_for_question(
     )
 
 
-async def claim_assessment_responses(
+async def claim_question_responses(
     conn: AsyncConnection,
     *,
     anonymous_token: UUID,
     user_id: int,
 ) -> int:
-    """Claim anonymous assessment responses for an authenticated user.
+    """Claim anonymous question responses for an authenticated user.
 
-    Updates assessment_responses SET user_id=X, anonymous_token=NULL
+    Updates question_responses SET user_id=X, anonymous_token=NULL
     WHERE anonymous_token=Y. Skips records where the user already has a
     response for that question_id to avoid issues with duplicate data.
 
@@ -206,18 +206,18 @@ async def claim_assessment_responses(
     """
     # Subquery to find question_ids where the user already has responses
     existing_question_ids = (
-        select(assessment_responses.c.question_id)
-        .where(assessment_responses.c.user_id == user_id)
+        select(question_responses.c.question_id)
+        .where(question_responses.c.user_id == user_id)
         .scalar_subquery()
     )
 
     # Only claim anonymous records for questions the user doesn't already have
     result = await conn.execute(
-        update(assessment_responses)
+        update(question_responses)
         .where(
             and_(
-                assessment_responses.c.anonymous_token == anonymous_token,
-                ~assessment_responses.c.question_id.in_(existing_question_ids),
+                question_responses.c.anonymous_token == anonymous_token,
+                ~question_responses.c.question_id.in_(existing_question_ids),
             )
         )
         .values(user_id=user_id, anonymous_token=None)
@@ -234,7 +234,7 @@ async def get_scores_for_response(
 ) -> list[dict]:
     """Get assessment scores for a specific response, with ownership check.
 
-    Joins assessment_scores to assessment_responses to verify the caller
+    Joins question_assessments to question_responses to verify the caller
     owns the response. Returns list of score dicts, ordered by created_at DESC.
 
     Returns empty list if response has no scores (scoring may be in progress)
@@ -245,23 +245,23 @@ async def get_scores_for_response(
 
     ownership = []
     if user_id is not None:
-        ownership.append(assessment_responses.c.user_id == user_id)
+        ownership.append(question_responses.c.user_id == user_id)
     else:
-        ownership.append(assessment_responses.c.anonymous_token == anonymous_token)
+        ownership.append(question_responses.c.anonymous_token == anonymous_token)
 
     stmt = (
-        select(assessment_scores)
+        select(question_assessments)
         .join(
-            assessment_responses,
-            assessment_scores.c.response_id == assessment_responses.c.response_id,
+            question_responses,
+            question_assessments.c.response_id == question_responses.c.response_id,
         )
         .where(
             and_(
-                assessment_scores.c.response_id == response_id,
+                question_assessments.c.response_id == response_id,
                 or_(*ownership),
             )
         )
-        .order_by(assessment_scores.c.created_at.desc())
+        .order_by(question_assessments.c.created_at.desc())
     )
 
     result = await conn.execute(stmt)

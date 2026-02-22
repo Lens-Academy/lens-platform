@@ -124,13 +124,13 @@ from .sync import (
 )
 from .notifications.scheduler import sync_meeting_reminders
 
-# Assessments (async functions)
-from .assessments import (
+# Questions (async functions)
+from .questions import (
     submit_response,
     update_response,
     get_responses,
     get_responses_for_question,
-    claim_assessment_responses,
+    claim_question_responses,
 )
 
 # Scoring (async background task)
@@ -233,12 +233,12 @@ __all__ = [
     "sync_all_group_rsvps",
     "sync_after_group_change",
     "sync_meeting_reminders",
-    # Assessments
+    # Questions
     "submit_response",
     "update_response",
     "get_responses",
     "get_responses_for_question",
-    "claim_assessment_responses",
+    "claim_question_responses",
     # Scoring
     "enqueue_scoring",
     # Feedback

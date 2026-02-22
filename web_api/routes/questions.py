@@ -1,19 +1,19 @@
-"""Assessment API routes.
+"""Question response API routes.
 
 Endpoints:
-- POST /api/assessments/responses - Submit a student answer
-- GET /api/assessments/responses - Get responses for current user
-- GET /api/assessments/responses/{question_id} - Get responses for a specific question
-- GET /api/assessments/scores?response_id=X - Get scores for a specific response
+- POST /api/questions/responses - Submit a student answer
+- GET /api/questions/responses - Get responses for current user
+- GET /api/questions/responses/{question_id} - Get responses for a specific question
+- GET /api/questions/scores?response_id=X - Get scores for a specific response
 """
 
+import hashlib
 from datetime import datetime
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from core.assessments import (
+from core.questions import (
     get_responses,
     get_responses_for_question,
     get_scores_for_response,
@@ -24,7 +24,7 @@ from core.database import get_connection, get_transaction
 from core.scoring import enqueue_scoring
 from web_api.auth import get_user_or_anonymous
 
-router = APIRouter(prefix="/api/assessments", tags=["assessments"])
+router = APIRouter(prefix="/api/questions", tags=["questions"])
 
 
 # --- Request/Response Models ---
@@ -33,8 +33,8 @@ router = APIRouter(prefix="/api/assessments", tags=["assessments"])
 class SubmitResponseRequest(BaseModel):
     question_id: str
     module_slug: str
-    learning_outcome_id: str | None = None
-    content_id: UUID | None = None
+    question_text: str
+    assessment_prompt: str | None = None
     answer_text: str
     answer_metadata: dict = {}
 
@@ -54,7 +54,8 @@ class ResponseItem(BaseModel):
     response_id: int
     question_id: str
     module_slug: str
-    learning_outcome_id: str | None
+    question_text: str
+    question_hash: str
     answer_text: str
     answer_metadata: dict
     created_at: str  # ISO format
@@ -85,11 +86,11 @@ class ScoreResponse(BaseModel):
 
 
 @router.post("/responses", response_model=SubmitResponseResponse, status_code=201)
-async def submit_assessment_response(
+async def submit_question_response(
     body: SubmitResponseRequest,
     auth: tuple = Depends(get_user_or_anonymous),
 ):
-    """Submit an assessment response (student answer).
+    """Submit a question response (student answer).
 
     Accepts either authenticated user (via session cookie) or anonymous user
     (via X-Anonymous-Token header). Each submission creates a separate record
@@ -101,6 +102,8 @@ async def submit_assessment_response(
     if not body.answer_text.strip():
         raise HTTPException(400, "answer_text must be non-empty")
 
+    question_hash = hashlib.sha256(body.question_text.encode()).hexdigest()
+
     async with get_transaction() as conn:
         row = await submit_response(
             conn,
@@ -108,8 +111,9 @@ async def submit_assessment_response(
             anonymous_token=anonymous_token,
             question_id=body.question_id,
             module_slug=body.module_slug,
-            learning_outcome_id=body.learning_outcome_id,
-            content_id=body.content_id,
+            question_text=body.question_text,
+            question_hash=question_hash,
+            assessment_prompt=body.assessment_prompt,
             answer_text=body.answer_text.strip(),
             answer_metadata=body.answer_metadata,
         )
@@ -139,7 +143,8 @@ def _format_response_items(rows: list[dict]) -> list[ResponseItem]:
                 response_id=row["response_id"],
                 question_id=row["question_id"],
                 module_slug=row["module_slug"],
-                learning_outcome_id=row.get("learning_outcome_id"),
+                question_text=row["question_text"],
+                question_hash=row["question_hash"],
                 answer_text=row["answer_text"],
                 answer_metadata=row.get("answer_metadata", {}),
                 created_at=created_at,
@@ -174,7 +179,7 @@ def _format_score_items(rows: list[dict]) -> list[ScoreItem]:
 
 
 @router.get("/scores", response_model=ScoreResponse)
-async def get_assessment_scores(
+async def get_question_scores(
     response_id: int,
     auth: tuple = Depends(get_user_or_anonymous),
 ):
@@ -199,12 +204,12 @@ async def get_assessment_scores(
 
 
 @router.get("/responses", response_model=ResponseListResponse)
-async def list_assessment_responses(
+async def list_question_responses(
     module_slug: str | None = None,
     question_id: str | None = None,
     auth: tuple = Depends(get_user_or_anonymous),
 ):
-    """Get assessment responses for the current user.
+    """Get question responses for the current user.
 
     Optionally filter by module_slug and/or question_id.
     """
@@ -223,12 +228,12 @@ async def list_assessment_responses(
 
 
 @router.patch("/responses/{response_id}", response_model=SubmitResponseResponse)
-async def update_assessment_response(
+async def update_question_response(
     response_id: int,
     body: UpdateResponseRequest,
     auth: tuple = Depends(get_user_or_anonymous),
 ):
-    """Update an existing assessment response (partial update).
+    """Update an existing question response (partial update).
 
     Supports updating answer_text, answer_metadata, and/or completed_at.
     Performs ownership check — only the creator can update their response.
@@ -256,8 +261,9 @@ async def update_assessment_response(
             question_context={
                 "question_id": row["question_id"],
                 "module_slug": row["module_slug"],
-                "learning_outcome_id": row.get("learning_outcome_id"),
                 "answer_text": row["answer_text"],
+                "question_text": row.get("question_text"),
+                "assessment_prompt": row.get("assessment_prompt"),
             },
         )
 
@@ -272,11 +278,11 @@ async def update_assessment_response(
 
 
 @router.get("/responses/{question_id}", response_model=ResponseListResponse)
-async def get_question_responses(
+async def get_responses_for_question_endpoint(
     question_id: str,
     auth: tuple = Depends(get_user_or_anonymous),
 ):
-    """Get assessment responses for a specific question by the current user."""
+    """Get question responses for a specific question by the current user."""
     user_id, anonymous_token = auth
 
     async with get_connection() as conn:

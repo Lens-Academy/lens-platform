@@ -1,5 +1,5 @@
 /**
- * API client for assessment endpoints.
+ * API client for question response endpoints.
  *
  * Supports both authenticated users (JWT via cookie) and anonymous users
  * (via X-Anonymous-Token header).
@@ -29,8 +29,8 @@ function getAuthHeaders(isAuthenticated: boolean): AuthHeaders {
 export interface CreateResponseParams {
   questionId: string;
   moduleSlug: string;
-  learningOutcomeId?: string | null;
-  contentId?: string | null;
+  questionText: string;
+  assessmentPrompt?: string | null;
   answerText: string;
   answerMetadata?: Record<string, unknown>;
 }
@@ -55,7 +55,8 @@ export interface ResponseItem {
   response_id: number;
   question_id: string;
   module_slug: string;
-  learning_outcome_id: string | null;
+  question_text: string;
+  question_hash: string;
   answer_text: string;
   answer_metadata: Record<string, unknown>;
   created_at: string;
@@ -72,7 +73,7 @@ export async function createResponse(
   params: CreateResponseParams,
   isAuthenticated: boolean,
 ): Promise<CreateResponseResult> {
-  const res = await fetchWithRefresh(`${API_BASE}/api/assessments/responses`, {
+  const res = await fetchWithRefresh(`${API_BASE}/api/questions/responses`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -82,8 +83,8 @@ export async function createResponse(
     body: JSON.stringify({
       question_id: params.questionId,
       module_slug: params.moduleSlug,
-      learning_outcome_id: params.learningOutcomeId ?? null,
-      content_id: params.contentId ?? null,
+      question_text: params.questionText,
+      assessment_prompt: params.assessmentPrompt ?? null,
       answer_text: params.answerText,
       answer_metadata: params.answerMetadata ?? {},
     }),
@@ -113,7 +114,7 @@ export async function updateResponse(
   }
 
   const res = await fetchWithRefresh(
-    `${API_BASE}/api/assessments/responses/${responseId}`,
+    `${API_BASE}/api/questions/responses/${responseId}`,
     {
       method: "PATCH",
       headers: {
@@ -145,7 +146,7 @@ export async function getResponses(
   });
 
   const res = await fetchWithRefresh(
-    `${API_BASE}/api/assessments/responses?${searchParams}`,
+    `${API_BASE}/api/questions/responses?${searchParams}`,
     {
       method: "GET",
       headers: {
@@ -161,4 +162,3 @@ export async function getResponses(
 
   return res.json();
 }
-

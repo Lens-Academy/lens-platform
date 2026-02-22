@@ -16,8 +16,6 @@ interface AnswerBoxProps {
   moduleSlug: string;
   sectionIndex: number;
   segmentIndex: number;
-  learningOutcomeId?: string | null;
-  contentId?: string | null;
   isAuthenticated: boolean;
   onComplete?: () => void;
   onFeedbackTrigger?: (answerText: string) => void;
@@ -28,8 +26,6 @@ export default function AnswerBox({
   moduleSlug,
   sectionIndex,
   segmentIndex,
-  learningOutcomeId,
-  contentId,
   isAuthenticated,
   onComplete,
   onFeedbackTrigger,
@@ -51,8 +47,8 @@ export default function AnswerBox({
   } = useAutoSave({
     questionId,
     moduleSlug,
-    learningOutcomeId,
-    contentId,
+    questionText: segment.userInstruction,
+    assessmentPrompt: segment.assessmentPrompt,
     isAuthenticated,
   });
 

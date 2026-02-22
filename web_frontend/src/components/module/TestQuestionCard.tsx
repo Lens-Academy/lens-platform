@@ -23,8 +23,6 @@ interface TestQuestionCardProps {
   moduleSlug: string;
   sectionIndex: number;
   segmentIndex: number;
-  learningOutcomeId?: string | null;
-  contentId?: string | null;
   isAuthenticated: boolean;
   onComplete: () => void;
   initialText?: string;
@@ -42,8 +40,6 @@ export default function TestQuestionCard({
   moduleSlug,
   sectionIndex,
   segmentIndex,
-  learningOutcomeId,
-  contentId,
   isAuthenticated,
   onComplete,
 }: TestQuestionCardProps) {
@@ -109,8 +105,6 @@ export default function TestQuestionCard({
         moduleSlug={moduleSlug}
         sectionIndex={sectionIndex}
         segmentIndex={segmentIndex}
-        learningOutcomeId={learningOutcomeId}
-        contentId={contentId}
         isAuthenticated={isAuthenticated}
         onComplete={onComplete}
       />
