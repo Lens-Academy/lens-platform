@@ -58,9 +58,9 @@ export default function StageGroup({
   );
 
   return (
-    <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-white flex flex-col shrink-0">
-      {/* Group header */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
+    <div className="shrink-0 h-full flex flex-col border-2 border-slate-300 rounded-lg bg-white">
+      {/* Group header — sticky left */}
+      <div className="sticky left-0 self-start w-[350px] flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200 rounded-tl-lg">
         <h3 className="text-xs font-semibold text-slate-700 truncate">{section.name}</h3>
         <span className="text-[10px] text-slate-400">{section.conversations.length} chats</span>
         <button
@@ -72,19 +72,19 @@ export default function StageGroup({
         </button>
       </div>
 
-      {/* Instructions editor */}
-      <div className="px-3 py-2 border-b border-gray-100">
+      {/* Instructions editor — sticky left */}
+      <div className="sticky left-0 self-start w-[350px] px-3 py-2 border-b border-gray-100">
         <label className="text-[10px] font-medium text-slate-500 mb-1 block">Instructions</label>
         <textarea
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
-          className="w-full max-w-[600px] border border-gray-200 rounded p-2 text-[11px] text-slate-700 resize-y min-h-[7.5rem] max-h-[12rem] focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full border border-gray-200 rounded p-2 text-[11px] text-slate-700 resize-y min-h-[5rem] max-h-[10rem] focus:outline-none focus:ring-1 focus:ring-blue-500"
           spellCheck={false}
         />
       </div>
 
-      {/* Context (collapsible) */}
-      <div className="px-3 py-1.5 border-b border-gray-100">
+      {/* Context (collapsible) — sticky left */}
+      <div className="sticky left-0 self-start w-[350px] px-3 py-1.5 border-b border-gray-100">
         <button
           onClick={() => setContextExpanded(!contextExpanded)}
           className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-700 transition-colors"
@@ -106,7 +106,7 @@ export default function StageGroup({
           <textarea
             value={context}
             onChange={(e) => setContext(e.target.value)}
-            className="w-full max-w-[600px] mt-1 border border-gray-200 rounded p-2 text-[11px] text-slate-700 resize-y min-h-[3rem] max-h-[12rem] focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full mt-1 border border-gray-200 rounded p-2 text-[11px] text-slate-700 resize-y min-h-[3rem] max-h-[12rem] focus:outline-none focus:ring-1 focus:ring-blue-500"
             spellCheck={false}
           />
         )}
