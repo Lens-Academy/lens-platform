@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import ConversationColumn from "./ConversationColumn";
 import type { ConversationColumnHandle } from "./ConversationColumn";
 import type { FixtureSection } from "@/api/promptlab";
@@ -32,7 +32,7 @@ export default function StageGroup({
     [systemPrompt, instructions, context],
   );
 
-  const initialConversations = useMemo(
+  const fixtureConversations = useMemo(
     () =>
       section.conversations.map((c) => ({
         label: c.label,
@@ -43,6 +43,14 @@ export default function StageGroup({
       })),
     [section],
   );
+
+  const [extraChats, setExtraChats] = useState<{ label: string }[]>([]);
+  const nextChatNum = useRef(1);
+
+  const handleAddChat = useCallback(() => {
+    const label = `New chat ${nextChatNum.current++}`;
+    setExtraChats((prev) => [...prev, { label }]);
+  }, []);
 
   // Register column refs with globally-unique keys
   const setColumnRef = useCallback(
@@ -74,6 +82,12 @@ export default function StageGroup({
         <h3 className="text-xs font-semibold text-slate-700 truncate">{section.name}</h3>
         <span className="text-[10px] text-slate-400">{section.conversations.length} chats</span>
         <div className="ml-auto flex items-center gap-1.5">
+          <button
+            onClick={handleAddChat}
+            className="text-[10px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            + Chat
+          </button>
           <button
             onClick={handleRegenerateSection}
             className="text-[10px] font-medium text-blue-600 hover:text-blue-800 transition-colors"
@@ -132,7 +146,7 @@ export default function StageGroup({
 
       {/* Conversation columns */}
       <div className="flex flex-1 min-h-0">
-        {initialConversations.map((conv) => (
+        {fixtureConversations.map((conv) => (
           <ConversationColumn
             key={conv.label}
             ref={setColumnRef(conv.label)}
@@ -141,6 +155,18 @@ export default function StageGroup({
             systemPrompt={fullPrompt}
             enableThinking={enableThinking}
             effort={effort}
+          />
+        ))}
+        {extraChats.map((chat) => (
+          <ConversationColumn
+            key={chat.label}
+            ref={setColumnRef(chat.label)}
+            initialMessages={[]}
+            label={chat.label}
+            systemPrompt={fullPrompt}
+            enableThinking={enableThinking}
+            effort={effort}
+            clearable
           />
         ))}
       </div>

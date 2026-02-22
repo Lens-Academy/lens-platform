@@ -170,6 +170,8 @@ export default function PromptLab() {
     <div className="flex flex-col" style={{ height: "calc(100dvh - 7rem)" }}>
       {/* Toolbar */}
       <div className="flex items-center gap-3 py-2 shrink-0">
+        <span className="text-sm font-semibold text-slate-800">Prompt Lab</span>
+        <span className="text-sm text-slate-300">|</span>
         <button
           onClick={handleBack}
           className="text-sm text-slate-500 hover:text-slate-700 transition-colors"

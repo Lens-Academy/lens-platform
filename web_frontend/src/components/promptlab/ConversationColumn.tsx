@@ -15,10 +15,11 @@ interface ConversationColumnProps {
   systemPrompt: string;
   enableThinking: boolean;
   effort: string;
+  clearable?: boolean;
 }
 
 const ConversationColumn = forwardRef<ConversationColumnHandle, ConversationColumnProps>(
-  function ConversationColumn({ initialMessages, label, systemPrompt, enableThinking, effort }, ref) {
+  function ConversationColumn({ initialMessages, label, systemPrompt, enableThinking, effort, clearable }, ref) {
     const slot = useConversationSlot(initialMessages);
     const scrollRef = useRef<HTMLDivElement>(null);
     const [userScrolledUp, setUserScrolledUp] = useState(false);
@@ -98,7 +99,7 @@ const ConversationColumn = forwardRef<ConversationColumnHandle, ConversationColu
     function handleSendFollowUp(e: React.FormEvent) {
       e.preventDefault();
       const text = followUpInput.trim();
-      if (text && slot.hasRegenerated && !slot.isStreaming) {
+      if (text && !slot.isStreaming) {
         slot.sendFollowUp(text, systemPrompt, enableThinking, effort);
         setFollowUpInput("");
       }
@@ -112,13 +113,23 @@ const ConversationColumn = forwardRef<ConversationColumnHandle, ConversationColu
     }
 
     const canRegenerate = slot.selectedMessageIndex !== null;
-    const canSendFollowUp = slot.hasRegenerated && !slot.isStreaming;
+    const canSendFollowUp = !slot.isStreaming;
 
     return (
       <div className="flex flex-col h-full w-[280px] min-w-[280px] border-r border-gray-200 last:border-r-0">
         {/* Column header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/50">
           <span className="text-xs font-medium text-slate-600 truncate">{label}</span>
+          <div className="flex items-center gap-1">
+          {clearable && slot.messages.length > 0 && (
+            <button
+              onClick={() => slot.reset([])}
+              disabled={slot.isStreaming}
+              className="text-[10px] text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+            >
+              Clear
+            </button>
+          )}
           {canRegenerate && (
             <button
               onClick={() => slot.regenerate(systemPrompt, enableThinking, effort)}
@@ -132,6 +143,7 @@ const ConversationColumn = forwardRef<ConversationColumnHandle, ConversationColu
               Regenerate
             </button>
           )}
+          </div>
         </div>
 
         {/* Error */}
