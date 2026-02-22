@@ -478,7 +478,7 @@ export default function NarrativeChatSection({
         {/* Messages area */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto px-4 py-4 sm:px-10 text-base leading-relaxed"
+          className="flex-1 overflow-y-auto px-4 py-4 text-base leading-relaxed"
           style={{ overflowAnchor: "none" }}
           onScroll={handleScroll}
         >
@@ -682,7 +682,7 @@ export default function NarrativeChatSection({
         {/* Input form */}
         <form
           onSubmit={handleSubmit}
-          className="px-4 py-4 sm:px-10 border-t border-gray-100"
+          className="px-4 py-4 border-t border-gray-100"
         >
           <div className="flex gap-2 items-end max-w-content mx-auto">
           <textarea

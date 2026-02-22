@@ -141,7 +141,7 @@ export default function ArticleEmbed({
       <img
         src={src}
         alt={alt || ""}
-        className="w-full max-w-full my-4 sm:w-[calc(100%+2rem)] sm:max-w-none sm:-mx-4 sm:rounded-lg"
+        className="w-full max-w-full my-4 rounded-lg"
       />
     ),
     hr: () => <hr className="my-8 border-gray-300" />,
@@ -235,10 +235,7 @@ export default function ArticleEmbed({
   };
 
   return (
-    <div>
-      {/* Article content with warm background - header inside */}
-      <div className="max-w-content-padded mx-auto">
-        <div className="bg-amber-50/50 px-4 py-4 sm:px-10 sm:py-6 rounded-lg">
+      <div className="max-w-content-padded mx-auto bg-amber-50/50 px-4 py-4 sm:py-6 rounded-lg">
           {/* Excerpt marker inside yellow background */}
           {isFirst ? (
             // First excerpt: full attribution with divider
@@ -323,8 +320,6 @@ export default function ArticleEmbed({
           {collapsed_after && (
             <CollapsedSection content={collapsed_after} position="after" />
           )}
-        </div>
       </div>
-    </div>
   );
 }
