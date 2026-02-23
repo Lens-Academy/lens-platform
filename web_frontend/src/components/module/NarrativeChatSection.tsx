@@ -38,7 +38,7 @@ export default function NarrativeChatSection({
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [instanceStartIndex, setInstanceStartIndex] = useState(0);
-  const [currentExchangeStartIndex, setCurrentExchangeStartIndex] = useState(0);
+  const [minHeightWrapperStartIdx, setMinHeightWrapperStartIdx] = useState(0);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [scrollContainerHeight, setScrollContainerHeight] = useState(0);
   const [userSentFollowup, setUserSentFollowup] = useState(false);
@@ -46,7 +46,7 @@ export default function NarrativeChatSection({
   // scrollToResponse only applies to the first (auto-sent) message, not follow-ups
   const activeScrollToResponse = scrollToResponse && !userSentFollowup;
 
-  const currentExchangeRef = useRef<HTMLDivElement>(null);
+  const minHeightWrapperRef = useRef<HTMLDivElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -87,8 +87,8 @@ export default function NarrativeChatSection({
     }
 
     // Default: scroll to the user's message at the top
-    if (currentExchangeRef.current) {
-      currentExchangeRef.current.scrollIntoView({
+    if (minHeightWrapperRef.current) {
+      minHeightWrapperRef.current.scrollIntoView({
         block: "start",
         behavior: scrollBehavior,
       });
@@ -148,7 +148,11 @@ export default function NarrativeChatSection({
 
 
   // Spacer height: in expanded mode use the scroll container, in normal mode use viewport
-  const spacerHeight = isExpanded ? scrollContainerHeight : (hasInteracted ? window.innerHeight : 0);
+  // Subtract header (~80px, matches scrollMarginTop) and input bar (~80px) so wrapper
+  // doesn't overshoot the viewport
+  const spacerHeight = isExpanded
+    ? scrollContainerHeight
+    : (hasInteracted ? Math.max(0, window.innerHeight - 160) : 0);
 
   // Messages to display based on mode (normal vs expanded)
   // When !hasInteracted, show nothing — prevents shared parent messages leaking into inactive instances
@@ -158,22 +162,18 @@ export default function NarrativeChatSection({
       ? messages
       : messages.slice(instanceStartIndex);
 
-  // Adjust currentExchangeStartIndex relative to displayMessages
-  const adjustedExchangeStart = isExpanded
-    ? currentExchangeStartIndex
-    : Math.max(0, currentExchangeStartIndex - instanceStartIndex);
+  // --- Derived view state ---
+  const adjustedWrapperStart = isExpanded
+    ? minHeightWrapperStartIdx
+    : Math.max(0, minHeightWrapperStartIdx - instanceStartIndex);
+  const previousMessages = displayMessages.slice(0, adjustedWrapperStart);
+  const wrapperMessages = displayMessages.slice(adjustedWrapperStart);
 
-  // When activeScrollToResponse, keep the completed assistant response in the wrapper
-  // (not space-y-4) so heights stay identical to the streaming layout — no jump.
-  const currentMessages = displayMessages.slice(adjustedExchangeStart);
-  const lastCurrentMsg = currentMessages[currentMessages.length - 1];
-  const renderLastInWrapper =
-    activeScrollToResponse &&
-    !isLoading &&
-    lastCurrentMsg?.role === "assistant";
-  const spaceY4Messages = renderLastInWrapper
-    ? currentMessages.slice(0, -1)
-    : currentMessages;
+  const showPending = hasInteracted && !!pendingMessage;
+  const showStreaming = hasInteracted && isLoading && !!streamingContent;
+  const showThinking = hasInteracted && isLoading && !streamingContent;
+  const wrapperMinHeight = hasInteracted && spacerHeight > 0 ? spacerHeight : 0;
+  const scrollMargin = hasInteracted ? (isExpanded ? "24px" : "80px") : undefined;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,7 +184,7 @@ export default function NarrativeChatSection({
         setInstanceStartIndex(messages.length);
       }
       // Set split point before sending - current messages become "previous"
-      setCurrentExchangeStartIndex(messages.length);
+      setMinHeightWrapperStartIdx(messages.length);
       setShowScrollButton(false); // Reset scroll button when sending new message
       setHasInteracted(true);
       if (scrollToResponse) setUserSentFollowup(true);
@@ -263,9 +263,9 @@ export default function NarrativeChatSection({
               )}
 
               {/* Previous messages - natural height */}
-              {adjustedExchangeStart > 0 && (
+              {previousMessages.length > 0 && (
                 <div className="space-y-4 pb-4 max-w-content mx-auto">
-                  {displayMessages.slice(0, adjustedExchangeStart).map((msg, i) =>
+                  {previousMessages.map((msg, i) =>
                     msg.role === "system" ? (
                       <div key={i} className="flex justify-center my-3">
                         <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
@@ -290,17 +290,18 @@ export default function NarrativeChatSection({
                 </div>
               )}
 
-              {/* Current exchange - min height so user's message starts at top */}
+              {/* Min-height wrapper — current exchange stays here until user sends again */}
               <div
-                ref={currentExchangeRef}
+                ref={minHeightWrapperRef}
+                className="flex flex-col"
                 style={{
-                  scrollMarginTop: hasInteracted ? (isExpanded ? "24px" : "80px") : undefined,
-                  minHeight: spacerHeight > 0 ? `${spacerHeight}px` : undefined,
+                  scrollMarginTop: scrollMargin,
+                  minHeight: wrapperMinHeight > 0 ? `${wrapperMinHeight}px` : undefined,
                 }}
               >
-                <div className="space-y-4 max-w-content mx-auto">
-                  {/* Current exchange messages */}
-                  {spaceY4Messages.map((msg, i) =>
+                <div className="space-y-4 max-w-content mx-auto w-full">
+                  {/* Messages in current exchange (user + completed assistant) */}
+                  {wrapperMessages.map((msg, i) =>
                     msg.role === "system" ? (
                       <div
                         key={`current-${i}`}
@@ -327,21 +328,21 @@ export default function NarrativeChatSection({
                   )}
 
                   {/* Pending user message */}
-                  {hasInteracted && pendingMessage && (
+                  {showPending && (
                     <div
                       className={`ml-auto max-w-[80%] p-3 rounded-2xl ${
-                        pendingMessage.status === "failed"
+                        pendingMessage!.status === "failed"
                           ? "bg-red-50 border border-red-200"
                           : "bg-gray-100"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        {pendingMessage.status === "sending" && (
+                        {pendingMessage!.status === "sending" && (
                           <span className="text-xs text-gray-400 ml-auto">
                             Sending...
                           </span>
                         )}
-                        {pendingMessage.status === "failed" &&
+                        {pendingMessage!.status === "failed" &&
                           onRetryMessage && (
                             <button
                               onClick={onRetryMessage}
@@ -352,68 +353,36 @@ export default function NarrativeChatSection({
                           )}
                       </div>
                       <div className="whitespace-pre-wrap text-gray-800">
-                        {pendingMessage.content}
+                        {pendingMessage!.content}
                       </div>
                     </div>
                   )}
-                </div>
 
-                {/* Response + spacer wrapper. When activeScrollToResponse is true,
-                   minHeight ensures the response can scroll to viewport top.
-                   As the response grows, the flex-grow spacer shrinks. */}
-                <div
-                  className="flex flex-col flex-grow max-w-content mx-auto w-full"
-                  style={
-                    spacerHeight > 0
-                      ? { minHeight: `${spacerHeight}px` }
-                      : undefined
-                  }
-                >
                   {/* Streaming response */}
-                  {hasInteracted && isLoading && streamingContent && (
+                  {showStreaming && (
                     <div
                       ref={activeScrollToResponse ? responseRef : undefined}
-                      className="text-gray-800 mt-4"
-                      style={
-                        activeScrollToResponse
-                          ? { scrollMarginTop: "24px" }
-                          : undefined
-                      }
+                      className="text-gray-800"
                     >
                       <div className="text-xs text-gray-500 mb-1">Tutor</div>
                       <ChatMarkdown>{streamingContent}</ChatMarkdown>
                     </div>
                   )}
 
-                  {/* Loading indicator */}
-                  {hasInteracted && isLoading && !streamingContent && (
+                  {/* Thinking indicator */}
+                  {showThinking && (
                     <div
                       ref={activeScrollToResponse ? responseRef : undefined}
-                      className="text-gray-800 mt-4"
-                      style={
-                        activeScrollToResponse
-                          ? { scrollMarginTop: "24px" }
-                          : undefined
-                      }
+                      className="text-gray-800"
                     >
                       <div className="text-xs text-gray-500 mb-1">Tutor</div>
                       <div>Thinking...</div>
                     </div>
                   )}
-
-                  {/* Completed assistant response - kept in wrapper so
-                     heights match the streaming layout (no jump) */}
-                  {hasInteracted && renderLastInWrapper && lastCurrentMsg && (
-                    <div className="text-gray-800 mt-4">
-                      <div className="text-xs text-gray-500 mb-1">Tutor</div>
-                      <div>
-                        <ChatMarkdown>{lastCurrentMsg.content}</ChatMarkdown>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex-grow" />
                 </div>
+
+                {/* Spacer pushes sticky input to bottom */}
+                <div className="flex-grow" />
               </div>
             </div>
         </div>
