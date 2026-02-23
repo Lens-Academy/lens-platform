@@ -1,138 +1,364 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-02-14
 
 ## Test Framework
 
-**Python Runner:**
-- pytest with pytest-asyncio
-- Config: `pytest.ini` at project root
-- Version: pytest-asyncio with auto mode
+**Backend (Python):**
+- pytest 9.0.2
+- Config: `/home/penguin/code/lens-platform/ws3/pytest.ini`
+- Plugins: pytest-asyncio 1.3.0, pytest-anyio 4.12.1
 
-**Configuration (`pytest.ini`):**
-```ini
-[pytest]
-pythonpath = .
-addopts = --import-mode=importlib
-asyncio_mode = auto
-asyncio_default_fixture_loop_scope = function
-```
+**Frontend (TypeScript):**
+- Vitest 4.0.18
+- Config: `/home/penguin/code/lens-platform/ws3/web_frontend/vitest.config.ts`
+- Testing Library: @testing-library/react 16.3.2, @testing-library/jest-dom 6.9.1
 
 **Run Commands:**
 ```bash
-pytest                        # Run all tests
-pytest core/tests/            # Core module tests only
-pytest discord_bot/tests/     # Discord bot tests only
-pytest web_api/tests/         # Web API tests only
-pytest -v                     # Verbose output
-pytest -k "test_name"         # Run specific test by name
-pytest --tb=short             # Shorter traceback
+# Python - All tests
+pytest
+
+# Python - Specific module
+pytest core/tests/
+pytest discord_bot/tests/
+pytest web_api/tests/
+
+# Python - Watch mode (not configured)
+
+# Python - Coverage (not configured via pytest)
+
+# TypeScript - Frontend tests
+cd web_frontend
+npm run test              # Run all tests (vitest)
+
+# TypeScript - Content processor tests
+cd content_processor
+npm run test
 ```
 
 ## Test File Organization
 
-**Location:** Co-located in `tests/` subdirectories within each module
+**Python Location:**
+- Co-located in `tests/` subdirectories within each module
+- Pattern: `{module}/tests/test_{feature}.py`
+- Examples:
+  - `discord_bot/tests/test_nickname_cog.py`
+  - `web_api/tests/test_courses_api.py`
+  - `core/notifications/tests/test_dispatcher.py`
+  - `core/calendar/tests/test_events.py`
+
+**TypeScript Location:**
+- Co-located with source files
+- Pattern: `{filename}.test.ts` or `{filename}.test.tsx`
+- Some tests in `__tests__/` subdirectories
+- Examples:
+  - `web_frontend/src/utils/branchLayout.test.ts`
+  - `web_frontend/src/utils/__tests__/branchLayout.test.ts`
+  - `web_frontend/src/test/CourseOverview.contract.test.tsx`
+  - `content_processor/src/parser/article.test.ts`
+
+**Naming:**
+- Python: `test_*.py` (pytest discovery)
+- TypeScript: `*.test.ts` or `*.test.tsx` (Vitest discovery)
 
 **Structure:**
 ```
-core/
-├── modules/
-│   └── tests/
-│       ├── conftest.py           # Fixtures for module tests
-│       ├── fixtures/             # Test data files
-│       │   ├── lessons/
-│       │   └── courses/
-│       ├── test_sessions.py
-│       ├── test_courses.py
-│       └── test_loader.py
-├── notifications/
-│   └── tests/
-│       ├── conftest.py
-│       ├── test_dispatcher.py
-│       └── test_email.py
-└── tests/
-    └── test_meetings.py
-
 discord_bot/
-└── tests/
-    ├── conftest.py
-    ├── test_scheduler.py
-    └── test_scheduling_e2e.py
-
-web_api/
-└── tests/
-    ├── conftest.py
-    ├── test_modules_api.py
-    └── test_courses_api.py
+  tests/
+    conftest.py          # Shared fixtures
+    helpers.py           # Test utilities
+    test_nickname_cog.py
+    test_scheduler.py
+    fake_interaction.py  # Mock Discord objects
 ```
-
-**Naming:**
-- Test files: `test_*.py` prefix
-- Test functions: `test_*` prefix
-- Test classes: `Test*` prefix (e.g., `TestSendNotification`)
 
 ## Test Structure
 
-**Function-based Tests (Preferred for simple cases):**
+**Python Suite Organization:**
 ```python
-@pytest.mark.asyncio
-async def test_create_session(test_user_id):
-    """Should create a new module session."""
-    session = await create_session(
-        user_id=test_user_id, module_slug="intro-to-ai-safety"
+"""Tests for notification dispatcher."""
+
+import pytest
+from unittest.mock import AsyncMock, patch
+
+
+class TestTimezoneFormatting:
+    @pytest.mark.asyncio
+    async def test_formats_meeting_time_in_user_timezone(self):
+        """meeting_time should be formatted in user's timezone when sending."""
+        # Arrange
+        mock_user = {...}
+        captured_body = None
+
+        def capture_email(to_email, subject, body):
+            nonlocal captured_body
+            captured_body = body
+            return True
+
+        # Act
+        with patch("core.notifications.dispatcher.get_user_by_id",
+                   AsyncMock(return_value=mock_user)):
+            with patch("core.notifications.dispatcher.send_email",
+                      side_effect=capture_email):
+                await send_notification(...)
+
+        # Assert
+        assert captured_body is not None
+        assert "Wednesday at 10:00 PM (UTC+7)" in captured_body
+```
+
+**TypeScript Suite Organization:**
+```typescript
+import { describe, it, expect } from "vitest";
+import { buildBranchLayout } from "../branchLayout";
+
+describe("buildBranchLayout", () => {
+  it("returns all trunk items when no optional sections", () => {
+    // Arrange
+    const stages = [stage("A"), stage("B"), stage("C")];
+
+    // Act
+    const layout = buildBranchLayout(stages);
+
+    // Assert
+    expect(layout).toEqual([
+      { kind: "trunk", index: 0, stage: stages[0] },
+      { kind: "trunk", index: 1, stage: stages[1] },
+      { kind: "trunk", index: 2, stage: stages[2] },
+    ]);
+  });
+});
+```
+
+**Patterns:**
+- Class-based grouping in Python (e.g., `class TestTimezoneFormatting`)
+- `describe`/`it` nesting in TypeScript (Vitest/Jest style)
+- Arrange-Act-Assert pattern
+- Descriptive test names as sentences
+
+## Mocking
+
+**Python Framework:**
+- `unittest.mock` (`AsyncMock`, `MagicMock`, `patch`)
+- No dedicated mocking library beyond standard library
+
+**Python Patterns:**
+```python
+from unittest.mock import AsyncMock, MagicMock, patch
+
+# Mock async function
+with patch("core.notifications.dispatcher.get_user_by_id",
+           AsyncMock(return_value=mock_user)):
+    result = await send_notification(...)
+
+# Mock sync function
+with patch("core.notifications.dispatcher.send_email",
+           return_value=True) as mock_email:
+    await send_notification(...)
+    mock_email.assert_called_once()
+
+# Capture function arguments
+captured_body = None
+def capture_email(to_email, subject, body):
+    nonlocal captured_body
+    captured_body = body
+    return True
+
+with patch("...", side_effect=capture_email):
+    ...
+```
+
+**TypeScript Framework:**
+- Vitest's `vi` API for mocking
+- No separate mocking library (Vitest built-in)
+
+**TypeScript Patterns:**
+```typescript
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Mock module before importing component
+vi.mock("vike/client/router", () => ({
+  navigate: vi.fn(),
+}));
+
+// Mock global fetch
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+beforeEach(() => {
+  mockFetch.mockReset();
+  mockFetch.mockImplementation((url: string) => {
+    if (url.includes("/api/users/me")) {
+      return Promise.resolve({ ok: false });
+    }
+    return Promise.resolve({ ok: true, json: async () => data });
+  });
+});
+```
+
+**What to Mock:**
+- External APIs (Discord, SendGrid, Google Calendar)
+- Database connections in unit tests (integration tests use real DB with transactions)
+- HTTP requests (`fetch`, `httpx`)
+- Time-dependent functions
+- File system operations
+
+**What NOT to Mock:**
+- Business logic in `core/` when testing adapters (use real implementations)
+- Type definitions and interfaces
+- Pure functions (test directly)
+
+## Fixtures and Factories
+
+**Python Test Data:**
+```python
+# discord_bot/tests/helpers.py
+async def create_test_cohort(
+    conn: AsyncConnection,
+    course_slug: str = "default",
+    name: str = "Test Cohort",
+    num_meetings: int = 8,
+) -> dict:
+    """Create a cohort for testing."""
+    result = await conn.execute(
+        insert(cohorts).values(...).returning(cohorts)
     )
-    assert session["module_slug"] == "intro-to-ai-safety"
-    assert session["current_stage_index"] == 0
-    assert session["messages"] == []
+    return dict(result.mappings().first())
+
+async def create_test_user(
+    conn: AsyncConnection,
+    cohort_id: int,
+    discord_id: str,
+    availability: str = '{"Monday": ["09:00-09:30"]}',
+    role: str = "participant",
+) -> dict:
+    """Create a user with a signup for a cohort."""
+    # ... insert user, signup, facilitator records
 ```
 
-**Class-based Tests (For grouping related tests):**
-```python
-class TestSendNotification:
-    @pytest.mark.asyncio
-    async def test_sends_email_when_enabled(self):
-        from core.notifications.dispatcher import send_notification
-        # ... test implementation
+**TypeScript Test Data:**
+```typescript
+// Helper factory functions
+function stage(title: string, optional = false): StageInfo {
+  return { type: "article", title, duration: null, optional };
+}
 
-    @pytest.mark.asyncio
-    async def test_sends_discord_when_enabled(self):
-        # ... test implementation
+// Shared fixtures (JSON files)
+import courseProgressFixture from "../../../fixtures/course_progress_response.json";
 ```
 
-**Docstrings:**
-- Every test has a docstring describing expected behavior
-- Format: "Should [do something]" or descriptive statement
+**Location:**
+- Python: `tests/helpers.py` for factory functions
+- TypeScript: Inline helper functions or imported JSON fixtures
+- JSON fixtures: `web_frontend/fixtures/` (shared between frontend and backend contract tests)
+
+## Coverage
+
+**Requirements:** No enforced coverage targets
+
+**Python View Coverage:**
+```bash
+# Not configured via pytest
+# Manual coverage run would need pytest-cov installed
+```
+
+**TypeScript View Coverage:**
+```bash
+cd web_frontend
+npm run test -- --coverage  # Vitest coverage
+```
+
+**Current State:**
+- No coverage reporting in CI
+- No coverage badges
+- Tests focus on critical paths (scheduling, API contracts, notifications)
+
+## Test Types
+
+**Unit Tests:**
+- Scope: Individual functions and classes
+- Isolation: Mock external dependencies
 - Examples:
-  - `"""Should create a new module session."""`
-  - `"""Empty string should return empty list."""`
-  - `"""Cannot claim a session that's already claimed."""`
+  - `core/notifications/tests/test_dispatcher.py` - notification routing logic
+  - `web_frontend/src/utils/branchLayout.test.ts` - layout calculation
+  - `content_processor/src/parser/article.test.ts` - parsing logic
 
-## Async Testing
+**Integration Tests:**
+- Scope: Multiple components working together
+- Database: Uses transactional fixtures (rollback after test)
+- Examples:
+  - `discord_bot/tests/test_availability_integration.py`
+  - `web_api/tests/test_progress_integration.py`
+  - `core/notifications/tests/test_email_integration.py`
 
-**Pattern:**
+**Contract Tests:**
+- Scope: API response format validation
+- Fixtures: Shared JSON fixtures between frontend and backend
+- Examples:
+  - `web_frontend/src/test/CourseOverview.contract.test.tsx`
+  - `web_api/tests/test_course_progress_contract.py`
+
+**E2E Tests:**
+- Scope: Full user flows
+- Examples:
+  - `discord_bot/tests/test_discord_e2e.py`
+  - `web_api/tests/test_progress_e2e.py`
+
+**No dedicated E2E framework** (Playwright, Cypress) for frontend - E2E tests are Python-based using TestClient
+
+## Common Patterns
+
+**Async Testing (Python):**
 ```python
+import pytest
+
 @pytest.mark.asyncio
-async def test_async_operation(test_user_id):
-    """Test an async function."""
-    result = await async_function(test_user_id)
+async def test_creates_event_with_correct_params(self):
+    """Test async function."""
+    result = await create_meeting_event(...)
     assert result is not None
 ```
 
-**Note:** With `asyncio_mode = auto` in pytest.ini, the `@pytest.mark.asyncio` decorator is technically optional but explicitly used throughout for clarity.
+**Async Testing (TypeScript):**
+```typescript
+it("renders module titles from the fixture", async () => {
+  render(<CourseOverview courseId="default" />);
 
-## Fixtures
-
-**Root-level Fixture (`conftest.py`):**
-```python
-@pytest.fixture(scope="session")
-def event_loop_policy():
-    """Use default event loop policy for all async tests."""
-    import asyncio
-    return asyncio.DefaultEventLoopPolicy()
+  await waitFor(() => {
+    const elements = screen.getAllByText(firstModule.title);
+    expect(elements.length).toBeGreaterThan(0);
+  });
+});
 ```
 
-**Database Connection Fixture (Transaction rollback pattern):**
+**Error Testing (Python):**
 ```python
+def test_reports_error_for_missing_title(self):
+    """Should report error for invalid data."""
+    result = parseArticle(content, 'articles/test.md')
+
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0].severity).toBe('error');
+```
+
+**Error Testing (TypeScript):**
+```typescript
+it("reports error for missing title", () => {
+  const result = parseArticle(content, 'articles/test.md');
+
+  expect(result.errors.length).toBeGreaterThan(0);
+  expect(result.errors.some(e =>
+    e.message.toLowerCase().includes('title')
+  )).toBe(true);
+});
+```
+
+## Database Testing
+
+**Fixture Pattern:**
+```python
+# discord_bot/tests/conftest.py
 @pytest_asyncio.fixture
 async def db_conn():
     """
@@ -143,15 +369,10 @@ async def db_conn():
     """
     load_dotenv(".env.local")
 
-    import os
-    database_url = os.environ.get("DATABASE_URL", "")
-    if database_url.startswith("postgresql://"):
-        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    from core.database import set_engine
 
-    engine = create_async_engine(
-        database_url,
-        connect_args={"statement_cache_size": 0},
-    )
+    engine = create_async_engine(database_url, ...)
+    set_engine(engine)  # Inject into singleton
 
     async with engine.connect() as conn:
         txn = await conn.begin()
@@ -160,61 +381,35 @@ async def db_conn():
         finally:
             await txn.rollback()
 
+    set_engine(None)
     await engine.dispose()
 ```
 
-**Test User Fixtures:**
+**Usage:**
 ```python
-@pytest_asyncio.fixture
-async def test_user_id():
-    """Create a test user and return their user_id. Cleans up after test."""
-    from core.database import get_transaction
-
-    unique_id = str(uuid.uuid4())[:8]
-    discord_id = f"test_{unique_id}"
-
-    async with get_transaction() as conn:
-        result = await conn.execute(
-            text("""
-                INSERT INTO users (discord_id, discord_username)
-                VALUES (:discord_id, :username)
-                RETURNING user_id
-            """),
-            {"discord_id": discord_id, "username": f"test_user_{unique_id}"},
-        )
-        user_id = result.fetchone()[0]
-
-    yield user_id
-
-    # Cleanup
-    async with get_transaction() as conn:
-        await conn.execute(
-            text("DELETE FROM users WHERE user_id = :user_id"),
-            {"user_id": user_id}
-        )
+async def test_creates_groups(db_conn):
+    """Test uses db_conn fixture."""
+    cohort = await create_test_cohort(db_conn)
+    user = await create_test_user(db_conn, cohort["cohort_id"], "123")
+    # ... test logic
+    # Automatic rollback after test
 ```
 
-**Content Cache Fixtures:**
+## Content Cache Testing
+
+**Auto-fixture for course data:**
 ```python
+# conftest.py
 @pytest.fixture(autouse=True)
 def init_content_cache():
     """Initialize a minimal content cache for tests that need course data."""
     from core.content.cache import set_cache, clear_cache, ContentCache
-    from core.modules.markdown_parser import ParsedCourse
 
     test_cache = ContentCache(
         courses={
-            "default": ParsedCourse(
-                slug="default",
-                title="AI Safety Course",
-                progression=[],
-            )
+            "default": ParsedCourse(slug="default", title="AI Safety Course", ...)
         },
-        modules={},
-        articles={},
-        video_transcripts={},
-        last_refreshed=datetime.now(timezone.utc),
-        last_commit_sha=None,
+        ...
     )
     set_cache(test_cache)
 
@@ -223,222 +418,85 @@ def init_content_cache():
     clear_cache()
 ```
 
-**Engine Cleanup Fixture:**
+## React Component Testing
+
+**Setup File:**
+```typescript
+// web_frontend/src/test/setup.ts
+import "@testing-library/jest-dom";
+
+// Mock localStorage
+const localStorageMock = ...
+Object.defineProperty(window, "localStorage", { value: localStorageMock });
+
+// Mock window.matchMedia, IntersectionObserver, ResizeObserver
+```
+
+**Component Test Pattern:**
+```typescript
+import { render, screen, waitFor } from "@testing-library/react";
+
+it("renders the course title from the fixture", async () => {
+  render(<CourseOverview courseId="default" />);
+
+  await waitFor(() => {
+    const elements = screen.getAllByText(courseProgressFixture.course.title);
+    expect(elements.length).toBeGreaterThan(0);
+  });
+});
+```
+
+## Dynamic Test Discovery
+
+**Pattern for content-agnostic tests:**
 ```python
-@pytest_asyncio.fixture(autouse=True)
-async def cleanup_engine():
-    """Clean up the database engine after each test to avoid connection pool issues."""
-    yield
-    from core.database import close_engine
-    await close_engine()
+# web_api/tests/test_courses_api.py
+def get_first_module_before_meeting(course_slug: str) -> str | None:
+    """Find first module that's followed by a meeting."""
+    course = load_course(course_slug)
+    for i, item in enumerate(course.progression[:-1]):
+        if isinstance(item, ModuleRef) and isinstance(
+            course.progression[i + 1], MeetingMarker
+        ):
+            return item.slug
+    return None
+
+def test_get_next_module_returns_unit_complete():
+    """Should return completedUnit when next item is a meeting."""
+    module_slug = get_first_module_before_meeting("default")
+    if module_slug is None:
+        pytest.skip("No module→meeting pattern in default course")
+
+    response = client.get(f"/api/courses/default/next-module?current={module_slug}")
+    assert response.status_code == 200
 ```
 
-## Mocking
+## Test Configuration
 
-**Framework:** `unittest.mock` (standard library)
-
-**Patterns:**
-
-**Patching module-level functions:**
-```python
-from unittest.mock import patch, AsyncMock
-
-with patch("core.notifications.dispatcher.get_user_by_id", AsyncMock(return_value=mock_user)):
-    result = await send_notification(user_id=1, ...)
+**Python (`pytest.ini`):**
+```ini
+[pytest]
+pythonpath = .
+addopts = --import-mode=importlib
+asyncio_mode = auto
+asyncio_default_fixture_loop_scope = function
 ```
 
-**Nested patches (common pattern):**
-```python
-with patch("module.path.func1") as mock1:
-    with patch("module.path.func2") as mock2:
-        with patch("module.path.func3") as mock3:
-            result = await function_under_test()
-
-mock1.assert_called_once()
-mock2.assert_called_with(expected_args)
+**TypeScript (`vitest.config.ts`):**
+```typescript
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test/setup.ts"],
+  },
+  resolve: {
+    alias: { "@": path.resolve(__dirname, "./src") },
+  },
+});
 ```
-
-**FastAPI TestClient mocking:**
-```python
-from fastapi.testclient import TestClient
-from main import app
-
-client = TestClient(app)
-
-def test_endpoint():
-    with patch("web_api.routes.modules.get_current_user") as mock_auth:
-        mock_auth.return_value = {"sub": "test_discord_123", "username": "testuser"}
-
-        with patch("web_api.routes.modules.claim_session") as mock_claim:
-            mock_claim.return_value = {"session_id": 1, "user_id": 42}
-
-            response = client.post("/api/module-sessions/1/claim")
-            assert response.status_code == 200
-```
-
-**Exception mocking:**
-```python
-with patch("module.function") as mock_fn:
-    mock_fn.side_effect = Exception("API error")
-    result = function_that_catches_exceptions()
-    assert result is False
-```
-
-**MagicMock for complex objects:**
-```python
-from unittest.mock import MagicMock
-
-mock_stage = MagicMock()
-mock_stage.type = "chat"
-mock_stage.instructions = "Test instructions"
-mock_stage.show_user_previous_content = True
-```
-
-**What to Mock:**
-- External API calls (Discord, SendGrid, GitHub)
-- Database operations (when not testing DB integration)
-- Authentication/authorization functions
-- Time-dependent operations
-
-**What NOT to Mock:**
-- Core business logic being tested
-- Pure functions with no side effects
-- Data transformation functions
-
-## Fixtures and Factories
-
-**Test Data Location:**
-- `core/modules/tests/fixtures/` - Course and lesson YAML files
-- Inline fixture functions in conftest.py
-
-**Fixture Path Pattern:**
-```python
-from pathlib import Path
-
-FIXTURES_DIR = Path(__file__).parent / "fixtures"
-
-@pytest.fixture
-def fixtures_lessons_dir():
-    """Return path to test fixtures lessons directory."""
-    return FIXTURES_DIR / "lessons"
-```
-
-**Test Data Factories (Inline):**
-```python
-def test_with_many_people():
-    people = [
-        Person(id=str(i), name=f"P{i}", intervals=[(540, 720)])
-        for i in range(10)
-    ]
-    result = schedule(people, ...)
-```
-
-## Coverage
-
-**Requirements:** Not enforced, no minimum coverage target
-
-**View Coverage (if pytest-cov installed):**
-```bash
-pytest --cov=core --cov-report=html
-```
-
-## Test Types
-
-**Unit Tests:**
-- Isolated function/method testing
-- Mock external dependencies
-- Location: `*/tests/test_*.py`
-- Example: `core/notifications/tests/test_email.py`
-
-**Integration Tests:**
-- Test multiple components together
-- Use real database with rollback
-- Location: Same as unit tests, differentiated by fixtures used
-- Example: `discord_bot/tests/test_scheduling_e2e.py`
-
-**API Tests (FastAPI):**
-- Use `TestClient` from fastapi.testclient
-- Mock authentication and database
-- Test HTTP response codes and JSON structure
-- Example: `web_api/tests/test_modules_api.py`
-
-**E2E Tests:**
-- Limited coverage currently
-- Focus on critical user flows
-- Example: `discord_bot/tests/test_scheduling_e2e.py`
-
-## Common Patterns
-
-**Async Testing:**
-```python
-@pytest.mark.asyncio
-async def test_async_function():
-    result = await async_operation()
-    assert result == expected
-```
-
-**Error Testing:**
-```python
-@pytest.mark.asyncio
-async def test_raises_on_not_found(test_user_id):
-    """Cannot claim a session that doesn't exist."""
-    with pytest.raises(SessionNotFoundError):
-        await claim_session(99999, test_user_id)
-```
-
-**Parametrized Tests (when applicable):**
-```python
-def test_all_day_codes(self):
-    """Test all day codes parse correctly."""
-    intervals = [
-        ("M08:00 M09:00", 0),  # Monday
-        ("T08:00 T09:00", 1),  # Tuesday
-        ("W08:00 W09:00", 2),  # Wednesday
-        # ...
-    ]
-    for interval_str, expected_day in intervals:
-        result = parse_interval_string(interval_str)
-        expected_start = expected_day * 1440 + 8 * 60
-        assert result[0][0] == expected_start
-```
-
-**API Response Testing:**
-```python
-def test_claim_session_success():
-    """Authenticated user can claim an anonymous session."""
-    with patch(...):
-        response = client.post("/api/module-sessions/1/claim")
-
-        assert response.status_code == 200
-        assert response.json()["claimed"] is True
-        mock_claim.assert_called_once_with(1, 42)
-```
-
-**Cleanup Patterns:**
-```python
-@pytest_asyncio.fixture
-async def test_resource():
-    # Setup
-    resource = await create_resource()
-
-    yield resource
-
-    # Cleanup (always runs)
-    await delete_resource(resource.id)
-```
-
-## Test Data Isolation
-
-**Database Tests:**
-- Each test gets a transaction that rolls back
-- Use unique identifiers (UUID) for test data
-- Clean up created resources in fixture teardown
-
-**Cache Tests:**
-- Use `autouse=True` fixtures to set up test cache
-- Clear cache in fixture teardown
-- Avoid relying on production cache state
 
 ---
 
-*Testing analysis: 2026-01-21*
+*Testing analysis: 2026-02-14*

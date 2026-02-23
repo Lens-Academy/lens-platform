@@ -111,7 +111,7 @@ export default function ArticleEmbed({
       <em className="italic">{children}</em>
     ),
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className="bg-blue-50 border-l-4 border-blue-400 pl-4 pr-4 py-3 my-4 rounded-r-lg">
+      <blockquote className="not-prose border-l-3 border-gray-300 pl-4 my-4 text-gray-800 [&>p]:mb-0">
         {children}
       </blockquote>
     ),
@@ -141,7 +141,7 @@ export default function ArticleEmbed({
       <img
         src={src}
         alt={alt || ""}
-        className="w-full max-w-full my-4 sm:w-[calc(100%+2rem)] sm:max-w-none sm:-mx-4 sm:rounded-lg"
+        className="w-full max-w-full my-4 rounded-lg"
       />
     ),
     hr: () => <hr className="my-8 border-gray-300" />,
@@ -235,96 +235,89 @@ export default function ArticleEmbed({
   };
 
   return (
-    <div>
-      {/* Article content with warm background - header inside */}
-      <div className="max-w-content-padded mx-auto">
-        <div className="bg-amber-50/50 px-4 py-4 sm:px-10 sm:py-6 rounded-lg">
-          {/* Excerpt marker inside yellow background */}
-          {isFirst ? (
-            // First excerpt: full attribution with divider
-            <div className="mb-3 max-w-content mx-auto">
-              {title && (
-                <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-              )}
-              <div className="flex items-center gap-3 mt-1">
-                {author && <p className="text-sm text-gray-500">by {author}</p>}
-                {author && sourceUrl && (
-                  <span className="text-gray-400">|</span>
-                )}
-                {sourceUrl && (
-                  <a
-                    href={sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1"
-                  >
-                    Read original
-                    <svg
-                      className="w-3 h-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                      />
-                    </svg>
-                  </a>
-                )}
-              </div>
-              <hr className="mt-3 border-gray-300" />
-            </div>
-          ) : (
-            // Subsequent excerpt: muted right-aligned marker with divider
-            <div className="mb-3 max-w-content mx-auto">
-              <div className="flex justify-end">
-                <span className="text-sm text-gray-400 flex items-center gap-1.5">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  from &ldquo;{title}&rdquo;
-                </span>
-              </div>
-              <hr className="mt-2 border-gray-300" />
-            </div>
+    <div className="max-w-content-padded mx-auto bg-amber-50/50 px-4 py-4 sm:py-6 rounded-lg">
+      {/* Excerpt marker inside yellow background */}
+      {isFirst ? (
+        // First excerpt: full attribution with divider
+        <div className="mb-3 max-w-content mx-auto">
+          {title && (
+            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
           )}
-
-          {/* Collapsed content before this excerpt (after header) */}
-          {collapsed_before && (
-            <CollapsedSection content={collapsed_before} position="before" />
-          )}
-
-          <article className="prose prose-gray max-w-content mx-auto overflow-x-hidden">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeRaw]}
-              components={markdownComponents}
-            >
-              {content}
-            </ReactMarkdown>
-          </article>
-
-          {/* Collapsed content after this excerpt */}
-          {collapsed_after && (
-            <CollapsedSection content={collapsed_after} position="after" />
-          )}
+          <div className="flex items-center gap-3 mt-1">
+            {author && <p className="text-sm text-gray-500">by {author}</p>}
+            {author && sourceUrl && <span className="text-gray-400">|</span>}
+            {sourceUrl && (
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1"
+              >
+                Read original
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+              </a>
+            )}
+          </div>
+          <hr className="mt-3 border-gray-300" />
         </div>
-      </div>
+      ) : (
+        // Subsequent excerpt: muted right-aligned marker with divider
+        <div className="mb-3 max-w-content mx-auto">
+          <div className="flex justify-end">
+            <span className="text-sm text-gray-400 flex items-center gap-1.5">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              from &ldquo;{title}&rdquo;
+            </span>
+          </div>
+          <hr className="mt-2 border-gray-300" />
+        </div>
+      )}
+
+      {/* Collapsed content before this excerpt (after header) */}
+      {collapsed_before && (
+        <CollapsedSection content={collapsed_before} position="before" />
+      )}
+
+      <article className="prose prose-gray max-w-content mx-auto overflow-x-hidden">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeRaw]}
+          components={markdownComponents}
+        >
+          {content}
+        </ReactMarkdown>
+      </article>
+
+      {/* Collapsed content after this excerpt */}
+      {collapsed_after && (
+        <CollapsedSection content={collapsed_after} position="after" />
+      )}
     </div>
   );
 }

@@ -86,6 +86,7 @@ export interface TimelineMember {
   >;
   module_stats: Record<string, ModuleStats>;
   section_times: Record<string, number>;
+  guest_elsewhere?: string[];
 }
 
 export interface TimelineData {

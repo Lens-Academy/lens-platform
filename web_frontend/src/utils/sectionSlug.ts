@@ -24,6 +24,9 @@ export function getSectionSlug(section: ModuleSection, index: number): string {
     case "chat":
       title = section.meta?.title ?? null;
       break;
+    case "test":
+      title = section.meta?.title ?? null;
+      break;
     case "text":
       // Text sections don't have titles
       title = null;

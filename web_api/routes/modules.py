@@ -54,30 +54,38 @@ def serialize_flattened_module(module: FlattenedModule) -> dict:
 
 
 @router.get("/modules")
-async def list_modules():
-    """List available modules."""
+async def list_modules(type: str | None = None):
+    """List available modules.
+
+    Query params:
+        type: Filter — 'module' (no lens/ prefix), 'lens' (lens/ prefix), or None (all)
+    """
     module_slugs = get_available_modules()
     modules = []
     for slug in module_slugs:
+        is_lens = slug.startswith("lens/")
+        if type == "module" and is_lens:
+            continue
+        if type == "lens" and not is_lens:
+            continue
         try:
             module = load_flattened_module(slug)
-            modules.append({"slug": module.slug, "title": module.title})
+            modules.append(
+                {
+                    "slug": module.slug,
+                    "title": module.title,
+                    "type": "lens" if is_lens else "module",
+                }
+            )
         except ModuleNotFoundError:
-            pass  # Skip modules that fail to load
+            pass
     return {"modules": modules}
 
 
-@router.get("/modules/{module_slug}")
-async def get_module(module_slug: str):
-    """Get a module definition with flattened sections."""
-    try:
-        module = load_flattened_module(module_slug)
-        return serialize_flattened_module(module)
-    except ModuleNotFoundError:
-        raise HTTPException(status_code=404, detail="Module not found")
-
-
-@router.get("/modules/{module_slug}/progress")
+# CRITICAL: Progress route MUST be defined BEFORE catch-all module route.
+# {module_slug:path} is greedy — without this ordering, /lens/foo/progress
+# would be consumed as module_slug="lens/foo/progress" by the catch-all.
+@router.get("/modules/{module_slug:path}/progress")
 async def get_module_progress_endpoint(
     module_slug: str,
     request: Request,
@@ -193,3 +201,13 @@ async def get_module_progress_endpoint(
         response["error"] = module.error
 
     return response
+
+
+@router.get("/modules/{module_slug:path}")
+async def get_module(module_slug: str):
+    """Get a module definition with flattened sections."""
+    try:
+        module = load_flattened_module(module_slug)
+        return serialize_flattened_module(module)
+    except ModuleNotFoundError:
+        raise HTTPException(status_code=404, detail="Module not found")

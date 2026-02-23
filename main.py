@@ -144,10 +144,13 @@ from web_api.routes.speech import router as speech_router
 from web_api.routes.cohorts import router as cohorts_router
 from web_api.routes.courses import router as courses_router
 from web_api.routes.facilitator import router as facilitator_router
+from web_api.routes.promptlab import router as promptlab_router
 from web_api.routes.content import router as content_router
 from web_api.routes.groups import router as groups_router
 from web_api.routes.admin import router as admin_router
 from web_api.routes.progress import router as progress_router
+from web_api.routes.questions import router as questions_router
+from web_api.routes.guest_visits import router as guest_visits_router
 
 # Track bot task for cleanup
 _bot_task: asyncio.Task | None = None
@@ -309,10 +312,13 @@ app.include_router(speech_router)
 app.include_router(cohorts_router)
 app.include_router(courses_router)
 app.include_router(facilitator_router)
+app.include_router(promptlab_router)
 app.include_router(content_router)
 app.include_router(groups_router)
 app.include_router(admin_router)
 app.include_router(progress_router)
+app.include_router(questions_router)
+app.include_router(guest_visits_router)
 
 
 # New paths for static files
@@ -434,11 +440,13 @@ if __name__ == "__main__":
     import uvicorn
 
     # Extract workspace number from directory name (e.g., "platform-ws2" → 2)
-    # Used to auto-assign ports: ws1 gets 8001/3001, ws2 gets 8002/3002, etc.
-    workspace_match = re.search(r"-ws(\d+)$", Path.cwd().name)
+    # Used to auto-assign ports: ws1 gets 8100/3100, ws2 gets 8200/3200, etc.
+    # Offset by 100 so each workspace has a port range that won't collide if
+    # a server auto-increments to the next available port.
+    workspace_match = re.search(r"(?:^|-)ws(\d+)$", Path.cwd().name)
     ws_num = int(workspace_match.group(1)) if workspace_match else 0
-    default_api_port = 8000 + ws_num
-    default_frontend_port = 3000 + ws_num
+    default_api_port = 8000 + ws_num * 100
+    default_frontend_port = 3000 + ws_num * 100
 
     parser = argparse.ArgumentParser(description="AI Safety Course Platform Server")
     parser.add_argument(
@@ -499,7 +507,7 @@ if __name__ == "__main__":
         os.environ["API_PORT"] = str(args.port)
         os.environ["FRONTEND_PORT"] = str(default_frontend_port)
         print(
-            f"Dev mode enabled (ws{ws_num}): API :{args.port}, Next.js :{default_frontend_port}"
+            f"Dev mode enabled (ws{ws_num}): API :{args.port}, Vite :{default_frontend_port}"
         )
 
     # Check required environment variables

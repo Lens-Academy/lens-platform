@@ -29,10 +29,11 @@ export interface Course {
 }
 
 export interface Section {
-  type: 'page' | 'lens-video' | 'lens-article';
+  type: 'page' | 'lens-video' | 'lens-article' | 'test';
   meta: SectionMeta;
   segments: Segment[];
   optional?: boolean;
+  feedback?: boolean;
   contentId: string | null;
   learningOutcomeId: string | null;
   learningOutcomeName: string | null;
@@ -94,9 +95,20 @@ export interface VideoExcerptSegment {
   optional?: boolean;
 }
 
-export type Segment = TextSegment | ChatSegment | ArticleExcerptSegment | VideoExcerptSegment;
+export interface QuestionSegment {
+  type: 'question';
+  content: string;
+  assessmentInstructions?: string;
+  maxTime?: string;
+  maxChars?: number;
+  enforceVoice?: boolean;
+  optional?: boolean;
+  feedback?: boolean;
+}
 
-import { flattenModule } from './flattener/index.js';
+export type Segment = TextSegment | ChatSegment | ArticleExcerptSegment | VideoExcerptSegment | QuestionSegment;
+
+import { flattenModule, flattenLens } from './flattener/index.js';
 import { parseModule } from './parser/module.js';
 import { parseCourse } from './parser/course.js';
 import { parseLearningOutcome } from './parser/learning-outcome.js';
@@ -353,6 +365,17 @@ export function processContent(files: Map<string, string>): ProcessResult {
           file: path,
           field: 'id',
         });
+      }
+
+      // Flatten lens as standalone module (pass pre-parsed lens to avoid re-parsing)
+      if (result.lens) {
+        const lensModuleResult = flattenLens(path, files, tierMap, result.lens);
+        if (lensModuleResult.module) {
+          modules.push(lensModuleResult.module);
+          slugEntries.push({ slug: lensModuleResult.module.slug, file: path });
+          slugToPath.set(lensModuleResult.module.slug, path);
+        }
+        errors.push(...lensModuleResult.errors);
       }
     } else if (path.endsWith('.timestamps.json')) {
       const tsErrors = validateTimestamps(content, path);

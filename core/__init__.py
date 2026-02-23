@@ -112,6 +112,14 @@ from .group_joining import (
     get_user_group_info,
 )
 
+# Guest visits
+from .guest_visits import (
+    find_alternative_meetings,
+    create_guest_visit,
+    cancel_guest_visit,
+    get_user_guest_visits,
+)
+
 # Sync operations (sync functions for group membership changes)
 from .sync import (
     sync_group,
@@ -123,6 +131,21 @@ from .sync import (
     sync_after_group_change,
 )
 from .notifications.scheduler import sync_meeting_reminders
+
+# Questions (async functions)
+from .questions import (
+    submit_response,
+    update_response,
+    get_responses,
+    get_responses_for_question,
+    claim_question_responses,
+)
+
+# Scoring (async background task)
+from .scoring import enqueue_scoring
+
+# Feedback (streaming AI feedback conversations)
+from .modules.feedback import build_feedback_prompt
 
 __all__ = [
     # Database (SQLAlchemy)
@@ -209,6 +232,11 @@ __all__ = [
     "get_user_current_group",
     "join_group",
     "get_user_group_info",
+    # Guest visits
+    "find_alternative_meetings",
+    "create_guest_visit",
+    "cancel_guest_visit",
+    "get_user_guest_visits",
     # Sync operations
     "sync_group",
     "sync_group_discord_permissions",
@@ -218,4 +246,14 @@ __all__ = [
     "sync_all_group_rsvps",
     "sync_after_group_change",
     "sync_meeting_reminders",
+    # Questions
+    "submit_response",
+    "update_response",
+    "get_responses",
+    "get_responses_for_question",
+    "claim_question_responses",
+    # Scoring
+    "enqueue_scoring",
+    # Feedback
+    "build_feedback_prompt",
 ]

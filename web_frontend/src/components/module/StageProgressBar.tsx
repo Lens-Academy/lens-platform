@@ -25,6 +25,7 @@ type StageProgressBarProps = {
   canGoPrevious: boolean;
   canGoNext: boolean;
   compact?: boolean; // Smaller size for header use
+  testModeActive?: boolean; // Dims non-test dots and blocks their clicks during test mode
 };
 
 export function StageIcon({
@@ -34,6 +35,20 @@ export function StageIcon({
   type: string;
   small?: boolean;
 }) {
+  // Test icon: checkmark
+  if (type === "test") {
+    const size = small ? "w-4 h-4" : "w-5 h-5";
+    return (
+      <svg className={size} fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fillRule="evenodd"
+          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+          clipRule="evenodd"
+        />
+      </svg>
+    );
+  }
+
   // Article icon: article, lens-article, page
   if (type === "article" || type === "lens-article" || type === "page") {
     const size = small ? "w-4 h-4" : "w-5 h-5";
@@ -112,8 +127,16 @@ export default function StageProgressBar({
   canGoPrevious,
   canGoNext,
   compact = false,
+  testModeActive = false,
 }: StageProgressBarProps) {
   const handleDotClick = (index: number) => {
+    // Block clicks on non-test dots during test mode
+    if (testModeActive) {
+      const stage = stages[index];
+      const isTestStage =
+        (stage as unknown as { type: string }).type === "test";
+      if (!isTestStage) return;
+    }
     // Trigger haptic on any tap
     triggerHaptic(10);
     onStageClick(index);
@@ -170,9 +193,13 @@ export default function StageProgressBar({
     const isViewing = index === currentSectionIndex;
     const isOptional = "optional" in stage && stage.optional === true;
 
+    // Test mode dimming: dim non-test dots
+    const isTestDot = (stage as unknown as { type: string }).type === "test";
+    const isDimmed = testModeActive && !isTestDot;
+
     const fillClasses = getCircleFillClasses(
       { isCompleted, isViewing, isOptional },
-      { includeHover: true },
+      { includeHover: !isDimmed },
     );
     const ringClasses = getRingClasses(isViewing, isCompleted);
 
@@ -187,6 +214,7 @@ export default function StageProgressBar({
       >
         <button
           onClick={() => handleDotClick(index)}
+          disabled={isDimmed}
           className={`
             relative rounded-full flex items-center justify-center
             transition-all duration-150
@@ -195,6 +223,7 @@ export default function StageProgressBar({
             ${sizeClasses}
             ${fillClasses}
             ${ringClasses}
+            ${isDimmed ? "opacity-30 cursor-default" : ""}
           `}
         >
           <StageIcon type={stage.type} small={compact || branch} />

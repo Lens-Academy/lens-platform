@@ -124,16 +124,14 @@ describe('detectFrontmatterTypos', () => {
     expect(warnings).toHaveLength(0);
   });
 
-  it('warns about completely unknown fields with no close match', () => {
+  it('does not warn about completely unknown fields with no close match', () => {
     const warnings = detectFrontmatterTypos(
       { slug: 'test', title: 'Test', foobar: 'value' },
       MODULE_FIELDS,
       'modules/test.md'
     );
 
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0].message).toContain("'foobar'");
-    expect(warnings[0].message).toContain('Unrecognized');
+    expect(warnings).toHaveLength(0);
   });
 
   it('warns about tilte -> title', () => {

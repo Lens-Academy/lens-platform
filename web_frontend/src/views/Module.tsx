@@ -27,11 +27,14 @@ import type { ModuleCompletionResult, LensProgress } from "@/api/modules";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
+import { markComplete } from "@/api/progress";
 import type { MarkCompleteResponse } from "@/api/progress";
 import AuthoredText from "@/components/module/AuthoredText";
 import ArticleEmbed from "@/components/module/ArticleEmbed";
 import VideoEmbed from "@/components/module/VideoEmbed";
 import NarrativeChatSection from "@/components/module/NarrativeChatSection";
+import AnswerBox from "@/components/module/AnswerBox";
+import TestSection from "@/components/module/TestSection";
 import MarkCompleteButton from "@/components/module/MarkCompleteButton";
 import SectionDivider from "@/components/module/SectionDivider";
 import ArticleSectionWrapper from "@/components/module/ArticleSectionWrapper";
@@ -307,6 +310,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         sectionTitle = currentSection.meta?.title ?? null;
         break;
       case "page":
+      case "test":
         sectionTitle = currentSection.meta?.title ?? null;
         break;
       case "article":
@@ -382,16 +386,37 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Track if module was already complete when page loaded (for suppressing modal on review)
   const wasCompleteOnLoad = useRef(false);
 
+  // Test mode: dims lesson navigation during test
+  const [testModeActive, setTestModeActive] = useState(false);
+
   // View mode state (default to paginated)
   const [viewMode] = useState<ViewMode>("paginated");
+
+  // Track which question's feedback chat is currently visible (only one at a time)
+  const [activeFeedbackKey, setActiveFeedbackKey] = useState<string | null>(
+    null,
+  );
 
   // Convert sections to Stage format for progress bar
   const stages: Stage[] = useMemo(() => {
     if (!module) return [];
     return module.sections.map((section, index): Stage => {
       // Map section types to stage types
-      // v2 types: page, lens-video, lens-article
+      // v2 types: page, lens-video, lens-article, test
       // v1 types: text, article, video, chat
+
+      // Test sections get their own stage type (StageIcon handles "test")
+      if (section.type === "test") {
+        const title = section.meta?.title || "Test";
+        return {
+          type: "test",
+          source: "",
+          from: null,
+          to: null,
+          title,
+        } as unknown as Stage;
+      }
+
       let stageType: "article" | "video" | "chat";
       if (section.type === "video" || section.type === "lens-video") {
         stageType = "video";
@@ -465,6 +490,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         displayType = "lens-article";
       } else if (section.type === "page") {
         displayType = "page";
+      } else if (section.type === "test") {
+        displayType = "test";
       } else if (section.type === "text") {
         displayType = "article";
       } else {
@@ -594,6 +621,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             assistantContent += chunk.content;
             setStreamingContent(assistantContent);
             triggerChatActivity(); // Keep user active while AI response streams
+          } else if (chunk.type === "error") {
+            throw new Error(chunk.message || "Chat failed");
           }
         }
 
@@ -714,6 +743,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   const handleStageClick = useCallback(
     (index: number) => {
+      // Block non-test navigation during test mode
+      if (testModeActive && module) {
+        const targetSection = module.sections[index];
+        if (targetSection?.type !== "test") return;
+      }
       if (viewMode === "continuous") {
         // Scroll to section
         const el = sectionRefs.current.get(index);
@@ -725,19 +759,21 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         setCurrentSectionIndex(index);
       }
     },
-    [viewMode],
+    [viewMode, testModeActive, module],
   );
 
   const handlePrevious = useCallback(() => {
+    if (testModeActive) return; // Block during test mode
     const prevIndex = Math.max(0, currentSectionIndex - 1);
     if (viewMode === "continuous") {
       handleStageClick(prevIndex);
     } else {
       setCurrentSectionIndex(prevIndex);
     }
-  }, [currentSectionIndex, viewMode, handleStageClick]);
+  }, [currentSectionIndex, viewMode, handleStageClick, testModeActive]);
 
   const handleNext = useCallback(() => {
+    if (testModeActive) return; // Block during test mode
     if (!module) return;
     const nextIndex = Math.min(
       module.sections.length - 1,
@@ -748,7 +784,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     } else {
       setCurrentSectionIndex(nextIndex);
     }
-  }, [currentSectionIndex, module, viewMode, handleStageClick]);
+  }, [currentSectionIndex, module, viewMode, handleStageClick, testModeActive]);
 
   const handleMarkComplete = useCallback(
     (sectionIndex: number, apiResponse?: MarkCompleteResponse) => {
@@ -895,6 +931,44 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           />
         );
 
+      case "question": {
+        const feedbackKey = `${sectionIndex}-${segmentIndex}`;
+        return (
+          <div key={`question-${keyPrefix}`}>
+            <AnswerBox
+              segment={segment}
+              moduleSlug={module.slug}
+              sectionIndex={sectionIndex}
+              segmentIndex={segmentIndex}
+              isAuthenticated={isAuthenticated}
+              onFeedbackTrigger={(answerText) => {
+                setActiveFeedbackKey(feedbackKey);
+                const questionText = segment.content;
+                handleSendMessage(
+                  `I just answered this question: "${questionText}"\n\nMy answer: "${answerText}"\n\nCan you give me feedback?`,
+                  sectionIndex,
+                  segmentIndex,
+                );
+              }}
+            />
+            {segment.feedback && activeFeedbackKey === feedbackKey && (
+              <NarrativeChatSection
+                messages={messages}
+                pendingMessage={pendingMessage}
+                streamingContent={streamingContent}
+                isLoading={isLoading}
+                onSendMessage={(content) =>
+                  handleSendMessage(content, sectionIndex, segmentIndex)
+                }
+                onRetryMessage={handleRetryMessage}
+                scrollToResponse
+                activated
+              />
+            )}
+          </div>
+        );
+      }
+
       default:
         return null;
     }
@@ -974,11 +1048,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         stages={stages}
         completedStages={completedSections}
         currentSectionIndex={currentSectionIndex}
-        canGoPrevious={currentSectionIndex > 0}
-        canGoNext={currentSectionIndex < module.sections.length - 1}
+        canGoPrevious={!testModeActive && currentSectionIndex > 0}
+        canGoNext={
+          !testModeActive && currentSectionIndex < module.sections.length - 1
+        }
         onStageClick={handleStageClick}
         onPrevious={handlePrevious}
         onNext={handleNext}
+        testModeActive={testModeActive}
       />
 
       {/* Main content - padding-top accounts for fixed header */}
@@ -1197,6 +1274,101 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     })()}
                   </ArticleSectionWrapper>
                 </>
+              ) : section.type === "test" ? (
+                // v2 Test section: grouped assessment questions
+                (() => {
+                  const feedbackKey = `test-${sectionIndex}`;
+                  return (
+                    <>
+                      <TestSection
+                        section={section}
+                        moduleSlug={moduleId}
+                        sectionIndex={sectionIndex}
+                        isAuthenticated={isAuthenticated}
+                        onTestStart={() => setTestModeActive(true)}
+                        onTestTakingComplete={() => setTestModeActive(false)}
+                        onMarkComplete={(response) =>
+                          handleMarkComplete(sectionIndex, response)
+                        }
+                        onFeedbackTrigger={
+                          section.feedback
+                            ? (questionsAndAnswers) => {
+                                setActiveFeedbackKey(feedbackKey);
+                                const lines = questionsAndAnswers.map(
+                                  (qa, i) =>
+                                    `Question ${i + 1}: "${qa.question}"\nMy answer: "${qa.answer}"`,
+                                );
+                                handleSendMessage(
+                                  `I just completed a test. Here are the questions and my answers:\n\n${lines.join("\n\n")}\n\nCan you give me feedback on my answers?`,
+                                  sectionIndex,
+                                  0,
+                                );
+                              }
+                            : undefined
+                        }
+                      />
+                      {section.feedback &&
+                        activeFeedbackKey === feedbackKey && (
+                          <>
+                            <NarrativeChatSection
+                              messages={messages}
+                              pendingMessage={pendingMessage}
+                              streamingContent={streamingContent}
+                              isLoading={isLoading}
+                              onSendMessage={(content) =>
+                                handleSendMessage(content, sectionIndex, 0)
+                              }
+                              onRetryMessage={handleRetryMessage}
+                              scrollToResponse
+                              activated
+                            />
+                            <div className="flex items-center justify-center py-6">
+                              <button
+                                onClick={() => {
+                                  const contentId = `test:${moduleId}:${sectionIndex}`;
+                                  markComplete(
+                                    {
+                                      content_id: contentId,
+                                      content_type: "test",
+                                      content_title:
+                                        section.meta?.title || "Test",
+                                      module_slug: moduleId,
+                                    },
+                                    isAuthenticated,
+                                  )
+                                    .then((response) =>
+                                      handleMarkComplete(
+                                        sectionIndex,
+                                        response,
+                                      ),
+                                    )
+                                    .catch(() =>
+                                      handleMarkComplete(sectionIndex),
+                                    );
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
+                              >
+                                Continue
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5l7 7-7 7"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </>
+                        )}
+                    </>
+                  );
+                })()
               ) : (
                 // v1 Video section and fallback
                 <>
@@ -1216,29 +1388,31 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     )}
                 </>
               )}
-              <MarkCompleteButton
-                isCompleted={completedSections.has(sectionIndex)}
-                onComplete={(response) =>
-                  handleMarkComplete(sectionIndex, response)
-                }
-                onNext={handleNext}
-                hasNext={sectionIndex < module.sections.length - 1}
-                contentId={section.contentId ?? undefined}
-                contentType="lens"
-                contentTitle={
-                  section.type === "text"
-                    ? `Section ${sectionIndex + 1}`
-                    : section.type === "page"
-                      ? section.meta?.title || `Page ${sectionIndex + 1}`
-                      : "meta" in section
-                        ? section.meta?.title ||
-                          `${section.type || "Section"} ${sectionIndex + 1}`
-                        : `${section.type || "Section"} ${sectionIndex + 1}`
-                }
-                moduleSlug={moduleId}
-                buttonText={getCompletionButtonText(section, sectionIndex)}
-                isShort={getSectionTextLength(section) < 1750}
-              />
+              {section.type !== "test" && (
+                <MarkCompleteButton
+                  isCompleted={completedSections.has(sectionIndex)}
+                  onComplete={(response) =>
+                    handleMarkComplete(sectionIndex, response)
+                  }
+                  onNext={handleNext}
+                  hasNext={sectionIndex < module.sections.length - 1}
+                  contentId={section.contentId ?? undefined}
+                  contentType="lens"
+                  contentTitle={
+                    section.type === "text"
+                      ? `Section ${sectionIndex + 1}`
+                      : section.type === "page"
+                        ? section.meta?.title || `Page ${sectionIndex + 1}`
+                        : "meta" in section
+                          ? section.meta?.title ||
+                            `${section.type || "Section"} ${sectionIndex + 1}`
+                          : `${section.type || "Section"} ${sectionIndex + 1}`
+                  }
+                  moduleSlug={moduleId}
+                  buttonText={getCompletionButtonText(section, sectionIndex)}
+                  isShort={getSectionTextLength(section) < 1750}
+                />
+              )}
               {/* Last section completed: show course navigation */}
               {sectionIndex === module.sections.length - 1 &&
                 completedSections.has(sectionIndex) &&
@@ -1278,6 +1452,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         onStageClick={handleStageClick}
         courseId={courseId}
         courseTitle={courseProgress?.course.title}
+        testModeActive={testModeActive}
       />
 
       <ModuleCompleteModal

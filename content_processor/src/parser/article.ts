@@ -39,8 +39,9 @@ export function parseArticle(content: string, file: string): ArticleParseResult 
   // Check text fields for wikilinks (not source_url — that's a URL)
   const textFields = ['title', 'author'] as const;
   for (const field of textFields) {
-    const value = String(frontmatter[field]);
-    if (/\[\[.+?\]\]/.test(value)) {
+    const raw = frontmatter[field];
+    const values = Array.isArray(raw) ? raw.map(String) : [String(raw)];
+    if (values.some(v => /\[\[.+?\]\]/.test(v))) {
       errors.push({
         file,
         line: 2,
@@ -84,7 +85,9 @@ export function parseArticle(content: string, file: string): ArticleParseResult 
 
   const article: ParsedArticle = {
     title: String(frontmatter.title),
-    author: String(frontmatter.author),
+    author: Array.isArray(frontmatter.author)
+      ? frontmatter.author.join(', ')
+      : String(frontmatter.author),
     sourceUrl: String(frontmatter.source_url),
     date: frontmatter.date !== undefined ? String(frontmatter.date) : undefined,
     imageUrls,

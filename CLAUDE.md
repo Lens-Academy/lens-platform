@@ -73,7 +73,9 @@ Ports are auto-assigned based on workspace number (offset by 100 to avoid collis
 
 The frontend and backend ports must be exactly 5000 apart, or they won't be able to connect to each other.
 
-Override via `.env.local` (gitignored) or CLI `--port`.
+**Frontend port is auto-configured** — `vite.config.ts` detects the workspace number and sets the port automatically. Just run `npm run dev` from `web_frontend/` with no flags. Do NOT try to pass `--port` to Vite or Vike.
+
+**Backend port** can be overridden via `.env.local` (gitignored) or `python main.py --port <PORT>`.
 
 **Before killing any server, always list first:**
 ```bash

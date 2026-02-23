@@ -110,6 +110,7 @@ async def get_group_members_with_progress(
             & (meetings.c.scheduled_at < func.now())
             & (attendances.c.user_id == groups_users.c.user_id)
             & (attendances.c.checked_in_at.isnot(None))
+            & (attendances.c.is_guest.is_(False))
         )
         .correlate(groups_users)
         .scalar_subquery()
@@ -217,7 +218,8 @@ async def get_user_meeting_attendance(
         .outerjoin(
             attendances,
             (meetings.c.meeting_id == attendances.c.meeting_id)
-            & (attendances.c.user_id == user_id),
+            & (attendances.c.user_id == user_id)
+            & (attendances.c.is_guest.is_(False)),
         )
         .where(meetings.c.group_id == group_id)
         .order_by(meetings.c.scheduled_at)
@@ -236,16 +238,21 @@ async def get_user_meeting_attendance(
 async def get_group_completion_data(
     conn: AsyncConnection, group_id: int
 ) -> tuple[
-    dict[int, set[str]], dict[int, dict[int, bool]], set[int], dict[int, dict[int, str]]
+    dict[int, set[str]],
+    dict[int, dict[int, bool]],
+    set[int],
+    dict[int, dict[int, str]],
+    dict[int, set[int]],
 ]:
     """Get bulk completion and attendance data for all active participants.
 
     Returns:
-        (completions, attendance, past_meeting_numbers, rsvps)
+        (completions, attendance, past_meeting_numbers, rsvps, guest_elsewhere)
         - completions: user_id -> set of completed content_id strings
         - attendance: user_id -> {meeting_number: attended_bool}
         - past_meeting_numbers: set of meeting numbers that have occurred
         - rsvps: user_id -> {meeting_number: rsvp_status_str}
+        - guest_elsewhere: user_id -> set of meeting_numbers where they're visiting another group
     """
     # Completed content_ids per member
     comp_result = await conn.execute(
@@ -300,7 +307,10 @@ async def get_group_completion_data(
                 attendances.c.meeting_id,
                 attendances.c.checked_in_at,
                 attendances.c.rsvp_status,
-            ).where(attendances.c.meeting_id.in_([r.meeting_id for r in all_mtg_rows]))
+            ).where(
+                attendances.c.meeting_id.in_([r.meeting_id for r in all_mtg_rows])
+                & (attendances.c.is_guest.is_(False))
+            )
         )
         for row in att_result:
             mnum = all_meeting_id_to_num.get(row.meeting_id)
@@ -313,7 +323,26 @@ async def get_group_completion_data(
                 if row.rsvp_status:
                     rsvps.setdefault(row.user_id, {})[mnum] = row.rsvp_status
 
-    return completions, attendance, past_meeting_numbers, rsvps
+    # Guest visits: which members are visiting another group for a given meeting_number
+    member_user_ids = select(groups_users.c.user_id).where(
+        (groups_users.c.group_id == group_id)
+        & (groups_users.c.role == "participant")
+        & (groups_users.c.status == "active")
+    )
+    guest_visit_result = await conn.execute(
+        select(attendances.c.user_id, meetings.c.meeting_number)
+        .join(meetings, attendances.c.meeting_id == meetings.c.meeting_id)
+        .where(
+            attendances.c.is_guest.is_(True)
+            & attendances.c.user_id.in_(member_user_ids)
+            & meetings.c.meeting_number.isnot(None)
+        )
+    )
+    guest_elsewhere: dict[int, set[int]] = {}
+    for row in guest_visit_result:
+        guest_elsewhere.setdefault(row.user_id, set()).add(row.meeting_number)
+
+    return completions, attendance, past_meeting_numbers, rsvps, guest_elsewhere
 
 
 async def get_group_time_and_chat_data(

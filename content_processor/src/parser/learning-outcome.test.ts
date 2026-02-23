@@ -62,7 +62,7 @@ No lenses here.
     expect(result.errors.some(e => e.message.includes('Lens'))).toBe(true);
   });
 
-  it('allows test section without source:: field (tests not implemented yet)', () => {
+  it('allows test section without source:: field (creates test ref with empty segments)', () => {
     const content = `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
@@ -80,8 +80,10 @@ source:: [[../Lenses/lens1.md|Lens 1]]
     // The LO should be parsed successfully
     expect(result.learningOutcome?.id).toBe('550e8400-e29b-41d4-a716-446655440001');
     expect(result.learningOutcome?.lenses).toHaveLength(1);
-    // Test should be undefined since no source was provided
-    expect(result.learningOutcome?.test).toBeUndefined();
+    // Test should exist but with no source and no segments
+    expect(result.learningOutcome?.test).toBeDefined();
+    expect(result.learningOutcome?.test?.source).toBeUndefined();
+    expect(result.learningOutcome?.test?.segments).toHaveLength(0);
   });
 
   it('errors when id is a number', () => {

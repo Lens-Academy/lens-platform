@@ -25,6 +25,24 @@ The article body here.
       expect(result.article!.imageUrls).toEqual([]);
     });
 
+    it('parses multiple authors as comma-separated string', () => {
+      const content = `---
+title: "AI Is Grown, Not Built"
+author:
+  - "Eliezer Yudkowsky"
+  - "Nate Soares"
+source_url: https://example.com/article
+---
+
+Body text.
+`;
+      const result = parseArticle(content, 'articles/test.md');
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.article).not.toBeNull();
+      expect(result.article!.author).toBe('Eliezer Yudkowsky, Nate Soares');
+    });
+
     it('parses valid article without optional date', () => {
       const content = `---
 title: Test Article

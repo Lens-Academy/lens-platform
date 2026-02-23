@@ -20,7 +20,7 @@ interface UserGroupInfo {
 }
 
 export default function GroupPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
   const [userInfo, setUserInfo] = useState<UserGroupInfo | null>(null);
   const [timezone, setTimezone] = useState(getBrowserTimezone());
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
@@ -112,9 +112,9 @@ export default function GroupPage() {
             <p className="text-gray-600 mb-4">
               Please sign in to manage your group.
             </p>
-            <a href="/enroll" className="text-blue-600 hover:underline">
-              Go to enrollment
-            </a>
+            <button onClick={login} className="text-blue-600 hover:underline">
+              Sign in
+            </button>
           </div>
         </div>
       </Layout>

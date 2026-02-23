@@ -166,6 +166,47 @@ async def get_event_instances(recurring_event_id: str) -> list[dict] | None:
         return None
 
 
+async def patch_event_instance(
+    instance_event_id: str,
+    attendees: list[dict],
+) -> bool:
+    """
+    Patch a specific instance of a recurring event (e.g., add/remove a guest).
+
+    Args:
+        instance_event_id: The event ID of the specific instance to patch
+        attendees: Full attendee list to set on the instance
+
+    Returns:
+        True if patched successfully, False otherwise
+    """
+    service = get_calendar_service()
+    if not service:
+        return False
+
+    calendar_id = get_calendar_email()
+
+    def _sync_patch():
+        return (
+            service.events()
+            .patch(
+                calendarId=calendar_id,
+                eventId=instance_event_id,
+                body={"attendees": attendees},
+                sendUpdates="all",
+            )
+            .execute()
+        )
+
+    try:
+        await asyncio.to_thread(_sync_patch)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to patch event instance {instance_event_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        return False
+
+
 async def update_meeting_event(
     event_id: str,
     start: datetime | None = None,
