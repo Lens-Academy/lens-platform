@@ -23,7 +23,7 @@ async def submit_response(
     module_slug: str,
     question_text: str,
     question_hash: str,
-    assessment_prompt: str | None = None,
+    assessment_instructions: str | None = None,
     answer_text: str,
     answer_metadata: dict | None = None,
 ) -> dict:
@@ -48,7 +48,7 @@ async def submit_response(
         "module_slug": module_slug,
         "question_text": question_text,
         "question_hash": question_hash,
-        "assessment_prompt": assessment_prompt,
+        "assessment_instructions": assessment_instructions,
         "answer_text": answer_text,
         "answer_metadata": answer_metadata if answer_metadata is not None else {},
     }

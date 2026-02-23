@@ -166,7 +166,7 @@ export default function TestSection({
                   (r) => r.completed_at !== null,
                 );
                 return {
-                  question: q.segment.userInstruction,
+                  question: q.segment.content,
                   answer: completed?.answer_text || "",
                 };
               });
@@ -175,7 +175,7 @@ export default function TestSection({
             .catch(() => {
               // Still trigger feedback with whatever we have
               const pairs = questions.map((q) => ({
-                question: q.segment.userInstruction,
+                question: q.segment.content,
                 answer: "(could not load answer)",
               }));
               onFeedbackTrigger(pairs);

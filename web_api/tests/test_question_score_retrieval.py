@@ -32,11 +32,11 @@ MOCK_SCORE_ROW = {
     "score_data": {
         "overall_score": 4,
         "reasoning": "Good understanding of core concepts",
-        "dimensions": {"accuracy": {"score": 4, "note": "Mostly correct"}},
+        "dimensions": [{"name": "accuracy", "score": 4, "note": "Mostly correct"}],
         "key_observations": ["Shows understanding", "Could elaborate more"],
     },
     "model_id": "gpt-4o-mini",
-    "prompt_version": "v1",
+    "assessment_system_prompt_version": "v1",
     "created_at": "2026-01-01T00:00:00",
 }
 
@@ -45,7 +45,7 @@ MOCK_EMPTY_SCORE_ROW = {
     "response_id": 42,
     "score_data": {},
     "model_id": "gpt-4o-mini",
-    "prompt_version": "v1",
+    "assessment_system_prompt_version": "v1",
     "created_at": "2026-01-01T00:00:00",
 }
 
@@ -94,15 +94,15 @@ class TestScoreRetrieval:
         assert score["response_id"] == 42
         assert score["overall_score"] == 4
         assert score["reasoning"] == "Good understanding of core concepts"
-        assert score["dimensions"] == {
-            "accuracy": {"score": 4, "note": "Mostly correct"}
-        }
+        assert score["dimensions"] == [
+            {"name": "accuracy", "score": 4, "note": "Mostly correct"}
+        ]
         assert score["key_observations"] == [
             "Shows understanding",
             "Could elaborate more",
         ]
         assert score["model_id"] == "gpt-4o-mini"
-        assert score["prompt_version"] == "v1"
+        assert score["assessment_system_prompt_version"] == "v1"
         assert score["created_at"] == "2026-01-01T00:00:00"
 
     @patch("web_api.routes.questions.get_connection", return_value=mock_connection())

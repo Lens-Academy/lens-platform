@@ -30,7 +30,7 @@ export interface CreateResponseParams {
   questionId: string;
   moduleSlug: string;
   questionText: string;
-  assessmentPrompt?: string | null;
+  assessmentInstructions?: string | null;
   answerText: string;
   answerMetadata?: Record<string, unknown>;
 }
@@ -84,7 +84,7 @@ export async function createResponse(
       question_id: params.questionId,
       module_slug: params.moduleSlug,
       question_text: params.questionText,
-      assessment_prompt: params.assessmentPrompt ?? null,
+      assessment_instructions: params.assessmentInstructions ?? null,
       answer_text: params.answerText,
       answer_metadata: params.answerMetadata ?? {},
     }),

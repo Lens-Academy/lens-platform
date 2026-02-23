@@ -9,8 +9,8 @@ and mode (socratic vs assessment).
 def build_feedback_prompt(
     *,
     answer_text: str,
-    user_instruction: str,
-    assessment_prompt: str | None,
+    question_text: str,
+    assessment_instructions: str | None,
     learning_outcome_name: str | None,
     mode: str,
 ) -> str:
@@ -23,8 +23,8 @@ def build_feedback_prompt(
 
     Args:
         answer_text: The student's response text
-        user_instruction: The question text shown to the student
-        assessment_prompt: Optional rubric/assessment criteria
+        question_text: The question text shown to the student
+        assessment_instructions: Optional rubric/assessment criteria
         learning_outcome_name: Optional learning outcome name for context
         mode: "socratic" or "assessment"
 
@@ -46,13 +46,13 @@ def build_feedback_prompt(
             "Suggest concrete improvements."
         )
 
-    system += f"\n\nQuestion: {user_instruction}"
+    system += f"\n\nQuestion: {question_text}"
 
     if learning_outcome_name:
         system += f"\nLearning Outcome: {learning_outcome_name}"
 
-    if assessment_prompt:
-        system += f"\nRubric:\n{assessment_prompt}"
+    if assessment_instructions:
+        system += f"\nRubric:\n{assessment_instructions}"
 
     system += f"\n\nStudent's answer:\n{answer_text}"
 

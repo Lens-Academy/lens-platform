@@ -943,7 +943,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               isAuthenticated={isAuthenticated}
               onFeedbackTrigger={(answerText) => {
                 setActiveFeedbackKey(feedbackKey);
-                const questionText = segment.userInstruction;
+                const questionText = segment.content;
                 handleSendMessage(
                   `I just answered this question: "${questionText}"\n\nMy answer: "${answerText}"\n\nCan you give me feedback?`,
                   sectionIndex,

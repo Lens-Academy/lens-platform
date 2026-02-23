@@ -34,7 +34,7 @@ class SubmitResponseRequest(BaseModel):
     question_id: str
     module_slug: str
     question_text: str
-    assessment_prompt: str | None = None
+    assessment_instructions: str | None = None
     answer_text: str
     answer_metadata: dict = {}
 
@@ -71,10 +71,10 @@ class ScoreItem(BaseModel):
     response_id: int
     overall_score: int | None = None
     reasoning: str | None = None
-    dimensions: dict | None = None
+    dimensions: list | None = None
     key_observations: list[str] | None = None
     model_id: str | None = None
-    prompt_version: str | None = None
+    assessment_system_prompt_version: str | None = None
     created_at: str  # ISO format
 
 
@@ -113,7 +113,7 @@ async def submit_question_response(
             module_slug=body.module_slug,
             question_text=body.question_text,
             question_hash=question_hash,
-            assessment_prompt=body.assessment_prompt,
+            assessment_instructions=body.assessment_instructions,
             answer_text=body.answer_text.strip(),
             answer_metadata=body.answer_metadata,
         )
@@ -171,7 +171,9 @@ def _format_score_items(rows: list[dict]) -> list[ScoreItem]:
                 dimensions=score_data.get("dimensions"),
                 key_observations=score_data.get("key_observations"),
                 model_id=row.get("model_id"),
-                prompt_version=row.get("prompt_version"),
+                assessment_system_prompt_version=row.get(
+                    "assessment_system_prompt_version"
+                ),
                 created_at=created_at,
             )
         )
@@ -263,7 +265,7 @@ async def update_question_response(
                 "module_slug": row["module_slug"],
                 "answer_text": row["answer_text"],
                 "question_text": row.get("question_text"),
-                "assessment_prompt": row.get("assessment_prompt"),
+                "assessment_instructions": row.get("assessment_instructions"),
             },
         )
 

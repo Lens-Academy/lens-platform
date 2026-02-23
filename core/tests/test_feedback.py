@@ -10,8 +10,8 @@ class TestBuildFeedbackPrompt:
         """mode='socratic' produces prompt with supportive/tutor/Socratic language."""
         prompt = build_feedback_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt=None,
+            question_text="Explain X",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="socratic",
         )
@@ -24,8 +24,8 @@ class TestBuildFeedbackPrompt:
         """mode='assessment' produces prompt with assessor/evaluate/rubric language."""
         prompt = build_feedback_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt=None,
+            question_text="Explain X",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="assessment",
         )
@@ -36,8 +36,8 @@ class TestBuildFeedbackPrompt:
         """learning_outcome_name='Understanding X' appears in prompt."""
         prompt = build_feedback_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt=None,
+            question_text="Explain X",
+            assessment_instructions=None,
             learning_outcome_name="Understanding X",
             mode="socratic",
         )
@@ -47,19 +47,19 @@ class TestBuildFeedbackPrompt:
         """learning_outcome_name=None means no 'Learning Outcome:' in prompt."""
         prompt = build_feedback_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt=None,
+            question_text="Explain X",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="socratic",
         )
         assert "Learning Outcome:" not in prompt
 
     def test_includes_rubric_when_provided(self):
-        """assessment_prompt='Check for X' appears in prompt after 'Rubric'."""
+        """assessment_instructions='Check for X' appears in prompt after 'Rubric'."""
         prompt = build_feedback_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt="Check for X",
+            question_text="Explain X",
+            assessment_instructions="Check for X",
             learning_outcome_name=None,
             mode="assessment",
         )
@@ -67,22 +67,22 @@ class TestBuildFeedbackPrompt:
         assert "Check for X" in prompt
 
     def test_excludes_rubric_when_none(self):
-        """assessment_prompt=None means no 'Rubric' in prompt."""
+        """assessment_instructions=None means no 'Rubric' in prompt."""
         prompt = build_feedback_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt=None,
+            question_text="Explain X",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="socratic",
         )
         assert "Rubric" not in prompt
 
     def test_includes_answer_text_and_question(self):
-        """Both answer_text and user_instruction appear in prompt."""
+        """Both answer_text and question_text appear in prompt."""
         prompt = build_feedback_prompt(
             answer_text="My detailed answer about alignment",
-            user_instruction="Explain the alignment problem",
-            assessment_prompt=None,
+            question_text="Explain the alignment problem",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="socratic",
         )
@@ -93,8 +93,8 @@ class TestBuildFeedbackPrompt:
         """Return value is a string."""
         result = build_feedback_prompt(
             answer_text="Answer",
-            user_instruction="Question",
-            assessment_prompt=None,
+            question_text="Question",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="socratic",
         )

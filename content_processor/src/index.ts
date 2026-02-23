@@ -97,8 +97,8 @@ export interface VideoExcerptSegment {
 
 export interface QuestionSegment {
   type: 'question';
-  userInstruction: string;
-  assessmentPrompt?: string;
+  content: string;
+  assessmentInstructions?: string;
   maxTime?: string;
   maxChars?: number;
   enforceVoice?: boolean;

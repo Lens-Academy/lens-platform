@@ -43,8 +43,8 @@ export interface ParsedVideoExcerptSegment {
 
 export interface ParsedQuestionSegment {
   type: 'question';
-  userInstruction: string;
-  assessmentPrompt?: string;
+  content: string;
+  assessmentInstructions?: string;
   maxTime?: string;        // e.g., "3:00" or "none"
   maxChars?: number;
   enforceVoice?: boolean;
@@ -382,13 +382,13 @@ export function convertSegment(
     }
 
     case 'question': {
-      const userInstruction = raw.fields['user-instruction'];
-      if (!userInstruction || userInstruction.trim() === '') {
+      const content = raw.fields['content'] || raw.fields['user-instruction'];
+      if (!content || content.trim() === '') {
         errors.push({
           file,
           line: raw.line,
-          message: 'Question segment missing user-instruction:: field',
-          suggestion: "Add 'user-instruction:: Your question here'",
+          message: 'Question segment missing content:: field',
+          suggestion: "Add 'content:: Your question here'",
           severity: 'error',
         });
         return { segment: null, errors };
@@ -396,8 +396,8 @@ export function convertSegment(
 
       const segment: ParsedQuestionSegment = {
         type: 'question',
-        userInstruction,
-        assessmentPrompt: raw.fields['assessment-prompt'] || undefined,
+        content,
+        assessmentInstructions: raw.fields['assessment-instructions'] || raw.fields['assessment-prompt'] || undefined,
         maxTime: raw.fields['max-time'] || undefined,
         maxChars: raw.fields['max-chars'] ? parseInt(raw.fields['max-chars'], 10) : undefined,
         enforceVoice: raw.fields['enforce-voice']?.toLowerCase() === 'true' ? true : undefined,

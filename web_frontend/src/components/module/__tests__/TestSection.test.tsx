@@ -20,7 +20,7 @@ vi.mock("@/hooks/useAuth", () => ({
 // Mock AnswerBox as a simple div with a Complete button
 vi.mock("@/components/module/AnswerBox", () => ({
   default: (props: {
-    segment: { userInstruction: string };
+    segment: { content: string };
     onComplete?: () => void;
     moduleSlug: string;
     sectionIndex: number;
@@ -29,7 +29,7 @@ vi.mock("@/components/module/AnswerBox", () => ({
     const questionId = `${props.moduleSlug}:${props.sectionIndex}:${props.segmentIndex}`;
     return (
       <div data-testid={`answer-box-${questionId}`}>
-        <span>{props.segment.userInstruction}</span>
+        <span>{props.segment.content}</span>
         <button onClick={() => props.onComplete?.()}>Complete</button>
       </div>
     );
@@ -48,7 +48,7 @@ function makeTestSection(questionCount: number): TestSectionType {
     meta: { title: "Unit Test" },
     segments: Array.from({ length: questionCount }, (_, i) => ({
       type: "question" as const,
-      userInstruction: `Question ${i + 1} prompt`,
+      content: `Question ${i + 1} prompt`,
     })),
     optional: false,
   };

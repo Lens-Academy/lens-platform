@@ -47,8 +47,8 @@ export default function AnswerBox({
   } = useAutoSave({
     questionId,
     moduleSlug,
-    questionText: segment.userInstruction,
-    assessmentPrompt: segment.assessmentPrompt,
+    questionText: segment.content,
+    assessmentInstructions: segment.assessmentInstructions,
     isAuthenticated,
   });
 
@@ -100,7 +100,7 @@ export default function AnswerBox({
       <div className="max-w-content mx-auto">
         {/* Question prompt */}
         <p className="text-stone-700 text-[1.05rem] font-medium leading-relaxed mb-3">
-          {segment.userInstruction}
+          {segment.content}
         </p>
 
         {/* Loading state */}

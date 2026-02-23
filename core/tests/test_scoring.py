@@ -25,8 +25,8 @@ class TestBuildScoringPrompt:
         """mode='socratic' produces system prompt containing supportive/effort/engagement, not rigorous."""
         system, _messages = _build_scoring_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt=None,
+            question_text="Explain X",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="socratic",
         )
@@ -39,8 +39,8 @@ class TestBuildScoringPrompt:
         """mode='assessment' produces system prompt containing rigorous/measure, not supportive."""
         system, _messages = _build_scoring_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt=None,
+            question_text="Explain X",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="assessment",
         )
@@ -53,8 +53,8 @@ class TestBuildScoringPrompt:
         """learning_outcome_name='Understanding X' appears in system prompt."""
         system, _messages = _build_scoring_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt=None,
+            question_text="Explain X",
+            assessment_instructions=None,
             learning_outcome_name="Understanding X",
             mode="socratic",
         )
@@ -64,19 +64,19 @@ class TestBuildScoringPrompt:
         """learning_outcome_name=None means no 'Learning Outcome:' in system prompt."""
         system, _messages = _build_scoring_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt=None,
+            question_text="Explain X",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="socratic",
         )
         assert "Learning Outcome:" not in system
 
-    def test_includes_assessment_prompt_as_rubric(self):
-        """assessment_prompt='Check for X' appears in system prompt after 'Scoring Rubric'."""
+    def test_includes_assessment_instructions_as_rubric(self):
+        """assessment_instructions='Check for X' appears in system prompt after 'Scoring Rubric'."""
         system, _messages = _build_scoring_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt="Check for X",
+            question_text="Explain X",
+            assessment_instructions="Check for X",
             learning_outcome_name=None,
             mode="assessment",
         )
@@ -87,23 +87,23 @@ class TestBuildScoringPrompt:
         check_pos = system.index("Check for X")
         assert check_pos > rubric_pos
 
-    def test_excludes_assessment_prompt_when_none(self):
-        """assessment_prompt=None means no 'Scoring Rubric' in system prompt."""
+    def test_excludes_assessment_instructions_when_none(self):
+        """assessment_instructions=None means no 'Scoring Rubric' in system prompt."""
         system, _messages = _build_scoring_prompt(
             answer_text="Some answer",
-            user_instruction="Explain X",
-            assessment_prompt=None,
+            question_text="Explain X",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="socratic",
         )
         assert "Scoring Rubric" not in system
 
     def test_user_message_contains_question_and_answer(self):
-        """Returned messages list has one user message containing both user_instruction and answer_text."""
+        """Returned messages list has one user message containing both question_text and answer_text."""
         _system, messages = _build_scoring_prompt(
             answer_text="My detailed answer",
-            user_instruction="Explain the concept of X",
-            assessment_prompt=None,
+            question_text="Explain the concept of X",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="socratic",
         )
@@ -117,8 +117,8 @@ class TestBuildScoringPrompt:
         """Return value is (str, list) with list length 1."""
         result = _build_scoring_prompt(
             answer_text="Answer",
-            user_instruction="Question",
-            assessment_prompt=None,
+            question_text="Question",
+            assessment_instructions=None,
             learning_outcome_name=None,
             mode="socratic",
         )
@@ -149,8 +149,8 @@ class TestResolveQuestionDetails:
                     "segments": [
                         {
                             "type": "question",
-                            "userInstruction": "Explain X",
-                            "assessmentPrompt": "Look for Y",
+                            "content": "Explain X",
+                            "assessmentInstructions": "Look for Y",
                         }
                     ],
                 }
@@ -160,8 +160,8 @@ class TestResolveQuestionDetails:
         result = _resolve_question_details("test-module", "test-module:0:0")
 
         assert result["mode"] == "assessment"
-        assert result["user_instruction"] == "Explain X"
-        assert result["assessment_prompt"] == "Look for Y"
+        assert result["question_text"] == "Explain X"
+        assert result["assessment_instructions"] == "Look for Y"
         assert result["learning_outcome_name"] == "Test LO Name"
 
     @patch("core.scoring.load_flattened_module")
@@ -175,8 +175,8 @@ class TestResolveQuestionDetails:
                     "segments": [
                         {
                             "type": "question",
-                            "userInstruction": "Reflect on Z",
-                            "assessmentPrompt": None,
+                            "content": "Reflect on Z",
+                            "assessmentInstructions": None,
                         }
                     ],
                 }
@@ -186,7 +186,7 @@ class TestResolveQuestionDetails:
         result = _resolve_question_details("test-module", "test-module:0:0")
 
         assert result["mode"] == "socratic"
-        assert result["user_instruction"] == "Reflect on Z"
+        assert result["question_text"] == "Reflect on Z"
 
     @patch("core.scoring.load_flattened_module")
     def test_returns_empty_for_invalid_question_id_format(self, mock_load):
@@ -204,7 +204,7 @@ class TestResolveQuestionDetails:
             [
                 {
                     "type": "page",
-                    "segments": [{"type": "question", "userInstruction": "Q1"}],
+                    "segments": [{"type": "question", "content": "Q1"}],
                 }
             ]
         )
@@ -220,7 +220,7 @@ class TestResolveQuestionDetails:
             [
                 {
                     "type": "page",
-                    "segments": [{"type": "question", "userInstruction": "Q1"}],
+                    "segments": [{"type": "question", "content": "Q1"}],
                 }
             ]
         )

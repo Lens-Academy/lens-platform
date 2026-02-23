@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 # Scoring-specific model (may differ from chat model)
 SCORING_PROVIDER = os.environ.get("SCORING_PROVIDER") or DEFAULT_PROVIDER
 
-# Prompt version for tracking in question_assessments.prompt_version
-PROMPT_VERSION = "v1"
+# Prompt version for tracking in question_assessments.assessment_system_prompt_version
+ASSESSMENT_SYSTEM_PROMPT_VERSION = "v1"
 
 # Track running tasks to prevent GC (asyncio only keeps weak references)
 _running_tasks: set[asyncio.Task] = set()
@@ -46,14 +46,16 @@ SCORE_SCHEMA = {
                     "description": "2-3 sentence explanation",
                 },
                 "dimensions": {
-                    "type": "object",
-                    "additionalProperties": {
+                    "type": "array",
+                    "items": {
                         "type": "object",
                         "properties": {
+                            "name": {"type": "string"},
                             "score": {"type": "integer"},
                             "note": {"type": "string"},
                         },
-                        "required": ["score"],
+                        "required": ["name", "score"],
+                        "additionalProperties": False,
                     },
                 },
                 "key_observations": {
@@ -98,8 +100,8 @@ def _task_done(task: asyncio.Task) -> None:
 def _build_scoring_prompt(
     *,
     answer_text: str,
-    user_instruction: str,
-    assessment_prompt: str | None,
+    question_text: str,
+    assessment_instructions: str | None,
     learning_outcome_name: str | None,
     mode: str,
 ) -> tuple[str, list[dict]]:
@@ -108,8 +110,8 @@ def _build_scoring_prompt(
 
     Args:
         answer_text: The student's response text
-        user_instruction: The question text shown to the student
-        assessment_prompt: Optional rubric/assessment criteria
+        question_text: The question text shown to the student
+        assessment_instructions: Optional rubric/assessment criteria
         learning_outcome_name: Optional learning outcome name for context
         mode: "socratic" or "assessment"
 
@@ -135,14 +137,14 @@ def _build_scoring_prompt(
         system += f"\n\nLearning Outcome: {learning_outcome_name}"
 
     # Add custom rubric if provided
-    if assessment_prompt:
-        system += f"\n\nScoring Rubric:\n{assessment_prompt}"
+    if assessment_instructions:
+        system += f"\n\nScoring Rubric:\n{assessment_instructions}"
 
     messages = [
         {
             "role": "user",
             "content": (
-                f"Question: {user_instruction}\n\n"
+                f"Question: {question_text}\n\n"
                 f"Student's answer: {answer_text}\n\n"
                 "Score this response according to the rubric."
             ),
@@ -154,7 +156,7 @@ def _build_scoring_prompt(
 
 def _resolve_question_details(module_slug: str, question_id: str) -> dict:
     """
-    Look up question text, assessment prompt, learning outcome name,
+    Look up question text, assessment instructions, learning outcome name,
     and scoring mode from the content cache.
 
     question_id format: "moduleSlug:sectionIndex:segmentIndex"
@@ -164,7 +166,7 @@ def _resolve_question_details(module_slug: str, question_id: str) -> dict:
         question_id: Position-based question identifier
 
     Returns:
-        Dict with keys: user_instruction, assessment_prompt,
+        Dict with keys: question_text, assessment_instructions,
         learning_outcome_name, mode. Empty dict on any lookup failure.
     """
     try:
@@ -218,8 +220,8 @@ def _resolve_question_details(module_slug: str, question_id: str) -> dict:
     mode = "assessment" if section.get("type") == "test" else "socratic"
 
     return {
-        "user_instruction": segment.get("userInstruction", ""),
-        "assessment_prompt": segment.get("assessmentPrompt"),
+        "question_text": segment.get("content", ""),
+        "assessment_instructions": segment.get("assessmentInstructions"),
         "learning_outcome_name": section.get("learningOutcomeName"),
         "mode": mode,
     }
@@ -232,12 +234,12 @@ async def _score_response(response_id: int, ctx: dict) -> None:
     Args:
         response_id: The response to score
         ctx: Context dict with question_id, module_slug, answer_text,
-             and optionally question_text, assessment_prompt
+             and optionally question_text, assessment_instructions
     """
     # Prefer question_text from the row snapshot (new path),
     # fall back to content cache lookup (deployment safety during rollout)
-    user_instruction = ctx.get("question_text")
-    assessment_prompt = ctx.get("assessment_prompt")
+    question_text = ctx.get("question_text")
+    assessment_instructions = ctx.get("assessment_instructions")
 
     # Resolve mode and learning_outcome_name from content cache
     # (these are not stored on the row)
@@ -246,7 +248,7 @@ async def _score_response(response_id: int, ctx: dict) -> None:
         question_id=ctx["question_id"],
     )
 
-    if not user_instruction:
+    if not question_text:
         # Fallback: read from content cache
         if not question_details:
             logger.warning(
@@ -254,8 +256,8 @@ async def _score_response(response_id: int, ctx: dict) -> None:
                 response_id,
             )
             return
-        user_instruction = question_details["user_instruction"]
-        assessment_prompt = question_details.get("assessment_prompt")
+        question_text = question_details["question_text"]
+        assessment_instructions = question_details.get("assessment_instructions")
 
     mode = question_details.get("mode", "socratic") if question_details else "socratic"
     learning_outcome_name = (
@@ -265,8 +267,8 @@ async def _score_response(response_id: int, ctx: dict) -> None:
     # Build prompt
     system, messages = _build_scoring_prompt(
         answer_text=ctx["answer_text"],
-        user_instruction=user_instruction,
-        assessment_prompt=assessment_prompt,
+        question_text=question_text,
+        assessment_instructions=assessment_instructions,
         learning_outcome_name=learning_outcome_name,
         mode=mode,
     )
@@ -290,7 +292,7 @@ async def _score_response(response_id: int, ctx: dict) -> None:
                 response_id=response_id,
                 score_data=score_data,
                 model_id=SCORING_PROVIDER,
-                prompt_version=PROMPT_VERSION,
+                assessment_system_prompt_version=ASSESSMENT_SYSTEM_PROMPT_VERSION,
             )
         )
 

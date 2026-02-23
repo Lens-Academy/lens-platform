@@ -37,7 +37,7 @@ MOCK_ROW = {
     "answer_metadata": {},
     "created_at": "2026-01-01T00:00:00",
     "completed_at": "2026-01-01T00:00:00",
-    "assessment_prompt": None,
+    "assessment_instructions": None,
 }
 
 MOCK_ROW_DRAFT = {
@@ -55,7 +55,7 @@ MOCK_POST_ROW = {
     "answer_metadata": {},
     "created_at": "2026-01-01T00:00:00",
     "completed_at": None,
-    "assessment_prompt": None,
+    "assessment_instructions": None,
 }
 
 
@@ -113,7 +113,7 @@ class TestScoringTrigger:
                 "module_slug": "test-module",
                 "answer_text": "My answer",
                 "question_text": "What is AI safety?",
-                "assessment_prompt": None,
+                "assessment_instructions": None,
             },
         )
 

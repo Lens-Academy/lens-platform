@@ -450,8 +450,8 @@ question_responses = Table(
         "question_text", Text, nullable=False
     ),  # Snapshot of question shown to student
     Column(
-        "assessment_prompt", Text, nullable=True
-    ),  # Rubric/assessment criteria if any
+        "assessment_instructions", Text, nullable=True
+    ),  # Scoring rubric from content markdown (assessment-instructions:: field)
     Column(
         "question_hash", Text, nullable=False
     ),  # SHA-256 of question_text for analysis
@@ -489,8 +489,8 @@ question_assessments = Table(
     Column("score_data", JSONB, nullable=False),  # Flexible AI assessment results
     Column("model_id", Text, nullable=True),  # Which LLM model scored this
     Column(
-        "prompt_version", Text, nullable=True
-    ),  # Version tracking for scoring prompt
+        "assessment_system_prompt_version", Text, nullable=True
+    ),  # Version of the scoring system prompt in core/scoring.py
     # Timestamps
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     # Indexes

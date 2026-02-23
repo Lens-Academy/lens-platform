@@ -1066,9 +1066,9 @@ function convertSegment(
     case 'question': {
       const segment: QuestionSegment = {
         type: 'question',
-        userInstruction: parsedSegment.userInstruction,
+        content: parsedSegment.content,
       };
-      if (parsedSegment.assessmentPrompt) segment.assessmentPrompt = parsedSegment.assessmentPrompt;
+      if (parsedSegment.assessmentInstructions) segment.assessmentInstructions = parsedSegment.assessmentInstructions;
       if (parsedSegment.maxTime) segment.maxTime = parsedSegment.maxTime;
       if (parsedSegment.maxChars !== undefined) segment.maxChars = parsedSegment.maxChars;
       if (parsedSegment.enforceVoice) segment.enforceVoice = true;

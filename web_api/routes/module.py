@@ -102,13 +102,13 @@ async def event_generator(
             instructions += f"\n\nLearning Outcome: {learning_outcome_name}"
         for seg in segments:
             if seg.get("type") == "question":
-                instructions += f"\n\nQuestion: {seg.get('userInstruction', '')}"
-                if seg.get("assessmentPrompt"):
-                    instructions += f"\nRubric:\n{seg['assessmentPrompt']}"
+                instructions += f"\n\nQuestion: {seg.get('content', '')}"
+                if seg.get("assessmentInstructions"):
+                    instructions += f"\nRubric:\n{seg['assessmentInstructions']}"
     # Standalone question segments: single-question feedback prompt
     elif current_segment.get("type") == "question":
-        user_instruction = current_segment.get("userInstruction", "")
-        assessment_prompt = current_segment.get("assessmentPrompt")
+        question_text = current_segment.get("content", "")
+        assessment_instructions = current_segment.get("assessmentInstructions")
         learning_outcome_name = section.get("learningOutcomeName")
 
         instructions = (
@@ -117,11 +117,11 @@ async def event_generator(
             "ask Socratic questions to deepen their understanding. "
             "Be encouraging and constructive."
         )
-        instructions += f"\n\nQuestion: {user_instruction}"
+        instructions += f"\n\nQuestion: {question_text}"
         if learning_outcome_name:
             instructions += f"\nLearning Outcome: {learning_outcome_name}"
-        if assessment_prompt:
-            instructions += f"\nRubric:\n{assessment_prompt}"
+        if assessment_instructions:
+            instructions += f"\nRubric:\n{assessment_instructions}"
     else:
         instructions = current_segment.get(
             "instructions", "Help the user learn about AI safety."
