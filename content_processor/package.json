@@ -1,6 +1,6 @@
 {
   "name": "lens-content-processor",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Parser and validator for Lens educational content (Markdown modules, lenses, learning outcomes)",
   "type": "module",
   "main": "dist/index.js",
