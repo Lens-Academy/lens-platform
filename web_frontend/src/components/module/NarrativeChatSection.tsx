@@ -79,6 +79,7 @@ export default function NarrativeChatSection({
 
     // scrollToResponse: scroll past the user message to show the tutor's response
     if (activeScrollToResponse && isLoading && responseRef.current) {
+      scrollAnimStartRef.current = Date.now();
       responseRef.current.scrollIntoView({
         block: "start",
         behavior: scrollBehavior,
@@ -88,6 +89,7 @@ export default function NarrativeChatSection({
 
     // Default: scroll to the user's message at the top
     if (minHeightWrapperRef.current) {
+      scrollAnimStartRef.current = Date.now();
       minHeightWrapperRef.current.scrollIntoView({
         block: "start",
         behavior: scrollBehavior,
@@ -146,6 +148,10 @@ export default function NarrativeChatSection({
     return () => observer.disconnect();
   }, [hasInteracted]);
 
+  // Ratchet refs — declared here (hooks can't be conditional), effect is below wrapperMinHeight
+  const SCROLL_SETTLE_MS = 600;
+  const minHeightReductionRef = useRef(0);
+  const scrollAnimStartRef = useRef(0);
 
   // Spacer height: in expanded mode use the scroll container, in normal mode use viewport
   // Subtract header (~80px, matches scrollMarginTop) and input bar (~80px) so wrapper
@@ -175,6 +181,37 @@ export default function NarrativeChatSection({
   const wrapperMinHeight = hasInteracted && spacerHeight > 0 ? spacerHeight : 0;
   const scrollMargin = hasInteracted ? (isExpanded ? "24px" : "80px") : undefined;
 
+  // Ratchet: reduce wrapper minHeight as user scrolls up (non-expanded only).
+  // As the wrapper moves down in the viewport, its original bottom extends below
+  // the viewport. We reduce minHeight by that overflow. Ratchet: only increases.
+  useEffect(() => {
+    if (!hasInteracted || isExpanded || wrapperMinHeight <= 0) return;
+
+    minHeightReductionRef.current = 0;
+
+    const onScroll = () => {
+      // Ignore scroll events during the scrollIntoView animation
+      if (Date.now() - scrollAnimStartRef.current < SCROLL_SETTLE_MS) return;
+
+      const wrapper = minHeightWrapperRef.current;
+      if (!wrapper) return;
+
+      const rect = wrapper.getBoundingClientRect();
+      // How far the wrapper's original bottom extends below the viewport
+      const overflow = Math.max(0, rect.top + wrapperMinHeight - window.innerHeight);
+      const newReduction = Math.max(minHeightReductionRef.current, overflow);
+
+      if (newReduction !== minHeightReductionRef.current) {
+        minHeightReductionRef.current = newReduction;
+        const effective = Math.max(0, wrapperMinHeight - newReduction);
+        wrapper.style.minHeight = effective > 0 ? `${effective}px` : "";
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [hasInteracted, isExpanded, wrapperMinHeight]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
@@ -185,6 +222,11 @@ export default function NarrativeChatSection({
       }
       // Set split point before sending - current messages become "previous"
       setMinHeightWrapperStartIdx(messages.length);
+      minHeightReductionRef.current = 0;
+      if (minHeightWrapperRef.current) {
+        minHeightWrapperRef.current.style.minHeight =
+          wrapperMinHeight > 0 ? `${wrapperMinHeight}px` : "";
+      }
       setShowScrollButton(false); // Reset scroll button when sending new message
       setHasInteracted(true);
       if (scrollToResponse) setUserSentFollowup(true);
@@ -336,22 +378,17 @@ export default function NarrativeChatSection({
                           : "bg-gray-100"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        {pendingMessage!.status === "sending" && (
-                          <span className="text-xs text-gray-400 ml-auto">
-                            Sending...
-                          </span>
-                        )}
-                        {pendingMessage!.status === "failed" &&
-                          onRetryMessage && (
+                      {pendingMessage!.status === "failed" &&
+                        onRetryMessage && (
+                          <div className="flex items-center justify-between mb-1">
                             <button
                               onClick={onRetryMessage}
                               className="text-red-600 hover:text-red-700 text-xs focus:outline-none focus:underline ml-auto"
                             >
                               Failed - Click to retry
                             </button>
-                          )}
-                      </div>
+                          </div>
+                        )}
                       <div className="whitespace-pre-wrap text-gray-800">
                         {pendingMessage!.content}
                       </div>
