@@ -100,9 +100,7 @@ describe("extractHeadings", () => {
 
   it("trims whitespace from HTML heading text", () => {
     const result = extractHeadings("<h2> Overview </h2>");
-    expect(result).toEqual([
-      { id: "overview", text: "Overview", level: 2 },
-    ]);
+    expect(result).toEqual([{ id: "overview", text: "Overview", level: 2 }]);
   });
 });
 

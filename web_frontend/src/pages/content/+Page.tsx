@@ -61,10 +61,7 @@ export default function ContentIndexPage() {
         <ul className="space-y-2">
           {lenses.map((l) => (
             <li key={l.slug}>
-              <a
-                href={`/${l.slug}`}
-                className="text-blue-700 hover:underline"
-              >
+              <a href={`/${l.slug}`} className="text-blue-700 hover:underline">
                 {l.title}
               </a>
             </li>

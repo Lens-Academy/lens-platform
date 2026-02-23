@@ -91,7 +91,10 @@ export function useVoiceRecording(
   const errorTimeoutRef = useRef<number>(3000);
   useEffect(() => {
     if (errorMessage) {
-      const timer = setTimeout(() => setErrorMessage(null), errorTimeoutRef.current);
+      const timer = setTimeout(
+        () => setErrorMessage(null),
+        errorTimeoutRef.current,
+      );
       return () => clearTimeout(timer);
     }
   }, [errorMessage]);
@@ -212,8 +215,7 @@ export function useVoiceRecording(
         onErrorRef.current?.(msg);
       }
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Transcription failed";
+      const msg = err instanceof Error ? err.message : "Transcription failed";
       setErrorMessage(msg);
       onErrorRef.current?.(msg);
     } finally {
@@ -305,7 +307,14 @@ export function useVoiceRecording(
         setError("Could not access microphone");
       }
     }
-  }, [MAX_RECORDING_TIME, WARNING_TIME, stopRecording, updateAudioLevel, cleanupRecording, setError]);
+  }, [
+    MAX_RECORDING_TIME,
+    WARNING_TIME,
+    stopRecording,
+    updateAudioLevel,
+    cleanupRecording,
+    setError,
+  ]);
 
   const handleMicClick = useCallback(() => {
     if (recordingState === "idle") {

@@ -77,10 +77,7 @@ export default function TestSection({
         // Build questionIds for all questions
         const responsePromises = questions.map((q) => {
           const questionId = `${moduleSlug}:${sectionIndex}:${q.segmentIndex}`;
-          return getResponses(
-            { moduleSlug, questionId },
-            isAuthenticated,
-          );
+          return getResponses({ moduleSlug, questionId }, isAuthenticated);
         });
 
         const results = await Promise.all(responsePromises);
@@ -111,9 +108,7 @@ export default function TestSection({
         } else if (completed.size > 0) {
           // Some answered -- resume in progress
           setTestState("in_progress");
-          setCurrentQuestionIndex(
-            firstUnanswered !== -1 ? firstUnanswered : 0,
-          );
+          setCurrentQuestionIndex(firstUnanswered !== -1 ? firstUnanswered : 0);
           onTestStart();
         } else {
           // No answers -- show Begin screen
@@ -161,10 +156,7 @@ export default function TestSection({
           Promise.all(
             questions.map((q) => {
               const questionId = `${moduleSlug}:${sectionIndex}:${q.segmentIndex}`;
-              return getResponses(
-                { moduleSlug, questionId },
-                isAuthenticated,
-              );
+              return getResponses({ moduleSlug, questionId }, isAuthenticated);
             }),
           )
             .then((results) => {
@@ -275,7 +267,9 @@ export default function TestSection({
             question={q.segment}
             questionIndex={qIndex}
             questionCount={questions.length}
-            isActive={testState === "in_progress" && qIndex === currentQuestionIndex}
+            isActive={
+              testState === "in_progress" && qIndex === currentQuestionIndex
+            }
             isCompleted={completedQuestions.has(qIndex)}
             isRevealed={
               qIndex <= currentQuestionIndex || completedQuestions.has(qIndex)

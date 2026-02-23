@@ -1,11 +1,7 @@
 // web_frontend/src/hooks/__tests__/useAuth.test.ts
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
-import {
-  createFetchMock,
-  jsonResponse,
-  errorResponse,
-} from "@/test/fetchMock";
+import { createFetchMock, jsonResponse, errorResponse } from "@/test/fetchMock";
 import { useAuth } from "../useAuth";
 
 const fm = createFetchMock();

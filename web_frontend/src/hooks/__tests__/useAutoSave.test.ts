@@ -150,7 +150,10 @@ describe("useAutoSave", () => {
 
   it("4. Save status transitions: idle -> saving -> saved -> idle", async () => {
     // Use a deferred promise for createResponse
-    let resolveCreate!: (value: { response_id: number; created_at: string }) => void;
+    let resolveCreate!: (value: {
+      response_id: number;
+      created_at: string;
+    }) => void;
     mockedCreateResponse.mockImplementation(
       () =>
         new Promise((resolve) => {

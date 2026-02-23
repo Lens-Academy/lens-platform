@@ -18,9 +18,10 @@ const originalFetch = global.fetch;
  *   });
  */
 export function createFetchMock() {
-  const mock = vi.fn<
-    (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-  >();
+  const mock =
+    vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >();
 
   return {
     mock,

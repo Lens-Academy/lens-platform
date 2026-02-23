@@ -595,14 +595,14 @@ function VerticalTimeline({
                       ? `Meeting ${seg.meetingNumber}: ${isPast ? "joined another group" : "will join another group"}`
                       : `Meeting ${seg.meetingNumber}: ${status || "upcoming"}`;
 
-                    const rsvpIcon = isGuestElsewhere ? null :
-                      rsvp === "attending" ? (
-                        <Check size={8} className="text-emerald-500" />
-                      ) : rsvp === "not_attending" ? (
-                        <X size={8} className="text-red-400" />
-                      ) : rsvp === "tentative" ? (
-                        <Minus size={8} className="text-amber-400" />
-                      ) : null;
+                    const rsvpIcon = isGuestElsewhere ? null : rsvp ===
+                      "attending" ? (
+                      <Check size={8} className="text-emerald-500" />
+                    ) : rsvp === "not_attending" ? (
+                      <X size={8} className="text-red-400" />
+                    ) : rsvp === "tentative" ? (
+                      <Minus size={8} className="text-amber-400" />
+                    ) : null;
                     return (
                       <div
                         key={si}

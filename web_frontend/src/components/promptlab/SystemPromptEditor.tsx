@@ -15,9 +15,14 @@ export default function SystemPromptEditor({
     <div className="border border-gray-200 rounded-lg bg-white h-full flex flex-col">
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-semibold text-slate-700">System Prompt</h2>
+          <h2 className="text-xs font-semibold text-slate-700">
+            System Prompt
+          </h2>
           {isModified && (
-            <span className="inline-block w-2 h-2 rounded-full bg-amber-400" title="Modified" />
+            <span
+              className="inline-block w-2 h-2 rounded-full bg-amber-400"
+              title="Modified"
+            />
           )}
         </div>
         <button

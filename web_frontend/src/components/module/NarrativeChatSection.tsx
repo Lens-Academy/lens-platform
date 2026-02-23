@@ -1,11 +1,6 @@
 // web_frontend_next/src/components/narrative-lesson/NarrativeChatSection.tsx
 
-import {
-  useState,
-  useRef,
-  useEffect,
-  useLayoutEffect,
-} from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import ChatMarkdown from "@/components/ChatMarkdown";
@@ -96,7 +91,12 @@ export default function NarrativeChatSection({
         });
       }
     }
-  }, [pendingMessage, scrollContainerHeight, activeScrollToResponse, isLoading]);
+  }, [
+    pendingMessage,
+    scrollContainerHeight,
+    activeScrollToResponse,
+    isLoading,
+  ]);
 
   // Activate when parent explicitly signals this instance should show messages
   useEffect(() => {
@@ -196,7 +196,7 @@ export default function NarrativeChatSection({
     <div className="py-4 px-4" style={{ overflowAnchor: "none" }}>
       <div
         ref={containerRef}
-        className="max-w-content-padded mx-auto border border-gray-100 rounded-lg bg-white flex flex-col scroll-mb-8 relative"
+        className="max-w-content-padded mx-auto border border-gray-200 rounded-lg bg-white flex flex-col scroll-mb-8 relative shadow-sm"
         style={
           hasInteracted
             ? { height: "85dvh", overflowAnchor: "none" } // Fixed height when interacted to prevent jitter during streaming
@@ -223,24 +223,18 @@ export default function NarrativeChatSection({
                           {msg.content}
                         </span>
                       </div>
+                    ) : msg.role === "assistant" ? (
+                      <div key={i} className="text-gray-800">
+                        <div className="text-xs text-gray-500 mb-1">Tutor</div>
+                        <ChatMarkdown>{msg.content}</ChatMarkdown>
+                      </div>
                     ) : (
-                      msg.role === "assistant" ? (
-                        <div key={i} className="text-gray-800">
-                          <div className="text-xs text-gray-500 mb-1">
-                            Tutor
-                          </div>
-                          <ChatMarkdown>{msg.content}</ChatMarkdown>
-                        </div>
-                      ) : (
-                        <div
-                          key={i}
-                          className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
-                        >
-                          <div className="whitespace-pre-wrap">
-                            {msg.content}
-                          </div>
-                        </div>
-                      )
+                      <div
+                        key={i}
+                        className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
+                      >
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                      </div>
                     ),
                   )}
                 </div>
@@ -270,24 +264,18 @@ export default function NarrativeChatSection({
                           {msg.content}
                         </span>
                       </div>
+                    ) : msg.role === "assistant" ? (
+                      <div key={`current-${i}`} className="text-gray-800">
+                        <div className="text-xs text-gray-500 mb-1">Tutor</div>
+                        <ChatMarkdown>{msg.content}</ChatMarkdown>
+                      </div>
                     ) : (
-                      msg.role === "assistant" ? (
-                        <div key={`current-${i}`} className="text-gray-800">
-                          <div className="text-xs text-gray-500 mb-1">
-                            Tutor
-                          </div>
-                          <ChatMarkdown>{msg.content}</ChatMarkdown>
-                        </div>
-                      ) : (
-                        <div
-                          key={`current-${i}`}
-                          className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
-                        >
-                          <div className="whitespace-pre-wrap">
-                            {msg.content}
-                          </div>
-                        </div>
-                      )
+                      <div
+                        key={`current-${i}`}
+                        className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
+                      >
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                      </div>
                     ),
                   )}
 
@@ -302,7 +290,9 @@ export default function NarrativeChatSection({
                     >
                       <div className="flex items-center justify-between mb-1">
                         {pendingMessage.status === "sending" && (
-                          <span className="text-xs text-gray-400 ml-auto">Sending...</span>
+                          <span className="text-xs text-gray-400 ml-auto">
+                            Sending...
+                          </span>
                         )}
                         {pendingMessage.status === "failed" &&
                           onRetryMessage && (
@@ -319,14 +309,13 @@ export default function NarrativeChatSection({
                       </div>
                     </div>
                   )}
-
                 </div>
 
                 {/* Response + spacer wrapper. When activeScrollToResponse is true,
                    minHeight ensures the response can scroll to viewport top.
                    As the response grows, the flex-grow spacer shrinks. */}
                 <div
-                  className="flex flex-col flex-grow"
+                  className="flex flex-col flex-grow max-w-content mx-auto w-full"
                   style={
                     activeScrollToResponse && scrollContainerHeight > 0
                       ? { minHeight: `${scrollContainerHeight}px` }
@@ -451,141 +440,141 @@ export default function NarrativeChatSection({
           className="px-4 py-4 border-t border-gray-100"
         >
           <div className="flex gap-2 items-end max-w-content mx-auto">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => {
-              // Delay to let iOS keyboard animation start
-              setTimeout(() => {
-                textareaRef.current?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "nearest",
-                });
-              }, 100);
-            }}
-            placeholder={
-              recordingState === "transcribing"
-                ? "Transcribing..."
-                : "Type a message..."
-            }
-            disabled={recordingState === "transcribing"}
-            rows={1}
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none leading-normal disabled:bg-gray-100"
-          />
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => {
+                // Delay to let iOS keyboard animation start
+                setTimeout(() => {
+                  textareaRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                  });
+                }, 100);
+              }}
+              placeholder={
+                recordingState === "transcribing"
+                  ? "Transcribing..."
+                  : "Type a message..."
+              }
+              disabled={recordingState === "transcribing"}
+              rows={1}
+              className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none leading-normal disabled:bg-gray-100"
+            />
 
-          {/* Buttons */}
-          <div className="flex flex-col items-center gap-1">
-            {recordingState === "recording" && (
-              <div className="flex items-center gap-2">
-                <div className="flex items-end gap-1 h-6">
-                  {volumeBars.map((vol, i) => (
-                    <div
-                      key={i}
-                      className="w-1.5 bg-gray-500 rounded-sm transition-[height] duration-100"
-                      style={{
-                        height: `${Math.max(6, Math.min(1, vol * 2) * 24)}px`,
-                      }}
-                    />
-                  ))}
+            {/* Buttons */}
+            <div className="flex flex-col items-center gap-1">
+              {recordingState === "recording" && (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-end gap-1 h-6">
+                    {volumeBars.map((vol, i) => (
+                      <div
+                        key={i}
+                        className="w-1.5 bg-gray-500 rounded-sm transition-[height] duration-100"
+                        style={{
+                          height: `${Math.max(6, Math.min(1, vol * 2) * 24)}px`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-500 tabular-nums">
+                    {formatTime(recordingTime)}
+                  </span>
                 </div>
-                <span className="text-sm text-gray-500 tabular-nums">
-                  {formatTime(recordingTime)}
-                </span>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Tooltip
-                content={
-                  recordingState === "recording"
-                    ? "Stop recording"
-                    : "Start recording"
-                }
-              >
-                <button
-                  type="button"
-                  onClick={handleMicClick}
-                  disabled={recordingState === "transcribing"}
-                  aria-label={
+              )}
+              <div className="flex gap-2">
+                <Tooltip
+                  content={
                     recordingState === "recording"
                       ? "Stop recording"
-                      : "Start voice recording"
+                      : "Start recording"
                   }
-                  className="min-w-[44px] min-h-[44px] p-2 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-default bg-gray-100 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {recordingState === "transcribing" ? (
-                    <svg
-                      className="w-5 h-5 animate-spin"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      style={
-                        recordingState === "recording"
-                          ? { animation: "mic-pulse 1s ease-in-out infinite" }
-                          : undefined
-                      }
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                      />
-                    </svg>
-                  )}
-                </button>
-              </Tooltip>
-              {recordingState === "recording" ? (
-                <Tooltip content="Stop recording">
                   <button
                     type="button"
                     onClick={handleMicClick}
-                    aria-label="Stop recording"
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[70px] min-h-[44px] flex items-center justify-center transition-all active:scale-95"
+                    disabled={recordingState === "transcribing"}
+                    aria-label={
+                      recordingState === "recording"
+                        ? "Stop recording"
+                        : "Start voice recording"
+                    }
+                    className="min-w-[44px] min-h-[44px] p-2 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-default bg-gray-100 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <svg
-                      className="w-5 h-5"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <rect x="6" y="6" width="12" height="12" rx="1" />
-                    </svg>
+                    {recordingState === "transcribing" ? (
+                      <svg
+                        className="w-5 h-5 animate-spin"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        style={
+                          recordingState === "recording"
+                            ? { animation: "mic-pulse 1s ease-in-out infinite" }
+                            : undefined
+                        }
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                        />
+                      </svg>
+                    )}
                   </button>
                 </Tooltip>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={
-                    isLoading || !input.trim() || recordingState !== "idle"
-                  }
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-default min-w-[70px] min-h-[44px] transition-all active:scale-95"
-                >
-                  Send
-                </button>
-              )}
+                {recordingState === "recording" ? (
+                  <Tooltip content="Stop recording">
+                    <button
+                      type="button"
+                      onClick={handleMicClick}
+                      aria-label="Stop recording"
+                      className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[70px] min-h-[44px] flex items-center justify-center transition-all active:scale-95"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <rect x="6" y="6" width="12" height="12" rx="1" />
+                      </svg>
+                    </button>
+                  </Tooltip>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={
+                      isLoading || !input.trim() || recordingState !== "idle"
+                    }
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-default min-w-[70px] min-h-[44px] transition-all active:scale-95"
+                  >
+                    Send
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
           </div>
         </form>
       </div>

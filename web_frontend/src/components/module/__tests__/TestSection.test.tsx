@@ -72,9 +72,7 @@ describe("TestSection Begin screen", () => {
   });
 
   it("shows question count on Begin screen", async () => {
-    render(
-      <TestSection section={makeTestSection(3)} {...defaultProps} />,
-    );
+    render(<TestSection section={makeTestSection(3)} {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText(/3 questions/i)).toBeInTheDocument();
@@ -83,9 +81,7 @@ describe("TestSection Begin screen", () => {
   });
 
   it("does not show any question content before Begin is clicked", async () => {
-    render(
-      <TestSection section={makeTestSection(3)} {...defaultProps} />,
-    );
+    render(<TestSection section={makeTestSection(3)} {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText("Begin")).toBeInTheDocument();
@@ -108,9 +104,7 @@ describe("TestSection sequential question reveal", () => {
   it("shows first question after clicking Begin", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestSection section={makeTestSection(3)} {...defaultProps} />,
-    );
+    render(<TestSection section={makeTestSection(3)} {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText("Begin")).toBeInTheDocument();
@@ -128,9 +122,7 @@ describe("TestSection sequential question reveal", () => {
   it("shows only the first question initially, not subsequent ones", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestSection section={makeTestSection(3)} {...defaultProps} />,
-    );
+    render(<TestSection section={makeTestSection(3)} {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText("Begin")).toBeInTheDocument();
@@ -155,9 +147,7 @@ describe("TestSection sequential question reveal", () => {
   it("reveals next question after completing current one", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestSection section={makeTestSection(3)} {...defaultProps} />,
-    );
+    render(<TestSection section={makeTestSection(3)} {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText("Begin")).toBeInTheDocument();
@@ -186,9 +176,7 @@ describe("TestSection sequential question reveal", () => {
   it("collapses completed question", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestSection section={makeTestSection(3)} {...defaultProps} />,
-    );
+    render(<TestSection section={makeTestSection(3)} {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText("Begin")).toBeInTheDocument();
@@ -310,9 +298,7 @@ describe("TestSection completion", () => {
   it("shows all questions as collapsed/completed after finishing", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestSection section={makeTestSection(2)} {...defaultProps} />,
-    );
+    render(<TestSection section={makeTestSection(2)} {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText("Begin")).toBeInTheDocument();
@@ -374,9 +360,7 @@ describe("TestSection resume", () => {
       },
     );
 
-    render(
-      <TestSection section={makeTestSection(2)} {...defaultProps} />,
-    );
+    render(<TestSection section={makeTestSection(2)} {...defaultProps} />);
 
     // Should NOT show Begin button (we have existing responses)
     await waitFor(() => {
@@ -439,9 +423,7 @@ describe("TestSection resume", () => {
       },
     );
 
-    render(
-      <TestSection section={makeTestSection(2)} {...defaultProps} />,
-    );
+    render(<TestSection section={makeTestSection(2)} {...defaultProps} />);
 
     // Should NOT show Begin button
     await waitFor(() => {

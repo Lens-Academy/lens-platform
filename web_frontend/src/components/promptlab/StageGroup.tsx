@@ -66,15 +66,21 @@ export default function StageGroup({
         columns.push(handle);
       }
     }
-    await Promise.all(columns.map((col) => col.regenerateLastAssistant().catch(() => {})));
+    await Promise.all(
+      columns.map((col) => col.regenerateLastAssistant().catch(() => {})),
+    );
   }, [stageKey, columnRefs]);
 
   return (
     <div className="shrink-0 h-full flex flex-col border-2 border-slate-300 rounded-lg bg-white">
       {/* Group header — sticky left */}
       <div className="sticky left-0 self-start w-[450px] flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200 rounded-tl-lg">
-        <h3 className="text-xs font-semibold text-slate-700 truncate">{section.name}</h3>
-        <span className="text-[10px] text-slate-400">{section.conversations.length} chats</span>
+        <h3 className="text-xs font-semibold text-slate-700 truncate">
+          {section.name}
+        </h3>
+        <span className="text-[10px] text-slate-400">
+          {section.conversations.length} chats
+        </span>
         <div className="ml-auto flex items-center gap-1.5">
           <button
             onClick={handleAddChat}
@@ -100,7 +106,9 @@ export default function StageGroup({
 
       {/* Instructions editor — sticky left */}
       <div className="sticky left-0 self-start w-[450px] px-3 py-2 border-b border-gray-100">
-        <label className="text-[10px] font-medium text-slate-500 mb-1 block">Instructions</label>
+        <label className="text-[10px] font-medium text-slate-500 mb-1 block">
+          Instructions
+        </label>
         <textarea
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
@@ -117,9 +125,16 @@ export default function StageGroup({
         >
           <svg
             className={`w-2.5 h-2.5 transition-transform ${contextExpanded ? "rotate-90" : ""}`}
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
           </svg>
           Context
           {!contextExpanded && context && (

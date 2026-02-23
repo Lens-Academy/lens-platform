@@ -65,7 +65,9 @@ describe("StageProgressBar content hiding", () => {
     // The StageProgressBar renders: prev button, dots..., next button
     // We identify dot buttons by checking they are not the first or last
     const dotButtons = allButtons.filter(
-      (btn) => !btn.querySelector("svg path[d*='M15 19']") && !btn.querySelector("svg path[d*='M9 5']"),
+      (btn) =>
+        !btn.querySelector("svg path[d*='M15 19']") &&
+        !btn.querySelector("svg path[d*='M9 5']"),
     );
 
     // First two dots (Lesson 1 & 2) should be dimmed
@@ -81,7 +83,9 @@ describe("StageProgressBar content hiding", () => {
 
     const allButtons = screen.getAllByRole("button");
     const dotButtons = allButtons.filter(
-      (btn) => !btn.querySelector("svg path[d*='M15 19']") && !btn.querySelector("svg path[d*='M9 5']"),
+      (btn) =>
+        !btn.querySelector("svg path[d*='M15 19']") &&
+        !btn.querySelector("svg path[d*='M9 5']"),
     );
 
     // No dots should have opacity-30 dimming
@@ -104,7 +108,9 @@ describe("StageProgressBar content hiding", () => {
 
     const allButtons = screen.getAllByRole("button");
     const dotButtons = allButtons.filter(
-      (btn) => !btn.querySelector("svg path[d*='M15 19']") && !btn.querySelector("svg path[d*='M9 5']"),
+      (btn) =>
+        !btn.querySelector("svg path[d*='M15 19']") &&
+        !btn.querySelector("svg path[d*='M9 5']"),
     );
 
     // Click a lesson dot -- should NOT call onStageClick
@@ -135,9 +141,7 @@ describe("ModuleOverview content hiding", () => {
   });
 
   it("dims lesson items when testModeActive is true", () => {
-    render(
-      <ModuleOverview {...defaultProps} testModeActive={true} />,
-    );
+    render(<ModuleOverview {...defaultProps} testModeActive={true} />);
 
     // Find the stage row containers (the group divs that contain stage info)
     // Each stage row has a text title inside it

@@ -1,10 +1,6 @@
 // web_frontend/src/api/__tests__/modules.test.ts
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import {
-  createFetchMock,
-  jsonResponse,
-  errorResponse,
-} from "@/test/fetchMock";
+import { createFetchMock, jsonResponse, errorResponse } from "@/test/fetchMock";
 import {
   listModules,
   getModule,
@@ -52,7 +48,9 @@ describe("getModule", () => {
 
   it("throws on non-ok response", async () => {
     fm.mock.mockResolvedValue(errorResponse(404));
-    await expect(getModule("missing")).rejects.toThrow("Failed to fetch module");
+    await expect(getModule("missing")).rejects.toThrow(
+      "Failed to fetch module",
+    );
   });
 });
 
@@ -79,7 +77,9 @@ describe("getChatHistory", () => {
 
   it("throws on non-401 error", async () => {
     fm.mock.mockResolvedValue(errorResponse(500));
-    await expect(getChatHistory("mod")).rejects.toThrow("Failed to fetch chat history");
+    await expect(getChatHistory("mod")).rejects.toThrow(
+      "Failed to fetch chat history",
+    );
   });
 });
 
@@ -112,7 +112,9 @@ describe("getNextModule", () => {
 
   it("throws on non-ok response", async () => {
     fm.mock.mockResolvedValue(errorResponse(500));
-    await expect(getNextModule("course", "mod")).rejects.toThrow("Failed to fetch next module");
+    await expect(getNextModule("course", "mod")).rejects.toThrow(
+      "Failed to fetch next module",
+    );
   });
 });
 
@@ -140,7 +142,9 @@ describe("getModuleProgress", () => {
 
   it("throws on non-401 error", async () => {
     fm.mock.mockResolvedValue(errorResponse(500));
-    await expect(getModuleProgress("test")).rejects.toThrow("Failed to fetch module progress");
+    await expect(getModuleProgress("test")).rejects.toThrow(
+      "Failed to fetch module progress",
+    );
   });
 });
 
@@ -152,17 +156,23 @@ describe("transcribeAudio", () => {
 
   it("throws 'Recording too large' on 413", async () => {
     fm.mock.mockResolvedValue(errorResponse(413));
-    await expect(transcribeAudio(new Blob())).rejects.toThrow("Recording too large");
+    await expect(transcribeAudio(new Blob())).rejects.toThrow(
+      "Recording too large",
+    );
   });
 
   it("throws rate limit error on 429", async () => {
     fm.mock.mockResolvedValue(errorResponse(429));
-    await expect(transcribeAudio(new Blob())).rejects.toThrow("Too many requests, try again shortly");
+    await expect(transcribeAudio(new Blob())).rejects.toThrow(
+      "Too many requests, try again shortly",
+    );
   });
 
   it("throws generic error on other failures", async () => {
     fm.mock.mockResolvedValue(errorResponse(500));
-    await expect(transcribeAudio(new Blob())).rejects.toThrow("Transcription failed");
+    await expect(transcribeAudio(new Blob())).rejects.toThrow(
+      "Transcription failed",
+    );
   });
 });
 
@@ -192,7 +202,9 @@ describe("getCourseProgress", () => {
 
   it("throws on error", async () => {
     fm.mock.mockResolvedValue(errorResponse(500));
-    await expect(getCourseProgress("course-1")).rejects.toThrow("Failed to fetch course progress");
+    await expect(getCourseProgress("course-1")).rejects.toThrow(
+      "Failed to fetch course progress",
+    );
   });
 });
 

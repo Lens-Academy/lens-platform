@@ -1,10 +1,6 @@
 // web_frontend/src/api/__tests__/fetchWithRefresh.test.ts
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  createFetchMock,
-  jsonResponse,
-  errorResponse,
-} from "@/test/fetchMock";
+import { createFetchMock, jsonResponse, errorResponse } from "@/test/fetchMock";
 import { fetchWithRefresh } from "../fetchWithRefresh";
 
 const fm = createFetchMock();

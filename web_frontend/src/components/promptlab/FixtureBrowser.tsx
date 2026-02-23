@@ -71,9 +71,7 @@ export default function FixtureBrowser({
       const full = await loadFixture(fixture.name);
       onSelectFixture(full);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load fixture",
-      );
+      setError(err instanceof Error ? err.message : "Failed to load fixture");
     } finally {
       setLoadingFixture(null);
     }

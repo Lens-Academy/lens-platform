@@ -86,7 +86,9 @@ describe("useActivityTracker", () => {
     // With >=: 180,000 >= 180,000 is true → inactive → NO heartbeat
     await vi.advanceTimersByTimeAsync(20_000);
 
-    expect(fm.callsTo("/api/progress/time").length).toBeGreaterThan(callsBefore);
+    expect(fm.callsTo("/api/progress/time").length).toBeGreaterThan(
+      callsBefore,
+    );
   });
 
   it("activity events reset the inactivity timer", async () => {
@@ -150,9 +152,7 @@ describe("useActivityTracker", () => {
   });
 
   it("sends beacon on unmount", async () => {
-    const { unmount } = renderHook(() =>
-      useActivityTracker(defaultOptions),
-    );
+    const { unmount } = renderHook(() => useActivityTracker(defaultOptions));
     await vi.advanceTimersByTimeAsync(0);
 
     unmount();
@@ -161,9 +161,7 @@ describe("useActivityTracker", () => {
   });
 
   it("clears heartbeat interval on unmount", async () => {
-    const { unmount } = renderHook(() =>
-      useActivityTracker(defaultOptions),
-    );
+    const { unmount } = renderHook(() => useActivityTracker(defaultOptions));
     await vi.advanceTimersByTimeAsync(0);
 
     const callsBeforeUnmount = fm.callsTo("/api/progress/time").length;
@@ -177,9 +175,7 @@ describe("useActivityTracker", () => {
   });
 
   it("does nothing when enabled: false", async () => {
-    renderHook(() =>
-      useActivityTracker({ ...defaultOptions, enabled: false }),
-    );
+    renderHook(() => useActivityTracker({ ...defaultOptions, enabled: false }));
     await vi.advanceTimersByTimeAsync(0);
 
     expect(fm.callsTo("/api/progress/time")).toHaveLength(0);
@@ -236,9 +232,7 @@ describe("useActivityTracker", () => {
   });
 
   it("triggerActivity() resets activity state after timeout", async () => {
-    const { result } = renderHook(() =>
-      useActivityTracker(defaultOptions),
-    );
+    const { result } = renderHook(() => useActivityTracker(defaultOptions));
     await vi.advanceTimersByTimeAsync(0);
 
     // Go inactive

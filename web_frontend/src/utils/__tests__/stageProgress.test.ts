@@ -5,7 +5,11 @@ import { getCircleFillClasses, getRingClasses } from "../stageProgress";
 describe("getCircleFillClasses", () => {
   it("completed, no hover", () => {
     expect(
-      getCircleFillClasses({ isCompleted: true, isViewing: false, isOptional: false }),
+      getCircleFillClasses({
+        isCompleted: true,
+        isViewing: false,
+        isOptional: false,
+      }),
     ).toBe("bg-blue-500 text-white");
   });
 
@@ -20,7 +24,11 @@ describe("getCircleFillClasses", () => {
 
   it("completed takes priority over viewing, no hover", () => {
     expect(
-      getCircleFillClasses({ isCompleted: true, isViewing: true, isOptional: false }),
+      getCircleFillClasses({
+        isCompleted: true,
+        isViewing: true,
+        isOptional: false,
+      }),
     ).toBe("bg-blue-500 text-white");
   });
 
@@ -35,7 +43,11 @@ describe("getCircleFillClasses", () => {
 
   it("viewing, not completed, no hover", () => {
     expect(
-      getCircleFillClasses({ isCompleted: false, isViewing: true, isOptional: false }),
+      getCircleFillClasses({
+        isCompleted: false,
+        isViewing: true,
+        isOptional: false,
+      }),
     ).toBe("bg-gray-500 text-white");
   });
 
@@ -50,7 +62,11 @@ describe("getCircleFillClasses", () => {
 
   it("default state, no hover", () => {
     expect(
-      getCircleFillClasses({ isCompleted: false, isViewing: false, isOptional: false }),
+      getCircleFillClasses({
+        isCompleted: false,
+        isViewing: false,
+        isOptional: false,
+      }),
     ).toBe("bg-gray-200 text-gray-400");
   });
 
@@ -65,7 +81,11 @@ describe("getCircleFillClasses", () => {
 
   it("optional completed, no hover", () => {
     expect(
-      getCircleFillClasses({ isCompleted: true, isViewing: false, isOptional: true }),
+      getCircleFillClasses({
+        isCompleted: true,
+        isViewing: false,
+        isOptional: true,
+      }),
     ).toBe("bg-white text-blue-500 border-2 border-dashed border-blue-400");
   });
 
@@ -75,12 +95,18 @@ describe("getCircleFillClasses", () => {
         { isCompleted: true, isViewing: false, isOptional: true },
         { includeHover: true },
       ),
-    ).toBe("bg-white text-blue-500 border-2 border-dashed border-blue-400 hover:border-blue-500");
+    ).toBe(
+      "bg-white text-blue-500 border-2 border-dashed border-blue-400 hover:border-blue-500",
+    );
   });
 
   it("optional viewing, no hover", () => {
     expect(
-      getCircleFillClasses({ isCompleted: false, isViewing: true, isOptional: true }),
+      getCircleFillClasses({
+        isCompleted: false,
+        isViewing: true,
+        isOptional: true,
+      }),
     ).toBe("bg-white text-gray-400 border-2 border-dashed border-gray-400");
   });
 
@@ -90,12 +116,18 @@ describe("getCircleFillClasses", () => {
         { isCompleted: false, isViewing: true, isOptional: true },
         { includeHover: true },
       ),
-    ).toBe("bg-white text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500");
+    ).toBe(
+      "bg-white text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500",
+    );
   });
 
   it("optional default, no hover", () => {
     expect(
-      getCircleFillClasses({ isCompleted: false, isViewing: false, isOptional: true }),
+      getCircleFillClasses({
+        isCompleted: false,
+        isViewing: false,
+        isOptional: true,
+      }),
     ).toBe("bg-white text-gray-400 border-2 border-dashed border-gray-300");
   });
 
@@ -105,7 +137,9 @@ describe("getCircleFillClasses", () => {
         { isCompleted: false, isViewing: false, isOptional: true },
         { includeHover: true },
       ),
-    ).toBe("bg-white text-gray-400 border-2 border-dashed border-gray-300 hover:border-gray-400");
+    ).toBe(
+      "bg-white text-gray-400 border-2 border-dashed border-gray-300 hover:border-gray-400",
+    );
   });
 });
 
@@ -116,10 +150,14 @@ describe("getRingClasses", () => {
   });
 
   it("returns blue ring when viewing and completed", () => {
-    expect(getRingClasses(true, true)).toBe("ring-2 ring-offset-2 ring-blue-500");
+    expect(getRingClasses(true, true)).toBe(
+      "ring-2 ring-offset-2 ring-blue-500",
+    );
   });
 
   it("returns gray ring when viewing and not completed", () => {
-    expect(getRingClasses(true, false)).toBe("ring-2 ring-offset-2 ring-gray-500");
+    expect(getRingClasses(true, false)).toBe(
+      "ring-2 ring-offset-2 ring-gray-500",
+    );
   });
 });

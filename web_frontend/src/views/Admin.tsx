@@ -155,7 +155,10 @@ export default function Admin() {
   // Pre-select cohort when user with a group is selected
   useEffect(() => {
     if (selectedUser?.cohort_id) {
-      dispatch({ type: "SET_ADD_GROUP_COHORT_ID", cohortId: selectedUser.cohort_id });
+      dispatch({
+        type: "SET_ADD_GROUP_COHORT_ID",
+        cohortId: selectedUser.cohort_id,
+      });
     } else {
       dispatch({ type: "SET_ADD_GROUP_COHORT_ID", cohortId: null });
       dispatch({ type: "SET_ADD_GROUP_ID", groupId: null });

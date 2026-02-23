@@ -1049,7 +1049,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         completedStages={completedSections}
         currentSectionIndex={currentSectionIndex}
         canGoPrevious={!testModeActive && currentSectionIndex > 0}
-        canGoNext={!testModeActive && currentSectionIndex < module.sections.length - 1}
+        canGoNext={
+          !testModeActive && currentSectionIndex < module.sections.length - 1
+        }
         onStageClick={handleStageClick}
         onPrevious={handlePrevious}
         onNext={handleNext}
@@ -1285,7 +1287,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         isAuthenticated={isAuthenticated}
                         onTestStart={() => setTestModeActive(true)}
                         onTestTakingComplete={() => setTestModeActive(false)}
-                        onMarkComplete={(response) => handleMarkComplete(sectionIndex, response)}
+                        onMarkComplete={(response) =>
+                          handleMarkComplete(sectionIndex, response)
+                        }
                         onFeedbackTrigger={
                           section.feedback
                             ? (questionsAndAnswers) => {
@@ -1303,56 +1307,65 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                             : undefined
                         }
                       />
-                      {section.feedback && activeFeedbackKey === feedbackKey && (
-                        <>
-                          <NarrativeChatSection
-                            messages={messages}
-                            pendingMessage={pendingMessage}
-                            streamingContent={streamingContent}
-                            isLoading={isLoading}
-                            onSendMessage={(content) =>
-                              handleSendMessage(content, sectionIndex, 0)
-                            }
-                            onRetryMessage={handleRetryMessage}
-                            scrollToResponse
-                            activated
-                          />
-                          <div className="flex items-center justify-center py-6">
-                            <button
-                              onClick={() => {
-                                const contentId = `test:${moduleId}:${sectionIndex}`;
-                                markComplete(
-                                  {
-                                    content_id: contentId,
-                                    content_type: "test",
-                                    content_title: section.meta?.title || "Test",
-                                    module_slug: moduleId,
-                                  },
-                                  isAuthenticated,
-                                )
-                                  .then((response) => handleMarkComplete(sectionIndex, response))
-                                  .catch(() => handleMarkComplete(sectionIndex));
-                              }}
-                              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
-                            >
-                              Continue
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
+                      {section.feedback &&
+                        activeFeedbackKey === feedbackKey && (
+                          <>
+                            <NarrativeChatSection
+                              messages={messages}
+                              pendingMessage={pendingMessage}
+                              streamingContent={streamingContent}
+                              isLoading={isLoading}
+                              onSendMessage={(content) =>
+                                handleSendMessage(content, sectionIndex, 0)
+                              }
+                              onRetryMessage={handleRetryMessage}
+                              scrollToResponse
+                              activated
+                            />
+                            <div className="flex items-center justify-center py-6">
+                              <button
+                                onClick={() => {
+                                  const contentId = `test:${moduleId}:${sectionIndex}`;
+                                  markComplete(
+                                    {
+                                      content_id: contentId,
+                                      content_type: "test",
+                                      content_title:
+                                        section.meta?.title || "Test",
+                                      module_slug: moduleId,
+                                    },
+                                    isAuthenticated,
+                                  )
+                                    .then((response) =>
+                                      handleMarkComplete(
+                                        sectionIndex,
+                                        response,
+                                      ),
+                                    )
+                                    .catch(() =>
+                                      handleMarkComplete(sectionIndex),
+                                    );
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 5l7 7-7 7"
-                                />
-                              </svg>
-                            </button>
-                          </div>
-                        </>
-                      )}
+                                Continue
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5l7 7-7 7"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </>
+                        )}
                     </>
                   );
                 })()
@@ -1376,29 +1389,29 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 </>
               )}
               {section.type !== "test" && (
-              <MarkCompleteButton
-                isCompleted={completedSections.has(sectionIndex)}
-                onComplete={(response) =>
-                  handleMarkComplete(sectionIndex, response)
-                }
-                onNext={handleNext}
-                hasNext={sectionIndex < module.sections.length - 1}
-                contentId={section.contentId ?? undefined}
-                contentType="lens"
-                contentTitle={
-                  section.type === "text"
-                    ? `Section ${sectionIndex + 1}`
-                    : section.type === "page"
-                      ? section.meta?.title || `Page ${sectionIndex + 1}`
-                      : "meta" in section
-                        ? section.meta?.title ||
-                          `${section.type || "Section"} ${sectionIndex + 1}`
-                        : `${section.type || "Section"} ${sectionIndex + 1}`
-                }
-                moduleSlug={moduleId}
-                buttonText={getCompletionButtonText(section, sectionIndex)}
-                isShort={getSectionTextLength(section) < 1750}
-              />
+                <MarkCompleteButton
+                  isCompleted={completedSections.has(sectionIndex)}
+                  onComplete={(response) =>
+                    handleMarkComplete(sectionIndex, response)
+                  }
+                  onNext={handleNext}
+                  hasNext={sectionIndex < module.sections.length - 1}
+                  contentId={section.contentId ?? undefined}
+                  contentType="lens"
+                  contentTitle={
+                    section.type === "text"
+                      ? `Section ${sectionIndex + 1}`
+                      : section.type === "page"
+                        ? section.meta?.title || `Page ${sectionIndex + 1}`
+                        : "meta" in section
+                          ? section.meta?.title ||
+                            `${section.type || "Section"} ${sectionIndex + 1}`
+                          : `${section.type || "Section"} ${sectionIndex + 1}`
+                  }
+                  moduleSlug={moduleId}
+                  buttonText={getCompletionButtonText(section, sectionIndex)}
+                  isShort={getSectionTextLength(section) < 1750}
+                />
               )}
               {/* Last section completed: show course navigation */}
               {sectionIndex === module.sections.length - 1 &&

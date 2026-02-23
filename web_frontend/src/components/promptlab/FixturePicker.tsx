@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { listFixtures, loadFixture, type Fixture, type FixtureSummary } from "@/api/promptlab";
+import {
+  listFixtures,
+  loadFixture,
+  type Fixture,
+  type FixtureSummary,
+} from "@/api/promptlab";
 
 interface FixturePickerProps {
   loadedFixtureNames: string[];
@@ -24,7 +29,9 @@ export default function FixturePicker({
       .finally(() => setLoading(false));
   }, []);
 
-  const available = fixtures.filter((f) => !loadedFixtureNames.includes(f.name));
+  const available = fixtures.filter(
+    (f) => !loadedFixtureNames.includes(f.name),
+  );
 
   async function handleSelect(name: string) {
     setLoadingName(name);
@@ -42,7 +49,12 @@ export default function FixturePicker({
     <div className="absolute top-full right-0 mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
         <span className="text-xs font-medium text-slate-700">Add fixture</span>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm">&times;</button>
+        <button
+          onClick={onClose}
+          className="text-slate-400 hover:text-slate-600 text-sm"
+        >
+          &times;
+        </button>
       </div>
       {loading ? (
         <div className="p-3 text-xs text-slate-400">Loading...</div>

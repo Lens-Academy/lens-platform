@@ -77,7 +77,12 @@ export type AdminAction =
   | { type: "SELECT_USER_ERROR"; error: string }
   // Sync user group
   | { type: "SYNC_USER_GROUP_START" }
-  | { type: "SYNC_USER_GROUP_SUCCESS"; groupId: number; result: GroupSyncResult; message: string }
+  | {
+      type: "SYNC_USER_GROUP_SUCCESS";
+      groupId: number;
+      result: GroupSyncResult;
+      message: string;
+    }
   | { type: "SYNC_USER_GROUP_ERROR"; error: string }
   // Add to group
   | { type: "ADD_TO_GROUP_START" }
@@ -92,14 +97,30 @@ export type AdminAction =
   | { type: "SYNC_COHORT_SUCCESS"; result: CohortSyncResult; message: string }
   | { type: "SYNC_COHORT_ERROR"; error: string }
   | { type: "REALIZE_COHORT_START" }
-  | { type: "REALIZE_COHORT_SUCCESS"; result: CohortSyncResult; message: string; groups: GroupSummary[] }
+  | {
+      type: "REALIZE_COHORT_SUCCESS";
+      result: CohortSyncResult;
+      message: string;
+      groups: GroupSummary[];
+    }
   | { type: "REALIZE_COHORT_ERROR"; error: string }
   // Per-group sync/realize
   | { type: "SYNC_GROUP_START"; groupId: number }
-  | { type: "SYNC_GROUP_SUCCESS"; groupId: number; result: GroupSyncResult; message: string }
+  | {
+      type: "SYNC_GROUP_SUCCESS";
+      groupId: number;
+      result: GroupSyncResult;
+      message: string;
+    }
   | { type: "SYNC_GROUP_ERROR"; groupId: number; error: string }
   | { type: "REALIZE_GROUP_START"; groupId: number }
-  | { type: "REALIZE_GROUP_SUCCESS"; groupId: number; result: GroupSyncResult; message: string; groups: GroupSummary[] }
+  | {
+      type: "REALIZE_GROUP_SUCCESS";
+      groupId: number;
+      result: GroupSyncResult;
+      message: string;
+      groups: GroupSummary[];
+    }
   | { type: "REALIZE_GROUP_ERROR"; groupId: number; error: string };
 
 // ─── Initial state ──────────────────────────────────────────────────
@@ -132,7 +153,10 @@ export const initialAdminState: AdminState = {
 
 // ─── Reducer ────────────────────────────────────────────────────────
 
-export function adminReducer(state: AdminState, action: AdminAction): AdminState {
+export function adminReducer(
+  state: AdminState,
+  action: AdminAction,
+): AdminState {
   switch (action.type) {
     // Simple setters
     case "SET_ACTIVE_TAB":
@@ -156,7 +180,12 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
     case "SEARCH_SUCCESS":
       return { ...state, isSearching: false, searchResults: action.results };
     case "SEARCH_ERROR":
-      return { ...state, isSearching: false, error: action.error, searchResults: [] };
+      return {
+        ...state,
+        isSearching: false,
+        error: action.error,
+        searchResults: [],
+      };
     case "SEARCH_CLEAR":
       return { ...state, searchResults: [], isSearching: false };
 
@@ -166,24 +195,44 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
     case "SELECT_USER_SUCCESS":
       return { ...state, isLoadingUser: false, selectedUser: action.user };
     case "SELECT_USER_ERROR":
-      return { ...state, isLoadingUser: false, selectedUser: null, error: action.error };
+      return {
+        ...state,
+        isLoadingUser: false,
+        selectedUser: null,
+        error: action.error,
+      };
 
     // Sync user group (START clears lastGroupResult but NOT lastCohortResult)
     case "SYNC_USER_GROUP_START":
-      return { ...state, isSyncing: true, syncMessage: null, error: null, lastGroupResult: null };
+      return {
+        ...state,
+        isSyncing: true,
+        syncMessage: null,
+        error: null,
+        lastGroupResult: null,
+      };
     case "SYNC_USER_GROUP_SUCCESS":
       return {
         ...state,
         isSyncing: false,
         syncMessage: action.message,
-        lastGroupResult: { groupId: action.groupId, result: action.result, operationType: "sync" },
+        lastGroupResult: {
+          groupId: action.groupId,
+          result: action.result,
+          operationType: "sync",
+        },
       };
     case "SYNC_USER_GROUP_ERROR":
       return { ...state, isSyncing: false, error: action.error };
 
     // Add to group
     case "ADD_TO_GROUP_START":
-      return { ...state, isAddingToGroup: true, syncMessage: null, error: null };
+      return {
+        ...state,
+        isAddingToGroup: true,
+        syncMessage: null,
+        error: null,
+      };
     case "ADD_TO_GROUP_SUCCESS":
       return {
         ...state,
@@ -202,7 +251,12 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
     case "LOAD_GROUPS_SUCCESS":
       return { ...state, loadingGroups: false, groups: action.groups };
     case "LOAD_GROUPS_ERROR":
-      return { ...state, loadingGroups: false, groups: [], error: action.error };
+      return {
+        ...state,
+        loadingGroups: false,
+        groups: [],
+        error: action.error,
+      };
 
     // Cohort sync (START clears BOTH results)
     case "SYNC_COHORT_START":
@@ -260,7 +314,11 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
         ...state,
         groupSyncing: { ...state.groupSyncing, [action.groupId]: false },
         syncMessage: action.message,
-        lastGroupResult: { groupId: action.groupId, result: action.result, operationType: "sync" },
+        lastGroupResult: {
+          groupId: action.groupId,
+          result: action.result,
+          operationType: "sync",
+        },
       };
     case "SYNC_GROUP_ERROR":
       return {
@@ -284,7 +342,11 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
         ...state,
         groupRealizing: { ...state.groupRealizing, [action.groupId]: false },
         syncMessage: action.message,
-        lastGroupResult: { groupId: action.groupId, result: action.result, operationType: "realize" },
+        lastGroupResult: {
+          groupId: action.groupId,
+          result: action.result,
+          operationType: "realize",
+        },
         groups: action.groups,
       };
     case "REALIZE_GROUP_ERROR":

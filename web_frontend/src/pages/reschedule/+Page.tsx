@@ -39,7 +39,7 @@ function formatDateTime(iso: string): string {
 }
 
 export default function ReschedulePage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
 
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [guestVisits, setGuestVisits] = useState<GuestVisit[]>([]);
@@ -171,9 +171,9 @@ export default function ReschedulePage() {
             <p className="text-gray-600 mb-4">
               Please sign in to manage your meeting schedule.
             </p>
-            <a href="/enroll" className="text-blue-600 hover:underline">
-              Go to enrollment
-            </a>
+            <button onClick={login} className="text-blue-600 hover:underline">
+              Sign in
+            </button>
           </div>
         </div>
       </Layout>
@@ -184,9 +184,7 @@ export default function ReschedulePage() {
   const pastVisits = guestVisits.filter((v) => v.is_past);
 
   // Set of meeting IDs the user already has a guest visit for
-  const meetingsWithVisits = new Set(
-    activeVisits.map((v) => v.meeting_id),
-  );
+  const meetingsWithVisits = new Set(activeVisits.map((v) => v.meeting_id));
 
   return (
     <Layout>
@@ -260,8 +258,7 @@ export default function ReschedulePage() {
               <div className="space-y-3">
                 {meetings.map((meeting) => {
                   const hasVisit = meetingsWithVisits.has(meeting.meeting_id);
-                  const isSelected =
-                    selectedMeetingId === meeting.meeting_id;
+                  const isSelected = selectedMeetingId === meeting.meeting_id;
                   return (
                     <div
                       key={meeting.meeting_id}

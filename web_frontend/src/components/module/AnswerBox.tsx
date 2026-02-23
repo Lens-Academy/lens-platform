@@ -296,7 +296,7 @@ export default function AnswerBox({
                 )}
               </div>
 
-              {/* Finish button */}
+              {/* Submit button */}
               <button
                 onClick={handleFinish}
                 disabled={!text.trim()}
@@ -306,7 +306,7 @@ export default function AnswerBox({
                     : "bg-stone-50 text-stone-300 cursor-default"
                 }`}
               >
-                Finish
+                Submit
               </button>
             </div>
           </div>

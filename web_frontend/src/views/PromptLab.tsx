@@ -32,7 +32,9 @@ export default function PromptLab() {
   const [showPicker, setShowPicker] = useState(false);
 
   // Refs to all conversation columns for "Regenerate All"
-  const columnRefsMap = useRef<Map<string, ConversationColumnHandle>>(new Map());
+  const columnRefsMap = useRef<Map<string, ConversationColumnHandle>>(
+    new Map(),
+  );
 
   const handleAddFixture = useCallback((fixture: Fixture) => {
     setLoadedFixtureNames((prev) => {
@@ -52,10 +54,14 @@ export default function PromptLab() {
 
   const handleRemoveStage = useCallback((stageKey: string) => {
     setStages((prev) => {
-      const next = prev.filter((s) => `${s.fixtureKey}::${s.section.name}` !== stageKey);
+      const next = prev.filter(
+        (s) => `${s.fixtureKey}::${s.section.name}` !== stageKey,
+      );
       // Also clean up loadedFixtureNames if no sections from that fixture remain
       const remainingFixtures = new Set(next.map((s) => s.fixtureKey));
-      setLoadedFixtureNames((names) => names.filter((n) => remainingFixtures.has(n)));
+      setLoadedFixtureNames((names) =>
+        names.filter((n) => remainingFixtures.has(n)),
+      );
       return next;
     });
   }, []);
@@ -73,16 +79,21 @@ export default function PromptLab() {
   const regenSummaryTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Clean up auto-dismiss timeout on unmount
-  useEffect(() => () => {
-    if (regenSummaryTimeoutRef.current) clearTimeout(regenSummaryTimeoutRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (regenSummaryTimeoutRef.current)
+        clearTimeout(regenSummaryTimeoutRef.current);
+    },
+    [],
+  );
 
   const handleRegenerateAll = useCallback(async () => {
     const columns = Array.from(columnRefsMap.current.values());
     if (columns.length === 0) return;
 
     setRegenSummary(null);
-    if (regenSummaryTimeoutRef.current) clearTimeout(regenSummaryTimeoutRef.current);
+    if (regenSummaryTimeoutRef.current)
+      clearTimeout(regenSummaryTimeoutRef.current);
 
     // Fire regenerations with concurrency cap, track results
     // Uses regenerateLastAssistant which atomically selects + regenerates
@@ -96,10 +107,17 @@ export default function PromptLab() {
     while (queue.length > 0 || active.length > 0) {
       while (active.length < MAX_CONCURRENT_REGENERATIONS && queue.length > 0) {
         const col = queue.shift()!;
-        const p = col.regenerateLastAssistant()
-          .then(() => { succeeded++; })
-          .catch(() => { failed++; })
-          .finally(() => { active.splice(active.indexOf(p), 1); });
+        const p = col
+          .regenerateLastAssistant()
+          .then(() => {
+            succeeded++;
+          })
+          .catch(() => {
+            failed++;
+          })
+          .finally(() => {
+            active.splice(active.indexOf(p), 1);
+          });
         active.push(p);
       }
       if (active.length > 0) {
@@ -114,7 +132,10 @@ export default function PromptLab() {
       setRegenSummary(`Regenerated ${succeeded}/${total}`);
     }
     // Auto-dismiss after 5 seconds
-    regenSummaryTimeoutRef.current = setTimeout(() => setRegenSummary(null), 5000);
+    regenSummaryTimeoutRef.current = setTimeout(
+      () => setRegenSummary(null),
+      5000,
+    );
   }, []);
 
   // --- Auth gates ---
@@ -197,7 +218,9 @@ export default function PromptLab() {
             Effort
             <select
               value={effort}
-              onChange={(e) => setEffort(e.target.value as "low" | "medium" | "high")}
+              onChange={(e) =>
+                setEffort(e.target.value as "low" | "medium" | "high")
+              }
               className="border border-slate-300 rounded px-1.5 py-0.5 text-xs bg-white"
             >
               <option value="low">Low</option>

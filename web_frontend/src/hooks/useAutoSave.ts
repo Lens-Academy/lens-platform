@@ -8,11 +8,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  createResponse,
-  updateResponse,
-  getResponses,
-} from "@/api/questions";
+import { createResponse, updateResponse, getResponses } from "@/api/questions";
 
 export interface UseAutoSaveOptions {
   questionId: string;
@@ -144,13 +140,7 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
     } finally {
       savingRef.current = false;
     }
-  }, [
-    questionId,
-    moduleSlug,
-    questionText,
-    assessmentPrompt,
-    isAuthenticated,
-  ]);
+  }, [questionId, moduleSlug, questionText, assessmentPrompt, isAuthenticated]);
 
   // setText: update text and schedule debounced save
   const setText = useCallback(
