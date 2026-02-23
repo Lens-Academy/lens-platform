@@ -1,6 +1,6 @@
 // web_frontend_next/src/components/narrative-lesson/NarrativeChatSection.tsx
 
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useReducer, useRef, useEffect, useLayoutEffect, Fragment } from "react";
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import ChatMarkdown from "@/components/ChatMarkdown";
@@ -8,6 +8,7 @@ import { Tooltip } from "@/components/Tooltip";
 import { StageIcon } from "@/components/module/StageProgressBar";
 import { triggerHaptic } from "@/utils/haptics";
 import { ChevronUp, ChevronDown } from "lucide-react";
+import { chatViewReducer, initialChatViewState } from "./chatViewReducer";
 
 type NarrativeChatSectionProps = {
   messages: ChatMessage[];
@@ -34,16 +35,14 @@ export default function NarrativeChatSection({
   scrollToResponse,
   activated,
 }: NarrativeChatSectionProps) {
-  // Local state - component stays mounted so no need for parent sync
+  // View state reducer — centralized state transitions for chat view
+  const [viewState, dispatch] = useReducer(chatViewReducer, initialChatViewState);
+  const { hasInteracted, recentMessagesStartIdx, minHeightWrapperStartIdx, isExpanded, userSentFollowup } = viewState;
+
+  // Independent UI state
   const [input, setInput] = useState("");
-  const [hasInteracted, setHasInteracted] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [recentMessagesStartIdx, setRecentMessagesStartIdx] = useState(0);
-  const [minHeightWrapperStartIdx, setMinHeightWrapperStartIdx] = useState(0);
-  const RECENT_MESSAGE_COUNT = 6; // ~3 exchanges visible when collapsed
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [scrollContainerHeight, setScrollContainerHeight] = useState(0);
-  const [userSentFollowup, setUserSentFollowup] = useState(false);
 
   // scrollToResponse only applies to the first (auto-sent) message, not follow-ups
   const activeScrollToResponse = scrollToResponse && !userSentFollowup;
@@ -53,6 +52,8 @@ export default function NarrativeChatSection({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const recentStartRef = useRef<HTMLDivElement>(null);
+  const justExpandedRef = useRef(false);
 
   // Voice recording (extracted to shared hook)
   const {
@@ -105,12 +106,30 @@ export default function NarrativeChatSection({
     isExpanded,
   ]);
 
+  // Scroll to recent-messages boundary after expanding conversation history
+  useLayoutEffect(() => {
+    if (justExpandedRef.current && isExpanded && scrollContainerRef.current) {
+      justExpandedRef.current = false;
+
+      // Instantly position internal scroll to recent messages
+      if (recentStartRef.current) {
+        const container = scrollContainerRef.current;
+        const containerRect = container.getBoundingClientRect();
+        const markerRect = recentStartRef.current.getBoundingClientRect();
+        container.scrollTop += markerRect.top - containerRect.top;
+      }
+
+      // Smoothly scroll page to center the expanded container
+      containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isExpanded]);
+
   // Activate when parent explicitly signals this instance should show messages
   useEffect(() => {
     if (!hasInteracted && activated) {
-      setHasInteracted(true);
+      dispatch({ type: 'ACTIVATE', messagesLength: messages.length });
     }
-  }, [activated, hasInteracted]);
+  }, [activated, hasInteracted, messages.length]);
 
   // Scroll chat container into view when user first interacts
   useEffect(() => {
@@ -218,18 +237,13 @@ export default function NarrativeChatSection({
     e.preventDefault();
     if (input.trim() && !isLoading) {
       triggerHaptic(10); // Subtle haptic feedback on send
-      // Keep only recent messages visible when collapsed — older ones go behind "Show conversation history"
-      setRecentMessagesStartIdx(Math.max(0, messages.length - RECENT_MESSAGE_COUNT));
-      // Set split point before sending - current messages become "previous"
-      setMinHeightWrapperStartIdx(messages.length);
+      dispatch({ type: 'SEND_MESSAGE', messagesLength: messages.length, hasScrollToResponse: !!scrollToResponse });
       minHeightReductionRef.current = 0;
       if (minHeightWrapperRef.current) {
         minHeightWrapperRef.current.style.minHeight =
           wrapperMinHeight > 0 ? `${wrapperMinHeight}px` : "";
       }
-      setShowScrollButton(false); // Reset scroll button when sending new message
-      setHasInteracted(true);
-      if (scrollToResponse) setUserSentFollowup(true);
+      setShowScrollButton(false);
       onSendMessage(input.trim());
       setInput("");
     }
@@ -273,6 +287,19 @@ export default function NarrativeChatSection({
             : { overflowAnchor: "none" }
         }
       >
+        {/* Collapse button — outside scroll area so it's always visible */}
+        {isExpanded && (
+          <div className="flex justify-center px-3 pt-2 pb-0 shrink-0">
+            <button
+              onClick={() => dispatch({ type: 'COLLAPSE' })}
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 hover:border-gray-300 rounded-full transition-colors"
+            >
+              <ChevronDown size={14} />
+              Collapse
+            </button>
+          </div>
+        )}
+
         {/* Messages area */}
         <div
           ref={scrollContainerRef}
@@ -283,13 +310,16 @@ export default function NarrativeChatSection({
           onScroll={isExpanded ? handleScroll : undefined}
         >
             <div>
-              {/* Expand/Minimize buttons */}
+              {/* Expand button (collapsed mode only) */}
               {!isExpanded && recentMessagesStartIdx > 0 && (() => {
                 const earlierExchanges = messages.slice(0, recentMessagesStartIdx).filter(m => m.role === "user").length;
                 return earlierExchanges > 0 ? (
                   <div className="flex justify-center pt-2 pb-4">
                     <button
-                      onClick={() => setIsExpanded(true)}
+                      onClick={() => {
+                        justExpandedRef.current = true;
+                        dispatch({ type: 'EXPAND' });
+                      }}
                       className="inline-flex items-center gap-1.5 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 hover:border-gray-300 rounded-full transition-colors"
                     >
                       <ChevronUp size={14} />
@@ -298,43 +328,40 @@ export default function NarrativeChatSection({
                   </div>
                 ) : null;
               })()}
-              {isExpanded && (
-                <div className="flex justify-center pt-2 pb-4">
-                  <button
-                    onClick={() => setIsExpanded(false)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 hover:border-gray-300 rounded-full transition-colors"
-                  >
-                    <ChevronDown size={14} />
-                    Minimize
-                  </button>
-                </div>
-              )}
 
               {/* Previous messages - natural height */}
               {previousMessages.length > 0 && (
                 <div className="space-y-4 pb-4 max-w-content mx-auto">
-                  {previousMessages.map((msg, i) =>
-                    msg.role === "system" ? (
-                      <div key={i} className="flex justify-center my-3">
-                        <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
-                          {msg.icon && <StageIcon type={msg.icon} small />}
-                          {msg.content}
-                        </span>
-                      </div>
-                    ) : msg.role === "assistant" ? (
-                      <div key={i} className="text-gray-800">
-                        <div className="text-sm text-gray-500 mb-1">Tutor</div>
-                        <ChatMarkdown>{msg.content}</ChatMarkdown>
-                      </div>
-                    ) : (
-                      <div
-                        key={i}
-                        className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
-                      >
-                        <div className="whitespace-pre-wrap">{msg.content}</div>
-                      </div>
-                    ),
-                  )}
+                  {previousMessages.map((msg, i) => {
+                    const isRecentBoundary = isExpanded && i === recentMessagesStartIdx;
+                    const msgEl =
+                      msg.role === "system" ? (
+                        <div key={i} className="flex justify-center my-3">
+                          <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
+                            {msg.icon && <StageIcon type={msg.icon} small />}
+                            {msg.content}
+                          </span>
+                        </div>
+                      ) : msg.role === "assistant" ? (
+                        <div key={i} className="text-gray-800">
+                          <div className="text-sm text-gray-500 mb-1">Tutor</div>
+                          <ChatMarkdown>{msg.content}</ChatMarkdown>
+                        </div>
+                      ) : (
+                        <div
+                          key={i}
+                          className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
+                        >
+                          <div className="whitespace-pre-wrap">{msg.content}</div>
+                        </div>
+                      );
+                    return isRecentBoundary ? (
+                      <Fragment key={i}>
+                        <div ref={recentStartRef} />
+                        {msgEl}
+                      </Fragment>
+                    ) : msgEl;
+                  })}
                 </div>
               )}
 

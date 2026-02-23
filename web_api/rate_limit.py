@@ -49,5 +49,5 @@ class RateLimiter:
 # OAuth start: 10 requests per minute (normal browsing)
 oauth_start_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
-# Token refresh: 5 per minute (legitimate clients do 1 per 15 min)
-refresh_limiter = RateLimiter(max_requests=5, window_seconds=60)
+# Token refresh: 10 per minute (legitimate clients do 1 per 15 min)
+refresh_limiter = RateLimiter(max_requests=10, window_seconds=60)
