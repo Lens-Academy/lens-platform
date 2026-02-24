@@ -1,6 +1,6 @@
-# AI Safety Education Platform Bot
+# AI Safety Education Platform
 
-A Discord bot for automating all the logistics of AI Safety Courses.
+A Discord bot + web platform for automating all the logistics of AI Safety Courses.
 
 ## Quick Start
 
