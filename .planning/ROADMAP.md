@@ -3,7 +3,8 @@
 ## Milestones
 
 - v1.0 Mobile Responsiveness - Phases 1-5 (shipped 2026-01-22)
-- **v3.0 Prompt Lab** - Phases 6-7 (in progress)
+- v3.0 Prompt Lab - Phases 6-7 (archived 2026-02-24)
+- **v3.1 AI Roleplay** - Phases 8-11 (in progress)
 
 ## Phases
 
@@ -16,58 +17,99 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 </details>
 
-### v3.0 Prompt Lab (In Progress)
+<details>
+<summary>v3.0 Prompt Lab (Phases 6-7) - ARCHIVED 2026-02-24</summary>
 
-**Milestone Goal:** Build a facilitator-only evaluation workbench for iterating on AI tutor system prompts and assessment scoring prompts using real student data.
+**Milestone Goal:** Facilitator-only evaluation workbench for iterating on AI tutor system prompts and assessment scoring prompts using real student data.
+
+Phase 6 (Chat Evaluation): 4/5 plans completed. Plan 06-05 integration verification deferred.
+Phase 7 (Assessment Evaluation): Deferred -- blocked on ws3 merge of `complete()` and `SCORE_SCHEMA`.
+
+</details>
+
+### v3.1 AI Roleplay (In Progress)
+
+**Milestone Goal:** Add roleplay content type where students practice AI safety conversations with AI characters, supporting text and voice interaction with TTS audio responses, with optional AI assessment.
 
 **Phase Numbering:**
-- Integer phases (6, 7): Planned milestone work
-- Decimal phases (6.1, 6.2): Urgent insertions (marked with INSERTED)
+- Integer phases (8, 9, 10, 11): Planned milestone work
+- Decimal phases (8.1, 9.1): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 6: Chat Evaluation** - Infrastructure, chat fixtures, and complete chat tutor evaluation workflow
-- [ ] **Phase 7: Assessment Evaluation** - Assessment fixtures and scoring evaluation workflow (after ws3 merge)
+- [ ] **Phase 8: Foundation** - Content parsing, session isolation, and prompt architecture
+- [ ] **Phase 9: TTS Pipeline** - Inworld TTS integration for AI character voice responses
+- [ ] **Phase 10: Core Conversation** - Full roleplay experience with text and voice modes
+- [ ] **Phase 11: Assessment** - AI scoring of roleplay transcripts and test section integration
 
 ## Phase Details
 
-### Phase 6: Chat Evaluation
-**Goal**: Facilitators can load real chat conversations, edit system prompts, and regenerate AI tutor responses to iterate on prompt quality
-**Depends on**: Nothing (uses only existing `stream_chat()` from ws2)
-**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, FIX-01, FIX-03, FIX-04, CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05, CHAT-06, CHAT-07
+### Phase 8: Foundation
+**Goal**: Roleplay segments are parseable from content markdown, sessions are isolated per segment, and the prompt architecture is locked down separate from tutor chat
+**Depends on**: Nothing (first phase of v3.1)
+**Requirements**: INFRA-01, INFRA-02, CONT-01, CONT-02, CONT-03, CONT-04
 **Success Criteria** (what must be TRUE):
-  1. Facilitator can navigate to /promptlab while logged in with facilitator role, and non-facilitators are denied access
-  2. Facilitator can browse available chat fixtures by name and module, select one, and see the full conversation rendered with student and AI messages
-  3. Facilitator can edit the system prompt in a code editor, pick any AI message in the conversation, and regenerate it with the edited prompt -- the new response streams in via SSE in real time
-  4. After regenerating a response, facilitator can write follow-up messages as the student and continue the conversation interactively
-  5. Facilitator can see the original AI response alongside the regenerated one, and optionally view the LLM's chain-of-thought for regenerated responses
-**Plans:** 5 plans
+  1. A `#### Roleplay` block in content markdown with required `id::`, `content::`, `ai-instructions::`, optional `assessment-instructions::`, and optional `opening-message::` fields is parsed into a typed roleplay segment by the content processor
+  2. Roleplay segments appear correctly in all section types (page, lens-article, lens-video) without errors
+  3. `chat_sessions` table has `roleplay_id` column (renamed from old design's `segment_key`) and proper unique indexes so that roleplay conversations are isolated from tutor chat and from each other
+  4. `core/modules/roleplay.py` exists with `build_roleplay_prompt()` that constructs character prompts from content fields without importing anything from `chat.py`
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Extract ChatMarkdown, create core/promptlab/ fixtures module with sample data
-- [ ] 06-02-PLAN.md — Backend regeneration with thinking support + API routes
-- [ ] 06-03-PLAN.md — Frontend page, API client, and fixture browser
-- [ ] 06-04-PLAN.md — Full interactive UI: two-panel layout, regeneration, comparison, CoT, follow-up
-- [ ] 06-05-PLAN.md — Integration verification and end-to-end manual testing
+- [ ] 08-01-PLAN.md -- Roleplay segment type (id::, content::, ai-instructions::) across content processor pipeline and frontend types
+- [ ] 08-02-PLAN.md -- DB migration (content_id->module_id, roleplay_id, segment_snapshot), session service, and roleplay prompt assembly
 
-### Phase 7: Assessment Evaluation
-**Goal**: Facilitators can load student answer fixtures, edit scoring prompts, run AI assessment, and compare AI scores against human ground-truth
-**Depends on**: Phase 6 (shared infrastructure), ws3 merge (`complete()` function and `SCORE_SCHEMA`)
-**Requirements**: FIX-02, FIX-05, ASMNT-01, ASMNT-02, ASMNT-03, ASMNT-04, ASMNT-05
+### Phase 9: TTS Pipeline
+**Goal**: AI character text responses are converted to speech via Inworld TTS and streamed as audio to the browser in real time
+**Depends on**: Phase 8 (needs roleplay prompt architecture for integration context)
+**Requirements**: VOICE-01, VOICE-02, VOICE-03
 **Success Criteria** (what must be TRUE):
-  1. Facilitator can browse available assessment fixtures by name and module, select one, and see the student answer with question context displayed
-  2. Facilitator can edit the scoring prompt in a code editor, run AI assessment, and see the full structured output: overall score, reasoning, per-dimension scores, and key observations
-  3. Facilitator can see the AI's chain-of-thought reasoning displayed alongside the score, and compare the AI score against the human ground-truth score from the fixture
+  1. Backend connects to Inworld TTS via WebSocket, sends text tokens from LLM streaming, and receives audio chunks back
+  2. Backend streams audio chunks to the browser via a transport that allows playback to begin before Inworld finishes generating (no waiting for full audio)
+  3. A test harness or minimal endpoint demonstrates the full pipeline: send text, get streaming audio in browser, hear it play -- confirming latency and reliability before full UI integration
 **Plans**: TBD
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 09-01: TBD
+- [ ] 09-02: TBD
+
+### Phase 10: Core Conversation
+**Goal**: Students can have a complete roleplay conversation with an AI character using voice or text, with manual completion, persistence, and retry
+**Depends on**: Phase 8 (content types, session isolation, prompt assembly), Phase 9 (TTS pipeline for voice mode)
+**Requirements**: CONV-01, CONV-02, CONV-03, CONV-04, CONV-05, CONV-06, CONV-07, CONV-08, CONV-09, VOICE-04, VOICE-05
+**Success Criteria** (what must be TRUE):
+  1. Student sees a scenario briefing card above the conversation, then the AI character sends an opening message to start the interaction
+  2. Student can have a multi-turn streaming conversation with the AI character, seeing the character name displayed distinctly from tutor chat
+  3. Student can switch between voice-only mode (mic input, AI responds with TTS audio, no keyboard) and text mode (keyboard input, AI responds with text only, no TTS)
+  4. Student clicks a completion button to end the conversation, after which input is disabled and a done state is shown
+  5. Conversation persists across page refresh, and student can retry the roleplay with a fresh conversation using "Try again"
+**Plans**: TBD
+
+Plans:
+- [ ] 10-01: TBD
+- [ ] 10-02: TBD
+- [ ] 10-03: TBD
+
+### Phase 11: Assessment
+**Goal**: Course creators can add AI assessment to roleplay segments, and roleplay works inside test sections with post-conversation feedback
+**Depends on**: Phase 10 (needs working conversations with transcripts to assess)
+**Requirements**: ASMNT-01, ASMNT-02, ASMNT-03
+**Success Criteria** (what must be TRUE):
+  1. After completing a roleplay with `assessment-instructions`, the full conversation transcript is scored by AI against the author-defined rubric, producing structured output (score, reasoning, dimensions)
+  2. Roleplay segments work inside test sections following the same completion flow as question segments
+  3. After assessment, student can access a post-conversation feedback chat to reflect on their performance
+**Plans**: TBD
+
+Plans:
+- [ ] 11-01: TBD
+- [ ] 11-02: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 -> 6.x (if any) -> 7
+Phases execute in numeric order: 8 -> 8.x (if any) -> 9 -> 9.x (if any) -> 10 -> 10.x (if any) -> 11
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 6. Chat Evaluation | v3.0 | 0/5 | Not started | - |
-| 7. Assessment Evaluation | v3.0 | 0/TBD | Not started | - |
+| 8. Foundation | v3.1 | 0/2 | Planned | - |
+| 9. TTS Pipeline | v3.1 | 0/TBD | Not started | - |
+| 10. Core Conversation | v3.1 | 0/TBD | Not started | - |
+| 11. Assessment | v3.1 | 0/TBD | Not started | - |

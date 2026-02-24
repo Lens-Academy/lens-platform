@@ -29,11 +29,11 @@ const ALL_STRUCTURAL_TYPES = new Set([
   // Section types
   'learning outcome', 'page', 'uncategorized', 'lens', 'test', 'module', 'meeting', 'article', 'video',
   // Segment types
-  'text', 'chat', 'article-excerpt', 'video-excerpt', 'question',
+  'text', 'chat', 'article-excerpt', 'video-excerpt', 'question', 'roleplay',
 ]);
 
 // Fields that commonly contain markdown with headings
-const MARKDOWN_CONTENT_FIELDS = new Set(['content', 'instructions']);
+const MARKDOWN_CONTENT_FIELDS = new Set(['content', 'instructions', 'ai-instructions']);
 
 // Map input section names to output types for Lens files
 export const LENS_OUTPUT_TYPE: Record<string, string> = {

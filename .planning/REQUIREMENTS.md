@@ -1,4 +1,4 @@
-# Requirements: AI Safety Course Platform — v3.1 AI Roleplay
+# Requirements: AI Safety Course Platform -- v3.1 AI Roleplay
 
 **Defined:** 2026-02-24
 **Core Value:** Students can engage with course content and demonstrate understanding while the platform collects data to improve both teaching and measurement.
@@ -49,7 +49,7 @@ Requirements for the AI Roleplay milestone. Each maps to roadmap phases.
 
 Previous milestone requirements archived. See `.planning/milestones/` for details.
 
-### Prompt Lab — Chat Evaluation (Phase 6, mostly shipped)
+### Prompt Lab -- Chat Evaluation (Phase 6, mostly shipped)
 
 - [x] **FIX-01**: Facilitator can load curated chat conversation fixtures
 - [x] **FIX-03**: Facilitator can browse available fixtures with name, module, and description
@@ -57,9 +57,9 @@ Previous milestone requirements archived. See `.planning/milestones/` for detail
 - [x] **CHAT-01** through **CHAT-07**: Chat tutor evaluation workflow
 - [x] **INFRA-01** through **INFRA-04**: Prompt Lab infrastructure
 
-### Prompt Lab — Assessment Evaluation (Phase 7, deferred)
+### Prompt Lab -- Assessment Evaluation (Phase 7, deferred)
 
-- **FIX-02**: Assessment fixture loading (deferred — blocked on ws3 merge)
+- **FIX-02**: Assessment fixture loading (deferred -- blocked on ws3 merge)
 - **FIX-05**: Assessment fixtures with ground-truth scores (deferred)
 - **ASMNT-01** through **ASMNT-05**: Assessment evaluation workflow (deferred)
 
@@ -106,35 +106,35 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONT-01 | TBD | Pending |
-| CONT-02 | TBD | Pending |
-| CONT-03 | TBD | Pending |
-| CONT-04 | TBD | Pending |
-| VOICE-01 | TBD | Pending |
-| VOICE-02 | TBD | Pending |
-| VOICE-03 | TBD | Pending |
-| VOICE-04 | TBD | Pending |
-| VOICE-05 | TBD | Pending |
-| CONV-01 | TBD | Pending |
-| CONV-02 | TBD | Pending |
-| CONV-03 | TBD | Pending |
-| CONV-04 | TBD | Pending |
-| CONV-05 | TBD | Pending |
-| CONV-06 | TBD | Pending |
-| CONV-07 | TBD | Pending |
-| CONV-08 | TBD | Pending |
-| CONV-09 | TBD | Pending |
-| ASMNT-01 | TBD | Pending |
-| ASMNT-02 | TBD | Pending |
-| ASMNT-03 | TBD | Pending |
-| INFRA-01 | TBD | Pending |
-| INFRA-02 | TBD | Pending |
+| CONT-01 | Phase 8 | Pending |
+| CONT-02 | Phase 8 | Pending |
+| CONT-03 | Phase 8 | Pending |
+| CONT-04 | Phase 8 | Pending |
+| VOICE-01 | Phase 9 | Pending |
+| VOICE-02 | Phase 9 | Pending |
+| VOICE-03 | Phase 9 | Pending |
+| VOICE-04 | Phase 10 | Pending |
+| VOICE-05 | Phase 10 | Pending |
+| CONV-01 | Phase 10 | Pending |
+| CONV-02 | Phase 10 | Pending |
+| CONV-03 | Phase 10 | Pending |
+| CONV-04 | Phase 10 | Pending |
+| CONV-05 | Phase 10 | Pending |
+| CONV-06 | Phase 10 | Pending |
+| CONV-07 | Phase 10 | Pending |
+| CONV-08 | Phase 10 | Pending |
+| CONV-09 | Phase 10 | Pending |
+| ASMNT-01 | Phase 11 | Pending |
+| ASMNT-02 | Phase 11 | Pending |
+| ASMNT-03 | Phase 11 | Pending |
+| INFRA-01 | Phase 8 | Pending |
+| INFRA-02 | Phase 8 | Pending |
 
 **Coverage:**
 - v3.1 requirements: 23 total
-- Mapped to phases: 0
-- Unmapped: 23
+- Mapped to phases: 23
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-24 after initial definition*
+*Last updated: 2026-02-24 after roadmap creation*

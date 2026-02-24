@@ -53,12 +53,23 @@ export interface ParsedQuestionSegment {
   feedback?: boolean;
 }
 
+export interface ParsedRoleplaySegment {
+  type: 'roleplay';
+  id: string;                     // UUID for session isolation
+  content: string;                // Student-facing scenario briefing
+  aiInstructions: string;         // Character behavior + personality
+  openingMessage?: string;        // Optional first message
+  assessmentInstructions?: string;  // Optional scoring rubric
+  optional?: boolean;
+}
+
 export type ParsedLensSegment =
   | ParsedTextSegment
   | ParsedChatSegment
   | ParsedArticleExcerptSegment
   | ParsedVideoExcerptSegment
-  | ParsedQuestionSegment;
+  | ParsedQuestionSegment
+  | ParsedRoleplaySegment;
 
 export interface ParsedLensSection {
   type: string;         // 'text', 'lens-article', 'lens-video'
@@ -80,14 +91,14 @@ export interface LensParseResult {
 }
 
 // Valid segment types for lens H4 headers
-const LENS_SEGMENT_TYPES = new Set(['text', 'chat', 'article-excerpt', 'video-excerpt', 'question']);
+const LENS_SEGMENT_TYPES = new Set(['text', 'chat', 'article-excerpt', 'video-excerpt', 'question', 'roleplay']);
 
 
 // Valid segment types per section output type
 const VALID_SEGMENTS_PER_SECTION: Record<string, Set<string>> = {
-  'page': new Set(['text', 'chat', 'question']),
-  'lens-article': new Set(['text', 'chat', 'article-excerpt', 'question']),
-  'lens-video': new Set(['text', 'chat', 'video-excerpt', 'question']),
+  'page': new Set(['text', 'chat', 'question', 'roleplay']),
+  'lens-article': new Set(['text', 'chat', 'article-excerpt', 'question', 'roleplay']),
+  'lens-video': new Set(['text', 'chat', 'video-excerpt', 'question', 'roleplay']),
 };
 // H4 segment header pattern: #### <type> or #### <type>: <title>
 const SEGMENT_HEADER_PATTERN = /^####\s+([^:\s]+)(?::\s*(.*))?$/i;
@@ -408,6 +419,56 @@ export function convertSegment(
         enforceVoice: raw.fields['enforce-voice']?.toLowerCase() === 'true' ? true : undefined,
         optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
         feedback: raw.fields['feedback']?.toLowerCase() === 'true' ? true : undefined,
+      };
+      return { segment, errors };
+    }
+
+    case 'roleplay': {
+      const id = raw.fields['id'];
+      if (!id || id.trim() === '') {
+        errors.push({
+          file,
+          line: raw.line,
+          message: 'Roleplay segment missing id:: field',
+          suggestion: "Add 'id:: <uuid>' to the roleplay segment",
+          severity: 'error',
+        });
+      }
+
+      const content = raw.fields['content'];
+      if (!content || content.trim() === '') {
+        errors.push({
+          file,
+          line: raw.line,
+          message: 'Roleplay segment missing content:: field',
+          suggestion: "Add 'content:: Your scenario briefing here'",
+          severity: 'error',
+        });
+      }
+
+      const aiInstructions = raw.fields['ai-instructions'];
+      if (!aiInstructions || aiInstructions.trim() === '') {
+        errors.push({
+          file,
+          line: raw.line,
+          message: 'Roleplay segment missing ai-instructions:: field',
+          suggestion: "Add 'ai-instructions:: Character behavior description'",
+          severity: 'error',
+        });
+      }
+
+      if (!id || id.trim() === '' || !content || content.trim() === '' || !aiInstructions || aiInstructions.trim() === '') {
+        return { segment: null, errors };
+      }
+
+      const segment: ParsedRoleplaySegment = {
+        type: 'roleplay',
+        id,
+        content,
+        aiInstructions,
+        openingMessage: raw.fields['opening-message'] || undefined,
+        assessmentInstructions: raw.fields['assessment-instructions'] || undefined,
+        optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
       };
       return { segment, errors };
     }
