@@ -936,7 +936,7 @@ function convertSegment(
       );
 
       if (excerptResult.error) {
-        errors.push(excerptResult.error);
+        errors.push({ ...excerptResult.error, file: lensPath });
         return { segment: null, errors };
       }
 
@@ -1047,7 +1047,7 @@ function convertSegment(
       );
 
       if (excerptResult.error) {
-        errors.push(excerptResult.error);
+        errors.push({ ...excerptResult.error, file: lensPath });
         return { segment: null, errors };
       }
 
