@@ -145,6 +145,12 @@ export default function AnswerBox({
                 ref={textareaRef}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && text.trim()) {
+                    e.preventDefault();
+                    handleFinish();
+                  }
+                }}
                 className="w-full border border-stone-200 rounded-lg px-4 py-3 pr-12 resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed text-stone-800 placeholder:text-stone-300 bg-white"
                 placeholder={
                   recordingState === "transcribing"
