@@ -340,36 +340,11 @@ export function ChatInputArea({
       )}
 
       {/* Input form */}
-      <form
-        onSubmit={handleSubmit}
-        className="flex gap-2 p-4 border-t border-gray-200 items-end"
-      >
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => {
-            // Delay to let iOS keyboard animation start
-            setTimeout(() => {
-              textareaRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "nearest",
-              });
-            }, 100);
-          }}
-          placeholder={
-            recordingState === "transcribing" ? "Transcribing..." : placeholder
-          }
-          disabled={recordingState === "transcribing" || isDisabled}
-          rows={1}
-          className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none leading-normal disabled:bg-gray-100"
-        />
-
-        {/* Buttons */}
-        <div className="flex flex-col items-center gap-1">
+      <form onSubmit={handleSubmit} className="p-3">
+        <div className="border border-gray-200 rounded-2xl bg-white shadow-sm">
+          {/* Recording indicator inside pill */}
           {recordingState === "recording" && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 justify-center pt-3 px-4">
               <div className="flex items-end gap-1 h-6">
                 {volumeBars.map((vol, i) => (
                   <div
@@ -386,98 +361,136 @@ export function ChatInputArea({
               </span>
             </div>
           )}
-          <div className="flex gap-2">
-            <Tooltip
-              content={
-                recordingState === "recording"
-                  ? "Stop recording"
-                  : "Start recording"
+
+          <div className="flex gap-2 items-end p-3">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => {
+                // Delay to let iOS keyboard animation start
+                setTimeout(() => {
+                  textareaRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                  });
+                }, 100);
+              }}
+              placeholder={
+                recordingState === "transcribing" ? "Transcribing..." : placeholder
               }
-            >
-              <button
-                type="button"
-                onClick={handleMicClick}
-                disabled={recordingState === "transcribing" || isDisabled}
-                aria-label={
+              disabled={recordingState === "transcribing" || isDisabled}
+              rows={1}
+              className="flex-1 px-1 py-1 focus:outline-none resize-none leading-normal disabled:bg-transparent bg-transparent"
+            />
+
+            {/* Buttons */}
+            <div className="flex gap-1.5 shrink-0">
+              <Tooltip
+                content={
                   recordingState === "recording"
                     ? "Stop recording"
-                    : "Start voice recording"
+                    : "Start recording"
                 }
-                className="min-w-[44px] min-h-[44px] p-2 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-default bg-gray-100 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {recordingState === "transcribing" ? (
-                  <svg
-                    className="w-5 h-5 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
+                <button
+                  type="button"
+                  onClick={handleMicClick}
+                  disabled={recordingState === "transcribing" || isDisabled}
+                  aria-label={
+                    recordingState === "recording"
+                      ? "Stop recording"
+                      : "Start voice recording"
+                  }
+                  className="min-w-[36px] min-h-[36px] p-2 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-default text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {recordingState === "transcribing" ? (
+                    <svg
+                      className="w-5 h-5 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
                       stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
+                      viewBox="0 0 24 24"
+                      style={
+                        recordingState === "recording"
+                          ? { animation: "mic-pulse 1s ease-in-out infinite" }
+                          : undefined
+                      }
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </Tooltip>
+              {recordingState === "recording" ? (
+                <Tooltip content="Stop recording">
+                  <button
+                    type="button"
+                    onClick={handleMicClick}
+                    aria-label="Stop recording"
+                    className="bg-gray-600 text-white p-2 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[36px] min-h-[36px] flex items-center justify-center transition-all active:scale-95"
+                  >
+                    <svg
+                      className="w-5 h-5"
                       fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                ) : (
+                      viewBox="0 0 24 24"
+                    >
+                      <rect x="6" y="6" width="12" height="12" rx="1" />
+                    </svg>
+                  </button>
+                </Tooltip>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={
+                    isLoading ||
+                    !input.trim() ||
+                    recordingState !== "idle" ||
+                    isDisabled
+                  }
+                  className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-default min-w-[36px] min-h-[36px] transition-all active:scale-95"
+                >
                   <svg
                     className="w-5 h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
-                    style={
-                      recordingState === "recording"
-                        ? { animation: "mic-pulse 1s ease-in-out infinite" }
-                        : undefined
-                    }
                   >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                      d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
                     />
                   </svg>
-                )}
-              </button>
-            </Tooltip>
-            {recordingState === "recording" ? (
-              <Tooltip content="Stop recording">
-                <button
-                  type="button"
-                  onClick={handleMicClick}
-                  aria-label="Stop recording"
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[70px] min-h-[44px] flex items-center justify-center transition-all active:scale-95"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <rect x="6" y="6" width="12" height="12" rx="1" />
-                  </svg>
                 </button>
-              </Tooltip>
-            ) : (
-              <button
-                type="submit"
-                disabled={
-                  isLoading ||
-                  !input.trim() ||
-                  recordingState !== "idle" ||
-                  isDisabled
-                }
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-default min-w-[70px] min-h-[44px] transition-all active:scale-95"
-              >
-                Send
-              </button>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </form>
