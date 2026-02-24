@@ -36,12 +36,14 @@ import NarrativeChatSection from "@/components/module/NarrativeChatSection";
 import AnswerBox from "@/components/module/AnswerBox";
 import TestSection from "@/components/module/TestSection";
 import MarkCompleteButton from "@/components/module/MarkCompleteButton";
+import { DoneReadingButton } from "@/components/module/DoneReadingButton";
 import SectionDivider from "@/components/module/SectionDivider";
 import ArticleSectionWrapper from "@/components/module/ArticleSectionWrapper";
 import ArticleExcerptGroup from "@/components/module/ArticleExcerptGroup";
 import { ModuleHeader } from "@/components/ModuleHeader";
 import ModuleDrawer from "@/components/module/ModuleDrawer";
 import type { ModuleDrawerHandle } from "@/components/module/ModuleDrawer";
+import { ChatSidebar } from "@/components/module/ChatSidebar";
 import ModuleCompleteModal from "@/components/module/ModuleCompleteModal";
 import AuthPromptModal from "@/components/module/AuthPromptModal";
 import {
@@ -191,9 +193,20 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         if (cancelled) return; // Don't update if module changed
 
         if (history.messages.length > 0) {
+          // Strip auto-sent assistant messages at the start of history (before the
+          // first user message). These were AI-generated opening preambles that are
+          // now replaced by the authored Lens bubble (prefixMessage).
+          const firstUserIdx = history.messages.findIndex(
+            (m) => m.role === "user",
+          );
+          const messagesToShow =
+            firstUserIdx === -1
+              ? [] // Only auto-sent messages exist — skip all
+              : history.messages.slice(firstUserIdx);
+
           setMessages(
-            history.messages.map((m) => ({
-              role: m.role as "user" | "assistant",
+            messagesToShow.map((m) => ({
+              role: m.role as "user" | "assistant" | "course-content",
               content: m.content,
             })),
           );
@@ -340,6 +353,20 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     new Set(),
   );
 
+  // Local "done reading" state for checkmark button (text/page/article sections)
+  const [doneReadingSections, setDoneReadingSections] = useState<Set<number>>(
+    () => new Set(),
+  );
+
+  const handleDoneReadingChange = (sectionIndex: number, checked: boolean) => {
+    setDoneReadingSections((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(sectionIndex);
+      else next.delete(sectionIndex);
+      return next;
+    });
+  };
+
   const { isAuthenticated, isInSignupsTable, isInActiveGroup, login } =
     useAuth();
 
@@ -400,6 +427,23 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const [activeFeedbackKey, setActiveFeedbackKey] = useState<string | null>(
     null,
   );
+
+  // Chat sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Ref to keep isSidebarOpen accessible inside scroll listener without stale closure
+  const isSidebarOpenRef = useRef(false);
+  useEffect(() => {
+    isSidebarOpenRef.current = isSidebarOpen;
+  }, [isSidebarOpen]);
+  // True when sidebar was auto-closed by done-reading (scroll-up can reopen it)
+  const sidebarAutoClosedRef = useRef(false);
+  // Ref to the DoneReadingButton wrapper for scroll-position detection
+  const doneReadingBtnRef = useRef<HTMLDivElement>(null);
+  // Whether NarrativeChatSection should activate with full history after transfer
+  const [activateNarrativeChat, setActivateNarrativeChat] = useState(false);
+
+  // TOC portal container for 3-column grid layout (set by callback ref)
+  const [tocContainer, setTocContainer] = useState<HTMLElement | null>(null);
 
   // Convert sections to Stage format for progress bar
   const stages: Stage[] = useMemo(() => {
@@ -525,6 +569,102 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Activity tracking for current section
   const currentSection = module?.sections[currentSectionIndex];
+  const isArticleSection =
+    currentSection?.type === "lens-article" ||
+    currentSection?.type === "article";
+
+  // Find chat segment in current article section for sidebar send handler
+  const sidebarChatSegmentIndex = useMemo(() => {
+    if (!currentSection || !isArticleSection) return -1;
+    const segments =
+      "segments" in currentSection ? currentSection.segments : [];
+    return segments?.findIndex((s) => s.type === "chat") ?? -1;
+  }, [currentSection, isArticleSection]);
+
+  // Whether the current section has a post-article chat segment to transfer to
+  const sectionHasChatSegment = useMemo(() => {
+    if (!currentSection || !isArticleSection) return false;
+    if (!("segments" in currentSection) || !currentSection.segments)
+      return false;
+    return currentSection.segments.some((s) => s.type === "chat");
+  }, [currentSection, isArticleSection]);
+
+  // Authored opening question for the current section's chat — shown as "Lens" message
+  // in both the sidebar and the NarrativeChatSection.
+  const sectionPrefixMessage = useMemo<ChatMessage | undefined>(() => {
+    if (!currentSection || !isArticleSection) return undefined;
+    if (!("segments" in currentSection) || !currentSection.segments)
+      return undefined;
+    const segs = currentSection.segments;
+    const lastExcerptIdx = segs.reduceRight(
+      (found, s, i) =>
+        found === -1 && s.type === "article-excerpt" ? i : found,
+      -1,
+    );
+    if (lastExcerptIdx === -1) return undefined;
+    const postExcerpt = segs.slice(lastExcerptIdx + 1);
+    const firstChatInPostIdx = postExcerpt.findIndex(
+      (s) => s.type === "chat",
+    );
+    if (firstChatInPostIdx <= 0) return undefined;
+    const content = postExcerpt
+      .slice(0, firstChatInPostIdx)
+      .filter((s) => s.type === "text")
+      .map((s) => ("content" in s ? s.content : ""))
+      .join("\n\n");
+    return content ? { role: "course-content", content } : undefined;
+  }, [currentSection, isArticleSection]);
+
+  // Close chat sidebar when leaving article sections
+  useEffect(() => {
+    if (!isArticleSection) setIsSidebarOpen(false);
+  }, [isArticleSection]);
+
+  // Auto-close sidebar when done reading; activate NarrativeChatSection with history.
+  // Uses isSidebarOpenRef (not state) to avoid re-running when sidebar reopens via scroll,
+  // which would create a close-reopen loop.
+  useEffect(() => {
+    if (!isArticleSection) return;
+    if (!doneReadingSections.has(currentSectionIndex)) return;
+    // Only auto-close once (first time done reading fires)
+    if (isSidebarOpenRef.current && !sidebarAutoClosedRef.current) {
+      setIsSidebarOpen(false);
+      sidebarAutoClosedRef.current = true;
+    }
+    if (sectionHasChatSegment) {
+      setActivateNarrativeChat(true);
+    }
+  }, [doneReadingSections, currentSectionIndex, isArticleSection, sectionHasChatSegment]);
+
+  // Reset per-section transfer state on section navigation
+  useEffect(() => {
+    sidebarAutoClosedRef.current = false;
+    setActivateNarrativeChat(false);
+  }, [currentSectionIndex]);
+
+  // Scroll listener: reopen sidebar when user scrolls back up to reading area
+  useEffect(() => {
+    if (!isArticleSection) return;
+    let prevScrollY = window.scrollY;
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollDelta = currentScrollY - prevScrollY;
+      prevScrollY = currentScrollY;
+      // Only act on meaningful upward scroll
+      if (scrollDelta >= -2) return;
+      if (!sidebarAutoClosedRef.current || isSidebarOpenRef.current) return;
+      const el = doneReadingBtnRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      // Reopen when DoneReadingButton is well back in viewport (user scrolled up past it)
+      if (rect.top > window.innerHeight * 0.5) {
+        setIsSidebarOpen(true);
+        sidebarAutoClosedRef.current = false;
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isArticleSection]);
 
   // Unified activity tracking for current section (5 min inactivity timeout)
   // Covers article, video, and chat — triggerActivity() keeps it alive during chat
@@ -792,6 +932,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   const handleMarkComplete = useCallback(
     (sectionIndex: number, apiResponse?: MarkCompleteResponse) => {
+      // Also mark as done reading (for reading sections with DoneReadingButton)
+      setDoneReadingSections((prev) => {
+        const next = new Set(prev);
+        next.add(sectionIndex);
+        return next;
+      });
+
       // Check if this is the first completion (for auth prompt)
       // Must check BEFORE updating state
       const isFirstCompletion = completedSections.size === 0;
@@ -850,6 +997,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     section: ModuleSection,
     sectionIndex: number,
     segmentIndex: number,
+    options?: { activateChat?: boolean; prefixMessage?: ChatMessage },
   ) => {
     const keyPrefix = `${sectionIndex}-${segmentIndex}`;
 
@@ -932,6 +1080,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               handleSendMessage(content, sectionIndex, segmentIndex)
             }
             onRetryMessage={handleRetryMessage}
+            activated={options?.activateChat}
+            activatedWithHistory={options?.activateChat}
+            prefixMessage={options?.prefixMessage}
           />
         );
 
@@ -1063,8 +1214,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         testModeActive={testModeActive}
       />
 
-      {/* Main content - padding-top accounts for fixed header */}
-      <main className="pt-[var(--module-header-height)]">
+      {/* Layout: optional TOC column (xl+) + content + optional chat sidebar */}
+      <div
+        className={`pt-[var(--module-header-height)] ${
+          isArticleSection ? "xl:grid xl:grid-cols-12" : ""
+        }`}
+      >
+      {/* TOC column — article sections, xl+ only */}
+      {isArticleSection && (
+        <aside className="hidden xl:block xl:col-span-3">
+          <div
+            ref={setTocContainer}
+            className="sticky top-[calc(var(--module-header-height)+12px)] ml-auto w-[250px] pr-6 pt-4 max-h-[calc(100dvh-var(--module-header-height)-24px)] overflow-y-auto scrollbar-hide"
+          />
+        </aside>
+      )}
+
+      {/* Content + sidebar wrapper */}
+      <div className={`flex ${isArticleSection ? "xl:col-span-9" : ""}`}>
+      <main className="flex-1 min-w-0">
         {module.sections.map((section, sectionIndex) => {
           // In paginated mode, only render current section
           if (
@@ -1090,6 +1258,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     title={`Section ${sectionIndex + 1}`}
                   />
                   <AuthoredText content={section.content} />
+                  <DoneReadingButton
+                    isChecked={doneReadingSections.has(sectionIndex)}
+                    onChange={(checked) =>
+                      handleDoneReadingChange(sectionIndex, checked)
+                    }
+                  />
                 </>
               ) : section.type === "page" ? (
                 // v2 Page section: text/chat segments only, no embedded content
@@ -1098,9 +1272,50 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     type="page"
                     title={section.meta?.title || `Page ${sectionIndex + 1}`}
                   />
-                  {section.segments?.map((segment, segmentIndex) =>
-                    renderSegment(segment, section, sectionIndex, segmentIndex),
-                  )}
+                  {(() => {
+                    const segs = section.segments ?? [];
+                    const firstChatIdx = segs.findIndex(
+                      (s) => s.type === "chat",
+                    );
+                    if (firstChatIdx === -1) {
+                      return (
+                        <>
+                          {segs.map((seg, i) =>
+                            renderSegment(seg, section, sectionIndex, i),
+                          )}
+                          <DoneReadingButton
+                            isChecked={doneReadingSections.has(sectionIndex)}
+                            onChange={(checked) =>
+                              handleDoneReadingChange(sectionIndex, checked)
+                            }
+                          />
+                        </>
+                      );
+                    }
+                    const beforeChat = segs.slice(0, firstChatIdx);
+                    const fromChat = segs.slice(firstChatIdx);
+                    return (
+                      <>
+                        {beforeChat.map((seg, i) =>
+                          renderSegment(seg, section, sectionIndex, i),
+                        )}
+                        <DoneReadingButton
+                          isChecked={doneReadingSections.has(sectionIndex)}
+                          onChange={(checked) =>
+                            handleDoneReadingChange(sectionIndex, checked)
+                          }
+                        />
+                        {fromChat.map((seg, i) =>
+                          renderSegment(
+                            seg,
+                            section,
+                            sectionIndex,
+                            firstChatIdx + i,
+                          ),
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               ) : section.type === "chat" ? (
                 <>
@@ -1137,7 +1352,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     optional={section.optional}
                     title={section.meta?.title}
                   />
-                  <ArticleSectionWrapper>
+                  <ArticleSectionWrapper tocPortalContainer={tocContainer}>
                     {(() => {
                       // Split segments into pre-excerpt, excerpt, post-excerpt groups
                       const segments = section.segments ?? [];
@@ -1152,15 +1367,35 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         -1,
                       );
 
-                      // If no excerpts, render all segments normally
+                      // If no excerpts, render all segments then button
                       if (firstExcerptIdx === -1) {
-                        return segments.map((segment, segmentIndex) =>
-                          renderSegment(
-                            segment,
-                            section,
-                            sectionIndex,
-                            segmentIndex,
-                          ),
+                        return (
+                          <>
+                            {segments.map((segment, segmentIndex) =>
+                              renderSegment(
+                                segment,
+                                section,
+                                sectionIndex,
+                                segmentIndex,
+                              ),
+                            )}
+                            <div
+                              ref={
+                                sectionIndex === currentSectionIndex
+                                  ? doneReadingBtnRef
+                                  : null
+                              }
+                            >
+                              <DoneReadingButton
+                                isChecked={doneReadingSections.has(
+                                  sectionIndex,
+                                )}
+                                onChange={(checked) =>
+                                  handleDoneReadingChange(sectionIndex, checked)
+                                }
+                              />
+                            </div>
+                          </>
                         );
                       }
 
@@ -1170,6 +1405,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         lastExcerptIdx + 1,
                       );
                       const postExcerpt = segments.slice(lastExcerptIdx + 1);
+                      const isCurrent = sectionIndex === currentSectionIndex;
+
+                      // Extract text segments before the first chat in postExcerpt
+                      // as a "Lens" prefix message — suppress their inline rendering
+                      const firstChatInPostIdx = postExcerpt.findIndex(
+                        (s) => s.type === "chat",
+                      );
+                      const prefixTextContent =
+                        firstChatInPostIdx > 0
+                          ? postExcerpt
+                              .slice(0, firstChatInPostIdx)
+                              .filter((s) => s.type === "text")
+                              .map((s) => ("content" in s ? s.content : ""))
+                              .join("\n\n")
+                          : null;
+                      const postExcerptPrefixMessage: ChatMessage | undefined =
+                        prefixTextContent
+                          ? { role: "course-content", content: prefixTextContent }
+                          : undefined;
 
                       return (
                         <>
@@ -1190,15 +1444,43 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                             )}
                           </ArticleExcerptGroup>
 
-                          {/* Post-excerpt content (reflection, chat) */}
-                          {postExcerpt.map((segment, i) =>
-                            renderSegment(
+                          {/* Done reading button — after article text, before chat/reflection */}
+                          <div
+                            ref={isCurrent ? doneReadingBtnRef : null}
+                          >
+                            <DoneReadingButton
+                              isChecked={doneReadingSections.has(sectionIndex)}
+                              onChange={(checked) =>
+                                handleDoneReadingChange(sectionIndex, checked)
+                              }
+                            />
+                          </div>
+
+                          {/* Post-excerpt content (reflection, chat) — skip text segments
+                              before first chat (they're passed as prefixMessage instead) */}
+                          {postExcerpt.map((segment, i) => {
+                            if (
+                              firstChatInPostIdx > -1 &&
+                              i < firstChatInPostIdx &&
+                              segment.type === "text"
+                            ) {
+                              return null;
+                            }
+                            return renderSegment(
                               segment,
                               section,
                               sectionIndex,
                               lastExcerptIdx + 1 + i,
-                            ),
-                          )}
+                              {
+                                activateChat:
+                                  isCurrent && activateNarrativeChat,
+                                prefixMessage:
+                                  i === firstChatInPostIdx
+                                    ? postExcerptPrefixMessage
+                                    : undefined,
+                              },
+                            );
+                          })}
                         </>
                       );
                     })()}
@@ -1212,7 +1494,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     optional={section.optional}
                     title={section.meta?.title}
                   />
-                  <ArticleSectionWrapper>
+                  <ArticleSectionWrapper tocPortalContainer={tocContainer}>
                     {(() => {
                       // Split segments into pre-excerpt, excerpt, post-excerpt groups
                       const segments = section.segments ?? [];
@@ -1227,15 +1509,35 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         -1,
                       );
 
-                      // If no excerpts, render all segments normally
+                      // If no excerpts, render all segments then button
                       if (firstExcerptIdx === -1) {
-                        return segments.map((segment, segmentIndex) =>
-                          renderSegment(
-                            segment,
-                            section,
-                            sectionIndex,
-                            segmentIndex,
-                          ),
+                        return (
+                          <>
+                            {segments.map((segment, segmentIndex) =>
+                              renderSegment(
+                                segment,
+                                section,
+                                sectionIndex,
+                                segmentIndex,
+                              ),
+                            )}
+                            <div
+                              ref={
+                                sectionIndex === currentSectionIndex
+                                  ? doneReadingBtnRef
+                                  : null
+                              }
+                            >
+                              <DoneReadingButton
+                                isChecked={doneReadingSections.has(
+                                  sectionIndex,
+                                )}
+                                onChange={(checked) =>
+                                  handleDoneReadingChange(sectionIndex, checked)
+                                }
+                              />
+                            </div>
+                          </>
                         );
                       }
 
@@ -1245,6 +1547,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         lastExcerptIdx + 1,
                       );
                       const postExcerpt = segments.slice(lastExcerptIdx + 1);
+                      const isCurrent = sectionIndex === currentSectionIndex;
+
+                      // Extract text segments before the first chat in postExcerpt
+                      // as a "Lens" prefix message — suppress their inline rendering
+                      const firstChatInPostIdx = postExcerpt.findIndex(
+                        (s) => s.type === "chat",
+                      );
+                      const prefixTextContent =
+                        firstChatInPostIdx > 0
+                          ? postExcerpt
+                              .slice(0, firstChatInPostIdx)
+                              .filter((s) => s.type === "text")
+                              .map((s) => ("content" in s ? s.content : ""))
+                              .join("\n\n")
+                          : null;
+                      const postExcerptPrefixMessage: ChatMessage | undefined =
+                        prefixTextContent
+                          ? { role: "course-content", content: prefixTextContent }
+                          : undefined;
 
                       return (
                         <>
@@ -1265,15 +1586,41 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                             )}
                           </ArticleExcerptGroup>
 
-                          {/* Post-excerpt content (reflection, chat) */}
-                          {postExcerpt.map((segment, i) =>
-                            renderSegment(
+                          {/* Done reading button — after article text, before chat/reflection */}
+                          <div ref={isCurrent ? doneReadingBtnRef : null}>
+                            <DoneReadingButton
+                              isChecked={doneReadingSections.has(sectionIndex)}
+                              onChange={(checked) =>
+                                handleDoneReadingChange(sectionIndex, checked)
+                              }
+                            />
+                          </div>
+
+                          {/* Post-excerpt content (reflection, chat) — skip text segments
+                              before first chat (they're passed as prefixMessage instead) */}
+                          {postExcerpt.map((segment, i) => {
+                            if (
+                              firstChatInPostIdx > -1 &&
+                              i < firstChatInPostIdx &&
+                              segment.type === "text"
+                            ) {
+                              return null;
+                            }
+                            return renderSegment(
                               segment,
                               section,
                               sectionIndex,
                               lastExcerptIdx + 1 + i,
-                            ),
-                          )}
+                              {
+                                activateChat:
+                                  isCurrent && activateNarrativeChat,
+                                prefixMessage:
+                                  i === firstChatInPostIdx
+                                    ? postExcerptPrefixMessage
+                                    : undefined,
+                              },
+                            );
+                          })}
                         </>
                       );
                     })()}
@@ -1448,6 +1795,37 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           );
         })}
       </main>
+
+      {isArticleSection && (
+        <ChatSidebar
+          isOpen={isSidebarOpen}
+          onOpen={() => {
+            setIsSidebarOpen(true);
+            sidebarAutoClosedRef.current = false;
+          }}
+          onClose={() => setIsSidebarOpen(false)}
+          sectionTitle={currentSection?.meta?.title}
+          messages={messages}
+          prefixMessage={
+            doneReadingSections.has(currentSectionIndex)
+              ? sectionPrefixMessage
+              : undefined
+          }
+          pendingMessage={pendingMessage}
+          streamingContent={streamingContent}
+          isLoading={isLoading}
+          onSendMessage={(content) =>
+            handleSendMessage(
+              content,
+              currentSectionIndex,
+              sidebarChatSegmentIndex !== -1 ? sidebarChatSegmentIndex : 0,
+            )
+          }
+          onRetryMessage={handleRetryMessage}
+        />
+      )}
+      </div>{/* /flex content+sidebar */}
+      </div>{/* /grid wrapper */}
 
       <ModuleDrawer
         ref={drawerRef}

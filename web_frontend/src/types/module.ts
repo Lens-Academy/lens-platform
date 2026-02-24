@@ -183,9 +183,9 @@ export type Module = {
 
 // Chat types (used in module player)
 export type ChatMessage = {
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant" | "system" | "course-content";
   content: string;
-  icon?: "article" | "video" | "chat"; // Optional icon for system messages
+  icon?: "article" | "video" | "chat" | "course-content"; // Optional icon for system messages
 };
 
 export type PendingMessage = {
