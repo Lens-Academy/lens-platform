@@ -21,6 +21,7 @@ type ChatSidebarProps = {
   sectionTitle?: string;
   // Chat state (passed from Module.tsx / parent)
   messages: ChatMessage[];
+  prefixMessage?: ChatMessage;
   pendingMessage: PendingMessage | null;
   streamingContent: string;
   isLoading: boolean;
@@ -34,6 +35,7 @@ export function ChatSidebar({
   onClose,
   sectionTitle,
   messages,
+  prefixMessage,
   pendingMessage,
   streamingContent,
   isLoading,
@@ -150,6 +152,7 @@ export function ChatSidebar({
     <>
       <ChatMessageList
         messages={messages}
+        prefixMessage={prefixMessage}
         pendingMessage={pendingMessage}
         streamingContent={streamingContent}
         isLoading={isLoading}
