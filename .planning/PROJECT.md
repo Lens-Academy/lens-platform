@@ -8,16 +8,17 @@ Web platform for an AI Safety education course. Students read articles, watch vi
 
 Students can engage with course content and demonstrate understanding — through reading, discussion, and assessment — while the platform collects data to improve both teaching and measurement.
 
-## Current Milestone: v3.0 Prompt Lab
+## Current Milestone: v3.1 AI Roleplay
 
-**Goal:** Build a facilitator-only evaluation workbench for iterating on AI tutor system prompts and assessment scoring prompts using real student data.
+**Goal:** Add roleplay content type where students practice AI safety conversations with AI characters, supporting text and voice input, with optional AI assessment.
 
 **Target features:**
-- Curated conversation/answer fixtures extracted from production data (stored in repo)
-- Chat tutor evaluation: replay real conversations with editable system prompts, regenerate AI responses at any point, interactively continue as the student
-- Assessment evaluation: run AI scoring on student answers with editable scoring prompts, review chain-of-thought reasoning, compare against human ground-truth scores
-- Web UI in the platform (facilitator auth) with SSE streaming for regenerated responses
-- Architecture extensible for future evaluation types
+- Roleplay segment type: multi-turn conversation with AI-played characters (e.g., skeptical tech CEO)
+- Characters defined in content markdown via `instructions::` (same pattern as chat stages)
+- Works as standalone segment in any section AND inside test sections (same as question segments)
+- Voice input support (reusing existing mic/speech-to-text infrastructure)
+- Optional AI assessment when course creators include `assessment_instructions`
+- Configurable end-of-conversation trigger (message count, time, or AI-monitored)
 
 ## Requirements
 
@@ -36,35 +37,37 @@ Students can engage with course content and demonstrate understanding — throug
 - ✓ Mobile-responsive navigation — v1.0
 - ✓ Mobile-responsive module header and progress — v1.0
 - ✓ Touch-friendly interaction targets (44px minimum) — v1.0
+- ✓ Prompt Lab chat evaluation workflow — v3.0
 
 ### Active
 
-(See REQUIREMENTS.md for v3.0 scoped requirements)
+(See REQUIREMENTS.md for v3.1 scoped requirements)
 
 ### Out of Scope
 
 - Native mobile app — web-first, mobile browser is sufficient
-- Facilitator dashboard on mobile — admin tasks stay desktop
 - Offline support — requires significant architecture changes
 - Push notifications — would require native capabilities
-- Automated prompt optimization — humans review and decide, no auto-tuning
-- Batch evaluation with metrics/dashboards — start with manual review, add metrics later
-- Side-by-side comparison UI — useful but not needed for first iteration
-- LLM-as-judge automated scoring — humans judge quality for now
+- TTS for AI roleplay responses — text output for now, add voice later if needed
+- Automated conversation quality metrics — qualitative human review first
 
 ## Context
 
-The AI tutor uses a two-level prompt: a hardcoded base system prompt in `core/modules/chat.py` plus per-chat-stage `instructions::` from content markdown. The assessment system (being built in ws3/v2.0) adds scoring prompts with socratic vs assessment modes and structured output (score + chain-of-thought + dimensions). Both prompt types need iterative human evaluation to improve quality.
+The platform has an existing content system where course modules are defined in markdown with different section types (page, lens-article, lens-video) and segment types within them (article, video, chat, question). The roleplay feature adds a new segment type that follows the same patterns.
 
-Current conversation data lives in the `chat_sessions` table (JSONB messages array). Assessment responses and scores live in `assessment_responses` and `assessment_scores` tables.
+Existing voice infrastructure: AnswerBox already supports voice recording via `getUserMedia` with secure context guard, speech-to-text transcription, and 2.5s auto-save debounce. The chat system uses `stream_chat()` with SSE streaming for AI responses.
+
+Assessment scoring exists: `assessment_instructions` trigger AI scoring with structured output (score + chain-of-thought + dimensions) via `core/scoring.py`. Question segments can appear standalone or in test sections.
+
+Conversation data lives in `chat_sessions` table (JSONB messages array). Assessment responses and scores live in `assessment_responses` and `assessment_scores` tables.
 
 ## Constraints
 
 - **Stack**: Must use existing React 19 + Vike + Tailwind CSS frontend and FastAPI backend
-- **Auth**: Facilitator role required — uses existing Discord OAuth + role system
+- **Content system**: Roleplay must integrate as a segment type in existing markdown content system
 - **LLM**: Use existing LiteLLM integration — no new providers
-- **Data**: Fixtures stored as JSON in repo, not in database
-- **Production safety**: Prompt Lab never modifies production prompts — it's a read-only playground
+- **Voice**: Reuse existing mic/speech-to-text infrastructure from AnswerBox
+- **Assessment**: Follow existing `assessment_instructions` pattern from question segments
 
 ## Key Decisions
 
@@ -72,9 +75,9 @@ Current conversation data lives in the `chat_sessions` table (JSONB messages arr
 |----------|-----------|---------|
 | Tailwind responsive utilities | Already in stack, well-documented patterns | ✓ Good |
 | Mobile-first approach | Easier to scale up than down | ✓ Good |
-| Fixtures in repo, not DB | Version-controlled, stable, curated, accessible to Claude Code | — Pending |
-| Prompt Lab in platform (not standalone) | Reuses auth, components, styling; content lives there | — Pending |
-| Manual extraction via Claude Code | Small dataset (5-15), curation needed, no UI overhead | — Pending |
+| Fixtures in repo, not DB | Version-controlled, stable, curated, accessible to Claude Code | ✓ Good |
+| Roleplay as segment type (not stage) | Follows question pattern — can be standalone or in tests | — Pending |
+| Voice-in/text-out for AI responses | TTS is expensive, text output sufficient for v1 | — Pending |
 
 ---
-*Last updated: 2026-02-20 after v3.0 milestone start*
+*Last updated: 2026-02-24 after v3.1 milestone start*

@@ -2,19 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-20)
+See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Students can engage with course content and demonstrate understanding while the platform collects data to improve both teaching and measurement.
-**Current focus:** v3.0 Prompt Lab — Phase 6: Chat Evaluation
+**Current focus:** v3.1 AI Roleplay
 
 ## Current Position
 
-Phase: 6 of 7 (Chat Evaluation)
-Plan: 5 of 5
-Status: Executing
-Last activity: 2026-02-20 — Completed 06-04 Prompt Lab interactive UI
-
-Progress: [████████░░] 80%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-24 — Milestone v3.1 started
 
 ## Milestone Summary
 
@@ -24,37 +22,14 @@ Progress: [████████░░] 80%
 - 2 days from start to ship
 - Tagged: v1.0
 
-## Performance Metrics
-
-**Velocity:**
-- Total plans completed: 4 (v3.0)
-- Average duration: 6min
-- Total execution time: 22min
-
-**By Phase (v1.0):**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 06-chat-evaluation | 4/5 | 22min | 6min |
+**v3.0 Prompt Lab:**
+- 2 phases (6-7), 4/5 plans completed in Phase 6
+- Phase 7 deferred (blocked on ws3 merge)
+- Archived as-is
 
 ## Accumulated Context
 
 ### Decisions
-
-- Fixtures stored as JSON in repo, not database (version-controlled, curated)
-- Prompt Lab calls llm.py directly via core/promptlab/ — does not modify chat.py or scoring.py
-- Manual fixture extraction via Claude Code (small dataset, no UI needed)
-- ChatMarkdown exported as default export for simple import syntax
-- Fixture loading is synchronous (small local JSON files, no async needed)
-- Fixtures sorted by name in list_fixtures() for deterministic ordering
-- Thinking mode bypasses stream_chat() and calls acompletion() directly with thinking parameter
-- continue_conversation() delegates to regenerate_response() (functionally identical)
-- X-Accel-Buffering: no header on SSE responses for reverse proxy compatibility
-- FixtureBrowser uses select dropdown for module filtering (not text search)
-- PromptLab view placeholder shows fixture info when selected (Plan 04 replaces with full UI)
-- API client systemPrompt param is string (not object) matching backend RegenerateRequest schema
-- System prompt assembled in view from fixture parts (base + instructions + previousContent)
-- Follow-up messages marked isRegenerated:true since they are Prompt Lab generations
 
 v2.0 decisions:
 - Free-text only (no MC) for richer AI assessment signal
@@ -100,10 +75,10 @@ v2.0 decisions:
 
 ### Blockers/Concerns
 
-- Phase 7 (Assessment Evaluation) blocked until ws3 merges `complete()` function and `SCORE_SCHEMA`
+(None yet)
 
 ## Session Continuity
 
-Last session: 2026-02-20
-Stopped at: Completed 06-04-PLAN.md
+Last session: 2026-02-24
+Stopped at: Starting v3.1 milestone
 Resume file: None

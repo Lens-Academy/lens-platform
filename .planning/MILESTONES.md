@@ -26,3 +26,27 @@
 **What's next:** Next mobile milestone, or begin facilitator dashboard improvements
 
 ---
+
+## v3.0 Prompt Lab (Archived: 2026-02-24)
+
+**Delivered:** Chat evaluation workflow for facilitators to iterate on AI tutor system prompts using real student conversations. Archived with Phase 7 (Assessment Evaluation) deferred.
+
+**Phases completed:** 6 (4/5 plans — integration verification deferred)
+
+**Key accomplishments:**
+
+- Chat fixture extraction and loading system (curated JSON files in repo)
+- Backend regeneration engine with thinking/chain-of-thought support + SSE streaming
+- Frontend Prompt Lab page with fixture browser, module filtering, and API client
+- Full interactive UI: two-panel layout, system prompt editing, AI response regeneration, original vs regenerated comparison, CoT display, follow-up messaging as student
+
+**Deferred:**
+
+- Plan 06-05: Integration verification and end-to-end manual testing
+- Phase 7: Assessment evaluation (blocked on ws3 merge of `complete()` and `SCORE_SCHEMA`)
+
+**Git range:** `feat(06-01)` → `feat(06-04)`
+
+**What's next:** v3.1 AI Roleplay
+
+---
