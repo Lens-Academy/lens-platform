@@ -34,29 +34,12 @@ export function extractHeadings(
   const headings: HeadingItem[] = [];
   const lines = markdown.split("\n");
 
-  // Debug: log the start of the content to see what we're receiving
-  console.log(
-    "[extractHeadings] Content preview (first 300 chars):",
-    JSON.stringify(markdown.slice(0, 300)),
-  );
-
   for (const line of lines) {
     let level: 2 | 3 | null = null;
     let text: string | null = null;
 
     // Match markdown ## or ### at start of line
     const mdMatch = line.match(/^(#{2,3})\s+(.+)$/);
-    // Debug: log when we find a potential heading
-    if (line.startsWith("##")) {
-      console.log(
-        "[extractHeadings] Line starts with ##:",
-        JSON.stringify(line.slice(0, 60)),
-        "Match:",
-        !!mdMatch,
-        "Level:",
-        mdMatch?.[1]?.length,
-      );
-    }
     if (mdMatch) {
       level = mdMatch[1].length as 2 | 3;
       text = mdMatch[2].trim();
@@ -82,14 +65,6 @@ export function extractHeadings(
     headings.push({ id, text, level });
   }
 
-  console.log(
-    "[extractHeadings] Found",
-    headings.length,
-    "headings. H2:",
-    headings.filter((h) => h.level === 2).length,
-    "H3:",
-    headings.filter((h) => h.level === 3).length,
-  );
   return headings;
 }
 

@@ -59,18 +59,18 @@ export default function VideoEmbed({
 
   return (
     <div ref={containerRef} className={containerClasses}>
-      <div className="bg-stone-100 rounded-lg overflow-hidden shadow-sm">
-        {isActivated ? (
-          <VideoPlayer
-            videoId={videoId}
-            start={start}
-            end={end}
-            autoplay
-            onPlay={onPlay}
-            onPause={onPause}
-            onTimeUpdate={onTimeUpdate}
-          />
-        ) : (
+      {isActivated ? (
+        <VideoPlayer
+          videoId={videoId}
+          start={start}
+          end={end}
+          autoplay
+          onPlay={onPlay}
+          onPause={onPause}
+          onTimeUpdate={onTimeUpdate}
+        />
+      ) : (
+        <div className="bg-stone-100 rounded-lg overflow-hidden shadow-sm">
           <button
             onClick={() => setIsActivated(true)}
             className="relative block w-full aspect-video group cursor-pointer"
@@ -100,22 +100,22 @@ export default function VideoEmbed({
               </div>
             )}
           </button>
-        )}
 
-        {/* Title and channel below thumbnail (YouTube style) */}
-        {!isActivated && (title || channel) && (
-          <div className="px-3 py-2">
-            {title && (
-              <div className="text-sm font-medium text-stone-800 line-clamp-2">
-                {title}
-              </div>
-            )}
-            {channel && (
-              <div className="text-xs text-stone-500 mt-0.5">{channel}</div>
-            )}
-          </div>
-        )}
-      </div>
+          {/* Title and channel below thumbnail (YouTube style) */}
+          {(title || channel) && (
+            <div className="px-3 py-2">
+              {title && (
+                <div className="text-sm font-medium text-stone-800 line-clamp-2">
+                  {title}
+                </div>
+              )}
+              {channel && (
+                <div className="text-xs text-stone-500 mt-0.5">{channel}</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

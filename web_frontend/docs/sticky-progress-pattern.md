@@ -3,6 +3,7 @@
 ## The Goal
 
 Progress icons should feel connected to scroll position:
+
 1. The **current** section's icon stays vertically centered (e.g., 50vh)
 2. When a section scrolls up past center, its icon **sticks to the top** of the viewport
 3. Multiple completed icons **stack at the top**, forming a visible progress bar
@@ -28,6 +29,7 @@ Multiple sticky elements with the same `top` value naturally stack:
 ```
 
 As you scroll:
+
 - Section 1's icon sticks at `top: 80px`
 - Section 2's icon sticks at `top: 120px` (below icon 1)
 - Section 3's icon sticks at `top: 160px` (below icon 2)
@@ -36,28 +38,25 @@ As you scroll:
 ## Implementation Approach
 
 ### Structure
+
 Each section contains its own icon as a child:
 
 ```tsx
 <section className="relative">
   {/* Icon column on the left, sticky */}
   <div className="absolute left-4 top-0 bottom-0">
-    <div
-      className="sticky"
-      style={{ top: `${80 + sectionIndex * 40}px` }}
-    >
+    <div className="sticky" style={{ top: `${80 + sectionIndex * 40}px` }}>
       <SectionIcon type={section.type} />
     </div>
   </div>
 
   {/* Content with left padding */}
-  <div className="pl-20">
-    {section.content}
-  </div>
+  <div className="pl-20">{section.content}</div>
 </section>
 ```
 
 ### Behavior
+
 1. Icon starts at its natural position in the section
 2. As section scrolls up, icon becomes sticky at its designated `top` position
 3. Icons stack vertically because each has a progressively larger `top` value
@@ -71,8 +70,12 @@ Pure CSS sticky alone doesn't keep icons at top after their section leaves. Opti
 
 **Option A: Very tall icon container**
 Make the icon's sticky container span multiple sections (or the whole page), so it never "ends":
+
 ```tsx
-<div className="absolute left-4 top-0" style={{ height: 'calc(100% + remaining sections height)' }}>
+<div
+  className="absolute left-4 top-0"
+  style={{ height: "calc(100% + remaining sections height)" }}
+>
   <div className="sticky" style={{ top: `${80 + index * 40}px` }}>
     <Icon />
   </div>
@@ -81,6 +84,7 @@ Make the icon's sticky container span multiple sections (or the whole page), so 
 
 **Option B: Minimal JS - clone to fixed container**
 When IntersectionObserver detects section has scrolled past, clone/move the icon to a fixed top container:
+
 ```tsx
 // Fixed container at top of page
 <div className="fixed top-20 left-4 flex flex-col gap-2">
@@ -100,12 +104,14 @@ Use `animation-timeline: view()` to animate icon position based on scroll. Limit
 ## Recommended Approach
 
 **Option B (Minimal JS)** seems cleanest:
+
 - Each section renders its icon inline with sticky positioning
 - When section scrolls past threshold, icon is "promoted" to a fixed top container
 - Use IntersectionObserver to detect when sections enter/leave viewport
 - React state tracks which sections are "completed" (scrolled past)
 
 This gives us:
+
 - Natural scroll-connected feel (icons are in DOM with their sections)
 - Clean stacking at top (fixed container with completed icons)
 - Minimal JS (just intersection detection, no scroll position math)
@@ -140,6 +146,7 @@ This gives us:
 Put icons in a fixed sidebar, update positions via `useState` on every scroll frame.
 
 **Problems:**
+
 - React re-renders on every scroll frame = laggy
 - CSS `transition-all` on positions fought with JS updates = double-laggy
 
@@ -148,6 +155,7 @@ Put icons in a fixed sidebar, update positions via `useState` on every scroll fr
 Same fixed sidebar, but use refs and `element.style.transform` instead of state.
 
 **Improvements:**
+
 - `will-change-transform` for GPU acceleration
 - Only `setState` when currentIndex changes (not every frame)
 - Cancel pending RAF before scheduling new ones
@@ -168,16 +176,19 @@ Same fixed sidebar, but use refs and `element.style.transform` instead of state.
 ```
 
 **What CSS sticky handles automatically:**
+
 - Icon follows section as it enters from below
 - Icon sticks at 50vh (center) while section is in view
 - No continuous JS updates needed
 
 **What JS handles (IntersectionObserver only):**
+
 - Detect when section crosses the center threshold
 - Move completed icons to a fixed container at top
 - This is event-driven, not continuous
 
 **Benefits:**
+
 - No scroll listener doing continuous position calculations
 - Browser handles the smooth "following" natively
 - JS only fires at discrete state transitions

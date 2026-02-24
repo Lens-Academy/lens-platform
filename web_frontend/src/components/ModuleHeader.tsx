@@ -1,6 +1,6 @@
 import { useMedia } from "react-use";
 import { useScrollDirection } from "../hooks/useScrollDirection";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { UserMenu } from "./nav/UserMenu";
 import StageProgressBar from "./module/StageProgressBar";
 import type { Stage } from "../types/module";
@@ -15,6 +15,7 @@ interface ModuleHeaderProps {
   onStageClick: (index: number) => void;
   onPrevious: () => void;
   onNext: () => void;
+  onMenuToggle: () => void;
   testModeActive?: boolean;
 }
 
@@ -28,13 +29,18 @@ export function ModuleHeader({
   onStageClick,
   onPrevious,
   onNext,
+  onMenuToggle,
   testModeActive,
 }: ModuleHeaderProps) {
   const scrollDirection = useScrollDirection(100);
   const isMobile = useMedia("(max-width: 767px)", false);
 
-  // Hide header on scroll down (100px threshold via useScrollDirection)
-  const shouldHideHeader = scrollDirection === "down";
+  // Hide header on scroll down only when viewport is compact (mobile or short)
+  const isCompactViewport = useMedia(
+    "(max-width: 767px), (max-height: 700px)",
+    false,
+  );
+  const shouldHideHeader = isCompactViewport && scrollDirection === "down";
 
   // Current viewing position (1-indexed for display)
   const displayIndex = currentSectionIndex + 1;
@@ -51,8 +57,15 @@ export function ModuleHeader({
       style={{ paddingTop: "var(--safe-top)" }}
     >
       <div className="relative flex items-center justify-between px-4 py-3">
-        {/* Left: Logo + Title */}
+        {/* Left: Hamburger + Logo + Title */}
         <div className="flex items-center gap-2 min-w-0 flex-shrink-0">
+          <button
+            onMouseDown={onMenuToggle}
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all active:scale-95 shrink-0"
+            aria-label="Module overview"
+          >
+            <Menu className="w-5 h-5 text-gray-600" />
+          </button>
           <a href="/" className="min-h-[44px] flex items-center gap-2 shrink-0">
             <img
               src="/assets/Logo only.png"

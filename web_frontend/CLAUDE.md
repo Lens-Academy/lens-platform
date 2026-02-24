@@ -46,27 +46,35 @@ src/pages/
 ```
 
 **Page component:**
+
 ```tsx
 // src/pages/my-page/+Page.tsx
 export default function Page() {
-  return <div>My Page</div>
+  return <div>My Page</div>;
 }
 ```
 
 **With data loading:**
+
 ```tsx
 // src/pages/my-page/+data.ts
 export async function data() {
-  const items = await fetchItems()
-  return { items }
+  const items = await fetchItems();
+  return { items };
 }
 
 // src/pages/my-page/+Page.tsx
-import { useData } from 'vike-react/useData'
+import { useData } from "vike-react/useData";
 
 export default function Page() {
-  const { items } = useData()
-  return <ul>{items.map(i => <li key={i.id}>{i.name}</li>)}</ul>
+  const { items } = useData();
+  return (
+    <ul>
+      {items.map((i) => (
+        <li key={i.id}>{i.name}</li>
+      ))}
+    </ul>
+  );
 }
 ```
 
@@ -83,15 +91,15 @@ API calls go through `src/api/`:
 ```tsx
 // src/api/users.ts
 export async function getProfile() {
-  const res = await fetch('/api/users/me', { credentials: 'include' })
-  if (!res.ok) throw new Error('Failed to fetch profile')
-  return res.json()
+  const res = await fetch("/api/users/me", { credentials: "include" });
+  if (!res.ok) throw new Error("Failed to fetch profile");
+  return res.json();
 }
 
 // In component
-import { getProfile } from '../api/users'
+import { getProfile } from "../api/users";
 
-const profile = await getProfile()
+const profile = await getProfile();
 ```
 
 ## Production Build

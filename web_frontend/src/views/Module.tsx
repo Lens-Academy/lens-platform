@@ -41,6 +41,7 @@ import ArticleSectionWrapper from "@/components/module/ArticleSectionWrapper";
 import ArticleExcerptGroup from "@/components/module/ArticleExcerptGroup";
 import { ModuleHeader } from "@/components/ModuleHeader";
 import ModuleDrawer from "@/components/module/ModuleDrawer";
+import type { ModuleDrawerHandle } from "@/components/module/ModuleDrawer";
 import ModuleCompleteModal from "@/components/module/ModuleCompleteModal";
 import AuthPromptModal from "@/components/module/AuthPromptModal";
 import {
@@ -391,6 +392,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // View mode state (default to paginated)
   const [viewMode] = useState<ViewMode>("paginated");
+
+  // Drawer ref for imperative toggle (state lives in ModuleDrawer to avoid re-rendering Module)
+  const drawerRef = useRef<ModuleDrawerHandle>(null);
 
   // Track which question's feedback chat is currently visible (only one at a time)
   const [activeFeedbackKey, setActiveFeedbackKey] = useState<string | null>(
@@ -1055,6 +1059,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         onStageClick={handleStageClick}
         onPrevious={handlePrevious}
         onNext={handleNext}
+        onMenuToggle={() => drawerRef.current?.toggle()}
         testModeActive={testModeActive}
       />
 
@@ -1445,6 +1450,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       </main>
 
       <ModuleDrawer
+        ref={drawerRef}
         moduleTitle={module.title}
         stages={stagesForDrawer}
         completedStages={completedSections}

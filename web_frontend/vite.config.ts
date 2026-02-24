@@ -8,7 +8,9 @@ import path from "path";
 // Offset by 100 so each workspace has a port range that won't collide if
 // a server auto-increments to the next available port.
 // No workspace suffix → 8000/3000 (default)
-const workspaceMatch = path.basename(path.resolve(__dirname, "..")).match(/(?:^|-)ws(\d+)$/);
+const workspaceMatch = path
+  .basename(path.resolve(__dirname, ".."))
+  .match(/(?:^|-)ws(\d+)$/);
 const wsNum = workspaceMatch ? parseInt(workspaceMatch[1], 10) : 0;
 const defaultApiPort = 8000 + wsNum * 100;
 const defaultFrontendPort = 3000 + wsNum * 100;
@@ -22,7 +24,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     define: {
-      ...(envLabel ? { "import.meta.env.VITE_ENV_LABEL": JSON.stringify(envLabel) } : {}),
+      ...(envLabel
+        ? { "import.meta.env.VITE_ENV_LABEL": JSON.stringify(envLabel) }
+        : {}),
     },
     plugins: [
       react(),
@@ -40,14 +44,19 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       allowedHosts: ["dev.vps"],
-      port: parseInt(process.env.FRONTEND_PORT || String(defaultFrontendPort), 10),
+      port: parseInt(
+        process.env.FRONTEND_PORT || String(defaultFrontendPort),
+        10,
+      ),
       proxy: {
         "/api": {
-          target: process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
+          target:
+            process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
           changeOrigin: true,
         },
         "/auth": {
-          target: process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
+          target:
+            process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
           changeOrigin: true,
         },
       },

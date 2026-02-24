@@ -236,11 +236,18 @@ export default function VideoPlayer({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const seekToPosition = (clientX: number) => {
-    if (!progressBarRef.current || !videoRef.current) return;
+  const wasPlayingRef = useRef(false);
+  const lastSeekTimeRef = useRef(0);
+
+  const getPercentageFromX = (clientX: number) => {
+    if (!progressBarRef.current) return null;
     const rect = progressBarRef.current.getBoundingClientRect();
     const clickX = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    const percentage = clickX / rect.width;
+    return clickX / rect.width;
+  };
+
+  const seekToPercentage = (percentage: number) => {
+    if (!videoRef.current) return;
     const newTime = start + percentage * duration;
     videoRef.current.currentTime = newTime;
     setProgress(percentage);
@@ -251,9 +258,15 @@ export default function VideoPlayer({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    const pct = getPercentageFromX(e.clientX);
+    if (pct === null) return;
+    // Pause video for responsive scrubbing (like YouTube's native bar)
+    const video = videoRef.current;
+    wasPlayingRef.current = video ? !video.paused : false;
+    video?.pause();
     isDraggingRef.current = true;
     setIsDragging(true);
-    seekToPosition(e.clientX);
+    seekToPercentage(pct);
   };
 
   // Handle drag and release globally
@@ -261,12 +274,25 @@ export default function VideoPlayer({
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      seekToPosition(e.clientX);
+      const pct = getPercentageFromX(e.clientX);
+      if (pct === null) return;
+      setProgress(pct);
+      // Throttle actual seeks to ~100ms so the player can keep up
+      const now = Date.now();
+      if (now - lastSeekTimeRef.current > 100) {
+        lastSeekTimeRef.current = now;
+        const newTime = start + pct * duration;
+        if (videoRef.current) videoRef.current.currentTime = newTime;
+      }
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (e: MouseEvent) => {
+      const pct = getPercentageFromX(e.clientX);
+      if (pct !== null) seekToPercentage(pct);
       isDraggingRef.current = false;
       setIsDragging(false);
+      // Resume playback if it was playing before drag
+      if (wasPlayingRef.current) videoRef.current?.play();
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -276,13 +302,13 @@ export default function VideoPlayer({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- seekToPosition uses refs and state that are stable
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- uses refs and state that are stable
   }, [isDragging, start, duration]);
 
   const showControls = isHovering || isPaused || fragmentEnded;
 
   return (
-    <div className="flex flex-col items-center gap-4 p-4">
+    <div className="flex flex-col items-center gap-3">
       {/* Video + progress bar container with hover detection */}
       <div
         className="w-full"
@@ -290,7 +316,10 @@ export default function VideoPlayer({
         onMouseLeave={() => setIsHovering(false)}
       >
         {/* Video with native YouTube controls */}
-        <div ref={containerRef} className="w-full aspect-video relative">
+        <div
+          ref={containerRef}
+          className="w-full aspect-video relative rounded-xl overflow-hidden"
+        >
           <youtube-video
             src={youtubeUrl}
             controls
@@ -320,30 +349,32 @@ export default function VideoPlayer({
         {/* Custom fragment progress bar below video (hidden when no clip or in full video mode) */}
         {isClip && !isFullVideo && (
           <div
-            className="flex items-center gap-3 pt-3 transition-opacity duration-200"
+            className="px-1 pt-3 transition-opacity duration-200"
             style={{ opacity: showControls ? 1 : 0 }}
           >
-            <div
-              ref={progressBarRef}
-              className="flex-1 rounded cursor-pointer relative select-none"
-              style={{ height: "6px", backgroundColor: "#ddd" }}
-              onMouseDown={handleMouseDown}
-            >
+            <div className="flex items-center gap-3">
               <div
-                className="h-full rounded pointer-events-none"
-                style={{
-                  width: `${progress * 100}%`,
-                  backgroundColor: "#3b82f6",
-                }}
-              />
-              <div
-                className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow pointer-events-none bg-blue-600 border-2 border-white"
-                style={{ left: `calc(${progress * 100}% - 8px)` }}
-              />
+                ref={progressBarRef}
+                className="flex-1 rounded cursor-pointer relative select-none"
+                style={{ height: "6px", backgroundColor: "#ddd" }}
+                onMouseDown={handleMouseDown}
+              >
+                <div
+                  className="h-full rounded pointer-events-none"
+                  style={{
+                    width: `${progress * 100}%`,
+                    backgroundColor: "#3b82f6",
+                  }}
+                />
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow pointer-events-none bg-blue-600 border-2 border-white"
+                  style={{ left: `calc(${progress * 100}% - 8px)` }}
+                />
+              </div>
+              <span className="text-sm text-gray-600 whitespace-nowrap">
+                {formatTime(progress * duration)} / {formatTime(duration)}
+              </span>
             </div>
-            <span className="text-sm text-gray-600 whitespace-nowrap">
-              {formatTime(progress * duration)} / {formatTime(duration)}
-            </span>
           </div>
         )}
       </div>

@@ -47,7 +47,7 @@ export default function CookieBanner() {
   if (isLoading || !showBanner) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-700 p-4 z-50 shadow-lg">
+    <div className="fixed top-0 left-0 right-0 bg-slate-900 border-b border-slate-700 p-4 z-50 shadow-lg">
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex-1">
           <p className="text-sm text-slate-300">
