@@ -2,8 +2,8 @@
 AI scoring module for question responses.
 
 Builds prompts from question context, calls LiteLLM with structured output,
-and writes scores to the question_assessments table. Supports socratic vs
-assessment mode. Runs as a background task without blocking API responses.
+and writes scores to the question_assessments table. Runs as a background
+task without blocking API responses.
 """
 
 import asyncio
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 SCORING_PROVIDER = os.environ.get("SCORING_PROVIDER") or DEFAULT_PROVIDER
 
 # Prompt version for tracking in question_assessments.assessment_system_prompt_version
-ASSESSMENT_SYSTEM_PROMPT_VERSION = "v1"
+ASSESSMENT_SYSTEM_PROMPT_VERSION = "v2"
 
 # Track running tasks to prevent GC (asyncio only keeps weak references)
 _running_tasks: set[asyncio.Task] = set()
@@ -103,7 +103,6 @@ def _build_scoring_prompt(
     question_text: str,
     assessment_instructions: str | None,
     learning_outcome_name: str | None,
-    mode: str,
 ) -> tuple[str, list[dict]]:
     """
     Build system prompt and messages for scoring.
@@ -113,24 +112,15 @@ def _build_scoring_prompt(
         question_text: The question text shown to the student
         assessment_instructions: Optional rubric/assessment criteria
         learning_outcome_name: Optional learning outcome name for context
-        mode: "socratic" or "assessment"
 
     Returns:
         Tuple of (system_prompt, messages_list)
     """
-    if mode == "socratic":
-        system = (
-            "You are a supportive educational assessor. "
-            "Score this student's response with emphasis on effort, engagement, "
-            "and learning progress. Be generous with partial understanding. "
-            "The goal is to track learning, not to judge."
-        )
-    else:  # assessment
-        system = (
-            "You are a rigorous educational assessor. "
-            "Score this student's response against the rubric precisely. "
-            "Measure actual understanding demonstrated, not effort."
-        )
+    system = (
+        "You are a rigorous educational assessor. "
+        "Score this student's response against the rubric precisely. "
+        "Measure actual understanding demonstrated, not effort."
+    )
 
     # Add learning outcome context if available
     if learning_outcome_name:
@@ -156,8 +146,8 @@ def _build_scoring_prompt(
 
 def _resolve_question_details(module_slug: str, question_id: str) -> dict:
     """
-    Look up question text, assessment instructions, learning outcome name,
-    and scoring mode from the content cache.
+    Look up question text, assessment instructions, and learning outcome name
+    from the content cache.
 
     question_id format: "moduleSlug:sectionIndex:segmentIndex"
 
@@ -167,7 +157,7 @@ def _resolve_question_details(module_slug: str, question_id: str) -> dict:
 
     Returns:
         Dict with keys: question_text, assessment_instructions,
-        learning_outcome_name, mode. Empty dict on any lookup failure.
+        learning_outcome_name. Empty dict on any lookup failure.
     """
     try:
         module = load_flattened_module(module_slug)
@@ -216,14 +206,10 @@ def _resolve_question_details(module_slug: str, question_id: str) -> dict:
         )
         return {}
 
-    # Determine mode: test sections = assessment, everything else = socratic
-    mode = "assessment" if section.get("type") == "test" else "socratic"
-
     return {
         "question_text": segment.get("content", ""),
         "assessment_instructions": segment.get("assessmentInstructions"),
         "learning_outcome_name": section.get("learningOutcomeName"),
-        "mode": mode,
     }
 
 
@@ -241,7 +227,7 @@ async def _score_response(response_id: int, ctx: dict) -> None:
     question_text = ctx.get("question_text")
     assessment_instructions = ctx.get("assessment_instructions")
 
-    # Resolve mode and learning_outcome_name from content cache
+    # Resolve learning_outcome_name from content cache
     # (these are not stored on the row)
     question_details = _resolve_question_details(
         module_slug=ctx["module_slug"],
@@ -259,7 +245,6 @@ async def _score_response(response_id: int, ctx: dict) -> None:
         question_text = question_details["question_text"]
         assessment_instructions = question_details.get("assessment_instructions")
 
-    mode = question_details.get("mode", "socratic") if question_details else "socratic"
     learning_outcome_name = (
         question_details.get("learning_outcome_name") if question_details else None
     )
@@ -270,7 +255,6 @@ async def _score_response(response_id: int, ctx: dict) -> None:
         question_text=question_text,
         assessment_instructions=assessment_instructions,
         learning_outcome_name=learning_outcome_name,
-        mode=mode,
     )
 
     # Call LLM
