@@ -142,7 +142,7 @@ from .questions import (
 )
 
 # Scoring (async background task)
-from .scoring import enqueue_scoring
+from .assessment import enqueue_scoring
 
 __all__ = [
     # Database (SQLAlchemy)

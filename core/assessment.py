@@ -1,5 +1,5 @@
 """
-AI scoring module for question responses.
+AI assessment module for question responses.
 
 Builds prompts from question context, calls LiteLLM with structured output,
 and writes scores to the question_assessments table. Runs as a background
@@ -28,6 +28,13 @@ ASSESSMENT_SYSTEM_PROMPT_VERSION = "v2"
 
 # Track running tasks to prevent GC (asyncio only keeps weak references)
 _running_tasks: set[asyncio.Task] = set()
+
+# Base system prompt for assessment scoring
+ASSESSMENT_SYSTEM_PROMPT = (
+    "You are a rigorous educational assessor. "
+    "Score this student's response against the rubric precisely. "
+    "Measure actual understanding demonstrated, not effort."
+)
 
 # Structured output schema for LLM scoring responses
 SCORE_SCHEMA = {
@@ -116,11 +123,7 @@ def _build_scoring_prompt(
     Returns:
         Tuple of (system_prompt, messages_list)
     """
-    system = (
-        "You are a rigorous educational assessor. "
-        "Score this student's response against the rubric precisely. "
-        "Measure actual understanding demonstrated, not effort."
-    )
+    system = ASSESSMENT_SYSTEM_PROMPT
 
     # Add learning outcome context if available
     if learning_outcome_name:
