@@ -6,6 +6,8 @@ import { generateHeadingId } from "@/utils/extractHeadings";
 
 type ArticleSectionWrapperProps = {
   children: React.ReactNode;
+  /** Portal container for rendering the TOC in a grid column at the Module level */
+  tocPortalContainer?: HTMLElement | null;
 };
 
 /**
@@ -15,6 +17,7 @@ type ArticleSectionWrapperProps = {
  */
 export default function ArticleSectionWrapper({
   children,
+  tocPortalContainer,
 }: ArticleSectionWrapperProps) {
   const headingElementsRef = useRef<Map<string, HTMLElement>>(new Map());
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -170,6 +173,7 @@ export default function ArticleSectionWrapper({
       onHeadingRender: handleHeadingRender,
       registerTocItem,
       onHeadingClick: handleHeadingClick,
+      tocPortalContainer: tocPortalContainer ?? null,
     }),
     [
       getHeadingId,
@@ -177,6 +181,7 @@ export default function ArticleSectionWrapper({
       handleHeadingRender,
       registerTocItem,
       handleHeadingClick,
+      tocPortalContainer,
     ],
   );
 

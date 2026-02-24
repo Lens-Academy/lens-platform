@@ -14,7 +14,7 @@ import ChatMarkdown from "@/components/ChatMarkdown";
 import { Tooltip } from "@/components/Tooltip";
 import { StageIcon } from "@/components/module/StageProgressBar";
 import { triggerHaptic } from "@/utils/haptics";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown, Bot, BookOpen } from "lucide-react";
 import { chatViewReducer, initialChatViewState } from "./chatViewReducer";
 
 type NarrativeChatSectionProps = {
@@ -26,6 +26,10 @@ type NarrativeChatSectionProps = {
   onRetryMessage?: () => void;
   scrollToResponse?: boolean;
   activated?: boolean;
+  /** When true, ACTIVATE shows all existing messages (transfer from sidebar) */
+  activatedWithHistory?: boolean;
+  /** Optional opening question injected as a Lens bubble above the conversation */
+  prefixMessage?: ChatMessage;
 };
 
 /**
@@ -41,6 +45,8 @@ export default function NarrativeChatSection({
   onRetryMessage,
   scrollToResponse,
   activated,
+  activatedWithHistory,
+  prefixMessage,
 }: NarrativeChatSectionProps) {
   // View state reducer — centralized state transitions for chat view
   const [viewState, dispatch] = useReducer(
@@ -143,12 +149,16 @@ export default function NarrativeChatSection({
     }
   }, [isExpanded]);
 
-  // Activate when parent explicitly signals this instance should show messages
+  // Activate when parent explicitly signals this instance should show messages.
+  // activatedWithHistory=true means show all existing messages (transfer from sidebar).
   useEffect(() => {
     if (!hasInteracted && activated) {
-      dispatch({ type: "ACTIVATE", messagesLength: messages.length });
+      dispatch({
+        type: "ACTIVATE",
+        messagesLength: activatedWithHistory ? 0 : messages.length,
+      });
     }
-  }, [activated, hasInteracted, messages.length]);
+  }, [activated, activatedWithHistory, hasInteracted, messages.length]);
 
   // Scroll chat container into view when user first interacts
   useEffect(() => {
@@ -342,6 +352,14 @@ export default function NarrativeChatSection({
           onScroll={isExpanded ? handleScroll : undefined}
         >
           <div>
+            {/* Lens prefix message (opening question from article content) */}
+            {hasInteracted && prefixMessage && (
+              <div className="text-gray-800 mb-4 max-w-content mx-auto">
+                <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><BookOpen size={13} />Lens</div>
+                <ChatMarkdown>{prefixMessage.content}</ChatMarkdown>
+              </div>
+            )}
+
             {/* Expand button (collapsed mode only) */}
             {!isExpanded &&
               recentMessagesStartIdx > 0 &&
@@ -379,9 +397,14 @@ export default function NarrativeChatSection({
                           {msg.content}
                         </span>
                       </div>
+                    ) : msg.role === "course-content" ? (
+                      <div key={i} className="text-gray-800">
+                        <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><BookOpen size={13} />Lens</div>
+                        <ChatMarkdown>{msg.content}</ChatMarkdown>
+                      </div>
                     ) : msg.role === "assistant" ? (
                       <div key={i} className="text-gray-800">
-                        <div className="text-sm text-gray-500 mb-1">Tutor</div>
+                        <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
                         <ChatMarkdown>{msg.content}</ChatMarkdown>
                       </div>
                     ) : (
@@ -427,9 +450,14 @@ export default function NarrativeChatSection({
                         {msg.content}
                       </span>
                     </div>
+                  ) : msg.role === "course-content" ? (
+                    <div key={`current-${i}`} className="text-gray-800">
+                      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><BookOpen size={13} />Lens</div>
+                      <ChatMarkdown>{msg.content}</ChatMarkdown>
+                    </div>
                   ) : msg.role === "assistant" ? (
                     <div key={`current-${i}`} className="text-gray-800">
-                      <div className="text-sm text-gray-500 mb-1">Tutor</div>
+                      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
                       <ChatMarkdown>{msg.content}</ChatMarkdown>
                     </div>
                   ) : (
@@ -473,7 +501,7 @@ export default function NarrativeChatSection({
                     ref={activeScrollToResponse ? responseRef : undefined}
                     className="text-gray-800"
                   >
-                    <div className="text-sm text-gray-500 mb-1">Tutor</div>
+                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
                     <ChatMarkdown>{streamingContent}</ChatMarkdown>
                   </div>
                 )}
@@ -484,7 +512,7 @@ export default function NarrativeChatSection({
                     ref={activeScrollToResponse ? responseRef : undefined}
                     className="text-gray-800"
                   >
-                    <div className="text-sm text-gray-500 mb-1">Tutor</div>
+                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
                     <div>Thinking...</div>
                   </div>
                 )}

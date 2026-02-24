@@ -1,6 +1,7 @@
 // web_frontend/src/components/module/ArticleExcerptGroup.tsx
 
 import { useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import type {
   ArticleSection,
   LensArticleSection,
@@ -17,10 +18,10 @@ type ArticleExcerptGroupProps = {
 
 /**
  * Wrapper for article excerpt segments that renders the TOC sidebar.
- * The TOC is sticky within this container, so it:
- * - Starts aligned with the first excerpt
- * - Sticks when reaching the header
- * - Scrolls away when the last excerpt ends
+ *
+ * When a portal container is provided via context (from the Module-level grid
+ * layout), the TOC is portaled into that container. Otherwise, it falls back
+ * to absolute positioning to the left of the content.
  */
 export default function ArticleExcerptGroup({
   section,
@@ -48,25 +49,35 @@ export default function ArticleExcerptGroup({
     lastRegisteredRef.current = headingsKey;
   }
 
+  const tocElement = (
+    <ArticleTOC
+      title={section.meta.title}
+      author={section.meta.author}
+      headings={allHeadings}
+      registerTocItem={context?.registerTocItem ?? (() => {})}
+      onHeadingClick={context?.onHeadingClick ?? (() => {})}
+    />
+  );
+
+  const tocPortalContainer = context?.tocPortalContainer;
+
   return (
     <div>
-      {/* Centered content with relative positioning for TOC */}
+      {/* Centered content with relative positioning for TOC fallback */}
       <div className="max-w-content-padded mx-auto relative">
         {/* Content */}
         <div className="w-full">{children}</div>
 
-        {/* TOC Sidebar - positioned to the left of centered content */}
-        <div className="hidden xl:block absolute top-0 bottom-0 right-full w-[250px] mr-6">
-          <div className="sticky top-[calc(var(--module-header-height)+12px)] will-change-transform">
-            <ArticleTOC
-              title={section.meta.title}
-              author={section.meta.author}
-              headings={allHeadings}
-              registerTocItem={context?.registerTocItem ?? (() => {})}
-              onHeadingClick={context?.onHeadingClick ?? (() => {})}
-            />
-          </div>
-        </div>
+        {/* TOC: portal to grid column if available, else absolute-position fallback */}
+        {tocPortalContainer
+          ? createPortal(tocElement, tocPortalContainer)
+          : (
+            <div className="hidden xl:block absolute top-0 bottom-0 right-full w-[250px] mr-6">
+              <div className="sticky top-[calc(var(--module-header-height)+12px)] will-change-transform">
+                {tocElement}
+              </div>
+            </div>
+          )}
       </div>
     </div>
   );
