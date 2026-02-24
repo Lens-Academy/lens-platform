@@ -1,6 +1,7 @@
 {
   "name": "Real Student Conversations",
   "module": "mixed",
+  "baseSystemPrompt": "You are a tutor helping someone learn about AI safety. Each piece of content (article, video) has different topics and learning objectives.",
   "description": "First exchanges from 15 real student chat sessions across 3 modules and 4 chat segments. Covers the Kurzgesagt intro video, Robert Miles objections video, AI Is Grown Not Built article, and the Speed advantage slow-motion video.",
   "sections": [
     {

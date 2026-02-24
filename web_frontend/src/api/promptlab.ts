@@ -35,6 +35,7 @@ export interface Fixture {
   name: string;
   module: string;
   description: string;
+  baseSystemPrompt?: string;
   sections: FixtureSection[];
 }
 

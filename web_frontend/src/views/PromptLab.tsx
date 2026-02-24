@@ -15,9 +15,6 @@ import {
   type AssessmentSection,
 } from "@/api/promptlab";
 
-const DEFAULT_SYSTEM_PROMPT =
-  "You are a tutor helping someone learn about AI safety. Each piece of content (article, video) has different topics and learning objectives.";
-
 /** A section loaded into the grid, tagged with its parent fixture name. */
 type LoadedStage =
   | { type: "chat"; fixtureKey: string; section: FixtureSection }
@@ -29,7 +26,8 @@ export default function PromptLab() {
   const { isAuthenticated, isLoading, login } = useAuth();
 
   // Shared state
-  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [originalPrompt, setOriginalPrompt] = useState("");
   const [enableThinking, setEnableThinking] = useState(true);
   const [effort, setEffort] = useState<"low" | "medium" | "high">("low");
 
@@ -56,8 +54,8 @@ export default function PromptLab() {
       });
 
       if (isAssessmentFixture(fixture)) {
-        // Set system prompt to the assessment fixture's base prompt
         setSystemPrompt(fixture.baseSystemPrompt);
+        setOriginalPrompt(fixture.baseSystemPrompt);
         setStages((prev) => {
           if (prev.some((s) => s.fixtureKey === fixture.name)) return prev;
           const newStages: LoadedStage[] = fixture.sections.map((section) => ({
@@ -68,6 +66,9 @@ export default function PromptLab() {
           return [...prev, ...newStages];
         });
       } else {
+        const basePrompt = fixture.baseSystemPrompt ?? "";
+        setSystemPrompt(basePrompt);
+        setOriginalPrompt(basePrompt);
         setStages((prev) => {
           if (prev.some((s) => s.fixtureKey === fixture.name)) return prev;
           const newStages: LoadedStage[] = fixture.sections.map((section) => ({
@@ -99,7 +100,8 @@ export default function PromptLab() {
 
   const handleBack = useCallback(() => {
     setStages([]);
-    setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+    setSystemPrompt("");
+    setOriginalPrompt("");
     setShowPicker(false);
     columnRefsMap.current.clear();
     assessmentRefsMap.current.clear();
@@ -263,7 +265,7 @@ export default function PromptLab() {
 
   // --- Multi-conversation grid ---
 
-  const isPromptModified = systemPrompt !== DEFAULT_SYSTEM_PROMPT;
+  const isPromptModified = systemPrompt !== originalPrompt;
 
   return (
     <div className="flex flex-col" style={{ height: "calc(100dvh - 7rem)" }}>
@@ -355,7 +357,7 @@ export default function PromptLab() {
           <SystemPromptEditor
             value={systemPrompt}
             onChange={setSystemPrompt}
-            onReset={() => setSystemPrompt(DEFAULT_SYSTEM_PROMPT)}
+            onReset={() => setSystemPrompt(originalPrompt)}
             isModified={isPromptModified}
           />
         </div>

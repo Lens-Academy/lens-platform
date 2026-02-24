@@ -53,6 +53,7 @@ class Fixture(TypedDict):
     name: str
     module: str
     description: str
+    baseSystemPrompt: str
     sections: list[FixtureSection]
 
 
@@ -174,6 +175,7 @@ def load_fixture(name: str) -> dict | None:
                 name=data["name"],
                 module=data["module"],
                 description=data["description"],
+                baseSystemPrompt=data.get("baseSystemPrompt", ""),
                 sections=sections,
             )
         except (json.JSONDecodeError, KeyError) as e:
