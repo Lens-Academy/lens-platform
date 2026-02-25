@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 10 of 11 (Core Conversation)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Executing Phase 10
-Last activity: 2026-02-25 -- Completed 10-02-PLAN.md
+Last activity: 2026-02-25 -- Completed 10-03-PLAN.md
 
-Progress: [#####.....] 50%
+Progress: [#######...] 75%
 
 ## Milestone Summary
 
@@ -36,9 +36,9 @@ Progress: [#####.....] 50%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5 (v3.1)
+- Total plans completed: 6 (v3.1)
 - Average duration: 7min
-- Total execution time: 35min
+- Total execution time: 40min
 
 ## Accumulated Context
 
@@ -66,6 +66,9 @@ v3.1 decisions:
 - Default TTS voice hardcoded to "Ashley" for Phase 10
 - Toggle defaults: text display ON, TTS OFF, text input -- per locked decision
 - Isolated roleplay state per segment (useRoleplaySession), separate from Module.tsx shared chat state
+- VoiceInputBar cancel via useRef flag (suppress transcription) rather than modifying shared useVoiceRecording hook
+- Indigo send button (bg-indigo-600) in roleplay distinct from tutor chat blue (bg-blue-600)
+- SpeakingIndicator uses inline CSS keyframes for pulsing dots
 
 ### Pending Todos
 
@@ -79,5 +82,5 @@ v3.1 decisions:
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 10-02-PLAN.md
+Stopped at: Completed 10-03-PLAN.md
 Resume file: None
