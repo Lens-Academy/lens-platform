@@ -8,6 +8,7 @@ import type {
   ArticleExcerptSegment,
   VideoExcerptSegment,
   QuestionSegment,
+  RoleplaySegment,
   ContentError,
   SectionMeta,
 } from '../index.js';
@@ -1147,6 +1148,19 @@ function convertSegment(
       if (parsedSegment.enforceVoice) segment.enforceVoice = true;
       if (parsedSegment.optional) segment.optional = true;
       if (parsedSegment.feedback) segment.feedback = true;
+      return { segment, errors };
+    }
+
+    case 'roleplay': {
+      const segment: RoleplaySegment = {
+        type: 'roleplay',
+        id: parsedSegment.id,
+        content: parsedSegment.content,
+        aiInstructions: parsedSegment.aiInstructions,
+      };
+      if (parsedSegment.openingMessage) segment.openingMessage = parsedSegment.openingMessage;
+      if (parsedSegment.assessmentInstructions) segment.assessmentInstructions = parsedSegment.assessmentInstructions;
+      if (parsedSegment.optional) segment.optional = true;
       return { segment, errors };
     }
 

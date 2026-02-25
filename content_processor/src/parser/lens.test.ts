@@ -1431,4 +1431,111 @@ Discuss the article.
     expect(chatError).toBeDefined();
     expect(chatError!.severity).toBe('error');
   });
+
+  describe('roleplay segment parsing', () => {
+    it('parses roleplay segment with required fields', () => {
+      const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Page: Scenario
+
+#### Roleplay
+id:: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+content:: You are meeting a tech CEO who is skeptical about AI safety regulations.
+ai-instructions:: You are a tech CEO who believes AI regulation is unnecessary. Be dismissive but not hostile. Challenge the student's arguments with business-focused counterpoints.
+`;
+
+      const result = parseLens(content, 'Lenses/lens1.md');
+
+      expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+      expect(result.lens?.sections[0].segments).toHaveLength(1);
+      const seg = result.lens?.sections[0].segments[0];
+      expect(seg?.type).toBe('roleplay');
+      if (seg?.type === 'roleplay') {
+        expect(seg.id).toBe('a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+        expect(seg.content).toContain('tech CEO');
+        expect(seg.aiInstructions).toContain('dismissive but not hostile');
+      }
+    });
+
+    it('parses roleplay segment with optional fields', () => {
+      const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Page: Scenario
+
+#### Roleplay
+id:: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+content:: Elevator pitch scenario.
+ai-instructions:: You are a venture capitalist.
+opening-message:: Good morning! I have 5 minutes before my next meeting. What's your pitch?
+assessment-instructions:: Evaluate whether the student clearly articulated the value proposition.
+`;
+
+      const result = parseLens(content, 'Lenses/lens1.md');
+
+      expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+      const seg = result.lens?.sections[0].segments[0];
+      if (seg?.type === 'roleplay') {
+        expect(seg.openingMessage).toContain('5 minutes');
+        expect(seg.assessmentInstructions).toContain('value proposition');
+      }
+    });
+
+    it('reports error when roleplay segment is missing content:: field', () => {
+      const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Page: Scenario
+
+#### Roleplay
+id:: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+ai-instructions:: You are a character.
+`;
+
+      const result = parseLens(content, 'Lenses/lens1.md');
+
+      const errors = result.errors.filter(e => e.severity === 'error');
+      expect(errors.some(e => e.message.includes('content::'))).toBe(true);
+    });
+
+    it('reports error when roleplay segment is missing ai-instructions:: field', () => {
+      const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Page: Scenario
+
+#### Roleplay
+id:: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+content:: You are in a meeting.
+`;
+
+      const result = parseLens(content, 'Lenses/lens1.md');
+
+      const errors = result.errors.filter(e => e.severity === 'error');
+      expect(errors.some(e => e.message.includes('ai-instructions::'))).toBe(true);
+    });
+
+    it('reports error when roleplay segment is missing id:: field', () => {
+      const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Page: Scenario
+
+#### Roleplay
+content:: You are in a meeting.
+ai-instructions:: You are a character.
+`;
+
+      const result = parseLens(content, 'Lenses/lens1.md');
+
+      const errors = result.errors.filter(e => e.severity === 'error');
+      expect(errors.some(e => e.message.includes('id::'))).toBe(true);
+    });
+  });
 });

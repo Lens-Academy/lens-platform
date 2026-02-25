@@ -47,12 +47,23 @@ export type QuestionSegment = {
   feedback?: boolean;
 };
 
+export type RoleplaySegment = {
+  type: "roleplay";
+  id: string;                     // UUID for session isolation
+  content: string;                // Student-facing scenario briefing
+  aiInstructions: string;         // Character behavior
+  openingMessage?: string;        // Optional first AI message
+  assessmentInstructions?: string;  // Optional scoring rubric
+  optional?: boolean;
+};
+
 export type ModuleSegment =
   | TextSegment
   | ArticleExcerptSegment
   | VideoExcerptSegment
   | ChatSegment
-  | QuestionSegment;
+  | QuestionSegment
+  | RoleplaySegment;
 
 // Metadata for article sections
 export type ArticleMeta = {

@@ -106,7 +106,17 @@ export interface QuestionSegment {
   feedback?: boolean;
 }
 
-export type Segment = TextSegment | ChatSegment | ArticleExcerptSegment | VideoExcerptSegment | QuestionSegment;
+export interface RoleplaySegment {
+  type: 'roleplay';
+  id: string;                     // UUID for session isolation
+  content: string;
+  aiInstructions: string;
+  openingMessage?: string;
+  assessmentInstructions?: string;
+  optional?: boolean;
+}
+
+export type Segment = TextSegment | ChatSegment | ArticleExcerptSegment | VideoExcerptSegment | QuestionSegment | RoleplaySegment;
 
 import { flattenModule, flattenLens } from './flattener/index.js';
 import { parseModule } from './parser/module.js';
