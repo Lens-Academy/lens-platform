@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 8 of 11 (Foundation)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-02-25 -- Completed 08-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase 8 complete
+Last activity: 2026-02-25 -- Completed 08-02-PLAN.md
 
-Progress: [#.........] 10%
+Progress: [##........] 20%
 
 ## Milestone Summary
 
@@ -36,9 +36,9 @@ Progress: [#.........] 10%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1 (v3.1)
-- Average duration: 6min
-- Total execution time: 6min
+- Total plans completed: 2 (v3.1)
+- Average duration: 9min
+- Total execution time: 18min
 
 ## Accumulated Context
 
@@ -53,6 +53,8 @@ v3.1 decisions:
 - Roleplay valid in all Lens section types (page, lens-article, lens-video)
 - ai-instructions field added to MARKDOWN_CONTENT_FIELDS for heading disambiguation
 - Three required roleplay fields: id (UUID), content (briefing), ai-instructions (character behavior)
+- Separate partial indexes for tutor/roleplay session isolation (no COALESCE hacks)
+- Phase 10 TODO for roleplay-aware claim dedup in claim_chat_sessions
 
 ### Pending Todos
 
@@ -66,5 +68,5 @@ v3.1 decisions:
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 08-01-PLAN.md
+Stopped at: Completed 08-02-PLAN.md (Phase 8 complete)
 Resume file: None
