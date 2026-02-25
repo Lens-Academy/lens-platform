@@ -2,6 +2,7 @@
 import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
+import { validateDirectives } from '../validator/directives.js';
 
 export interface ParsedArticle {
   title: string;
@@ -53,6 +54,10 @@ export function parseArticle(content: string, file: string): ArticleParseResult 
   }
 
   const { body, bodyStartLine } = frontmatterResult;
+
+  // Validate directive syntax in article body
+  const directiveErrors = validateDirectives(body, file, bodyStartLine);
+  errors.push(...directiveErrors);
 
   // Scan body for images
   const imageUrls: Array<{ url: string; line: number }> = [];

@@ -8,6 +8,7 @@ import { validateFieldValues } from '../validator/field-values.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
 import { validateChatPrecedence } from '../validator/chat-precedence.js';
+import { detectDirectivesInNonArticle } from '../validator/directives.js';
 import { parseWikilink, hasRelativePath } from './wikilink.js';
 import { parseTimestamp } from '../bundler/video.js';
 
@@ -265,6 +266,10 @@ export function convertSegment(
         };
         return { segment, errors };
       }
+
+      // Warn if directives are used in lens text segments (they only render in articles)
+      const directiveWarnings = detectDirectivesInNonArticle(content, file, raw.line);
+      errors.push(...directiveWarnings);
 
       const segment: ParsedTextSegment = {
         type: 'text',

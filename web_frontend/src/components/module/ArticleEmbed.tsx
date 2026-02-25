@@ -1,12 +1,210 @@
 // web_frontend/src/components/module/ArticleEmbed.tsx
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkDirective from "remark-directive";
 import rehypeRaw from "rehype-raw";
+import { visit } from "unist-util-visit";
 import type { ArticleData } from "@/types/module";
 import { generateHeadingId } from "@/utils/extractHeadings";
 import { useArticleSectionContext } from "./ArticleSectionContext";
+
+/**
+ * Remark plugin that converts directives into HTML elements.
+ * - :::collapse ... ::: (container) → <collapse-block>
+ * - :collapse[text] (inline) → <collapse-inline>
+ * - :::note ... ::: (container) → <note-block> (always visible)
+ * - ::note[text] (leaf) → <note-block> (always visible)
+ * - :note[text] (inline) → <note-inline> (always visible)
+ * - :footnote[text] / ::footnote[text] → <footnote-inline> (hover popup)
+ */
+function remarkLensDirectives() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (tree: any) => {
+    visit(tree, (node) => {
+      if (node.type === "containerDirective" && node.name === "collapse") {
+        const data = node.data || (node.data = {});
+        data.hName = "collapse-block";
+      }
+      if (node.type === "textDirective" && node.name === "collapse") {
+        const data = node.data || (node.data = {});
+        data.hName = "collapse-inline";
+      }
+      if (
+        (node.type === "containerDirective" ||
+          node.type === "leafDirective") &&
+        node.name === "note"
+      ) {
+        const data = node.data || (node.data = {});
+        data.hName = "note-block";
+      }
+      if (node.type === "textDirective" && node.name === "note") {
+        const data = node.data || (node.data = {});
+        data.hName = "note-inline";
+      }
+      if (
+        (node.type === "textDirective" || node.type === "leafDirective") &&
+        node.name === "footnote"
+      ) {
+        const data = node.data || (node.data = {});
+        data.hName = "footnote-inline";
+      }
+    });
+  };
+}
+
+function BlockCollapse({ children }: { children?: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="my-2">
+      <div className="flex items-center gap-1 py-1">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1"
+        >
+          <svg
+            className={`w-3 h-3 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+          <span>[...]</span>
+        </button>
+      </div>
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+          isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="text-gray-600 pt-1 pl-5">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InlineCollapse({ children }: { children?: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 inline"
+      >
+        [...]
+      </button>
+    );
+  }
+
+  return (
+    <span className="bg-gray-100/50 rounded px-0.5">
+      {children}
+      <button
+        onClick={() => setIsOpen(false)}
+        className="cursor-pointer text-xs text-gray-400 hover:text-gray-600 ml-1 inline"
+      >
+        [collapse]
+      </button>
+    </span>
+  );
+}
+
+function BlockNote({ children }: { children?: React.ReactNode }) {
+  return (
+    <div className="-mx-4 my-3 bg-white px-4 py-3 text-sm text-gray-700 leading-relaxed relative">
+      <div className="absolute top-2 right-3 flex items-center gap-1 text-xs text-gray-400">
+        <img src="/assets/Logo only.png" alt="" className="w-3 h-3 opacity-70 !my-0" />
+        <span>Lens</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function InlineNote({ children }: { children?: React.ReactNode }) {
+  return (
+    <span className="bg-white rounded px-1 py-0.5 text-sm text-gray-600">
+      [<img src="/assets/Logo only.png" alt="Lens" className="inline h-[0.85em] w-auto opacity-70 align-baseline mx-0.5 !my-0" />: {children}]
+    </span>
+  );
+}
+
+function InlineFootnote({ children }: { children?: React.ReactNode }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [position, setPosition] = useState<"above" | "below">("above");
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const wrapperRef = useRef<HTMLSpanElement>(null);
+
+  const show = () => {
+    clearTimeout(timeoutRef.current);
+    if (wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setPosition(rect.top < 200 ? "below" : "above");
+    }
+    setIsVisible(true);
+  };
+
+  const hide = () => {
+    timeoutRef.current = setTimeout(() => setIsVisible(false), 300);
+  };
+
+  useEffect(() => () => clearTimeout(timeoutRef.current), []);
+
+  // Click-outside to dismiss (for mobile tap-away)
+  useEffect(() => {
+    if (!isVisible) return;
+    const handleClick = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setIsVisible(false);
+      }
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [isVisible]);
+
+  return (
+    <span
+      ref={wrapperRef}
+      className="relative inline-flex items-center"
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onClick={show}
+    >
+      <img
+        src="/assets/Logo only.png"
+        alt="footnote"
+        role="img"
+        className="w-3.5 h-3.5 opacity-70 hover:opacity-90 cursor-default !my-0"
+      />
+
+      {isVisible && (
+        <span
+          className={`absolute z-50 w-64 max-w-[80vw] px-3 py-2 text-sm text-gray-700 bg-white
+            rounded-lg shadow-lg border border-gray-200 leading-relaxed
+            ${position === "above" ? "bottom-full mb-1.5" : "top-full mt-1.5"}
+            left-1/2 -translate-x-1/2`}
+          onMouseEnter={show}
+          onMouseLeave={hide}
+          role="tooltip"
+        >
+          {children}
+        </span>
+      )}
+    </span>
+  );
+}
 
 type ArticleEmbedProps = {
   article: ArticleData;
@@ -169,6 +367,11 @@ export default function ArticleEmbed({
     td: ({ children }: { children?: React.ReactNode }) => (
       <td className="px-4 py-2 border border-gray-300">{children}</td>
     ),
+    "collapse-block": BlockCollapse,
+    "collapse-inline": InlineCollapse,
+    "note-block": BlockNote,
+    "note-inline": InlineNote,
+    "footnote-inline": InlineFootnote,
   };
 
   // Collapsed section component with animation
@@ -218,7 +421,7 @@ export default function ArticleEmbed({
           <div className="overflow-hidden">
             <article className="prose prose-gray max-w-content mx-auto text-gray-600 pt-1 pl-5">
               <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={[remarkGfm, remarkDirective, remarkLensDirectives]}
                 rehypePlugins={[rehypeRaw]}
                 components={markdownComponents}
               >
@@ -306,7 +509,7 @@ export default function ArticleEmbed({
 
       <article className="prose prose-gray max-w-content mx-auto overflow-x-hidden">
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkDirective, remarkLensDirectives]}
           rehypePlugins={[rehypeRaw]}
           components={markdownComponents}
         >
