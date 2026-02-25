@@ -55,6 +55,7 @@ if sentry_dsn:
 else:
     print("Note: SENTRY_DSN not set, error tracking disabled")
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -151,6 +152,7 @@ from web_api.routes.groups import router as groups_router
 from web_api.routes.admin import router as admin_router
 from web_api.routes.progress import router as progress_router
 from web_api.routes.questions import router as questions_router
+from web_api.routes.roleplay import router as roleplay_router
 from web_api.routes.guest_visits import router as guest_visits_router
 
 # Track bot task for cleanup
@@ -314,6 +316,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(module_router)
+app.include_router(roleplay_router)
 app.include_router(modules_router)
 app.include_router(speech_router)
 app.include_router(tts_stream_router)
