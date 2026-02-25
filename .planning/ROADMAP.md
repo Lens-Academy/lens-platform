@@ -65,11 +65,11 @@ Plans:
   1. Backend connects to Inworld TTS via WebSocket, sends text tokens from LLM streaming, and receives audio chunks back
   2. Backend streams audio chunks to the browser via a transport that allows playback to begin before Inworld finishes generating (no waiting for full audio)
   3. A test harness or minimal endpoint demonstrates the full pipeline: send text, get streaming audio in browser, hear it play -- confirming latency and reliability before full UI integration
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 09-01: TBD
-- [ ] 09-02: TBD
+- [ ] 09-01-PLAN.md -- Backend TTS module (Inworld WebSocket client, config) and FastAPI WebSocket endpoint for browser audio streaming
+- [ ] 09-02-PLAN.md -- Browser audio playback hook (Web Audio API) and /tts-test harness page for end-to-end verification
 
 ### Phase 10: Core Conversation
 **Goal**: Students can have a complete roleplay conversation with an AI character using voice or text, with manual completion, persistence, and retry
@@ -110,6 +110,6 @@ Phases execute in numeric order: 8 -> 8.x (if any) -> 9 -> 9.x (if any) -> 10 ->
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 8. Foundation | v3.1 | 2/2 | ✓ Complete | 2026-02-25 |
-| 9. TTS Pipeline | v3.1 | 0/TBD | Not started | - |
+| 9. TTS Pipeline | v3.1 | 0/2 | Not started | - |
 | 10. Core Conversation | v3.1 | 0/TBD | Not started | - |
 | 11. Assessment | v3.1 | 0/TBD | Not started | - |
