@@ -412,6 +412,7 @@ chat_sessions = Table(
         nullable=False,
     ),
     Column("archived_at", DateTime(timezone=True), nullable=True),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
     Index("idx_chat_sessions_user_content", "user_id", "module_id", "archived_at"),
     Index("idx_chat_sessions_token", "anonymous_token"),
     # Unique partial indexes to prevent duplicate active sessions (race condition fix)

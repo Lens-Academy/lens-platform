@@ -7,7 +7,7 @@ Supports archiving old sessions and creating new ones.
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select, update, and_
+from sqlalchemy import exists, select, update, and_
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from core.tables import chat_sessions
@@ -118,6 +118,20 @@ async def add_chat_message(
     await conn.commit()
 
 
+async def complete_chat_session(
+    conn: AsyncConnection,
+    *,
+    session_id: int,
+) -> None:
+    """Mark a chat session as completed (roleplay finished)."""
+    await conn.execute(
+        update(chat_sessions)
+        .where(chat_sessions.c.session_id == session_id)
+        .values(completed_at=datetime.now(timezone.utc))
+    )
+    await conn.commit()
+
+
 async def archive_chat_session(
     conn: AsyncConnection,
     *,
@@ -153,32 +167,45 @@ async def claim_chat_sessions(
 ) -> int:
     """Claim anonymous chat sessions for a user.
 
-    Skips sessions where the user already has an active session for the same module_id
-    to avoid unique constraint violations.
+    Skips sessions where the user already has an active session for the same
+    (module_id, roleplay_id) combination to avoid unique constraint violations.
+
+    Handles NULL roleplay_id correctly: tutor sessions (roleplay_id IS NULL) and
+    roleplay sessions (roleplay_id IS NOT NULL) are deduplicated independently.
 
     Returns count of sessions claimed.
     """
-    # Subquery to find module_ids where user already has an active session
-    # TODO(Phase 10): roleplay-aware claim dedup -- current check only
-    # deduplicates by module_id, not (module_id, roleplay_id) pairs
-    existing_module_ids = (
-        select(chat_sessions.c.module_id)
-        .where(
+    from sqlalchemy import text as sa_text
+
+    # Use an aliased reference for the correlated subquery.
+    # The outer UPDATE targets chat_sessions directly; the EXISTS subquery
+    # checks if the user already owns an active session with the same
+    # (module_id, roleplay_id) pair, using IS NOT DISTINCT FROM for NULL-safe
+    # comparison on roleplay_id.
+    anon_sessions = chat_sessions.alias("anon_sessions")
+
+    # Build the NOT EXISTS condition: skip anonymous sessions where the user
+    # already has a matching active session
+    already_exists = exists(
+        select(chat_sessions.c.session_id).where(
             and_(
                 chat_sessions.c.user_id == user_id,
                 chat_sessions.c.archived_at.is_(None),
+                sa_text(
+                    "chat_sessions.module_id IS NOT DISTINCT FROM anon_sessions.module_id "
+                    "AND chat_sessions.roleplay_id IS NOT DISTINCT FROM anon_sessions.roleplay_id"
+                ),
             )
         )
-        .scalar_subquery()
     )
 
-    # Only claim sessions for content the user doesn't already have
+    # Only claim sessions where the user doesn't already have a matching active session
     result = await conn.execute(
-        update(chat_sessions)
+        anon_sessions.update()
         .where(
             and_(
-                chat_sessions.c.anonymous_token == anonymous_token,
-                ~chat_sessions.c.module_id.in_(existing_module_ids),
+                anon_sessions.c.anonymous_token == anonymous_token,
+                ~already_exists,
             )
         )
         .values(user_id=user_id, anonymous_token=None)

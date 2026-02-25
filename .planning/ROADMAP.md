@@ -68,8 +68,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md -- Backend TTS module (Inworld WebSocket client, config) and FastAPI WebSocket endpoint for browser audio streaming
-- [ ] 09-02-PLAN.md -- Browser audio playback hook (Web Audio API) and /tts-test harness page for end-to-end verification
+- [x] 09-01-PLAN.md -- Backend TTS module (Inworld WebSocket client, config) and FastAPI WebSocket endpoint for browser audio streaming
+- [x] 09-02-PLAN.md -- Browser audio playback hook (Web Audio API) and /tts-test harness page for end-to-end verification
 
 ### Phase 10: Core Conversation
 **Goal**: Students can have a complete roleplay conversation with an AI character using voice or text, with manual completion, persistence, and retry
@@ -81,12 +81,13 @@ Plans:
   3. Student can switch between voice-only mode (mic input, AI responds with TTS audio, no keyboard) and text mode (keyboard input, AI responds with text only, no TTS)
   4. Student clicks a completion button to end the conversation, after which input is disabled and a done state is shown
   5. Conversation persists across page refresh, and student can retry the roleplay with a fresh conversation using "Try again"
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
-- [ ] 10-03: TBD
+- [ ] 10-01-PLAN.md -- Backend roleplay routes (SSE chat, history, complete, retry), DB migration (completed_at), claim dedup fix
+- [ ] 10-02-PLAN.md -- Frontend API client, character name extraction, useRoleplaySession/useRoleplayToggles/useRoleplayTTS hooks
+- [ ] 10-03-PLAN.md -- RoleplaySection UI (briefing, toolbar, voice input, speaking indicator) and Module.tsx integration
+- [ ] 10-04-PLAN.md -- Human verification of complete roleplay experience
 
 ### Phase 11: Assessment
 **Goal**: Course creators can add AI assessment to roleplay segments, and roleplay works inside test sections with post-conversation feedback
@@ -110,6 +111,6 @@ Phases execute in numeric order: 8 -> 8.x (if any) -> 9 -> 9.x (if any) -> 10 ->
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 8. Foundation | v3.1 | 2/2 | ✓ Complete | 2026-02-25 |
-| 9. TTS Pipeline | v3.1 | 0/2 | Not started | - |
-| 10. Core Conversation | v3.1 | 0/TBD | Not started | - |
+| 9. TTS Pipeline | v3.1 | 2/2 | ✓ Complete | 2026-02-25 |
+| 10. Core Conversation | v3.1 | 0/4 | Not started | - |
 | 11. Assessment | v3.1 | 0/TBD | Not started | - |
