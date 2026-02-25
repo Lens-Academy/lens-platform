@@ -46,8 +46,7 @@ async def test_get_or_create_requires_identity_unit(mock_conn, content_id):
             mock_conn,
             user_id=None,
             anonymous_token=None,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
 
@@ -68,8 +67,9 @@ async def test_get_or_create_creates_new_session_unit(mock_conn, content_id):
         "session_id": session_id,
         "user_id": user_id,
         "anonymous_token": None,
-        "content_id": content_id,
-        "content_type": "module",
+        "module_id": content_id,
+        "roleplay_id": None,
+        "segment_snapshot": None,
         "messages": [],
         "started_at": None,
         "last_active_at": None,
@@ -92,13 +92,12 @@ async def test_get_or_create_creates_new_session_unit(mock_conn, content_id):
         mock_conn,
         user_id=user_id,
         anonymous_token=None,
-        content_id=content_id,
-        content_type="module",
+        module_id=content_id,
     )
 
     assert result["session_id"] == session_id
     assert result["user_id"] == user_id
-    assert result["content_id"] == content_id
+    assert result["module_id"] == content_id
     assert result["messages"] == []
 
 
@@ -115,13 +114,11 @@ async def test_get_or_create_creates_new_session(test_user_id, content_id):
             conn,
             user_id=test_user_id,
             anonymous_token=None,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
     assert result["user_id"] == test_user_id
-    assert result["content_id"] == content_id
-    assert result["content_type"] == "module"
+    assert result["module_id"] == content_id
     assert result["messages"] == []
     assert result["archived_at"] is None
 
@@ -135,8 +132,7 @@ async def test_get_or_create_returns_existing_session(test_user_id, content_id):
             conn,
             user_id=test_user_id,
             anonymous_token=None,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
     # Call again - should return same session
@@ -145,8 +141,7 @@ async def test_get_or_create_returns_existing_session(test_user_id, content_id):
             conn,
             user_id=test_user_id,
             anonymous_token=None,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
     assert session1["session_id"] == session2["session_id"]
@@ -163,8 +158,7 @@ async def test_get_or_create_requires_identity():
                 conn,
                 user_id=None,
                 anonymous_token=None,
-                content_id=content_id,
-                content_type="module",
+                module_id=content_id,
             )
 
 
@@ -176,30 +170,27 @@ async def test_get_or_create_anonymous_session(anonymous_token, content_id):
             conn,
             user_id=None,
             anonymous_token=anonymous_token,
-            content_id=content_id,
-            content_type="lens",
+            module_id=content_id,
         )
 
     assert result["user_id"] is None
     assert result["anonymous_token"] == anonymous_token
-    assert result["content_id"] == content_id
+    assert result["module_id"] == content_id
 
 
 @pytest.mark.asyncio
-async def test_get_or_create_no_content_id(test_user_id):
-    """get_or_create_chat_session should work without content_id (general chat)."""
+async def test_get_or_create_no_module_id(test_user_id):
+    """get_or_create_chat_session should work without module_id (general chat)."""
     async with get_transaction() as conn:
         result = await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
             anonymous_token=None,
-            content_id=None,
-            content_type=None,
+            module_id=None,
         )
 
     assert result["user_id"] == test_user_id
-    assert result["content_id"] is None
-    assert result["content_type"] is None
+    assert result["module_id"] is None
 
 
 @pytest.mark.asyncio
@@ -210,8 +201,7 @@ async def test_add_chat_message(test_user_id, content_id):
             conn,
             user_id=test_user_id,
             anonymous_token=None,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
     async with get_transaction() as conn:
@@ -248,8 +238,7 @@ async def test_add_chat_message_with_icon(test_user_id, content_id):
             conn,
             user_id=test_user_id,
             anonymous_token=None,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
     async with get_transaction() as conn:
@@ -275,8 +264,7 @@ async def test_archive_chat_session(test_user_id, content_id):
             conn,
             user_id=test_user_id,
             anonymous_token=None,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
     async with get_transaction() as conn:
@@ -297,8 +285,7 @@ async def test_get_or_create_after_archive_creates_new(test_user_id, content_id)
             conn,
             user_id=test_user_id,
             anonymous_token=None,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
     async with get_transaction() as conn:
@@ -310,8 +297,7 @@ async def test_get_or_create_after_archive_creates_new(test_user_id, content_id)
             conn,
             user_id=test_user_id,
             anonymous_token=None,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
     assert session1["session_id"] != session2["session_id"]
@@ -327,8 +313,7 @@ async def test_claim_chat_sessions(test_user_id, anonymous_token, content_id):
             conn,
             user_id=None,
             anonymous_token=anonymous_token,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
     content_id2 = uuid.uuid4()
@@ -337,8 +322,7 @@ async def test_claim_chat_sessions(test_user_id, anonymous_token, content_id):
             conn,
             user_id=None,
             anonymous_token=anonymous_token,
-            content_id=content_id2,
-            content_type="lens",
+            module_id=content_id2,
         )
 
     # Claim sessions
@@ -357,8 +341,7 @@ async def test_claim_chat_sessions(test_user_id, anonymous_token, content_id):
             conn,
             user_id=test_user_id,
             anonymous_token=None,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
     # Should return existing session (now owned by user)
@@ -392,25 +375,23 @@ async def test_get_chat_session_not_found():
 async def test_claim_chat_sessions_skips_conflicting_content(
     test_user_id, anonymous_token, content_id
 ):
-    """Claim skips sessions where user already has one for same content."""
-    # User already has a session for this content
+    """Claim skips sessions where user already has one for same module."""
+    # User already has a session for this module
     async with get_transaction() as conn:
         await get_or_create_chat_session(
             conn,
             user_id=test_user_id,
             anonymous_token=None,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
-    # Anonymous session for same content
+    # Anonymous session for same module
     async with get_transaction() as conn:
         await get_or_create_chat_session(
             conn,
             user_id=None,
             anonymous_token=anonymous_token,
-            content_id=content_id,
-            content_type="module",
+            module_id=content_id,
         )
 
     # Claim should skip the conflicting one (not raise IntegrityError)

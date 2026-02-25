@@ -137,8 +137,7 @@ async def get_module_progress_endpoint(
             conn,
             user_id=user_id,
             anonymous_token=anonymous_token,
-            content_id=module.content_id,
-            content_type="module",
+            module_id=module.content_id,
         )
 
     # Build lens list with completion status (sections are dicts)

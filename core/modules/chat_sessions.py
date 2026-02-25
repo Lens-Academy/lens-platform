@@ -18,12 +18,17 @@ async def get_or_create_chat_session(
     *,
     user_id: int | None,
     anonymous_token: UUID | None,
-    content_id: UUID | None,
-    content_type: str | None,
+    module_id: UUID | None,
+    roleplay_id: UUID | None = None,
+    segment_snapshot: dict | None = None,
 ) -> dict:
     """Get active chat session or create new one.
 
     Active = archived_at IS NULL
+
+    Session isolation:
+    - Tutor chat: one active per user per module (roleplay_id IS NULL)
+    - Roleplay: one active per user per module per roleplay (roleplay_id IS NOT NULL)
 
     Uses SELECT-then-INSERT with retry on unique constraint violation
     to handle race conditions gracefully.
@@ -33,10 +38,15 @@ async def get_or_create_chat_session(
     # Build WHERE clause for active session
     conditions = [chat_sessions.c.archived_at.is_(None)]
 
-    if content_id is not None:
-        conditions.append(chat_sessions.c.content_id == content_id)
+    if module_id is not None:
+        conditions.append(chat_sessions.c.module_id == module_id)
     else:
-        conditions.append(chat_sessions.c.content_id.is_(None))
+        conditions.append(chat_sessions.c.module_id.is_(None))
+
+    if roleplay_id is not None:
+        conditions.append(chat_sessions.c.roleplay_id == roleplay_id)
+    else:
+        conditions.append(chat_sessions.c.roleplay_id.is_(None))
 
     if user_id is not None:
         conditions.append(chat_sessions.c.user_id == user_id)
@@ -54,8 +64,9 @@ async def get_or_create_chat_session(
 
     # Create new session
     insert_values = {
-        "content_id": content_id,
-        "content_type": content_type,
+        "module_id": module_id,
+        "roleplay_id": roleplay_id,
+        "segment_snapshot": segment_snapshot,
         "messages": [],
     }
     if user_id is not None:
@@ -142,14 +153,16 @@ async def claim_chat_sessions(
 ) -> int:
     """Claim anonymous chat sessions for a user.
 
-    Skips sessions where the user already has an active session for the same content_id
+    Skips sessions where the user already has an active session for the same module_id
     to avoid unique constraint violations.
 
     Returns count of sessions claimed.
     """
-    # Subquery to find content_ids where user already has an active session
-    existing_content_ids = (
-        select(chat_sessions.c.content_id)
+    # Subquery to find module_ids where user already has an active session
+    # TODO(Phase 10): roleplay-aware claim dedup -- current check only
+    # deduplicates by module_id, not (module_id, roleplay_id) pairs
+    existing_module_ids = (
+        select(chat_sessions.c.module_id)
         .where(
             and_(
                 chat_sessions.c.user_id == user_id,
@@ -165,7 +178,7 @@ async def claim_chat_sessions(
         .where(
             and_(
                 chat_sessions.c.anonymous_token == anonymous_token,
-                ~chat_sessions.c.content_id.in_(existing_content_ids),
+                ~chat_sessions.c.module_id.in_(existing_module_ids),
             )
         )
         .values(user_id=user_id, anonymous_token=None)

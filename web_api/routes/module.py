@@ -64,8 +64,7 @@ async def event_generator(
             conn,
             user_id=user_id,
             anonymous_token=anonymous_token,
-            content_id=module.content_id,
-            content_type="module",
+            module_id=module.content_id,
         )
         session_id = session["session_id"]
         existing_messages = session.get("messages", [])
@@ -232,8 +231,7 @@ async def get_chat_history(
             conn,
             user_id=user_id,
             anonymous_token=anonymous_token,
-            content_id=module.content_id,
-            content_type="module",
+            module_id=module.content_id,
         )
 
     return ChatHistoryResponse(
