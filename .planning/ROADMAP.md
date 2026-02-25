@@ -35,7 +35,7 @@ Phase 7 (Assessment Evaluation): Deferred -- blocked on ws3 merge of `complete()
 - Integer phases (8, 9, 10, 11): Planned milestone work
 - Decimal phases (8.1, 9.1): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 8: Foundation** - Content parsing, session isolation, and prompt architecture
+- [x] **Phase 8: Foundation** - Content parsing, session isolation, and prompt architecture
 - [ ] **Phase 9: TTS Pipeline** - Inworld TTS integration for AI character voice responses
 - [ ] **Phase 10: Core Conversation** - Full roleplay experience with text and voice modes
 - [ ] **Phase 11: Assessment** - AI scoring of roleplay transcripts and test section integration
@@ -54,8 +54,8 @@ Phase 7 (Assessment Evaluation): Deferred -- blocked on ws3 merge of `complete()
 **Plans**: 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md -- Roleplay segment type (id::, content::, ai-instructions::) across content processor pipeline and frontend types
-- [ ] 08-02-PLAN.md -- DB migration (content_id->module_id, roleplay_id, segment_snapshot), session service, and roleplay prompt assembly
+- [x] 08-01-PLAN.md -- Roleplay segment type (id::, content::, ai-instructions::) across content processor pipeline and frontend types
+- [x] 08-02-PLAN.md -- DB migration (content_id->module_id, roleplay_id, segment_snapshot), session service, and roleplay prompt assembly
 
 ### Phase 9: TTS Pipeline
 **Goal**: AI character text responses are converted to speech via Inworld TTS and streamed as audio to the browser in real time
@@ -109,7 +109,7 @@ Phases execute in numeric order: 8 -> 8.x (if any) -> 9 -> 9.x (if any) -> 10 ->
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 8. Foundation | v3.1 | 0/2 | Planned | - |
+| 8. Foundation | v3.1 | 2/2 | ✓ Complete | 2026-02-25 |
 | 9. TTS Pipeline | v3.1 | 0/TBD | Not started | - |
 | 10. Core Conversation | v3.1 | 0/TBD | Not started | - |
 | 11. Assessment | v3.1 | 0/TBD | Not started | - |
