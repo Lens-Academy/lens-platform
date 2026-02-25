@@ -83,6 +83,7 @@ async def tts_stream(websocket: WebSocket) -> None:
         voice = data.get("voice", "Ashley")
         model = data.get("model", "inworld-tts-1.5-mini")
         audio_encoding = data.get("audio_encoding", "MP3")
+        speaking_rate = data.get("speaking_rate")  # None = use default (1.0)
 
         if not text:
             await websocket.send_json({"error": "No text provided"})
@@ -98,7 +99,7 @@ async def tts_stream(websocket: WebSocket) -> None:
             return
 
         # Create config with requested voice and model
-        config = TTSConfig(voice_id=voice, model_id=model, audio_encoding=audio_encoding)
+        config = TTSConfig(voice_id=voice, model_id=model, audio_encoding=audio_encoding, speaking_rate=speaking_rate)
 
         # Create async text iterator (single chunk for Phase 9)
         text_iter = _single_chunk_iter(text)

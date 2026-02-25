@@ -23,6 +23,7 @@ class TTSConfig:
     buffer_char_threshold: int = 250
     max_buffer_delay_ms: int = 3000
     auto_mode: bool = True
+    speaking_rate: float | None = None  # 0.5–1.5, None = Inworld default (1.0)
 
 
 def get_api_key() -> str | None:

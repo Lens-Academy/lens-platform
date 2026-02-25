@@ -112,6 +112,9 @@ export default function Page() {
         voice,
         model,
         audio_encoding: currentMode === "streaming" ? "LINEAR16" : "MP3",
+        ...(currentMode === "streaming" && currentSpeed !== 1.0
+          ? { speaking_rate: currentSpeed }
+          : {}),
       });
       addLog(`Sending: ${payload.slice(0, 120)}${payload.length > 120 ? "..." : ""}`);
       ws.send(payload);
@@ -119,6 +122,12 @@ export default function Page() {
 
     const currentMode = mode;
     const currentSpeed = speed;
+
+    // Streaming: server applies speakingRate, so set client playback to 1.0
+    // Buffered: client applies speed via <audio>.playbackRate
+    if (currentMode === "streaming") {
+      audioPlayback.setPlaybackRate(1.0);
+    }
 
     ws.onmessage = async (event: MessageEvent) => {
       if (event.data instanceof Blob) {
@@ -329,25 +338,29 @@ export default function Page() {
       <div className="mb-4 flex items-center gap-3">
         <label htmlFor="tts-speed" className="text-sm text-gray-400">
           Speed: {speed.toFixed(1)}x
-          {mode === "streaming" && <span className="text-gray-600"> (changes pitch)</span>}
+          {mode === "streaming" && <span className="text-gray-600"> (server-side)</span>}
         </label>
         <input
           id="tts-speed"
           type="range"
-          min={0.7}
-          max={2.0}
+          min={mode === "streaming" ? 0.5 : 0.7}
+          max={mode === "streaming" ? 1.5 : 2.0}
           step={0.1}
           value={speed}
           onChange={(e) => {
             const val = parseFloat(e.target.value);
             setSpeed(val);
-            audioPlayback.setPlaybackRate(val);
-            // Update live <audio> element if buffered playback is active
-            if (audioElRef.current) audioElRef.current.playbackRate = val;
+            // Buffered: apply client-side speed live
+            if (mode === "buffered") {
+              audioPlayback.setPlaybackRate(val);
+              if (audioElRef.current) audioElRef.current.playbackRate = val;
+            }
           }}
           className="w-48 accent-blue-500"
         />
-        <span className="text-xs text-gray-500">0.7x – 2.0x</span>
+        <span className="text-xs text-gray-500">
+          {mode === "streaming" ? "0.5x – 1.5x" : "0.7x – 2.0x"}
+        </span>
       </div>
 
       {/* Playback mode toggle */}
@@ -360,7 +373,12 @@ export default function Page() {
               name="playback-mode"
               value={m}
               checked={mode === m}
-              onChange={() => setMode(m)}
+              onChange={() => {
+                setMode(m);
+                // Clamp speed to valid range for the new mode
+                if (m === "streaming" && speed > 1.5) setSpeed(1.5);
+                if (m === "buffered" && speed < 0.7) setSpeed(0.7);
+              }}
               className="accent-blue-500"
             />
             <span className={mode === m ? "text-gray-900 font-medium dark:text-white" : "text-gray-500"}>

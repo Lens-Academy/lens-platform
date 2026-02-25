@@ -164,6 +164,7 @@ class InworldTTSClient:
                     "audioEncoding": config.audio_encoding,
                     "sampleRateHertz": config.sample_rate_hz,
                     **({"bitRate": config.bit_rate} if config.audio_encoding not in ("LINEAR16",) else {}),
+                    **({"speakingRate": config.speaking_rate} if config.speaking_rate is not None else {}),
                 },
                 "bufferCharThreshold": config.buffer_char_threshold,
                 "maxBufferDelayMs": config.max_buffer_delay_ms,
