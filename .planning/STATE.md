@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Students can engage with course content and demonstrate understanding while the platform collects data to improve both teaching and measurement.
-**Current focus:** v3.1 AI Roleplay -- Phase 8 Foundation
+**Current focus:** v3.1 AI Roleplay -- Phase 9 TTS Pipeline
 
 ## Current Position
 
-Phase: 8 of 11 (Foundation)
-Plan: 2 of 2 in current phase
-Status: Phase 8 complete
-Last activity: 2026-02-25 -- Completed 08-02-PLAN.md
+Phase: 9 of 11 (TTS Pipeline)
+Plan: 1 of 2 in current phase
+Status: Executing Phase 9
+Last activity: 2026-02-25 -- Completed 09-01-PLAN.md
 
-Progress: [##........] 20%
+Progress: [###.......] 30%
 
 ## Milestone Summary
 
@@ -36,9 +36,9 @@ Progress: [##........] 20%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2 (v3.1)
-- Average duration: 9min
-- Total execution time: 18min
+- Total plans completed: 3 (v3.1)
+- Average duration: 7min
+- Total execution time: 20min
 
 ## Accumulated Context
 
@@ -55,6 +55,9 @@ v3.1 decisions:
 - Three required roleplay fields: id (UUID), content (briefing), ai-instructions (character behavior)
 - Separate partial indexes for tutor/roleplay session isolation (no COALESCE hacks)
 - Phase 10 TODO for roleplay-aware claim dedup in claim_chat_sessions
+- Single-synthesis-at-a-time via asyncio.Lock (Phase 10 may add concurrent dispatch)
+- MP3 at 48kHz/128kbps for browser Web Audio API compatibility
+- Binary WebSocket frames for audio transport (not base64 over SSE)
 
 ### Pending Todos
 
@@ -68,5 +71,5 @@ v3.1 decisions:
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 08-02-PLAN.md (Phase 8 complete)
+Stopped at: Completed 09-01-PLAN.md
 Resume file: None
