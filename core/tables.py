@@ -398,8 +398,9 @@ chat_sessions = Table(
         ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=True,
     ),
-    Column("content_id", UUID(as_uuid=True), nullable=True),
-    Column("content_type", Text, nullable=True),
+    Column("module_id", UUID(as_uuid=True), nullable=True),
+    Column("roleplay_id", UUID(as_uuid=True), nullable=True),
+    Column("segment_snapshot", JSONB, nullable=True),
     Column("messages", JSONB, server_default="[]", nullable=False),
     Column(
         "started_at", DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -411,26 +412,49 @@ chat_sessions = Table(
         nullable=False,
     ),
     Column("archived_at", DateTime(timezone=True), nullable=True),
-    Index("idx_chat_sessions_user_content", "user_id", "content_id", "archived_at"),
+    Index("idx_chat_sessions_user_content", "user_id", "module_id", "archived_at"),
     Index("idx_chat_sessions_token", "anonymous_token"),
     # Unique partial indexes to prevent duplicate active sessions (race condition fix)
+    # Tutor chat: one active session per user per module (roleplay_id IS NULL)
     Index(
-        "idx_chat_sessions_unique_anon_active",
-        "anonymous_token",
-        "content_id",
-        unique=True,
-        postgresql_where=text("anonymous_token IS NOT NULL AND archived_at IS NULL"),
-    ),
-    Index(
-        "idx_chat_sessions_unique_user_active",
+        "idx_chat_sessions_unique_user_tutor",
         "user_id",
-        "content_id",
+        "module_id",
         unique=True,
-        postgresql_where=text("user_id IS NOT NULL AND archived_at IS NULL"),
+        postgresql_where=text(
+            "user_id IS NOT NULL AND roleplay_id IS NULL AND archived_at IS NULL"
+        ),
     ),
-    CheckConstraint(
-        "content_type IS NULL OR content_type IN ('module', 'lo', 'lens', 'test', 'feedback')",
-        name="valid_chat_content_type",
+    # Roleplay: one active session per user per module per roleplay (roleplay_id IS NOT NULL)
+    Index(
+        "idx_chat_sessions_unique_user_roleplay",
+        "user_id",
+        "module_id",
+        "roleplay_id",
+        unique=True,
+        postgresql_where=text(
+            "user_id IS NOT NULL AND roleplay_id IS NOT NULL AND archived_at IS NULL"
+        ),
+    ),
+    # Same pair for anonymous tokens
+    Index(
+        "idx_chat_sessions_unique_anon_tutor",
+        "anonymous_token",
+        "module_id",
+        unique=True,
+        postgresql_where=text(
+            "anonymous_token IS NOT NULL AND roleplay_id IS NULL AND archived_at IS NULL"
+        ),
+    ),
+    Index(
+        "idx_chat_sessions_unique_anon_roleplay",
+        "anonymous_token",
+        "module_id",
+        "roleplay_id",
+        unique=True,
+        postgresql_where=text(
+            "anonymous_token IS NOT NULL AND roleplay_id IS NOT NULL AND archived_at IS NULL"
+        ),
     ),
 )
 
