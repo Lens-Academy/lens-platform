@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 10 of 11 (Core Conversation)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: Executing Phase 10
-Last activity: 2026-02-25 -- Completed 10-01-PLAN.md
+Last activity: 2026-02-25 -- Completed 10-02-PLAN.md
 
-Progress: [####......] 40%
+Progress: [#####.....] 50%
 
 ## Milestone Summary
 
@@ -36,9 +36,9 @@ Progress: [####......] 40%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4 (v3.1)
-- Average duration: 6min
-- Total execution time: 25min
+- Total plans completed: 5 (v3.1)
+- Average duration: 7min
+- Total execution time: 35min
 
 ## Accumulated Context
 
@@ -61,6 +61,11 @@ v3.1 decisions:
 - Single-synthesis-at-a-time via asyncio.Lock (Phase 10 may add concurrent dispatch)
 - MP3 at 48kHz/128kbps for browser Web Audio API compatibility
 - Binary WebSocket frames for audio transport (not base64 over SSE)
+- Character name extraction done on frontend via regex (display-only concern, no backend change)
+- Buffered TTS: full text sent to /ws/tts after LLM response completes (streaming TTS deferred)
+- Default TTS voice hardcoded to "Ashley" for Phase 10
+- Toggle defaults: text display ON, TTS OFF, text input -- per locked decision
+- Isolated roleplay state per segment (useRoleplaySession), separate from Module.tsx shared chat state
 
 ### Pending Todos
 
@@ -74,5 +79,5 @@ v3.1 decisions:
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 10-01-PLAN.md
+Stopped at: Completed 10-02-PLAN.md
 Resume file: None
