@@ -141,6 +141,7 @@ from web_api.routes.users import router as users_router
 from web_api.routes.module import router as module_router
 from web_api.routes.modules import router as modules_router
 from web_api.routes.speech import router as speech_router
+from web_api.routes.tts_stream import router as tts_stream_router
 from web_api.routes.cohorts import router as cohorts_router
 from web_api.routes.courses import router as courses_router
 from web_api.routes.facilitator import router as facilitator_router
@@ -279,6 +280,12 @@ async def lifespan(app: FastAPI):
     print("Shutting down peer services...")
     shutdown_scheduler()
     await stop_bot()
+
+    # Close TTS WebSocket connection
+    from core.tts import close_tts_client
+
+    await close_tts_client()
+
     await close_engine()  # Close database connections
     if _bot_task:
         _bot_task.cancel()
@@ -309,6 +316,7 @@ app.include_router(users_router)
 app.include_router(module_router)
 app.include_router(modules_router)
 app.include_router(speech_router)
+app.include_router(tts_stream_router)
 app.include_router(cohorts_router)
 app.include_router(courses_router)
 app.include_router(facilitator_router)
