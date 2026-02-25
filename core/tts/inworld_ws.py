@@ -163,7 +163,7 @@ class InworldTTSClient:
                 "audioConfig": {
                     "audioEncoding": config.audio_encoding,
                     "sampleRateHertz": config.sample_rate_hz,
-                    "bitRate": config.bit_rate,
+                    **({"bitRate": config.bit_rate} if config.audio_encoding not in ("LINEAR16",) else {}),
                 },
                 "bufferCharThreshold": config.buffer_char_threshold,
                 "maxBufferDelayMs": config.max_buffer_delay_ms,
@@ -175,8 +175,10 @@ class InworldTTSClient:
         logger.debug("Sent create context: %s", context_id)
 
         # Wait for contextCreated confirmation
+        # Inworld wraps all responses in {"result": {...}}
         while True:
-            msg = json.loads(await self._ws.recv())
+            raw = json.loads(await self._ws.recv())
+            msg = raw.get("result", raw)
             if "contextCreated" in msg:
                 logger.debug("Context created: %s", context_id)
                 break
@@ -207,8 +209,10 @@ class InworldTTSClient:
             send_task = asyncio.create_task(send_text())
 
             # 3. Yield decoded audio bytes from audioChunk messages until flushCompleted
+            # Inworld wraps all responses in {"result": {...}}
             while True:
-                msg = json.loads(await self._ws.recv())
+                raw = json.loads(await self._ws.recv())
+                msg = raw.get("result", raw)
                 if "audioChunk" in msg:
                     audio_b64 = msg["audioChunk"]["audioContent"]
                     yield base64.b64decode(audio_b64)

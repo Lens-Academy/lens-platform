@@ -30,6 +30,10 @@ export interface UseAudioPlaybackReturn {
   resume: () => Promise<void>;
   /** Current AudioContext state ('suspended' | 'running' | 'closed') */
   contextState: AudioContextState | null;
+  /** Set playback speed (0.7 - 2.0). Applied to subsequent chunks. */
+  setPlaybackRate: (rate: number) => void;
+  /** Current playback rate */
+  playbackRate: number;
 }
 
 export function useAudioPlayback(): UseAudioPlaybackReturn {
@@ -39,12 +43,18 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     null,
   );
 
+  const [playbackRate, setPlaybackRateState] = useState(1.0);
+
   // Refs for AudioContext state (not React state -- these are high-frequency)
   const ctxRef = useRef<AudioContext | null>(null);
   const nextStartTimeRef = useRef(0);
   const activeSourceCountRef = useRef(0);
   // Track whether we've been stopped/unmounted to avoid stale callbacks
   const stoppedRef = useRef(false);
+  // Serialize playChunk calls to prevent race conditions from concurrent decoding
+  const playChainRef = useRef<Promise<void>>(Promise.resolve());
+  // Playback speed (applied to each AudioBufferSourceNode)
+  const playbackRateRef = useRef(1.0);
 
   /** Create or return the AudioContext, updating state. */
   const ensureContext = useCallback((): AudioContext => {
@@ -76,54 +86,72 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     setContextState(ctx.state as AudioContextState);
   }, [ensureContext]);
 
+  /** Set playback speed (clamped to 0.7–2.0). */
+  const setPlaybackRate = useCallback((rate: number) => {
+    const clamped = Math.max(0.7, Math.min(2.0, rate));
+    playbackRateRef.current = clamped;
+    setPlaybackRateState(clamped);
+  }, []);
+
   /** Feed an MP3 chunk for gapless playback. */
   const playChunk = useCallback(
     async (mp3Bytes: ArrayBuffer) => {
       const ctx = ensureContext();
 
-      // Decode the MP3 chunk
-      let audioBuffer: AudioBuffer;
-      try {
-        audioBuffer = await ctx.decodeAudioData(mp3Bytes);
-      } catch (err) {
-        console.warn(
-          "[useAudioPlayback] Failed to decode audio chunk, skipping:",
-          err,
-        );
-        return;
-      }
-
-      // If stop() was called while we were decoding, bail out
-      if (stoppedRef.current) return;
-
-      // Create a one-shot source node
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-
-      // Schedule for gapless playback
-      const now = ctx.currentTime;
-      const startTime = Math.max(nextStartTimeRef.current, now);
-      source.start(startTime);
-
-      // Advance the schedule cursor
-      nextStartTimeRef.current = startTime + audioBuffer.duration;
-
-      // Track active sources for isPlaying state
-      activeSourceCountRef.current += 1;
-      setIsPlaying(true);
-      setChunksReceived((prev) => prev + 1);
-
-      // Clean up when this source finishes playing
-      source.onended = () => {
-        // Release references for GC (source and buffer go out of scope)
-        source.disconnect();
-        activeSourceCountRef.current -= 1;
-        if (activeSourceCountRef.current <= 0 && !stoppedRef.current) {
-          activeSourceCountRef.current = 0;
-          setIsPlaying(false);
+      // Chain onto previous playChunk to serialize decode + schedule.
+      // Without this, concurrent async handlers from ws.onmessage race
+      // through decodeAudioData and corrupt nextStartTimeRef.
+      const result = playChainRef.current.then(async () => {
+        // Decode the MP3 chunk
+        let audioBuffer: AudioBuffer;
+        try {
+          audioBuffer = await ctx.decodeAudioData(mp3Bytes);
+        } catch (err) {
+          console.warn(
+            "[useAudioPlayback] Failed to decode audio chunk, skipping:",
+            err,
+          );
+          return;
         }
-      };
+
+        // If stop() was called while we were decoding, bail out
+        if (stoppedRef.current) return;
+
+        // Create a one-shot source node
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(ctx.destination);
+
+        // Apply playback speed
+        const rate = playbackRateRef.current;
+        source.playbackRate.value = rate;
+
+        // Schedule for gapless playback
+        const now = ctx.currentTime;
+        const startTime = Math.max(nextStartTimeRef.current, now);
+        source.start(startTime);
+
+        // Advance the schedule cursor (adjusted for playback rate)
+        nextStartTimeRef.current = startTime + audioBuffer.duration / rate;
+
+        // Track active sources for isPlaying state
+        activeSourceCountRef.current += 1;
+        setIsPlaying(true);
+        setChunksReceived((prev) => prev + 1);
+
+        // Clean up when this source finishes playing
+        source.onended = () => {
+          // Release references for GC (source and buffer go out of scope)
+          source.disconnect();
+          activeSourceCountRef.current -= 1;
+          if (activeSourceCountRef.current <= 0 && !stoppedRef.current) {
+            activeSourceCountRef.current = 0;
+            setIsPlaying(false);
+          }
+        };
+      });
+      playChainRef.current = result.catch(() => {}); // don't block chain on errors
+      await result;
     },
     [ensureContext],
   );
@@ -140,6 +168,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     ctxRef.current = null;
     nextStartTimeRef.current = 0;
     activeSourceCountRef.current = 0;
+    playChainRef.current = Promise.resolve();
 
     setIsPlaying(false);
     setChunksReceived(0);
@@ -164,5 +193,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     chunksReceived,
     resume,
     contextState,
+    setPlaybackRate,
+    playbackRate,
   };
 }

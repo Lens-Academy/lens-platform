@@ -9,10 +9,24 @@
  * Used during development for end-to-end pipeline verification.
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useAudioPlayback } from "@/hooks/useAudioPlayback";
 
-type Status = "idle" | "connecting" | "streaming" | "done" | "error";
+type Status = "idle" | "connecting" | "streaming" | "buffering" | "done" | "error";
+type PlaybackMode = "streaming" | "buffered";
+
+interface InworldVoice {
+  voiceId: string;
+  displayName: string;
+  description?: string;
+}
+
+const TTS_MODELS = [
+  "inworld-tts-1.5-mini",
+  "inworld-tts-1.5-max",
+  "inworld-tts-1",
+  "inworld-tts-1-max",
+] as const;
 
 function timestamp(): string {
   return new Date().toISOString().slice(11, 23);
@@ -23,11 +37,35 @@ export default function Page() {
     "Hello, I am an AI safety researcher. Let me tell you about alignment.",
   );
   const [voice, setVoice] = useState("Ashley");
+  const [model, setModel] = useState<string>(TTS_MODELS[0]);
+  const [voices, setVoices] = useState<InworldVoice[]>([]);
+  const [voicesLoading, setVoicesLoading] = useState(true);
   const [status, setStatus] = useState<Status>("idle");
   const [logs, setLogs] = useState<string[]>([]);
+  const [mode, setMode] = useState<PlaybackMode>("buffered");
   const wsRef = useRef<WebSocket | null>(null);
+  const chunksBufferRef = useRef<Blob[]>([]);
+  // <audio> element for buffered playback (pitch-preserving speed control)
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
 
   const audioPlayback = useAudioPlayback();
+  const [speed, setSpeed] = useState(1.0);
+  const [bufferedPlaying, setBufferedPlaying] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/tts/voices")
+      .then((res) => res.json())
+      .then((data: InworldVoice[]) => {
+        setVoices(data);
+        // Default to Ashley if present
+        if (data.length > 0 && !data.some((v) => v.voiceId === "Ashley")) {
+          setVoice(data[0].voiceId);
+        }
+      })
+      .catch(() => setVoices([]))
+      .finally(() => setVoicesLoading(false));
+  }, []);
 
   const addLog = useCallback((msg: string) => {
     setLogs((prev) => [...prev, `[${timestamp()}] ${msg}`]);
@@ -43,6 +81,7 @@ export default function Page() {
     setLogs([]);
     setStatus("connecting");
     audioPlayback.stop();
+    chunksBufferRef.current = [];
 
     // Resume AudioContext from user gesture (required by autoplay policy)
     try {
@@ -68,20 +107,37 @@ export default function Page() {
       addLog("WebSocket connected");
       setStatus("streaming");
 
-      const payload = JSON.stringify({ text: text.trim(), voice });
-      addLog(`Sending: ${payload.slice(0, 100)}${payload.length > 100 ? "..." : ""}`);
+      const payload = JSON.stringify({
+        text: text.trim(),
+        voice,
+        model,
+        audio_encoding: currentMode === "streaming" ? "LINEAR16" : "MP3",
+      });
+      addLog(`Sending: ${payload.slice(0, 120)}${payload.length > 120 ? "..." : ""}`);
       ws.send(payload);
     };
+
+    const currentMode = mode;
+    const currentSpeed = speed;
 
     ws.onmessage = async (event: MessageEvent) => {
       if (event.data instanceof Blob) {
         // Binary frame = audio chunk
-        const bytes = await event.data.arrayBuffer();
-        addLog(`Audio chunk: ${bytes.byteLength} bytes`);
-        try {
-          await audioPlayback.playChunk(bytes);
-        } catch (err) {
-          addLog(`ERROR: playChunk failed: ${err}`);
+        if (currentMode === "streaming") {
+          const bytes = await event.data.arrayBuffer();
+          addLog(`Audio chunk: ${bytes.byteLength} bytes`);
+          try {
+            await audioPlayback.playChunk(bytes);
+          } catch (err) {
+            addLog(`ERROR: playChunk failed: ${err}`);
+          }
+        } else {
+          // Buffered: push Blob directly — NO await before push.
+          // Awaiting event.data.arrayBuffer() would yield to the event loop,
+          // letting the done=true handler race ahead and merge without
+          // the last chunk(s).
+          addLog(`Audio chunk: ${event.data.size} bytes`);
+          chunksBufferRef.current.push(event.data);
         }
       } else {
         // Text frame = JSON control message
@@ -89,7 +145,50 @@ export default function Page() {
           const msg = JSON.parse(event.data as string);
           if (msg.done) {
             addLog("Server: synthesis complete (done=true)");
-            setStatus("done");
+
+            if (currentMode === "buffered" && chunksBufferRef.current.length > 0) {
+              // Merge Blob chunks into one MP3 blob
+              const chunks = chunksBufferRef.current;
+              const totalLen = chunks.reduce((sum, c) => sum + c.size, 0);
+              const blob = new Blob(chunks, { type: "audio/mpeg" });
+              addLog(`Playing buffered audio: ${totalLen} bytes in ${chunks.length} chunks (blob: ${blob.size} bytes)`);
+
+              // Use <audio> element for pitch-preserving speed control
+              if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+              const url = URL.createObjectURL(blob);
+              blobUrlRef.current = url;
+              const audio = new Audio(url);
+              audioElRef.current = audio;
+              audio.playbackRate = currentSpeed;
+              audio.onloadedmetadata = () => {
+                addLog(`Audio duration: ${audio.duration.toFixed(3)}s (speed: ${audio.playbackRate}x)`);
+              };
+              audio.onended = () => {
+                addLog("Buffered playback finished");
+                audioElRef.current = null;
+                URL.revokeObjectURL(url);
+                blobUrlRef.current = null;
+                setBufferedPlaying(false);
+                setStatus("idle");
+              };
+              audio.onerror = () => {
+                addLog(`ERROR: <audio> playback failed`);
+                setBufferedPlaying(false);
+                setStatus("error");
+              };
+              setBufferedPlaying(true);
+              try {
+                await audio.play();
+              } catch (err) {
+                addLog(`ERROR: buffered play failed: ${err}`);
+                setBufferedPlaying(false);
+                setStatus("error");
+              }
+              chunksBufferRef.current = [];
+              // Don't set status="done" — onended will set "idle"
+            } else {
+              setStatus("done");
+            }
           } else if (msg.error) {
             addLog(`Server ERROR: ${msg.error}`);
             setStatus("error");
@@ -111,11 +210,20 @@ export default function Page() {
       addLog(`WebSocket closed (code=${event.code}, reason=${event.reason || "none"})`);
       wsRef.current = null;
     };
-  }, [text, voice, audioPlayback, addLog]);
+  }, [text, voice, model, mode, speed, audioPlayback, addLog]);
 
   const handleStop = useCallback(() => {
     addLog("Stopping playback");
     audioPlayback.stop();
+    if (audioElRef.current) {
+      audioElRef.current.pause();
+      audioElRef.current = null;
+      setBufferedPlaying(false);
+    }
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -127,6 +235,7 @@ export default function Page() {
     idle: "text-gray-400",
     connecting: "text-yellow-400",
     streaming: "text-green-400",
+    buffering: "text-yellow-400",
     done: "text-blue-400",
     error: "text-red-400",
   };
@@ -149,8 +258,8 @@ export default function Page() {
         </div>
         <div>
           <span className="text-gray-500">Playing: </span>
-          <span className={audioPlayback.isPlaying ? "text-green-400" : "text-gray-400"}>
-            {audioPlayback.isPlaying ? "yes" : "no"}
+          <span className={audioPlayback.isPlaying || bufferedPlaying ? "text-green-400" : "text-gray-400"}>
+            {audioPlayback.isPlaying || bufferedPlaying ? "yes" : "no"}
           </span>
         </div>
         <div>
@@ -174,25 +283,98 @@ export default function Page() {
         />
       </div>
 
-      {/* Voice selector */}
-      <div className="mb-4">
-        <label htmlFor="tts-voice" className="mb-1 block text-sm text-gray-400">
-          Voice
+      {/* Model & Voice selectors */}
+      <div className="mb-4 flex gap-4">
+        <div>
+          <label htmlFor="tts-model" className="mb-1 block text-sm text-gray-400">
+            Model
+          </label>
+          <select
+            id="tts-model"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="rounded border border-gray-600 bg-gray-800 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+          >
+            {TTS_MODELS.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1">
+          <label htmlFor="tts-voice" className="mb-1 block text-sm text-gray-400">
+            Voice {voicesLoading && "(loading...)"}
+          </label>
+          <select
+            id="tts-voice"
+            value={voice}
+            onChange={(e) => setVoice(e.target.value)}
+            disabled={voicesLoading}
+            className="w-full rounded border border-gray-600 bg-gray-800 px-3 py-2 text-white focus:border-blue-500 focus:outline-none disabled:cursor-default disabled:opacity-50"
+          >
+            {voices.length === 0 && !voicesLoading && (
+              <option value="Ashley">Ashley (fallback)</option>
+            )}
+            {voices.map((v) => (
+              <option key={v.voiceId} value={v.voiceId} title={v.description}>
+                {v.displayName}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Speed control */}
+      <div className="mb-4 flex items-center gap-3">
+        <label htmlFor="tts-speed" className="text-sm text-gray-400">
+          Speed: {speed.toFixed(1)}x
+          {mode === "streaming" && <span className="text-gray-600"> (changes pitch)</span>}
         </label>
         <input
-          id="tts-voice"
-          type="text"
-          value={voice}
-          onChange={(e) => setVoice(e.target.value)}
-          className="w-48 rounded border border-gray-600 bg-gray-800 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+          id="tts-speed"
+          type="range"
+          min={0.7}
+          max={2.0}
+          step={0.1}
+          value={speed}
+          onChange={(e) => {
+            const val = parseFloat(e.target.value);
+            setSpeed(val);
+            audioPlayback.setPlaybackRate(val);
+            // Update live <audio> element if buffered playback is active
+            if (audioElRef.current) audioElRef.current.playbackRate = val;
+          }}
+          className="w-48 accent-blue-500"
         />
+        <span className="text-xs text-gray-500">0.7x – 2.0x</span>
+      </div>
+
+      {/* Playback mode toggle */}
+      <div className="mb-4 flex items-center gap-4">
+        <span className="text-sm text-gray-400">Playback:</span>
+        {(["streaming", "buffered"] as const).map((m) => (
+          <label key={m} className="flex items-center gap-1.5 text-sm">
+            <input
+              type="radio"
+              name="playback-mode"
+              value={m}
+              checked={mode === m}
+              onChange={() => setMode(m)}
+              className="accent-blue-500"
+            />
+            <span className={mode === m ? "text-gray-900 font-medium dark:text-white" : "text-gray-500"}>
+              {m === "streaming" ? "Streaming (play as chunks arrive)" : "Buffered (play after all received)"}
+            </span>
+          </label>
+        ))}
       </div>
 
       {/* Controls */}
       <div className="mb-6 flex gap-3">
         <button
           onClick={handleSpeak}
-          disabled={status === "connecting" || status === "streaming"}
+          disabled={status === "connecting" || status === "streaming" || audioPlayback.isPlaying || bufferedPlaying}
           className="rounded bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-default disabled:bg-gray-600"
         >
           Speak
