@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 8 of 11 (Foundation)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-24 -- Roadmap created for v3.1 AI Roleplay
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-02-25 -- Completed 08-01-PLAN.md
 
-Progress: [..........] 0%
+Progress: [#.........] 10%
 
 ## Milestone Summary
 
@@ -36,9 +36,9 @@ Progress: [..........] 0%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0 (v3.1)
-- Average duration: --
-- Total execution time: --
+- Total plans completed: 1 (v3.1)
+- Average duration: 6min
+- Total execution time: 6min
 
 ## Accumulated Context
 
@@ -50,6 +50,9 @@ v3.1 decisions:
 - segment_key column on chat_sessions for session isolation (load-bearing, expensive to reverse)
 - roleplay.py prompt assembly completely separate from tutor chat.py (no shared base prompt)
 - Zero new dependencies except Inworld TTS external service
+- Roleplay valid in all Lens section types (page, lens-article, lens-video)
+- ai-instructions field added to MARKDOWN_CONTENT_FIELDS for heading disambiguation
+- Three required roleplay fields: id (UUID), content (briefing), ai-instructions (character behavior)
 
 ### Pending Todos
 
@@ -62,6 +65,6 @@ v3.1 decisions:
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Roadmap created for v3.1 AI Roleplay
+Last session: 2026-02-25
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None
