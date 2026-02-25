@@ -34,6 +34,7 @@ import ArticleEmbed from "@/components/module/ArticleEmbed";
 import VideoEmbed from "@/components/module/VideoEmbed";
 import NarrativeChatSection from "@/components/module/NarrativeChatSection";
 import AnswerBox from "@/components/module/AnswerBox";
+import RoleplaySection from "@/components/module/RoleplaySection";
 import TestSection from "@/components/module/TestSection";
 import MarkCompleteButton from "@/components/module/MarkCompleteButton";
 import SectionDivider from "@/components/module/SectionDivider";
@@ -972,6 +973,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           </div>
         );
       }
+
+      case "roleplay":
+        return (
+          <RoleplaySection
+            key={`roleplay-${keyPrefix}`}
+            segment={segment}
+            moduleSlug={module.slug}
+          />
+        );
 
       default:
         return null;
