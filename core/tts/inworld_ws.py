@@ -189,12 +189,16 @@ class InworldTTSClient:
 
         async def send_text() -> None:
             assert self._ws is not None
+            token_count = 0
+            char_count = 0
             async for token in text_chunks:
                 send_msg = {
                     "send_text": {"text": token},
                     "contextId": context_id,
                 }
                 await self._ws.send(json.dumps(send_msg))
+                token_count += 1
+                char_count += len(token)
             # All text sent, flush remaining buffer
             await self._ws.send(
                 json.dumps(
@@ -204,22 +208,36 @@ class InworldTTSClient:
                     }
                 )
             )
-            logger.debug("All text sent and flushed for context: %s", context_id)
+            logger.info(
+                "All text sent and flushed for %s: %d tokens, %d chars",
+                context_id, token_count, char_count,
+            )
 
         try:
             send_task = asyncio.create_task(send_text())
 
             # 3. Yield decoded audio bytes from audioChunk messages until flushCompleted
             # Inworld wraps all responses in {"result": {...}}
+            chunk_count = 0
+            total_bytes = 0
             while True:
                 raw = json.loads(await self._ws.recv())
                 msg = raw.get("result", raw)
                 if "audioChunk" in msg:
                     audio_b64 = msg["audioChunk"]["audioContent"]
-                    yield base64.b64decode(audio_b64)
+                    decoded = base64.b64decode(audio_b64)
+                    chunk_count += 1
+                    total_bytes += len(decoded)
+                    yield decoded
                 elif "flushCompleted" in msg:
-                    logger.debug("Flush completed for context: %s", context_id)
+                    logger.info(
+                        "Flush completed for %s: %d chunks, %d bytes",
+                        context_id, chunk_count, total_bytes,
+                    )
                     break
+                else:
+                    # Log unexpected messages
+                    logger.info("Inworld msg for %s: %s", context_id, list(msg.keys()))
         finally:
             # Ensure send task completes
             if send_task is not None:

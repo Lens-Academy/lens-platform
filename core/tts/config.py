@@ -22,7 +22,7 @@ class TTSConfig:
     bit_rate: int = 128000
     buffer_char_threshold: int = 250
     max_buffer_delay_ms: int = 3000
-    auto_mode: bool = True
+    auto_mode: bool = False
     speaking_rate: float | None = None  # 0.5–1.5, None = Inworld default (1.0)
 
 

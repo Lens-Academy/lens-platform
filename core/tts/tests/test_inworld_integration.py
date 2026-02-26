@@ -53,14 +53,24 @@ async def test_single_chunk_synthesize(client: InworldTTSClient):
 
     assert len(chunks) > 0, "Expected at least one audio chunk"
     total_bytes = sum(len(c) for c in chunks)
-    assert total_bytes > 100, f"Audio too small ({total_bytes} bytes), likely empty"
+    # SHORT_TEXT (~28 chars) should produce at least 1s of audio at 48kHz 16-bit mono
+    min_bytes = 48000 * 2 * 1  # 1 second
+    assert total_bytes > min_bytes, (
+        f"Audio too short: {total_bytes} bytes = {total_bytes/2/48000:.2f}s "
+        f"(expected >1s for '{SHORT_TEXT[:30]}...')"
+    )
 
 
 # -- 2. Multi-chunk (simulated LLM tokens) synthesis --
 
 
 async def test_multi_chunk_synthesize(client: InworldTTSClient):
-    """Stream text word-by-word (like LLM tokens), expect audio back."""
+    """Stream text word-by-word (like LLM tokens), expect full audio back.
+
+    This is the key test for the streaming pipeline: text arrives incrementally
+    (like from an LLM) and Inworld must synthesize the complete sentence.
+    With auto_mode=False, Inworld buffers until flush and produces full audio.
+    """
 
     async def word_tokens():
         for word in LONGER_TEXT.split():
@@ -75,7 +85,12 @@ async def test_multi_chunk_synthesize(client: InworldTTSClient):
 
     assert len(chunks) > 0, "Expected at least one audio chunk from multi-token input"
     total_bytes = sum(len(c) for c in chunks)
-    assert total_bytes > 500, f"Audio too small ({total_bytes} bytes) for multi-sentence text"
+    # LONGER_TEXT (~176 chars) should produce at least 5s of audio
+    min_bytes = 48000 * 2 * 5  # 5 seconds
+    assert total_bytes > min_bytes, (
+        f"Audio too short: {total_bytes} bytes = {total_bytes/2/48000:.2f}s "
+        f"(expected >5s for multi-sentence text)"
+    )
 
 
 # -- 3. Queue-backed iterator (matches streaming WebSocket protocol) --
@@ -111,7 +126,11 @@ async def test_queue_iterator_synthesis(client: InworldTTSClient):
 
     assert len(chunks) > 0, "Expected audio chunks from queue-fed synthesis"
     total_bytes = sum(len(c) for c in chunks)
-    assert total_bytes > 100, f"Audio too small ({total_bytes} bytes)"
+    min_bytes = 48000 * 2 * 1  # 1 second
+    assert total_bytes > min_bytes, (
+        f"Audio too short: {total_bytes} bytes = {total_bytes/2/48000:.2f}s "
+        f"(expected >1s for '{SHORT_TEXT[:30]}...')"
+    )
 
 
 # -- 4. MP3 encoding (the non-LINEAR16 path) --
