@@ -1,9 +1,11 @@
 /**
  * useRoleplayTTS - Coordinates TTS audio playback for roleplay conversations.
  *
- * Uses the buffered TTS approach: after the LLM response completes,
- * the full text is sent to /ws/tts for audio synthesis. This is simpler
- * than streaming TTS and acceptable for Phase 10 latency requirements.
+ * Supports two modes:
+ * - **Single-shot** (`speakText`): sends full text to /ws/tts after LLM completes.
+ * - **Streaming** (`startStreaming` / `sendToken` / `flush`): opens TTS WebSocket
+ *   before LLM starts, forwards tokens as they arrive, so audio plays concurrently
+ *   with LLM generation.
  *
  * Internally uses useAudioPlayback for gapless chunk scheduling and
  * AudioContext lifecycle management.
@@ -13,12 +15,23 @@ import { useRef, useCallback, useEffect } from "react";
 import { useAudioPlayback } from "./useAudioPlayback";
 
 export interface UseRoleplayTTSReturn {
-  /** Call after LLM response completes to speak the text */
+  /** Send completed text for audio playback (single-shot) */
   speakText: (text: string) => void;
+  /** Open TTS WebSocket in streaming mode (call from user gesture chain) */
+  startStreaming: () => void;
+  /** Forward an LLM token to the streaming TTS WebSocket */
+  sendToken: (text: string) => void;
+  /** Signal that LLM generation is done (triggers Inworld flush) */
+  flush: () => void;
   /** Stop playback and close WebSocket */
   stop: () => void;
   /** Whether audio is currently playing */
   isPlaying: boolean;
+}
+
+function makeTTSUrl(): string {
+  const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+  return `${wsProtocol}//${location.host}/ws/tts`;
 }
 
 export function useRoleplayTTS(ttsEnabled: boolean): UseRoleplayTTSReturn {
@@ -26,103 +39,120 @@ export function useRoleplayTTS(ttsEnabled: boolean): UseRoleplayTTSReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const mountedRef = useRef(true);
 
-  /**
-   * Send completed assistant text to /ws/tts for audio playback.
-   *
-   * Must be called in a chain from a user gesture (e.g., message send
-   * button click) to satisfy AudioContext autoplay policy (Pitfall 3).
-   */
-  const speakText = useCallback(
-    (text: string) => {
-      if (!ttsEnabled || !text.trim()) return;
+  /** Shared handler for incoming WebSocket messages (audio chunks + control). */
+  const handleWsMessage = useCallback(
+    async (event: MessageEvent) => {
+      if (!mountedRef.current) return;
 
-      // Close any existing WebSocket connection
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
+      if (event.data instanceof Blob) {
+        try {
+          const bytes = await event.data.arrayBuffer();
+          await audioPlayback.playChunk(bytes);
+        } catch (err) {
+          console.warn("[useRoleplayTTS] Failed to play audio chunk:", err);
+        }
+      } else if (typeof event.data === "string") {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.done) {
+            wsRef.current?.close();
+          } else if (msg.error) {
+            console.error("[useRoleplayTTS] TTS error:", msg.error);
+            wsRef.current?.close();
+          }
+        } catch {
+          // Non-JSON string -- ignore
+        }
       }
-
-      // Resume AudioContext (must be called from user gesture chain)
-      audioPlayback.resume();
-
-      // Determine WebSocket protocol based on page protocol
-      const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(`${wsProtocol}//${location.host}/ws/tts`);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ text, voice: "Ashley" }));
-      };
-
-      ws.onmessage = async (event: MessageEvent) => {
-        if (!mountedRef.current) return;
-
-        if (event.data instanceof Blob) {
-          // Binary audio chunk -- decode and play
-          try {
-            const bytes = await event.data.arrayBuffer();
-            await audioPlayback.playChunk(bytes);
-          } catch (err) {
-            console.warn("[useRoleplayTTS] Failed to play audio chunk:", err);
-          }
-        } else if (typeof event.data === "string") {
-          // JSON control message
-          try {
-            const msg = JSON.parse(event.data);
-            if (msg.done) {
-              // TTS synthesis complete -- WebSocket will close
-              ws.close();
-            } else if (msg.error) {
-              console.error("[useRoleplayTTS] TTS error:", msg.error);
-              ws.close();
-            }
-          } catch {
-            // Non-JSON string -- ignore
-          }
-        }
-      };
-
-      ws.onerror = (event) => {
-        console.error("[useRoleplayTTS] WebSocket error:", event);
-      };
-
-      ws.onclose = () => {
-        if (wsRef.current === ws) {
-          wsRef.current = null;
-        }
-      };
     },
-    [ttsEnabled, audioPlayback],
+    [audioPlayback],
   );
 
-  /**
-   * Stop all audio playback and close the TTS WebSocket.
-   *
-   * Called when completing or retrying a session (Pitfall 5) to prevent
-   * audio from continuing over state transitions.
-   */
-  const stop = useCallback(() => {
-    audioPlayback.stop();
+  /** Close any existing WS and clean up ref. */
+  const closeWs = useCallback(() => {
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
-  }, [audioPlayback]);
+  }, []);
 
-  // Cleanup on unmount (reset on remount for React strict mode)
+  // ---- Single-shot mode ----
+
+  const speakText = useCallback(
+    (text: string) => {
+      if (!ttsEnabled || !text.trim()) return;
+      closeWs();
+      audioPlayback.resume();
+
+      const ws = new WebSocket(makeTTSUrl());
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ text, voice: "Ashley", audio_encoding: "LINEAR16" }));
+      };
+      ws.onmessage = handleWsMessage;
+      ws.onerror = (e) => console.error("[useRoleplayTTS] WebSocket error:", e);
+      ws.onclose = () => {
+        if (wsRef.current === ws) wsRef.current = null;
+      };
+    },
+    [ttsEnabled, audioPlayback, closeWs, handleWsMessage],
+  );
+
+  // ---- Streaming mode ----
+
+  const startStreaming = useCallback(() => {
+    if (!ttsEnabled) return;
+    closeWs();
+    audioPlayback.resume();
+
+    const ws = new WebSocket(makeTTSUrl());
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ streaming: true, voice: "Ashley", audio_encoding: "LINEAR16" }));
+    };
+    ws.onmessage = handleWsMessage;
+    ws.onerror = (e) => console.error("[useRoleplayTTS] WebSocket error:", e);
+    ws.onclose = () => {
+      if (wsRef.current === ws) wsRef.current = null;
+    };
+  }, [ttsEnabled, audioPlayback, closeWs, handleWsMessage]);
+
+  const sendToken = useCallback((text: string) => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ text }));
+    }
+  }, []);
+
+  const flush = useCallback(() => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ flush: true }));
+    }
+  }, []);
+
+  // ---- Stop / cleanup ----
+
+  const stop = useCallback(() => {
+    audioPlayback.stop();
+    closeWs();
+  }, [audioPlayback, closeWs]);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
+      closeWs();
     };
-  }, []);
+  }, [closeWs]);
 
   return {
     speakText,
+    startStreaming,
+    sendToken,
+    flush,
     stop,
     isPlaying: audioPlayback.isPlaying,
   };

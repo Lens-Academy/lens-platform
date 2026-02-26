@@ -84,7 +84,7 @@ export default function Page() {
     ws.onopen = () => {
       setDirectStatus("streaming");
       addLog("TTS", "WebSocket connected (direct)");
-      ws.send(JSON.stringify({ text: directText.trim(), voice: "Ashley" }));
+      ws.send(JSON.stringify({ text: directText.trim(), voice: "Ashley", audio_encoding: "LINEAR16" }));
       addLog("TTS", `Sent text: "${directText.trim().slice(0, 80)}..."`);
     };
 
@@ -124,7 +124,7 @@ export default function Page() {
     };
   }, [directText, audioPlayback, addLog]);
 
-  // --- E2E: Send & Speak ---
+  // --- E2E: Send & Speak (parallel SSE + TTS) ---
   const handleSendAndSpeak = useCallback(async () => {
     const msg = userInput.trim();
     if (!msg) return;
@@ -133,7 +133,7 @@ export default function Page() {
     setUserInput("");
     setStreamingContent("");
     setSseStatus("connecting");
-    setTtsStatus("idle");
+    setTtsStatus("connecting");
     setChunkCount(0);
     audioPlayback.stop();
 
@@ -150,12 +150,72 @@ export default function Page() {
     setMessages((prev) => [...prev, { role: "user", content: msg }]);
     addLog("INFO", `User message: "${msg.slice(0, 80)}"`);
 
-    // Step 1: SSE to /api/chat/roleplay
+    // Step 1: Open TTS WebSocket in streaming mode BEFORE SSE starts
+    addLog("TTS", "Opening WebSocket in streaming mode");
+
+    const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${wsProtocol}//${location.host}/ws/tts`);
+    wsRef.current = ws;
+
+    // Wait for WS to open before starting SSE
+    const wsReady = new Promise<void>((resolve, reject) => {
+      ws.onopen = () => {
+        setTtsStatus("streaming");
+        addLog("TTS", "WebSocket connected (streaming mode)");
+        ws.send(JSON.stringify({ streaming: true, voice: "Ashley", audio_encoding: "LINEAR16" }));
+        resolve();
+      };
+      ws.onerror = () => {
+        addLog("ERROR", "TTS WebSocket failed to connect");
+        setTtsStatus("error");
+        reject(new Error("TTS WebSocket connection failed"));
+      };
+    });
+
+    ws.onmessage = async (event: MessageEvent) => {
+      if (event.data instanceof Blob) {
+        const bytes = await event.data.arrayBuffer();
+        addLog("AUDIO", `Chunk: ${bytes.byteLength} bytes`);
+        setChunkCount((c) => c + 1);
+        try {
+          await audioPlayback.playChunk(bytes);
+        } catch (err) {
+          addLog("ERROR", `playChunk failed: ${err}`);
+        }
+      } else {
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed.done) {
+            addLog("TTS", "TTS complete (done signal)");
+            setTtsStatus("done");
+          } else if (parsed.error) {
+            addLog("ERROR", `TTS error: ${parsed.error}`);
+            setTtsStatus("error");
+          }
+        } catch {
+          addLog("TTS", `Text: ${event.data}`);
+        }
+      }
+    };
+
+    ws.onclose = (e) => {
+      addLog("TTS", `WebSocket closed (code=${e.code})`);
+      wsRef.current = null;
+    };
+
+    try {
+      await wsReady;
+    } catch {
+      return; // WS failed, already logged
+    }
+
+    // Step 2: SSE to /api/chat/roleplay — forward tokens to TTS WS
     setSseStatus("streaming");
     addLog("SSE", "Starting SSE request to /api/chat/roleplay");
 
     let fullResponse = "";
     let eventCount = 0;
+    let tokensSent = 0;
 
     try {
       const abortController = new AbortController();
@@ -173,16 +233,27 @@ export default function Page() {
         if (event.type === "text" && event.content) {
           fullResponse += event.content;
           setStreamingContent(fullResponse);
+
+          // Forward token to TTS WebSocket
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ text: event.content }));
+            tokensSent++;
+          }
+
           // Log every 5th chunk to avoid spam
           if (eventCount % 5 === 0) {
-            addLog("SSE", `text chunk #${eventCount} (total: ${fullResponse.length} chars)`);
+            addLog("SSE", `text chunk #${eventCount} (total: ${fullResponse.length} chars, ${tokensSent} tokens→TTS)`);
           }
         } else if (event.type === "done") {
-          addLog("SSE", `Done! ${fullResponse.length} chars in ${eventCount} events`);
+          addLog("SSE", `Done! ${fullResponse.length} chars in ${eventCount} events, ${tokensSent} tokens→TTS`);
           setSseStatus("done");
         } else if (event.type === "error") {
           addLog("ERROR", `SSE error: ${event.message}`);
           setSseStatus("error");
+          // Flush TTS even on error so it can finish what it has
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ flush: true }));
+          }
           return;
         } else {
           addLog("SSE", `Event: ${JSON.stringify(event).slice(0, 100)}`);
@@ -191,12 +262,18 @@ export default function Page() {
     } catch (err) {
       addLog("ERROR", `SSE request failed: ${err}`);
       setSseStatus("error");
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ flush: true }));
+      }
       return;
     }
 
     if (!fullResponse) {
       addLog("ERROR", "No response text received from SSE");
       setSseStatus("error");
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ flush: true }));
+      }
       return;
     }
 
@@ -205,56 +282,11 @@ export default function Page() {
     setStreamingContent("");
     addLog("INFO", `LLM complete: ${fullResponse.length} chars`);
 
-    // Step 2: TTS via WebSocket
-    setTtsStatus("connecting");
-    addLog("TTS", "Opening WebSocket to /ws/tts");
-
-    const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${wsProtocol}//${location.host}/ws/tts`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      setTtsStatus("streaming");
-      addLog("TTS", "WebSocket connected");
-      ws.send(JSON.stringify({ text: fullResponse, voice: "Ashley" }));
-      addLog("TTS", `Sent ${fullResponse.length} chars for synthesis`);
-    };
-
-    ws.onmessage = async (event: MessageEvent) => {
-      if (event.data instanceof Blob) {
-        const bytes = await event.data.arrayBuffer();
-        addLog("AUDIO", `Chunk: ${bytes.byteLength} bytes`);
-        setChunkCount((c) => c + 1);
-        try {
-          await audioPlayback.playChunk(bytes);
-        } catch (err) {
-          addLog("ERROR", `playChunk failed: ${err}`);
-        }
-      } else {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.done) {
-            addLog("TTS", "TTS complete (done signal)");
-            setTtsStatus("done");
-          } else if (msg.error) {
-            addLog("ERROR", `TTS error: ${msg.error}`);
-            setTtsStatus("error");
-          }
-        } catch {
-          addLog("TTS", `Text: ${event.data}`);
-        }
-      }
-    };
-
-    ws.onerror = () => {
-      addLog("ERROR", "TTS WebSocket error");
-      setTtsStatus("error");
-    };
-
-    ws.onclose = (e) => {
-      addLog("TTS", `WebSocket closed (code=${e.code})`);
-      wsRef.current = null;
-    };
+    // Signal TTS that all tokens have been sent
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ flush: true }));
+      addLog("TTS", "Sent flush signal (LLM done)");
+    }
   }, [userInput, audioPlayback, addLog]);
 
   const handleStop = useCallback(() => {

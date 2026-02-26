@@ -1,11 +1,18 @@
 """WebSocket endpoint for streaming TTS audio to the browser.
 
-Protocol:
-1. Client connects to /ws/tts
-2. Client sends JSON: {"text": "...", "voice": "Ashley", "model": "inworld-tts-1.5-mini"}
-3. Server sends binary WebSocket frames (MP3 audio chunks) as they arrive
-4. Server sends JSON {"done": true} when all audio has been sent
-5. Server sends JSON {"error": "message"} if TTS fails
+Supports two protocols:
+
+**Single-shot** (default):
+1. Client sends JSON: {"text": "...", "voice": "Ashley"}
+2. Server streams binary audio chunks
+3. Server sends {"done": true}
+
+**Streaming** (for parallel LLM+TTS):
+1. Client sends JSON: {"streaming": true, "voice": "Ashley"}
+2. Client sends {"text": "token"} messages as LLM tokens arrive
+3. Client sends {"flush": true} when LLM is done
+4. Server streams binary audio chunks concurrently
+5. Server sends {"done": true}
 """
 
 import asyncio
@@ -59,11 +66,7 @@ async def list_voices() -> list[dict]:
 
 
 async def _single_chunk_iter(text: str) -> AsyncIterator[str]:
-    """Wrap full text as a single-chunk async iterator.
-
-    For Phase 9 test harness: yields the complete text as one chunk.
-    Phase 10 will provide an actual LLM token stream instead.
-    """
+    """Wrap full text as a single-chunk async iterator."""
     yield text
 
 
@@ -74,31 +77,119 @@ async def _llm_token_iter(text: str, delay: float = 0.05) -> AsyncIterator[str]:
         await asyncio.sleep(delay)
 
 
+class _QueueIterator:
+    """Async iterator backed by an asyncio.Queue.
+
+    Push text tokens via put(). Push None to signal end-of-stream.
+    """
+
+    def __init__(self) -> None:
+        self._queue: asyncio.Queue[str | None] = asyncio.Queue()
+
+    async def put(self, token: str | None) -> None:
+        await self._queue.put(token)
+
+    def __aiter__(self) -> "_QueueIterator":
+        return self
+
+    async def __anext__(self) -> str:
+        token = await self._queue.get()
+        if token is None:
+            raise StopAsyncIteration
+        return token
+
+
+def _parse_config(data: dict) -> TTSConfig:
+    """Extract TTSConfig from the initial WebSocket JSON message."""
+    return TTSConfig(
+        voice_id=data.get("voice", "Ashley"),
+        model_id=data.get("model", "inworld-tts-1.5-mini"),
+        audio_encoding=data.get("audio_encoding", "MP3"),
+        speaking_rate=data.get("speaking_rate"),
+    )
+
+
+async def _handle_single_shot(websocket: WebSocket, data: dict) -> None:
+    """Handle single-shot TTS: full text sent upfront."""
+    text = data.get("text", "")
+    if not text:
+        await websocket.send_json({"error": "No text provided"})
+        await websocket.close()
+        return
+
+    config = _parse_config(data)
+
+    # Choose text iterator: simulated streaming or single chunk
+    simulate = data.get("simulate_streaming", False)
+    token_delay = data.get("token_delay", 0.05)
+    if simulate:
+        word_count = len(text.split())
+        logger.info("TTS simulate_streaming: %d words, %.3fs delay", word_count, token_delay)
+        text_iter: AsyncIterator[str] = _llm_token_iter(text, token_delay)
+    else:
+        text_iter = _single_chunk_iter(text)
+
+    client = get_tts_client()
+    async for audio_chunk in client.synthesize(text_iter, config):
+        await websocket.send_bytes(audio_chunk)
+
+    await websocket.send_json({"done": True})
+
+
+async def _handle_streaming(websocket: WebSocket, data: dict) -> None:
+    """Handle streaming TTS: text tokens arrive incrementally from client.
+
+    A background task reads subsequent WebSocket messages and feeds them
+    into a queue-backed async iterator that the TTS client consumes.
+    """
+    config = _parse_config(data)
+    queue_iter = _QueueIterator()
+
+    async def receive_tokens() -> None:
+        """Read text/flush messages from client, push into queue."""
+        try:
+            while True:
+                msg = await websocket.receive_json()
+                if msg.get("flush"):
+                    await queue_iter.put(None)  # end-of-stream sentinel
+                    return
+                text = msg.get("text")
+                if text:
+                    await queue_iter.put(text)
+        except WebSocketDisconnect:
+            # Client disconnected before flushing -- terminate iterator
+            await queue_iter.put(None)
+        except Exception:
+            logger.exception("Error receiving streaming tokens")
+            await queue_iter.put(None)
+
+    # Start receiving tokens concurrently with synthesis
+    receive_task = asyncio.create_task(receive_tokens())
+
+    try:
+        client = get_tts_client()
+        async for audio_chunk in client.synthesize(queue_iter, config):
+            await websocket.send_bytes(audio_chunk)
+
+        await websocket.send_json({"done": True})
+    finally:
+        # Ensure receive task completes
+        if not receive_task.done():
+            receive_task.cancel()
+            try:
+                await receive_task
+            except asyncio.CancelledError:
+                pass
+
+
 @router.websocket("/ws/tts")
 async def tts_stream(websocket: WebSocket) -> None:
-    """Stream TTS audio to browser via WebSocket.
-
-    Accepts a JSON request with text and optional voice,
-    streams back binary MP3 audio frames from Inworld TTS,
-    then sends a JSON completion signal.
-    """
+    """Stream TTS audio to browser via WebSocket."""
     await websocket.accept()
 
     try:
-        # Receive JSON request
         data = await websocket.receive_json()
-        text = data.get("text", "")
-        voice = data.get("voice", "Ashley")
-        model = data.get("model", "inworld-tts-1.5-mini")
-        audio_encoding = data.get("audio_encoding", "MP3")
-        speaking_rate = data.get("speaking_rate")  # None = use default (1.0)
 
-        if not text:
-            await websocket.send_json({"error": "No text provided"})
-            await websocket.close()
-            return
-
-        # Check if TTS is available
         if not is_tts_available():
             await websocket.send_json(
                 {"error": "TTS not configured (INWORLD_API_KEY not set)"}
@@ -106,26 +197,10 @@ async def tts_stream(websocket: WebSocket) -> None:
             await websocket.close()
             return
 
-        # Create config with requested voice and model
-        config = TTSConfig(voice_id=voice, model_id=model, audio_encoding=audio_encoding, speaking_rate=speaking_rate)
-
-        # Choose text iterator: simulated streaming or single chunk
-        simulate = data.get("simulate_streaming", False)
-        token_delay = data.get("token_delay", 0.05)
-        if simulate:
-            word_count = len(text.split())
-            logger.info("TTS simulate_streaming: %d words, %.3fs delay", word_count, token_delay)
-            text_iter = _llm_token_iter(text, token_delay)
+        if data.get("streaming"):
+            await _handle_streaming(websocket, data)
         else:
-            text_iter = _single_chunk_iter(text)
-
-        # Synthesize and stream audio chunks
-        client = get_tts_client()
-        async for audio_chunk in client.synthesize(text_iter, config):
-            await websocket.send_bytes(audio_chunk)
-
-        # Signal completion
-        await websocket.send_json({"done": True})
+            await _handle_single_shot(websocket, data)
 
     except WebSocketDisconnect:
         logger.info("TTS WebSocket client disconnected")
