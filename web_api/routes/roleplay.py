@@ -304,10 +304,8 @@ async def retry_roleplay(
     Auth: JWT cookie or X-Anonymous-Token header.
     Verifies session ownership before archiving.
 
-    If opening_message is provided, inserts it as the first assistant message
-    in the new session.
-
-    Returns the new session ID.
+    Returns the new session ID. The frontend handles re-triggering the
+    opening message via streamMessage("") after retry.
     """
     user_id, anonymous_token = auth
 
@@ -334,13 +332,8 @@ async def retry_roleplay(
             roleplay_id=session.get("roleplay_id"),
         )
 
-        # Insert opening message if provided
-        if request.opening_message:
-            await add_chat_message(
-                conn,
-                session_id=new_session["session_id"],
-                role="assistant",
-                content=request.opening_message,
-            )
+    # Don't insert opening message here — the frontend calls streamMessage("")
+    # after retry, which triggers the "new empty session" path in
+    # roleplay_event_generator to insert and stream the opening message.
 
     return {"sessionId": new_session["session_id"]}

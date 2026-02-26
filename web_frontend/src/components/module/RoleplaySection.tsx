@@ -34,7 +34,6 @@ export default function RoleplaySection({
 }: RoleplaySectionProps) {
   const {
     messages,
-    pendingMessage,
     streamingContent,
     isLoading,
     isCompleted,
@@ -139,21 +138,6 @@ export default function RoleplaySection({
                       <div className="whitespace-pre-wrap">{msg.content}</div>
                     </div>
                   ),
-                )}
-
-                {/* Pending user message */}
-                {pendingMessage && (
-                  <div
-                    className={`ml-auto max-w-[80%] p-3 rounded-2xl ${
-                      pendingMessage.status === "failed"
-                        ? "bg-red-50 border border-red-200"
-                        : "bg-gray-100"
-                    }`}
-                  >
-                    <div className="whitespace-pre-wrap text-gray-800">
-                      {pendingMessage.content}
-                    </div>
-                  </div>
                 )}
 
                 {/* Streaming response */}

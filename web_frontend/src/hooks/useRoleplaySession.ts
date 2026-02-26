@@ -249,8 +249,10 @@ export function useRoleplaySession(
     }
   }, [sessionId, openingMessage, streamMessage]);
 
-  // Cleanup on unmount
+  // Reset refs on mount (handles React strict mode remount) + cleanup on unmount
   useEffect(() => {
+    mountedRef.current = true;
+    initialLoadTriggeredRef.current = false;
     return () => {
       mountedRef.current = false;
       if (activeStreamRef.current) {
