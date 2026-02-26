@@ -109,8 +109,9 @@ export function useRoleplayTTS(ttsEnabled: boolean): UseRoleplayTTSReturn {
     }
   }, [audioPlayback]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount (reset on remount for React strict mode)
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       if (wsRef.current) {

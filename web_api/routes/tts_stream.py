@@ -8,6 +8,7 @@ Protocol:
 5. Server sends JSON {"error": "message"} if TTS fails
 """
 
+import asyncio
 import logging
 import time
 from typing import AsyncIterator
@@ -66,6 +67,13 @@ async def _single_chunk_iter(text: str) -> AsyncIterator[str]:
     yield text
 
 
+async def _llm_token_iter(text: str, delay: float = 0.05) -> AsyncIterator[str]:
+    """Simulate LLM token streaming by yielding words with small delays."""
+    for word in text.split():
+        yield word + " "
+        await asyncio.sleep(delay)
+
+
 @router.websocket("/ws/tts")
 async def tts_stream(websocket: WebSocket) -> None:
     """Stream TTS audio to browser via WebSocket.
@@ -101,8 +109,15 @@ async def tts_stream(websocket: WebSocket) -> None:
         # Create config with requested voice and model
         config = TTSConfig(voice_id=voice, model_id=model, audio_encoding=audio_encoding, speaking_rate=speaking_rate)
 
-        # Create async text iterator (single chunk for Phase 9)
-        text_iter = _single_chunk_iter(text)
+        # Choose text iterator: simulated streaming or single chunk
+        simulate = data.get("simulate_streaming", False)
+        token_delay = data.get("token_delay", 0.05)
+        if simulate:
+            word_count = len(text.split())
+            logger.info("TTS simulate_streaming: %d words, %.3fs delay", word_count, token_delay)
+            text_iter = _llm_token_iter(text, token_delay)
+        else:
+            text_iter = _single_chunk_iter(text)
 
         # Synthesize and stream audio chunks
         client = get_tts_client()

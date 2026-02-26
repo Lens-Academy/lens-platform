@@ -52,6 +52,8 @@ export default function Page() {
   const audioPlayback = useAudioPlayback();
   const [speed, setSpeed] = useState(1.0);
   const [bufferedPlaying, setBufferedPlaying] = useState(false);
+  const [simulateStreaming, setSimulateStreaming] = useState(false);
+  const [tokenDelay, setTokenDelay] = useState(0.05);
 
   useEffect(() => {
     fetch("/api/tts/voices")
@@ -115,7 +117,11 @@ export default function Page() {
         ...(currentMode === "streaming" && currentSpeed !== 1.0
           ? { speaking_rate: currentSpeed }
           : {}),
+        ...(simulateStreaming ? { simulate_streaming: true, token_delay: tokenDelay } : {}),
       });
+      if (simulateStreaming) {
+        addLog(`Simulate LLM streaming: ON (delay=${tokenDelay}s/token, ~${text.trim().split(/\s+/).length} tokens)`);
+      }
       addLog(`Sending: ${payload.slice(0, 120)}${payload.length > 120 ? "..." : ""}`);
       ws.send(payload);
     };
@@ -219,7 +225,7 @@ export default function Page() {
       addLog(`WebSocket closed (code=${event.code}, reason=${event.reason || "none"})`);
       wsRef.current = null;
     };
-  }, [text, voice, model, mode, speed, audioPlayback, addLog]);
+  }, [text, voice, model, mode, speed, simulateStreaming, tokenDelay, audioPlayback, addLog]);
 
   const handleStop = useCallback(() => {
     addLog("Stopping playback");
@@ -251,7 +257,12 @@ export default function Page() {
 
   return (
     <div className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-6 text-2xl font-bold">TTS Pipeline Test</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">TTS Pipeline Test</h1>
+        <a href="/voice-test" className="text-sm text-blue-400 hover:text-blue-300">
+          Voice E2E Test →
+        </a>
+      </div>
 
       {/* Status indicators */}
       <div className="mb-4 flex gap-6 text-sm">
@@ -386,6 +397,34 @@ export default function Page() {
             </span>
           </label>
         ))}
+      </div>
+
+      {/* Simulate LLM streaming toggle */}
+      <div className="mb-4 flex items-center gap-4">
+        <label className="flex items-center gap-1.5 text-sm">
+          <input
+            type="checkbox"
+            checked={simulateStreaming}
+            onChange={(e) => setSimulateStreaming(e.target.checked)}
+            className="accent-blue-500"
+          />
+          <span className="text-gray-300">Simulate LLM token streaming</span>
+        </label>
+        {simulateStreaming && (
+          <label className="flex items-center gap-1.5 text-sm">
+            <span className="text-gray-500">Delay:</span>
+            <input
+              type="number"
+              min={0}
+              max={0.5}
+              step={0.01}
+              value={tokenDelay}
+              onChange={(e) => setTokenDelay(parseFloat(e.target.value) || 0.05)}
+              className="w-20 rounded border border-gray-600 bg-gray-800 px-2 py-1 text-white focus:border-blue-500 focus:outline-none"
+            />
+            <span className="text-gray-500">s/token</span>
+          </label>
+        )}
       </div>
 
       {/* Controls */}
