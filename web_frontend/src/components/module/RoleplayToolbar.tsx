@@ -7,7 +7,6 @@
 
 import {
   MessageSquare,
-  EyeOff,
   Volume2,
   VolumeX,
   Keyboard,
@@ -49,11 +48,7 @@ export default function RoleplayToolbar({
           className={`${buttonBase} ${textDisplay ? activeClass : inactiveClass} ${disabled ? disabledClass : ""}`}
           aria-label={textDisplay ? "Hide message text" : "Show message text"}
         >
-          {textDisplay ? (
-            <MessageSquare size={18} />
-          ) : (
-            <EyeOff size={18} />
-          )}
+          <MessageSquare size={18} />
         </button>
       </Tooltip>
 
@@ -72,20 +67,26 @@ export default function RoleplayToolbar({
         </button>
       </Tooltip>
 
-      <Tooltip content={inputMode === "text" ? "Switch to voice" : "Switch to text"}>
+      <div
+        className={`flex items-center rounded-lg bg-gray-300/50 p-0.5 ${disabled ? disabledClass : ""}`}
+      >
         <button
           type="button"
-          onClick={disabled ? undefined : onToggleInput}
-          className={`${buttonBase} ${inputMode === "voice" ? activeClass : inactiveClass} ${disabled ? disabledClass : ""}`}
-          aria-label={inputMode === "text" ? "Switch to voice input" : "Switch to text input"}
+          onClick={disabled ? undefined : inputMode !== "text" ? onToggleInput : undefined}
+          className={`p-2 rounded-md transition-colors ${inputMode === "text" ? "bg-white text-indigo-700 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
+          aria-label="Text input"
         >
-          {inputMode === "text" ? (
-            <Keyboard size={18} />
-          ) : (
-            <Mic size={18} />
-          )}
+          <Keyboard size={18} />
         </button>
-      </Tooltip>
+        <button
+          type="button"
+          onClick={disabled ? undefined : inputMode !== "voice" ? onToggleInput : undefined}
+          className={`p-2 rounded-md transition-colors ${inputMode === "voice" ? "bg-white text-indigo-700 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
+          aria-label="Voice input"
+        >
+          <Mic size={18} />
+        </button>
+      </div>
     </div>
   );
 }

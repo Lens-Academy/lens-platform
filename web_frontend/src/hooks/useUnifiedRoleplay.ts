@@ -52,6 +52,8 @@ export interface UseUnifiedRoleplayReturn {
   cancel: () => void;
   stopAudio: () => void;
   disconnect: () => void;
+  /** Reset all conversation state back to initial values. */
+  reset: () => void;
   /** Mark session as completed (updates local state only; caller handles REST). */
   markComplete: () => void;
 }
@@ -270,6 +272,17 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
     closeWs();
   }, [audioPlayback, closeWs]);
 
+  /** Reset all conversation state back to initial values. */
+  const reset = useCallback(() => {
+    audioPlayback.stop();
+    closeWs();
+    setMessages([]);
+    setStreamingContent("");
+    setStatus("idle");
+    setSessionId(null);
+    setIsCompleted(false);
+  }, [audioPlayback, closeWs]);
+
   /** Mark the session as completed (local state only). */
   const markComplete = useCallback(() => {
     setIsCompleted(true);
@@ -301,6 +314,7 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
     cancel,
     stopAudio,
     disconnect,
+    reset,
     markComplete,
   };
 }

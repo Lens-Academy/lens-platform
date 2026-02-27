@@ -31,7 +31,7 @@ const STORAGE_KEY_PREFIX = "roleplay-toggles-";
 
 const DEFAULT_STATE: ToggleState = {
   textDisplay: true,
-  ttsEnabled: false,
+  ttsEnabled: true,
   inputMode: "text",
 };
 

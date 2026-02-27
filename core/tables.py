@@ -527,3 +527,24 @@ question_assessments = Table(
     # Indexes
     Index("idx_question_assessments_response_id", "response_id"),
 )
+
+
+# =====================================================
+# 15. ROLEPLAY_ASSESSMENTS
+# =====================================================
+roleplay_assessments = Table(
+    "roleplay_assessments",
+    metadata,
+    Column("assessment_id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "session_id",
+        Integer,
+        ForeignKey("chat_sessions.session_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("score_data", JSONB, nullable=False),
+    Column("model_id", Text, nullable=True),
+    Column("prompt_version", Text, nullable=True),
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Index("idx_roleplay_assessments_session_id", "session_id"),
+)

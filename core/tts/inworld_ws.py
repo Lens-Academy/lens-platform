@@ -156,12 +156,16 @@ async def synthesize(
                     )
                     break
 
+                # Once flush is received after all text was sent, use a shorter
+                # timeout — we only need to wait for trailing audio chunks, not
+                # new synthesis work.
+                timeout = (
+                    _AUDIO_SILENCE_TIMEOUT if got_flush_after_send else _RECV_TIMEOUT
+                )
+
                 try:
-                    raw = json.loads(
-                        await asyncio.wait_for(ws.recv(), timeout=_RECV_TIMEOUT)
-                    )
+                    raw = json.loads(await asyncio.wait_for(ws.recv(), timeout=timeout))
                 except asyncio.TimeoutError:
-                    # No message for _RECV_TIMEOUT seconds
                     if send_done.is_set() and got_flush_after_send:
                         logger.info(
                             "Recv timeout after flush — synthesis complete (%s)",

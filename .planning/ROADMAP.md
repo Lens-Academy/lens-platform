@@ -36,8 +36,8 @@ Phase 7 (Assessment Evaluation): Deferred -- blocked on ws3 merge of `complete()
 - Decimal phases (8.1, 9.1): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 8: Foundation** - Content parsing, session isolation, and prompt architecture
-- [ ] **Phase 9: TTS Pipeline** - Inworld TTS integration for AI character voice responses
-- [ ] **Phase 10: Core Conversation** - Full roleplay experience with text and voice modes
+- [x] **Phase 9: TTS Pipeline** - Inworld TTS integration for AI character voice responses
+- [x] **Phase 10: Core Conversation** - Full roleplay experience with text and voice modes
 - [ ] **Phase 11: Assessment** - AI scoring of roleplay transcripts and test section integration
 
 ## Phase Details
@@ -84,10 +84,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 10-01-PLAN.md -- Backend roleplay routes (SSE chat, history, complete, retry), DB migration (completed_at), claim dedup fix
-- [ ] 10-02-PLAN.md -- Frontend API client, character name extraction, useRoleplaySession/useRoleplayToggles/useRoleplayTTS hooks
-- [ ] 10-03-PLAN.md -- RoleplaySection UI (briefing, toolbar, voice input, speaking indicator) and Module.tsx integration
-- [ ] 10-04-PLAN.md -- Human verification of complete roleplay experience
+- [x] 10-01-PLAN.md -- Backend roleplay routes (SSE chat, history, complete, retry), DB migration (completed_at), claim dedup fix
+- [x] 10-02-PLAN.md -- Frontend API client, character name extraction, useRoleplaySession/useRoleplayToggles/useRoleplayTTS hooks
+- [x] 10-03-PLAN.md -- RoleplaySection UI (briefing, toolbar, voice input, speaking indicator) and Module.tsx integration
+- [x] 10-04-PLAN.md -- Human verification of complete roleplay experience
 
 ### Phase 11: Assessment
 **Goal**: Course creators can add AI assessment to roleplay segments, and roleplay works inside test sections with post-conversation feedback
@@ -97,11 +97,13 @@ Plans:
   1. After completing a roleplay with `assessment-instructions`, the full conversation transcript is scored by AI against the author-defined rubric, producing structured output (score, reasoning, dimensions)
   2. Roleplay segments work inside test sections following the same completion flow as question segments
   3. After assessment, student can access a post-conversation feedback chat to reflect on their performance
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 11-01: TBD
-- [ ] 11-02: TBD
+- [ ] 11-01-PLAN.md -- Backend assessment pipeline (roleplay_assessments table, scoring module, trigger on complete, score retrieval endpoint)
+- [ ] 11-02-PLAN.md -- TestSection refactor for unified assessable items (questions + roleplays in test sections)
+- [ ] 11-03-PLAN.md -- Frontend assessment display (score card, polling, feedback chat wiring)
+- [ ] 11-04-PLAN.md -- Human verification of complete assessment experience
 
 ## Progress
 
@@ -112,5 +114,5 @@ Phases execute in numeric order: 8 -> 8.x (if any) -> 9 -> 9.x (if any) -> 10 ->
 |-------|-----------|----------------|--------|-----------|
 | 8. Foundation | v3.1 | 2/2 | ✓ Complete | 2026-02-25 |
 | 9. TTS Pipeline | v3.1 | 2/2 | ✓ Complete | 2026-02-25 |
-| 10. Core Conversation | v3.1 | 0/4 | Not started | - |
-| 11. Assessment | v3.1 | 0/TBD | Not started | - |
+| 10. Core Conversation | v3.1 | 4/4 | ✓ Complete | 2026-03-02 |
+| 11. Assessment | v3.1 | 0/4 | Not started | - |

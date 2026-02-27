@@ -188,9 +188,6 @@ async def _handle_turn_text_only(
         for m in existing_messages
         if m["role"] in ("user", "assistant")
     ]
-    if user_message:
-        llm_messages.append({"role": "user", "content": user_message})
-
     # Stream LLM response
     assistant_content = ""
     try:
@@ -263,9 +260,6 @@ async def _handle_turn_with_tts(
         for m in existing_messages
         if m["role"] in ("user", "assistant")
     ]
-    if user_message:
-        llm_messages.append({"role": "user", "content": user_message})
-
     queue_iter = QueueIterator()
     assistant_content = ""
     llm_error = None
