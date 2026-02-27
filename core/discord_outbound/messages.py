@@ -4,21 +4,39 @@ import asyncio
 from .bot import get_bot, get_dm_semaphore
 
 
-async def send_dm(discord_id: str, message: str) -> bool:
-    """Send a DM to a user. Rate-limited to ~1/second."""
+async def send_dm(discord_id: str, message: str) -> str | None:
+    """Send a DM to a user. Rate-limited to ~1/second.
+
+    Returns the message ID as string on success, or None on failure.
+    """
     bot = get_bot()
     if not bot:
-        return False
+        return None
     try:
         semaphore = get_dm_semaphore()
         if semaphore:
             async with semaphore:
                 user = await bot.fetch_user(int(discord_id))
-                await user.send(message)
+                msg = await user.send(message)
                 await asyncio.sleep(1)
         else:
             user = await bot.fetch_user(int(discord_id))
-            await user.send(message)
+            msg = await user.send(message)
+        return str(msg.id)
+    except Exception:
+        return None
+
+
+async def edit_dm(discord_id: str, message_id: str, content: str) -> bool:
+    """Edit an existing DM message. Returns True on success."""
+    bot = get_bot()
+    if not bot:
+        return False
+    try:
+        user = await bot.fetch_user(int(discord_id))
+        dm_channel = user.dm_channel or await user.create_dm()
+        message = await dm_channel.fetch_message(int(message_id))
+        await message.edit(content=content)
         return True
     except Exception:
         return False

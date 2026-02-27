@@ -11,6 +11,9 @@ class TestSendDM:
 
         mock_bot = MagicMock()
         mock_user = AsyncMock()
+        mock_msg = MagicMock()
+        mock_msg.id = 999888777
+        mock_user.send = AsyncMock(return_value=mock_msg)
         mock_bot.fetch_user = AsyncMock(return_value=mock_user)
 
         with patch("core.discord_outbound.bot._bot", mock_bot):
@@ -19,12 +22,12 @@ class TestSendDM:
                 message="Hello!",
             )
 
-        assert result is True
+        assert result == "999888777"
         mock_bot.fetch_user.assert_called_once_with(123456789)
         mock_user.send.assert_called_once_with("Hello!")
 
     @pytest.mark.asyncio
-    async def test_returns_false_when_bot_not_set(self):
+    async def test_returns_none_when_bot_not_set(self):
         from core.discord_outbound import send_dm
 
         with patch("core.discord_outbound.bot._bot", None):
@@ -33,7 +36,7 @@ class TestSendDM:
                 message="Hello!",
             )
 
-        assert result is False
+        assert result is None
 
 
 class TestSendChannelMessage:
