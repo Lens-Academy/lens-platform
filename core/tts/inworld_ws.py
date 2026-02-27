@@ -163,8 +163,16 @@ class InworldTTSClient:
                 "audioConfig": {
                     "audioEncoding": config.audio_encoding,
                     "sampleRateHertz": config.sample_rate_hz,
-                    **({"bitRate": config.bit_rate} if config.audio_encoding not in ("LINEAR16",) else {}),
-                    **({"speakingRate": config.speaking_rate} if config.speaking_rate is not None else {}),
+                    **(
+                        {"bitRate": config.bit_rate}
+                        if config.audio_encoding not in ("LINEAR16",)
+                        else {}
+                    ),
+                    **(
+                        {"speakingRate": config.speaking_rate}
+                        if config.speaking_rate is not None
+                        else {}
+                    ),
                 },
                 "bufferCharThreshold": config.buffer_char_threshold,
                 "maxBufferDelayMs": config.max_buffer_delay_ms,
@@ -210,7 +218,9 @@ class InworldTTSClient:
             )
             logger.info(
                 "All text sent and flushed for %s: %d tokens, %d chars",
-                context_id, token_count, char_count,
+                context_id,
+                token_count,
+                char_count,
             )
 
         try:
@@ -232,7 +242,9 @@ class InworldTTSClient:
                 elif "flushCompleted" in msg:
                     logger.info(
                         "Flush completed for %s: %d chunks, %d bytes",
-                        context_id, chunk_count, total_bytes,
+                        context_id,
+                        chunk_count,
+                        total_bytes,
                     )
                     break
                 else:

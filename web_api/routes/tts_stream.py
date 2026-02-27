@@ -23,7 +23,14 @@ from typing import AsyncIterator
 import httpx
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from core.tts import TTSConfig, get_tts_client, get_api_key, is_tts_available
+from core.tts import (
+    TTSConfig,
+    QueueIterator,
+    find_split,
+    get_tts_client,
+    get_api_key,
+    is_tts_available,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +50,10 @@ async def list_voices() -> list[dict]:
     """
     global _voices_cache, _voices_cache_time
 
-    if _voices_cache is not None and (time.monotonic() - _voices_cache_time) < _VOICES_CACHE_TTL:
+    if (
+        _voices_cache is not None
+        and (time.monotonic() - _voices_cache_time) < _VOICES_CACHE_TTL
+    ):
         return _voices_cache
 
     api_key = get_api_key()
@@ -77,26 +87,7 @@ async def _llm_token_iter(text: str, delay: float = 0.05) -> AsyncIterator[str]:
         await asyncio.sleep(delay)
 
 
-class _QueueIterator:
-    """Async iterator backed by an asyncio.Queue.
-
-    Push text tokens via put(). Push None to signal end-of-stream.
-    """
-
-    def __init__(self) -> None:
-        self._queue: asyncio.Queue[str | None] = asyncio.Queue()
-
-    async def put(self, token: str | None) -> None:
-        await self._queue.put(token)
-
-    def __aiter__(self) -> "_QueueIterator":
-        return self
-
-    async def __anext__(self) -> str:
-        token = await self._queue.get()
-        if token is None:
-            raise StopAsyncIteration
-        return token
+# _QueueIterator moved to core.tts.sentence_buffer → imported as QueueIterator
 
 
 def _parse_config(data: dict) -> TTSConfig:
@@ -107,6 +98,9 @@ def _parse_config(data: dict) -> TTSConfig:
         audio_encoding=data.get("audio_encoding", "MP3"),
         speaking_rate=data.get("speaking_rate"),
     )
+
+
+# _find_split / _SENTENCE_END / _CLAUSE_END moved to core.tts.sentence_buffer → imported as find_split
 
 
 async def _handle_single_shot(websocket: WebSocket, data: dict) -> None:
@@ -124,7 +118,9 @@ async def _handle_single_shot(websocket: WebSocket, data: dict) -> None:
     token_delay = data.get("token_delay", 0.05)
     if simulate:
         word_count = len(text.split())
-        logger.info("TTS simulate_streaming: %d words, %.3fs delay", word_count, token_delay)
+        logger.info(
+            "TTS simulate_streaming: %d words, %.3fs delay", word_count, token_delay
+        )
         text_iter: AsyncIterator[str] = _llm_token_iter(text, token_delay)
     else:
         text_iter = _single_chunk_iter(text)
@@ -143,24 +139,46 @@ async def _handle_streaming(websocket: WebSocket, data: dict) -> None:
     into a queue-backed async iterator that the TTS client consumes.
     """
     config = _parse_config(data)
-    queue_iter = _QueueIterator()
+    queue_iter = QueueIterator()
 
     async def receive_tokens() -> None:
-        """Read text/flush messages from client, push into queue."""
+        """Read text/flush messages from client, buffer into sentences."""
+        buffer = ""
+        first_sent = False  # Has any text been sent to Inworld yet?
+
         try:
             while True:
                 msg = await websocket.receive_json()
                 if msg.get("flush"):
-                    await queue_iter.put(None)  # end-of-stream sentinel
+                    # Send remaining buffer, then end stream
+                    if buffer.strip():
+                        await queue_iter.put(buffer)
+                    await queue_iter.put(None)
                     return
-                text = msg.get("text")
-                if text:
-                    await queue_iter.put(text)
+
+                text = msg.get("text", "")
+                if not text:
+                    continue
+                buffer += text
+
+                # Try to extract complete chunks from buffer
+                while True:
+                    split_pos = find_split(buffer, aggressive=not first_sent)
+                    if split_pos < 0:
+                        break
+                    chunk = buffer[:split_pos]
+                    buffer = buffer[split_pos:]
+                    if chunk.strip():
+                        await queue_iter.put(chunk)
+                        first_sent = True
         except WebSocketDisconnect:
-            # Client disconnected before flushing -- terminate iterator
+            if buffer.strip():
+                await queue_iter.put(buffer)
             await queue_iter.put(None)
         except Exception:
             logger.exception("Error receiving streaming tokens")
+            if buffer.strip():
+                await queue_iter.put(buffer)
             await queue_iter.put(None)
 
     # Start receiving tokens concurrently with synthesis

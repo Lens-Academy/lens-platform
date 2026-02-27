@@ -11,10 +11,13 @@ Public API:
 
 from .config import TTSConfig, get_api_key, is_tts_available
 from .inworld_ws import InworldTTSClient
+from .sentence_buffer import QueueIterator, find_split
 
 __all__ = [
     "InworldTTSClient",
+    "QueueIterator",
     "TTSConfig",
+    "find_split",
     "get_api_key",
     "is_tts_available",
     "get_tts_client",

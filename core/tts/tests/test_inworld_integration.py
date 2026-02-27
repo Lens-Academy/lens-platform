@@ -56,7 +56,7 @@ async def test_single_chunk_synthesize(client: InworldTTSClient):
     # SHORT_TEXT (~28 chars) should produce at least 1s of audio at 48kHz 16-bit mono
     min_bytes = 48000 * 2 * 1  # 1 second
     assert total_bytes > min_bytes, (
-        f"Audio too short: {total_bytes} bytes = {total_bytes/2/48000:.2f}s "
+        f"Audio too short: {total_bytes} bytes = {total_bytes / 2 / 48000:.2f}s "
         f"(expected >1s for '{SHORT_TEXT[:30]}...')"
     )
 
@@ -69,7 +69,7 @@ async def test_multi_chunk_synthesize(client: InworldTTSClient):
 
     This is the key test for the streaming pipeline: text arrives incrementally
     (like from an LLM) and Inworld must synthesize the complete sentence.
-    With auto_mode=False, Inworld buffers until flush and produces full audio.
+    With auto_mode=True, Inworld synthesizes each sentence as it arrives.
     """
 
     async def word_tokens():
@@ -88,7 +88,7 @@ async def test_multi_chunk_synthesize(client: InworldTTSClient):
     # LONGER_TEXT (~176 chars) should produce at least 5s of audio
     min_bytes = 48000 * 2 * 5  # 5 seconds
     assert total_bytes > min_bytes, (
-        f"Audio too short: {total_bytes} bytes = {total_bytes/2/48000:.2f}s "
+        f"Audio too short: {total_bytes} bytes = {total_bytes / 2 / 48000:.2f}s "
         f"(expected >5s for multi-sentence text)"
     )
 
@@ -128,7 +128,7 @@ async def test_queue_iterator_synthesis(client: InworldTTSClient):
     total_bytes = sum(len(c) for c in chunks)
     min_bytes = 48000 * 2 * 1  # 1 second
     assert total_bytes > min_bytes, (
-        f"Audio too short: {total_bytes} bytes = {total_bytes/2/48000:.2f}s "
+        f"Audio too short: {total_bytes} bytes = {total_bytes / 2 / 48000:.2f}s "
         f"(expected >1s for '{SHORT_TEXT[:30]}...')"
     )
 
