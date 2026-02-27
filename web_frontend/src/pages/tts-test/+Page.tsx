@@ -9,7 +9,9 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { Mic, Loader2, Square } from "lucide-react";
 import { useAudioPlayback } from "@/hooks/useAudioPlayback";
+import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 
 type Status = "idle" | "connecting" | "streaming" | "buffering" | "done" | "error";
 type PlaybackMode = "streaming" | "buffered";
@@ -35,6 +37,7 @@ const TAG_COLORS: Record<string, string> = {
   AUDIO: "text-green-600",
   ERROR: "text-red-600",
   INFO: "text-gray-500",
+  STT: "text-orange-600",
   "⏱": "text-yellow-600 font-bold",
 };
 
@@ -92,6 +95,24 @@ export default function Page() {
   const e2eStreamingRef = useRef(""); // Accumulate streaming content for ref access
 
   const logEndRef = useRef<HTMLDivElement>(null);
+
+  // --- Direct TTS voice recording (mic → textarea) ---
+  const directStt = useVoiceRecording({
+    onTranscription: (transcribed) => {
+      addLog("STT", `Transcription: "${transcribed}"`);
+      setText(transcribed);
+    },
+    onError: (msg) => addLog("STT", `Error: ${msg}`),
+  });
+
+  // --- E2E voice recording (mic → auto-send) ---
+  const e2eStt = useVoiceRecording({
+    onTranscription: (transcribed) => {
+      addLog("STT", `Transcription: "${transcribed}"`);
+      handleSendAndSpeak(transcribed);
+    },
+    onError: (msg) => addLog("STT", `Error: ${msg}`),
+  });
 
   useEffect(() => {
     fetch("/api/tts/voices")
@@ -443,11 +464,11 @@ export default function Page() {
     });
   }, [voice, model, e2eSpeed, e2eAudioPlayback, e2eVerbose, addLog, ms]);
 
-  const handleSendAndSpeak = useCallback(async () => {
-    const msg = userInput.trim();
+  const handleSendAndSpeak = useCallback(async (messageOverride?: string) => {
+    const msg = (messageOverride ?? userInput).trim();
     if (!msg) return;
 
-    setUserInput("");
+    if (!messageOverride) setUserInput("");
     setStreamingContent("");
     e2eStreamingRef.current = "";
     setE2eStatus("streaming");
@@ -498,6 +519,22 @@ export default function Page() {
     setE2eStatus("idle");
     addLog("INFO", "Stopped E2E");
   }, [e2eAudioPlayback, addLog]);
+
+  // ─── STT click handlers (log before delegating) ─────────────────────
+
+  const handleDirectMicClick = useCallback(() => {
+    if (directStt.recordingState === "idle") {
+      addLog("STT", "Recording started...");
+    }
+    directStt.handleMicClick();
+  }, [directStt, addLog]);
+
+  const handleE2eMicClick = useCallback(() => {
+    if (e2eStt.recordingState === "idle") {
+      addLog("STT", "Recording started...");
+    }
+    e2eStt.handleMicClick();
+  }, [e2eStt, addLog]);
 
   // ─── Helpers ──────────────────────────────────────────────────────────
 
@@ -683,11 +720,51 @@ export default function Page() {
         )}
       </div>
 
+      {/* Recording indicator (Direct TTS) */}
+      {directStt.recordingState === "recording" && (
+        <div className="mb-2 flex items-center gap-3 text-sm text-orange-600">
+          <div className="flex items-end gap-0.5">
+            {directStt.volumeBars.map((v, i) => (
+              <div
+                key={i}
+                className="w-1 rounded-full bg-orange-500 transition-all duration-150"
+                style={{ height: `${Math.max(4, v * 24)}px` }}
+              />
+            ))}
+          </div>
+          <span className="font-mono text-xs">{directStt.formatTime(directStt.recordingTime)}</span>
+        </div>
+      )}
+      {directStt.recordingState === "transcribing" && (
+        <div className="mb-2 flex items-center gap-2 text-sm text-orange-600">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Transcribing...</span>
+        </div>
+      )}
+
       {/* Controls */}
       <div className="mb-6 flex gap-3">
         <button
+          onClick={handleDirectMicClick}
+          disabled={directStt.recordingState === "transcribing" || status === "connecting" || status === "streaming" || audioPlayback.isPlaying || bufferedPlaying}
+          className={`rounded px-3 py-2 transition-colors disabled:cursor-default disabled:bg-gray-300 ${
+            directStt.recordingState === "recording"
+              ? "bg-red-600 text-white hover:bg-red-700"
+              : "bg-orange-100 text-orange-700 hover:bg-orange-200"
+          }`}
+          title={directStt.recordingState === "recording" ? "Stop recording" : "Record voice → fill text"}
+        >
+          {directStt.recordingState === "recording" ? (
+            <Square className="h-4 w-4" />
+          ) : directStt.recordingState === "transcribing" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Mic className="h-4 w-4" />
+          )}
+        </button>
+        <button
           onClick={handleSpeak}
-          disabled={status === "connecting" || status === "streaming" || audioPlayback.isPlaying || bufferedPlaying}
+          disabled={status === "connecting" || status === "streaming" || audioPlayback.isPlaying || bufferedPlaying || directStt.recordingState !== "idle"}
           className="rounded bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-default disabled:bg-gray-300"
         >
           Speak
@@ -789,19 +866,64 @@ export default function Page() {
               )}
             </div>
 
+            {/* E2E Recording indicator */}
+            {e2eStt.recordingState === "recording" && (
+              <div className="mb-2 flex items-center gap-3 text-sm text-orange-600">
+                <div className="flex items-end gap-0.5">
+                  {e2eStt.volumeBars.map((v, i) => (
+                    <div
+                      key={i}
+                      className="w-1 rounded-full bg-orange-500 transition-all duration-150"
+                      style={{ height: `${Math.max(4, v * 24)}px` }}
+                    />
+                  ))}
+                </div>
+                <span className="font-mono text-xs">{e2eStt.formatTime(e2eStt.recordingTime)}</span>
+              </div>
+            )}
+            {e2eStt.recordingState === "transcribing" && (
+              <div className="mb-2 flex items-center gap-2 text-sm text-orange-600">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Transcribing...</span>
+              </div>
+            )}
+
             {/* Input */}
             <div className="flex gap-2">
               <input
                 type="text"
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
-                className="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none"
-                placeholder="Type a message..."
+                disabled={e2eStt.recordingState !== "idle"}
+                className="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none disabled:bg-gray-50"
+                placeholder={
+                  e2eStt.recordingState === "recording" ? "Recording..." :
+                  e2eStt.recordingState === "transcribing" ? "Transcribing..." :
+                  "Type a message..."
+                }
                 onKeyDown={(e) => e.key === "Enter" && handleSendAndSpeak()}
               />
               <button
-                onClick={handleSendAndSpeak}
-                disabled={e2eStatus === "streaming" || !userInput.trim()}
+                onClick={handleE2eMicClick}
+                disabled={e2eStt.recordingState === "transcribing" || e2eStatus === "streaming"}
+                className={`rounded px-3 py-2 transition-colors disabled:cursor-default disabled:bg-gray-300 ${
+                  e2eStt.recordingState === "recording"
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                }`}
+                title={e2eStt.recordingState === "recording" ? "Stop recording" : "Record voice → auto-send"}
+              >
+                {e2eStt.recordingState === "recording" ? (
+                  <Square className="h-4 w-4" />
+                ) : e2eStt.recordingState === "transcribing" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </button>
+              <button
+                onClick={() => handleSendAndSpeak()}
+                disabled={e2eStatus === "streaming" || !userInput.trim() || e2eStt.recordingState !== "idle"}
                 className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-default disabled:bg-gray-300"
               >
                 Send &amp; Speak
