@@ -5,7 +5,7 @@ complete sections, showing real-time study activity with early-bird callouts.
 """
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import select, and_, cast, Date, func
@@ -22,6 +22,10 @@ from core.tables import (
 from core.enums import GroupUserStatus
 from core.modules.loader import load_flattened_module
 from core.modules.course_loader import load_course, get_due_by_meeting
+
+from core.database import get_connection
+from core.discord_outbound import send_channel_message
+from core.discord_outbound.messages import edit_channel_message
 
 logger = logging.getLogger(__name__)
 
@@ -235,3 +239,85 @@ async def compute_early_bird_days(
     now = datetime.now(timezone.utc)
     delta = (meeting_dt - now).days
     return delta if delta >= 2 else None
+
+
+# In-memory storage: (group_id, date) -> discord_message_id
+_daily_messages: dict[tuple[int, date], str] = {}
+
+
+def _prune_old_messages() -> None:
+    """Remove entries older than 2 days to prevent unbounded memory growth."""
+    cutoff = date.today() - timedelta(days=2)
+    stale_keys = [k for k in _daily_messages if k[1] < cutoff]
+    for k in stale_keys:
+        del _daily_messages[k]
+
+
+async def update_study_activity(
+    user_id: int,
+    module_slug: str,
+) -> None:
+    """Main entry point: update the daily study activity message for a user's group.
+
+    Called after a section is marked complete. Looks up the user's group,
+    gathers today's study data, renders the message, and creates or edits
+    the Discord message.
+
+    Runs as a fire-and-forget asyncio task. All exceptions are caught and
+    logged to prevent "Task exception was never retrieved" warnings.
+    """
+    try:
+        today = date.today()
+        _prune_old_messages()
+
+        async with get_connection() as conn:
+            group_info = await get_user_group_info(conn, user_id)
+            if not group_info:
+                return
+
+            group_id = group_info["group_id"]
+            channel_id = group_info["discord_text_channel_id"]
+            course_slug = group_info["course_slug"]
+
+            entries = await gather_group_study_data(
+                conn,
+                group_id=group_id,
+                module_slug=module_slug,
+                today=today,
+            )
+            if not entries:
+                return
+
+            # Compute early bird for completed modules
+            for entry in entries:
+                if entry["module_completed"]:
+                    days = await compute_early_bird_days(
+                        conn,
+                        group_id=group_id,
+                        module_slug=module_slug,
+                        course_slug=course_slug,
+                    )
+                    entry["early_bird_days"] = days
+
+            content = render_study_activity_message(entries)
+            if not content:
+                return
+
+            key = (group_id, today)
+            existing_msg_id = _daily_messages.get(key)
+
+            if existing_msg_id:
+                success = await edit_channel_message(
+                    channel_id, existing_msg_id, content
+                )
+                if not success:
+                    new_id = await send_channel_message(channel_id, content)
+                    if new_id:
+                        _daily_messages[key] = new_id
+            else:
+                new_id = await send_channel_message(channel_id, content)
+                if new_id:
+                    _daily_messages[key] = new_id
+
+    except Exception:
+        logger.exception("Failed to update study activity message")

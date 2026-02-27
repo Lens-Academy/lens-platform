@@ -1,5 +1,6 @@
 """Tests for study activity message rendering and data gathering."""
 
+import contextlib
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone, date, timedelta
@@ -481,3 +482,155 @@ class TestGetUserGroupInfo:
         )
         result = await get_user_group_info(mock_conn, user_id=1)
         assert result is None
+
+
+@contextlib.asynccontextmanager
+async def _mock_update_context(*, group_info, entries, early_bird_days=None):
+    """Shared test fixture for update_study_activity tests."""
+    with (
+        patch("core.notifications.study_activity.get_connection") as mock_get_conn,
+        patch(
+            "core.notifications.study_activity.get_user_group_info",
+            new_callable=AsyncMock,
+            return_value=group_info,
+        ) as mock_group_info,
+        patch(
+            "core.notifications.study_activity.gather_group_study_data",
+            new_callable=AsyncMock,
+            return_value=entries,
+        ) as mock_gather,
+        patch(
+            "core.notifications.study_activity.compute_early_bird_days",
+            new_callable=AsyncMock,
+            return_value=early_bird_days,
+        ) as mock_early_bird,
+        patch(
+            "core.notifications.study_activity.send_channel_message",
+            new_callable=AsyncMock,
+            return_value="MSG456",
+        ) as mock_send,
+        patch(
+            "core.notifications.study_activity.edit_channel_message",
+            new_callable=AsyncMock,
+            return_value=True,
+        ) as mock_edit,
+    ):
+        mock_conn = AsyncMock()
+        mock_get_conn.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_get_conn.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        yield {
+            "send": mock_send,
+            "edit": mock_edit,
+            "gather": mock_gather,
+            "group_info": mock_group_info,
+            "early_bird": mock_early_bird,
+        }
+
+
+_SAMPLE_GROUP_INFO = {
+    "group_id": 1,
+    "discord_text_channel_id": "CH123",
+    "cohort_id": 10,
+    "course_slug": "ai-safety",
+}
+
+_SAMPLE_ENTRY = {
+    "discord_id": "111",
+    "display_name": "Alice",
+    "module_title": "Cognitive Superpowers",
+    "sections_completed": 3,
+    "sections_total": 8,
+    "module_completed": False,
+    "early_bird_days": None,
+}
+
+
+class TestUpdateStudyActivity:
+    @pytest.mark.asyncio
+    async def test_creates_new_message_when_none_exists(self):
+        from core.notifications.study_activity import (
+            update_study_activity,
+            _daily_messages,
+        )
+
+        _daily_messages.clear()
+
+        async with _mock_update_context(
+            group_info=_SAMPLE_GROUP_INFO, entries=[_SAMPLE_ENTRY]
+        ) as mocks:
+            await update_study_activity(user_id=1, module_slug="cognitive-superpowers")
+
+        mocks["send"].assert_called_once()
+        mocks["edit"].assert_not_called()
+        assert len(_daily_messages) == 1
+
+    @pytest.mark.asyncio
+    async def test_edits_existing_message(self):
+        from core.notifications.study_activity import (
+            update_study_activity,
+            _daily_messages,
+        )
+
+        _daily_messages.clear()
+        _daily_messages[(1, date.today())] = "EXISTING_MSG"
+
+        async with _mock_update_context(
+            group_info=_SAMPLE_GROUP_INFO, entries=[_SAMPLE_ENTRY]
+        ) as mocks:
+            await update_study_activity(user_id=1, module_slug="cognitive-superpowers")
+
+        mocks["edit"].assert_called_once()
+        mocks["send"].assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_skips_when_user_not_in_group(self):
+        from core.notifications.study_activity import update_study_activity
+
+        async with _mock_update_context(group_info=None, entries=[]) as mocks:
+            await update_study_activity(user_id=1, module_slug="test")
+
+        mocks["send"].assert_not_called()
+        mocks["gather"].assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_creates_new_message_when_edit_fails(self):
+        from core.notifications.study_activity import (
+            update_study_activity,
+            _daily_messages,
+        )
+
+        _daily_messages.clear()
+        _daily_messages[(1, date.today())] = "DELETED_MSG"
+
+        async with _mock_update_context(
+            group_info=_SAMPLE_GROUP_INFO, entries=[_SAMPLE_ENTRY]
+        ) as mocks:
+            mocks["edit"].return_value = False
+            mocks["send"].return_value = "NEW_MSG_ID"
+            await update_study_activity(user_id=1, module_slug="cognitive-superpowers")
+
+        mocks["edit"].assert_called_once()
+        mocks["send"].assert_called_once()
+        assert _daily_messages[(1, date.today())] == "NEW_MSG_ID"
+
+    @pytest.mark.asyncio
+    async def test_prunes_old_entries_from_daily_messages(self):
+        from core.notifications.study_activity import (
+            update_study_activity,
+            _daily_messages,
+        )
+
+        _daily_messages.clear()
+        old_date = date.today() - timedelta(days=3)
+        _daily_messages[(1, old_date)] = "OLD_MSG"
+        _daily_messages[(2, old_date)] = "OLD_MSG2"
+
+        async with _mock_update_context(
+            group_info=_SAMPLE_GROUP_INFO, entries=[_SAMPLE_ENTRY]
+        ):
+            await update_study_activity(user_id=1, module_slug="cognitive-superpowers")
+
+        assert (1, old_date) not in _daily_messages
+        assert (2, old_date) not in _daily_messages
+        assert (1, date.today()) in _daily_messages
