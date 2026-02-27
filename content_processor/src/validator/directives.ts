@@ -49,16 +49,6 @@ interface StackEntry {
   name: string;
   line: number;       // absolute line number
   hasContent: boolean;
-  attr?: string;      // attribute from opening marker
-}
-
-/**
- * Extract attribute string from a directive line's {…} block.
- * Returns undefined if no attribute block found.
- */
-function extractAttr(line: string): string | undefined {
-  const match = line.match(/\{([^}]*)\}/);
-  return match ? match[1] : undefined;
 }
 
 /**
@@ -248,7 +238,7 @@ export function validateDirectives(
         }
       }
 
-      stack.push({ name, line: absLine, hasContent: false, attr });
+      stack.push({ name, line: absLine, hasContent: false });
       continue;
     }
 

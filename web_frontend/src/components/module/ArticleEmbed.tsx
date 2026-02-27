@@ -335,8 +335,6 @@ type ArticleEmbedProps = {
   article: ArticleData;
   /** Whether this is the first excerpt in the section (shows full attribution) */
   isFirstExcerpt?: boolean;
-  /** @deprecated Use isFirstExcerpt instead. Kept for backward compatibility. */
-  showHeader?: boolean;
 };
 
 /**
@@ -346,10 +344,8 @@ type ArticleEmbedProps = {
 export default function ArticleEmbed({
   article,
   isFirstExcerpt,
-  showHeader,
 }: ArticleEmbedProps) {
-  // Support both isFirstExcerpt and deprecated showHeader prop
-  const isFirst = isFirstExcerpt ?? showHeader ?? true;
+  const isFirst = isFirstExcerpt ?? true;
   const {
     content,
     title,
@@ -502,10 +498,8 @@ export default function ArticleEmbed({
   // Collapsed section component with animation
   const CollapsedSection = ({
     content,
-    position: _position,
   }: {
     content: string;
-    position: "before" | "after";
   }) => {
     return (
       <CollapsibleBlock
@@ -597,7 +591,7 @@ export default function ArticleEmbed({
         )}
 
         {collapsed_before && (
-          <CollapsedSection content={collapsed_before} position="before" />
+          <CollapsedSection content={collapsed_before} />
         )}
       </div>
 
@@ -638,7 +632,7 @@ export default function ArticleEmbed({
               </ReactMarkdown>
             </article>
             {isLast && collapsed_after && (
-              <CollapsedSection content={collapsed_after} position="after" />
+              <CollapsedSection content={collapsed_after} />
             )}
           </div>
         );
@@ -648,7 +642,7 @@ export default function ArticleEmbed({
       {segments[segments.length - 1]?.type === "note" && (
         <div className="bg-amber-50/50 px-4 pb-4 sm:pb-6">
           {collapsed_after && (
-            <CollapsedSection content={collapsed_after} position="after" />
+            <CollapsedSection content={collapsed_after} />
           )}
         </div>
       )}
