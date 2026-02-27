@@ -121,9 +121,86 @@ function InlineCollapse({ children }: { children?: React.ReactNode }) {
   );
 }
 
+/**
+ * Splits article content at top-level block note directives (:::note and ::note[]).
+ * Notes nested inside other containers (e.g. :::collapse) are left in place.
+ * Returns alternating article/note segments for rendering with different backgrounds.
+ */
+type ContentSegment = { type: "article" | "note"; content: string };
+function splitAtBlockNotes(content: string): ContentSegment[] {
+  const lines = content.split("\n");
+  const segments: ContentSegment[] = [];
+  let articleLines: string[] = [];
+  let depth = 0; // container nesting depth (for non-note containers)
+  let collectingNote = false;
+  let noteLines: string[] = [];
+  let noteInnerDepth = 0; // for nested containers within a note
+
+  for (const line of lines) {
+    const isContainerOpen = /^:::[a-z]/.test(line);
+    const isContainerClose = line.trim() === ":::";
+    const isNoteOpen = /^:::note(\{.*\})?$/.test(line);
+    const isLeafNote = /^::note\[/.test(line);
+
+    if (collectingNote) {
+      if (isContainerOpen) {
+        noteInnerDepth++;
+        noteLines.push(line);
+      } else if (isContainerClose && noteInnerDepth > 0) {
+        noteInnerDepth--;
+        noteLines.push(line);
+      } else if (isContainerClose && noteInnerDepth === 0) {
+        segments.push({ type: "note", content: noteLines.join("\n") });
+        noteLines = [];
+        collectingNote = false;
+      } else {
+        noteLines.push(line);
+      }
+    } else if (depth === 0 && isNoteOpen) {
+      if (articleLines.length > 0) {
+        segments.push({
+          type: "article",
+          content: articleLines.join("\n"),
+        });
+        articleLines = [];
+      }
+      collectingNote = true;
+      noteInnerDepth = 0;
+      noteLines = [];
+    } else if (depth === 0 && isLeafNote) {
+      if (articleLines.length > 0) {
+        segments.push({
+          type: "article",
+          content: articleLines.join("\n"),
+        });
+        articleLines = [];
+      }
+      const match = line.match(/^::note\[(.*?)\](?:\{.*\})?$/);
+      if (match) {
+        segments.push({ type: "note", content: match[1] });
+      }
+    } else {
+      if (isContainerOpen && !isNoteOpen) depth++;
+      if (isContainerClose && depth > 0) depth--;
+      articleLines.push(line);
+    }
+  }
+
+  // Handle unclosed note gracefully
+  if (collectingNote && noteLines.length > 0) {
+    articleLines.push(":::note", ...noteLines);
+  }
+  if (articleLines.length > 0) {
+    segments.push({ type: "article", content: articleLines.join("\n") });
+  }
+
+  return segments;
+}
+
+/** Block note rendered inside a container (e.g. inside :::collapse). Simple callout style. */
 function BlockNote({ children }: { children?: React.ReactNode }) {
   return (
-    <div className="-mx-4 my-3 bg-white px-4 py-3 text-sm text-gray-700 leading-relaxed relative">
+    <div className="my-3 rounded-lg border-l-4 border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 leading-relaxed relative">
       <div className="absolute top-2 right-3 flex items-center gap-1 text-xs text-gray-400">
         <img src="/assets/Logo only.png" alt="" className="w-3 h-3 opacity-70 !my-0" />
         <span>Lens</span>
@@ -437,28 +514,57 @@ export default function ArticleEmbed({
     );
   };
 
+  // Split content at top-level block notes for alternating backgrounds
+  const segments = splitAtBlockNotes(content);
+
+  const remarkPlugins = [remarkGfm, remarkDirective, remarkLensDirectives];
+  const rehypePlugins = [rehypeRaw];
+
   return (
-    <div className="max-w-content-padded mx-auto bg-amber-50/50 px-4 py-4 sm:py-6 rounded-lg">
-      {/* Excerpt marker inside yellow background */}
-      {isFirst ? (
-        // First excerpt: full attribution with divider
-        <div className="mb-3 max-w-content mx-auto">
-          {title && (
-            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-          )}
-          <div className="flex items-center gap-3 mt-1">
-            {author && <p className="text-sm text-gray-500">by {author}</p>}
-            {author && sourceUrl && <span className="text-gray-400">|</span>}
-            {sourceUrl && (
-              <a
-                href={sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1"
-              >
-                Read original
+    <div className="max-w-content-padded mx-auto rounded-lg overflow-hidden">
+      {/* Header — always yellow */}
+      <div className="bg-amber-50/50 px-4 pt-4 sm:pt-6 pb-2">
+        {isFirst ? (
+          <div className="mb-1 max-w-content mx-auto">
+            {title && (
+              <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+            )}
+            <div className="flex items-center gap-3 mt-1">
+              {author && <p className="text-sm text-gray-500">by {author}</p>}
+              {author && sourceUrl && <span className="text-gray-400">|</span>}
+              {sourceUrl && (
+                <a
+                  href={sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1"
+                >
+                  Read original
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </a>
+              )}
+            </div>
+            <hr className="mt-3 border-gray-300" />
+          </div>
+        ) : (
+          <div className="mb-1 max-w-content mx-auto">
+            <div className="flex justify-end">
+              <span className="text-sm text-gray-400 flex items-center gap-1.5">
                 <svg
-                  className="w-3 h-3"
+                  className="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -467,59 +573,80 @@ export default function ArticleEmbed({
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    strokeWidth={1.5}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-              </a>
+                from &ldquo;{title}&rdquo;
+              </span>
+            </div>
+            <hr className="mt-2 border-gray-300" />
+          </div>
+        )}
+
+        {collapsed_before && (
+          <CollapsedSection content={collapsed_before} position="before" />
+        )}
+      </div>
+
+      {/* Content segments — alternating yellow (article) / white (note) */}
+      {segments.map((segment, i) => {
+        const isLast = i === segments.length - 1;
+
+        if (segment.type === "note") {
+          return (
+            <div key={i} className="bg-white px-4 py-1">
+              <div className="max-w-content mx-auto text-sm text-gray-700 leading-relaxed relative">
+                <div className="absolute top-0 right-0 flex items-center gap-1 text-xs text-gray-400">
+                  <img
+                    src="/assets/Logo only.png"
+                    alt=""
+                    className="w-3 h-3 opacity-70"
+                  />
+                  <span>Lens</span>
+                </div>
+                <article className="prose prose-gray max-w-content [&>*:last-child]:mb-0">
+                  <ReactMarkdown
+                    remarkPlugins={remarkPlugins}
+                    rehypePlugins={rehypePlugins}
+                    components={markdownComponents}
+                  >
+                    {segment.content}
+                  </ReactMarkdown>
+                </article>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={i}
+            className={`bg-amber-50/50 px-4 py-1 ${isLast ? "pb-4 sm:pb-6" : ""}`}
+          >
+            <article className="prose prose-gray max-w-content mx-auto overflow-x-hidden [&>*:last-child]:mb-0">
+              <ReactMarkdown
+                remarkPlugins={remarkPlugins}
+                rehypePlugins={rehypePlugins}
+                components={markdownComponents}
+              >
+                {segment.content}
+              </ReactMarkdown>
+            </article>
+            {isLast && collapsed_after && (
+              <CollapsedSection content={collapsed_after} position="after" />
             )}
           </div>
-          <hr className="mt-3 border-gray-300" />
+        );
+      })}
+
+      {/* If last segment is a note, add yellow footer for collapsed_after + bottom padding */}
+      {segments[segments.length - 1]?.type === "note" && (
+        <div className="bg-amber-50/50 px-4 pb-4 sm:pb-6">
+          {collapsed_after && (
+            <CollapsedSection content={collapsed_after} position="after" />
+          )}
         </div>
-      ) : (
-        // Subsequent excerpt: muted right-aligned marker with divider
-        <div className="mb-3 max-w-content mx-auto">
-          <div className="flex justify-end">
-            <span className="text-sm text-gray-400 flex items-center gap-1.5">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              from &ldquo;{title}&rdquo;
-            </span>
-          </div>
-          <hr className="mt-2 border-gray-300" />
-        </div>
-      )}
-
-      {/* Collapsed content before this excerpt (after header) */}
-      {collapsed_before && (
-        <CollapsedSection content={collapsed_before} position="before" />
-      )}
-
-      <article className="prose prose-gray max-w-content mx-auto overflow-x-hidden">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkDirective, remarkLensDirectives]}
-          rehypePlugins={[rehypeRaw]}
-          components={markdownComponents}
-        >
-          {content}
-        </ReactMarkdown>
-      </article>
-
-      {/* Collapsed content after this excerpt */}
-      {collapsed_after && (
-        <CollapsedSection content={collapsed_after} position="after" />
       )}
     </div>
   );
