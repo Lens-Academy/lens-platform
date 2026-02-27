@@ -24,14 +24,14 @@ async def send_dm(discord_id: str, message: str) -> bool:
         return False
 
 
-async def send_channel_message(channel_id: str, message: str) -> bool:
-    """Send a message to a channel."""
+async def send_channel_message(channel_id: str, message: str) -> str | None:
+    """Send a message to a channel. Returns the message ID as string, or None on failure."""
     bot = get_bot()
     if not bot:
-        return False
+        return None
     try:
         channel = await bot.fetch_channel(int(channel_id))
-        await channel.send(message)
-        return True
+        msg = await channel.send(message)
+        return str(msg.id)
     except Exception:
-        return False
+        return None

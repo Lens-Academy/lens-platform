@@ -43,6 +43,9 @@ class TestSendChannelMessage:
 
         mock_bot = MagicMock()
         mock_channel = AsyncMock()
+        mock_message = MagicMock()
+        mock_message.id = 111222333444
+        mock_channel.send = AsyncMock(return_value=mock_message)
         mock_bot.fetch_channel = AsyncMock(return_value=mock_channel)
 
         with patch("core.discord_outbound.bot._bot", mock_bot):
@@ -51,6 +54,18 @@ class TestSendChannelMessage:
                 message="Meeting reminder!",
             )
 
-        assert result is True
+        assert result == "111222333444"
         mock_bot.fetch_channel.assert_called_once_with(987654321)
         mock_channel.send.assert_called_once_with("Meeting reminder!")
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_bot_not_set(self):
+        from core.discord_outbound import send_channel_message
+
+        with patch("core.discord_outbound.bot._bot", None):
+            result = await send_channel_message(
+                channel_id="987654321",
+                message="Hello!",
+            )
+
+        assert result is None
