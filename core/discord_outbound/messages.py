@@ -35,3 +35,17 @@ async def send_channel_message(channel_id: str, message: str) -> str | None:
         return str(msg.id)
     except Exception:
         return None
+
+
+async def edit_channel_message(channel_id: str, message_id: str, content: str) -> bool:
+    """Edit an existing message in a channel. Returns True on success."""
+    bot = get_bot()
+    if not bot:
+        return False
+    try:
+        channel = await bot.fetch_channel(int(channel_id))
+        message = await channel.fetch_message(int(message_id))
+        await message.edit(content=content)
+        return True
+    except Exception:
+        return False

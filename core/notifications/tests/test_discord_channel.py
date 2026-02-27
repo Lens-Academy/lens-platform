@@ -69,3 +69,56 @@ class TestSendChannelMessage:
             )
 
         assert result is None
+
+
+class TestEditChannelMessage:
+    @pytest.mark.asyncio
+    async def test_edits_message_in_channel(self):
+        from core.discord_outbound.messages import edit_channel_message
+
+        mock_bot = MagicMock()
+        mock_message = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+        mock_bot.fetch_channel = AsyncMock(return_value=mock_channel)
+
+        with patch("core.discord_outbound.bot._bot", mock_bot):
+            result = await edit_channel_message(
+                channel_id="987654321",
+                message_id="111222333444",
+                content="Updated content!",
+            )
+
+        assert result is True
+        mock_bot.fetch_channel.assert_called_once_with(987654321)
+        mock_channel.fetch_message.assert_called_once_with(111222333444)
+        mock_message.edit.assert_called_once_with(content="Updated content!")
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_bot_not_set(self):
+        from core.discord_outbound.messages import edit_channel_message
+
+        with patch("core.discord_outbound.bot._bot", None):
+            result = await edit_channel_message(
+                channel_id="987654321",
+                message_id="111222333444",
+                content="Updated!",
+            )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_returns_false_on_exception(self):
+        from core.discord_outbound.messages import edit_channel_message
+
+        mock_bot = MagicMock()
+        mock_bot.fetch_channel = AsyncMock(side_effect=Exception("Not found"))
+
+        with patch("core.discord_outbound.bot._bot", mock_bot):
+            result = await edit_channel_message(
+                channel_id="987654321",
+                message_id="111222333444",
+                content="Updated!",
+            )
+
+        assert result is False
