@@ -595,9 +595,9 @@ export default function ArticleEmbed({
 
         if (segment.type === "note") {
           return (
-            <div key={i} className="bg-white px-4 py-1">
-              <div className="max-w-content mx-auto text-sm text-gray-700 leading-relaxed relative">
-                <div className="absolute top-0 right-0 flex items-center gap-1 text-xs text-gray-400">
+            <div key={i} className="bg-amber-50/50 px-4 py-2">
+              <div className="max-w-[calc(var(--container-content)+2rem)] mx-auto rounded-lg border border-gray-100 bg-white/85 shadow-[inset_0_0_6px_0_rgba(0,0,0,0.06)] px-4 py-3 text-sm text-gray-700 leading-relaxed relative">
+                <div className="absolute top-2 right-3 flex items-center gap-1 text-xs text-gray-400">
                   <img
                     src="/assets/Logo only.png"
                     alt=""
