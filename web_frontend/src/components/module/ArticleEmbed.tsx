@@ -68,11 +68,21 @@ function remarkLensDirectives() {
   };
 }
 
-function BlockCollapse({ children }: { children?: React.ReactNode }) {
+function CollapsibleBlock({
+  children,
+  className,
+  expandedHint,
+  endMarker,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  expandedHint?: string;
+  endMarker?: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="my-2">
+    <div className={className}>
       <div className="flex items-center gap-1 py-1">
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -94,6 +104,9 @@ function BlockCollapse({ children }: { children?: React.ReactNode }) {
           </svg>
           <span>[...]</span>
         </button>
+        {isOpen && expandedHint && (
+          <span className="text-sm text-gray-400 ml-1">{expandedHint}</span>
+        )}
       </div>
       <div
         className={`grid transition-[grid-template-rows] duration-300 ease-out ${
@@ -101,10 +114,27 @@ function BlockCollapse({ children }: { children?: React.ReactNode }) {
         }`}
       >
         <div className="overflow-hidden">
-          <div className="text-gray-600 pt-1 pl-5">{children}</div>
+          {children}
+          {endMarker && (
+            <div className="text-sm text-gray-400 mt-2 pl-5">
+              {endMarker}
+            </div>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+function BlockCollapse({ children }: { children?: React.ReactNode }) {
+  return (
+    <CollapsibleBlock
+      className="my-2"
+      expandedHint="This part of the article was omitted for brevity"
+      endMarker="— End of omitted text —"
+    >
+      <div className="text-gray-600 pt-1 pl-5">{children}</div>
+    </CollapsibleBlock>
   );
 }
 
@@ -123,14 +153,14 @@ function InlineCollapse({ children }: { children?: React.ReactNode }) {
   }
 
   return (
-    <span className="bg-gray-100/50 rounded px-0.5">
-      {children}
+    <span className="bg-gray-100/50 rounded px-0.5 animate-[fadeIn_0.3s_ease-out]">
       <button
         onClick={() => setIsOpen(false)}
-        className="cursor-pointer text-xs text-gray-400 hover:text-gray-600 ml-1 inline"
+        className="cursor-pointer text-xs text-gray-400 hover:text-gray-600 mr-1 inline"
       >
         [collapse]
       </button>
+      {children}
     </span>
   );
 }
@@ -477,58 +507,22 @@ export default function ArticleEmbed({
     content: string;
     position: "before" | "after";
   }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
     return (
-      <div className="max-w-content mx-auto mb-4">
-        <div className="flex items-center gap-1 py-1">
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1"
+      <CollapsibleBlock
+        className="max-w-content mx-auto mb-4"
+        expandedHint="This part of the article was omitted for brevity"
+        endMarker="— End of omitted text —"
+      >
+        <article className="prose prose-gray max-w-content mx-auto text-gray-600 pt-1 pl-5">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkDirective, remarkLensDirectives]}
+            rehypePlugins={[rehypeRaw]}
+            components={markdownComponents}
           >
-            <svg
-              className={`w-3 h-3 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-            <span>[...]</span>
-          </button>
-          {isOpen && (
-            <span className="text-sm text-gray-400 ml-1">
-              This part of the article was omitted for brevity
-            </span>
-          )}
-        </div>
-        <div
-          className={`grid transition-[grid-template-rows] duration-300 ease-out ${
-            isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-          }`}
-        >
-          <div className="overflow-hidden">
-            <article className="prose prose-gray max-w-content mx-auto text-gray-600 pt-1 pl-5">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkDirective, remarkLensDirectives]}
-                rehypePlugins={[rehypeRaw]}
-                components={markdownComponents}
-              >
-                {content}
-              </ReactMarkdown>
-            </article>
-            <div className="text-sm text-gray-400 mt-2 pl-5">
-              — End of omitted text —
-            </div>
-          </div>
-        </div>
-      </div>
+            {content}
+          </ReactMarkdown>
+        </article>
+      </CollapsibleBlock>
     );
   };
 
