@@ -142,10 +142,7 @@ from .questions import (
 )
 
 # Scoring (async background task)
-from .scoring import enqueue_scoring
-
-# Feedback (streaming AI feedback conversations)
-from .modules.feedback import build_feedback_prompt
+from .assessment import enqueue_scoring
 
 __all__ = [
     # Database (SQLAlchemy)
@@ -254,6 +251,4 @@ __all__ = [
     "claim_question_responses",
     # Scoring
     "enqueue_scoring",
-    # Feedback
-    "build_feedback_prompt",
 ]

@@ -3,18 +3,19 @@ import {
   listFixtures,
   loadFixture,
   type Fixture,
+  type AssessmentFixture,
   type FixtureSummary,
 } from "@/api/promptlab";
 
 interface FixtureBrowserProps {
-  onSelectFixture: (fixture: Fixture) => void;
+  onSelectFixture: (fixture: Fixture | AssessmentFixture) => void;
 }
 
 /**
- * FixtureBrowser -- lists available conversation fixtures with module filtering.
+ * FixtureBrowser -- lists available conversation fixtures with module and type filtering.
  *
  * Fetches the fixture list on mount, displays each as a clickable card,
- * and supports filtering by module name via a dropdown.
+ * and supports filtering by module name and fixture type via dropdowns.
  */
 export default function FixtureBrowser({
   onSelectFixture,
@@ -23,6 +24,7 @@ export default function FixtureBrowser({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedModule, setSelectedModule] = useState<string>("all");
+  const [selectedType, setSelectedType] = useState<string>("all");
   const [loadingFixture, setLoadingFixture] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,16 +62,27 @@ export default function FixtureBrowser({
     return Array.from(unique).sort();
   }, [fixtures]);
 
+  const types = useMemo(() => {
+    const unique = new Set(fixtures.map((f) => f.type || "chat"));
+    return Array.from(unique).sort();
+  }, [fixtures]);
+
   const filteredFixtures = useMemo(() => {
-    if (selectedModule === "all") return fixtures;
-    return fixtures.filter((f) => f.module === selectedModule);
-  }, [fixtures, selectedModule]);
+    let result = fixtures;
+    if (selectedModule !== "all") {
+      result = result.filter((f) => f.module === selectedModule);
+    }
+    if (selectedType !== "all") {
+      result = result.filter((f) => (f.type || "chat") === selectedType);
+    }
+    return result;
+  }, [fixtures, selectedModule, selectedType]);
 
   async function handleSelect(fixture: FixtureSummary) {
     setLoadingFixture(fixture.name);
     try {
       const full = await loadFixture(fixture.name);
-      onSelectFixture(full);
+      onSelectFixture(full as Fixture | AssessmentFixture);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load fixture");
     } finally {
@@ -141,9 +154,9 @@ export default function FixtureBrowser({
   // --- Fixture list ---
   return (
     <div>
-      {/* Module filter */}
-      {modules.length > 1 && (
-        <div className="mb-3">
+      {/* Filters */}
+      <div className="flex gap-2 mb-3">
+        {modules.length > 1 && (
           <select
             value={selectedModule}
             onChange={(e) => setSelectedModule(e.target.value)}
@@ -156,13 +169,28 @@ export default function FixtureBrowser({
               </option>
             ))}
           </select>
-        </div>
-      )}
+        )}
+        {types.length > 1 && (
+          <select
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+            className="text-sm border border-stone-300 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/50"
+          >
+            <option value="all">All types</option>
+            {types.map((t) => (
+              <option key={t} value={t}>
+                {t === "assessment" ? "Assessment" : "Chat"}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
 
       {/* Fixture cards */}
       <div className="space-y-2">
         {filteredFixtures.map((fixture) => {
           const isLoading = loadingFixture === fixture.name;
+          const fixtureType = fixture.type || "chat";
           return (
             <button
               key={fixture.name}
@@ -176,9 +204,16 @@ export default function FixtureBrowser({
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="font-medium text-slate-900 truncate">
-                    {fixture.name}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-slate-900 truncate">
+                      {fixture.name}
+                    </h3>
+                    {fixtureType === "assessment" && (
+                      <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shrink-0">
+                        Assessment
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {fixture.module}
                   </p>

@@ -47,9 +47,7 @@ describe("Inline footnote directive", () => {
     const user = userEvent.setup({
       advanceTimers: vi.advanceTimersByTime,
     });
-    const article = makeArticle(
-      "Some text :footnote[hover info] more text.",
-    );
+    const article = makeArticle("Some text :footnote[hover info] more text.");
     render(<ArticleEmbed article={article} />);
 
     const icon = screen.getByRole("img", { name: /footnote/i });
@@ -98,9 +96,7 @@ describe("Inline footnote directive", () => {
 
   it("opens on click and dismisses on click-outside (mobile)", async () => {
     const user = userEvent.setup();
-    const article = makeArticle(
-      "Text :footnote[click info] more.",
-    );
+    const article = makeArticle("Text :footnote[click info] more.");
     render(<ArticleEmbed article={article} />);
 
     const icon = screen.getByRole("img", { name: /footnote/i });

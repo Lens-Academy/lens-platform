@@ -105,9 +105,7 @@ describe("Note inside collapse", () => {
     await user.click(screen.getByRole("button", { name: /\[\.{3}\]/ }));
 
     expect(
-      screen.getByText(
-        "We collapsed this because it's off-topic.",
-      ),
+      screen.getByText("We collapsed this because it's off-topic."),
     ).toBeInTheDocument();
   });
 });

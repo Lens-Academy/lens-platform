@@ -387,7 +387,7 @@ export function convertSegment(
     }
 
     case 'question': {
-      const content = raw.fields['content'] || raw.fields['user-instruction'];
+      const content = raw.fields['content'];
       if (!content || content.trim() === '') {
         errors.push({
           file,
@@ -402,7 +402,7 @@ export function convertSegment(
       const segment: ParsedQuestionSegment = {
         type: 'question',
         content,
-        assessmentInstructions: raw.fields['assessment-instructions'] || raw.fields['assessment-prompt'] || undefined,
+        assessmentInstructions: raw.fields['assessment-instructions'] || undefined,
         maxTime: raw.fields['max-time'] || undefined,
         maxChars: raw.fields['max-chars'] ? parseInt(raw.fields['max-chars'], 10) : undefined,
         enforceVoice: raw.fields['enforce-voice']?.toLowerCase() === 'true' ? true : undefined,

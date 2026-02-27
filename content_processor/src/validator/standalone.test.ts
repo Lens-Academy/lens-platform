@@ -128,6 +128,39 @@ to:: end
         e.message.toLowerCase().includes('not found')
       )).toBe(true);
     });
+
+    it('WIP lens with bad anchor on production article gets category wip', () => {
+      const files = new Map([
+        ['Lenses/wip-lens.md', `---
+id: 550e8400-e29b-41d4-a716-446655440099
+tags:
+  - work-in-progress
+---
+### Article: Test
+source:: [[../articles/prod-article.md]]
+
+#### Article-excerpt
+from:: nonexistent start anchor
+to:: nonexistent end anchor
+`],
+        ['articles/prod-article.md', `---
+title: Production Article
+---
+
+The actual article content has no matching anchors.
+`],
+      ]);
+
+      const result = processContent(files);
+
+      // The anchor error should exist and be attributed to the WIP lens, not the production article
+      const anchorError = result.errors.find(e =>
+        e.message.toLowerCase().includes('not found')
+      );
+      expect(anchorError).toBeDefined();
+      expect(anchorError!.file).toBe('Lenses/wip-lens.md');
+      expect(anchorError!.category).toBe('wip');
+    });
   });
 
   describe('Learning Outcomes not referenced by modules', () => {

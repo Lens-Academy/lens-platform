@@ -46,8 +46,7 @@ function remarkLensDirectives() {
         data.hName = "collapse-inline";
       }
       if (
-        (node.type === "containerDirective" ||
-          node.type === "leafDirective") &&
+        (node.type === "containerDirective" || node.type === "leafDirective") &&
         node.name === "note"
       ) {
         const data = node.data || (node.data = {});
@@ -116,9 +115,7 @@ function CollapsibleBlock({
         <div className="overflow-hidden">
           {children}
           {endMarker && (
-            <div className="text-sm text-gray-400 mt-2 pl-5">
-              {endMarker}
-            </div>
+            <div className="text-sm text-gray-400 mt-2 pl-5">{endMarker}</div>
           )}
         </div>
       </div>
@@ -242,11 +239,23 @@ function splitAtBlockNotes(content: string): ContentSegment[] {
 }
 
 /** Shared note box used by both top-level block notes and notes inside containers. */
-function NoteBox({ children, className }: { children?: React.ReactNode; className?: string }) {
+function NoteBox({
+  children,
+  className,
+}: {
+  children?: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={`rounded-lg border border-gray-100 bg-white/85 shadow-[inset_0_0_6px_0_rgba(0,0,0,0.06)] px-4 py-3 text-sm text-gray-700 leading-relaxed relative ${className ?? ""}`}>
+    <div
+      className={`rounded-lg border border-gray-100 bg-white/85 shadow-[inset_0_0_6px_0_rgba(0,0,0,0.06)] px-4 py-3 text-sm text-gray-700 leading-relaxed relative ${className ?? ""}`}
+    >
       <div className="absolute top-2 right-3 flex items-center gap-1.5 text-sm text-gray-600">
-        <img src="/assets/Logo only.png" alt="" className="w-4 h-4 opacity-70 !my-0" />
+        <img
+          src="/assets/Logo only.png"
+          alt=""
+          className="w-4 h-4 opacity-70 !my-0"
+        />
         <span>Lens</span>
       </div>
       {children}
@@ -262,7 +271,12 @@ function BlockNote({ children }: { children?: React.ReactNode }) {
 function InlineNote({ children }: { children?: React.ReactNode }) {
   return (
     <span className="bg-white/85 rounded border border-gray-100 shadow-[inset_0_0_4px_0_rgba(0,0,0,0.06)] px-1.5 py-0.5">
-      <img src="/assets/Logo only.png" alt="Lens" className="inline h-[1em] w-auto opacity-70 align-baseline mr-1 !my-0 translate-y-[0.08em]" />{children}
+      <img
+        src="/assets/Logo only.png"
+        alt="Lens"
+        className="inline h-[1em] w-auto opacity-70 align-baseline mr-1 !my-0 translate-y-[0.08em]"
+      />
+      {children}
     </span>
   );
 }
@@ -321,7 +335,11 @@ function InlineFootnote({ children }: { children?: React.ReactNode }) {
               rounded-lg shadow-lg border border-gray-200 leading-relaxed"
           >
             <span className="absolute top-1.5 right-2 flex items-center">
-              <img src="/assets/Logo only.png" alt="" className="w-[1.1em] h-[1.1em] opacity-70 !my-0" />
+              <img
+                src="/assets/Logo only.png"
+                alt=""
+                className="w-[1.1em] h-[1.1em] opacity-70 !my-0"
+              />
             </span>
             {children}
           </div>
@@ -496,11 +514,7 @@ export default function ArticleEmbed({
   };
 
   // Collapsed section component with animation
-  const CollapsedSection = ({
-    content,
-  }: {
-    content: string;
-  }) => {
+  const CollapsedSection = ({ content }: { content: string }) => {
     return (
       <CollapsibleBlock
         className="max-w-content mx-auto mb-4"
@@ -590,9 +604,7 @@ export default function ArticleEmbed({
           </div>
         )}
 
-        {collapsed_before && (
-          <CollapsedSection content={collapsed_before} />
-        )}
+        {collapsed_before && <CollapsedSection content={collapsed_before} />}
       </div>
 
       {/* Content segments — alternating yellow (article) / white (note) */}
@@ -641,9 +653,7 @@ export default function ArticleEmbed({
       {/* If last segment is a note, add yellow footer for collapsed_after + bottom padding */}
       {segments[segments.length - 1]?.type === "note" && (
         <div className="bg-amber-50/50 px-4 pb-4 sm:pb-6">
-          {collapsed_after && (
-            <CollapsedSection content={collapsed_after} />
-          )}
+          {collapsed_after && <CollapsedSection content={collapsed_after} />}
         </div>
       )}
     </div>

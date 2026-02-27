@@ -89,35 +89,24 @@ async def event_generator(
     segments = section.get("segments", [])
     current_segment = segments[segment_index] if segment_index < len(segments) else {}
 
-    # Test sections: holistic feedback prompt covering all questions
+    # Test sections: provide all question context for holistic feedback
     if section.get("type") == "test":
-        instructions = (
-            "You are a supportive tutor providing feedback on a student's test responses. "
-            "Evaluate the answers holistically — note patterns, connections between answers, "
-            "and overall understanding. Point out strengths, gently identify gaps, and "
-            "ask Socratic questions to deepen understanding. Be encouraging and constructive."
-        )
+        instructions = "The student has completed a test. Here is the context:\n"
         learning_outcome_name = section.get("learningOutcomeName")
         if learning_outcome_name:
-            instructions += f"\n\nLearning Outcome: {learning_outcome_name}"
+            instructions += f"\nLearning Outcome: {learning_outcome_name}"
         for seg in segments:
             if seg.get("type") == "question":
                 instructions += f"\n\nQuestion: {seg.get('content', '')}"
                 if seg.get("assessmentInstructions"):
                     instructions += f"\nRubric:\n{seg['assessmentInstructions']}"
-    # Standalone question segments: single-question feedback prompt
+    # Standalone question segments: provide single-question context
     elif current_segment.get("type") == "question":
         question_text = current_segment.get("content", "")
         assessment_instructions = current_segment.get("assessmentInstructions")
         learning_outcome_name = section.get("learningOutcomeName")
 
-        instructions = (
-            "You are a supportive tutor providing feedback on a student's response. "
-            "Focus on what the student understood well, gently point out gaps, and "
-            "ask Socratic questions to deepen their understanding. "
-            "Be encouraging and constructive."
-        )
-        instructions += f"\n\nQuestion: {question_text}"
+        instructions = f"The student answered a question. Here is the context:\n\nQuestion: {question_text}"
         if learning_outcome_name:
             instructions += f"\nLearning Outcome: {learning_outcome_name}"
         if assessment_instructions:

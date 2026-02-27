@@ -352,12 +352,6 @@ export function processContent(files: Map<string, string>): ProcessResult {
       const result = parseLens(content, path);
       errors.push(...result.errors);
 
-      // Validate excerpts (source files exist, anchors/timestamps valid)
-      if (result.lens) {
-        const excerptErrors = validateLensExcerpts(result.lens, path, files, tierMap);
-        errors.push(...excerptErrors);
-      }
-
       // Collect id for UUID validation
       if (result.lens?.id) {
         uuidEntries.push({

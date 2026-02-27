@@ -68,7 +68,9 @@ describe("Inline collapse directive", () => {
     const button = screen.getByRole("button", { name: "[...]" });
     expect(button).toBeInTheDocument();
     // The hidden text should NOT be in the DOM when collapsed
-    expect(screen.queryByText("power-seeking behavior")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("power-seeking behavior"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows inline text when clicked", async () => {
@@ -95,6 +97,8 @@ describe("Regression: articles without directives", () => {
     expect(screen.getByText(/This is a normal paragraph/)).toBeInTheDocument();
     expect(screen.getByText("Bold text")).toBeInTheDocument();
     // No collapse buttons should exist
-    expect(screen.queryByRole("button", { name: /\[\.{3}\]/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /\[\.{3}\]/ }),
+    ).not.toBeInTheDocument();
   });
 });

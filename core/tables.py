@@ -62,6 +62,12 @@ users = Table(
     Column("dm_notifications_enabled", Boolean, server_default="true"),
     Column("is_admin", Boolean, server_default="false"),
     Column("tos_accepted_at", TIMESTAMP(timezone=True)),
+    Column("cookies_analytics_consent", Text),  # 'accepted' | 'declined' | NULL
+    Column("cookies_analytics_consent_at", TIMESTAMP(timezone=True)),
+    CheckConstraint(
+        "cookies_analytics_consent IN ('accepted', 'declined')",
+        name="valid_cookies_analytics_consent",
+    ),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("deleted_at", TIMESTAMP(timezone=True)),

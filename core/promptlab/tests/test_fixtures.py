@@ -8,6 +8,7 @@ FLAT_FIXTURE = {
     "name": "Test Flat Fixture",
     "module": "test-module",
     "description": "A flat-format fixture for testing.",
+    "baseSystemPrompt": "You are a test tutor.",
     "instructions": "You are a helpful tutor.",
     "context": "The student is learning about X.",
     "conversations": [
@@ -25,6 +26,7 @@ SECTIONED_FIXTURE = {
     "name": "Test Sectioned Fixture",
     "module": "test-module",
     "description": "A sectioned fixture for testing.",
+    "baseSystemPrompt": "You are a sectioned tutor.",
     "sections": [
         {
             "name": "Section A",
@@ -81,6 +83,7 @@ def test_load_flat_fixture_normalized_to_sections():
     """Flat-format fixtures (legacy) get wrapped in a single section."""
     fixture = load_fixture("Test Flat Fixture")
     assert fixture is not None
+    assert fixture["baseSystemPrompt"] == "You are a test tutor."
     assert "sections" in fixture
     assert len(fixture["sections"]) == 1
     section = fixture["sections"][0]
@@ -97,6 +100,7 @@ def test_load_sectioned_fixture():
     """Sectioned-format fixtures have multiple sections."""
     fixture = load_fixture("Test Sectioned Fixture")
     assert fixture is not None
+    assert fixture["baseSystemPrompt"] == "You are a sectioned tutor."
     assert len(fixture["sections"]) == 2
     for section in fixture["sections"]:
         assert "name" in section
