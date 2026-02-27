@@ -17,7 +17,6 @@ export default function ArticleSectionWrapper({
   children,
 }: ArticleSectionWrapperProps) {
   const headingElementsRef = useRef<Map<string, HTMLElement>>(new Map());
-  const observerRef = useRef<IntersectionObserver | null>(null);
   // ToC items for direct DOM manipulation (bypasses React re-renders)
   const tocItemsRef = useRef<
     Map<string, { index: number; element: HTMLElement }>
@@ -62,16 +61,12 @@ export default function ArticleSectionWrapper({
     return generateHeadingId(text);
   }, []);
 
-  // Track heading elements as they render and observe them
+  // Track heading elements as they render
   const handleHeadingRender = useCallback(
     (id: string, element: HTMLElement) => {
       const existing = headingElementsRef.current.get(id);
       if (existing !== element) {
         headingElementsRef.current.set(id, element);
-        // Observe with IntersectionObserver if available
-        if (observerRef.current) {
-          observerRef.current.observe(element);
-        }
       }
     },
     [],
@@ -94,11 +89,17 @@ export default function ArticleSectionWrapper({
       element.classList.toggle("toc-current", isCurrent);
       element.classList.toggle("toc-passed", isPassed && !isCurrent);
       element.classList.toggle("toc-future", !isPassed && !isCurrent);
+
+      // Toggle left border accent on parent <li>
+      const li = element.parentElement;
+      if (li) {
+        li.classList.toggle("border-transparent", !isCurrent);
+        li.classList.toggle("border-gray-900", isCurrent);
+      }
     });
   }, []);
 
   // Find the current heading (last one above the threshold)
-  // This is called when IntersectionObserver fires
   const recalculateCurrentHeading = useCallback(() => {
     const threshold = window.innerHeight * 0.35;
     let currentId: string | null = null;
@@ -124,36 +125,17 @@ export default function ArticleSectionWrapper({
     }
   }, [updateTocStyles]);
 
-  // IntersectionObserver triggers recalculation when any heading crosses the threshold
-  // This is more efficient than scroll events while being more reliable than
-  // tracking individual intersection events (which can miss fast scrolling)
+  // Scroll listener — recalculate on every scroll event.
+  // Scanning ~10-20 heading positions via getBoundingClientRect is trivially fast.
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      () => {
-        // Any intersection change triggers a recalculation
-        recalculateCurrentHeading();
-      },
-      {
-        // Observation zone is top 35% of viewport
-        rootMargin: "0px 0px -65% 0px",
-        threshold: 0,
-      },
-    );
+    const onScroll = () => recalculateCurrentHeading();
 
-    observerRef.current = observer;
-
-    // Observe any elements already registered
-    headingElementsRef.current.forEach((element) => {
-      observer.observe(element);
-    });
+    window.addEventListener("scroll", onScroll, { passive: true });
 
     // Initial calculation
     recalculateCurrentHeading();
 
-    return () => {
-      observer.disconnect();
-      observerRef.current = null;
-    };
+    return () => window.removeEventListener("scroll", onScroll);
   }, [recalculateCurrentHeading]);
 
   const handleHeadingClick = useCallback((id: string) => {

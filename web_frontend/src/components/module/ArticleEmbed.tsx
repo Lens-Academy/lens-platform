@@ -1,6 +1,6 @@
 // web_frontend/src/components/module/ArticleEmbed.tsx
 
-import { useState } from "react";
+import { useState, isValidElement, type ReactNode } from "react";
 import {
   useFloating,
   useHover,
@@ -384,6 +384,15 @@ export default function ArticleEmbed({
     return generateHeadingId(text);
   };
 
+  // Extract plain text from React children (handles inline formatting like *italic*)
+  const textOf = (node: ReactNode): string => {
+    if (typeof node === "string") return node;
+    if (typeof node === "number") return String(node);
+    if (Array.isArray(node)) return node.map(textOf).join("");
+    if (isValidElement(node)) return textOf(node.props.children);
+    return "";
+  };
+
   // Shared markdown components for both main content and collapsed sections
   const markdownComponents = {
     a: ({ children, href }: { children?: React.ReactNode; href?: string }) => (
@@ -396,11 +405,23 @@ export default function ArticleEmbed({
         {children}
       </a>
     ),
-    h1: ({ children }: { children?: React.ReactNode }) => (
-      <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>
-    ),
+    h1: ({ children }: { children?: React.ReactNode }) => {
+      const text = textOf(children);
+      const id = getHeadingId(text);
+      return (
+        <h1
+          id={id}
+          ref={(el) => {
+            if (el) sectionContext?.onHeadingRender(id, el);
+          }}
+          className="text-2xl font-bold mt-8 mb-4 scroll-mt-24"
+        >
+          {children}
+        </h1>
+      );
+    },
     h2: ({ children }: { children?: React.ReactNode }) => {
-      const text = String(children);
+      const text = textOf(children);
       const id = getHeadingId(text);
       return (
         <h2
@@ -415,7 +436,7 @@ export default function ArticleEmbed({
       );
     },
     h3: ({ children }: { children?: React.ReactNode }) => {
-      const text = String(children);
+      const text = textOf(children);
       const id = getHeadingId(text);
       return (
         <h3

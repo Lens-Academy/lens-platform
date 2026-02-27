@@ -132,11 +132,10 @@ body {
 /* ToC item styles - controlled via direct DOM manipulation for performance */
 .toc-current {
   color: #111827; /* gray-900 */
-  font-weight: 600;
 }
 
 .toc-passed {
-  color: #374151; /* gray-700 */
+  color: #4b5563; /* gray-600 */
 }
 
 .toc-future {
