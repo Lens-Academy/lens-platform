@@ -284,11 +284,6 @@ async def lifespan(app: FastAPI):
     shutdown_scheduler()
     await stop_bot()
 
-    # Close TTS WebSocket connection
-    from core.tts import close_tts_client
-
-    await close_tts_client()
-
     await close_engine()  # Close database connections
     if _bot_task:
         _bot_task.cancel()

@@ -27,7 +27,7 @@ from core.tts import (
     TTSConfig,
     QueueIterator,
     find_split,
-    get_tts_client,
+    synthesize,
     get_api_key,
     is_tts_available,
 )
@@ -125,8 +125,7 @@ async def _handle_single_shot(websocket: WebSocket, data: dict) -> None:
     else:
         text_iter = _single_chunk_iter(text)
 
-    client = get_tts_client()
-    async for audio_chunk in client.synthesize(text_iter, config):
+    async for audio_chunk in synthesize(text_iter, config):
         await websocket.send_bytes(audio_chunk)
 
     await websocket.send_json({"done": True})
@@ -185,8 +184,7 @@ async def _handle_streaming(websocket: WebSocket, data: dict) -> None:
     receive_task = asyncio.create_task(receive_tokens())
 
     try:
-        client = get_tts_client()
-        async for audio_chunk in client.synthesize(queue_iter, config):
+        async for audio_chunk in synthesize(queue_iter, config):
             await websocket.send_bytes(audio_chunk)
 
         await websocket.send_json({"done": True})

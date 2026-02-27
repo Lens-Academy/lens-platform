@@ -55,9 +55,11 @@ export function useRoleplayTTS(ttsEnabled: boolean): UseRoleplayTTSReturn {
         try {
           const msg = JSON.parse(event.data);
           if (msg.done) {
+            audioPlayback.endStream();
             wsRef.current?.close();
           } else if (msg.error) {
             console.error("[useRoleplayTTS] TTS error:", msg.error);
+            audioPlayback.endStream();
             wsRef.current?.close();
           }
         } catch {
@@ -83,6 +85,7 @@ export function useRoleplayTTS(ttsEnabled: boolean): UseRoleplayTTSReturn {
       if (!ttsEnabled || !text.trim()) return;
       closeWs();
       audioPlayback.resume();
+      audioPlayback.beginStream();
 
       const ws = new WebSocket(makeTTSUrl());
       wsRef.current = ws;
@@ -105,6 +108,7 @@ export function useRoleplayTTS(ttsEnabled: boolean): UseRoleplayTTSReturn {
     if (!ttsEnabled) return;
     closeWs();
     audioPlayback.resume();
+    audioPlayback.beginStream();
 
     const ws = new WebSocket(makeTTSUrl());
     wsRef.current = ws;

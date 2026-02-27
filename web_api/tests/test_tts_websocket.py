@@ -1,6 +1,6 @@
 """Integration tests for /ws/tts WebSocket endpoint.
 
-Tests the full WebSocket handler: JSON protocol -> InworldTTSClient -> audio chunks.
+Tests the full WebSocket handler: JSON protocol -> synthesize() -> audio chunks.
 Requires INWORLD_API_KEY in .env / .env.local.
 
 Uses Starlette TestClient which runs the ASGI app in a background thread.
@@ -21,7 +21,6 @@ sys.path.insert(0, str(project_root))
 
 from starlette.testclient import TestClient
 
-import core.tts as tts_module
 from core.tts import is_tts_available
 from main import app
 
@@ -29,21 +28,6 @@ pytestmark = pytest.mark.skipif(
     not is_tts_available(),
     reason="INWORLD_API_KEY not set",
 )
-
-
-@pytest.fixture(autouse=True)
-def reset_tts_singleton():
-    """Reset the TTS client singleton between tests.
-
-    Prevents stale websocket connections from one test's event loop
-    leaking into the next test's different event loop.
-    """
-    yield
-    # Close and reset singleton after each test
-    if tts_module._client is not None:
-        # Can't await close() in sync fixture — just reset the reference.
-        # The GC / websockets finalizer will clean up the connection.
-        tts_module._client = None
 
 
 def _collect_audio(ws, timeout: float = 20.0) -> tuple[int, bool, str | None]:
@@ -81,11 +65,13 @@ def test_single_shot_produces_audio():
     """Send full text, expect binary audio chunks + done signal."""
     client = TestClient(app)
     with client.websocket_connect("/ws/tts") as ws:
-        ws.send_json({
-            "text": "Hello, this is a test.",
-            "voice": "Ashley",
-            "audio_encoding": "LINEAR16",
-        })
+        ws.send_json(
+            {
+                "text": "Hello, this is a test.",
+                "voice": "Ashley",
+                "audio_encoding": "LINEAR16",
+            }
+        )
 
         audio_bytes, got_done, error = _collect_audio(ws)
 
@@ -98,11 +84,13 @@ def test_single_shot_mp3():
     """MP3 encoding also works."""
     client = TestClient(app)
     with client.websocket_connect("/ws/tts") as ws:
-        ws.send_json({
-            "text": "Hello, MP3 test.",
-            "voice": "Ashley",
-            "audio_encoding": "MP3",
-        })
+        ws.send_json(
+            {
+                "text": "Hello, MP3 test.",
+                "voice": "Ashley",
+                "audio_encoding": "MP3",
+            }
+        )
 
         audio_bytes, got_done, error = _collect_audio(ws)
 
@@ -115,11 +103,13 @@ def test_single_shot_no_text_returns_error():
     """Empty text should return an error, not crash."""
     client = TestClient(app)
     with client.websocket_connect("/ws/tts") as ws:
-        ws.send_json({
-            "text": "",
-            "voice": "Ashley",
-            "audio_encoding": "LINEAR16",
-        })
+        ws.send_json(
+            {
+                "text": "",
+                "voice": "Ashley",
+                "audio_encoding": "LINEAR16",
+            }
+        )
 
         msg = ws.receive()
         data = json.loads(msg["text"])
@@ -127,7 +117,7 @@ def test_single_shot_no_text_returns_error():
 
 
 # -- Streaming / simulate_streaming: skipped under TestClient --
-# These use asyncio.create_task internally (in InworldTTSClient._do_synthesize
+# These use asyncio.create_task internally (in synthesize()
 # and _llm_token_iter), which conflicts with TestClient's background-thread
 # event loop. The streaming path is integration-tested in:
 #   core/tts/tests/test_inworld_integration.py (test_multi_chunk_synthesize,

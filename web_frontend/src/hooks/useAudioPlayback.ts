@@ -11,6 +11,8 @@
  * - Scheduling uses AudioContext.currentTime for sample-accurate timing.
  * - AudioContext is lazy-created and requires resume() from a user gesture.
  * - Source nodes and decoded buffers are released after playback for GC.
+ * - beginStream()/endStream() prevent false "done" signals during streaming
+ *   when the audio queue momentarily empties between chunks.
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -22,7 +24,7 @@ export interface UseAudioPlaybackReturn {
   playChunk: (mp3Bytes: ArrayBuffer) => Promise<void>;
   /** Stop all playback and reset state */
   stop: () => void;
-  /** Whether audio is currently playing */
+  /** Whether audio is currently playing or more is expected */
   isPlaying: boolean;
   /** Number of chunks received so far */
   chunksReceived: number;
@@ -34,6 +36,10 @@ export interface UseAudioPlaybackReturn {
   setPlaybackRate: (rate: number) => void;
   /** Current playback rate */
   playbackRate: number;
+  /** Signal that a streaming session has started (more chunks expected) */
+  beginStream: () => void;
+  /** Signal that no more chunks will arrive (isPlaying clears when queue drains) */
+  endStream: () => void;
 }
 
 export function useAudioPlayback(): UseAudioPlaybackReturn {
@@ -55,6 +61,8 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
   const playChainRef = useRef<Promise<void>>(Promise.resolve());
   // Playback speed (applied to each AudioBufferSourceNode)
   const playbackRateRef = useRef(1.0);
+  // Streaming session: while true, isPlaying stays true even if queue empties
+  const streamingRef = useRef(false);
 
   /** Create or return the AudioContext, updating state. */
   const ensureContext = useCallback((): AudioContext => {
@@ -92,6 +100,29 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     playbackRateRef.current = clamped;
     setPlaybackRateState(clamped);
   }, []);
+
+  /** Check if playback is truly done (no active sources and not streaming). */
+  const maybeSetDone = useCallback(() => {
+    if (
+      activeSourceCountRef.current <= 0 &&
+      !streamingRef.current &&
+      !stoppedRef.current
+    ) {
+      activeSourceCountRef.current = 0;
+      setIsPlaying(false);
+    }
+  }, []);
+
+  /** Signal that a streaming session has started. */
+  const beginStream = useCallback(() => {
+    streamingRef.current = true;
+  }, []);
+
+  /** Signal that no more chunks will arrive. */
+  const endStream = useCallback(() => {
+    streamingRef.current = false;
+    maybeSetDone();
+  }, [maybeSetDone]);
 
   /** Feed an MP3 chunk for gapless playback. */
   const playChunk = useCallback(
@@ -144,21 +175,19 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
           // Release references for GC (source and buffer go out of scope)
           source.disconnect();
           activeSourceCountRef.current -= 1;
-          if (activeSourceCountRef.current <= 0 && !stoppedRef.current) {
-            activeSourceCountRef.current = 0;
-            setIsPlaying(false);
-          }
+          maybeSetDone();
         };
       });
       playChainRef.current = result.catch(() => {}); // don't block chain on errors
       await result;
     },
-    [ensureContext],
+    [ensureContext, maybeSetDone],
   );
 
   /** Stop all playback and reset state. Creates a fresh context on next use. */
   const stop = useCallback(() => {
     stoppedRef.current = true;
+    streamingRef.current = false;
 
     if (ctxRef.current && ctxRef.current.state !== "closed") {
       ctxRef.current.close().catch(() => {
@@ -195,5 +224,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     contextState,
     setPlaybackRate,
     playbackRate,
+    beginStream,
+    endStream,
   };
 }

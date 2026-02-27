@@ -1,161 +1,72 @@
-"""Persistent WebSocket client for Inworld TTS streaming.
+"""Stateless Inworld TTS synthesis via fresh WebSocket per call.
 
-Maintains a single WebSocket connection to Inworld's bidirectional TTS
-endpoint. Accepts async text token iterators (from LLM streaming) and
-yields decoded audio chunks (MP3 bytes).
+Each synthesize() call opens a new WebSocket to Inworld's bidirectional TTS
+endpoint, creates a context, streams text, and yields decoded audio chunks.
+No persistent state — connection opens and closes within each call.
 
 Usage:
-    client = InworldTTSClient()
-    async for audio_bytes in client.synthesize(text_chunks):
+    async for audio_bytes in synthesize(text_chunks, config):
         await websocket.send_bytes(audio_bytes)
-    await client.close()
 """
 
 import asyncio
 import base64
 import json
 import logging
+import time
 from typing import AsyncIterator
 from uuid import uuid4
 
 import websockets.asyncio.client
-import websockets.exceptions
 
 from .config import INWORLD_WS_URL, TTSConfig, get_api_key
 
 logger = logging.getLogger(__name__)
 
+# Timeout (seconds) after the last audio chunk once flush is sent.
+# If no new audio arrives within this window, synthesis is considered complete.
+_AUDIO_SILENCE_TIMEOUT = 1.0
 
-class InworldTTSClient:
-    """Persistent WebSocket connection to Inworld TTS.
+# Maximum time (seconds) to wait for any single WebSocket message.
+_RECV_TIMEOUT = 5.0
 
-    Serializes synthesis calls via asyncio.Lock (one synthesis at a time).
-    Phase 9 is single-user test harness -- concurrent synthesis is not needed.
-    Phase 10 may add a message dispatch layer if concurrent synthesis is required.
+# Absolute safety valve — never wait longer than this for a single synthesis.
+_MAX_SYNTHESIS_SECONDS = 120
+
+
+async def synthesize(
+    text_chunks: AsyncIterator[str],
+    config: TTSConfig | None = None,
+) -> AsyncIterator[bytes]:
+    """Stream text tokens in, yield audio chunks out.
+
+    Opens a fresh WebSocket to Inworld for each call. No shared state.
+
+    Args:
+        text_chunks: Async iterator of text (sentences from LLM or full text).
+        config: TTS configuration. Uses defaults if not provided.
+
+    Yields:
+        Raw audio bytes (base64-decoded from Inworld).
     """
+    if config is None:
+        config = TTSConfig()
 
-    def __init__(self) -> None:
-        self._ws: websockets.asyncio.client.ClientConnection | None = None
-        self._lock = asyncio.Lock()
-        self._keepalive_task: asyncio.Task | None = None
+    api_key = get_api_key()
+    if not api_key:
+        raise RuntimeError("INWORLD_API_KEY not set — cannot connect to Inworld TTS")
 
-    async def _ensure_connected(self) -> None:
-        """Connect or reconnect to Inworld WebSocket if needed."""
-        if self._ws is not None:
-            try:
-                # Check if connection is still open
-                if self._ws.close_code is None:
-                    return
-            except Exception:
-                pass
+    context_id = str(uuid4())
 
-        api_key = get_api_key()
-        if not api_key:
-            raise RuntimeError(
-                "INWORLD_API_KEY not set -- cannot connect to Inworld TTS"
-            )
+    # 1. Fresh connection
+    ws = await websockets.asyncio.client.connect(
+        INWORLD_WS_URL,
+        additional_headers={"Authorization": f"Basic {api_key}"},
+    )
+    logger.info("Inworld TTS connected (context %s)", context_id[:8])
 
-        logger.info("Connecting to Inworld TTS WebSocket...")
-        self._ws = await websockets.asyncio.client.connect(
-            INWORLD_WS_URL,
-            additional_headers={
-                "Authorization": f"Basic {api_key}",
-            },
-        )
-        logger.info("Connected to Inworld TTS WebSocket")
-
-        # Start keepalive loop
-        if self._keepalive_task is not None:
-            self._keepalive_task.cancel()
-        self._keepalive_task = asyncio.create_task(self._keepalive_loop())
-
-    async def _keepalive_loop(self) -> None:
-        """Send empty text every 60 seconds to prevent connection timeout.
-
-        Based on pipecat InworldTTSService keepalive pattern.
-        """
-        while True:
-            try:
-                await asyncio.sleep(60)
-                if self._ws is not None and self._ws.close_code is None:
-                    await self._ws.send(
-                        json.dumps(
-                            {
-                                "send_text": {"text": ""},
-                                "contextId": "keepalive",
-                            }
-                        )
-                    )
-            except Exception:
-                logger.debug("Keepalive failed, connection will reconnect on next use")
-                break
-
-    async def synthesize(
-        self,
-        text_chunks: AsyncIterator[str],
-        config: TTSConfig | None = None,
-        context_id: str | None = None,
-    ) -> AsyncIterator[bytes]:
-        """Stream text tokens in, yield audio chunks out.
-
-        Args:
-            text_chunks: Async iterator of text tokens (from LLM or full text).
-            config: TTS configuration. Uses defaults if not provided.
-            context_id: Unique context ID for this synthesis. Auto-generated if None.
-
-        Yields:
-            Raw audio bytes (MP3 chunks, base64-decoded from Inworld).
-
-        The entire synthesize call is serialized via asyncio.Lock to prevent
-        recv() race conditions between interleaved contexts.
-        """
-        async with self._lock:
-            yield_from = self._synthesize_locked(text_chunks, config, context_id)
-            async for chunk in yield_from:
-                yield chunk
-
-    async def _synthesize_locked(
-        self,
-        text_chunks: AsyncIterator[str],
-        config: TTSConfig | None,
-        context_id: str | None,
-    ) -> AsyncIterator[bytes]:
-        """Internal synthesis implementation (must be called under lock)."""
-        if config is None:
-            config = TTSConfig()
-        if context_id is None:
-            context_id = str(uuid4())
-
-        retry = False
-        try:
-            async for chunk in self._do_synthesize(text_chunks, config, context_id):
-                yield chunk
-        except websockets.exceptions.ConnectionClosed:
-            logger.warning(
-                "Inworld WebSocket connection closed during synthesis, reconnecting..."
-            )
-            retry = True
-
-        if retry:
-            # Reconnect and retry once. Note: text_chunks iterator is consumed,
-            # so this retry only works if the failure happened before consuming
-            # tokens. For Phase 9 (full-text single chunk), this is fine.
-            self._ws = None
-            await self._ensure_connected()
-            async for chunk in self._do_synthesize(text_chunks, config, context_id):
-                yield chunk
-
-    async def _do_synthesize(
-        self,
-        text_chunks: AsyncIterator[str],
-        config: TTSConfig,
-        context_id: str,
-    ) -> AsyncIterator[bytes]:
-        """Execute one synthesis pass against the Inworld WebSocket."""
-        await self._ensure_connected()
-        assert self._ws is not None
-
-        # 1. Create context with config values
+    try:
+        # 2. Create context
         create_msg = {
             "create": {
                 "voiceId": config.voice_id,
@@ -180,35 +91,38 @@ class InworldTTSClient:
             },
             "contextId": context_id,
         }
-        await self._ws.send(json.dumps(create_msg))
-        logger.debug("Sent create context: %s", context_id)
+        await ws.send(json.dumps(create_msg))
+        logger.debug("Sent create context: %s", context_id[:8])
 
-        # Wait for contextCreated confirmation
-        # Inworld wraps all responses in {"result": {...}}
+        # Wait for contextCreated (with timeout to avoid infinite hang)
         while True:
-            raw = json.loads(await self._ws.recv())
+            raw = json.loads(await asyncio.wait_for(ws.recv(), timeout=_RECV_TIMEOUT))
             msg = raw.get("result", raw)
             if "contextCreated" in msg:
-                logger.debug("Context created: %s", context_id)
+                logger.debug("Context created: %s", context_id[:8])
                 break
 
-        # 2. Start background task to send text chunks, then flush
-        send_task: asyncio.Task | None = None
+        # 3. Background task: send text chunks then flush
+        send_done = asyncio.Event()
+        chars_sent = 0
 
         async def send_text() -> None:
-            assert self._ws is not None
+            nonlocal chars_sent
             token_count = 0
-            char_count = 0
             async for token in text_chunks:
-                send_msg = {
-                    "send_text": {"text": token},
-                    "contextId": context_id,
-                }
-                await self._ws.send(json.dumps(send_msg))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "send_text": {"text": token},
+                            "contextId": context_id,
+                        }
+                    )
+                )
                 token_count += 1
-                char_count += len(token)
-            # All text sent, flush remaining buffer
-            await self._ws.send(
+                chars_sent += len(token)
+
+            # All text sent — flush
+            await ws.send(
                 json.dumps(
                     {
                         "flush_context": {},
@@ -217,72 +131,121 @@ class InworldTTSClient:
                 )
             )
             logger.info(
-                "All text sent and flushed for %s: %d tokens, %d chars",
-                context_id,
+                "All text sent and flushed (%s): %d tokens, %d chars",
+                context_id[:8],
                 token_count,
-                char_count,
+                chars_sent,
             )
+            send_done.set()
+
+        send_task = asyncio.create_task(send_text())
+
+        # 4. Read audio until done
+        chunk_count = 0
+        total_bytes = 0
+        last_audio_time: float | None = None
+        got_flush_after_send = False
+        synthesis_start = time.monotonic()
 
         try:
-            send_task = asyncio.create_task(send_text())
-
-            # 3. Yield decoded audio bytes from audioChunk messages until flushCompleted
-            # Inworld wraps all responses in {"result": {...}}
-            chunk_count = 0
-            total_bytes = 0
             while True:
-                raw = json.loads(await self._ws.recv())
+                # Safety valve
+                if time.monotonic() - synthesis_start > _MAX_SYNTHESIS_SECONDS:
+                    logger.warning(
+                        "Safety valve: synthesis exceeded %ds", _MAX_SYNTHESIS_SECONDS
+                    )
+                    break
+
+                try:
+                    raw = json.loads(
+                        await asyncio.wait_for(ws.recv(), timeout=_RECV_TIMEOUT)
+                    )
+                except asyncio.TimeoutError:
+                    # No message for _RECV_TIMEOUT seconds
+                    if send_done.is_set() and got_flush_after_send:
+                        logger.info(
+                            "Recv timeout after flush — synthesis complete (%s)",
+                            context_id[:8],
+                        )
+                        break
+                    if send_done.is_set():
+                        logger.debug(
+                            "Recv timeout, send done but no flush yet — continuing"
+                        )
+                    continue
+
                 msg = raw.get("result", raw)
+
                 if "audioChunk" in msg:
                     audio_b64 = msg["audioChunk"]["audioContent"]
                     decoded = base64.b64decode(audio_b64)
                     chunk_count += 1
                     total_bytes += len(decoded)
+                    last_audio_time = time.monotonic()
+                    if chunk_count <= 3 or chunk_count % 50 == 0:
+                        logger.debug(
+                            "Audio chunk #%d (%s): %d bytes (total: %d)",
+                            chunk_count,
+                            context_id[:8],
+                            len(decoded),
+                            total_bytes,
+                        )
                     yield decoded
+
                 elif "flushCompleted" in msg:
-                    logger.info(
-                        "Flush completed for %s: %d chunks, %d bytes",
-                        context_id,
-                        chunk_count,
-                        total_bytes,
-                    )
-                    break
+                    if send_done.is_set():
+                        got_flush_after_send = True
+                        # Check silence window: if last audio was >_AUDIO_SILENCE_TIMEOUT ago, done
+                        if (
+                            last_audio_time
+                            and (time.monotonic() - last_audio_time)
+                            > _AUDIO_SILENCE_TIMEOUT
+                        ):
+                            logger.info(
+                                "Flush + silence — synthesis complete (%s): %d chunks, %d bytes",
+                                context_id[:8],
+                                chunk_count,
+                                total_bytes,
+                            )
+                            break
+                    else:
+                        logger.debug("Ignoring flushCompleted (send still in progress)")
+
                 else:
-                    # Log unexpected messages
-                    logger.info("Inworld msg for %s: %s", context_id, list(msg.keys()))
+                    # Ignore non-audio/non-flush messages (status, metadata, etc.)
+                    logger.debug(
+                        "Ignoring Inworld msg (%s): %s",
+                        context_id[:8],
+                        list(msg.keys()),
+                    )
+
         finally:
             # Ensure send task completes
-            if send_task is not None:
+            if not send_task.done():
+                send_task.cancel()
+                try:
+                    await send_task
+                except asyncio.CancelledError:
+                    pass
+            else:
                 await send_task
 
-            # 4. Close context to clean up
-            if self._ws is not None and self._ws.close_code is None:
-                try:
-                    await self._ws.send(
-                        json.dumps(
-                            {
-                                "close_context": {},
-                                "contextId": context_id,
-                            }
-                        )
-                    )
-                    logger.debug("Closed context: %s", context_id)
-                except Exception:
-                    logger.debug(
-                        "Failed to close context %s (connection may be closed)",
-                        context_id,
-                    )
+        logger.info(
+            "Synthesis done (%s): %d chunks, %d bytes, %d chars",
+            context_id[:8],
+            chunk_count,
+            total_bytes,
+            chars_sent,
+        )
 
-    async def close(self) -> None:
-        """Close the WebSocket connection and stop keepalive."""
-        if self._keepalive_task is not None:
-            self._keepalive_task.cancel()
-            self._keepalive_task = None
-
-        if self._ws is not None:
-            try:
-                await self._ws.close()
-            except Exception:
-                pass
-            self._ws = None
-            logger.info("Inworld TTS WebSocket connection closed")
+    finally:
+        # 5. Close context + connection
+        try:
+            await ws.send(json.dumps({"close_context": {}, "contextId": context_id}))
+        except Exception:
+            pass
+        try:
+            await ws.close()
+        except Exception:
+            pass
+        logger.info("Inworld TTS disconnected (%s)", context_id[:8])

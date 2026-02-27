@@ -96,6 +96,70 @@ class TestBufferingPipeline:
         assert result == ["Hello world. ", "More text."]
 
     @pytest.mark.asyncio
+    async def test_eight_sentences_all_queued(self):
+        """Feed 8 sentences as word-level tokens — all 8 must reach the queue.
+
+        Replicates the simplified llm_task buffering (no held_sentence):
+        split on sentence boundaries, queue each immediately, flush remainder.
+        """
+        sentences = [
+            "AI safety is important. ",
+            "We need alignment research. ",
+            "Reward hacking is a real risk. ",
+            "Interpretability helps us understand models. ",
+            "Scalable oversight is a key challenge. ",
+            "Constitutional AI offers one approach. ",
+            "RLHF has known limitations. ",
+            "The field is evolving rapidly.",
+        ]
+        full_text = "".join(sentences)
+
+        # Simulate word-level LLM tokens
+        tokens = []
+        for word in full_text.split():
+            tokens.append(word + " ")
+        # Fix trailing space: last token shouldn't have trailing space
+        tokens[-1] = tokens[-1].rstrip() + "."
+        # Actually, just split the full text into word tokens faithfully
+        tokens = []
+        for char_idx, word in enumerate(full_text.split()):
+            tokens.append(word + " ")
+
+        q = QueueIterator()
+        buffer = ""
+        first_sent = False
+
+        for token in tokens:
+            buffer += token
+            while True:
+                split_pos = find_split(buffer, aggressive=not first_sent)
+                if split_pos < 0:
+                    break
+                sentence = buffer[:split_pos]
+                buffer = buffer[split_pos:]
+                if sentence.strip():
+                    await q.put(sentence)
+                    first_sent = True
+
+        # Flush remaining buffer (same path as above)
+        if buffer.strip():
+            await q.put(buffer)
+        await q.put(None)
+
+        result = [item async for item in q]
+
+        # All 8 sentences must be queued (7 from find_split + 1 final flush)
+        assert len(result) == 8, (
+            f"Expected 8 queued chunks, got {len(result)}: {result}"
+        )
+        # Total queued text must equal total input text
+        reassembled = "".join(result)
+        # Normalize: strip trailing whitespace from both
+        assert reassembled.strip() == full_text.strip(), (
+            f"Text mismatch:\n  sent: {full_text!r}\n  got:  {reassembled!r}"
+        )
+
+    @pytest.mark.asyncio
     async def test_first_chunk_aggressive_then_conservative(self):
         """First split is aggressive (comma), subsequent are conservative (period)."""
         tokens = ["Hi", ",", " let me", ".", " Then more", "."]

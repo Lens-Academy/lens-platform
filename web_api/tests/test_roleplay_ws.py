@@ -400,3 +400,114 @@ class TestRoleplayWSTTS:
         finally:
             for m in mocks:
                 m.__exit__(None, None, None)
+
+    @pytest.mark.asyncio
+    async def test_eight_sentence_tts_full_audio(self):
+        """E2E: 8-sentence LLM response must produce ≥15s of audio over WS.
+
+        Mock: LLM (streams 8 sentences as word tokens), DB.
+        Real: sentence buffer, QueueIterator, Inworld TTS client.
+
+        This is the exact scenario that cuts off in production.
+        """
+        import asyncio
+
+        from web_api.routes.roleplay_ws import _handle_turn_with_tts
+
+        # 8 sentences, ~100 chars each — matches production failure case
+        EIGHT_SENTENCES = (
+            "AI safety is the study of ensuring that artificial intelligence "
+            "systems behave in beneficial ways. "
+            "Alignment research focuses on making AI systems that reliably do "
+            "what humans actually want. "
+            "Reward hacking occurs when AI finds unexpected shortcuts that "
+            "satisfy its objective function. "
+            "Interpretability research helps us understand what is happening "
+            "inside neural networks. "
+            "Scalable oversight addresses how humans can supervise AI systems "
+            "smarter than themselves. "
+            "Constitutional AI trains models to be helpful and harmless and "
+            "honest through self-critique. "
+            "Reinforcement learning from human feedback is widely used but "
+            "has known limitations. "
+            "The field of AI safety is evolving rapidly as capabilities "
+            "continue to advance."
+        )
+
+        # Mock LLM: stream the text word-by-word with realistic pacing
+        async def _eight_sentence_stream(**kwargs):
+            for word in EIGHT_SENTENCES.split():
+                yield {"type": "text", "content": word + " "}
+                await asyncio.sleep(0.02)
+            yield {"type": "done"}
+
+        mocks = _apply_mocks()
+        entered = []
+        for m in mocks:
+            entered.append(m.__enter__())
+
+        conn_mock = entered[3]
+        fake_conn = AsyncMock()
+        cm = AsyncMock()
+        cm.__aenter__ = AsyncMock(return_value=fake_conn)
+        cm.__aexit__ = AsyncMock(return_value=False)
+        conn_mock.return_value = cm
+
+        # Point stream_chat at our 8-sentence generator
+        entered[4].side_effect = _eight_sentence_stream
+
+        try:
+            collected_text = []
+            collected_audio = bytearray()
+            got_done = False
+
+            class MockWS:
+                async def send_json(self, data):
+                    nonlocal got_done
+                    if data.get("type") == "text":
+                        collected_text.append(data["content"])
+                    elif data.get("type") == "done":
+                        got_done = True
+
+                async def send_bytes(self, data):
+                    collected_audio.extend(data)
+
+            ctx = {
+                "session_id": 42,
+                "existing_messages": [],
+                "module": FakeModule(),
+                "ai_instructions": "Irrelevant — LLM is mocked.",
+                "scenario_content": None,
+                "tts_config": parse_tts_config(
+                    {
+                        "voice": "Ashley",
+                        "model": "inworld-tts-1.5-mini",
+                        "audio_encoding": "LINEAR16",
+                    }
+                ),
+            }
+
+            mock_ws = MockWS()
+            content = await _handle_turn_with_tts(
+                mock_ws, ctx, "Tell me about AI safety."
+            )
+
+            assert got_done, "Never received 'done' message"
+            assert len(content) > 0, "No LLM text"
+
+            total_text = "".join(collected_text)
+            total_bytes = len(collected_audio)
+            total_seconds = total_bytes / 2 / 48000  # LINEAR16 @ 48kHz
+
+            print(f"\n  Text length: {len(total_text)} chars")
+            print(f"  Audio: {total_bytes} bytes = {total_seconds:.2f}s")
+
+            # 8 sentences × ~2s each = ~16s; require ≥15s
+            assert total_seconds >= 15, (
+                f"Audio too short: {total_seconds:.2f}s "
+                f"(expected ≥15s for {len(total_text)} chars, 8 sentences). "
+                f"Got {total_bytes} bytes over WebSocket."
+            )
+        finally:
+            for m in mocks:
+                m.__exit__(None, None, None)

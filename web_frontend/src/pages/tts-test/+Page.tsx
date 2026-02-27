@@ -30,20 +30,20 @@ const TTS_MODELS = [
 ] as const;
 
 const TAG_COLORS: Record<string, string> = {
-  LLM: "text-blue-400",
-  TTS: "text-purple-400",
-  AUDIO: "text-green-400",
-  ERROR: "text-red-400",
-  INFO: "text-gray-400",
-  "⏱": "text-yellow-300 font-bold",
+  LLM: "text-blue-600",
+  TTS: "text-purple-600",
+  AUDIO: "text-green-600",
+  ERROR: "text-red-600",
+  INFO: "text-gray-500",
+  "⏱": "text-yellow-600 font-bold",
 };
 
 const TEST_CONFIG = {
   moduleSlug: "lens/trial-question-and-roleplay",
   roleplayId: "313958db-3b65-438f-9725-d9b483977284",
-  aiInstructions: `You are Jordan Chen, a 34-year-old product manager at a mid-size tech company. You're pragmatic, results-oriented, and genuinely busy. You care about doing the right thing but tend to prioritize shipping features over theoretical concerns. You're skeptical of anything that sounds too academic but can be persuaded by concrete examples. Keep responses conversational and brief (2-3 sentences typically). You're in a hurry — you have a meeting soon.`,
+  aiInstructions: `You're an assistant helping a developer test this a voice chatting feature. Speak in natural spoken language with relatively short sentences.`,
   openingMessage:
-    "Good morning! I have about 5 minutes before my next meeting...",
+    "Good morning! I have about 5 minutes before my next meeting. I hear you'd like to talk about this voice feature.",
 };
 
 export default function Page() {
@@ -82,6 +82,7 @@ export default function Page() {
   const e2eInitedRef = useRef(false); // Has init message been sent?
   const e2eAudioPlayback = useAudioPlayback();
   const [e2eVerbose, setE2eVerbose] = useState(false);
+  const [e2eSpeed, setE2eSpeed] = useState(1.5);
   const e2eTimingRef = useRef({
     t0: 0, wsConnected: 0,
     firstText: 0, firstAudio: 0, audioStarted: 0,
@@ -332,8 +333,9 @@ export default function Page() {
           voice,
           model,
           audio_encoding: "LINEAR16",
+          speaking_rate: e2eSpeed,
         }));
-        addLog("INFO", "Init message sent (with TTS config)");
+        addLog("INFO", `Init message sent (voice=${voice}, speed=${e2eSpeed}x)`);
       };
 
       // Set up the shared onmessage handler
@@ -397,6 +399,9 @@ export default function Page() {
               case "done": {
                 timing.lastAudio = performance.now();
                 addLog("⏱", `${ms()} Turn done`);
+                if (parsed.audio_bytes) {
+                  addLog("⏱", `  Server sent: ${parsed.audio_chunks} chunks, ${parsed.audio_bytes} bytes`);
+                }
                 const fullContent = e2eStreamingRef.current;
                 if (fullContent) {
                   setMessages((prev) => [...prev, { role: "assistant", content: fullContent }]);
@@ -405,6 +410,7 @@ export default function Page() {
                 setStreamingContent("");
                 e2eStreamingRef.current = "";
                 setE2eStatus("idle");
+                e2eAudioPlayback.endStream();
                 break;
               }
 
@@ -434,7 +440,7 @@ export default function Page() {
         e2eInitedRef.current = false;
       };
     });
-  }, [voice, model, e2eAudioPlayback, e2eVerbose, addLog, ms]);
+  }, [voice, model, e2eSpeed, e2eAudioPlayback, e2eVerbose, addLog, ms]);
 
   const handleSendAndSpeak = useCallback(async () => {
     const msg = userInput.trim();
@@ -449,6 +455,7 @@ export default function Page() {
 
     try {
       await e2eAudioPlayback.resume();
+      e2eAudioPlayback.beginStream();
       addLog("AUDIO", `AudioContext resumed (state: ${e2eAudioPlayback.contextState})`);
     } catch (err) {
       addLog("ERROR", `AudioContext resume failed: ${err}`);
@@ -457,6 +464,7 @@ export default function Page() {
 
     setMessages((prev) => [...prev, { role: "user", content: msg }]);
 
+    logStartRef.current = 0;
     e2eTimingRef.current = {
       t0: performance.now(), wsConnected: 0,
       firstText: 0, firstAudio: 0, audioStarted: 0,
@@ -493,22 +501,23 @@ export default function Page() {
   // ─── Helpers ──────────────────────────────────────────────────────────
 
   const statusColor: Record<Status, string> = {
-    idle: "text-gray-400",
-    connecting: "text-yellow-400",
-    streaming: "text-green-400",
-    buffering: "text-yellow-400",
-    done: "text-blue-400",
-    error: "text-red-400",
+    idle: "text-gray-500",
+    connecting: "text-yellow-600",
+    streaming: "text-green-600",
+    buffering: "text-yellow-600",
+    done: "text-blue-600",
+    error: "text-red-600",
   };
 
   const e2eStatusColor = (s: string) => {
-    if (s === "streaming" || s === "done") return "text-green-400";
-    if (s === "connecting") return "text-yellow-400";
-    if (s === "error") return "text-red-400";
+    if (s === "streaming" || s === "done") return "text-green-600";
+    if (s === "connecting") return "text-yellow-600";
+    if (s === "error") return "text-red-600";
     return "text-gray-500";
   };
 
   return (
+    <div className="min-h-screen bg-white text-gray-900">
     <div className="mx-auto max-w-2xl p-6">
       <h1 className="mb-6 text-2xl font-bold">TTS Pipeline Test</h1>
 
@@ -520,19 +529,19 @@ export default function Page() {
         </div>
         <div>
           <span className="text-gray-500">AudioContext: </span>
-          <span className="text-gray-300">
+          <span className="text-gray-700">
             {audioPlayback.contextState ?? "none"}
           </span>
         </div>
         <div>
           <span className="text-gray-500">Playing: </span>
-          <span className={audioPlayback.isPlaying || bufferedPlaying ? "text-green-400" : "text-gray-400"}>
+          <span className={audioPlayback.isPlaying || bufferedPlaying ? "text-green-600" : "text-gray-400"}>
             {audioPlayback.isPlaying || bufferedPlaying ? "yes" : "no"}
           </span>
         </div>
         <div>
           <span className="text-gray-500">Chunks: </span>
-          <span className="text-gray-300">{audioPlayback.chunksReceived}</span>
+          <span className="text-gray-700">{audioPlayback.chunksReceived}</span>
         </div>
       </div>
 
@@ -546,7 +555,7 @@ export default function Page() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={4}
-          className="w-full rounded border border-gray-600 bg-gray-800 p-3 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+          className="w-full rounded border border-gray-300 bg-white p-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none"
           placeholder="Enter text to speak..."
         />
       </div>
@@ -561,7 +570,7 @@ export default function Page() {
             id="tts-model"
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            className="rounded border border-gray-600 bg-gray-800 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+            className="rounded border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none"
           >
             {TTS_MODELS.map((m) => (
               <option key={m} value={m}>
@@ -579,7 +588,7 @@ export default function Page() {
             value={voice}
             onChange={(e) => setVoice(e.target.value)}
             disabled={voicesLoading}
-            className="w-full rounded border border-gray-600 bg-gray-800 px-3 py-2 text-white focus:border-blue-500 focus:outline-none disabled:cursor-default disabled:opacity-50"
+            className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none disabled:cursor-default disabled:opacity-50"
           >
             {voices.length === 0 && !voicesLoading && (
               <option value="Ashley">Ashley (fallback)</option>
@@ -638,7 +647,7 @@ export default function Page() {
               }}
               className="accent-blue-500"
             />
-            <span className={mode === m ? "text-gray-900 font-medium dark:text-white" : "text-gray-500"}>
+            <span className={mode === m ? "text-gray-900 font-medium" : "text-gray-500"}>
               {m === "streaming" ? "Streaming (play as chunks arrive)" : "Buffered (play after all received)"}
             </span>
           </label>
@@ -654,7 +663,7 @@ export default function Page() {
             onChange={(e) => setSimulateStreaming(e.target.checked)}
             className="accent-blue-500"
           />
-          <span className="text-gray-300">Simulate LLM token streaming</span>
+          <span className="text-gray-700">Simulate LLM token streaming</span>
         </label>
         {simulateStreaming && (
           <label className="flex items-center gap-1.5 text-sm">
@@ -666,7 +675,7 @@ export default function Page() {
               step={0.01}
               value={tokenDelay}
               onChange={(e) => setTokenDelay(parseFloat(e.target.value) || 0.05)}
-              className="w-20 rounded border border-gray-600 bg-gray-800 px-2 py-1 text-white focus:border-blue-500 focus:outline-none"
+              className="w-20 rounded border border-gray-300 bg-white px-2 py-1 text-gray-900 focus:border-blue-500 focus:outline-none"
             />
             <span className="text-gray-500">s/token</span>
           </label>
@@ -678,61 +687,75 @@ export default function Page() {
         <button
           onClick={handleSpeak}
           disabled={status === "connecting" || status === "streaming" || audioPlayback.isPlaying || bufferedPlaying}
-          className="rounded bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-default disabled:bg-gray-600"
+          className="rounded bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-default disabled:bg-gray-300"
         >
           Speak
         </button>
         <button
           onClick={handleStop}
           disabled={status === "idle"}
-          className="rounded bg-red-600 px-6 py-2 text-white transition-colors hover:bg-red-700 disabled:cursor-default disabled:bg-gray-600"
+          className="rounded bg-red-600 px-6 py-2 text-white transition-colors hover:bg-red-700 disabled:cursor-default disabled:bg-gray-300"
         >
           Stop
         </button>
       </div>
 
       {/* ─── E2E Roleplay Test (collapsible) ──────────────────────────── */}
-      <div className="mb-6 rounded border border-gray-700">
+      <div className="mb-6 rounded border border-gray-200">
         <button
           onClick={() => setE2eOpen(!e2eOpen)}
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-300 hover:bg-gray-800/50"
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <span>E2E Roleplay Test <span className="font-normal text-gray-600">(unified WebSocket: LLM + TTS)</span></span>
           <span className="text-gray-500">{e2eOpen ? "▾" : "▸"}</span>
         </button>
 
         {e2eOpen && (
-          <div className="border-t border-gray-700 p-4">
+          <div className="border-t border-gray-200 p-4">
             {/* E2E status bar */}
-            <div className="mb-4 flex flex-wrap gap-x-6 gap-y-1 rounded bg-gray-900 px-4 py-2 text-xs font-mono">
+            <div className="mb-4 flex flex-wrap gap-x-6 gap-y-1 rounded bg-gray-50 px-4 py-2 text-xs font-mono">
               <span>
                 Status: <span className={e2eStatusColor(e2eStatus)}>{e2eStatus}</span>
               </span>
               <span>
-                WS: <span className={e2eWsRef.current ? "text-green-400" : "text-gray-500"}>{e2eWsRef.current ? "connected" : "closed"}</span>
+                Session: <span className={e2eWsRef.current ? "text-green-600" : "text-gray-500"}>{e2eWsRef.current ? "connected" : "closed"}</span>
               </span>
               <span>
                 AudioContext:{" "}
-                <span className="text-gray-300">{e2eAudioPlayback.contextState ?? "none"}</span>
+                <span className="text-gray-700">{e2eAudioPlayback.contextState ?? "none"}</span>
               </span>
               <span>
-                Chunks: <span className="text-gray-300">{e2eChunkCount}</span>
+                Chunks: <span className="text-gray-700">{e2eChunkCount}</span>
               </span>
               <span>
                 Playing:{" "}
-                <span className={e2eAudioPlayback.isPlaying ? "text-green-400" : "text-gray-500"}>
+                <span className={e2eAudioPlayback.isPlaying ? "text-green-600" : "text-gray-500"}>
                   {e2eAudioPlayback.isPlaying ? "yes" : "no"}
                 </span>
               </span>
               <button
                 onClick={handleE2eStop}
-                className="ml-auto rounded bg-red-800 px-2 py-0.5 text-red-200 hover:bg-red-700"
+                className="ml-auto rounded bg-red-100 px-2 py-0.5 text-red-700 hover:bg-red-200"
               >
                 Stop
               </button>
             </div>
 
-            {/* Verbose toggle */}
+            {/* Speed + verbose */}
+            <div className="mb-3 flex items-center gap-4">
+              <label className="flex items-center gap-2 text-xs text-gray-500">
+                Speed: {e2eSpeed.toFixed(1)}x
+                <input
+                  type="range"
+                  min={1.0}
+                  max={1.5}
+                  step={0.1}
+                  value={e2eSpeed}
+                  onChange={(e) => setE2eSpeed(parseFloat(e.target.value))}
+                  className="w-24 accent-blue-500"
+                />
+              </label>
+            </div>
             <label className="mb-3 flex items-center gap-1.5 text-xs text-gray-400">
               <input
                 type="checkbox"
@@ -744,12 +767,12 @@ export default function Page() {
             </label>
 
             {/* Conversation */}
-            <div className="mb-3 h-48 overflow-y-auto rounded border border-gray-700 bg-gray-900 p-3 text-sm">
+            <div className="mb-3 h-48 overflow-y-auto rounded border border-gray-200 bg-gray-50 p-3 text-sm">
               {messages.length === 0 && !streamingContent && (
                 <span className="text-gray-600">Send a message to start the roleplay...</span>
               )}
               {messages.map((m, i) => (
-                <div key={i} className={`mb-2 ${m.role === "user" ? "text-blue-300" : "text-gray-200"}`}>
+                <div key={i} className={`mb-2 ${m.role === "user" ? "text-blue-600" : "text-gray-800"}`}>
                   <span className="text-xs font-medium text-gray-500">
                     {m.role === "user" ? "You" : "Jordan"}:{" "}
                   </span>
@@ -757,7 +780,7 @@ export default function Page() {
                 </div>
               ))}
               {streamingContent && (
-                <div className="mb-2 text-gray-200">
+                <div className="mb-2 text-gray-800">
                   <span className="text-xs font-medium text-gray-500">Jordan: </span>
                   {streamingContent}
                   <span className="animate-pulse text-gray-500">|</span>
@@ -771,14 +794,14 @@ export default function Page() {
                 type="text"
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
-                className="flex-1 rounded border border-gray-600 bg-gray-800 px-3 py-2 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                className="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none"
                 placeholder="Type a message..."
                 onKeyDown={(e) => e.key === "Enter" && handleSendAndSpeak()}
               />
               <button
                 onClick={handleSendAndSpeak}
                 disabled={e2eStatus === "streaming" || !userInput.trim()}
-                className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-default disabled:bg-gray-600"
+                className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-default disabled:bg-gray-300"
               >
                 Send &amp; Speak
               </button>
@@ -800,12 +823,12 @@ export default function Page() {
           <h2 className="text-sm font-medium text-gray-400">Event Log</h2>
           <button
             onClick={() => { setLogs([]); logStartRef.current = 0; }}
-            className="text-xs text-gray-600 hover:text-gray-400"
+            className="text-xs text-gray-400 hover:text-gray-600"
           >
             Clear
           </button>
         </div>
-        <div className="h-64 overflow-y-auto rounded bg-gray-900 p-3 font-mono text-xs">
+        <div className="h-64 overflow-y-auto rounded bg-gray-50 p-3 font-mono text-xs">
           {logs.length === 0 ? (
             <span className="text-gray-600">
               Click &quot;Speak&quot; to start...
@@ -817,13 +840,14 @@ export default function Page() {
                 <span className={TAG_COLORS[entry.tag] ?? "text-gray-400"}>
                   [{entry.tag}]
                 </span>{" "}
-                <span className="text-gray-300">{entry.msg}</span>
+                <span className="text-gray-700">{entry.msg}</span>
               </div>
             ))
           )}
           <div ref={logEndRef} />
         </div>
       </div>
+    </div>
     </div>
   );
 }

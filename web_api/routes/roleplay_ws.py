@@ -37,7 +37,7 @@ from core.tts import (
     TTSConfig,
     QueueIterator,
     find_split,
-    get_tts_client,
+    synthesize as tts_synthesize,
     is_tts_available,
 )
 from web_api.auth import verify_jwt
@@ -276,6 +276,21 @@ async def _handle_turn_with_tts(
         first_sent = False
         t0 = time.monotonic()
 
+        async def send_sentence(text: str) -> None:
+            nonlocal first_sent
+            elapsed = time.monotonic() - t0
+            preview = text.strip()[:120]
+            ellipsis = "..." if len(text.strip()) > 120 else ""
+            await ws.send_json(
+                {
+                    "type": "log",
+                    "tag": "TTS",
+                    "msg": f"[{elapsed:.1f}s] Sending: {preview}{ellipsis}",
+                }
+            )
+            await queue_iter.put(text)
+            first_sent = True
+
         try:
             async for chunk in stream_chat(
                 messages=llm_messages,
@@ -287,7 +302,6 @@ async def _handle_turn_with_tts(
                     assistant_content += content
                     await ws.send_json({"type": "text", "content": content})
 
-                    # Buffer for TTS
                     buffer += content
                     while True:
                         split_pos = find_split(buffer, aggressive=not first_sent)
@@ -296,35 +310,16 @@ async def _handle_turn_with_tts(
                         sentence = buffer[:split_pos]
                         buffer = buffer[split_pos:]
                         if sentence.strip():
-                            elapsed = time.monotonic() - t0
-                            await ws.send_json(
-                                {
-                                    "type": "log",
-                                    "tag": "TTS",
-                                    "msg": f"[{elapsed:.1f}s] Sending: {sentence.strip()[:60]}...",
-                                }
-                            )
-                            await queue_iter.put(sentence)
-                            first_sent = True
+                            await send_sentence(sentence)
 
                 elif chunk.get("type") == "thinking":
                     await ws.send_json(
                         {"type": "thinking", "content": chunk.get("content", "")}
                     )
-                elif chunk.get("type") == "done":
-                    pass  # Handled below
 
-            # Flush remaining buffer
+            # LLM done — flush remaining buffer
             if buffer.strip():
-                elapsed = time.monotonic() - t0
-                await ws.send_json(
-                    {
-                        "type": "log",
-                        "tag": "TTS",
-                        "msg": f"[{elapsed:.1f}s] Sending final: {buffer.strip()[:60]}",
-                    }
-                )
-                await queue_iter.put(buffer)
+                await send_sentence(buffer)
 
         except asyncio.CancelledError:
             if buffer.strip():
@@ -337,7 +332,11 @@ async def _handle_turn_with_tts(
         finally:
             await queue_iter.put(None)  # Signal end-of-stream to TTS
 
+    tts_audio_bytes = 0
+    tts_audio_chunks = 0
+
     async def tts_task():
+        nonlocal tts_audio_bytes, tts_audio_chunks
         try:
             if not is_tts_available():
                 await ws.send_json(
@@ -349,9 +348,29 @@ async def _handle_turn_with_tts(
                 )
                 return
 
-            client = get_tts_client()
-            async for audio_chunk in client.synthesize(queue_iter, tts_config):
+            async for audio_chunk in tts_synthesize(queue_iter, tts_config):
+                tts_audio_bytes += len(audio_chunk)
+                tts_audio_chunks += 1
                 await ws.send_bytes(audio_chunk)
+
+            # Report audio stats so frontend can verify delivery
+            encoding = tts_config.audio_encoding if tts_config else "MP3"
+            sample_rate = tts_config.sample_rate_hz if tts_config else 48000
+            if encoding == "LINEAR16":
+                duration = tts_audio_bytes / 2 / sample_rate
+            else:
+                duration = None  # Can't easily compute for MP3
+            await ws.send_json(
+                {
+                    "type": "log",
+                    "tag": "TTS",
+                    "msg": (
+                        f"Audio complete: {tts_audio_chunks} chunks, "
+                        f"{tts_audio_bytes} bytes"
+                        + (f", {duration:.1f}s" if duration else "")
+                    ),
+                }
+            )
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -397,7 +416,13 @@ async def _handle_turn_with_tts(
                 content=assistant_content,
             )
 
-    await ws.send_json({"type": "done"})
+    await ws.send_json(
+        {
+            "type": "done",
+            "audio_bytes": tts_audio_bytes,
+            "audio_chunks": tts_audio_chunks,
+        }
+    )
     return assistant_content
 
 
@@ -429,8 +454,7 @@ async def _handle_opening_message(
             async def _single_iter():
                 yield opening
 
-            client = get_tts_client()
-            async for audio_chunk in client.synthesize(_single_iter(), tts_config):
+            async for audio_chunk in tts_synthesize(_single_iter(), tts_config):
                 await ws.send_bytes(audio_chunk)
         except Exception as e:
             logger.error("TTS error for opening message: %s", e)
