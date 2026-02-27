@@ -286,7 +286,7 @@ function InlineFootnote({ children }: { children?: React.ReactNode }) {
               rounded-lg shadow-lg border border-gray-200 leading-relaxed"
           >
             <span className="absolute top-1.5 right-2 flex items-center">
-              <img src="/assets/Logo only.png" alt="" className="w-[0.85em] h-[0.85em] opacity-50 !my-0" />
+              <img src="/assets/Logo only.png" alt="" className="w-[1.1em] h-[1.1em] opacity-70 !my-0" />
             </span>
             {children}
           </div>
