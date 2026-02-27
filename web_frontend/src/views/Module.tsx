@@ -1172,7 +1172,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                       const postExcerpt = segments.slice(lastExcerptIdx + 1);
 
                       return (
-                        <>
+                        <div className="max-w-content-padded mx-auto article-toc-margin">
                           {/* Pre-excerpt content (intro, setup) */}
                           {preExcerpt.map((segment, i) =>
                             renderSegment(segment, section, sectionIndex, i),
@@ -1199,7 +1199,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                               lastExcerptIdx + 1 + i,
                             ),
                           )}
-                        </>
+                        </div>
                       );
                     })()}
                   </ArticleSectionWrapper>
@@ -1247,7 +1247,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                       const postExcerpt = segments.slice(lastExcerptIdx + 1);
 
                       return (
-                        <>
+                        <div className="max-w-content-padded mx-auto article-toc-margin">
                           {/* Pre-excerpt content (intro, setup) */}
                           {preExcerpt.map((segment, i) =>
                             renderSegment(segment, section, sectionIndex, i),
@@ -1274,7 +1274,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                               lastExcerptIdx + 1 + i,
                             ),
                           )}
-                        </>
+                        </div>
                       );
                     })()}
                   </ArticleSectionWrapper>

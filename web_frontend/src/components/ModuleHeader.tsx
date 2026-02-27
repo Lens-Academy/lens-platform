@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMedia } from "react-use";
 import { useScrollDirection } from "../hooks/useScrollDirection";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
@@ -41,6 +42,14 @@ export function ModuleHeader({
     false,
   );
   const shouldHideHeader = isCompactViewport && scrollDirection === "down";
+
+  // Expose header visibility to CSS for ToC max-height calculation
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--module-header-offset",
+      shouldHideHeader ? "0px" : "var(--module-header-height)",
+    );
+  }, [shouldHideHeader]);
 
   // Current viewing position (1-indexed for display)
   const displayIndex = currentSectionIndex + 1;

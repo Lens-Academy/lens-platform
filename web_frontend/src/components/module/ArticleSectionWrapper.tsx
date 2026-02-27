@@ -82,6 +82,8 @@ export default function ArticleSectionWrapper({
 
   // Update ToC item styles directly in the DOM (no React re-render)
   const updateTocStyles = useCallback((currentIndex: number) => {
+    let currentElement: HTMLElement | null = null;
+
     tocItemsRef.current.forEach(({ index, element }) => {
       const isCurrent = index === currentIndex;
       const isPassed = index < currentIndex;
@@ -96,7 +98,37 @@ export default function ArticleSectionWrapper({
         li.classList.toggle("border-transparent", !isCurrent);
         li.classList.toggle("border-gray-900", isCurrent);
       }
+
+      if (isCurrent) currentElement = element;
     });
+
+    // Auto-scroll the ToC so the active item stays visible near the center
+    if (currentElement) {
+      const scrollContainer = (currentElement as HTMLElement).closest(
+        ".overflow-y-auto",
+      );
+      if (scrollContainer) {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const itemRect = (currentElement as HTMLElement).getBoundingClientRect();
+        const targetY = containerRect.height * 0.5;
+        const currentY = itemRect.top - containerRect.top;
+        const scrollDelta = currentY - targetY;
+        if (Math.abs(scrollDelta) > 10) {
+          // Animate scroll over 600ms with ease-out
+          const start = scrollContainer.scrollTop;
+          const end = start + scrollDelta;
+          const duration = 600;
+          const t0 = performance.now();
+          const step = (now: number) => {
+            const elapsed = Math.min((now - t0) / duration, 1);
+            const eased = 1 - (1 - elapsed) ** 3; // ease-out cubic
+            scrollContainer.scrollTop = start + (end - start) * eased;
+            if (elapsed < 1) requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        }
+      }
+    }
   }, []);
 
   // Find the current heading (last one above the threshold)

@@ -18,6 +18,7 @@
 
   /* Module header height for content offset calculations */
   --module-header-height: 68px;
+  --module-header-offset: var(--module-header-height);
 
   /* Spring easing - slight overshoot and settle */
   --ease-spring: linear(
@@ -126,6 +127,24 @@ body {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* Article section margin: centered by default, but ensures enough left
+   space for the ToC (250px + 24px gap) when the viewport is tight.
+   Uses explicit calc (not auto) so margin-left can transition smoothly. */
+.article-toc-margin {
+  margin-left: max(0px, calc((100% - var(--container-content-padded)) / 2));
+  margin-right: auto;
+  transition: margin-left 0.3s ease-out;
+}
+
+@media (min-width: 1100px) {
+  .article-toc-margin {
+    margin-left: max(
+      calc((100% - var(--container-content-padded)) / 2),
+      274px
+    );
   }
 }
 
