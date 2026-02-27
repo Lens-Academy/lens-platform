@@ -1,6 +1,20 @@
 // web_frontend/src/components/module/ArticleEmbed.tsx
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
+import {
+  useFloating,
+  useHover,
+  useFocus,
+  useClick,
+  useDismiss,
+  useRole,
+  useInteractions,
+  offset,
+  flip,
+  shift,
+  FloatingPortal,
+  safePolygon,
+} from "@floating-ui/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkDirective from "remark-directive";
@@ -212,74 +226,73 @@ function BlockNote({ children }: { children?: React.ReactNode }) {
 
 function InlineNote({ children }: { children?: React.ReactNode }) {
   return (
-    <span className="bg-white rounded px-1 py-0.5 text-sm text-gray-600">
-      [<img src="/assets/Logo only.png" alt="Lens" className="inline h-[0.85em] w-auto opacity-70 align-baseline mx-0.5 !my-0" />: {children}]
+    <span className="bg-white/85 rounded border border-gray-100 shadow-[inset_0_0_4px_0_rgba(0,0,0,0.06)] px-1.5 py-0.5 text-sm text-gray-600">
+      <img src="/assets/Logo only.png" alt="Lens" className="inline h-[0.85em] w-auto opacity-70 align-baseline mr-1 !my-0" />{children}
     </span>
   );
 }
 
 function InlineFootnote({ children }: { children?: React.ReactNode }) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [position, setPosition] = useState<"above" | "below">("above");
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const wrapperRef = useRef<HTMLSpanElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
 
-  const show = () => {
-    clearTimeout(timeoutRef.current);
-    if (wrapperRef.current) {
-      const rect = wrapperRef.current.getBoundingClientRect();
-      setPosition(rect.top < 200 ? "below" : "above");
-    }
-    setIsVisible(true);
-  };
+  const { refs, floatingStyles, context } = useFloating({
+    open: isOpen,
+    onOpenChange: setIsOpen,
+    placement: "top",
+    middleware: [offset(8), flip(), shift({ padding: 8 })],
+  });
 
-  const hide = () => {
-    timeoutRef.current = setTimeout(() => setIsVisible(false), 300);
-  };
+  const hover = useHover(context, {
+    delay: { open: 0, close: 300 },
+    handleClose: safePolygon(),
+  });
+  const click = useClick(context);
+  const focus = useFocus(context);
+  const dismiss = useDismiss(context);
+  const role = useRole(context, { role: "tooltip" });
 
-  useEffect(() => () => clearTimeout(timeoutRef.current), []);
-
-  // Click-outside to dismiss (for mobile tap-away)
-  useEffect(() => {
-    if (!isVisible) return;
-    const handleClick = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setIsVisible(false);
-      }
-    };
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
-  }, [isVisible]);
+  const { getReferenceProps, getFloatingProps } = useInteractions([
+    hover,
+    click,
+    focus,
+    dismiss,
+    role,
+  ]);
 
   return (
-    <span
-      ref={wrapperRef}
-      className="relative inline-flex items-center"
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onClick={show}
-    >
-      <img
-        src="/assets/Logo only.png"
-        alt="footnote"
-        role="img"
-        className="w-3.5 h-3.5 opacity-70 hover:opacity-90 cursor-default !my-0"
-      />
+    <>
+      <span
+        ref={refs.setReference}
+        {...getReferenceProps()}
+        tabIndex={0}
+        className="inline-flex items-center justify-center w-[1.38em] h-[1.38em] mx-0.5 rounded-full
+          bg-gray-100 shadow-sm hover:bg-gray-200 cursor-default align-middle -translate-y-[0.1em]"
+      >
+        <img
+          src="/assets/Logo only.png"
+          alt="footnote"
+          role="img"
+          className="w-[1.03em] h-[1.03em] opacity-70 !my-0 translate-x-[0.03em] -translate-y-[0.03em]"
+        />
+      </span>
 
-      {isVisible && (
-        <span
-          className={`absolute z-50 w-64 max-w-[80vw] px-3 py-2 text-sm text-gray-700 bg-white
-            rounded-lg shadow-lg border border-gray-200 leading-relaxed
-            ${position === "above" ? "bottom-full mb-1.5" : "top-full mt-1.5"}
-            left-1/2 -translate-x-1/2`}
-          onMouseEnter={show}
-          onMouseLeave={hide}
-          role="tooltip"
-        >
-          {children}
-        </span>
+      {isOpen && (
+        <FloatingPortal>
+          <div
+            ref={refs.setFloating}
+            style={floatingStyles}
+            {...getFloatingProps()}
+            className="z-50 w-64 max-w-[80vw] px-3 py-2 text-sm text-gray-700 bg-white
+              rounded-lg shadow-lg border border-gray-200 leading-relaxed"
+          >
+            <span className="absolute top-1.5 right-2 flex items-center">
+              <img src="/assets/Logo only.png" alt="" className="w-[0.85em] h-[0.85em] opacity-50 !my-0" />
+            </span>
+            {children}
+          </div>
+        </FloatingPortal>
       )}
-    </span>
+    </>
   );
 }
 
