@@ -463,6 +463,27 @@ async def _handle_opening_message(
     return opening
 
 
+async def _replay_opening_tts(
+    ws: WebSocket,
+    ctx: dict,
+) -> None:
+    """Replay TTS for existing session's opening message (no text, no DB save)."""
+    opening = ctx["opening_message"]
+    tts_config = ctx.get("tts_config")
+    if tts_config and is_tts_available():
+        try:
+
+            async def _single_iter():
+                yield opening
+
+            async for audio_chunk in tts_synthesize(_single_iter(), tts_config):
+                await ws.send_bytes(audio_chunk)
+        except Exception as e:
+            logger.error("TTS replay error for opening message: %s", e)
+
+    await ws.send_json({"type": "done"})
+
+
 @router.websocket("/ws/chat/roleplay")
 async def roleplay_ws(ws: WebSocket) -> None:
     """Unified roleplay WebSocket: LLM + optional TTS."""
@@ -508,25 +529,35 @@ async def roleplay_ws(ws: WebSocket) -> None:
 
             user_message = data.get("message", "")
 
-            # Opening message path: empty message + new session + opening configured
-            if (
-                not user_message
-                and not ctx["existing_messages"]
-                and ctx.get("opening_message")
-            ):
-                turn_in_progress = True
+            # Opening message path: empty message + opening configured
+            if not user_message and ctx.get("opening_message"):
+                if not ctx["existing_messages"]:
+                    # New session: save to DB, stream text + TTS
+                    turn_in_progress = True
 
-                async def _do_opening():
-                    nonlocal turn_in_progress
-                    try:
-                        content = await _handle_opening_message(ws, ctx)
-                        ctx["existing_messages"].append(
-                            {"role": "assistant", "content": content}
-                        )
-                    finally:
-                        turn_in_progress = False
+                    async def _do_opening():
+                        nonlocal turn_in_progress
+                        try:
+                            content = await _handle_opening_message(ws, ctx)
+                            ctx["existing_messages"].append(
+                                {"role": "assistant", "content": content}
+                            )
+                        finally:
+                            turn_in_progress = False
 
-                turn_task = asyncio.ensure_future(_do_opening())
+                    turn_task = asyncio.ensure_future(_do_opening())
+                else:
+                    # Existing session: replay TTS only (text already in history)
+                    turn_in_progress = True
+
+                    async def _do_replay_tts():
+                        nonlocal turn_in_progress
+                        try:
+                            await _replay_opening_tts(ws, ctx)
+                        finally:
+                            turn_in_progress = False
+
+                    turn_task = asyncio.ensure_future(_do_replay_tts())
                 continue
 
             if not user_message:

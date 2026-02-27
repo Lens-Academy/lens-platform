@@ -73,12 +73,6 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
   // Track the voice config the current WS was opened with, so we can
   // detect when the user toggles TTS and reconnect.
   const wsVoiceRef = useRef<string | undefined>(undefined);
-  // Track whether the session returned existing messages from history.
-  // Needed because of lazy-connect: on page reload the UI shows the Start
-  // button (no WS yet → messages=[]), but the server may return an existing
-  // session with history. In that case we must skip the empty opening-message
-  // trigger to avoid getting stuck in "streaming" forever.
-  const sessionHadMessagesRef = useRef(false);
   // Stable ref for config so onmessage handler always reads latest
   const configRef = useRef(config);
   configRef.current = config;
@@ -96,7 +90,6 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
       wsRef.current = null;
     }
     initedRef.current = false;
-    sessionHadMessagesRef.current = false;
   }, []);
 
   /** Open a new WebSocket and send the init message. Returns a promise
@@ -159,7 +152,6 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
           switch (parsed.type) {
             case "session":
               initedRef.current = true;
-              sessionHadMessagesRef.current = (parsed.messages?.length ?? 0) > 0;
               setSessionId(parsed.session_id);
               setIsCompleted(!!parsed.completed_at);
               setMessages(parsed.messages ?? []);
@@ -241,15 +233,6 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
 
     try {
       const ws = await openWs();
-
-      // If this is an opening-message trigger (empty content) but the session
-      // already has conversation history, skip sending — the server won't
-      // respond to an empty message on an existing session, which would leave
-      // us stuck in "streaming" forever.
-      if (!content.trim() && sessionHadMessagesRef.current) {
-        setStatus("idle");
-        return;
-      }
 
       setStatus("streaming");
       ws.send(JSON.stringify({ message: content }));
