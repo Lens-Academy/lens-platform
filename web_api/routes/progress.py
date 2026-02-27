@@ -5,6 +5,7 @@ Endpoints:
 - POST /api/progress/time - Update time spent (heartbeat or beacon)
 """
 
+import asyncio
 import json
 from uuid import UUID
 
@@ -244,6 +245,18 @@ async def complete_content(
                     module_status = "in_progress"
 
                 module_progress = {"completed": completed_count, "total": total_count}
+
+    # Fire-and-forget: update study activity message in group channel
+    # Only for authenticated users completing lens content with a module_slug
+    if body.module_slug and user_id and body.content_type == "lens":
+        from core.notifications.study_activity import update_study_activity
+
+        asyncio.create_task(
+            update_study_activity(
+                user_id=user_id,
+                module_slug=body.module_slug,
+            )
+        )
 
     return MarkCompleteResponse(
         completed_at=(
