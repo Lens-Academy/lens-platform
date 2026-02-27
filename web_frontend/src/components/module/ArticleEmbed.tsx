@@ -226,8 +226,8 @@ function BlockNote({ children }: { children?: React.ReactNode }) {
 
 function InlineNote({ children }: { children?: React.ReactNode }) {
   return (
-    <span className="bg-white/85 rounded border border-gray-100 shadow-[inset_0_0_4px_0_rgba(0,0,0,0.06)] px-1.5 py-0.5 text-sm text-gray-600">
-      <img src="/assets/Logo only.png" alt="Lens" className="inline h-[0.85em] w-auto opacity-70 align-baseline mr-1 !my-0" />{children}
+    <span className="bg-white/85 rounded border border-gray-100 shadow-[inset_0_0_4px_0_rgba(0,0,0,0.06)] px-1.5 py-0.5">
+      <img src="/assets/Logo only.png" alt="Lens" className="inline h-[1em] w-auto opacity-70 align-baseline mr-1 !my-0 translate-y-[0.08em]" />{children}
     </span>
   );
 }
@@ -610,11 +610,11 @@ export default function ArticleEmbed({
           return (
             <div key={i} className="bg-amber-50/50 px-4 py-2">
               <div className="max-w-[calc(var(--container-content)+2rem)] mx-auto rounded-lg border border-gray-100 bg-white/85 shadow-[inset_0_0_6px_0_rgba(0,0,0,0.06)] px-4 py-3 text-sm text-gray-700 leading-relaxed relative">
-                <div className="absolute top-2 right-3 flex items-center gap-1 text-xs text-gray-400">
+                <div className="absolute top-2 right-3 flex items-center gap-1.5 text-sm text-gray-600">
                   <img
                     src="/assets/Logo only.png"
                     alt=""
-                    className="w-3 h-3 opacity-70"
+                    className="w-4 h-4 opacity-70"
                   />
                   <span>Lens</span>
                 </div>
