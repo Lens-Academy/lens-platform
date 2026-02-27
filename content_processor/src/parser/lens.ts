@@ -101,7 +101,7 @@ const VALID_SEGMENTS_PER_SECTION: Record<string, Set<string>> = {
   'lens-video': new Set(['text', 'chat', 'video-excerpt', 'question', 'roleplay']),
 };
 // H4 segment header pattern: #### <type> or #### <type>: <title>
-const SEGMENT_HEADER_PATTERN = /^####\s+([^:\s]+)(?::\s*(.*))?$/i;
+const SEGMENT_HEADER_PATTERN = /^####\s+([^:\s]+)(?::\s*(.*?))?\s*$/i;
 
 // Field pattern: fieldname:: value
 const FIELD_PATTERN = /^([\w-]+)::\s*(.*)$/;
@@ -526,6 +526,33 @@ export function stripObsidianComments(content: string): string {
 }
 
 /**
+ * Strip CriticMarkup from content using reject-all-changes behavior:
+ * - {>>comments<<} → removed
+ * - {++additions++} → removed
+ * - {--deletions--} → inner content kept (original preserved)
+ * - {~~old~>new~~} → old text kept
+ * - {==highlights==} → inner content kept, markers removed
+ */
+export function stripCriticMarkup(content: string): string {
+  return content
+    .replace(/\{>>.*?<<\}/gs, '')                          // Comments → remove
+    .replace(/\{\+\+.*?\+\+\}/gs, '')                      // Additions → remove
+    .replace(/\{--(?:\{[^}]*\}@@)?(.*?)--\}/gs, '$1')      // Deletions → keep inner (skip metadata)
+    .replace(/\{~~(?:\{[^}]*\}@@)?(.*?)~>.*?~~\}/gs, '$1') // Substitutions → keep old (skip metadata)
+    .replace(/\{==(?:\{[^}]*\}@@)?(.*?)==\}/gs, '$1');      // Highlights → keep inner (skip metadata)
+}
+
+/**
+ * Strip all authoring markup (CriticMarkup + Obsidian comments) from content.
+ * Call at the top of each parser before any processing.
+ */
+export function stripAuthoringMarkup(content: string): string {
+  const stripped = stripObsidianComments(stripCriticMarkup(content));
+  // Trim trailing whitespace left by inline markup removal
+  return stripped.split('\n').map(line => line.trimEnd()).join('\n');
+}
+
+/**
  * Parse a lens file into structured lens data.
  *
  * Lens files use:
@@ -535,8 +562,8 @@ export function stripObsidianComments(content: string): string {
 export function parseLens(content: string, file: string): LensParseResult {
   const errors: ContentError[] = [];
 
-  // Strip Obsidian comments before parsing
-  content = stripObsidianComments(content);
+  // Strip authoring markup (CriticMarkup + Obsidian comments) before parsing
+  content = stripAuthoringMarkup(content);
 
   // Step 1: Parse frontmatter and validate id field
   const frontmatterResult = parseFrontmatter(content, file);

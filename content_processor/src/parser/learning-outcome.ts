@@ -5,7 +5,7 @@ import { parseSections, LO_SECTION_TYPES } from './sections.js';
 import { parseWikilink, resolveWikilinkPath, hasRelativePath } from './wikilink.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
-import { parseSegments, convertSegment, stripObsidianComments, type ParsedLensSegment } from './lens.js';
+import { parseSegments, convertSegment, stripAuthoringMarkup, type ParsedLensSegment } from './lens.js';
 
 export interface ParsedLensRef {
   source: string;       // Raw wikilink
@@ -34,8 +34,8 @@ export interface LearningOutcomeParseResult {
 export function parseLearningOutcome(content: string, file: string): LearningOutcomeParseResult {
   const errors: ContentError[] = [];
 
-  // Strip Obsidian comments before parsing
-  content = stripObsidianComments(content);
+  // Strip authoring markup (CriticMarkup + Obsidian comments) before parsing
+  content = stripAuthoringMarkup(content);
 
   // Step 1: Parse frontmatter and validate id field
   const frontmatterResult = parseFrontmatter(content, file);

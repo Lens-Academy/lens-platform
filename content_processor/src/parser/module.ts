@@ -4,6 +4,7 @@ import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, MODULE_SECTION_TYPES, type ParsedSection } from './sections.js';
 import { validateSlugFormat } from '../validator/field-values.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
+import { stripAuthoringMarkup } from './lens.js';
 
 export interface PageSegmentResult {
   segments: (TextSegment | ChatSegment)[];
@@ -233,6 +234,9 @@ export interface ModuleParseResult {
 
 export function parseModule(content: string, file: string): ModuleParseResult {
   const errors: ContentError[] = [];
+
+  // Strip authoring markup (CriticMarkup + Obsidian comments) before parsing
+  content = stripAuthoringMarkup(content);
 
   // Parse frontmatter
   const frontmatterResult = parseFrontmatter(content, file);

@@ -48,6 +48,17 @@ function normalizeSummary(raw: unknown): CategorySummary {
   return raw as CategorySummary;
 }
 
+function getCategoryLabel(cat: string): string {
+  const env = isProductionSite() ? "Production" : "Staging";
+  if (cat === "production") return `${env}-non-WiP`;
+  if (cat === "wip") return `${env}-WiP`;
+  return cat;
+}
+
+function isProductionSite(): boolean {
+  return !import.meta.env.VITE_ENV_LABEL && import.meta.env.PROD;
+}
+
 export default function ContentValidator() {
   const [state, setState] = useState<ValidationState | null>(null);
   const [connectionStatus, setConnectionStatus] =
@@ -110,6 +121,18 @@ export default function ContentValidator() {
 
   return (
     <div className="py-8 max-w-4xl mx-auto px-4">
+      {isProductionSite() && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 mb-6">
+          You're viewing production data. For the latest validation results,{" "}
+          <a
+            href="https://staging.lensacademy.org/validate"
+            className="text-blue-600 hover:underline font-medium"
+          >
+            check the staging validator
+          </a>
+          .
+        </div>
+      )}
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold">Content Validator</h1>
         <div className="flex items-center gap-3">
@@ -127,7 +150,10 @@ export default function ContentValidator() {
       </div>
 
       <p className="text-gray-600 mb-6">
-        Live validation status. Updates automatically when content changes.{" "}
+        Live validation status. Updates automatically when content changes.
+        Files with a{" "}
+        <code className="text-xs bg-gray-200 px-1 rounded">validator-ignore</code>{" "}
+        tag in their frontmatter are completely excluded.{" "}
         <a
           href="https://github.com/Lens-Academy/lens-edu-relay/tree/staging"
           target="_blank"
@@ -165,14 +191,14 @@ export default function ContentValidator() {
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
-                    className={`px-3 py-2 text-sm font-medium capitalize transition-colors
+                    className={`px-3 py-2 text-sm font-medium transition-colors
                       ${
                         isActive
                           ? "border-b-2 border-blue-600 text-blue-700"
                           : "text-gray-500 hover:text-gray-700"
                       }`}
                   >
-                    {cat}
+                    {getCategoryLabel(cat)}
                     {catSummary.errors > 0 && (
                       <span className="ml-1.5 text-xs font-semibold text-red-600">
                         {catSummary.errors}E
@@ -287,21 +313,25 @@ function PipelineStatus({ state }: { state: ValidationState }) {
           <span>
             {state.fetched_sha === state.known_sha
               ? "Processing..."
-              : "Fetching..."}
+              : "Downloading..."}
           </span>
         </div>
       )}
       <ShaRow
-        label="Detected"
+        label="Detected on GitHub"
         sha={state.known_sha}
         timestamp={state.known_sha_timestamp}
       />
       <ShaRow
-        label="Fetched"
+        label="Downloaded from GitHub"
         sha={state.fetched_sha}
         timestamp={state.fetched_sha_timestamp}
       />
-      <ShaRow label="Processed" timestamp={state.processed_sha_timestamp} />
+      <ShaRow
+        label="Processed and showing on this page"
+        sha={state.processed_sha}
+        timestamp={state.processed_sha_timestamp}
+      />
     </div>
   );
 }
@@ -315,13 +345,17 @@ function ShaRow({
   sha?: string;
   timestamp?: string;
 }) {
-  if (!sha) return null;
+  if (!sha && !timestamp) return null;
   return (
     <div className="flex items-center gap-2">
-      <span className="w-20 text-gray-400">{label}</span>
-      <code className="text-xs bg-gray-200 px-1 rounded">
-        {sha.slice(0, 8)}
-      </code>
+      <span className="w-64 shrink-0 text-gray-400">
+        {label}
+      </span>
+      {sha && (
+        <code className="text-xs bg-gray-200 px-1 rounded">
+          {sha.slice(0, 8)}
+        </code>
+      )}
       {timestamp && (
         <span className="text-gray-400">{formatRelativeTime(timestamp)}</span>
       )}
