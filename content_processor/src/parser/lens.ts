@@ -8,6 +8,7 @@ import { validateFieldValues } from '../validator/field-values.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
 import { validateChatPrecedence } from '../validator/chat-precedence.js';
+import { detectDirectivesInNonArticle } from '../validator/directives.js';
 import { parseWikilink, hasRelativePath } from './wikilink.js';
 import { parseTimestamp } from '../bundler/video.js';
 
@@ -266,6 +267,10 @@ export function convertSegment(
         return { segment, errors };
       }
 
+      // Warn if directives are used in lens text segments (they only render in articles)
+      const directiveWarnings = detectDirectivesInNonArticle(content, file, raw.line);
+      errors.push(...directiveWarnings);
+
       const segment: ParsedTextSegment = {
         type: 'text',
         content,
@@ -382,7 +387,7 @@ export function convertSegment(
     }
 
     case 'question': {
-      const content = raw.fields['content'] || raw.fields['user-instruction'];
+      const content = raw.fields['content'];
       if (!content || content.trim() === '') {
         errors.push({
           file,
@@ -397,7 +402,7 @@ export function convertSegment(
       const segment: ParsedQuestionSegment = {
         type: 'question',
         content,
-        assessmentInstructions: raw.fields['assessment-instructions'] || raw.fields['assessment-prompt'] || undefined,
+        assessmentInstructions: raw.fields['assessment-instructions'] || undefined,
         maxTime: raw.fields['max-time'] || undefined,
         maxChars: raw.fields['max-chars'] ? parseInt(raw.fields['max-chars'], 10) : undefined,
         enforceVoice: raw.fields['enforce-voice']?.toLowerCase() === 'true' ? true : undefined,

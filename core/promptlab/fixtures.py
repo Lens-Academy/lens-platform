@@ -30,16 +30,30 @@ class FixtureSection(TypedDict):
     conversations: list[FixtureConversation]
 
 
+class AssessmentItem(TypedDict):
+    label: str
+    question: str
+    answer: str
+
+
+class AssessmentSection(TypedDict):
+    name: str
+    instructions: str  # rubric
+    items: list[AssessmentItem]
+
+
 class FixtureSummary(TypedDict):
     name: str
     module: str
     description: str
+    type: str  # "chat" or "assessment"
 
 
 class Fixture(TypedDict):
     name: str
     module: str
     description: str
+    baseSystemPrompt: str
     sections: list[FixtureSection]
 
 
@@ -74,6 +88,7 @@ def list_fixtures() -> list[FixtureSummary]:
                     name=data["name"],
                     module=data["module"],
                     description=data["description"],
+                    type=data.get("type", "chat"),
                 )
             )
         except (json.JSONDecodeError, KeyError) as e:
@@ -83,15 +98,18 @@ def list_fixtures() -> list[FixtureSummary]:
     return fixtures
 
 
-def load_fixture(name: str) -> Fixture | None:
+def load_fixture(name: str) -> dict | None:
     """Load a specific fixture by name.
 
-    Supports two JSON formats:
+    Supports three JSON formats:
 
-    **Sectioned format** (new): has a top-level "sections" array, each with
+    **Assessment format**: has ``"type": "assessment"`` with sections
+    containing items (question/answer pairs) instead of conversations.
+
+    **Sectioned format** (chat): has a top-level "sections" array, each with
     name, instructions, context, and conversations.
 
-    **Flat format** (legacy): has top-level instructions, context, and
+    **Flat format** (legacy chat): has top-level instructions, context, and
     conversations. Normalized into a single section using the fixture name.
     """
     if not FIXTURES_DIR.exists():
@@ -103,7 +121,35 @@ def load_fixture(name: str) -> Fixture | None:
             if data.get("name") != name:
                 continue
 
-            # Sectioned format
+            fixture_type = data.get("type", "chat")
+
+            # Assessment fixtures
+            if fixture_type == "assessment":
+                sections = [
+                    AssessmentSection(
+                        name=s["name"],
+                        instructions=s["instructions"],
+                        items=[
+                            AssessmentItem(
+                                label=item["label"],
+                                question=item["question"],
+                                answer=item["answer"],
+                            )
+                            for item in s["items"]
+                        ],
+                    )
+                    for s in data["sections"]
+                ]
+                return {
+                    "name": data["name"],
+                    "module": data["module"],
+                    "type": "assessment",
+                    "description": data["description"],
+                    "baseSystemPrompt": data.get("baseSystemPrompt", ""),
+                    "sections": sections,
+                }
+
+            # Chat fixtures — sectioned format
             if "sections" in data:
                 sections = [
                     FixtureSection(
@@ -129,6 +175,7 @@ def load_fixture(name: str) -> Fixture | None:
                 name=data["name"],
                 module=data["module"],
                 description=data["description"],
+                baseSystemPrompt=data.get("baseSystemPrompt", ""),
                 sections=sections,
             )
         except (json.JSONDecodeError, KeyError) as e:

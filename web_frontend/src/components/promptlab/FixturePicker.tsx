@@ -3,12 +3,13 @@ import {
   listFixtures,
   loadFixture,
   type Fixture,
+  type AssessmentFixture,
   type FixtureSummary,
 } from "@/api/promptlab";
 
 interface FixturePickerProps {
   loadedFixtureNames: string[];
-  onSelect: (fixture: Fixture) => void;
+  onSelect: (fixture: Fixture | AssessmentFixture) => void;
   onClose: () => void;
 }
 
@@ -37,7 +38,7 @@ export default function FixturePicker({
     setLoadingName(name);
     try {
       const fixture = await loadFixture(name);
-      onSelect(fixture);
+      onSelect(fixture as Fixture | AssessmentFixture);
     } catch {
       // ignore
     } finally {
@@ -70,7 +71,16 @@ export default function FixturePicker({
             disabled={loadingName === f.name}
             className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-gray-50 last:border-b-0"
           >
-            <div className="text-xs font-medium text-slate-800">{f.name}</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium text-slate-800">
+                {f.name}
+              </span>
+              {(f.type || "chat") === "assessment" && (
+                <span className="text-[9px] font-medium text-amber-700 bg-amber-50 px-1 py-0.5 rounded">
+                  Assessment
+                </span>
+              )}
+            </div>
             <div className="text-[10px] text-slate-400">{f.module}</div>
           </button>
         ))

@@ -21,7 +21,7 @@ from core.questions import (
     update_response,
 )
 from core.database import get_connection, get_transaction
-from core.scoring import enqueue_scoring
+from core.assessment import enqueue_scoring
 from web_api.auth import get_user_or_anonymous
 
 router = APIRouter(prefix="/api/questions", tags=["questions"])

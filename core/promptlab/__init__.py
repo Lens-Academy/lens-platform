@@ -10,10 +10,12 @@ Fixtures are stored as JSON files in the repo (version-controlled, curated).
 
 from .fixtures import list_fixtures, load_fixture
 from .regenerate import regenerate_response, continue_conversation
+from .score import score_response
 
 __all__ = [
     "list_fixtures",
     "load_fixture",
     "regenerate_response",
     "continue_conversation",
+    "score_response",
 ]

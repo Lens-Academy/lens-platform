@@ -11,6 +11,7 @@ export interface FixtureSummary {
   name: string;
   module: string;
   description: string;
+  type?: string; // "chat" or "assessment"
 }
 
 export interface FixtureMessage {
@@ -34,7 +35,50 @@ export interface Fixture {
   name: string;
   module: string;
   description: string;
+  baseSystemPrompt?: string;
   sections: FixtureSection[];
+}
+
+// --- Assessment types ---
+
+export interface AssessmentItem {
+  label: string;
+  question: string;
+  answer: string;
+}
+
+export interface AssessmentSection {
+  name: string;
+  instructions: string;
+  items: AssessmentItem[];
+}
+
+export interface AssessmentFixture {
+  name: string;
+  module: string;
+  type: "assessment";
+  description: string;
+  baseSystemPrompt: string;
+  sections: AssessmentSection[];
+}
+
+export interface ScoreDimension {
+  name: string;
+  score: number;
+  note?: string;
+}
+
+export interface ScoreResult {
+  overall_score: number;
+  reasoning: string;
+  dimensions?: ScoreDimension[];
+  key_observations?: string[];
+}
+
+export function isAssessmentFixture(
+  f: Fixture | AssessmentFixture,
+): f is AssessmentFixture {
+  return (f as AssessmentFixture).type === "assessment";
 }
 
 export interface StreamEvent {
@@ -179,4 +223,34 @@ export async function* continueConversation(
       }
     }
   }
+}
+
+/**
+ * Score a student answer using the assessment prompt.
+ * Regular fetch (not SSE) — scoring uses non-streaming complete().
+ */
+export async function scoreAnswer(
+  baseSystemPrompt: string,
+  assessmentInstructions: string,
+  questionText: string,
+  answerText: string,
+  model?: string,
+): Promise<ScoreResult> {
+  const body: Record<string, unknown> = {
+    baseSystemPrompt,
+    assessmentInstructions,
+    questionText,
+    answerText,
+  };
+  if (model) body.model = model;
+
+  const res = await fetchWithRefresh(`${API_BASE}/api/promptlab/score`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) throw new Error("Failed to score answer");
+  return res.json();
 }

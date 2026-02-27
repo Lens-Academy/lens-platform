@@ -5,6 +5,8 @@ const POSTHOG_HOST =
   import.meta.env.VITE_POSTHOG_HOST || "https://eu.posthog.com";
 const CONSENT_KEY = "analytics-consent";
 
+import { API_URL } from "./config";
+
 // PostHog only runs in production to keep analytics clean
 const IS_PRODUCTION = import.meta.env.PROD;
 
@@ -84,10 +86,30 @@ export function resetUser(): void {
 }
 
 /**
+ * Sync consent choice to database (fire-and-forget).
+ * localStorage remains source of truth; DB enables cross-device sync and server-side queries.
+ */
+export async function syncConsentToServer(
+  choice: "accepted" | "declined",
+): Promise<void> {
+  try {
+    await fetch(`${API_URL}/api/users/me`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cookies_analytics_consent: choice }),
+    });
+  } catch {
+    // Fire-and-forget — localStorage is source of truth
+  }
+}
+
+/**
  * Opt in to tracking (user accepted consent)
  */
 export function optIn(): void {
   localStorage.setItem(CONSENT_KEY, "accepted");
+  syncConsentToServer("accepted");
   if (!isAnalyticsEnabled()) return;
 
   if (initialized) {
@@ -103,6 +125,7 @@ export function optIn(): void {
  */
 export function optOut(): void {
   localStorage.setItem(CONSENT_KEY, "declined");
+  syncConsentToServer("declined");
   if (!isAnalyticsEnabled() || !initialized) return;
   posthog.opt_out_capturing();
 }

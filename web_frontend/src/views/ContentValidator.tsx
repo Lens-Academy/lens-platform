@@ -86,8 +86,9 @@ export default function ContentValidator() {
 
   const allIssues = state?.issues || [];
   const summary = normalizeSummary(state?.summary);
-  const categories = Object.keys(summary).sort((a, b) =>
-    a === "production" ? -1 : b === "production" ? 1 : a.localeCompare(b),
+  const categories = [...new Set(["production", ...Object.keys(summary)])].sort(
+    (a, b) =>
+      a === "production" ? -1 : b === "production" ? 1 : a.localeCompare(b),
   );
 
   // Ensure activeCategory is valid (fall back to first available or "production")

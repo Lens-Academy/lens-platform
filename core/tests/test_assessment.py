@@ -1,9 +1,9 @@
-"""Tests for AI scoring module (prompt building and question resolution)."""
+"""Tests for AI assessment module (prompt building and question resolution)."""
 
 from unittest.mock import patch
 
 from core.modules.flattened_types import FlattenedModule
-from core.scoring import _build_scoring_prompt, _resolve_question_details
+from core.assessment import _build_scoring_prompt, _resolve_question_details
 
 
 def _make_module(sections):
@@ -21,31 +21,16 @@ def _make_module(sections):
 class TestBuildScoringPrompt:
     """Tests for _build_scoring_prompt -- a pure function that returns (system_prompt, messages)."""
 
-    def test_socratic_mode_prompt_emphasizes_learning(self):
-        """mode='socratic' produces system prompt containing supportive/effort/engagement, not rigorous."""
+    def test_prompt_is_rigorous_assessment(self):
+        """Unified prompt uses rigorous assessment language."""
         system, _messages = _build_scoring_prompt(
             answer_text="Some answer",
             question_text="Explain X",
             assessment_instructions=None,
             learning_outcome_name=None,
-            mode="socratic",
-        )
-        assert any(
-            word in system.lower() for word in ["supportive", "effort", "engagement"]
-        ), f"Socratic prompt should mention supportive/effort/engagement, got: {system}"
-        assert "rigorous" not in system.lower()
-
-    def test_assessment_mode_prompt_emphasizes_measurement(self):
-        """mode='assessment' produces system prompt containing rigorous/measure, not supportive."""
-        system, _messages = _build_scoring_prompt(
-            answer_text="Some answer",
-            question_text="Explain X",
-            assessment_instructions=None,
-            learning_outcome_name=None,
-            mode="assessment",
         )
         assert any(word in system.lower() for word in ["rigorous", "measure"]), (
-            f"Assessment prompt should mention rigorous/measure, got: {system}"
+            f"Prompt should mention rigorous/measure, got: {system}"
         )
         assert "supportive" not in system.lower()
 
@@ -56,7 +41,6 @@ class TestBuildScoringPrompt:
             question_text="Explain X",
             assessment_instructions=None,
             learning_outcome_name="Understanding X",
-            mode="socratic",
         )
         assert "Understanding X" in system
 
@@ -67,7 +51,6 @@ class TestBuildScoringPrompt:
             question_text="Explain X",
             assessment_instructions=None,
             learning_outcome_name=None,
-            mode="socratic",
         )
         assert "Learning Outcome:" not in system
 
@@ -78,7 +61,6 @@ class TestBuildScoringPrompt:
             question_text="Explain X",
             assessment_instructions="Check for X",
             learning_outcome_name=None,
-            mode="assessment",
         )
         assert "Scoring Rubric" in system
         assert "Check for X" in system
@@ -94,7 +76,6 @@ class TestBuildScoringPrompt:
             question_text="Explain X",
             assessment_instructions=None,
             learning_outcome_name=None,
-            mode="socratic",
         )
         assert "Scoring Rubric" not in system
 
@@ -105,7 +86,6 @@ class TestBuildScoringPrompt:
             question_text="Explain the concept of X",
             assessment_instructions=None,
             learning_outcome_name=None,
-            mode="socratic",
         )
         assert len(messages) == 1
         msg = messages[0]
@@ -120,7 +100,6 @@ class TestBuildScoringPrompt:
             question_text="Question",
             assessment_instructions=None,
             learning_outcome_name=None,
-            mode="socratic",
         )
         assert isinstance(result, tuple)
         assert len(result) == 2
@@ -138,9 +117,9 @@ class TestBuildScoringPrompt:
 class TestResolveQuestionDetails:
     """Tests for _resolve_question_details -- resolves question context from content cache."""
 
-    @patch("core.scoring.load_flattened_module")
+    @patch("core.assessment.load_flattened_module")
     def test_resolves_question_in_test_section(self, mock_load):
-        """Section type='test' with question segment returns mode='assessment' and correct fields."""
+        """Section type='test' with question segment returns correct fields."""
         mock_load.return_value = _make_module(
             [
                 {
@@ -159,14 +138,14 @@ class TestResolveQuestionDetails:
 
         result = _resolve_question_details("test-module", "test-module:0:0")
 
-        assert result["mode"] == "assessment"
         assert result["question_text"] == "Explain X"
         assert result["assessment_instructions"] == "Look for Y"
         assert result["learning_outcome_name"] == "Test LO Name"
+        assert "mode" not in result
 
-    @patch("core.scoring.load_flattened_module")
+    @patch("core.assessment.load_flattened_module")
     def test_resolves_question_in_page_section(self, mock_load):
-        """Section type='page' with question segment returns mode='socratic'."""
+        """Section type='page' with question segment returns correct fields."""
         mock_load.return_value = _make_module(
             [
                 {
@@ -185,10 +164,10 @@ class TestResolveQuestionDetails:
 
         result = _resolve_question_details("test-module", "test-module:0:0")
 
-        assert result["mode"] == "socratic"
         assert result["question_text"] == "Reflect on Z"
+        assert "mode" not in result
 
-    @patch("core.scoring.load_flattened_module")
+    @patch("core.assessment.load_flattened_module")
     def test_returns_empty_for_invalid_question_id_format(self, mock_load):
         """question_id='invalid' returns {}."""
         mock_load.return_value = _make_module([])
@@ -197,7 +176,7 @@ class TestResolveQuestionDetails:
 
         assert result == {}
 
-    @patch("core.scoring.load_flattened_module")
+    @patch("core.assessment.load_flattened_module")
     def test_returns_empty_for_out_of_bounds_section(self, mock_load):
         """Section index beyond sections list returns {}."""
         mock_load.return_value = _make_module(
@@ -213,7 +192,7 @@ class TestResolveQuestionDetails:
 
         assert result == {}
 
-    @patch("core.scoring.load_flattened_module")
+    @patch("core.assessment.load_flattened_module")
     def test_returns_empty_for_out_of_bounds_segment(self, mock_load):
         """Segment index beyond segments list returns {}."""
         mock_load.return_value = _make_module(
@@ -229,7 +208,7 @@ class TestResolveQuestionDetails:
 
         assert result == {}
 
-    @patch("core.scoring.load_flattened_module")
+    @patch("core.assessment.load_flattened_module")
     def test_returns_empty_for_non_question_segment(self, mock_load):
         """Segment type='text' returns {}."""
         mock_load.return_value = _make_module(
@@ -245,7 +224,7 @@ class TestResolveQuestionDetails:
 
         assert result == {}
 
-    @patch("core.scoring.load_flattened_module")
+    @patch("core.assessment.load_flattened_module")
     def test_returns_empty_when_module_not_found(self, mock_load):
         """Mock raises ModuleNotFoundError, returns {}."""
         from core.modules.loader import ModuleNotFoundError

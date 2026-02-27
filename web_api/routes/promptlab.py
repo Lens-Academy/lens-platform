@@ -29,6 +29,7 @@ from core.promptlab import (
     load_fixture,
     regenerate_response,
     continue_conversation,
+    score_response,
 )
 from core.queries.facilitator import get_facilitator_group_ids, is_admin
 from core.queries.users import get_user_by_discord_id
@@ -77,6 +78,14 @@ class ContinueRequest(BaseModel):
     enableThinking: bool = True
     effort: str = "low"
     model: str | None = None
+
+
+class ScoreRequest(BaseModel):
+    baseSystemPrompt: str  # Assessment persona prompt (editable in UI)
+    assessmentInstructions: str  # Rubric for this question
+    questionText: str  # The question shown to the student
+    answerText: str  # The student's response
+    model: str | None = None  # Optional model override
 
 
 # --- Endpoints ---
@@ -155,6 +164,28 @@ async def regenerate(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.post("/score")
+async def score(
+    request: ScoreRequest,
+    _user: dict = Depends(get_facilitator_user),
+) -> dict:
+    """
+    Score a student answer with a custom assessment prompt.
+
+    Auth: facilitator or admin required.
+    Returns structured score result (not SSE — uses non-streaming complete()).
+    Does NOT write to any database table.
+    """
+    result = await score_response(
+        base_system_prompt=request.baseSystemPrompt,
+        assessment_instructions=request.assessmentInstructions,
+        question_text=request.questionText,
+        answer_text=request.answerText,
+        provider=request.model,
+    )
+    return result
 
 
 @router.post("/continue")

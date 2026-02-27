@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { API_URL } from "../config";
 import { fetchWithRefresh } from "../api/fetchWithRefresh";
-import { identifyUser, resetUser, hasConsent } from "../analytics";
+import {
+  identifyUser,
+  resetUser,
+  hasConsent,
+  syncConsentToServer,
+} from "../analytics";
 import {
   identifySentryUser,
   resetSentryUser,
@@ -18,6 +23,8 @@ export interface User {
   timezone: string | null;
   availability_local: string | null;
   tos_accepted_at: string | null;
+  cookies_analytics_consent: string | null;
+  cookies_analytics_consent_at: string | null;
 }
 
 export interface AuthState {
@@ -110,6 +117,21 @@ export function useAuth(): UseAuthReturn {
             discord_username: user.discord_username,
             email: user.email,
           });
+        }
+
+        // Backfill consent from localStorage to DB (browser→DB only).
+        // We never restore DB→browser: GDPR requires per-device consent,
+        // so each browser must ask independently via the cookie banner.
+        if (user) {
+          const localChoice = localStorage.getItem("analytics-consent") as
+            | "accepted"
+            | "declined"
+            | null;
+          const dbChoice = user.cookies_analytics_consent;
+
+          if (localChoice && localChoice !== dbChoice) {
+            syncConsentToServer(localChoice);
+          }
         }
       } else {
         setState({
