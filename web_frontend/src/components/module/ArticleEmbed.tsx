@@ -211,17 +211,22 @@ function splitAtBlockNotes(content: string): ContentSegment[] {
   return segments;
 }
 
-/** Block note rendered inside a container (e.g. inside :::collapse). Simple callout style. */
-function BlockNote({ children }: { children?: React.ReactNode }) {
+/** Shared note box used by both top-level block notes and notes inside containers. */
+function NoteBox({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
-    <div className="my-3 rounded-lg border-l-4 border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 leading-relaxed relative">
-      <div className="absolute top-2 right-3 flex items-center gap-1 text-xs text-gray-400">
-        <img src="/assets/Logo only.png" alt="" className="w-3 h-3 opacity-70 !my-0" />
+    <div className={`rounded-lg border border-gray-100 bg-white/85 shadow-[inset_0_0_6px_0_rgba(0,0,0,0.06)] px-4 py-3 text-sm text-gray-700 leading-relaxed relative ${className ?? ""}`}>
+      <div className="absolute top-2 right-3 flex items-center gap-1.5 text-sm text-gray-600">
+        <img src="/assets/Logo only.png" alt="" className="w-4 h-4 opacity-70 !my-0" />
         <span>Lens</span>
       </div>
       {children}
     </div>
   );
+}
+
+/** Block note rendered inside a container (e.g. inside :::collapse). */
+function BlockNote({ children }: { children?: React.ReactNode }) {
+  return <NoteBox className="my-3">{children}</NoteBox>;
 }
 
 function InlineNote({ children }: { children?: React.ReactNode }) {
@@ -609,15 +614,7 @@ export default function ArticleEmbed({
         if (segment.type === "note") {
           return (
             <div key={i} className="bg-amber-50/50 px-4 py-2">
-              <div className="max-w-[calc(var(--container-content)+2rem)] mx-auto rounded-lg border border-gray-100 bg-white/85 shadow-[inset_0_0_6px_0_rgba(0,0,0,0.06)] px-4 py-3 text-sm text-gray-700 leading-relaxed relative">
-                <div className="absolute top-2 right-3 flex items-center gap-1.5 text-sm text-gray-600">
-                  <img
-                    src="/assets/Logo only.png"
-                    alt=""
-                    className="w-4 h-4 opacity-70"
-                  />
-                  <span>Lens</span>
-                </div>
+              <NoteBox className="max-w-[calc(var(--container-content)+2rem)] mx-auto">
                 <article className="prose prose-gray max-w-content [&>*:last-child]:mb-0">
                   <ReactMarkdown
                     remarkPlugins={remarkPlugins}
@@ -627,7 +624,7 @@ export default function ArticleEmbed({
                     {segment.content}
                   </ReactMarkdown>
                 </article>
-              </div>
+              </NoteBox>
             </div>
           );
         }
