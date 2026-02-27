@@ -1,19 +1,19 @@
 /**
  * RoleplaySection - Main roleplay conversation component.
  *
- * Wires together all roleplay hooks (session, toggles, TTS) and sub-components
- * (briefing, toolbar, voice input, speaking indicator) into the full user-facing
- * roleplay experience.
+ * Uses the unified roleplay WebSocket hook for concurrent LLM text + TTS
+ * audio streaming. Wires together toggles, sub-components (briefing, toolbar,
+ * voice input, speaking indicator) into the full user-facing roleplay experience.
  *
  * Manages its own state entirely -- separate from Module.tsx's shared chat state
  * (Pitfall 2: no cross-contamination with tutor chat).
  */
 
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import type { RoleplaySegment } from "@/types/module";
-import { useRoleplaySession } from "@/hooks/useRoleplaySession";
+import { useUnifiedRoleplay } from "@/hooks/useUnifiedRoleplay";
 import { useRoleplayToggles } from "@/hooks/useRoleplayToggles";
-import { useRoleplayTTS } from "@/hooks/useRoleplayTTS";
+import { completeRoleplay, retryRoleplay } from "@/api/roleplay";
 import { extractCharacterName } from "@/utils/extractCharacterName";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { triggerHaptic } from "@/utils/haptics";
@@ -33,23 +33,6 @@ export default function RoleplaySection({
   moduleSlug,
 }: RoleplaySectionProps) {
   const {
-    messages,
-    streamingContent,
-    isLoading,
-    isCompleted,
-    lastAssistantResponse,
-    sendMessage,
-    complete,
-    retry,
-  } = useRoleplaySession(
-    moduleSlug,
-    segment.id,
-    segment.aiInstructions,
-    segment.content,
-    segment.openingMessage,
-  );
-
-  const {
     textDisplay,
     ttsEnabled,
     inputMode,
@@ -58,8 +41,31 @@ export default function RoleplaySection({
     toggleInputMode,
   } = useRoleplayToggles(segment.id);
 
-  const { speakText, stop: stopTTS } = useRoleplayTTS(ttsEnabled);
+  const {
+    messages,
+    streamingContent,
+    status,
+    sessionId,
+    isCompleted,
+    sendMessage,
+    stopAudio,
+    disconnect,
+    markComplete,
+  } = useUnifiedRoleplay({
+    moduleSlug,
+    roleplayId: segment.id,
+    aiInstructions: segment.aiInstructions,
+    scenarioContent: segment.content,
+    openingMessage: segment.openingMessage,
+    voice: ttsEnabled ? "Ashley" : undefined,
+    speakingRate: ttsEnabled ? 1.5 : undefined,
+  });
+
   const characterName = extractCharacterName(segment.aiInstructions);
+  const isLoading = status === "streaming" || status === "connecting";
+
+  // "Not started" = no messages yet and not loading — show Start button
+  const notStarted = messages.length === 0 && !isLoading && !isCompleted;
 
   // Text mode: optional STT fills textarea (same as tutor chat)
   const [textInput, setTextInput] = useState("");
@@ -71,31 +77,39 @@ export default function RoleplaySection({
       setTextInput((prev) => (prev ? `${prev} ${text}` : text)),
   });
 
-  // TTS: speak completed assistant responses
-  useEffect(() => {
-    if (lastAssistantResponse && ttsEnabled) {
-      speakText(lastAssistantResponse);
+  // Complete: stop audio, call REST API, update local state
+  const handleComplete = useCallback(async () => {
+    stopAudio();
+    if (sessionId) {
+      await completeRoleplay(sessionId);
+      markComplete();
     }
-  }, [lastAssistantResponse, ttsEnabled, speakText]);
+  }, [stopAudio, sessionId, markComplete]);
 
-  // Stop TTS on complete or retry
-  const handleComplete = async () => {
-    stopTTS();
-    await complete();
-  };
-  const handleRetry = async () => {
-    stopTTS();
-    await retry();
-  };
+  // Retry: stop audio, disconnect WS, call REST API.
+  // After disconnect + retryRoleplay, messages clear to [] via the session
+  // response, so the Start button reappears naturally.
+  const handleRetry = useCallback(async () => {
+    stopAudio();
+    disconnect();
+    if (sessionId) {
+      await retryRoleplay(sessionId, segment.openingMessage);
+    }
+  }, [stopAudio, disconnect, sessionId, segment.openingMessage]);
 
   // Send from text input
-  const handleTextSend = () => {
+  const handleTextSend = useCallback(() => {
     if (textInput.trim() && !isLoading) {
       triggerHaptic(10);
-      sendMessage(textInput.trim());
+      void sendMessage(textInput.trim());
       setTextInput("");
     }
-  };
+  }, [textInput, isLoading, sendMessage]);
+
+  // Wrapper for VoiceInputBar's onSend (needs to match (content: string) => void)
+  const handleVoiceSend = useCallback((content: string) => {
+    void sendMessage(content);
+  }, [sendMessage]);
 
   return (
     <div className="py-4 px-4" style={{ overflowAnchor: "none" }}>
@@ -174,7 +188,17 @@ export default function RoleplaySection({
           </div>
 
           {/* Input area */}
-          {!isCompleted ? (
+          {notStarted ? (
+            /* Not started: show Start Conversation button */
+            <div className="border-t border-gray-100 px-4 py-6 text-center">
+              <button
+                onClick={() => void sendMessage("")}
+                className="px-6 py-2.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors font-medium"
+              >
+                Start Conversation
+              </button>
+            </div>
+          ) : !isCompleted ? (
             <div className="border-t border-gray-100 px-4 py-3">
               {inputMode === "text" ? (
                 /* Text input with optional STT mic (same pattern as NarrativeChatSection) */
@@ -259,7 +283,7 @@ export default function RoleplaySection({
               ) : (
                 /* Voice input mode: push-to-talk */
                 <VoiceInputBar
-                  onSend={sendMessage}
+                  onSend={handleVoiceSend}
                   isLoading={isLoading}
                   disabled={isCompleted}
                 />

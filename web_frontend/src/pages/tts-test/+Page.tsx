@@ -12,6 +12,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Mic, Loader2, Square } from "lucide-react";
 import { useAudioPlayback } from "@/hooks/useAudioPlayback";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
+import { useUnifiedRoleplay } from "@/hooks/useUnifiedRoleplay";
+import type { RoleplayWsMessage } from "@/types/roleplay-ws";
 
 type Status = "idle" | "connecting" | "streaming" | "buffering" | "done" | "error";
 type PlaybackMode = "streaming" | "buffered";
@@ -74,16 +76,24 @@ export default function Page() {
   const blobUrlRef = useRef<string | null>(null);
   const audioPlayback = useAudioPlayback();
 
-  // --- E2E Roleplay state (unified WebSocket) ---
+  // --- Shared logging ---
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  const addLog = useCallback((tag: string, msg: string) => {
+    const now = performance.now();
+    if (!logStartRef.current) logStartRef.current = now;
+    const elapsed = (now - logStartRef.current) / 1000;
+    const time = elapsed.toFixed(3) + "s";
+    setLogs((prev) => {
+      const next = [...prev, { time, tag, msg }];
+      return next.length > 200 ? next.slice(-200) : next;
+    });
+    setTimeout(() => logEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  }, []);
+
+  // --- E2E Roleplay state (unified WebSocket via hook) ---
   const [e2eOpen, setE2eOpen] = useState(false);
   const [userInput, setUserInput] = useState("");
-  const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([]);
-  const [streamingContent, setStreamingContent] = useState("");
-  const [e2eStatus, setE2eStatus] = useState("idle");
-  const [e2eChunkCount, setE2eChunkCount] = useState(0);
-  const e2eWsRef = useRef<WebSocket | null>(null);
-  const e2eInitedRef = useRef(false); // Has init message been sent?
-  const e2eAudioPlayback = useAudioPlayback();
   const [e2eVerbose, setE2eVerbose] = useState(false);
   const [e2eSpeed, setE2eSpeed] = useState(1.5);
   const e2eTimingRef = useRef({
@@ -92,9 +102,71 @@ export default function Page() {
     lastText: 0, lastAudio: 0,
   });
   const wasPlayingRef = useRef(false);
-  const e2eStreamingRef = useRef(""); // Accumulate streaming content for ref access
+  const e2eVerboseRef = useRef(false);
+  e2eVerboseRef.current = e2eVerbose;
 
-  const logEndRef = useRef<HTMLDivElement>(null);
+  const handleE2eMessage = useCallback((msg: RoleplayWsMessage) => {
+    const timing = e2eTimingRef.current;
+    const elapsed = () => `+${(performance.now() - timing.t0).toFixed(0)}ms`;
+    const verbose = e2eVerboseRef.current;
+
+    switch (msg.type) {
+      case "session":
+        addLog("INFO", `Session ${msg.session_id} (${msg.messages?.length ?? 0} messages)`);
+        break;
+      case "text":
+        if (!timing.firstText) {
+          timing.firstText = performance.now();
+          addLog("⏱", `${elapsed()} First text token`);
+        }
+        timing.lastText = performance.now();
+        if (verbose) addLog("LLM", `"${msg.content}"`);
+        break;
+      case "thinking":
+        if (verbose) addLog("LLM", `[thinking] ${msg.content?.slice(0, 80)}`);
+        break;
+      case "log":
+        addLog(msg.tag ?? "INFO", msg.msg);
+        break;
+      case "audio":
+        if (!timing.firstAudio) {
+          timing.firstAudio = performance.now();
+          addLog("⏱", `${elapsed()} First audio chunk`);
+        }
+        if (verbose) addLog("AUDIO", `Chunk: ${msg.bytes} bytes`);
+        break;
+      case "done": {
+        timing.lastAudio = performance.now();
+        addLog("⏱", `${elapsed()} Turn done`);
+        if (msg.audio_bytes) {
+          addLog("⏱", `  Server sent: ${msg.audio_chunks} chunks, ${msg.audio_bytes} bytes`);
+        }
+        const d = (a: number, b: number) => a && b ? `${(a - b).toFixed(0)}ms` : "n/a";
+        const msgStart = timing.wsConnected || timing.t0;
+        addLog("⏱", "── Latency Breakdown ──");
+        if (timing.wsConnected) {
+          addLog("⏱", `  WS connect:        ${d(timing.wsConnected, timing.t0)}  (frontend → backend)`);
+        }
+        addLog("⏱", `  LLM first token:   ${d(timing.firstText, msgStart)}  (message → first token)`);
+        addLog("⏱", `  LLM generation:    ${d(timing.lastText, timing.firstText)}  (first → last token)`);
+        addLog("⏱", `  First audio chunk:  ${d(timing.firstAudio, timing.firstText)}  (first text → first audio)`);
+        addLog("⏱", `  Audio decode:      ${d(timing.audioStarted, timing.firstAudio)}  (first chunk → playback start)`);
+        addLog("⏱", `  Streaming total:   ${d(timing.lastAudio, timing.t0)}  (send → all streams done)`);
+        break;
+      }
+      case "error":
+        addLog("ERROR", msg.message);
+        break;
+    }
+  }, [addLog]);
+
+  const e2e = useUnifiedRoleplay({
+    ...TEST_CONFIG,
+    voice,
+    model,
+    speakingRate: e2eSpeed,
+    onMessage: handleE2eMessage,
+  });
 
   // --- Direct TTS voice recording (mic → textarea) ---
   const directStt = useVoiceRecording({
@@ -127,29 +199,15 @@ export default function Page() {
       .finally(() => setVoicesLoading(false));
   }, []);
 
-  const addLog = useCallback((tag: string, msg: string) => {
-    const now = performance.now();
-    if (!logStartRef.current) logStartRef.current = now;
-    const elapsed = (now - logStartRef.current) / 1000;
-    const time = elapsed.toFixed(3) + "s";
-    setLogs((prev) => {
-      const next = [...prev, { time, tag, msg }];
-      return next.length > 200 ? next.slice(-200) : next;
-    });
-    setTimeout(() => logEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-  }, []);
-
-  const ms = useCallback(() => `+${(performance.now() - e2eTimingRef.current.t0).toFixed(0)}ms`, []);
-
   // Track e2e audio playback finished
   useEffect(() => {
-    if (wasPlayingRef.current && !e2eAudioPlayback.isPlaying && e2eTimingRef.current.t0 > 0) {
+    if (wasPlayingRef.current && !e2e.isPlaying && e2eTimingRef.current.t0 > 0) {
       const t = e2eTimingRef.current;
       const now = performance.now();
       addLog("⏱", `Audio playback finished (+${(now - t.t0).toFixed(0)}ms total)`);
     }
-    wasPlayingRef.current = e2eAudioPlayback.isPlaying;
-  }, [e2eAudioPlayback.isPlaying, addLog]);
+    wasPlayingRef.current = e2e.isPlaying;
+  }, [e2e.isPlaying, addLog]);
 
   // ─── Direct TTS ───────────────────────────────────────────────────────
 
@@ -313,179 +371,13 @@ export default function Page() {
 
   // ─── E2E Roleplay ────────────────────────────────────────────────────
 
-  /** Open the unified roleplay WebSocket (first send only). */
-  const ensureE2eWs = useCallback((): Promise<WebSocket> => {
-    const existing = e2eWsRef.current;
-    if (existing && existing.readyState === WebSocket.OPEN) {
-      return Promise.resolve(existing);
-    }
-
-    return new Promise((resolve, reject) => {
-      const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${wsProtocol}//${location.host}/ws/chat/roleplay`;
-      addLog("INFO", `Opening unified WS: ${wsUrl}`);
-      const ws = new WebSocket(wsUrl);
-      e2eWsRef.current = ws;
-      e2eInitedRef.current = false;
-
-      ws.onopen = () => {
-        e2eTimingRef.current.wsConnected = performance.now();
-        addLog("INFO", "WebSocket connected");
-
-        // Send init message with TTS config
-        const anonymousToken = crypto.randomUUID();
-        ws.send(JSON.stringify({
-          module_slug: TEST_CONFIG.moduleSlug,
-          roleplay_id: TEST_CONFIG.roleplayId,
-          ai_instructions: TEST_CONFIG.aiInstructions,
-          opening_message: TEST_CONFIG.openingMessage,
-          anonymous_token: anonymousToken,
-          voice,
-          model,
-          audio_encoding: "LINEAR16",
-          speaking_rate: e2eSpeed,
-        }));
-        addLog("INFO", `Init message sent (voice=${voice}, speed=${e2eSpeed}x)`);
-      };
-
-      // Set up the shared onmessage handler
-      const verbose = e2eVerbose;
-      ws.onmessage = async (event: MessageEvent) => {
-        if (event.data instanceof Blob) {
-          // Binary = TTS audio chunk
-          const timing = e2eTimingRef.current;
-          if (!timing.firstAudio) {
-            timing.firstAudio = performance.now();
-            addLog("⏱", `${ms()} First audio chunk`);
-          }
-          const bytes = await event.data.arrayBuffer();
-          if (verbose) addLog("AUDIO", `Chunk: ${bytes.byteLength} bytes`);
-          setE2eChunkCount((c) => c + 1);
-          try {
-            await e2eAudioPlayback.playChunk(bytes);
-            if (!timing.audioStarted) {
-              timing.audioStarted = performance.now();
-              addLog("⏱", `${ms()} Audio playback started`);
-            }
-          } catch (err) {
-            addLog("ERROR", `playChunk failed: ${err}`);
-          }
-        } else {
-          // JSON message
-          try {
-            const parsed = JSON.parse(event.data as string);
-            const timing = e2eTimingRef.current;
-
-            switch (parsed.type) {
-              case "session":
-                e2eInitedRef.current = true;
-                addLog("INFO", `Session ${parsed.session_id} (${parsed.messages?.length ?? 0} messages)`);
-                // Load existing messages if resuming
-                if (parsed.messages?.length > 0) {
-                  setMessages(parsed.messages);
-                }
-                resolve(ws);
-                break;
-
-              case "text":
-                if (!timing.firstText) {
-                  timing.firstText = performance.now();
-                  addLog("⏱", `${ms()} First text token`);
-                }
-                timing.lastText = performance.now();
-                e2eStreamingRef.current += parsed.content;
-                setStreamingContent(e2eStreamingRef.current);
-                if (verbose) addLog("LLM", `"${parsed.content}"`);
-                break;
-
-              case "thinking":
-                if (verbose) addLog("LLM", `[thinking] ${parsed.content?.slice(0, 80)}`);
-                break;
-
-              case "log":
-                addLog(parsed.tag ?? "INFO", parsed.msg);
-                break;
-
-              case "done": {
-                timing.lastAudio = performance.now();
-                addLog("⏱", `${ms()} Turn done`);
-                if (parsed.audio_bytes) {
-                  addLog("⏱", `  Server sent: ${parsed.audio_chunks} chunks, ${parsed.audio_bytes} bytes`);
-                }
-                // Latency breakdown
-                const d = (a: number, b: number) => a && b ? `${(a - b).toFixed(0)}ms` : "n/a";
-                const msgStart = timing.wsConnected || timing.t0;
-                addLog("⏱", "── Latency Breakdown ──");
-                if (timing.wsConnected) {
-                  addLog("⏱", `  WS connect:        ${d(timing.wsConnected, timing.t0)}  (frontend → backend)`);
-                }
-                addLog("⏱", `  LLM first token:   ${d(timing.firstText, msgStart)}  (message → first token)`);
-                addLog("⏱", `  LLM generation:    ${d(timing.lastText, timing.firstText)}  (first → last token)`);
-                addLog("⏱", `  First audio chunk:  ${d(timing.firstAudio, timing.firstText)}  (first text → first audio)`);
-                addLog("⏱", `  Audio decode:      ${d(timing.audioStarted, timing.firstAudio)}  (first chunk → playback start)`);
-                addLog("⏱", `  Streaming total:   ${d(timing.lastAudio, timing.t0)}  (send → all streams done)`);
-                const fullContent = e2eStreamingRef.current;
-                if (fullContent) {
-                  setMessages((prev) => [...prev, { role: "assistant", content: fullContent }]);
-                  addLog("INFO", `Response: ${fullContent.length} chars`);
-                }
-                setStreamingContent("");
-                e2eStreamingRef.current = "";
-                setE2eStatus("idle");
-                e2eAudioPlayback.endStream();
-                break;
-              }
-
-              case "error":
-                addLog("ERROR", parsed.message);
-                setE2eStatus("error");
-                break;
-
-              default:
-                addLog("INFO", `Unknown: ${JSON.stringify(parsed).slice(0, 100)}`);
-            }
-          } catch {
-            addLog("INFO", `Raw text: ${event.data}`);
-          }
-        }
-      };
-
-      ws.onerror = () => {
-        addLog("ERROR", "WebSocket error");
-        setE2eStatus("error");
-        reject(new Error("WebSocket connection failed"));
-      };
-
-      ws.onclose = (e) => {
-        addLog("INFO", `WebSocket closed (code=${e.code})`);
-        e2eWsRef.current = null;
-        e2eInitedRef.current = false;
-      };
-    });
-  }, [voice, model, e2eSpeed, e2eAudioPlayback, e2eVerbose, addLog, ms]);
-
   const handleSendAndSpeak = useCallback(async (messageOverride?: string) => {
     const msg = (messageOverride ?? userInput).trim();
     if (!msg) return;
 
     if (!messageOverride) setUserInput("");
-    setStreamingContent("");
-    e2eStreamingRef.current = "";
-    setE2eStatus("streaming");
-    setE2eChunkCount(0);
-    e2eAudioPlayback.stop();
 
-    try {
-      await e2eAudioPlayback.resume();
-      e2eAudioPlayback.beginStream();
-      addLog("AUDIO", `AudioContext resumed (state: ${e2eAudioPlayback.contextState})`);
-    } catch (err) {
-      addLog("ERROR", `AudioContext resume failed: ${err}`);
-      return;
-    }
-
-    setMessages((prev) => [...prev, { role: "user", content: msg }]);
-
+    // Reset timing for this turn
     logStartRef.current = 0;
     e2eTimingRef.current = {
       t0: performance.now(), wsConnected: 0,
@@ -493,32 +385,15 @@ export default function Page() {
       lastText: 0, lastAudio: 0,
     };
     addLog("⏱", "User message sent");
+    addLog("LLM", `Sent: "${msg.slice(0, 80)}"`);
 
-    try {
-      const ws = await ensureE2eWs();
-      // Send user message
-      ws.send(JSON.stringify({ message: msg }));
-      addLog("LLM", `Sent: "${msg.slice(0, 80)}"`);
-    } catch (err) {
-      addLog("ERROR", `Failed: ${err}`);
-      setE2eStatus("error");
-    }
-  }, [userInput, e2eAudioPlayback, addLog, ensureE2eWs]);
+    await e2e.sendMessage(msg);
+  }, [userInput, e2e, addLog]);
 
   const handleE2eStop = useCallback(() => {
-    e2eAudioPlayback.stop();
-    if (e2eWsRef.current) {
-      // Send cancel if turn is in progress
-      if (e2eWsRef.current.readyState === WebSocket.OPEN) {
-        e2eWsRef.current.send(JSON.stringify({ cancel: true }));
-      }
-      e2eWsRef.current.close();
-      e2eWsRef.current = null;
-      e2eInitedRef.current = false;
-    }
-    setE2eStatus("idle");
+    e2e.cancel();
     addLog("INFO", "Stopped E2E");
-  }, [e2eAudioPlayback, addLog]);
+  }, [e2e, addLog]);
 
   // ─── STT click handlers (log before delegating) ─────────────────────
 
@@ -793,22 +668,18 @@ export default function Page() {
             {/* E2E status bar */}
             <div className="mb-4 flex flex-wrap gap-x-6 gap-y-1 rounded bg-gray-50 px-4 py-2 text-xs font-mono">
               <span>
-                Status: <span className={e2eStatusColor(e2eStatus)}>{e2eStatus}</span>
+                Status: <span className={e2eStatusColor(e2e.status)}>{e2e.status}</span>
               </span>
               <span>
-                Session: <span className={e2eWsRef.current ? "text-green-600" : "text-gray-500"}>{e2eWsRef.current ? "connected" : "closed"}</span>
+                Session: <span className={e2e.sessionId ? "text-green-600" : "text-gray-500"}>{e2e.sessionId ? "connected" : "closed"}</span>
               </span>
               <span>
-                AudioContext:{" "}
-                <span className="text-gray-700">{e2eAudioPlayback.contextState ?? "none"}</span>
-              </span>
-              <span>
-                Chunks: <span className="text-gray-700">{e2eChunkCount}</span>
+                Chunks: <span className="text-gray-700">{e2e.audioChunksReceived}</span>
               </span>
               <span>
                 Playing:{" "}
-                <span className={e2eAudioPlayback.isPlaying ? "text-green-600" : "text-gray-500"}>
-                  {e2eAudioPlayback.isPlaying ? "yes" : "no"}
+                <span className={e2e.isPlaying ? "text-green-600" : "text-gray-500"}>
+                  {e2e.isPlaying ? "yes" : "no"}
                 </span>
               </span>
               <button
@@ -846,10 +717,10 @@ export default function Page() {
 
             {/* Conversation */}
             <div className="mb-3 h-48 overflow-y-auto rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-              {messages.length === 0 && !streamingContent && (
+              {e2e.messages.length === 0 && !e2e.streamingContent && (
                 <span className="text-gray-600">Send a message to start the roleplay...</span>
               )}
-              {messages.map((m, i) => (
+              {e2e.messages.map((m, i) => (
                 <div key={i} className={`mb-2 ${m.role === "user" ? "text-blue-600" : "text-gray-800"}`}>
                   <span className="text-xs font-medium text-gray-500">
                     {m.role === "user" ? "You" : "Jordan"}:{" "}
@@ -857,10 +728,10 @@ export default function Page() {
                   {m.content}
                 </div>
               ))}
-              {streamingContent && (
+              {e2e.streamingContent && (
                 <div className="mb-2 text-gray-800">
                   <span className="text-xs font-medium text-gray-500">Jordan: </span>
-                  {streamingContent}
+                  {e2e.streamingContent}
                   <span className="animate-pulse text-gray-500">|</span>
                 </div>
               )}
@@ -905,7 +776,7 @@ export default function Page() {
               />
               <button
                 onClick={handleE2eMicClick}
-                disabled={e2eStt.recordingState === "transcribing" || e2eStatus === "streaming"}
+                disabled={e2eStt.recordingState === "transcribing" || e2e.status === "streaming"}
                 className={`rounded px-3 py-2 transition-colors disabled:cursor-default disabled:bg-gray-300 ${
                   e2eStt.recordingState === "recording"
                     ? "bg-red-600 text-white hover:bg-red-700"
@@ -923,7 +794,7 @@ export default function Page() {
               </button>
               <button
                 onClick={() => handleSendAndSpeak()}
-                disabled={e2eStatus === "streaming" || !userInput.trim() || e2eStt.recordingState !== "idle"}
+                disabled={e2e.status === "streaming" || !userInput.trim() || e2eStt.recordingState !== "idle"}
                 className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-default disabled:bg-gray-300"
               >
                 Send &amp; Speak
