@@ -80,10 +80,8 @@ export default function ArticleSectionWrapper({
     [],
   );
 
-  // Update ToC item styles directly in the DOM (no React re-render)
-  const updateTocStyles = useCallback((currentIndex: number) => {
-    let currentElement: HTMLElement | null = null;
-
+  // Update ToC item highlight styles directly in the DOM (no React re-render)
+  const updateTocHighlight = useCallback((currentIndex: number) => {
     tocItemsRef.current.forEach(({ index, element }) => {
       const isCurrent = index === currentIndex;
       const isPassed = index < currentIndex;
@@ -98,77 +96,141 @@ export default function ArticleSectionWrapper({
         li.classList.toggle("border-transparent", !isCurrent);
         li.classList.toggle("border-gray-900", isCurrent);
       }
-
-      if (isCurrent) currentElement = element;
     });
-
-    // Auto-scroll the ToC so the active item stays visible near the center
-    if (currentElement) {
-      const scrollContainer = (currentElement as HTMLElement).closest(
-        ".overflow-y-auto",
-      );
-      if (scrollContainer) {
-        const containerRect = scrollContainer.getBoundingClientRect();
-        const itemRect = (currentElement as HTMLElement).getBoundingClientRect();
-        const targetY = containerRect.height * 0.5;
-        const currentY = itemRect.top - containerRect.top;
-        const scrollDelta = currentY - targetY;
-        if (Math.abs(scrollDelta) > 10) {
-          // Animate scroll over 600ms with ease-out
-          const start = scrollContainer.scrollTop;
-          const end = start + scrollDelta;
-          const duration = 600;
-          const t0 = performance.now();
-          const step = (now: number) => {
-            const elapsed = Math.min((now - t0) / duration, 1);
-            const eased = 1 - (1 - elapsed) ** 3; // ease-out cubic
-            scrollContainer.scrollTop = start + (end - start) * eased;
-            if (elapsed < 1) requestAnimationFrame(step);
-          };
-          requestAnimationFrame(step);
-        }
-      }
-    }
   }, []);
 
-  // Find the current heading (last one above the threshold)
-  const recalculateCurrentHeading = useCallback(() => {
-    const threshold = window.innerHeight * 0.35;
-    let currentId: string | null = null;
-    let currentTop = -Infinity;
+  // Cached heading positions — stable across scroll events, invalidated on resize
+  const cachedPositionsRef = useRef<
+    Array<{ id: string; index: number; articleTop: number; tocOffset: number }> | null
+  >(null);
+  const tocScrollContainerRef = useRef<Element | null>(null);
 
-    // Find the heading closest to (but above) the threshold
-    headingElementsRef.current.forEach((element, id) => {
-      const top = element.getBoundingClientRect().top;
-      if (top < threshold && top > currentTop) {
-        currentTop = top;
-        currentId = id;
-      }
+  // Find the ToC scroll container (cached)
+  const getTocScrollContainer = useCallback((): Element | null => {
+    if (tocScrollContainerRef.current) return tocScrollContainerRef.current;
+    const firstItem = tocItemsRef.current.values().next();
+    if (firstItem.done) return null;
+    const container = firstItem.value.element.closest("[data-toc-scroll]");
+    tocScrollContainerRef.current = container;
+    return container;
+  }, []);
+
+  // Build sorted heading positions using offsetTop (layout-stable, no getBoundingClientRect on ToC)
+  const computePositions = useCallback(() => {
+    const entries: Array<{
+      id: string;
+      index: number;
+      articleTop: number;
+      tocOffset: number;
+    }> = [];
+
+    const scrollContainer = getTocScrollContainer();
+    if (!scrollContainer) return entries;
+
+    headingElementsRef.current.forEach((articleEl, id) => {
+      const tocItem = tocItemsRef.current.get(id);
+      if (!tocItem) return;
+
+      // Article position: stable document-relative offset
+      const articleTop = articleEl.getBoundingClientRect().top + window.scrollY;
+      // ToC position: use offsetTop for stability (not affected by scrollTop changes)
+      const tocOffset = tocItem.element.offsetTop;
+
+      entries.push({ id, index: tocItem.index, articleTop, tocOffset });
     });
 
-    // Only update if changed
+    entries.sort((a, b) => a.articleTop - b.articleTop);
+    return entries;
+  }, [getTocScrollContainer]);
+
+  // Invalidate cached positions on resize or content changes
+  const invalidatePositions = useCallback(() => {
+    cachedPositionsRef.current = null;
+    tocScrollContainerRef.current = null;
+  }, []);
+
+  // Scroll the ToC container so a target offset is centered
+  const scrollTocToOffset = useCallback(
+    (targetOffsetInToc: number) => {
+      const scrollContainer = getTocScrollContainer();
+      if (!scrollContainer) return;
+
+      const containerHeight = scrollContainer.clientHeight;
+      const targetScroll = targetOffsetInToc - containerHeight * 0.5;
+      const maxScroll = scrollContainer.scrollHeight - containerHeight;
+      scrollContainer.scrollTop = Math.max(0, Math.min(targetScroll, maxScroll));
+    },
+    [getTocScrollContainer],
+  );
+
+  // Main scroll handler: highlight active heading + interpolate ToC scroll position
+  const recalculateCurrentHeading = useCallback(() => {
+    const threshold = window.innerHeight * 0.35;
+    const scrollY = window.scrollY + threshold;
+
+    // Use cached positions (only recompute on invalidation)
+    if (!cachedPositionsRef.current) {
+      cachedPositionsRef.current = computePositions();
+    }
+    const positions = cachedPositionsRef.current;
+    if (positions.length === 0) return;
+
+    // Find which segment we're in
+    let currentIdx = -1;
+    for (let i = positions.length - 1; i >= 0; i--) {
+      if (scrollY >= positions[i].articleTop) {
+        currentIdx = i;
+        break;
+      }
+    }
+
+    // Update heading highlight (only when changed)
+    const currentId = currentIdx >= 0 ? positions[currentIdx].id : null;
     if (currentId !== currentHeadingIdRef.current) {
       currentHeadingIdRef.current = currentId;
-
-      // Find index of current heading and update DOM directly
-      const currentItem = currentId ? tocItemsRef.current.get(currentId) : null;
-      const currentIndex = currentItem ? currentItem.index : -1;
-      updateTocStyles(currentIndex);
+      const highlightIndex = currentIdx >= 0 ? positions[currentIdx].index : -1;
+      updateTocHighlight(highlightIndex);
     }
-  }, [updateTocStyles]);
 
-  // Scroll listener — recalculate on every scroll event.
-  // Scanning ~10-20 heading positions via getBoundingClientRect is trivially fast.
+    // Interpolate ToC scroll position
+    if (currentIdx < 0) {
+      scrollTocToOffset(0);
+    } else if (currentIdx >= positions.length - 1) {
+      scrollTocToOffset(positions[positions.length - 1].tocOffset);
+    } else {
+      const curr = positions[currentIdx];
+      const next = positions[currentIdx + 1];
+      const segmentLength = next.articleTop - curr.articleTop;
+      const t = segmentLength > 0 ? (scrollY - curr.articleTop) / segmentLength : 0;
+      const lerpedOffset = curr.tocOffset + (next.tocOffset - curr.tocOffset) * t;
+      scrollTocToOffset(lerpedOffset);
+    }
+  }, [computePositions, updateTocHighlight, scrollTocToOffset]);
+
+  // Scroll listener with rAF throttling to prevent layout thrashing
   useEffect(() => {
-    const onScroll = () => recalculateCurrentHeading();
+    let rafId: number | null = null;
+
+    const onScroll = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        recalculateCurrentHeading();
+      });
+    };
 
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", invalidatePositions);
 
-    // Initial calculation
-    recalculateCurrentHeading();
+    // Initial calculation (delayed to ensure ToC items are registered)
+    requestAnimationFrame(() => recalculateCurrentHeading());
 
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [recalculateCurrentHeading]);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", invalidatePositions);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [recalculateCurrentHeading, invalidatePositions]);
 
   const handleHeadingClick = useCallback((id: string) => {
     const element = headingElementsRef.current.get(id);

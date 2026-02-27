@@ -54,7 +54,7 @@ export default function ArticleExcerptGroup({
 
       {/* TOC Sidebar - absolutely positioned to the left of content */}
       <div className="absolute top-30 bottom-0 right-full w-[250px] mr-6 pl-4 opacity-0 invisible -translate-x-2 min-[1100px]:opacity-100 min-[1100px]:visible min-[1100px]:translate-x-0 transition-[opacity,visibility,transform] duration-300 ease-out">
-        <div className="sticky top-[calc(var(--module-header-offset)+12px)] max-h-[calc(100vh-var(--module-header-offset)-24px)] overflow-y-auto scrollbar-hide will-change-transform transition-[top,max-height] duration-300">
+        <div data-toc-scroll className="sticky top-[calc(var(--module-header-offset)+12px)] max-h-[calc(100vh-var(--module-header-offset)-24px)] overflow-y-auto scrollbar-hide">
           <ArticleTOC
             title={section.meta.title}
             author={section.meta.author}
