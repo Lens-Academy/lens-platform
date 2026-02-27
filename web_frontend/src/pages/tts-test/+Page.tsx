@@ -120,23 +120,12 @@ export default function Page() {
 
   const ms = useCallback(() => `+${(performance.now() - e2eTimingRef.current.t0).toFixed(0)}ms`, []);
 
-  // Track e2e audio playback finished + latency summary
+  // Track e2e audio playback finished
   useEffect(() => {
     if (wasPlayingRef.current && !e2eAudioPlayback.isPlaying && e2eTimingRef.current.t0 > 0) {
       const t = e2eTimingRef.current;
       const now = performance.now();
-      addLog("⏱", `+${(now - t.t0).toFixed(0)}ms Audio playback finished`);
-
-      // Latency breakdown
-      const d = (a: number, b: number) => a && b ? `${(a - b).toFixed(0)}ms` : "n/a";
-      addLog("⏱", "── Latency Breakdown ──");
-      addLog("⏱", `  WS connect:        ${d(t.wsConnected, t.t0)}  (frontend → backend)`);
-      addLog("⏱", `  LLM first token:   ${d(t.firstText, t.wsConnected)}  (message sent → first token)`);
-      addLog("⏱", `  LLM generation:    ${d(t.lastText, t.firstText)}  (first → last token)`);
-      addLog("⏱", `  First audio:       ${d(t.firstAudio, t.firstText)}  (first text → first audio)`);
-      addLog("⏱", `  Audio decode:      ${d(t.audioStarted, t.firstAudio)}  (first audio → playback start)`);
-      addLog("⏱", `  Audio duration:    ${d(now, t.audioStarted)}  (playback start → end)`);
-      addLog("⏱", `  Total E2E:         ${d(now, t.t0)}  (send → playback done)`);
+      addLog("⏱", `Audio playback finished (+${(now - t.t0).toFixed(0)}ms total)`);
     }
     wasPlayingRef.current = e2eAudioPlayback.isPlaying;
   }, [e2eAudioPlayback.isPlaying, addLog]);
@@ -402,6 +391,18 @@ export default function Page() {
                 if (parsed.audio_bytes) {
                   addLog("⏱", `  Server sent: ${parsed.audio_chunks} chunks, ${parsed.audio_bytes} bytes`);
                 }
+                // Latency breakdown
+                const d = (a: number, b: number) => a && b ? `${(a - b).toFixed(0)}ms` : "n/a";
+                const msgStart = timing.wsConnected || timing.t0;
+                addLog("⏱", "── Latency Breakdown ──");
+                if (timing.wsConnected) {
+                  addLog("⏱", `  WS connect:        ${d(timing.wsConnected, timing.t0)}  (frontend → backend)`);
+                }
+                addLog("⏱", `  LLM first token:   ${d(timing.firstText, msgStart)}  (message → first token)`);
+                addLog("⏱", `  LLM generation:    ${d(timing.lastText, timing.firstText)}  (first → last token)`);
+                addLog("⏱", `  First audio chunk:  ${d(timing.firstAudio, timing.firstText)}  (first text → first audio)`);
+                addLog("⏱", `  Audio decode:      ${d(timing.audioStarted, timing.firstAudio)}  (first chunk → playback start)`);
+                addLog("⏱", `  Streaming total:   ${d(timing.lastAudio, timing.t0)}  (send → all streams done)`);
                 const fullContent = e2eStreamingRef.current;
                 if (fullContent) {
                   setMessages((prev) => [...prev, { role: "assistant", content: fullContent }]);
