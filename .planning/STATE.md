@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 11 of 11 (Assessment)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Executing Phase 11
-Last activity: 2026-03-02 -- Completed 11-02-PLAN.md
+Last activity: 2026-03-02 -- Completed 11-03-PLAN.md
 
-Progress: [########..] 80%
+Progress: [#########.] 90%
 
 ## Milestone Summary
 
@@ -36,14 +36,15 @@ Progress: [########..] 80%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8 (v3.1)
+- Total plans completed: 9 (v3.1)
 - Average duration: 6min
-- Total execution time: 48min
+- Total execution time: 50min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
+| 11-assessment | 03 | 2min | 2 | 3 |
 | 11-assessment | 02 | 4min | 1 | 3 |
-| Phase 11-assessment P01 | 10min | 2 tasks | 4 files |
+| 11-assessment | 01 | 10min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ v3.1 decisions:
 - Feedback trigger only includes question answers; roleplays have their own assessment path
 - [Phase 11-assessment]: Reuse SCORE_SCHEMA and SCORING_PROVIDER from assessment.py for roleplay scoring (single config source)
 - [Phase 11-assessment]: segment_snapshot populated at SSE endpoint session creation (not at completion) so rubric is available for scoring
+- [Phase 11-assessment]: Poll every 2s for 30s max for assessment results; assessment summary formatted as natural language for chat seeding
+- [Phase 11-assessment]: Roleplay feedback uses same activeFeedbackKey pattern as question feedback; feedbackKey prefixed with "roleplay-" to avoid collision
 
 ### Pending Todos
 
@@ -92,5 +95,5 @@ v3.1 decisions:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 11-01-PLAN.md (+ 11-02-PLAN.md)
+Stopped at: Completed 11-03-PLAN.md
 Resume file: None
