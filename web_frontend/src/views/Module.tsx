@@ -421,14 +421,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         } as unknown as Stage;
       }
 
-      let stageType: "article" | "video" | "chat";
+      let stageType: "article" | "video" | "chat" | "page";
       if (section.type === "video" || section.type === "lens-video") {
         stageType = "video";
+      } else if (section.type === "page") {
+        stageType = "page";
       } else if (
         section.type === "article" ||
         section.type === "lens-article" ||
-        section.type === "text" ||
-        section.type === "page"
+        section.type === "text"
       ) {
         stageType = "article";
       } else {
@@ -444,7 +445,16 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             : section.meta?.title ||
               `${section.type || "Section"} ${index + 1}`;
 
-      if (stageType === "article") {
+      if (stageType === "page") {
+        return {
+          type: "page",
+          source: "",
+          from: null,
+          to: null,
+          optional: isOptional,
+          title,
+        };
+      } else if (stageType === "article") {
         return {
           type: "article",
           source: "",

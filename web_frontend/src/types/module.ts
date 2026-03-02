@@ -243,4 +243,13 @@ export type ChatStage = {
   optional?: boolean;
 };
 
-export type Stage = ArticleStage | VideoStage | ChatStage;
+export type PageStage = {
+  type: "page";
+  source: string;
+  from: number | null;
+  to: number | null;
+  title?: string;
+  optional?: boolean;
+};
+
+export type Stage = ArticleStage | VideoStage | ChatStage | PageStage;
