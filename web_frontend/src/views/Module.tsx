@@ -974,14 +974,39 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         );
       }
 
-      case "roleplay":
+      case "roleplay": {
+        const feedbackKey = `roleplay-${sectionIndex}-${segmentIndex}`;
         return (
-          <RoleplaySection
-            key={`roleplay-${keyPrefix}`}
-            segment={segment}
-            moduleSlug={module.slug}
-          />
+          <div key={`roleplay-${keyPrefix}`}>
+            <RoleplaySection
+              segment={segment}
+              moduleSlug={module.slug}
+              onFeedbackTrigger={(assessmentSummary) => {
+                setActiveFeedbackKey(feedbackKey);
+                handleSendMessage(
+                  assessmentSummary,
+                  sectionIndex,
+                  segmentIndex,
+                );
+              }}
+            />
+            {activeFeedbackKey === feedbackKey && (
+              <NarrativeChatSection
+                messages={messages}
+                pendingMessage={pendingMessage}
+                streamingContent={streamingContent}
+                isLoading={isLoading}
+                onSendMessage={(content) =>
+                  handleSendMessage(content, sectionIndex, segmentIndex)
+                }
+                onRetryMessage={handleRetryMessage}
+                scrollToResponse
+                activated
+              />
+            )}
+          </div>
         );
+      }
 
       default:
         return null;
