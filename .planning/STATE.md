@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Students can engage with course content and demonstrate understanding while the platform collects data to improve both teaching and measurement.
-**Current focus:** v3.1 AI Roleplay -- Phase 10 Core Conversation
+**Current focus:** v3.1 AI Roleplay -- Phase 11 Assessment
 
 ## Current Position
 
-Phase: 10 of 11 (Core Conversation)
-Plan: 3 of 4 in current phase
-Status: Executing Phase 10
-Last activity: 2026-02-25 -- Completed 10-03-PLAN.md
+Phase: 11 of 11 (Assessment)
+Plan: 2 of 4 in current phase
+Status: Executing Phase 11
+Last activity: 2026-03-02 -- Completed 11-02-PLAN.md
 
-Progress: [#######...] 75%
+Progress: [########..] 80%
 
 ## Milestone Summary
 
@@ -36,9 +36,13 @@ Progress: [#######...] 75%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6 (v3.1)
-- Average duration: 7min
-- Total execution time: 40min
+- Total plans completed: 8 (v3.1)
+- Average duration: 6min
+- Total execution time: 48min
+
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 11-assessment | 02 | 4min | 1 | 3 |
 
 ## Accumulated Context
 
@@ -69,6 +73,9 @@ v3.1 decisions:
 - VoiceInputBar cancel via useRef flag (suppress transcription) rather than modifying shared useVoiceRecording hook
 - Indigo send button (bg-indigo-600) in roleplay distinct from tutor chat blue (bg-blue-600)
 - SpeakingIndicator uses inline CSS keyframes for pulsing dots
+- TestRoleplayCard renders full RoleplaySection when active (not simplified version)
+- Promise.allSettled for mixed question/roleplay completion loading in TestSection
+- Feedback trigger only includes question answers; roleplays have their own assessment path
 
 ### Pending Todos
 
@@ -81,6 +88,6 @@ v3.1 decisions:
 
 ## Session Continuity
 
-Last session: 2026-02-25
-Stopped at: Completed 10-03-PLAN.md
+Last session: 2026-03-02
+Stopped at: Completed 11-02-PLAN.md
 Resume file: None
