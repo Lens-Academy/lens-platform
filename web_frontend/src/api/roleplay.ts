@@ -67,6 +67,41 @@ export async function completeRoleplay(sessionId: number): Promise<void> {
  *
  * Returns the new session ID.
  */
+/**
+ * Fetch the assessment result for a completed roleplay session.
+ *
+ * Returns null if no assessment exists yet (404).
+ */
+export async function getRoleplayAssessment(
+  sessionId: number,
+): Promise<{
+  score_data: {
+    overall_score: number;
+    reasoning: string;
+    dimensions?: Array<{ name: string; score: number; note?: string }>;
+    key_observations?: string[];
+  };
+  model_id: string | null;
+  created_at: string;
+} | null> {
+  const res = await fetchWithRefresh(
+    `${API_BASE}/api/chat/roleplay/${sessionId}/assessment`,
+    {
+      credentials: "include",
+      headers: { "X-Anonymous-Token": getAnonymousToken() },
+    },
+  );
+
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Failed to fetch assessment");
+  return res.json();
+}
+
+/**
+ * Archive the current session and create a fresh one.
+ *
+ * Returns the new session ID.
+ */
 export async function retryRoleplay(
   sessionId: number,
   openingMessage?: string,

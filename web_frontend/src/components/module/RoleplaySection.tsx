@@ -13,7 +13,11 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import type { RoleplaySegment } from "@/types/module";
 import { useUnifiedRoleplay } from "@/hooks/useUnifiedRoleplay";
 import { useRoleplayToggles } from "@/hooks/useRoleplayToggles";
-import { completeRoleplay, retryRoleplay } from "@/api/roleplay";
+import {
+  completeRoleplay,
+  retryRoleplay,
+  getRoleplayAssessment,
+} from "@/api/roleplay";
 import { extractCharacterName } from "@/utils/extractCharacterName";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { triggerHaptic } from "@/utils/haptics";
@@ -23,16 +27,29 @@ import RoleplayToolbar from "./RoleplayToolbar";
 import VoiceInputBar from "./VoiceInputBar";
 import SpeakingIndicator from "./SpeakingIndicator";
 
+type AssessmentData = {
+  score_data: {
+    overall_score: number;
+    reasoning: string;
+    dimensions?: Array<{ name: string; score: number; note?: string }>;
+    key_observations?: string[];
+  };
+  model_id: string | null;
+  created_at: string;
+};
+
 type RoleplaySectionProps = {
   segment: RoleplaySegment;
   moduleSlug: string;
   onComplete?: () => void;
+  onFeedbackTrigger?: (assessmentSummary: string) => void;
 };
 
 export default function RoleplaySection({
   segment,
   moduleSlug,
   onComplete,
+  onFeedbackTrigger,
 }: RoleplaySectionProps) {
   const {
     textDisplay,
@@ -115,6 +132,74 @@ export default function RoleplaySection({
   const handleVoiceSend = useCallback((content: string) => {
     void sendMessage(content);
   }, [sendMessage]);
+
+  // Assessment polling state
+  const [assessmentState, setAssessmentState] = useState<
+    "idle" | "loading" | "ready" | "unavailable"
+  >("idle");
+  const [assessmentData, setAssessmentData] = useState<AssessmentData | null>(
+    null,
+  );
+
+  // Poll for assessment after completion (only if segment has assessment instructions)
+  useEffect(() => {
+    if (!isCompleted || !sessionId || !segment.assessmentInstructions) {
+      return;
+    }
+
+    // If we already have assessment data (e.g., from a previous completion), skip
+    if (assessmentState === "ready") return;
+
+    setAssessmentState("loading");
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 15;
+    const interval = 2000;
+
+    const poll = async () => {
+      while (!cancelled && attempts < maxAttempts) {
+        try {
+          const result = await getRoleplayAssessment(sessionId);
+          if (cancelled) return;
+          if (result) {
+            setAssessmentData(result);
+            setAssessmentState("ready");
+            return;
+          }
+        } catch {
+          // Ignore errors, keep polling
+        }
+        attempts++;
+        if (attempts < maxAttempts && !cancelled) {
+          await new Promise((r) => setTimeout(r, interval));
+        }
+      }
+      if (!cancelled) {
+        setAssessmentState("unavailable");
+      }
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCompleted, sessionId, segment.assessmentInstructions]);
+
+  // Build assessment summary for feedback chat
+  const buildAssessmentSummary = useCallback((): string => {
+    if (!assessmentData) return "";
+    const { score_data } = assessmentData;
+    let summary = `I just completed a roleplay exercise. Here are my results:\n\nScore: ${score_data.overall_score}/5\nReasoning: ${score_data.reasoning}`;
+    if (score_data.key_observations && score_data.key_observations.length > 0) {
+      summary += "\nKey observations:";
+      for (const obs of score_data.key_observations) {
+        summary += `\n- ${obs}`;
+      }
+    }
+    summary += "\n\nCan you help me understand how to improve?";
+    return summary;
+  }, [assessmentData]);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -358,16 +443,116 @@ export default function RoleplaySection({
             </div>
           ) : (
             /* Done state */
-            <div className="border-t border-gray-100 px-4 py-6 text-center">
-              <div className="text-sm text-gray-500 mb-3">
-                Conversation complete
+            <div className="border-t border-gray-100 px-4 py-6">
+              {/* Assessment score card */}
+              {assessmentState === "loading" && (
+                <div className="text-center mb-4">
+                  <div className="inline-flex items-center gap-2 text-sm text-gray-500">
+                    <svg
+                      className="w-4 h-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    Assessing your conversation...
+                  </div>
+                </div>
+              )}
+
+              {assessmentState === "ready" && assessmentData && (
+                <div className="mb-4 mx-auto max-w-md">
+                  <div className="border border-indigo-200 rounded-xl bg-indigo-50/50 p-4">
+                    {/* Overall score */}
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-2xl font-semibold text-indigo-700">
+                        {assessmentData.score_data.overall_score}/5
+                      </span>
+                      <span className="text-sm text-gray-500">Overall</span>
+                    </div>
+
+                    {/* Reasoning */}
+                    <p className="text-sm text-gray-700 mb-3">
+                      {assessmentData.score_data.reasoning}
+                    </p>
+
+                    {/* Dimensions */}
+                    {assessmentData.score_data.dimensions &&
+                      assessmentData.score_data.dimensions.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {assessmentData.score_data.dimensions.map((dim) => (
+                            <div
+                              key={dim.name}
+                              className="flex items-center gap-1.5 bg-white rounded-lg px-2.5 py-1 text-sm border border-indigo-100"
+                            >
+                              <span className="font-medium text-indigo-600">
+                                {dim.score}/5
+                              </span>
+                              <span className="text-gray-600">{dim.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                    {/* Key observations */}
+                    {assessmentData.score_data.key_observations &&
+                      assessmentData.score_data.key_observations.length > 0 && (
+                        <ul className="text-sm text-gray-600 space-y-1">
+                          {assessmentData.score_data.key_observations.map(
+                            (obs, i) => (
+                              <li key={i} className="flex gap-1.5">
+                                <span className="text-indigo-400 shrink-0">
+                                  -
+                                </span>
+                                <span>{obs}</span>
+                              </li>
+                            ),
+                          )}
+                        </ul>
+                      )}
+
+                    {/* Discuss button */}
+                    {onFeedbackTrigger && (
+                      <button
+                        onClick={() =>
+                          onFeedbackTrigger(buildAssessmentSummary())
+                        }
+                        className="mt-3 w-full text-sm px-4 py-2 border border-indigo-300 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors font-medium"
+                      >
+                        Discuss your performance
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {assessmentState !== "loading" &&
+                assessmentState !== "ready" && (
+                  <div className="text-sm text-gray-500 mb-3 text-center">
+                    Conversation complete
+                  </div>
+                )}
+
+              <div className="text-center">
+                <button
+                  onClick={handleRetry}
+                  className="text-sm px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors"
+                >
+                  Try again
+                </button>
               </div>
-              <button
-                onClick={handleRetry}
-                className="text-sm px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors"
-              >
-                Try again
-              </button>
             </div>
           )}
         </div>
