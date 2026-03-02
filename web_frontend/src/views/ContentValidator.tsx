@@ -300,6 +300,7 @@ function ConnectionIndicator({ status }: { status: ConnectionStatus }) {
 }
 
 function PipelineStatus({ state }: { state: ValidationState }) {
+  useTick(1000);
   const isProcessing =
     state.known_sha &&
     state.processed_sha &&
@@ -435,6 +436,15 @@ function StatusBadge({ status }: { status: string }) {
       {c.label}
     </span>
   );
+}
+
+function useTick(intervalMs: number): number {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return tick;
 }
 
 function formatRelativeTime(isoString: string): string {
