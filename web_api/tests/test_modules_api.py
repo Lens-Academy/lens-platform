@@ -16,6 +16,7 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 from main import app
+from core.modules import ModuleNotFoundError
 from core.modules.flattened_types import FlattenedModule
 
 
@@ -282,6 +283,135 @@ def test_list_modules_includes_type_field(client):
 
     lens = next(m for m in modules if m["slug"] == "lens/test-lens")
     assert lens["type"] == "lens"
+
+
+def test_list_modules_includes_articles(client):
+    """GET /api/modules should include articles with type='article'."""
+    mock_modules = {
+        "introduction": FlattenedModule(
+            slug="introduction",
+            title="Intro",
+            content_id=UUID("00000000-0000-0000-0000-000000000001"),
+            sections=[],
+        ),
+    }
+    mock_article_summaries = [
+        {
+            "slug": "test-article",
+            "title": "Test Article",
+            "author": "Alice",
+            "source_url": None,
+        },
+    ]
+
+    with (
+        patch(
+            "web_api.routes.modules.get_available_modules",
+            return_value=list(mock_modules.keys()),
+        ),
+        patch(
+            "web_api.routes.modules.load_flattened_module",
+            side_effect=lambda slug: mock_modules[slug],
+        ),
+        patch(
+            "web_api.routes.modules.list_article_summaries",
+            return_value=mock_article_summaries,
+        ),
+    ):
+        response = client.get("/api/modules")
+
+    assert response.status_code == 200
+    data = response.json()
+    slugs = [m["slug"] for m in data["modules"]]
+    types = {m["slug"]: m["type"] for m in data["modules"]}
+    assert "introduction" in slugs
+    assert "article/test-article" in slugs
+    assert types["article/test-article"] == "article"
+
+
+def test_list_modules_filter_excludes_articles(client):
+    """GET /api/modules?type=module should NOT include articles."""
+    mock_modules = {
+        "introduction": FlattenedModule(
+            slug="introduction",
+            title="Intro",
+            content_id=UUID("00000000-0000-0000-0000-000000000001"),
+            sections=[],
+        ),
+    }
+    mock_article_summaries = [
+        {
+            "slug": "test-article",
+            "title": "Test Article",
+            "author": "Alice",
+            "source_url": None,
+        },
+    ]
+
+    with (
+        patch(
+            "web_api.routes.modules.get_available_modules",
+            return_value=list(mock_modules.keys()),
+        ),
+        patch(
+            "web_api.routes.modules.load_flattened_module",
+            side_effect=lambda slug: mock_modules[slug],
+        ),
+        patch(
+            "web_api.routes.modules.list_article_summaries",
+            return_value=mock_article_summaries,
+        ),
+    ):
+        response = client.get("/api/modules?type=module")
+
+    assert response.status_code == 200
+    data = response.json()
+    types = [m["type"] for m in data["modules"]]
+    assert "article" not in types
+
+
+def test_get_article_module_by_slug(client):
+    """GET /api/modules/article/some-article should return article as module."""
+    mock_article = {
+        "slug": "article/some-article",
+        "title": "Some Article",
+        "contentId": None,
+        "sections": [
+            {
+                "type": "lens-article",
+                "meta": {"title": "Some Article", "author": "Bob"},
+                "segments": [{"type": "article-excerpt", "content": "Body text"}],
+            }
+        ],
+    }
+
+    with patch(
+        "web_api.routes.modules.build_article_module",
+        return_value=mock_article,
+    ):
+        response = client.get("/api/modules/article/some-article")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["slug"] == "article/some-article"
+    assert data["sections"][0]["type"] == "lens-article"
+
+
+def test_get_article_module_not_found(client):
+    """GET /api/modules/article/nonexistent should return 404."""
+    with (
+        patch(
+            "web_api.routes.modules.load_flattened_module",
+            side_effect=ModuleNotFoundError("not found"),
+        ),
+        patch(
+            "web_api.routes.modules.build_article_module",
+            side_effect=FileNotFoundError("not found"),
+        ),
+    ):
+        response = client.get("/api/modules/article/nonexistent")
+
+    assert response.status_code == 404
 
 
 def test_list_modules_filter_by_type(client):

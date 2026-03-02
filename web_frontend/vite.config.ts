@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: true,
+      strictPort: true,
       allowedHosts: ["dev.vps"],
       port: parseInt(
         process.env.FRONTEND_PORT || String(defaultFrontendPort),
