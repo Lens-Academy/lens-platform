@@ -43,6 +43,7 @@ Progress: [########..] 80%
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 11-assessment | 02 | 4min | 1 | 3 |
+| Phase 11-assessment P01 | 10min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ v3.1 decisions:
 - TestRoleplayCard renders full RoleplaySection when active (not simplified version)
 - Promise.allSettled for mixed question/roleplay completion loading in TestSection
 - Feedback trigger only includes question answers; roleplays have their own assessment path
+- [Phase 11-assessment]: Reuse SCORE_SCHEMA and SCORING_PROVIDER from assessment.py for roleplay scoring (single config source)
+- [Phase 11-assessment]: segment_snapshot populated at SSE endpoint session creation (not at completion) so rubric is available for scoring
 
 ### Pending Todos
 
@@ -89,5 +92,5 @@ v3.1 decisions:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 11-02-PLAN.md
+Stopped at: Completed 11-01-PLAN.md (+ 11-02-PLAN.md)
 Resume file: None
