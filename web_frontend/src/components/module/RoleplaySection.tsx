@@ -26,11 +26,13 @@ import SpeakingIndicator from "./SpeakingIndicator";
 type RoleplaySectionProps = {
   segment: RoleplaySegment;
   moduleSlug: string;
+  onComplete?: () => void;
 };
 
 export default function RoleplaySection({
   segment,
   moduleSlug,
+  onComplete,
 }: RoleplaySectionProps) {
   const {
     textDisplay,
@@ -80,14 +82,15 @@ export default function RoleplaySection({
       setTextInput((prev) => (prev ? `${prev} ${text}` : text)),
   });
 
-  // Complete: stop audio, call REST API, update local state
+  // Complete: stop audio, call REST API, update local state, notify parent
   const handleComplete = useCallback(async () => {
     stopAudio();
     if (sessionId) {
       await completeRoleplay(sessionId);
       markComplete();
+      onComplete?.();
     }
-  }, [stopAudio, sessionId, markComplete]);
+  }, [stopAudio, sessionId, markComplete, onComplete]);
 
   // Retry: capture session ID, reset all state, then archive old session.
   // After reset, messages=[] so the "Start Conversation" button reappears.
