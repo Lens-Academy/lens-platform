@@ -18,7 +18,6 @@
 
   /* Module header height for content offset calculations */
   --module-header-height: 68px;
-  --module-header-offset: var(--module-header-height);
 
   /* Spring easing - slight overshoot and settle */
   --ease-spring: linear(
