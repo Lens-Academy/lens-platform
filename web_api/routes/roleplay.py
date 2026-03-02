@@ -6,6 +6,7 @@ Endpoints:
 - GET /api/chat/roleplay/{roleplay_id}/history - Get chat history
 - POST /api/chat/roleplay/{session_id}/complete - Mark session completed
 - POST /api/chat/roleplay/{session_id}/retry - Archive and retry with fresh session
+- GET /api/chat/roleplay/{session_id}/assessment - Get assessment results
 """
 
 import json
@@ -18,6 +19,7 @@ import sentry_sdk
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy import select
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -33,6 +35,8 @@ from core.modules.chat_sessions import (
 from core.modules.llm import stream_chat
 from core.modules.loader import load_flattened_module
 from core.modules.roleplay import build_roleplay_prompt
+from core.roleplay_assessment import enqueue_roleplay_scoring
+from core.tables import roleplay_assessments
 from web_api.auth import get_user_or_anonymous
 
 logger = logging.getLogger(__name__)
@@ -54,6 +58,7 @@ class RoleplayChatRequest(BaseModel):
     ai_instructions: str  # Character behavior from content
     scenario_content: str | None = None  # Briefing text
     opening_message: str | None = None  # Optional first AI message
+    assessment_instructions: str | None = None  # Rubric for AI scoring
 
 
 class RoleplayHistoryResponse(BaseModel):
@@ -62,6 +67,14 @@ class RoleplayHistoryResponse(BaseModel):
     sessionId: int
     messages: list[dict]
     completedAt: str | None = None
+
+
+class RoleplayAssessmentResponse(BaseModel):
+    """Response for roleplay assessment retrieval endpoint."""
+
+    score_data: dict
+    model_id: str | None = None
+    created_at: str
 
 
 class RetryRequest(BaseModel):
@@ -91,6 +104,12 @@ async def roleplay_event_generator(
             anonymous_token=anonymous_token,
             module_id=module.content_id,
             roleplay_id=roleplay_uuid,
+            segment_snapshot={
+                "content": request.scenario_content,
+                "aiInstructions": request.ai_instructions,
+                "openingMessage": request.opening_message,
+                "assessmentInstructions": request.assessment_instructions,
+            },
         )
         session_id = session["session_id"]
         existing_messages = session.get("messages", [])
@@ -188,6 +207,7 @@ async def chat_roleplay(
     - ai_instructions: Character behavior instructions from content
     - scenario_content: Optional briefing text
     - opening_message: Optional first AI message (sent on new sessions)
+    - assessment_instructions: Optional scoring rubric for AI assessment
 
     Returns Server-Sent Events with:
     - {"type": "text", "content": "..."} for text chunks
@@ -273,6 +293,7 @@ async def complete_roleplay(
 
     Auth: JWT cookie or X-Anonymous-Token header.
     Verifies session ownership before completing.
+    Triggers background AI scoring if assessment instructions exist.
     """
     user_id, anonymous_token = auth
 
@@ -288,6 +309,17 @@ async def complete_roleplay(
             raise HTTPException(status_code=403, detail="Not your session")
 
         await complete_chat_session(conn, session_id=session_id)
+
+    # Trigger assessment scoring if rubric exists in segment_snapshot
+    snapshot = session.get("segment_snapshot") or {}
+    if snapshot.get("assessmentInstructions") or snapshot.get(
+        "assessment-instructions"
+    ):
+        enqueue_roleplay_scoring(
+            session_id=session_id,
+            messages=session.get("messages", []),
+            segment_snapshot=snapshot,
+        )
 
     return {"status": "completed"}
 
@@ -332,8 +364,59 @@ async def retry_roleplay(
             roleplay_id=session.get("roleplay_id"),
         )
 
-    # Don't insert opening message here — the frontend calls streamMessage("")
+    # Don't insert opening message here -- the frontend calls streamMessage("")
     # after retry, which triggers the "new empty session" path in
     # roleplay_event_generator to insert and stream the opening message.
 
     return {"sessionId": new_session["session_id"]}
+
+
+@router.get(
+    "/roleplay/{session_id}/assessment",
+    response_model=RoleplayAssessmentResponse,
+)
+async def get_roleplay_assessment(
+    session_id: int,
+    auth: tuple[int | None, UUID | None] = Depends(get_user_or_anonymous),
+):
+    """
+    Get the most recent assessment result for a roleplay session.
+
+    Auth: JWT cookie or X-Anonymous-Token header.
+    Verifies session ownership before returning results.
+
+    Returns 404 if no assessment exists yet (scoring may still be in progress).
+    """
+    user_id, anonymous_token = auth
+
+    async with get_connection() as conn:
+        # Verify session exists and check ownership
+        session = await get_chat_session(conn, session_id=session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        if user_id and session.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Not your session")
+        if anonymous_token and session.get("anonymous_token") != anonymous_token:
+            raise HTTPException(status_code=403, detail="Not your session")
+
+        # Get most recent assessment for this session
+        result = await conn.execute(
+            select(roleplay_assessments)
+            .where(roleplay_assessments.c.session_id == session_id)
+            .order_by(roleplay_assessments.c.created_at.desc())
+            .limit(1)
+        )
+        row = result.fetchone()
+
+    if not row:
+        raise HTTPException(
+            status_code=404, detail="No assessment found for this session"
+        )
+
+    assessment = dict(row._mapping)
+    return RoleplayAssessmentResponse(
+        score_data=assessment["score_data"],
+        model_id=assessment["model_id"],
+        created_at=assessment["created_at"].isoformat(),
+    )
