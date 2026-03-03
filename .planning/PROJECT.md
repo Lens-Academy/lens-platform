@@ -2,23 +2,11 @@
 
 ## What This Is
 
-Web platform for an AI Safety education course. Students read articles, watch videos, and discuss concepts with an AI tutor through interactive modules. The platform supports learning outcome measurement through answer boxes and test sections with AI-powered assessment.
+Web platform for an AI Safety education course. Students read articles, watch videos, discuss concepts with an AI tutor, and practice AI safety conversations with AI characters through roleplay exercises. The platform supports learning outcome measurement through answer boxes, test sections, and AI-powered assessment of both written responses and roleplay transcripts.
 
 ## Core Value
 
-Students can engage with course content and demonstrate understanding — through reading, discussion, and assessment — while the platform collects data to improve both teaching and measurement.
-
-## Current Milestone: v3.1 AI Roleplay
-
-**Goal:** Add roleplay content type where students practice AI safety conversations with AI characters, supporting text and voice input, with optional AI assessment.
-
-**Target features:**
-- Roleplay segment type: multi-turn conversation with AI-played characters (e.g., skeptical tech CEO)
-- Characters defined in content markdown via `instructions::` (same pattern as chat stages)
-- Works as standalone segment in any section AND inside test sections (same as question segments)
-- Voice input support (reusing existing mic/speech-to-text infrastructure)
-- Optional AI assessment when course creators include `assessment_instructions`
-- Configurable end-of-conversation trigger (message count, time, or AI-monitored)
+Students can engage with course content and demonstrate understanding — through reading, discussion, roleplay, and assessment — while the platform collects data to improve both teaching and measurement.
 
 ## Requirements
 
@@ -26,11 +14,11 @@ Students can engage with course content and demonstrate understanding — throug
 
 - ✓ Discord OAuth authentication — existing
 - ✓ Course and module browsing — existing
-- ✓ Lesson content (article stages) — existing
-- ✓ AI chatbot interaction (chat stages) — existing
-- ✓ Embedded YouTube videos (video stages) — existing
+- ✓ Lesson content (article segments) — existing
+- ✓ AI chatbot interaction (chat segments) — existing
+- ✓ Embedded YouTube videos (video segments) — existing
 - ✓ Session progress persistence — existing
-- ✓ Multi-stage module navigation — existing
+- ✓ Multi-section module navigation — existing
 - ✓ Mobile-responsive lesson content layout — v1.0
 - ✓ Mobile-responsive chatbot interface — v1.0
 - ✓ Mobile-responsive video player embedding — v1.0
@@ -38,36 +26,49 @@ Students can engage with course content and demonstrate understanding — throug
 - ✓ Mobile-responsive module header and progress — v1.0
 - ✓ Touch-friendly interaction targets (44px minimum) — v1.0
 - ✓ Prompt Lab chat evaluation workflow — v3.0
+- ✓ Roleplay content parsing (id, content, ai-instructions fields) — v3.1
+- ✓ Inworld TTS voice responses for AI characters — v3.1
+- ✓ Multi-turn roleplay conversations with character identity — v3.1
+- ✓ Text/voice input modes with toggleable TTS — v3.1
+- ✓ Roleplay session persistence, completion, retry — v3.1
+- ✓ AI assessment of roleplay transcripts — v3.1
+- ✓ Roleplay segments in test sections — v3.1
+- ✓ Post-roleplay feedback chat with transcript context — v3.1
 
 ### Active
 
-(See REQUIREMENTS.md for v3.1 scoped requirements)
+(No active requirements — next milestone not yet defined)
 
 ### Out of Scope
 
 - Native mobile app — web-first, mobile browser is sufficient
 - Offline support — requires significant architecture changes
 - Push notifications — would require native capabilities
-- TTS for AI roleplay responses — text output for now, add voice later if needed
 - Automated conversation quality metrics — qualitative human review first
+- Multiple AI characters in one conversation — order-of-magnitude complexity
+- Branching narrative trees — LLM-driven conversation is superior
+- Score card UI for roleplay assessment — feedback chat provides assessment context instead
 
 ## Context
 
-The platform has an existing content system where course modules are defined in markdown with different section types (page, lens-article, lens-video) and segment types within them (article, video, chat, question). The roleplay feature adds a new segment type that follows the same patterns.
+Shipped v3.1 with ~57,800 LOC Python and ~45,200 LOC TypeScript.
+Tech stack: React 19 + Vike + Tailwind CSS v4, FastAPI, PostgreSQL (Supabase), LiteLLM, Inworld TTS.
 
-Existing voice infrastructure: AnswerBox already supports voice recording via `getUserMedia` with secure context guard, speech-to-text transcription, and 2.5s auto-save debounce. The chat system uses `stream_chat()` with SSE streaming for AI responses.
+Content system: Course modules defined in markdown with section types (page, lens-article, lens-video) containing segment types (article, video, chat, question, roleplay). Roleplay segments define AI characters via `ai-instructions::` field.
 
-Assessment scoring exists: `assessment_instructions` trigger AI scoring with structured output (score + chain-of-thought + dimensions) via `core/scoring.py`. Question segments can appear standalone or in test sections.
+Voice infrastructure: AnswerBox voice recording (getUserMedia, STT), roleplay voice input (push-to-talk), Inworld TTS for AI character voice responses via WebSocket streaming.
 
-Conversation data lives in `chat_sessions` table (JSONB messages array). Assessment responses and scores live in `assessment_responses` and `assessment_scores` tables.
+Assessment: `assessment_instructions` trigger AI scoring for both question and roleplay segments. Roleplay assessment uses background scoring with transcript formatting. Feedback chat gets full context server-side (scenario, rubric, transcript).
+
+Database: `chat_sessions` with session isolation via `roleplay_id` partial unique indexes. `roleplay_assessments` for scoring results. Alembic migrations.
 
 ## Constraints
 
-- **Stack**: Must use existing React 19 + Vike + Tailwind CSS frontend and FastAPI backend
-- **Content system**: Roleplay must integrate as a segment type in existing markdown content system
-- **LLM**: Use existing LiteLLM integration — no new providers
-- **Voice**: Reuse existing mic/speech-to-text infrastructure from AnswerBox
-- **Assessment**: Follow existing `assessment_instructions` pattern from question segments
+- **Stack**: React 19 + Vike + Tailwind CSS frontend, FastAPI backend
+- **Content system**: All content types are segment types in markdown
+- **LLM**: LiteLLM integration — no new providers
+- **Voice**: Inworld TTS for AI responses, browser STT for student input
+- **Assessment**: `assessment_instructions` pattern shared by questions and roleplays
 
 ## Key Decisions
 
@@ -76,8 +77,13 @@ Conversation data lives in `chat_sessions` table (JSONB messages array). Assessm
 | Tailwind responsive utilities | Already in stack, well-documented patterns | ✓ Good |
 | Mobile-first approach | Easier to scale up than down | ✓ Good |
 | Fixtures in repo, not DB | Version-controlled, stable, curated, accessible to Claude Code | ✓ Good |
-| Roleplay as segment type (not stage) | Follows question pattern — can be standalone or in tests | — Pending |
-| Voice-in/text-out for AI responses | TTS is expensive, text output sufficient for v1 | — Pending |
+| Roleplay as segment type | Follows question pattern — standalone or in tests | ✓ Good |
+| Inworld TTS for AI voice | WebSocket streaming, sentence buffering, gapless playback | ✓ Good |
+| Manual completion button only | No auto-triggers (message count, time, AI-monitored) — simpler, predictable | ✓ Good |
+| Separate partial indexes for session isolation | Clean NULL/NOT NULL discrimination, no COALESCE hacks | ✓ Good |
+| roleplay.py separate from chat.py | Fundamentally different prompt framing (character vs tutor) | ✓ Good |
+| Feedback chat over score card | Server-side context injection gives AI tutor full transcript + rubric | ✓ Good |
+| Buffered TTS (not streaming) | Full text after LLM done — simpler, acceptable latency | ✓ Good |
 
 ---
-*Last updated: 2026-02-24 after v3.1 milestone start*
+*Last updated: 2026-03-03 after v3.1 milestone*
