@@ -16,8 +16,8 @@ export interface CollapsedExcerpt {
 }
 
 export interface ExcerptInput {
-  from: string;
-  to: string;
+  from?: string;
+  to?: string;
 }
 
 /**
@@ -44,7 +44,7 @@ function findAllOccurrences(text: string, anchor: string): number[] {
  * Strip frontmatter from article content.
  * Frontmatter is enclosed in --- markers at the start of the file.
  */
-function stripFrontmatter(article: string): string {
+export function stripFrontmatter(article: string): string {
   const match = article.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
   return match ? match[1].trim() : article.trim();
 }
@@ -159,7 +159,7 @@ export function extractArticleExcerpt(
   const fromAnchorStr = fromAnchor as string;
   const toAnchorStr = toAnchor as string;
 
-  const fromOccurrences = findAllOccurrences(article, fromAnchorStr);
+  const fromOccurrences = findAllOccurrences(body, fromAnchorStr);
 
   if (fromOccurrences.length === 0) {
     return {
@@ -186,7 +186,7 @@ export function extractArticleExcerpt(
   const startIndex = fromOccurrences[0];
 
   // Search for end anchor only AFTER the start anchor (case-insensitive)
-  const afterStart = article.slice(startIndex);
+  const afterStart = body.slice(startIndex);
   const toOccurrences = findAllOccurrences(afterStart, toAnchorStr);
 
   if (toOccurrences.length === 0) {
@@ -216,7 +216,7 @@ export function extractArticleExcerpt(
   const endIndex = startIndex + relativeToIndex + toAnchorStr.length;
 
   // Extract the content between (and including) the anchors
-  const content = article.slice(startIndex, endIndex);
+  const content = body.slice(startIndex, endIndex);
 
   return {
     content,
@@ -238,6 +238,8 @@ export function bundleArticleWithCollapsed(
   excerpts: ExcerptInput[],
   file: string
 ): CollapsedExcerpt[] {
+  const body = stripFrontmatter(article);
+
   // First, extract all excerpts and their positions
   const extractedExcerpts: Array<{
     content: string;
@@ -283,11 +285,20 @@ export function bundleArticleWithCollapsed(
       content: extracted.content,
     };
 
-    // Calculate collapsed_before (content between previous excerpt end and this excerpt start)
-    if (i > 0) {
+    // Calculate collapsed_before
+    if (i === 0) {
+      // First excerpt: content from body start to this excerpt start
+      if (extracted.startIndex > 0) {
+        const collapsedBefore = body.slice(0, extracted.startIndex).trim();
+        if (collapsedBefore.length > 0) {
+          result.collapsed_before = collapsedBefore;
+        }
+      }
+    } else {
+      // Subsequent excerpts: content between previous excerpt end and this excerpt start
       const prevExcerpt = extractedExcerpts[i - 1];
       if (!prevExcerpt.error && prevExcerpt.endIndex < extracted.startIndex) {
-        const collapsedBefore = article.slice(prevExcerpt.endIndex, extracted.startIndex).trim();
+        const collapsedBefore = body.slice(prevExcerpt.endIndex, extracted.startIndex).trim();
         if (collapsedBefore.length > 0) {
           result.collapsed_before = collapsedBefore;
         }
@@ -297,7 +308,7 @@ export function bundleArticleWithCollapsed(
     // Calculate collapsed_after (content after this excerpt to next excerpt or end)
     // Only set for the last excerpt
     if (i === extractedExcerpts.length - 1) {
-      const collapsedAfter = article.slice(extracted.endIndex).trim();
+      const collapsedAfter = body.slice(extracted.endIndex).trim();
       if (collapsedAfter.length > 0) {
         result.collapsed_after = collapsedAfter;
       }

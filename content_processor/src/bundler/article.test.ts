@@ -189,7 +189,7 @@ Conclusion.
 
     const result = bundleArticleWithCollapsed(article, excerpts, 'articles/test.md');
 
-    expect(result[0].collapsed_before).toBeUndefined(); // First excerpt has no collapsed_before
+    expect(result[0].collapsed_before).toContain('Intro paragraph'); // First excerpt collapses content before it
     expect(result[1].collapsed_before).toContain('Middle content');
   });
 
