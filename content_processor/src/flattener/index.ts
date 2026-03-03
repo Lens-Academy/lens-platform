@@ -19,7 +19,7 @@ import { parseLens, type ParsedLens, type ParsedLensSegment, type ParsedLensSect
 import { parseWikilink, resolveWikilinkPath, findFileWithExtension, findSimilarFiles, formatSuggestion } from '../parser/wikilink.js';
 import { parseFrontmatter } from '../parser/frontmatter.js';
 import { fileNameToSlug } from '../utils/slug.js';
-import { extractArticleExcerpt } from '../bundler/article.js';
+import { extractArticleExcerpt, bundleArticleWithCollapsed } from '../bundler/article.js';
 import { extractVideoExcerpt, type TimestampEntry } from '../bundler/video.js';
 
 /**
@@ -423,6 +423,9 @@ function flattenLearningOutcomeSection(
           segments.push(segmentResult.segment);
         }
       }
+
+      // Apply collapsed content to article-excerpt segments
+      applyCollapsedContent(segments, lensSection.segments, lensSection, lensPath, files);
     }
 
     // Create a section for this lens
@@ -662,6 +665,9 @@ function flattenUncategorizedSection(
           segments.push(segmentResult.segment);
         }
       }
+
+      // Apply collapsed content to article-excerpt segments
+      applyCollapsedContent(segments, lensSection.segments, lensSection, lensPath, files);
     }
 
     // Create a section for this lens
@@ -805,6 +811,73 @@ function parseUncategorizedLensRefs(
   }
 
   return lensRefs;
+}
+
+/**
+ * After converting segments, apply collapsed_before/collapsed_after to article-excerpt segments.
+ * This resolves the article source once and calls bundleArticleWithCollapsed to compute
+ * which parts of the article are outside the excerpted ranges.
+ */
+function applyCollapsedContent(
+  segments: Segment[],
+  parsedSegments: ParsedLensSegment[],
+  lensSection: ParsedLensSection,
+  lensPath: string,
+  files: Map<string, string>,
+): void {
+  // Only process lens-article sections with article-excerpt segments
+  if (lensSection.type !== 'lens-article' || !lensSection.source) return;
+
+  // Collect article-excerpt segment indices
+  const excerptIndices: number[] = [];
+  for (let i = 0; i < segments.length; i++) {
+    if (segments[i].type === 'article-excerpt') {
+      excerptIndices.push(i);
+    }
+  }
+  if (excerptIndices.length === 0) return;
+
+  // Map to parsed segments to get anchors (order-preserving)
+  const parsedExcerpts = parsedSegments.filter(ps => ps.type === 'article-excerpt');
+  const excerptInfos = excerptIndices.map((segIdx, i) => ({
+    index: segIdx,
+    from: parsedExcerpts[i]?.fromAnchor,
+    to: parsedExcerpts[i]?.toAnchor,
+  }));
+
+  // Only apply collapsed if at least one excerpt has anchors
+  const hasAnchors = excerptInfos.some(e => e.from || e.to);
+  if (!hasAnchors) return;
+
+  // Resolve article path
+  const wikilink = parseWikilink(lensSection.source);
+  if (!wikilink || wikilink.error) return;
+
+  const articlePathResolved = resolveWikilinkPath(wikilink.path, lensPath);
+  const articlePath = findFileWithExtension(articlePathResolved, files);
+  if (!articlePath) return;
+
+  const articleContent = files.get(articlePath)!;
+
+  // Call bundleArticleWithCollapsed
+  const collapsedResults = bundleArticleWithCollapsed(
+    articleContent,
+    excerptInfos.map(e => ({ from: e.from, to: e.to })),
+    articlePath,
+  );
+
+  // Overlay collapsed_before/collapsed_after onto segments
+  for (let i = 0; i < excerptInfos.length && i < collapsedResults.length; i++) {
+    const segIdx = excerptInfos[i].index;
+    const collapsed = collapsedResults[i];
+    const segment = segments[segIdx] as ArticleExcerptSegment;
+    if (collapsed.collapsed_before) {
+      segment.collapsed_before = collapsed.collapsed_before;
+    }
+    if (collapsed.collapsed_after) {
+      segment.collapsed_after = collapsed.collapsed_after;
+    }
+  }
 }
 
 interface ConvertSegmentResult {
@@ -1197,6 +1270,9 @@ export function flattenLens(
       errors.push(...segmentResult.errors);
       if (segmentResult.segment) segments.push(segmentResult.segment);
     }
+
+    // Apply collapsed content to article-excerpt segments
+    applyCollapsedContent(segments, lensSection.segments, lensSection, lensPath, files);
   }
 
   // Fallback title from filename if not extracted from source metadata

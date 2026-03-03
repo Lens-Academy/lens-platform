@@ -1,6 +1,7 @@
 // src/flattener/index.test.ts
 import { describe, it, expect } from 'vitest';
 import { flattenModule, flattenLens } from './index.js';
+import type { ArticleExcerptSegment } from '../index.js';
 
 describe('flattenModule', () => {
   it('resolves learning outcome references', () => {
@@ -947,5 +948,50 @@ Hello
 
     expect(result.module).toBeNull();
     expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it('populates collapsed_before and collapsed_after for article excerpts', () => {
+    const files = new Map([
+      ['Lenses/test-collapsed.md', `---
+id: collapsed-test-id
+---
+
+### Article: Test Article
+source:: [[../articles/collapsed-article.md|Article]]
+
+#### Article-excerpt
+from:: "The key insight"
+to:: "this concept."
+`],
+      ['articles/collapsed-article.md', `---
+title: Test Article
+author: Jane Doe
+---
+
+Introduction paragraph before the excerpt.
+
+The key insight is that AI alignment requires careful
+consideration of human values. Understanding
+this concept.
+
+Conclusion paragraph after the excerpt.
+`],
+    ]);
+
+    const result = flattenLens('Lenses/test-collapsed.md', files);
+
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    const section = result.module!.sections[0];
+    const excerpt = section.segments.find(s => s.type === 'article-excerpt') as ArticleExcerptSegment;
+    expect(excerpt).toBeDefined();
+    expect(excerpt.content).toContain('key insight');
+
+    // The content before the from:: anchor should be collapsed_before
+    expect(excerpt.collapsed_before).toBeDefined();
+    expect(excerpt.collapsed_before).toContain('Introduction paragraph');
+
+    // The content after the to:: anchor should be collapsed_after
+    expect(excerpt.collapsed_after).toBeDefined();
+    expect(excerpt.collapsed_after).toContain('Conclusion paragraph');
   });
 });
