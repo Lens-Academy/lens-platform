@@ -52,3 +52,20 @@ def load_narrative_module(module_slug: str) -> FlattenedModule:
 def load_module(module_slug: str) -> FlattenedModule:
     """Load a module (legacy name - redirects to load_flattened_module)."""
     return load_flattened_module(module_slug)
+
+
+def find_roleplay_segment(module: FlattenedModule, roleplay_id: str) -> dict | None:
+    """Find a roleplay segment by its UUID within a flattened module.
+
+    Args:
+        module: The flattened module to search
+        roleplay_id: The roleplay segment UUID (string)
+
+    Returns:
+        The segment dict if found, or None
+    """
+    for section in module.sections:
+        for segment in section.get("segments", []):
+            if segment.get("type") == "roleplay" and segment.get("id") == roleplay_id:
+                return segment
+    return None

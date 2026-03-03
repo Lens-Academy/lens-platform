@@ -53,8 +53,8 @@ export const SEGMENT_SCHEMAS: Record<string, SegmentTypeSchema> = {
   ),
   'roleplay': segmentSchema(
     ['id', 'content', 'ai-instructions'],
-    ['opening-message', 'assessment-instructions', 'optional'],
-    ['optional'],
+    ['opening-message', 'assessment-instructions', 'optional', 'feedback'],
+    ['optional', 'feedback'],
   ),
 };
 

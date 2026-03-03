@@ -23,9 +23,6 @@ export type { RoleplayWsMessage };
 export interface UseUnifiedRoleplayConfig {
   moduleSlug: string;
   roleplayId: string;
-  aiInstructions: string;
-  scenarioContent?: string;
-  openingMessage?: string;
   /** TTS voice name. Omit to disable TTS (text-only streaming). */
   voice?: string;
   /** TTS model. Defaults to server default if omitted. */
@@ -116,11 +113,8 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
         const initPayload: Record<string, unknown> = {
           module_slug: cfg.moduleSlug,
           roleplay_id: cfg.roleplayId,
-          ai_instructions: cfg.aiInstructions,
           anonymous_token: getAnonymousToken(),
         };
-        if (cfg.scenarioContent) initPayload.scenario_content = cfg.scenarioContent;
-        if (cfg.openingMessage) initPayload.opening_message = cfg.openingMessage;
         if (cfg.voice) {
           initPayload.voice = cfg.voice;
           initPayload.audio_encoding = cfg.audioEncoding ?? "LINEAR16";

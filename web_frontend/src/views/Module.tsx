@@ -981,14 +981,18 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             <RoleplaySection
               segment={segment}
               moduleSlug={module.slug}
-              onFeedbackTrigger={(assessmentSummary) => {
-                setActiveFeedbackKey(feedbackKey);
-                handleSendMessage(
-                  assessmentSummary,
-                  sectionIndex,
-                  segmentIndex,
-                );
-              }}
+              onFeedbackTrigger={
+                segment.feedback
+                  ? (seedMessage) => {
+                      setActiveFeedbackKey(feedbackKey);
+                      handleSendMessage(
+                        seedMessage,
+                        sectionIndex,
+                        segmentIndex,
+                      );
+                    }
+                  : undefined
+              }
             />
             {activeFeedbackKey === feedbackKey && (
               <NarrativeChatSection

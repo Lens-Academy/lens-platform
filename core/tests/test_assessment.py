@@ -3,7 +3,7 @@
 from unittest.mock import patch
 
 from core.modules.flattened_types import FlattenedModule
-from core.assessment import _build_scoring_prompt, _resolve_question_details
+from core.assessment import _build_scoring_prompt, resolve_question_details
 
 
 def _make_module(sections):
@@ -115,7 +115,7 @@ class TestBuildScoringPrompt:
 
 
 class TestResolveQuestionDetails:
-    """Tests for _resolve_question_details -- resolves question context from content cache."""
+    """Tests for resolve_question_details -- resolves question context from content cache."""
 
     @patch("core.assessment.load_flattened_module")
     def test_resolves_question_in_test_section(self, mock_load):
@@ -136,7 +136,7 @@ class TestResolveQuestionDetails:
             ]
         )
 
-        result = _resolve_question_details("test-module", "test-module:0:0")
+        result = resolve_question_details("test-module", "test-module:0:0")
 
         assert result["question_text"] == "Explain X"
         assert result["assessment_instructions"] == "Look for Y"
@@ -162,7 +162,7 @@ class TestResolveQuestionDetails:
             ]
         )
 
-        result = _resolve_question_details("test-module", "test-module:0:0")
+        result = resolve_question_details("test-module", "test-module:0:0")
 
         assert result["question_text"] == "Reflect on Z"
         assert "mode" not in result
@@ -172,7 +172,7 @@ class TestResolveQuestionDetails:
         """question_id='invalid' returns {}."""
         mock_load.return_value = _make_module([])
 
-        result = _resolve_question_details("test-module", "invalid")
+        result = resolve_question_details("test-module", "invalid")
 
         assert result == {}
 
@@ -188,7 +188,7 @@ class TestResolveQuestionDetails:
             ]
         )
 
-        result = _resolve_question_details("test-module", "test-module:5:0")
+        result = resolve_question_details("test-module", "test-module:5:0")
 
         assert result == {}
 
@@ -204,7 +204,7 @@ class TestResolveQuestionDetails:
             ]
         )
 
-        result = _resolve_question_details("test-module", "test-module:0:5")
+        result = resolve_question_details("test-module", "test-module:0:5")
 
         assert result == {}
 
@@ -220,7 +220,7 @@ class TestResolveQuestionDetails:
             ]
         )
 
-        result = _resolve_question_details("test-module", "test-module:0:0")
+        result = resolve_question_details("test-module", "test-module:0:0")
 
         assert result == {}
 
@@ -231,6 +231,6 @@ class TestResolveQuestionDetails:
 
         mock_load.side_effect = ModuleNotFoundError("Module not found: missing-mod")
 
-        result = _resolve_question_details("missing-mod", "missing-mod:0:0")
+        result = resolve_question_details("missing-mod", "missing-mod:0:0")
 
         assert result == {}

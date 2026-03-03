@@ -75,8 +75,16 @@ def _fake_session(messages=None, completed_at=None):
 INIT_MSG = {
     "module_slug": "test/module",
     "roleplay_id": "11111111-2222-3333-4444-555555555555",
-    "ai_instructions": "You are a test character.",
     "anonymous_token": "deadbeef-dead-beef-dead-beefdeadbeef",
+}
+
+FAKE_ROLEPLAY_SEG = {
+    "type": "roleplay",
+    "id": "11111111-2222-3333-4444-555555555555",
+    "content": "Test scenario content",
+    "aiInstructions": "You are a test character.",
+    "openingMessage": None,
+    "assessmentInstructions": None,
 }
 
 
@@ -88,7 +96,7 @@ async def _fake_stream_chat(**kwargs):
 
 
 def _apply_mocks():
-    """Return a stack of patches for DB, LLM, and module loader."""
+    """Return a stack of patches for DB, LLM, module loader, and segment finder."""
     return [
         patch(
             "web_api.routes.roleplay_ws.load_flattened_module",
@@ -109,6 +117,10 @@ def _apply_mocks():
         patch(
             "web_api.routes.roleplay_ws.stream_chat",
             side_effect=_fake_stream_chat,
+        ),
+        patch(
+            "web_api.routes.roleplay_ws.find_roleplay_segment",
+            return_value=FAKE_ROLEPLAY_SEG,
         ),
     ]
 
@@ -189,7 +201,7 @@ class TestRoleplayWS:
             self._exit_mocks(mocks)
 
     def test_opening_message_no_llm(self):
-        """New session + opening_message → text + done, no LLM call."""
+        """New session + opening_message in segment → text + done, no LLM call."""
         from main import app
 
         mocks = _apply_mocks()
@@ -202,16 +214,17 @@ class TestRoleplayWS:
         conn_mock.return_value = cm
 
         stream_mock = entered[4]
+        # Override find_roleplay_segment to return a segment with openingMessage
+        seg_mock = entered[5]
+        seg_mock.return_value = {
+            **FAKE_ROLEPLAY_SEG,
+            "openingMessage": "Greetings, adventurer!",
+        }
 
         try:
             client = TestClient(app)
             with client.websocket_connect("/ws/chat/roleplay") as ws:
-                ws.send_json(
-                    {
-                        **INIT_MSG,
-                        "opening_message": "Greetings, adventurer!",
-                    }
-                )
+                ws.send_json(INIT_MSG)
                 resp = ws.receive_json()
                 assert resp["type"] == "session"
 

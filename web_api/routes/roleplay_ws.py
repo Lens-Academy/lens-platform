@@ -2,8 +2,8 @@
 
 Protocol:
     Client → Server (first message = init):
-        {module_slug, roleplay_id, ai_instructions, [scenario_content],
-         [opening_message], anonymous_token, [voice], [model], [audio_encoding]}
+        {module_slug, roleplay_id, anonymous_token, [voice], [model],
+         [audio_encoding], [speaking_rate]}
 
     Client → Server (subsequent):
         {message: "..."}           — user turn
@@ -31,7 +31,7 @@ from core.database import get_connection
 from core.modules import ModuleNotFoundError
 from core.modules.chat_sessions import add_chat_message, get_or_create_chat_session
 from core.modules.llm import stream_chat
-from core.modules.loader import load_flattened_module
+from core.modules.loader import find_roleplay_segment, load_flattened_module
 from core.modules.roleplay import build_roleplay_prompt
 from core.tts import (
     TTSConfig,
@@ -67,7 +67,6 @@ async def _handle_init(ws: WebSocket, data: dict) -> dict | None:
     """
     module_slug = data.get("module_slug")
     roleplay_id_str = data.get("roleplay_id")
-    ai_instructions = data.get("ai_instructions", "")
 
     if not module_slug:
         await ws.send_json({"type": "error", "message": "Missing module_slug"})
@@ -116,6 +115,21 @@ async def _handle_init(ws: WebSocket, data: dict) -> dict | None:
             await ws.send_json({"type": "error", "message": "Invalid roleplay_id"})
             return None
 
+    # Resolve segment data from content cache (single source of truth)
+    roleplay_seg = (
+        find_roleplay_segment(module, roleplay_id_str) if roleplay_id_str else None
+    )
+    if not roleplay_seg:
+        await ws.send_json({"type": "error", "message": "Roleplay segment not found"})
+        return None
+
+    segment_snapshot = {
+        "content": roleplay_seg.get("content"),
+        "aiInstructions": roleplay_seg.get("aiInstructions", ""),
+        "openingMessage": roleplay_seg.get("openingMessage"),
+        "assessmentInstructions": roleplay_seg.get("assessmentInstructions"),
+    }
+
     # Get or create session
     async with get_connection() as conn:
         session = await get_or_create_chat_session(
@@ -124,6 +138,7 @@ async def _handle_init(ws: WebSocket, data: dict) -> dict | None:
             anonymous_token=anonymous_token,
             module_id=module.content_id,
             roleplay_id=roleplay_uuid,
+            segment_snapshot=segment_snapshot,
         )
 
     session_id = session["session_id"]
@@ -147,9 +162,9 @@ async def _handle_init(ws: WebSocket, data: dict) -> dict | None:
         "session_id": session_id,
         "existing_messages": existing_messages,
         "module": module,
-        "ai_instructions": ai_instructions,
-        "scenario_content": data.get("scenario_content"),
-        "opening_message": data.get("opening_message"),
+        "ai_instructions": roleplay_seg.get("aiInstructions", ""),
+        "scenario_content": roleplay_seg.get("content"),
+        "opening_message": roleplay_seg.get("openingMessage"),
         "user_id": user_id,
         "anonymous_token": anonymous_token,
         "tts_config": tts_config,

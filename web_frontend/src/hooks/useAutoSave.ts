@@ -13,8 +13,6 @@ import { createResponse, updateResponse, getResponses } from "@/api/questions";
 export interface UseAutoSaveOptions {
   questionId: string;
   moduleSlug: string;
-  questionText: string;
-  assessmentInstructions?: string | null;
   isAuthenticated: boolean;
   debounceMs?: number;
 }
@@ -35,8 +33,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
   const {
     questionId,
     moduleSlug,
-    questionText,
-    assessmentInstructions,
     isAuthenticated,
     debounceMs = 2500,
   } = options;
@@ -96,8 +92,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
           {
             questionId,
             moduleSlug,
-            questionText,
-            assessmentInstructions: assessmentInstructions ?? null,
             answerText: textToSave,
             answerMetadata: metadata,
           },
@@ -143,8 +137,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
   }, [
     questionId,
     moduleSlug,
-    questionText,
-    assessmentInstructions,
     isAuthenticated,
   ]);
 
@@ -203,8 +195,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
         {
           questionId,
           moduleSlug,
-          questionText,
-          assessmentInstructions: assessmentInstructions ?? null,
           answerText: latestTextRef.current,
         },
         isAuthenticated,
@@ -222,8 +212,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
   }, [
     questionId,
     moduleSlug,
-    questionText,
-    assessmentInstructions,
     isAuthenticated,
   ]);
 
@@ -305,8 +293,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
             {
               questionId,
               moduleSlug,
-              questionText,
-              assessmentInstructions: assessmentInstructions ?? null,
               answerText: textToSave,
               answerMetadata: metadata,
             },
@@ -327,8 +313,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
   }, [
     questionId,
     moduleSlug,
-    questionText,
-    assessmentInstructions,
     isAuthenticated,
   ]);
 

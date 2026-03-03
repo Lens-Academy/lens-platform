@@ -60,7 +60,17 @@ async def get_or_create_chat_session(
     row = result.fetchone()
 
     if row:
-        return dict(row._mapping)
+        session = dict(row._mapping)
+        # Backfill segment_snapshot for sessions created before this field was populated
+        if segment_snapshot and not session.get("segment_snapshot"):
+            await conn.execute(
+                update(chat_sessions)
+                .where(chat_sessions.c.session_id == session["session_id"])
+                .values(segment_snapshot=segment_snapshot)
+            )
+            await conn.commit()
+            session["segment_snapshot"] = segment_snapshot
+        return session
 
     # Create new session
     insert_values = {
@@ -154,6 +164,36 @@ async def get_chat_session(
     """Get chat session by ID."""
     result = await conn.execute(
         select(chat_sessions).where(chat_sessions.c.session_id == session_id)
+    )
+    row = result.fetchone()
+    return dict(row._mapping) if row else None
+
+
+async def get_latest_roleplay_session(
+    conn: AsyncConnection,
+    *,
+    user_id: int | None,
+    anonymous_token: UUID | None,
+    module_id: UUID | None,
+    roleplay_id: UUID,
+) -> dict | None:
+    """Get the most recently completed roleplay session for transcript context."""
+    conditions = [
+        chat_sessions.c.roleplay_id == roleplay_id,
+        chat_sessions.c.completed_at.is_not(None),
+        chat_sessions.c.archived_at.is_(None),
+    ]
+    if module_id:
+        conditions.append(chat_sessions.c.module_id == module_id)
+    if user_id:
+        conditions.append(chat_sessions.c.user_id == user_id)
+    elif anonymous_token:
+        conditions.append(chat_sessions.c.anonymous_token == anonymous_token)
+    result = await conn.execute(
+        select(chat_sessions)
+        .where(and_(*conditions))
+        .order_by(chat_sessions.c.completed_at.desc())
+        .limit(1)
     )
     row = result.fetchone()
     return dict(row._mapping) if row else None

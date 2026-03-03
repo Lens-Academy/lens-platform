@@ -147,7 +147,7 @@ def _build_scoring_prompt(
     return system, messages
 
 
-def _resolve_question_details(module_slug: str, question_id: str) -> dict:
+def resolve_question_details(module_slug: str, question_id: str) -> dict:
     """
     Look up question text, assessment instructions, and learning outcome name
     from the content cache.
@@ -225,32 +225,22 @@ async def _score_response(response_id: int, ctx: dict) -> None:
         ctx: Context dict with question_id, module_slug, answer_text,
              and optionally question_text, assessment_instructions
     """
-    # Prefer question_text from the row snapshot (new path),
-    # fall back to content cache lookup (deployment safety during rollout)
-    question_text = ctx.get("question_text")
-    assessment_instructions = ctx.get("assessment_instructions")
-
-    # Resolve learning_outcome_name from content cache
-    # (these are not stored on the row)
-    question_details = _resolve_question_details(
+    # Resolve all question details from content cache (single source of truth)
+    question_details = resolve_question_details(
         module_slug=ctx["module_slug"],
         question_id=ctx["question_id"],
     )
 
-    if not question_text:
-        # Fallback: read from content cache
-        if not question_details:
-            logger.warning(
-                "Could not resolve question details for response %d, skipping scoring",
-                response_id,
-            )
-            return
-        question_text = question_details["question_text"]
-        assessment_instructions = question_details.get("assessment_instructions")
+    if not question_details:
+        logger.warning(
+            "Could not resolve question details for response %d, skipping scoring",
+            response_id,
+        )
+        return
 
-    learning_outcome_name = (
-        question_details.get("learning_outcome_name") if question_details else None
-    )
+    question_text = question_details["question_text"]
+    assessment_instructions = question_details.get("assessment_instructions")
+    learning_outcome_name = question_details.get("learning_outcome_name")
 
     # Build prompt
     system, messages = _build_scoring_prompt(

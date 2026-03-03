@@ -61,6 +61,7 @@ export interface ParsedRoleplaySegment {
   openingMessage?: string;        // Optional first message
   assessmentInstructions?: string;  // Optional scoring rubric
   optional?: boolean;
+  feedback?: boolean;
 }
 
 export type ParsedLensSegment =
@@ -469,6 +470,7 @@ export function convertSegment(
         openingMessage: raw.fields['opening-message'] || undefined,
         assessmentInstructions: raw.fields['assessment-instructions'] || undefined,
         optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
+        feedback: raw.fields['feedback']?.toLowerCase() === 'true' ? true : undefined,
       };
       return { segment, errors };
     }

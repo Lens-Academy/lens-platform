@@ -91,7 +91,7 @@ describe('SEGMENT_SCHEMAS', () => {
     expect(schema.optionalFields).toEqual(
       expect.arrayContaining(['opening-message', 'assessment-instructions', 'optional'])
     );
-    expect(schema.booleanFields).toEqual(['optional']);
+    expect(schema.booleanFields).toEqual(['optional', 'feedback']);
   });
 
   it('booleanFields lists the boolean fields', () => {

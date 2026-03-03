@@ -114,6 +114,7 @@ export interface RoleplaySegment {
   openingMessage?: string;
   assessmentInstructions?: string;
   optional?: boolean;
+  feedback?: boolean;
 }
 
 export type Segment = TextSegment | ChatSegment | ArticleExcerptSegment | VideoExcerptSegment | QuestionSegment | RoleplaySegment;

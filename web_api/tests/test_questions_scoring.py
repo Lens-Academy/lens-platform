@@ -112,8 +112,6 @@ class TestScoringTrigger:
                 "question_id": "test-module:0:0",
                 "module_slug": "test-module",
                 "answer_text": "My answer",
-                "question_text": "What is AI safety?",
-                "assessment_instructions": None,
             },
         )
 
@@ -151,11 +149,19 @@ class TestScoringTrigger:
         assert response.status_code == 200
         mock_enqueue.assert_not_called()
 
+    @patch(
+        "web_api.routes.questions.resolve_question_details",
+        return_value={
+            "question_text": "What is AI safety?",
+            "assessment_instructions": None,
+            "learning_outcome_name": None,
+        },
+    )
     @patch("web_api.routes.questions.get_transaction", return_value=mock_transaction())
     @patch("web_api.routes.questions.submit_response", new_callable=AsyncMock)
     @patch("web_api.routes.questions.enqueue_scoring")
     def test_post_does_not_trigger_scoring(
-        self, mock_enqueue, mock_submit, mock_tx, client
+        self, mock_enqueue, mock_submit, mock_tx, mock_resolve, client
     ):
         """POST (create new response) should NOT trigger scoring."""
         mock_submit.return_value = MOCK_POST_ROW
@@ -165,7 +171,6 @@ class TestScoringTrigger:
             json={
                 "question_id": "test-module:0:0",
                 "module_slug": "test-module",
-                "question_text": "What is AI safety?",
                 "answer_text": "New answer",
                 "answer_metadata": {},
             },

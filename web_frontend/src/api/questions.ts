@@ -29,8 +29,6 @@ function getAuthHeaders(isAuthenticated: boolean): AuthHeaders {
 export interface CreateResponseParams {
   questionId: string;
   moduleSlug: string;
-  questionText: string;
-  assessmentInstructions?: string | null;
   answerText: string;
   answerMetadata?: Record<string, unknown>;
 }
@@ -83,8 +81,6 @@ export async function createResponse(
     body: JSON.stringify({
       question_id: params.questionId,
       module_slug: params.moduleSlug,
-      question_text: params.questionText,
-      assessment_instructions: params.assessmentInstructions ?? null,
       answer_text: params.answerText,
       answer_metadata: params.answerMetadata ?? {},
     }),

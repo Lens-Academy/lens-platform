@@ -1161,6 +1161,7 @@ function convertSegment(
       if (parsedSegment.openingMessage) segment.openingMessage = parsedSegment.openingMessage;
       if (parsedSegment.assessmentInstructions) segment.assessmentInstructions = parsedSegment.assessmentInstructions;
       if (parsedSegment.optional) segment.optional = true;
+      if (parsedSegment.feedback) segment.feedback = true;
       return { segment, errors };
     }
 

@@ -55,6 +55,7 @@ export type RoleplaySegment = {
   openingMessage?: string;        // Optional first AI message
   assessmentInstructions?: string;  // Optional scoring rubric
   optional?: boolean;
+  feedback?: boolean;
 };
 
 export type ModuleSegment =
