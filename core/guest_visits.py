@@ -8,7 +8,7 @@ Allows users to attend a meeting with a different group in the same cohort
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, delete, func, literal_column, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -71,13 +71,15 @@ async def find_alternative_meetings(
     facilitator_subq = (
         select(
             groups_users.c.group_id,
-            func.coalesce(users.c.nickname, users.c.discord_username).label(
-                "facilitator_name"
-            ),
+            func.string_agg(
+                func.coalesce(users.c.nickname, users.c.discord_username),
+                literal_column("', '"),
+            ).label("facilitator_name"),
         )
         .join(users, groups_users.c.user_id == users.c.user_id)
         .where(groups_users.c.role == "facilitator")
         .where(groups_users.c.status == GroupUserStatus.active)
+        .group_by(groups_users.c.group_id)
         .subquery()
     )
 
