@@ -126,7 +126,7 @@ describe("useActivityTracker", () => {
 
     expect(sendBeaconMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/progress/time"),
-      expect.any(String),
+      expect.any(Blob),
     );
   });
 
@@ -190,7 +190,7 @@ describe("useActivityTracker", () => {
 
     expect(sendBeaconMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/progress/time"),
-      expect.any(String),
+      expect.any(Blob),
     );
   });
 
@@ -227,7 +227,7 @@ describe("useActivityTracker", () => {
 
     expect(sendBeaconMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/api\/progress\/time\?anonymous_token=.+/),
-      expect.any(String),
+      expect.any(Blob),
     );
   });
 
