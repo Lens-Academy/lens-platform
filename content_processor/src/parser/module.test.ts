@@ -226,6 +226,41 @@ source:: [[../Learning Outcomes/lo1.md|LO1]]
     expect(result.errors).toHaveLength(0);
   });
 
+  it('accepts # Submodule: sections', () => {
+    const content = `---
+slug: big-module
+title: Big Module
+---
+
+# Submodule: Welcome
+slug:: welcome
+
+## Page: Welcome Page
+### Text
+content:: Hello world.
+
+# Submodule: Research
+
+## Learning Outcome: First Topic
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`;
+
+    const result = parseModule(content, 'modules/big.md');
+
+    expect(result.module).not.toBeNull();
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    expect(result.module?.sections).toHaveLength(2);
+    expect(result.module?.sections[0].type).toBe('submodule');
+    expect(result.module?.sections[0].title).toBe('Welcome');
+    expect(result.module?.sections[1].type).toBe('submodule');
+    expect(result.module?.sections[1].title).toBe('Research');
+    // Children should be parsed recursively
+    expect(result.module?.sections[0].children).toHaveLength(1);
+    expect(result.module?.sections[0].children?.[0].type).toBe('page');
+    expect(result.module?.sections[1].children).toHaveLength(1);
+    expect(result.module?.sections[1].children?.[0].type).toBe('learning-outcome');
+  });
+
   it('collects errors from all parsing stages', () => {
     const content = `# No frontmatter
 
@@ -595,5 +630,51 @@ hidePreviousContentFromUser:: True
     const chatSeg = result.segments.find(s => s.type === 'chat');
     expect(chatSeg).toBeDefined();
     expect((chatSeg as any).hidePreviousContentFromUser).toBe(true);
+  });
+});
+
+describe('parsePageSegments at variable heading levels', () => {
+  it('parses ### Text subsections at level 3 (inside a submodule)', () => {
+    const body = `id:: abc-123
+
+### Text
+content::
+Welcome text inside a submodule page.
+`;
+
+    const result = parsePageSegments(body, 'modules/test.md', 0, 3);
+
+    expect(result.segments).toHaveLength(1);
+    expect(result.segments[0].type).toBe('text');
+    expect(result.segments[0].content).toContain('Welcome text inside a submodule');
+  });
+
+  it('parses ### Chat subsections at level 3', () => {
+    const body = `### Text
+content:: Some text.
+
+### Chat
+instructions:: Discuss this.
+`;
+
+    const result = parsePageSegments(body, 'modules/test.md', 0, 3);
+
+    expect(result.segments).toHaveLength(2);
+    expect(result.segments[0].type).toBe('text');
+    expect(result.segments[1].type).toBe('chat');
+  });
+
+  it('ignores ## headers when parsing at level 3', () => {
+    const body = `## Text
+content:: This should NOT be found.
+
+### Text
+content:: This SHOULD be found.
+`;
+
+    const result = parsePageSegments(body, 'modules/test.md', 0, 3);
+
+    expect(result.segments).toHaveLength(1);
+    expect(result.segments[0].content).toContain('SHOULD be found');
   });
 });

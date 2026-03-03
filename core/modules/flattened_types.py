@@ -29,6 +29,8 @@ class FlattenedModule:
     content_id: UUID | None
     sections: list[dict] = field(default_factory=list)
     error: str | None = None
+    parent_slug: str | None = None
+    parent_title: str | None = None
 
 
 @dataclass

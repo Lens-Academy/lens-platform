@@ -1,6 +1,7 @@
 /**
- * Accordion sidebar showing course units and modules.
- * Units are identified by meeting number (or null for additional content).
+ * Flat sidebar showing course modules.
+ * Meeting numbers shown as subtle labels on the first module of each group.
+ * Modules split into submodules are grouped under collapsible parent headers.
  */
 
 import { useState } from "react";
@@ -24,11 +25,87 @@ function ModuleStatusIcon({ status }: { status: ModuleInfo["status"] }) {
   return <Circle className="w-4 h-4 text-slate-300" />;
 }
 
-function getUnitLabel(unit: UnitInfo): string {
-  if (unit.meetingNumber === null) {
-    return "Additional Content";
+// A sidebar entry: a standalone module or a parent group with children
+type SidebarItem =
+  | { kind: "module"; module: ModuleInfo; meetingLabel: string | null }
+  | {
+      kind: "parent";
+      parentSlug: string;
+      parentTitle: string;
+      children: ModuleInfo[];
+      meetingLabel: string | null;
+    };
+
+function buildSidebarItems(units: UnitInfo[]): SidebarItem[] {
+  const items: SidebarItem[] = [];
+  let lastMeeting: number | null = null;
+
+  for (const unit of units) {
+    // Show meeting label on the first item of each new meeting group
+    const meetingChanged =
+      unit.meetingNumber !== null && unit.meetingNumber !== lastMeeting;
+    let meetingLabel: string | null = meetingChanged
+      ? `Meeting ${unit.meetingNumber}`
+      : null;
+    if (meetingChanged) lastMeeting = unit.meetingNumber;
+
+    // Group consecutive modules with the same parentSlug
+    let i = 0;
+    while (i < unit.modules.length) {
+      const mod = unit.modules[i];
+
+      if (mod.parentSlug) {
+        const parentSlug = mod.parentSlug;
+        const parentTitle = mod.parentTitle || parentSlug;
+        const children: ModuleInfo[] = [];
+        while (
+          i < unit.modules.length &&
+          unit.modules[i].parentSlug === parentSlug
+        ) {
+          children.push(unit.modules[i]);
+          i++;
+        }
+        items.push({
+          kind: "parent",
+          parentSlug,
+          parentTitle,
+          children,
+          meetingLabel,
+        });
+      } else {
+        items.push({ kind: "module", module: mod, meetingLabel });
+        i++;
+      }
+      // Only the first item in this unit gets the label
+      meetingLabel = null;
+    }
   }
-  return `Unit ${unit.meetingNumber}`;
+
+  return items;
+}
+
+function getParentProgress(children: ModuleInfo[]) {
+  const required = children.filter((m) => !m.optional);
+  const completed = required.filter((m) => m.status === "completed").length;
+  return `${completed}/${required.length}`;
+}
+
+function getParentStatus(children: ModuleInfo[]): ModuleInfo["status"] {
+  if (children.every((m) => m.status === "completed")) return "completed";
+  if (
+    children.some(
+      (m) => m.status === "in_progress" || m.status === "completed",
+    )
+  )
+    return "in_progress";
+  return "not_started";
+}
+
+function MeetingLabel({ label }: { label: string | null }) {
+  if (!label) return null;
+  return (
+    <span className="text-[11px] text-slate-400 font-medium">{label}</span>
+  );
 }
 
 export default function CourseSidebar({
@@ -37,30 +114,27 @@ export default function CourseSidebar({
   selectedModuleSlug,
   onModuleSelect,
 }: CourseSidebarProps) {
-  // Track which units are expanded (by index) - all expanded by default
-  const [expandedUnits, setExpandedUnits] = useState<Set<number>>(
-    () => new Set(units.map((_, i) => i)),
-  );
+  const sidebarItems = buildSidebarItems(units);
 
-  const toggleUnit = (unitIndex: number) => {
-    setExpandedUnits((prev) => {
+  // Track which parent groups are expanded (by parentSlug) - all expanded by default
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(() => {
+    const slugs = new Set<string>();
+    for (const item of sidebarItems) {
+      if (item.kind === "parent") slugs.add(item.parentSlug);
+    }
+    return slugs;
+  });
+
+  const toggleParent = (slug: string) => {
+    setExpandedParents((prev) => {
       const next = new Set(prev);
-      if (next.has(unitIndex)) {
-        next.delete(unitIndex);
+      if (next.has(slug)) {
+        next.delete(slug);
       } else {
-        next.add(unitIndex);
+        next.add(slug);
       }
       return next;
     });
-  };
-
-  const getUnitProgress = (unit: UnitInfo) => {
-    // Only count required modules for progress
-    const requiredModules = unit.modules.filter((m) => !m.optional);
-    const completed = requiredModules.filter(
-      (m) => m.status === "completed",
-    ).length;
-    return `${completed}/${requiredModules.length}`;
   };
 
   return (
@@ -70,69 +144,105 @@ export default function CourseSidebar({
         <h1 className="text-lg font-bold text-slate-900">{courseTitle}</h1>
       </div>
 
-      {/* Units list */}
+      {/* Flat module list */}
       <div className="flex-1 overflow-y-auto">
-        {units.map((unit, unitIndex) => {
-          const isExpanded = expandedUnits.has(unitIndex);
+        {sidebarItems.map((item) => {
+          if (item.kind === "module") {
+            const { module, meetingLabel } = item;
+            const isSelected = module.slug === selectedModuleSlug;
+            return (
+              <button
+                key={module.slug}
+                onClick={() => onModuleSelect(module)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                  isSelected
+                    ? "bg-blue-50 text-blue-900"
+                    : "hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                <ModuleStatusIcon status={module.status} />
+                <span
+                  className={`flex-1 text-sm ${module.optional ? "text-slate-500" : ""}`}
+                >
+                  {module.title}
+                </span>
+                {module.optional && (
+                  <span className="text-xs text-slate-400 font-medium">
+                    Optional
+                  </span>
+                )}
+                {!module.optional && module.status === "in_progress" && (
+                  <span className="text-xs text-blue-600 font-medium">
+                    {module.completedLenses !== undefined && module.totalLenses
+                      ? `${module.completedLenses}/${module.totalLenses}`
+                      : "Continue"}
+                  </span>
+                )}
+                <MeetingLabel label={meetingLabel} />
+              </button>
+            );
+          }
+
+          // Parent group with collapsible children
+          const { parentSlug, parentTitle, children, meetingLabel } = item;
+          const isExpanded = expandedParents.has(parentSlug);
+          const parentStatus = getParentStatus(children);
+          const anyChildSelected = children.some(
+            (c) => c.slug === selectedModuleSlug,
+          );
 
           return (
-            <div key={unitIndex} className="border-b border-slate-200">
-              {/* Unit header */}
+            <div key={parentSlug}>
+              {/* Parent header */}
               <button
-                onClick={() => toggleUnit(unitIndex)}
-                className="w-full flex items-center gap-2 p-4 hover:bg-slate-100 transition-colors text-left"
+                onClick={() => toggleParent(parentSlug)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                  anyChildSelected && !isExpanded
+                    ? "bg-blue-50"
+                    : "hover:bg-slate-100"
+                }`}
               >
+                <ModuleStatusIcon status={parentStatus} />
+                <span className="flex-1 text-sm font-medium text-slate-900">
+                  {parentTitle}
+                </span>
+                <span className="text-xs text-slate-400 mr-1">
+                  {getParentProgress(children)}
+                </span>
+                <MeetingLabel label={meetingLabel} />
                 {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                 ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                 )}
-                <span className="flex-1 font-medium text-slate-900">
-                  {getUnitLabel(unit)}
-                </span>
-                <span className="text-sm text-slate-500">
-                  {getUnitProgress(unit)}
-                </span>
               </button>
 
-              {/* Modules list */}
+              {/* Children (submodules) */}
               {isExpanded && (
-                <div className="pb-2">
-                  {unit.modules.map((module) => {
-                    const isSelected = module.slug === selectedModuleSlug;
-
+                <div className="pb-1">
+                  {children.map((child) => {
+                    const isSelected = child.slug === selectedModuleSlug;
                     return (
                       <button
-                        key={module.slug}
-                        onClick={() => onModuleSelect(module)}
-                        className={`w-full flex items-center gap-3 px-4 py-2 pl-10 text-left transition-colors ${
+                        key={child.slug}
+                        onClick={() => onModuleSelect(child)}
+                        className={`w-full flex items-center gap-3 pl-10 pr-4 py-2 text-left transition-colors ${
                           isSelected
                             ? "bg-blue-50 text-blue-900"
-                            : "hover:bg-slate-100 text-slate-700"
+                            : "hover:bg-slate-100 text-slate-600"
                         }`}
                       >
-                        <ModuleStatusIcon status={module.status} />
+                        <ModuleStatusIcon status={child.status} />
                         <span
-                          className={`flex-1 text-sm ${
-                            module.optional ? "text-slate-500" : ""
-                          }`}
+                          className={`flex-1 text-sm ${child.optional ? "text-slate-400" : ""}`}
                         >
-                          {module.title}
+                          {child.title}
                         </span>
-                        {module.optional && (
+                        {child.optional && (
                           <span className="text-xs text-slate-400 font-medium">
                             Optional
                           </span>
                         )}
-                        {!module.optional &&
-                          module.status === "in_progress" && (
-                            <span className="text-xs text-blue-600 font-medium">
-                              {module.completedLenses !== undefined &&
-                              module.totalLenses
-                                ? `${module.completedLenses}/${module.totalLenses}`
-                                : "Continue"}
-                            </span>
-                          )}
                       </button>
                     );
                   })}

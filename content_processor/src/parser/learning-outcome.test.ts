@@ -103,4 +103,127 @@ source:: [[../Lenses/lens1.md|Lens]]
       e.message.includes('string')
     )).toBe(true);
   });
+
+  describe('LO with submodules', () => {
+    it('parses LO with ## Submodule: sections', () => {
+      const content = `---
+id: '550e8400-e29b-41d4-a716-446655440001'
+---
+
+## Submodule: Basics
+
+### Lens:
+source:: [[../Lenses/lens-1.md|Lens 1]]
+
+## Submodule: Deep Dive
+
+### Lens:
+source:: [[../Lenses/lens-2.md|Lens 2]]
+`;
+
+      const result = parseLearningOutcome(content, 'Learning Outcomes/lo1.md');
+
+      expect(result.learningOutcome).toBeDefined();
+      expect(result.learningOutcome!.submodules).toBeDefined();
+      expect(result.learningOutcome!.submodules).toHaveLength(2);
+      expect(result.learningOutcome!.submodules![0].title).toBe('Basics');
+      expect(result.learningOutcome!.submodules![0].lenses).toHaveLength(1);
+      expect(result.learningOutcome!.submodules![1].title).toBe('Deep Dive');
+      expect(result.learningOutcome!.submodules![1].lenses).toHaveLength(1);
+    });
+
+    it('all-or-nothing: lens before first submodule = error', () => {
+      const content = `---
+id: '550e8400-e29b-41d4-a716-446655440002'
+---
+
+## Lens:
+source:: [[../Lenses/orphan-lens.md|Orphan]]
+
+## Submodule: Group A
+
+### Lens:
+source:: [[../Lenses/lens-1.md|Lens 1]]
+`;
+
+      const result = parseLearningOutcome(content, 'Learning Outcomes/lo2.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.toLowerCase().includes('submodule')
+      )).toBe(true);
+    });
+
+    it('parses LO with # Submodule: (h1) sections', () => {
+      const content = `---
+id: '550e8400-e29b-41d4-a716-446655440010'
+---
+
+# Submodule: Basics
+
+## Lens:
+source:: [[../Lenses/lens-1.md|Lens 1]]
+
+## Lens:
+source:: [[../Lenses/lens-2.md|Lens 2]]
+
+# Submodule: Advanced
+
+## Lens:
+source:: [[../Lenses/lens-3.md|Lens 3]]
+`;
+
+      const result = parseLearningOutcome(content, 'Learning Outcomes/lo-h1.md');
+
+      expect(result.learningOutcome).toBeDefined();
+      expect(result.learningOutcome!.submodules).toBeDefined();
+      expect(result.learningOutcome!.submodules).toHaveLength(2);
+      expect(result.learningOutcome!.submodules![0].title).toBe('Basics');
+      expect(result.learningOutcome!.submodules![0].lenses).toHaveLength(2);
+      expect(result.learningOutcome!.submodules![1].title).toBe('Advanced');
+      expect(result.learningOutcome!.submodules![1].lenses).toHaveLength(1);
+      // No errors (especially no wrong-level warnings)
+      expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    });
+
+    it('all-or-nothing: h2 lens before h1 submodule = error', () => {
+      const content = `---
+id: '550e8400-e29b-41d4-a716-446655440011'
+---
+
+## Lens:
+source:: [[../Lenses/orphan.md|Orphan]]
+
+# Submodule: Group A
+
+## Lens:
+source:: [[../Lenses/lens-1.md|Lens 1]]
+`;
+
+      const result = parseLearningOutcome(content, 'Learning Outcomes/lo-mixed.md');
+
+      expect(result.errors.some(e =>
+        e.severity === 'error' &&
+        e.message.toLowerCase().includes('submodule')
+      )).toBe(true);
+    });
+
+    it('extracts custom slug from submodule', () => {
+      const content = `---
+id: '550e8400-e29b-41d4-a716-446655440003'
+---
+
+## Submodule: Advanced Topics
+slug:: advanced
+
+### Lens:
+source:: [[../Lenses/lens-1.md|Lens 1]]
+`;
+
+      const result = parseLearningOutcome(content, 'Learning Outcomes/lo3.md');
+
+      expect(result.learningOutcome!.submodules).toBeDefined();
+      expect(result.learningOutcome!.submodules![0].customSlug).toBe('advanced');
+    });
+  });
 });

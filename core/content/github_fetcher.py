@@ -427,6 +427,8 @@ async def fetch_all_content() -> ContentCache:
                 content_id=UUID(mod["contentId"]) if mod.get("contentId") else None,
                 sections=mod["sections"],
                 error=mod.get("error"),
+                parent_slug=mod.get("parentSlug"),
+                parent_title=mod.get("parentTitle"),
             )
 
         # Convert courses from TypeScript result
@@ -836,6 +838,8 @@ async def incremental_refresh(new_commit_sha: str) -> list[dict]:
                 content_id=UUID(mod["contentId"]) if mod.get("contentId") else None,
                 sections=mod["sections"],
                 error=mod.get("error"),
+                parent_slug=mod.get("parentSlug"),
+                parent_title=mod.get("parentTitle"),
             )
 
         courses: dict[str, ParsedCourse] = {}
