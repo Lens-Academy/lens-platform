@@ -19,6 +19,10 @@
   /* Module header height for content offset calculations */
   --module-header-height: 68px;
 
+  /* Dynamic header offset — tracks whether header is visible or hidden.
+     Set by ModuleHeader/Layout via JS; consumed by sticky elements. */
+  --header-offset: var(--module-header-height);
+
   /* Spring easing - slight overshoot and settle */
   --ease-spring: linear(
     0,
