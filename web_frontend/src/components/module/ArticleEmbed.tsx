@@ -93,10 +93,12 @@ function CollapsibleBlock({
 
       const rect = containerRef.current.getBoundingClientRect();
 
-      // If the container top is above or behind the sticky header, scroll up
+      // Snap viewport so the container top sits just below the sticky header.
+      // The sticky [...] header stays visually stationary while content
+      // collapses below it.
       if (rect.top < headerOffset) {
         const targetScrollY = rect.top + window.scrollY - headerOffset;
-        window.scrollTo({ top: targetScrollY, behavior: "smooth" });
+        window.scrollTo({ top: targetScrollY, behavior: "instant" });
       }
     }
 
