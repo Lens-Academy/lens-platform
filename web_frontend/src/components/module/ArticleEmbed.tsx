@@ -82,46 +82,63 @@ function CollapsibleBlock({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleCollapse = () => {
-    if (containerRef.current) {
-      // Walk up the DOM to find the first in-flow sibling after the collapsed
-      // block. The CollapsibleBlock container is often the last child of
-      // several wrapper divs, so we may need to ascend a few levels.
-      let nextEl: Element | null = null;
-      let el: Element | null = containerRef.current;
-      while (el && !nextEl) {
-        let sib = el.nextElementSibling;
-        while (sib) {
-          const pos = getComputedStyle(sib).position;
-          if (pos !== "absolute" && pos !== "fixed") {
-            nextEl = sib;
-            break;
-          }
-          sib = sib.nextElementSibling;
-        }
-        if (!nextEl) el = el.parentElement;
-      }
-
-      if (nextEl) {
-        // Smoothly scroll so nextEl is near the top of the viewport,
-        // pushing the collapsible section off-screen above.
-        const nextElTop = nextEl.getBoundingClientRect().top + window.scrollY;
-        const targetScrollY = nextElTop - window.innerHeight * 0.1;
-        window.scrollTo({ top: Math.max(0, targetScrollY), behavior: "smooth" });
-
-        // Collapse after the scroll animation finishes (off-screen).
-        let done = false;
-        const doCollapse = () => {
-          if (done) return;
-          done = true;
-          setIsOpen(false);
-        };
-        window.addEventListener("scrollend", doCollapse, { once: true });
-        setTimeout(doCollapse, 600);
-        return;
-      }
+    if (!containerRef.current) {
+      setIsOpen(false);
+      return;
     }
 
+    // Disable scroll anchoring so Chrome doesn't fight our animation
+    document.documentElement.style.overflowAnchor = "none";
+
+    // Speed up the collapse (faster than the scroll)
+    const gridEl = containerRef.current.querySelector(
+      '[class*="grid"]',
+    ) as HTMLElement | null;
+    if (gridEl) gridEl.style.transition = "grid-template-rows 300ms ease-out";
+
+    // The [...] marker's doc position won't change during collapse
+    // (collapsing content is below it), so this target is stable.
+    const markerDocY =
+      containerRef.current.getBoundingClientRect().top + window.scrollY;
+    const headerOffset = parseFloat(
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--header-offset") || "0",
+    );
+    const targetViewportY = headerOffset;
+    const targetScrollY = Math.max(0, markerDocY - targetViewportY);
+    const startScrollY = window.scrollY;
+    const scrollDelta = targetScrollY - startScrollY;
+
+    // Trigger collapse (CSS transition animates it over 150ms)
     setIsOpen(false);
+
+    // Animate scroll over 300ms (slower than the 150ms collapse)
+    const scrollDuration = 300;
+    const startTime = performance.now();
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const t = Math.min(1, elapsed / scrollDuration);
+      const eased = 1 - (1 - t) ** 3; // ease-out cubic
+
+      window.scrollTo({
+        top: startScrollY + scrollDelta * eased,
+        behavior: "instant",
+      });
+
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        // Done — re-enable scroll anchoring, restore default transition
+        document.documentElement.style.overflowAnchor = "";
+        if (gridEl) {
+          gridEl.offsetHeight; // force reflow
+          gridEl.style.transition = "";
+        }
+      }
+    };
+
+    requestAnimationFrame(animate);
   };
 
   const handleToggle = () => {
