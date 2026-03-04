@@ -68,7 +68,7 @@ export default function ArticleExcerptGroup({
       {/* TOC: portal to grid column if available, else absolute-position fallback */}
       {tocPortalContainer
         ? createPortal(tocElement, tocPortalContainer)
-        : (
+        : !context?.hideToc && (
           <div className="absolute top-30 bottom-0 right-full w-[250px] mr-6 pl-4 opacity-0 invisible -translate-x-2 min-[1100px]:opacity-100 min-[1100px]:visible min-[1100px]:translate-x-0 transition-[opacity,visibility,transform] duration-300 ease-out">
             <div
               data-toc-scroll

@@ -9,6 +9,7 @@
 :root {
   --background: #fafaf9; /* stone-50 */
   --foreground: #0f172a; /* slate-900 */
+  --sidebar-width: 320px;
 
   /* Safe area insets for notched devices */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -147,6 +148,36 @@ body {
     margin-left: max(calc((100% - var(--container-content-padded)) / 2), 274px);
   }
 }
+
+/* At xl+ the TOC is portaled into its own grid column, so the 274px
+   minimum is redundant — just left-align within the 9-col span. */
+@media (min-width: 1280px) {
+  .article-toc-margin {
+    margin-left: 0;
+  }
+}
+
+/* When chat sidebar is open: reserve right margin space (mirrors TOC's left margin).
+   Grid is disabled when sidebar open, so use the sub-xl centering formula for both sides. */
+.article-toc-margin.sidebar-open {
+  margin-right: max(
+    calc((100% - var(--container-content-padded)) / 2),
+    calc(var(--sidebar-width) + 20px)
+  );
+  transition: margin-left 0.3s ease-out, margin-right 0.3s ease-out;
+}
+
+/* At xl+ with sidebar: grid is disabled, so override grid-mode margin-left: 0
+   back to the centering formula. */
+@media (min-width: 1280px) {
+  .article-toc-margin.sidebar-open {
+    margin-left: max(0px, calc((100% - var(--container-content-padded)) / 2));
+  }
+  :root {
+    --sidebar-width: 384px;
+  }
+}
+
 
 /* ToC item styles - controlled via direct DOM manipulation for performance */
 .toc-current {

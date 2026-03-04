@@ -8,6 +8,8 @@ type ArticleSectionWrapperProps = {
   children: React.ReactNode;
   /** Portal container for rendering the TOC in a grid column at the Module level */
   tocPortalContainer?: HTMLElement | null;
+  /** Whether the TOC should be hidden (e.g. when chat sidebar is open) */
+  hideToc?: boolean;
 };
 
 /**
@@ -18,6 +20,7 @@ type ArticleSectionWrapperProps = {
 export default function ArticleSectionWrapper({
   children,
   tocPortalContainer,
+  hideToc,
 }: ArticleSectionWrapperProps) {
   const headingElementsRef = useRef<Map<string, HTMLElement>>(new Map());
   // ToC items for direct DOM manipulation (bypasses React re-renders)
@@ -258,6 +261,7 @@ export default function ArticleSectionWrapper({
       registerTocItem,
       onHeadingClick: handleHeadingClick,
       tocPortalContainer: tocPortalContainer ?? null,
+      hideToc: hideToc ?? false,
     }),
     [
       getHeadingId,
@@ -266,6 +270,7 @@ export default function ArticleSectionWrapper({
       registerTocItem,
       handleHeadingClick,
       tocPortalContainer,
+      hideToc,
     ],
   );
 

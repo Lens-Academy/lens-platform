@@ -13,6 +13,8 @@ type ArticleSectionContextValue = {
   onHeadingClick: (id: string) => void;
   /** Portal container for rendering the TOC in a grid column at the Module level */
   tocPortalContainer: HTMLElement | null;
+  /** Whether the TOC should be hidden (e.g. when chat sidebar is open) */
+  hideToc: boolean;
 };
 
 const ArticleSectionContext = createContext<ArticleSectionContextValue | null>(

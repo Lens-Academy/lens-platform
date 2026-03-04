@@ -1368,11 +1368,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       {/* Layout: optional TOC column (xl+) + content + optional chat sidebar */}
       <div
         className={`pt-[var(--module-header-height)] ${
-          isArticleSection ? "xl:grid xl:grid-cols-12" : ""
+          isArticleSection && !isSidebarOpen ? "xl:grid xl:grid-cols-12" : ""
         }`}
       >
-      {/* TOC column — article sections, xl+ only */}
-      {isArticleSection && (
+      {/* TOC column — article sections, xl+ only, hidden when sidebar open */}
+      {isArticleSection && !isSidebarOpen && (
         <aside className="hidden xl:block xl:col-span-3">
           <div
             ref={setTocContainer}
@@ -1381,9 +1381,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         </aside>
       )}
 
-      {/* Content + sidebar wrapper */}
-      <div className={`flex ${isArticleSection ? "xl:col-span-9" : ""}`}>
-      <main className="flex-1 min-w-0">
+      {/* Content area */}
+      <div className={isArticleSection && !isSidebarOpen ? "xl:col-span-9" : ""}>
+      <main className="w-full min-w-0">
+        <div className={`relative ${isArticleSection ? `max-w-content-padded article-toc-margin${isSidebarOpen ? " sidebar-open" : ""}` : ""}`}>
         {module.sections.map((section, sectionIndex) => {
           // In paginated mode, only render current section
           if (
@@ -1514,7 +1515,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     title={section.meta?.title}
                     duration={sectionDur}
                   />
-                  <ArticleSectionWrapper tocPortalContainer={tocContainer}>
+                  <ArticleSectionWrapper tocPortalContainer={isSidebarOpen ? null : tocContainer} hideToc={false}>
                     {(() => {
                       // Split segments into pre-excerpt, excerpt, post-excerpt groups
                       const segments = section.segments ?? [];
@@ -1588,7 +1589,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                           : undefined;
 
                       return (
-                        <div className="max-w-content-padded mx-auto article-toc-margin">
+                        <div>
                           {/* Pre-excerpt content (intro, setup) */}
                           {preExcerpt.map((segment, i) =>
                             renderSegment(segment, section, sectionIndex, i),
@@ -1657,7 +1658,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     title={section.meta?.title}
                     duration={sectionDur}
                   />
-                  <ArticleSectionWrapper tocPortalContainer={tocContainer}>
+                  <ArticleSectionWrapper tocPortalContainer={isSidebarOpen ? null : tocContainer} hideToc={false}>
                     {(() => {
                       // Split segments into pre-excerpt, excerpt, post-excerpt groups
                       const segments = section.segments ?? [];
@@ -1731,7 +1732,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                           : undefined;
 
                       return (
-                        <div className="max-w-content-padded mx-auto article-toc-margin">
+                        <div>
                           {/* Pre-excerpt content (intro, setup) */}
                           {preExcerpt.map((segment, i) =>
                             renderSegment(segment, section, sectionIndex, i),
@@ -1958,37 +1959,52 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             </div>
           );
         })}
-      </main>
 
+      {/* Chat sidebar: absolute-positioned to the RIGHT of the article wrapper,
+          mirroring how the TOC sits to the LEFT via absolute right-full.
+          Uses a sticky inner container so it stays in view while scrolling. */}
       {isArticleSection && (
-        <ChatSidebar
-          isOpen={isSidebarOpen}
-          onOpen={() => {
-            setIsSidebarOpen(true);
-            sidebarAutoClosedRef.current = false;
-          }}
-          onClose={() => setIsSidebarOpen(false)}
-          sectionTitle={currentSection?.meta?.title}
-          messages={messages}
-          prefixMessage={
-            doneReadingSections.has(currentSectionIndex)
-              ? sectionPrefixMessage
-              : undefined
-          }
-          pendingMessage={pendingMessage}
-          streamingContent={streamingContent}
-          isLoading={isLoading}
-          onSendMessage={(content) =>
-            handleSendMessage(
-              content,
-              currentSectionIndex,
-              sidebarChatSegmentIndex !== -1 ? sidebarChatSegmentIndex : 0,
-            )
-          }
-          onRetryMessage={handleRetryMessage}
-        />
+        <div
+          className={`absolute top-0 bottom-0 left-full ml-4 overflow-clip transition-[width] duration-300 [transition-timing-function:var(--ease-spring)] ${
+            isSidebarOpen ? "w-80 xl:w-96" : "w-10"
+          }`}
+        >
+          <div
+            className="sticky h-[calc(100dvh-var(--module-header-height))]"
+            style={{ top: "var(--module-header-height)" }}
+          >
+            <ChatSidebar
+              isOpen={isSidebarOpen}
+              onOpen={() => {
+                setIsSidebarOpen(true);
+                sidebarAutoClosedRef.current = false;
+              }}
+              onClose={() => setIsSidebarOpen(false)}
+              sectionTitle={currentSection?.meta?.title}
+              messages={messages}
+              prefixMessage={
+                doneReadingSections.has(currentSectionIndex)
+                  ? sectionPrefixMessage
+                  : undefined
+              }
+              pendingMessage={pendingMessage}
+              streamingContent={streamingContent}
+              isLoading={isLoading}
+              onSendMessage={(content) =>
+                handleSendMessage(
+                  content,
+                  currentSectionIndex,
+                  sidebarChatSegmentIndex !== -1 ? sidebarChatSegmentIndex : 0,
+                )
+              }
+              onRetryMessage={handleRetryMessage}
+            />
+          </div>
+        </div>
       )}
-      </div>{/* /flex content+sidebar */}
+      </div>{/* /relative article wrapper */}
+      </main>
+      </div>{/* /content area */}
       </div>{/* /grid wrapper */}
 
       <ModuleDrawer

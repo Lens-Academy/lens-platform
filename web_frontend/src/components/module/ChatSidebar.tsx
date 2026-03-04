@@ -1,11 +1,11 @@
 /**
  * ChatSidebar — optional freeform chat panel alongside article content.
  *
- * Desktop/tablet (md+): inline sticky sidebar next to article content,
- * using available space. Narrow toggle strip when closed, full chat panel
- * when open. Same z-index as content — not an overlay.
+ * Desktop (lg+): content-only component. Parent handles positioning via
+ * absolute+sticky (mirroring the TOC approach). Narrow toggle strip when
+ * closed, full chat panel when open. Same z-index as content — not an overlay.
  *
- * Mobile (<md): fullscreen fixed overlay with backdrop.
+ * Mobile/tablet (<lg): fullscreen fixed overlay with backdrop.
  */
 
 import { useEffect, useCallback, useRef } from "react";
@@ -42,7 +42,7 @@ export function ChatSidebar({
   onSendMessage,
   onRetryMessage: _onRetryMessage,
 }: ChatSidebarProps) {
-  const isMobile = useMedia("(max-width: 767px)", false);
+  const isMobile = useMedia("(max-width: 1023px)", false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleClose = useCallback(() => onClose(), [onClose]);
@@ -210,23 +210,17 @@ export function ChatSidebar({
     );
   }
 
-  // ── Desktop/Tablet: inline sticky sidebar ─────────────────────────
-  // Below xl: fixed-px width with smooth transition (overflow-hidden reveal)
-  // At xl+: fills 1/3 of the 9-col flex parent (= 3/12 of viewport), no transition
+  // ── Desktop/Tablet: content-only, parent handles positioning ──────
   return (
     <div
-      className={`shrink-0 sticky overflow-hidden transition-[width,border-color] duration-300 [transition-timing-function:var(--ease-spring)] ${
+      className={`overflow-hidden transition-[width,border-color] duration-300 [transition-timing-function:var(--ease-spring)] ${
         isOpen
-          ? "w-80 lg:w-96 xl:w-1/3 border-l border-gray-200"
+          ? "w-80 xl:w-96 border-l border-gray-200"
           : "w-10 border-l border-transparent"
       }`}
-      style={{
-        top: "var(--module-header-height)",
-        height: "calc(100dvh - var(--module-header-height))",
-      }}
     >
       {isOpen ? (
-        <div className="w-80 lg:w-96 xl:w-full h-full flex flex-col bg-white">
+        <div className="w-full h-full flex flex-col bg-white">
           {header}
           {chatBody}
         </div>
