@@ -157,4 +157,51 @@ describe('validateFieldValues', () => {
       expect(warnings).toHaveLength(0);
     });
   });
+
+  describe('empty from field validation', () => {
+    it('warns when from:: has quoted empty string value', () => {
+      const warnings = validateFieldValues(
+        { from: '""' },
+        'test.md',
+        10
+      );
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].message).toContain("'from'");
+      expect(warnings[0].message).toContain('empty');
+      expect(warnings[0].severity).toBe('warning');
+    });
+
+    it('warns when from:: has bare empty value', () => {
+      const warnings = validateFieldValues(
+        { from: '' },
+        'test.md',
+        10
+      );
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].message).toContain("'from'");
+      expect(warnings[0].severity).toBe('warning');
+    });
+
+    it('does not warn when from:: has a real value', () => {
+      const warnings = validateFieldValues(
+        { from: 'some anchor' },
+        'test.md',
+        10
+      );
+
+      expect(warnings).toHaveLength(0);
+    });
+
+    it('does not warn when from:: has a timestamp value', () => {
+      const warnings = validateFieldValues(
+        { from: '1:30' },
+        'test.md',
+        10
+      );
+
+      expect(warnings).toHaveLength(0);
+    });
+  });
 });

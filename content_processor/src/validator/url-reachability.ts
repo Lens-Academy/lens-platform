@@ -14,6 +14,9 @@ const TIMEOUT_MS = 15_000;
 // Status codes that mean "server is alive" even though response.ok is false
 const REACHABLE_STATUSES = new Set([429]);
 
+// Status codes that definitively mean the resource doesn't exist
+const NOT_FOUND_STATUSES = new Set([404, 410]);
+
 async function fetchWithTimeout(url: string, method: string, signal: AbortSignal): Promise<Response> {
   return fetch(url, { method, signal });
 }
@@ -37,7 +40,7 @@ async function checkUrl(entry: UrlToValidate): Promise<ContentError | null> {
         file: entry.file,
         line: entry.line,
         message: `${entry.label} returned HTTP ${response.status}: ${entry.url}`,
-        severity: 'warning',
+        severity: NOT_FOUND_STATUSES.has(response.status) ? 'error' : 'warning',
       };
     }
     return null;

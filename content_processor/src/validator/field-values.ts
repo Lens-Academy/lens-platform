@@ -73,6 +73,11 @@ export function validateSlugFormat(
   return null;
 }
 
+function isEmptyValue(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed === '' || trimmed === '""' || trimmed === "''";
+}
+
 /**
  * Validate field values, checking for appropriate types.
  * Currently validates that boolean fields contain 'true' or 'false'.
@@ -90,6 +95,18 @@ export function validateFieldValues(
   const warnings: ContentError[] = [];
 
   for (const [name, value] of Object.entries(fields)) {
+    // Check for empty 'from' field
+    if (name === 'from' && isEmptyValue(value)) {
+      warnings.push({
+        file,
+        line,
+        message: `Field 'from' is empty and can be omitted`,
+        suggestion:
+          'Without a from:: field, the content shows from the start',
+        severity: 'warning',
+      });
+    }
+
     // Check if this is a boolean field
     if (ALL_BOOLEAN_FIELDS.includes(name)) {
       const normalizedValue = value.toLowerCase();

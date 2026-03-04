@@ -53,7 +53,7 @@ describe('validateUrls', () => {
     expect(errors[0].message).toContain('timed out');
   });
 
-  it('returns warning for HTTP 404', async () => {
+  it('returns error for HTTP 404', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
 
     const urls = [
@@ -62,8 +62,21 @@ describe('validateUrls', () => {
 
     const errors = await validateUrls(urls);
     expect(errors).toHaveLength(1);
-    expect(errors[0].severity).toBe('warning');
+    expect(errors[0].severity).toBe('error');
     expect(errors[0].message).toContain('404');
+  });
+
+  it('returns error for HTTP 410 Gone', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 410 });
+
+    const urls = [
+      { url: 'https://example.com/removed.png', file: 'articles/test.md', line: 20, label: 'Image URL' },
+    ];
+
+    const errors = await validateUrls(urls);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].severity).toBe('error');
+    expect(errors[0].message).toContain('410');
   });
 
   it('treats HTTP 429 (rate limited) as reachable', async () => {
