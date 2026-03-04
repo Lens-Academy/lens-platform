@@ -1365,24 +1365,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         testModeActive={testModeActive}
       />
 
-      {/* Layout: optional TOC column (xl+) + content + optional chat sidebar */}
-      <div
-        className={`pt-[var(--module-header-height)] ${
-          isArticleSection && !isSidebarOpen ? "xl:grid xl:grid-cols-12" : ""
-        }`}
-      >
-      {/* TOC column — article sections, xl+ only, hidden when sidebar open */}
-      {isArticleSection && !isSidebarOpen && (
-        <aside className="hidden xl:block xl:col-span-3">
-          <div
-            ref={setTocContainer}
-            className="sticky top-[calc(var(--module-header-height)+12px)] ml-auto w-[250px] pr-6 pt-4 max-h-[calc(100dvh-var(--module-header-height)-24px)] overflow-y-auto scrollbar-hide"
-          />
-        </aside>
-      )}
-
-      {/* Content area */}
-      <div className={isArticleSection && !isSidebarOpen ? "xl:col-span-9" : ""}>
+      {/* Layout: content + optional chat sidebar (TOC uses absolute positioning via ArticleExcerptGroup) */}
+      <div className="pt-[var(--module-header-height)]">
       <main className="w-full min-w-0">
         <div className={`relative ${isArticleSection ? `max-w-content-padded article-toc-margin${isSidebarOpen ? " sidebar-open" : ""}` : ""}`}>
         {module.sections.map((section, sectionIndex) => {
@@ -1515,7 +1499,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     title={section.meta?.title}
                     duration={sectionDur}
                   />
-                  <ArticleSectionWrapper tocPortalContainer={isSidebarOpen ? null : tocContainer} hideToc={false}>
+                  <ArticleSectionWrapper tocPortalContainer={null} hideToc={false}>
                     {(() => {
                       // Split segments into pre-excerpt, excerpt, post-excerpt groups
                       const segments = section.segments ?? [];
@@ -1658,7 +1642,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     title={section.meta?.title}
                     duration={sectionDur}
                   />
-                  <ArticleSectionWrapper tocPortalContainer={isSidebarOpen ? null : tocContainer} hideToc={false}>
+                  <ArticleSectionWrapper tocPortalContainer={null} hideToc={false}>
                     {(() => {
                       // Split segments into pre-excerpt, excerpt, post-excerpt groups
                       const segments = section.segments ?? [];
@@ -2004,8 +1988,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       )}
       </div>{/* /relative article wrapper */}
       </main>
-      </div>{/* /content area */}
-      </div>{/* /grid wrapper */}
+      </div>{/* /layout wrapper */}
 
       <ModuleDrawer
         ref={drawerRef}
@@ -2076,7 +2059,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         };
         return (
           <div
-            className="fixed bottom-4 right-4 z-50 max-w-xs rounded-lg bg-gray-900/85 px-3 py-2 text-xs text-gray-100 font-mono shadow-lg backdrop-blur-sm max-h-[50vh] overflow-y-auto"
+            className="fixed bottom-4 left-4 z-50 max-w-xs rounded-lg bg-gray-900/85 px-3 py-2 text-xs text-gray-100 font-mono shadow-lg backdrop-blur-sm max-h-[50vh] overflow-y-auto"
           >
             <div className="font-bold text-yellow-300 mb-1">Debug Overlay</div>
             <div>

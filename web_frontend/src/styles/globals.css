@@ -136,11 +136,11 @@ body {
 
 /* Article section margin: centered by default, but ensures enough left
    space for the ToC (250px + 24px gap) when the viewport is tight.
-   Uses explicit calc (not auto) so margin-left can transition smoothly. */
+   margin-right: 0 (not auto) so sidebar margin can transition smoothly. */
 .article-toc-margin {
   margin-left: max(0px, calc((100% - var(--container-content-padded)) / 2));
-  margin-right: auto;
-  transition: margin-left 0.3s ease-out;
+  margin-right: 0;
+  transition: margin-left 0.3s ease-out, margin-right 0.3s ease-out;
 }
 
 @media (min-width: 1100px) {
@@ -149,30 +149,16 @@ body {
   }
 }
 
-/* At xl+ the TOC is portaled into its own grid column, so the 274px
-   minimum is redundant — just left-align within the 9-col span. */
-@media (min-width: 1280px) {
-  .article-toc-margin {
-    margin-left: 0;
-  }
-}
-
-/* When chat sidebar is open: reserve right margin space (mirrors TOC's left margin).
-   Grid is disabled when sidebar open, so use the sub-xl centering formula for both sides. */
+/* When chat sidebar is open: reserve right margin space.
+   Mirrors the TOC's left margin reservation approach. */
 .article-toc-margin.sidebar-open {
   margin-right: max(
     calc((100% - var(--container-content-padded)) / 2),
     calc(var(--sidebar-width) + 20px)
   );
-  transition: margin-left 0.3s ease-out, margin-right 0.3s ease-out;
 }
 
-/* At xl+ with sidebar: grid is disabled, so override grid-mode margin-left: 0
-   back to the centering formula. */
 @media (min-width: 1280px) {
-  .article-toc-margin.sidebar-open {
-    margin-left: max(0px, calc((100% - var(--container-content-padded)) / 2));
-  }
   :root {
     --sidebar-width: 384px;
   }

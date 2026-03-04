@@ -382,7 +382,7 @@ export function ChatInputArea({
               }
               disabled={recordingState === "transcribing" || isDisabled}
               rows={1}
-              className="flex-1 px-1 py-1 focus:outline-none resize-none leading-normal disabled:bg-transparent bg-transparent"
+              className="flex-1 px-1 py-1 text-[15px] focus:outline-none resize-none leading-normal disabled:bg-transparent bg-transparent"
             />
 
             {/* Buttons */}
