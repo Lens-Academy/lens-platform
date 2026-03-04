@@ -674,6 +674,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     };
   }, [isDebugMode, currentSectionIndex]);
 
+  // Debug mode: auto-open sidebar only on article-excerpt segments, close on all others
+  useEffect(() => {
+    if (!isDebugMode || !isArticleSection || !currentSection) return;
+    if (!("segments" in currentSection) || !currentSection.segments) return;
+    const seg = currentSection.segments[currentSegmentIndex];
+    if (!seg) return;
+    setIsSidebarOpen(seg.type === "article-excerpt");
+  }, [isDebugMode, isArticleSection, currentSection, currentSegmentIndex]);
+
   // Authored opening question for the current section's chat — shown as "Lens" message
   // in both the sidebar and the NarrativeChatSection.
   const sectionPrefixMessage = useMemo<ChatMessage | undefined>(() => {
