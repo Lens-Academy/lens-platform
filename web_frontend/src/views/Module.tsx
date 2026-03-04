@@ -896,11 +896,16 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             : 0;
         const isFirstExcerpt = excerptsBefore === 0;
 
+        // Check if previous segment is also an article-excerpt (consecutive)
+        const prevSegment = section.segments[segmentIndex - 1];
+        const isPrevAlsoExcerpt = prevSegment?.type === "article-excerpt";
+
         return (
           <ArticleEmbed
             key={`article-${keyPrefix}`}
             article={excerptData}
             isFirstExcerpt={isFirstExcerpt}
+            isConsecutiveExcerpt={!isFirstExcerpt && isPrevAlsoExcerpt}
           />
         );
       }
