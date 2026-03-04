@@ -98,8 +98,14 @@ export default function CourseTimeline({
   const toggleUnit = (idx: number) => {
     setExpandedUnits((prev) => {
       const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.add(idx);
+        // Auto-select first module when expanding
+        const firstModule = units[idx]?.modules[0];
+        if (firstModule) onModuleSelect(firstModule);
+      }
       return next;
     });
   };
@@ -149,38 +155,70 @@ export default function CourseTimeline({
                 : null;
 
             return (
-              <div key={unitIdx}>
+              <div
+                key={unitIdx}
+                className={`relative rounded-xl transition-all duration-200 ${
+                  isExpanded
+                    ? "border-2 border-slate-200 shadow-sm -mx-1.5 px-1 my-0.5 py-1"
+                    : ""
+                }`}
+              >
                 {/* Unit header row */}
                 <button
                   onClick={() => toggleUnit(unitIdx)}
-                  className="relative w-full flex items-center py-2 text-left group"
+                  className="relative w-full flex items-center py-1.5 text-left"
                 >
-                  <div className="relative z-20">
-                    <StatusDot status={unitStatus} />
-                  </div>
-                  <div className="ml-3 flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-slate-900">
-                        {weekLabel}
-                      </span>
-                      <span className="text-xs text-slate-400 ml-auto mr-1">
-                        {completedCount}/{required.length}
-                      </span>
-                      {isExpanded ? (
-                        <ChevronDown className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                      ) : (
-                        <ChevronRight className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                      )}
+                  {/* Dot: scales away when expanded */}
+                  <div className="relative z-20 shrink-0">
+                    <div className="w-5 h-5 flex items-center justify-center">
+                      <div
+                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                          isExpanded
+                            ? "scale-0 opacity-0"
+                            : unitStatus === "completed" || unitStatus === "in_progress"
+                              ? "bg-blue-500 scale-100 opacity-100"
+                              : "bg-slate-300 scale-100 opacity-100"
+                        }`}
+                      />
                     </div>
                   </div>
+                  {/* Left spacer: fixed gap when collapsed, grows to push label right when expanded */}
+                  <div
+                    className={`w-3 transition-[flex-grow] duration-300 ${
+                      isExpanded ? "grow" : "grow-0"
+                    }`}
+                  />
+                  {/* Label */}
+                  <span
+                    className={`shrink-0 whitespace-nowrap transition-all duration-300 ${
+                      isExpanded
+                        ? "text-xs text-slate-900"
+                        : "text-sm text-slate-900"
+                    }`}
+                  >
+                    {weekLabel}
+                  </span>
+                  {/* Right spacer: grows when collapsed, shrinks when expanded */}
+                  <div
+                    className={`transition-[flex-grow] duration-300 ${
+                      isExpanded ? "grow-0" : "grow min-w-0"
+                    }`}
+                  />
+                  {/* Chevron */}
+                  <ChevronRight
+                    className={`shrink-0 w-3 h-3 text-slate-400 ml-1 transition-transform duration-300 ${
+                      isExpanded ? "rotate-90" : ""
+                    }`}
+                  />
                 </button>
 
-                {/* Expanded unit contents */}
-                {isExpanded && (
-                  <div className="relative ml-[24px]">
-                    {/* Vertical line connecting children */}
-                    <div className="absolute left-[9px] top-0 bottom-0 w-px bg-slate-200 z-10 pointer-events-none" />
-
+                {/* Expandable content */}
+                <div
+                  className={`grid transition-[grid-template-rows] duration-200 ${
+                    isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                  }`}
+                >
+                  <div className="overflow-hidden">
                     {renderUnitModules(
                       unit,
                       selectedModuleSlug,
@@ -197,9 +235,9 @@ export default function CourseTimeline({
                           <div className="w-2 h-2 rounded-full bg-slate-300" />
                         </div>
                         <div className="ml-3 flex items-center gap-2">
-                          <Users className="w-3.5 h-3.5 text-slate-400" />
-                          <span className="text-sm text-slate-500">
-                            Meeting {unit.meetingName ? `${unit.meetingNumber}: ${unit.meetingName}` : `#${unit.meetingNumber}`}
+                          <Users className="w-3.5 h-3.5 text-slate-700" />
+                          <span className="text-sm text-slate-700">
+                            #{unit.meetingNumber}
                           </span>
                           {unit.meetingDate && (
                             <span className="text-[11px] text-slate-400">
@@ -210,7 +248,7 @@ export default function CourseTimeline({
                       </div>
                     )}
                   </div>
-                )}
+                </div>
               </div>
             );
           })}
@@ -262,7 +300,7 @@ function renderUnitModules(
             onClick={() => toggleParent(parentSlug)}
             className={`relative w-full flex items-center py-1.5 group text-left rounded-lg ${
               anyChildSelected && !isParentExpanded
-                ? "bg-blue-50/50 -mx-2 px-2"
+                ? "bg-slate-200/50 -mx-2 px-2"
                 : "-mx-2 px-2"
             }`}
           >
@@ -297,7 +335,7 @@ function renderUnitModules(
                     onClick={() => onModuleSelect(child)}
                     className={`relative w-full flex items-center py-1.5 text-left transition-colors rounded-lg ${
                       isSelected
-                        ? "bg-blue-50 -mx-2 px-2 text-blue-900"
+                        ? "bg-slate-200/50 -mx-2 px-2 text-slate-900"
                         : "hover:bg-slate-100/70 -mx-2 px-2 text-slate-600"
                     }`}
                   >
@@ -323,7 +361,7 @@ function renderUnitModules(
           onClick={() => onModuleSelect(mod)}
           className={`relative w-full flex items-center py-1.5 text-left group transition-colors rounded-lg ${
             isSelected
-              ? "bg-blue-50 -mx-2 px-2"
+              ? "bg-slate-200/50 -mx-2 px-2"
               : "hover:bg-slate-100/70 -mx-2 px-2"
           }`}
         >
@@ -335,7 +373,7 @@ function renderUnitModules(
               <span
                 className={`text-sm truncate ${
                   isSelected
-                    ? "font-medium text-blue-900"
+                    ? "font-medium text-slate-900"
                     : mod.optional
                       ? "text-slate-500"
                       : "text-slate-700"
