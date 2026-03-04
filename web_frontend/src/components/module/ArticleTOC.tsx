@@ -1,12 +1,12 @@
 // web_frontend/src/components/module/ArticleTOC.tsx
 
 import { useEffect, useRef } from "react";
-import type { HeadingItem } from "@/utils/extractHeadings";
+import type { NormalizedHeadingItem } from "@/utils/extractHeadings";
 
 type ArticleTOCProps = {
   title: string;
   author: string | null;
-  headings: HeadingItem[];
+  headings: NormalizedHeadingItem[];
   /** Register ToC item for direct DOM updates */
   registerTocItem: (id: string, index: number, element: HTMLElement) => void;
   onHeadingClick: (id: string) => void;
@@ -53,7 +53,10 @@ export default function ArticleTOC({
       {/* Headings list */}
       <ul className="space-y-2" role="list">
         {headings.map((heading) => (
-          <li key={heading.id} className={heading.level === 3 ? "pl-4" : ""}>
+          <li
+            key={heading.id}
+            className={`-ml-px border-l-2 border-transparent ${heading.displayLevel === 2 ? "pl-7" : heading.displayLevel >= 3 ? "pl-11" : "pl-3"}`}
+          >
             <button
               ref={(el) => {
                 if (el) {

@@ -35,7 +35,11 @@ export interface UseUnifiedRoleplayConfig {
   onMessage?: (msg: RoleplayWsMessage) => void;
 }
 
-export type UnifiedRoleplayStatus = "idle" | "connecting" | "streaming" | "error";
+export type UnifiedRoleplayStatus =
+  | "idle"
+  | "connecting"
+  | "streaming"
+  | "error";
 
 export interface UseUnifiedRoleplayReturn {
   messages: Array<{ role: string; content: string }>;
@@ -55,8 +59,12 @@ export interface UseUnifiedRoleplayReturn {
   markComplete: () => void;
 }
 
-export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnifiedRoleplayReturn {
-  const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([]);
+export function useUnifiedRoleplay(
+  config: UseUnifiedRoleplayConfig,
+): UseUnifiedRoleplayReturn {
+  const [messages, setMessages] = useState<
+    Array<{ role: string; content: string }>
+  >([]);
   const [streamingContent, setStreamingContent] = useState("");
   const [status, setStatus] = useState<UnifiedRoleplayStatus>("idle");
   const [sessionId, setSessionId] = useState<number | null>(null);
@@ -96,7 +104,11 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
   const openWs = useCallback((): Promise<WebSocket> => {
     // If already open with matching voice config, reuse
     const existing = wsRef.current;
-    if (existing && existing.readyState === WebSocket.OPEN && wsVoiceRef.current === config.voice) {
+    if (
+      existing &&
+      existing.readyState === WebSocket.OPEN &&
+      wsVoiceRef.current === config.voice
+    ) {
       return Promise.resolve(existing);
     }
 
@@ -119,7 +131,8 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
           initPayload.voice = cfg.voice;
           initPayload.audio_encoding = cfg.audioEncoding ?? "LINEAR16";
           if (cfg.model) initPayload.model = cfg.model;
-          if (cfg.speakingRate != null) initPayload.speaking_rate = cfg.speakingRate;
+          if (cfg.speakingRate != null)
+            initPayload.speaking_rate = cfg.speakingRate;
         }
         ws.send(JSON.stringify(initPayload));
       };
@@ -131,7 +144,10 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
           // Binary = TTS audio chunk
           const bytes = await event.data.arrayBuffer();
           setAudioChunksReceived((c) => c + 1);
-          configRef.current.onMessage?.({ type: "audio", bytes: bytes.byteLength });
+          configRef.current.onMessage?.({
+            type: "audio",
+            bytes: bytes.byteLength,
+          });
           try {
             await audioPlayback.playChunk(bytes);
           } catch (err) {
@@ -170,7 +186,10 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
             case "done": {
               const fullContent = streamingRef.current;
               if (fullContent) {
-                setMessages((prev) => [...prev, { role: "assistant", content: fullContent }]);
+                setMessages((prev) => [
+                  ...prev,
+                  { role: "assistant", content: fullContent },
+                ]);
               }
               setStreamingContent("");
               streamingRef.current = "";
@@ -180,7 +199,10 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
             }
 
             case "error":
-              console.error("[useUnifiedRoleplay] Server error:", parsed.message);
+              console.error(
+                "[useUnifiedRoleplay] Server error:",
+                parsed.message,
+              );
               setStatus("error");
               break;
           }
@@ -205,38 +227,41 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
   }, [config.voice, closeWs, makeWsUrl, audioPlayback]);
 
   /** Send a user message (or empty string for opening message trigger). */
-  const sendMessage = useCallback(async (content: string) => {
-    const isUserMessage = content.trim() !== "";
+  const sendMessage = useCallback(
+    async (content: string) => {
+      const isUserMessage = content.trim() !== "";
 
-    if (isUserMessage) {
-      setMessages((prev) => [...prev, { role: "user", content }]);
-    }
-
-    setStreamingContent("");
-    streamingRef.current = "";
-    setStatus("connecting");
-    setAudioChunksReceived(0);
-    audioPlayback.stop();
-
-    try {
-      await audioPlayback.resume();
-      if (configRef.current.voice) {
-        audioPlayback.beginStream();
+      if (isUserMessage) {
+        setMessages((prev) => [...prev, { role: "user", content }]);
       }
-    } catch (err) {
-      console.error("[useUnifiedRoleplay] AudioContext resume failed:", err);
-    }
 
-    try {
-      const ws = await openWs();
+      setStreamingContent("");
+      streamingRef.current = "";
+      setStatus("connecting");
+      setAudioChunksReceived(0);
+      audioPlayback.stop();
 
-      setStatus("streaming");
-      ws.send(JSON.stringify({ message: content }));
-    } catch (err) {
-      console.error("[useUnifiedRoleplay] Failed to send:", err);
-      setStatus("error");
-    }
-  }, [audioPlayback, openWs]);
+      try {
+        await audioPlayback.resume();
+        if (configRef.current.voice) {
+          audioPlayback.beginStream();
+        }
+      } catch (err) {
+        console.error("[useUnifiedRoleplay] AudioContext resume failed:", err);
+      }
+
+      try {
+        const ws = await openWs();
+
+        setStatus("streaming");
+        ws.send(JSON.stringify({ message: content }));
+      } catch (err) {
+        console.error("[useUnifiedRoleplay] Failed to send:", err);
+        setStatus("error");
+      }
+    },
+    [audioPlayback, openWs],
+  );
 
   /** Cancel the current turn and close the WebSocket. */
   const cancel = useCallback(() => {
@@ -281,7 +306,6 @@ export function useUnifiedRoleplay(config: UseUnifiedRoleplayConfig): UseUnified
   const markComplete = useCallback(() => {
     setIsCompleted(true);
   }, []);
-
 
   // Cleanup on unmount
   useEffect(() => {

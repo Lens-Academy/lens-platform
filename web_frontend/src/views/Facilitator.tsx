@@ -546,6 +546,14 @@ function VerticalTimeline({
                 {/* Name + last active + DM link */}
                 <div className="h-12 border-b border-slate-200 px-1.5 flex flex-col justify-end pb-1">
                   <div className="flex items-center gap-0.5">
+                    {tm.role === "facilitator" && (
+                      <span
+                        className="shrink-0 w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold flex items-center justify-center"
+                        title="Facilitator"
+                      >
+                        F
+                      </span>
+                    )}
                     <span
                       className="text-xs font-medium text-slate-700 leading-tight line-clamp-1"
                       title={tm.name}

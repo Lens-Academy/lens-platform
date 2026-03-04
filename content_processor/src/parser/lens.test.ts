@@ -1,6 +1,6 @@
 // src/parser/lens.test.ts
 import { describe, it, expect } from 'vitest';
-import { parseLens } from './lens.js';
+import { parseLens, stripCriticMarkup, stripAuthoringMarkup, stripObsidianComments } from './lens.js';
 
 describe('parseLens', () => {
   it('parses lens with page section (H3 section, H4 segment)', () => {
@@ -1537,5 +1537,129 @@ ai-instructions:: You are a character.
       const errors = result.errors.filter(e => e.severity === 'error');
       expect(errors.some(e => e.message.includes('id::'))).toBe(true);
     });
+  });
+});
+
+describe('CriticMarkup integration with parseLens', () => {
+  it('strips CriticMarkup from parsed content', () => {
+    const content = `---
+id: test-id
+---
+
+### Page: Introduction
+
+#### Text
+content:: This has {++added text++} and {--removed text--} in it.
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    const textContent = result.lens?.sections[0].segments[0].content ?? '';
+    expect(textContent).not.toContain('{++');
+    expect(textContent).not.toContain('{--');
+    expect(textContent).toContain('removed text');
+    expect(textContent).not.toContain('added text');
+  });
+});
+
+describe('stripCriticMarkup', () => {
+  it('removes comments {>>...<<}', () => {
+    expect(stripCriticMarkup('Hello {>>this is a comment<<} world')).toBe('Hello  world');
+  });
+
+  it('removes additions {++...++}', () => {
+    expect(stripCriticMarkup('Hello {++added text++} world')).toBe('Hello  world');
+  });
+
+  it('keeps inner content for deletions {--...--}', () => {
+    expect(stripCriticMarkup('Hello {--deleted text--} world')).toBe('Hello deleted text world');
+  });
+
+  it('keeps old text for substitutions {~~old~>new~~}', () => {
+    expect(stripCriticMarkup('Hello {~~old~>new~~} world')).toBe('Hello old world');
+  });
+
+  it('keeps inner content for highlights {==...==}', () => {
+    expect(stripCriticMarkup('Hello {==highlighted==} world')).toBe('Hello highlighted world');
+  });
+
+  it('handles all patterns combined', () => {
+    const input = 'Keep {--this--} and {==this==} but remove {++added++} and {>>comment<<} and use {~~old~>new~~}';
+    const expected = 'Keep this and this but remove  and  and use old';
+    expect(stripCriticMarkup(input)).toBe(expected);
+  });
+
+  it('handles multiline patterns', () => {
+    const input = 'Before {++line1\nline2++} after';
+    expect(stripCriticMarkup(input)).toBe('Before  after');
+  });
+
+  it('passes through clean content unchanged', () => {
+    const input = 'No critic markup here at all.';
+    expect(stripCriticMarkup(input)).toBe(input);
+  });
+
+  describe('with metadata annotations', () => {
+    it('removes comment with metadata', () => {
+      expect(stripCriticMarkup(
+        '{>>{"author":"Luc","timestamp":1772447450754}@@ToDo: check this<<}'
+      )).toBe('');
+    });
+
+    it('strips metadata from deletion, keeps inner content', () => {
+      expect(stripCriticMarkup(
+        '{--{"author":"Luc","timestamp":1772447531551}@@Make no mistake: --}'
+      )).toBe('Make no mistake: ');
+    });
+
+    it('removes addition with metadata', () => {
+      expect(stripCriticMarkup(
+        '{++{"author":"Luc","timestamp":1772447531551}@@new text++}'
+      )).toBe('');
+    });
+
+    it('strips metadata from substitution, keeps old text', () => {
+      expect(stripCriticMarkup(
+        '{~~{"author":"Luc","timestamp":1772447531551}@@old text~>new text~~}'
+      )).toBe('old text');
+    });
+
+    it('strips metadata from highlight, keeps inner content', () => {
+      expect(stripCriticMarkup(
+        '{=={"author":"Luc","timestamp":1772447531551}@@important==}'
+      )).toBe('important');
+    });
+  });
+});
+
+describe('stripAuthoringMarkup', () => {
+  it('trims trailing whitespace left by inline markup removal', () => {
+    const input = '#### Article-excerpt  {>>comment<<}';
+    expect(stripAuthoringMarkup(input)).toBe('#### Article-excerpt');
+  });
+
+  it('trims trailing whitespace on each line independently', () => {
+    const input = 'line one  {>>x<<}\nline two  {++y++}';
+    expect(stripAuthoringMarkup(input)).toBe('line one\nline two');
+  });
+});
+
+describe('stripObsidianComments', () => {
+  it('removes inline comments', () => {
+    expect(stripObsidianComments('Hello %% inline comment %% world')).toBe('Hello  world');
+  });
+
+  it('removes block (multiline) comments', () => {
+    const input = 'Before %%\nmultiline\ncomment\n%% after';
+    expect(stripObsidianComments(input)).toBe('Before  after');
+  });
+
+  it('removes multiple comments in one string', () => {
+    expect(stripObsidianComments('A %% first %% B %% second %% C')).toBe('A  B  C');
+  });
+
+  it('passes through clean content unchanged', () => {
+    const input = 'No obsidian comments here.';
+    expect(stripObsidianComments(input)).toBe(input);
   });
 });

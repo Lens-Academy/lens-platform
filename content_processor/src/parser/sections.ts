@@ -47,7 +47,7 @@ function makeSectionPattern(level: number): RegExp {
   const hashes = '#'.repeat(level);
   // Match: ^#{level} <type>  OR  ^#{level} <type>: <optional title>
   // Captures: group 1 = type, group 2 = title (may be undefined)
-  return new RegExp(`^${hashes}\\s+([^:]+?)(?::\\s*(.*))?$`, 'i');
+  return new RegExp(`^${hashes}\\s+([^:]+?)(?::\\s*(.*?))?\\s*$`, 'i');
 }
 
 // Note: unrecognized headers are now caught by makeSectionPattern matching all

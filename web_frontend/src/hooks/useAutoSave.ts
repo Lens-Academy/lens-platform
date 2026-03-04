@@ -134,11 +134,7 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
     } finally {
       savingRef.current = false;
     }
-  }, [
-    questionId,
-    moduleSlug,
-    isAuthenticated,
-  ]);
+  }, [questionId, moduleSlug, isAuthenticated]);
 
   // setText: update text and schedule debounced save
   const setText = useCallback(
@@ -209,11 +205,7 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
         setSaveStatus("error");
       }
     }
-  }, [
-    questionId,
-    moduleSlug,
-    isAuthenticated,
-  ]);
+  }, [questionId, moduleSlug, isAuthenticated]);
 
   // Load existing answer on mount
   useEffect(() => {
@@ -310,11 +302,7 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
         }
       }
     };
-  }, [
-    questionId,
-    moduleSlug,
-    isAuthenticated,
-  ]);
+  }, [questionId, moduleSlug, isAuthenticated]);
 
   return {
     text,

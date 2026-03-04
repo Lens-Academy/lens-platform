@@ -53,11 +53,12 @@ export function useActivityTracker({
     if (!payload) return;
 
     const url = `${API_URL}/api/progress/time`;
+    const blob = new Blob([payload], { type: "application/json" });
     if (!isAuthenticated) {
       const token = getAnonymousToken();
-      navigator.sendBeacon(`${url}?anonymous_token=${token}`, payload);
+      navigator.sendBeacon(`${url}?anonymous_token=${token}`, blob);
     } else {
-      navigator.sendBeacon(url, payload);
+      navigator.sendBeacon(url, blob);
     }
   }, [contentId, isAuthenticated, buildBeaconPayload]);
 

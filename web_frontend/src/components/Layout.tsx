@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMedia } from "react-use";
 import { Menu } from "lucide-react";
 import CookieSettings from "./CookieSettings";
@@ -22,6 +22,14 @@ export default function Layout({
 
   // Hide header on scroll down, but keep visible when menu is open
   const shouldHideHeader = scrollDirection === "down" && !menuOpen;
+
+  // Pipe header visibility into CSS variable for sticky dependents
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--header-offset",
+      shouldHideHeader ? "0px" : "64px",
+    );
+  }, [shouldHideHeader]);
 
   return (
     <div className="min-h-dvh bg-stone-50 text-slate-900 antialiased flex flex-col">

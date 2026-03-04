@@ -3,6 +3,7 @@ import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
 import { validateDirectives } from '../validator/directives.js';
+import { stripAuthoringMarkup } from './lens.js';
 
 export interface ParsedArticle {
   title: string;
@@ -19,6 +20,9 @@ export interface ArticleParseResult {
 
 export function parseArticle(content: string, file: string): ArticleParseResult {
   const errors: ContentError[] = [];
+
+  // Strip authoring markup (CriticMarkup + Obsidian comments) before parsing
+  content = stripAuthoringMarkup(content);
 
   const frontmatterResult = parseFrontmatter(content, file);
   if (frontmatterResult.error) {

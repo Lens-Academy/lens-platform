@@ -5,13 +5,7 @@
  * Each toggle is independent - all combinations are valid.
  */
 
-import {
-  MessageSquare,
-  Volume2,
-  VolumeX,
-  Keyboard,
-  Mic,
-} from "lucide-react";
+import { MessageSquare, Volume2, VolumeX, Keyboard, Mic } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 
 type RoleplayToolbarProps = {
@@ -57,13 +51,11 @@ export default function RoleplayToolbar({
           type="button"
           onClick={disabled ? undefined : onToggleTTS}
           className={`${buttonBase} ${ttsEnabled ? activeClass : inactiveClass} ${disabled ? disabledClass : ""}`}
-          aria-label={ttsEnabled ? "Disable text-to-speech" : "Enable text-to-speech"}
+          aria-label={
+            ttsEnabled ? "Disable text-to-speech" : "Enable text-to-speech"
+          }
         >
-          {ttsEnabled ? (
-            <Volume2 size={18} />
-          ) : (
-            <VolumeX size={18} />
-          )}
+          {ttsEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
         </button>
       </Tooltip>
 
@@ -72,7 +64,13 @@ export default function RoleplayToolbar({
       >
         <button
           type="button"
-          onClick={disabled ? undefined : inputMode !== "text" ? onToggleInput : undefined}
+          onClick={
+            disabled
+              ? undefined
+              : inputMode !== "text"
+                ? onToggleInput
+                : undefined
+          }
           className={`p-2 rounded-md transition-colors ${inputMode === "text" ? "bg-white text-indigo-700 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
           aria-label="Text input"
         >
@@ -80,7 +78,13 @@ export default function RoleplayToolbar({
         </button>
         <button
           type="button"
-          onClick={disabled ? undefined : inputMode !== "voice" ? onToggleInput : undefined}
+          onClick={
+            disabled
+              ? undefined
+              : inputMode !== "voice"
+                ? onToggleInput
+                : undefined
+          }
           className={`p-2 rounded-md transition-colors ${inputMode === "voice" ? "bg-white text-indigo-700 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
           aria-label="Voice input"
         >

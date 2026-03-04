@@ -422,14 +422,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         } as unknown as Stage;
       }
 
-      let stageType: "article" | "video" | "chat";
+      let stageType: "article" | "video" | "chat" | "page";
       if (section.type === "video" || section.type === "lens-video") {
         stageType = "video";
+      } else if (section.type === "page") {
+        stageType = "page";
       } else if (
         section.type === "article" ||
         section.type === "lens-article" ||
-        section.type === "text" ||
-        section.type === "page"
+        section.type === "text"
       ) {
         stageType = "article";
       } else {
@@ -445,7 +446,16 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             : section.meta?.title ||
               `${section.type || "Section"} ${index + 1}`;
 
-      if (stageType === "article") {
+      if (stageType === "page") {
+        return {
+          type: "page",
+          source: "",
+          from: null,
+          to: null,
+          optional: isOptional,
+          title,
+        };
+      } else if (stageType === "article") {
         return {
           type: "article",
           source: "",
@@ -1211,7 +1221,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                       const postExcerpt = segments.slice(lastExcerptIdx + 1);
 
                       return (
-                        <>
+                        <div className="max-w-content-padded mx-auto article-toc-margin">
                           {/* Pre-excerpt content (intro, setup) */}
                           {preExcerpt.map((segment, i) =>
                             renderSegment(segment, section, sectionIndex, i),
@@ -1238,7 +1248,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                               lastExcerptIdx + 1 + i,
                             ),
                           )}
-                        </>
+                        </div>
                       );
                     })()}
                   </ArticleSectionWrapper>
@@ -1286,7 +1296,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                       const postExcerpt = segments.slice(lastExcerptIdx + 1);
 
                       return (
-                        <>
+                        <div className="max-w-content-padded mx-auto article-toc-margin">
                           {/* Pre-excerpt content (intro, setup) */}
                           {preExcerpt.map((segment, i) =>
                             renderSegment(segment, section, sectionIndex, i),
@@ -1313,7 +1323,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                               lastExcerptIdx + 1 + i,
                             ),
                           )}
-                        </>
+                        </div>
                       );
                     })()}
                   </ArticleSectionWrapper>

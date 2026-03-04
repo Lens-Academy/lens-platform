@@ -10,7 +10,7 @@ This script:
 Usage:
     python scripts/reset_dev_database.py --discord-id YOUR_DISCORD_ID
 
-Example:
+Example (Luc Brinkman's Discord ID):
     python scripts/reset_dev_database.py --discord-id 1256932695297101936
 """
 

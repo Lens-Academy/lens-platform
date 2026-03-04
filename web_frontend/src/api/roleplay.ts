@@ -72,9 +72,7 @@ export async function completeRoleplay(sessionId: number): Promise<void> {
  *
  * Returns null if no assessment exists yet (404).
  */
-export async function getRoleplayAssessment(
-  sessionId: number,
-): Promise<{
+export async function getRoleplayAssessment(sessionId: number): Promise<{
   score_data: {
     overall_score: number;
     reasoning: string;

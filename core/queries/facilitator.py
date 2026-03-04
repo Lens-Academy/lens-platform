@@ -1,6 +1,6 @@
 """Queries for facilitator panel access control and data."""
 
-from typing import Any
+from typing import Any, Sequence
 
 from sqlalchemy import select, func, literal_column
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -84,9 +84,11 @@ async def can_access_group(conn: AsyncConnection, user_id: int, group_id: int) -
 
 
 async def get_group_members_with_progress(
-    conn: AsyncConnection, group_id: int
+    conn: AsyncConnection,
+    group_id: int,
+    roles: Sequence[str] = ("participant",),
 ) -> list[dict[str, Any]]:
-    """Get group members (participants) with aggregated progress stats."""
+    """Get group members with aggregated progress stats."""
     name_col = func.coalesce(users.c.nickname, users.c.discord_username).label("name")
 
     # Subquery: count of past meetings for this group
@@ -139,6 +141,7 @@ async def get_group_members_with_progress(
             groups_users.c.user_id,
             name_col,
             users.c.discord_id,
+            groups_users.c.role,
             func.count(user_content_progress.c.completed_at).label(
                 "sections_completed"
             ),
@@ -157,7 +160,7 @@ async def get_group_members_with_progress(
         )
         .where(
             (groups_users.c.group_id == group_id)
-            & (groups_users.c.role == "participant")
+            & (groups_users.c.role.in_(roles))
             & (groups_users.c.status == "active")
         )
         .group_by(
@@ -165,6 +168,7 @@ async def get_group_members_with_progress(
             users.c.nickname,
             users.c.discord_username,
             users.c.discord_id,
+            groups_users.c.role,
         )
         .order_by(name_col)
     )
@@ -236,7 +240,9 @@ async def get_user_meeting_attendance(
 
 
 async def get_group_completion_data(
-    conn: AsyncConnection, group_id: int
+    conn: AsyncConnection,
+    group_id: int,
+    roles: Sequence[str] = ("participant",),
 ) -> tuple[
     dict[int, set[str]],
     dict[int, dict[int, bool]],
@@ -263,7 +269,7 @@ async def get_group_completion_data(
         .join(groups_users, user_content_progress.c.user_id == groups_users.c.user_id)
         .where(
             (groups_users.c.group_id == group_id)
-            & (groups_users.c.role == "participant")
+            & (groups_users.c.role.in_(roles))
             & (groups_users.c.status == "active")
             & (user_content_progress.c.completed_at.isnot(None))
         )
@@ -326,7 +332,7 @@ async def get_group_completion_data(
     # Guest visits: which members are visiting another group for a given meeting_number
     member_user_ids = select(groups_users.c.user_id).where(
         (groups_users.c.group_id == group_id)
-        & (groups_users.c.role == "participant")
+        & (groups_users.c.role.in_(roles))
         & (groups_users.c.status == "active")
     )
     guest_visit_result = await conn.execute(
@@ -346,7 +352,9 @@ async def get_group_completion_data(
 
 
 async def get_group_time_and_chat_data(
-    conn: AsyncConnection, group_id: int
+    conn: AsyncConnection,
+    group_id: int,
+    roles: Sequence[str] = ("participant",),
 ) -> tuple[dict[int, dict[str, int]], dict[int, dict[str, int]]]:
     """Get bulk time-spent and chat-message-count data for all active participants.
 
@@ -365,7 +373,7 @@ async def get_group_time_and_chat_data(
         .join(groups_users, user_content_progress.c.user_id == groups_users.c.user_id)
         .where(
             (groups_users.c.group_id == group_id)
-            & (groups_users.c.role == "participant")
+            & (groups_users.c.role.in_(roles))
             & (groups_users.c.status == "active")
             & (user_content_progress.c.total_time_spent_s > 0)
         )
@@ -381,18 +389,18 @@ async def get_group_time_and_chat_data(
 
     chat_result = await conn.execute(
         text("""
-            SELECT cs.user_id, cs.content_id::text, COUNT(*) as msg_count
+            SELECT cs.user_id, cs.module_id::text AS content_id, COUNT(*) as msg_count
             FROM chat_sessions cs
             CROSS JOIN LATERAL jsonb_array_elements(cs.messages) msg
             JOIN groups_users gu ON gu.user_id = cs.user_id
             WHERE gu.group_id = :group_id
-            AND gu.role = 'participant'
+            AND gu.role = ANY(:roles)
             AND gu.status = 'active'
-            AND cs.content_id IS NOT NULL
+            AND cs.module_id IS NOT NULL
             AND msg.value->>'role' = 'user'
-            GROUP BY cs.user_id, cs.content_id
+            GROUP BY cs.user_id, cs.module_id
         """),
-        {"group_id": group_id},
+        {"group_id": group_id, "roles": list(roles)},
     )
     chat_data: dict[int, dict[str, int]] = {}
     for row in chat_result:

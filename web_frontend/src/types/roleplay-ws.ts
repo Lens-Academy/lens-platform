@@ -7,7 +7,12 @@
  */
 
 export type RoleplayWsMessage =
-  | { type: "session"; session_id: number; messages: Array<{ role: string; content: string }>; completed_at: string | null }
+  | {
+      type: "session";
+      session_id: number;
+      messages: Array<{ role: string; content: string }>;
+      completed_at: string | null;
+    }
   | { type: "text"; content: string }
   | { type: "thinking"; content: string }
   | { type: "log"; tag: string; msg: string }

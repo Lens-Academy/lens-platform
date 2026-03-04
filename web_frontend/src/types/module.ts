@@ -49,11 +49,11 @@ export type QuestionSegment = {
 
 export type RoleplaySegment = {
   type: "roleplay";
-  id: string;                     // UUID for session isolation
-  content: string;                // Student-facing scenario briefing
-  aiInstructions: string;         // Character behavior
-  openingMessage?: string;        // Optional first AI message
-  assessmentInstructions?: string;  // Optional scoring rubric
+  id: string; // UUID for session isolation
+  content: string; // Student-facing scenario briefing
+  aiInstructions: string; // Character behavior
+  openingMessage?: string; // Optional first AI message
+  assessmentInstructions?: string; // Optional scoring rubric
   optional?: boolean;
   feedback?: boolean;
 };
@@ -244,4 +244,13 @@ export type ChatStage = {
   optional?: boolean;
 };
 
-export type Stage = ArticleStage | VideoStage | ChatStage;
+export type PageStage = {
+  type: "page";
+  source: string;
+  from: number | null;
+  to: number | null;
+  title?: string;
+  optional?: boolean;
+};
+
+export type Stage = ArticleStage | VideoStage | ChatStage | PageStage;

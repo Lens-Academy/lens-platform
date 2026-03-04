@@ -55,9 +55,7 @@ export default function TestSection({
 }: TestSectionProps) {
   const [testState, setTestState] = useState<TestState>("not_started");
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
-  const [completedItems, setCompletedItems] = useState<Set<number>>(
-    new Set(),
-  );
+  const [completedItems, setCompletedItems] = useState<Set<number>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
 
   // Extract assessable items (questions + roleplays) with their original segment indices
@@ -83,7 +81,11 @@ export default function TestSection({
 
   // Convenience: extract just the question items for feedback
   const questionItems = useMemo(
-    () => assessableItems.filter((item): item is AssessableItem & { type: "question" } => item.type === "question"),
+    () =>
+      assessableItems.filter(
+        (item): item is AssessableItem & { type: "question" } =>
+          item.type === "question",
+      ),
     [assessableItems],
   );
 
@@ -118,13 +120,17 @@ export default function TestSection({
 
             if (item.type === "question") {
               // Question: check for completed response
-              const qResult = result.value as Awaited<ReturnType<typeof getResponses>>;
+              const qResult = result.value as Awaited<
+                ReturnType<typeof getResponses>
+              >;
               isComplete = qResult.responses.some(
                 (r) => r.completed_at !== null,
               );
             } else {
               // Roleplay: check for completedAt
-              const rResult = result.value as Awaited<ReturnType<typeof getRoleplayHistory>>;
+              const rResult = result.value as Awaited<
+                ReturnType<typeof getRoleplayHistory>
+              >;
               isComplete = rResult.completedAt !== null;
             }
 
