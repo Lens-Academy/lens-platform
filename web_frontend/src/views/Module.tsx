@@ -616,6 +616,64 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     return currentSection.segments.some((s) => s.type === "chat");
   }, [currentSection, isArticleSection]);
 
+  // --- Debug overlay: track current visible segment ---
+  const isDebugMode =
+    typeof window !== "undefined" &&
+    window.location.search.includes("debug");
+  const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
+  const segmentElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const registerSegmentEl = useCallback(
+    (key: string, el: HTMLDivElement | null) => {
+      if (el) {
+        segmentElsRef.current.set(key, el);
+      } else {
+        segmentElsRef.current.delete(key);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!isDebugMode) return;
+    let rafId = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const targetY = window.innerHeight * 0.3;
+        let best: { index: number; top: number } | null = null;
+        // Find segment whose top is closest to (but ≤) the target line
+        segmentElsRef.current.forEach((el) => {
+          const rect = el.getBoundingClientRect();
+          if (rect.bottom <= 0 || rect.top >= window.innerHeight) return;
+          const idx = Number(el.dataset.segmentIndex);
+          if (isNaN(idx)) return;
+          if (rect.top <= targetY && (!best || rect.top > best.top)) {
+            best = { index: idx, top: rect.top };
+          }
+        });
+        // Fallback: if nothing above target, pick closest below
+        if (!best) {
+          segmentElsRef.current.forEach((el) => {
+            const rect = el.getBoundingClientRect();
+            if (rect.bottom <= 0 || rect.top >= window.innerHeight) return;
+            const idx = Number(el.dataset.segmentIndex);
+            if (!isNaN(idx) && (!best || rect.top < best.top)) {
+              best = { index: idx, top: rect.top };
+            }
+          });
+        }
+        if (best) setCurrentSegmentIndex(best.index);
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll(); // initial check
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(rafId);
+    };
+  }, [isDebugMode, currentSectionIndex]);
+
   // Authored opening question for the current section's chat — shown as "Lens" message
   // in both the sidebar and the NarrativeChatSection.
   const sectionPrefixMessage = useMemo<ChatMessage | undefined>(() => {
@@ -1027,11 +1085,24 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     options?: { activateChat?: boolean; prefixMessage?: ChatMessage },
   ) => {
     const keyPrefix = `${sectionIndex}-${segmentIndex}`;
+    const segKey = `seg-${keyPrefix}`;
+    const wrapWithSentinel = (node: React.ReactNode) =>
+      isDebugMode ? (
+        <div
+          key={`sentinel-${keyPrefix}`}
+          data-segment-index={segmentIndex}
+          ref={(el) => registerSegmentEl(segKey, el)}
+        >
+          {node}
+        </div>
+      ) : (
+        node
+      );
 
     switch (segment.type) {
       case "text":
-        return (
-          <AuthoredText key={`text-${keyPrefix}`} content={segment.content} />
+        return wrapWithSentinel(
+          <AuthoredText key={`text-${keyPrefix}`} content={segment.content} />,
         );
 
       case "article-excerpt": {
@@ -1065,13 +1136,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         const prevSegment = section.segments[segmentIndex - 1];
         const isPrevAlsoExcerpt = prevSegment?.type === "article-excerpt";
 
-        return (
+        return wrapWithSentinel(
           <ArticleEmbed
             key={`article-${keyPrefix}`}
             article={excerptData}
             isFirstExcerpt={isFirstExcerpt}
             isConsecutiveExcerpt={!isFirstExcerpt && isPrevAlsoExcerpt}
-          />
+          />,
         );
       }
 
@@ -1087,7 +1158,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           .filter((s) => s.type === "video-excerpt").length;
         const excerptNumber = videoExcerptsBefore + 1; // 1-indexed
 
-        return (
+        return wrapWithSentinel(
           <VideoEmbed
             key={`video-${keyPrefix}`}
             videoId={section.videoId}
@@ -1096,13 +1167,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             excerptNumber={excerptNumber}
             title={section.meta.title}
             channel={section.meta.channel}
-          />
+          />,
         );
       }
 
       case "chat":
         // Chat components stay mounted (no lazy loading) to preserve local state
-        return (
+        return wrapWithSentinel(
           <NarrativeChatSection
             key={`chat-${keyPrefix}`}
             messages={messages}
@@ -1116,12 +1187,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             activated={options?.activateChat}
             activatedWithHistory={options?.activateChat}
             prefixMessage={options?.prefixMessage}
-          />
+          />,
         );
 
       case "question": {
         const feedbackKey = `${sectionIndex}-${segmentIndex}`;
-        return (
+        return wrapWithSentinel(
           <div key={`question-${keyPrefix}`}>
             <AnswerBox
               segment={segment}
@@ -1153,13 +1224,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 activated
               />
             )}
-          </div>
+          </div>,
         );
       }
 
       case "roleplay": {
         const feedbackKey = `roleplay-${sectionIndex}-${segmentIndex}`;
-        return (
+        return wrapWithSentinel(
           <div key={`roleplay-${keyPrefix}`}>
             <RoleplaySection
               segment={segment}
@@ -1191,7 +1262,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 activated
               />
             )}
-          </div>
+          </div>,
         );
       }
 
@@ -1954,6 +2025,65 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         onLogin={login}
         onDismiss={() => setShowAuthPrompt(false)}
       />
+
+      {/* Debug overlay — ?debug query param */}
+      {isDebugMode && currentSection && (() => {
+        const segments =
+          "segments" in currentSection ? (currentSection.segments ?? []) : [];
+        const seg = segments[currentSegmentIndex] as ModuleSegment | undefined;
+        const segLabel = (s: ModuleSegment) => {
+          switch (s.type) {
+            case "article-excerpt":
+              return `from: ${(s.content ?? "").slice(0, 40)}…`;
+            case "video-excerpt":
+              return `${s.from}s–${s.to ?? "end"}s`;
+            case "text":
+              return (s.content ?? "").slice(0, 40) + "…";
+            case "chat":
+              return (s.instructions ?? "").slice(0, 40) + "…";
+            case "question":
+              return (s.content ?? "").slice(0, 40) + "…";
+            case "roleplay":
+              return "Roleplay: " + (s.content ?? "").slice(0, 40) + "…";
+            default:
+              return "";
+          }
+        };
+        return (
+          <div
+            className="fixed bottom-4 right-4 z-50 max-w-xs rounded-lg bg-gray-900/85 px-3 py-2 text-xs text-gray-100 font-mono shadow-lg backdrop-blur-sm max-h-[50vh] overflow-y-auto"
+          >
+            <div className="font-bold text-yellow-300 mb-1">Debug Overlay</div>
+            <div>
+              <span className="text-gray-400">Section:</span>{" "}
+              §{currentSectionIndex}: {currentSection.meta?.title ?? "(untitled)"}
+            </div>
+            <div>
+              <span className="text-gray-400">Segment:</span>{" "}
+              [{currentSegmentIndex}] {seg ? seg.type : "—"}{" "}
+              {seg ? segLabel(seg) : ""}
+            </div>
+            <div>
+              <span className="text-gray-400">Sidebar target:</span>{" "}
+              <span className={sidebarChatSegmentIndex === currentSegmentIndex ? "text-green-400" : "text-red-400"}>
+                {sidebarChatSegmentIndex}
+              </span>
+            </div>
+            <div className="mt-1 border-t border-gray-700 pt-1">
+              <span className="text-gray-400">Segments ({segments.length}):</span>
+              {segments.map((s, i) => (
+                <div
+                  key={i}
+                  className={`pl-2 ${i === currentSegmentIndex ? "text-yellow-300 font-bold" : "text-gray-400"}`}
+                >
+                  [{i}] {s.type}
+                  {i === sidebarChatSegmentIndex && " ← sidebar"}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
