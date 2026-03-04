@@ -706,7 +706,7 @@
         },
         {
           "type": "meeting",
-          "number": 1
+          "name": "Introduction"
         },
         {
           "type": "module",
@@ -720,7 +720,7 @@
         },
         {
           "type": "meeting",
-          "number": 2
+          "name": "Feedback Loops"
         },
         {
           "type": "module",
@@ -734,7 +734,7 @@
         },
         {
           "type": "meeting",
-          "number": 3
+          "name": "Advanced Topics"
         },
         {
           "type": "module",
@@ -743,7 +743,7 @@
         },
         {
           "type": "meeting",
-          "number": 4
+          "name": "Wrap-up"
         }
       ]
     }

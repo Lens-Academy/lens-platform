@@ -102,9 +102,9 @@ def test_cache():
             progression=[
                 ModuleRef(slug="module-a"),
                 ModuleRef(slug="module-b"),
-                MeetingMarker(number=1),
+                MeetingMarker(name="Week 1"),
                 ModuleRef(slug="module-c", optional=True),
-                MeetingMarker(number=2),
+                MeetingMarker(name="Week 2"),
                 ModuleRef(slug="module-d"),
             ],
         ),
@@ -208,7 +208,7 @@ def test_get_modules():
         progression=[
             ModuleRef(slug="module-1"),
             ModuleRef(slug="module-2", optional=True),
-            MeetingMarker(number=1),
+            MeetingMarker(name="Week 1"),
             ModuleRef(slug="module-3"),
         ],
     )
@@ -227,7 +227,7 @@ def test_get_required_modules():
         progression=[
             ModuleRef(slug="module-1"),
             ModuleRef(slug="module-2", optional=True),
-            MeetingMarker(number=1),
+            MeetingMarker(name="Week 1"),
             ModuleRef(slug="module-3"),
             ModuleRef(slug="module-4", optional=True),
         ],
@@ -246,9 +246,9 @@ def test_get_due_by_meeting():
         progression=[
             ModuleRef(slug="module-1"),
             ModuleRef(slug="module-2"),
-            MeetingMarker(number=1),
+            MeetingMarker(name="Week 1"),
             ModuleRef(slug="module-3"),
-            MeetingMarker(number=2),
+            MeetingMarker(name="Week 2"),
         ],
     )
     assert get_due_by_meeting(course, "module-1") == 1
@@ -263,7 +263,7 @@ def test_get_due_by_meeting_no_following_meeting():
         title="Test Course",
         progression=[
             ModuleRef(slug="module-1"),
-            MeetingMarker(number=1),
+            MeetingMarker(name="Week 1"),
             ModuleRef(slug="module-2"),
         ],
     )
@@ -278,7 +278,7 @@ def test_get_due_by_meeting_unknown_module():
         title="Test Course",
         progression=[
             ModuleRef(slug="module-1"),
-            MeetingMarker(number=1),
+            MeetingMarker(name="Week 1"),
         ],
     )
     assert get_due_by_meeting(course, "nonexistent-module") is None
@@ -302,5 +302,5 @@ def test_load_course_parses_progression_types(test_cache):
     assert module_refs[2].optional is True  # module-c is optional
 
     # Check meetings
-    assert meetings[0].number == 1
-    assert meetings[1].number == 2
+    assert meetings[0].name == "Week 1"
+    assert meetings[1].name == "Week 2"

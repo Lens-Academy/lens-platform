@@ -40,6 +40,7 @@ export type ModuleInfo = {
 
 export type UnitInfo = {
   meetingNumber: number | null;
+  meetingName?: string | null;
   meetingDate?: string | null;
   modules: ModuleInfo[];
 };

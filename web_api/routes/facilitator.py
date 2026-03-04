@@ -144,6 +144,7 @@ async def get_group_timeline(
     content_to_slug: dict[str, str] = {}
     module_cid_to_slug: dict[str, str] = {}  # module content_id -> slug
     timeline_items: list[dict[str, Any]] = []
+    meeting_count = 0
     for item in course.progression:
         if isinstance(item, ModuleRef):
             slug = item.slug
@@ -171,11 +172,13 @@ async def get_group_timeline(
                         }
                     )
         elif isinstance(item, MeetingMarker):
+            meeting_count += 1
             timeline_items.append(
                 {
                     "type": "meeting",
-                    "number": item.number,
-                    "is_past": item.number in past_meetings,
+                    "number": meeting_count,
+                    "name": item.name,
+                    "is_past": meeting_count in past_meetings,
                 }
             )
 

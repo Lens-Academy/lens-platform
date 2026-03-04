@@ -129,8 +129,9 @@ export default function CourseTimeline({
           {units.map((unit, unitIdx) => {
             const isExpanded = expandedUnits.has(unitIdx);
             const unitStatus = getUnitStatus(unit);
-            const weekLabel =
-              unit.meetingNumber !== null
+            const weekLabel = unit.meetingName
+              ? `${unit.meetingNumber}. ${unit.meetingName}`
+              : unit.meetingNumber !== null
                 ? `Week ${unit.meetingNumber}`
                 : `Week ${unitIdx + 1}`;
             const required = unit.modules.filter((m) => !m.optional);
@@ -198,7 +199,7 @@ export default function CourseTimeline({
                         <div className="ml-3 flex items-center gap-2">
                           <Users className="w-3.5 h-3.5 text-slate-400" />
                           <span className="text-sm text-slate-500">
-                            Meeting #{unit.meetingNumber}
+                            Meeting {unit.meetingName ? `${unit.meetingNumber}: ${unit.meetingName}` : `#${unit.meetingNumber}`}
                           </span>
                           {unit.meetingDate && (
                             <span className="text-[11px] text-slate-400">

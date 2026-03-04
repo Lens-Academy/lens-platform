@@ -166,20 +166,23 @@ async def get_course_progress(
     units = []
     current_modules = []
     current_meeting_number = None
+    meeting_count = 0
 
     for item in course.progression:
         if isinstance(item, MeetingMarker):
+            meeting_count += 1
             # When we hit a meeting, save the current unit if it has modules
             if current_modules:
                 units.append(
                     {
-                        "meetingNumber": item.number,
-                        "meetingDate": meeting_dates.get(item.number),
+                        "meetingNumber": meeting_count,
+                        "meetingName": item.name,
+                        "meetingDate": meeting_dates.get(meeting_count),
                         "modules": current_modules,
                     }
                 )
                 current_modules = []
-            current_meeting_number = item.number
+            current_meeting_number = meeting_count
         elif isinstance(item, ModuleRef):
             # Get module slug from progression item
             module_slug = item.slug
@@ -251,6 +254,7 @@ async def get_course_progress(
         units.append(
             {
                 "meetingNumber": meeting_num,
+                "meetingName": None,
                 "meetingDate": meeting_dates.get(meeting_num),
                 "modules": current_modules,
             }

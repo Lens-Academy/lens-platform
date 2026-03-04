@@ -1485,7 +1485,7 @@ title: Test Course
 
 # Module: [[../modules/big]]
 
-# Meeting: 1
+# Meeting: Some Name
 `,
     });
 

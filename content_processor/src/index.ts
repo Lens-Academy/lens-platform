@@ -53,7 +53,7 @@ export interface ProgressionItem {
   type: 'module' | 'meeting';
   slug?: string;      // Frontmatter slug — set by processContent after resolving path
   path?: string;      // Raw wikilink path — set by course parser, removed by processContent
-  number?: number;
+  name?: string;
   optional?: boolean;
 }
 

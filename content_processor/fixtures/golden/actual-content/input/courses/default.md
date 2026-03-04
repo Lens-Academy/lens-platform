@@ -6,21 +6,21 @@ title: AI Safety Course
 
 # Module: [[../modules/introduction]]
 
-# Meeting: 1
+# Meeting: Introduction
 
 # Module: [[../modules/feedback-loops]]
 
 # Module: [[../modules/coming-soon]]
 
-# Meeting: 2
+# Meeting: Feedback Loops
 
 # Module: [[../modules/coming-soon]]
 
 # Module: [[../modules/coming-soon]]
 
-# Meeting: 3
+# Meeting: Advanced Topics
 
 # Module: [[../modules/coming-soon]]
 
-# Meeting: 4
+# Meeting: Wrap-up
 
