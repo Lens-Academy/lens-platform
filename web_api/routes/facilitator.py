@@ -99,7 +99,9 @@ async def list_group_members(
         if not await can_access_group(conn, db_user["user_id"], group_id):
             raise HTTPException(403, "Access denied to this group")
 
-        members = await get_group_members_with_progress(conn, group_id)
+        members = await get_group_members_with_progress(
+            conn, group_id, roles=("participant", "facilitator")
+        )
 
     return {"members": members}
 
@@ -117,15 +119,20 @@ async def get_group_timeline(
         if not await can_access_group(conn, db_user["user_id"], group_id):
             raise HTTPException(403, "Access denied to this group")
 
-        members = await get_group_members_with_progress(conn, group_id)
+        both_roles = ("participant", "facilitator")
+        members = await get_group_members_with_progress(
+            conn, group_id, roles=both_roles
+        )
         (
             completions,
             attendance,
             past_meetings,
             rsvps,
             guest_elsewhere,
-        ) = await get_group_completion_data(conn, group_id)
-        time_data, chat_data = await get_group_time_and_chat_data(conn, group_id)
+        ) = await get_group_completion_data(conn, group_id, roles=both_roles)
+        time_data, chat_data = await get_group_time_and_chat_data(
+            conn, group_id, roles=both_roles
+        )
 
     # Build timeline structure from course progression
     try:
@@ -213,6 +220,7 @@ async def get_group_timeline(
             {
                 "user_id": uid,
                 "name": m["name"],
+                "role": m.get("role", "participant"),
                 "completed_ids": user_comps,
                 "meetings": user_att,
                 "rsvps": user_rsvps,

@@ -1,6 +1,7 @@
 // src/validator/uuid.test.ts
 import { describe, it, expect } from 'vitest';
 import { processContent } from '../index.js';
+import { validateUuids } from './uuid.js';
 
 describe('UUID validation', () => {
   describe('format validation', () => {
@@ -362,6 +363,34 @@ content:: World
         e.message.toLowerCase().includes('duplicate') &&
         e.message.includes('550e8400-e29b-41d4-a716-446655440000')
       )).toBe(true);
+    });
+  });
+
+  describe('same-file duplicate handling', () => {
+    it('allows same-file same-field duplicate UUIDs', () => {
+      const result = validateUuids([
+        { uuid: '550e8400-e29b-41d4-a716-446655440000', file: 'modules/test.md', field: 'contentId' },
+        { uuid: '550e8400-e29b-41d4-a716-446655440000', file: 'modules/test.md', field: 'contentId' },
+      ]);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('still catches same-file different-field duplicate UUIDs', () => {
+      const result = validateUuids([
+        { uuid: '550e8400-e29b-41d4-a716-446655440000', file: 'modules/test.md', field: 'contentId' },
+        { uuid: '550e8400-e29b-41d4-a716-446655440000', file: 'modules/test.md', field: 'id' },
+      ]);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].message).toContain('Duplicate');
+    });
+
+    it('still catches cross-file duplicate UUIDs', () => {
+      const result = validateUuids([
+        { uuid: '550e8400-e29b-41d4-a716-446655440000', file: 'modules/a.md', field: 'contentId' },
+        { uuid: '550e8400-e29b-41d4-a716-446655440000', file: 'modules/b.md', field: 'contentId' },
+      ]);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].message).toContain('Duplicate');
     });
   });
 });

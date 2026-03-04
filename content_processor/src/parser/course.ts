@@ -5,6 +5,7 @@ import { parseSections, type ParsedSection } from './sections.js';
 import { parseWikilink } from './wikilink.js';
 import { validateSlugFormat } from '../validator/field-values.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
+import { stripAuthoringMarkup } from './lens.js';
 
 // Valid section types for course files
 export const COURSE_SECTION_TYPES = new Set(['module', 'meeting']);
@@ -79,6 +80,9 @@ function parseMeetingSection(
  */
 export function parseCourse(content: string, file: string): CourseParseResult {
   const errors: ContentError[] = [];
+
+  // Strip authoring markup (CriticMarkup + Obsidian comments) before parsing
+  content = stripAuthoringMarkup(content);
 
   // Parse frontmatter
   const frontmatterResult = parseFrontmatter(content, file);

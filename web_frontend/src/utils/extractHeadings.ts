@@ -3,8 +3,37 @@
 export type HeadingItem = {
   id: string;
   text: string;
-  level: 2 | 3;
+  level: number;
 };
+
+export type NormalizedHeadingItem = HeadingItem & {
+  displayLevel: number;
+};
+
+/**
+ * Strip inline markdown formatting from text.
+ * Converts *italic*, **bold**, `code`, ~~strikethrough~~, [links](url) to plain text.
+ */
+function stripInlineMarkdown(text: string): string {
+  return (
+    text
+      // Links: [text](url) → text
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      // Bold+italic: ***text*** or ___text___
+      .replace(/\*{3}(.+?)\*{3}/g, "$1")
+      .replace(/_{3}(.+?)_{3}/g, "$1")
+      // Bold: **text** or __text__
+      .replace(/\*{2}(.+?)\*{2}/g, "$1")
+      .replace(/_{2}(.+?)_{2}/g, "$1")
+      // Italic: *text* or _text_
+      .replace(/\*(.+?)\*/g, "$1")
+      .replace(/_(.+?)_/g, "$1")
+      // Inline code: `text`
+      .replace(/`(.+?)`/g, "$1")
+      // Strikethrough: ~~text~~
+      .replace(/~~(.+?)~~/g, "$1")
+  );
+}
 
 /**
  * Generate a URL-safe ID from heading text.
@@ -35,21 +64,21 @@ export function extractHeadings(
   const lines = markdown.split("\n");
 
   for (const line of lines) {
-    let level: 2 | 3 | null = null;
+    let level: number | null = null;
     let text: string | null = null;
 
-    // Match markdown ## or ### at start of line
-    const mdMatch = line.match(/^(#{2,3})\s+(.+)$/);
+    // Match markdown #, ##, or ### at start of line
+    const mdMatch = line.match(/^(#{1,3})\s+(.+)$/);
     if (mdMatch) {
-      level = mdMatch[1].length as 2 | 3;
-      text = mdMatch[2].trim();
+      level = mdMatch[1].length;
+      text = stripInlineMarkdown(mdMatch[2].trim());
     }
 
-    // Match HTML <h2> or <h3> tags
+    // Match HTML <h1>, <h2>, or <h3> tags
     if (!text) {
-      const htmlMatch = line.match(/<h([23])[^>]*>([^<]+)<\/h[23]>/i);
+      const htmlMatch = line.match(/<h([123])[^>]*>([^<]+)<\/h[123]>/i);
       if (htmlMatch) {
-        level = parseInt(htmlMatch[1]) as 2 | 3;
+        level = parseInt(htmlMatch[1]);
         text = htmlMatch[2].trim();
       }
     }
@@ -69,13 +98,46 @@ export function extractHeadings(
 }
 
 /**
+ * Normalize heading levels using a stack-based algorithm (Obsidian-style).
+ * Maps raw markdown levels to display levels so a document starting with ##
+ * renders that as level 1 instead of wasting indentation levels.
+ *
+ * Algorithm: for each heading, pop stack entries with rawLevel >= current,
+ * then displayLevel = stack.top.displayLevel + 1 (or 1 if empty).
+ */
+export function normalizeHeadingLevels(
+  headings: HeadingItem[],
+): NormalizedHeadingItem[] {
+  const stack: { rawLevel: number; displayLevel: number }[] = [];
+
+  return headings.map((heading) => {
+    while (
+      stack.length > 0 &&
+      stack[stack.length - 1].rawLevel >= heading.level
+    ) {
+      stack.pop();
+    }
+
+    const displayLevel =
+      stack.length > 0 ? stack[stack.length - 1].displayLevel + 1 : 1;
+
+    stack.push({ rawLevel: heading.level, displayLevel });
+
+    return { ...heading, displayLevel };
+  });
+}
+
+/**
  * Extract headings from multiple markdown contents with a shared counter.
  * Use this when processing multiple article excerpts that should have
- * unique IDs across all of them.
+ * unique IDs across all of them. Returns normalized headings with displayLevel.
  */
-export function extractAllHeadings(markdownContents: string[]): HeadingItem[] {
+export function extractAllHeadings(
+  markdownContents: string[],
+): NormalizedHeadingItem[] {
   const seenIds = new Map<string, number>();
-  return markdownContents.flatMap((content) =>
+  const headings = markdownContents.flatMap((content) =>
     extractHeadings(content, seenIds),
   );
+  return normalizeHeadingLevels(headings);
 }

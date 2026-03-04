@@ -21,7 +21,7 @@ from core.questions import (
     update_response,
 )
 from core.database import get_connection, get_transaction
-from core.assessment import enqueue_scoring
+from core.assessment import resolve_question_details, enqueue_scoring
 from web_api.auth import get_user_or_anonymous
 
 router = APIRouter(prefix="/api/questions", tags=["questions"])
@@ -33,8 +33,6 @@ router = APIRouter(prefix="/api/questions", tags=["questions"])
 class SubmitResponseRequest(BaseModel):
     question_id: str
     module_slug: str
-    question_text: str
-    assessment_instructions: str | None = None
     answer_text: str
     answer_metadata: dict = {}
 
@@ -102,7 +100,14 @@ async def submit_question_response(
     if not body.answer_text.strip():
         raise HTTPException(400, "answer_text must be non-empty")
 
-    question_hash = hashlib.sha256(body.question_text.encode()).hexdigest()
+    # Resolve question_text and assessment_instructions from content cache
+    details = resolve_question_details(body.module_slug, body.question_id)
+    if not details:
+        raise HTTPException(500, "Could not resolve question content")
+    question_text = details["question_text"]
+    assessment_instructions = details.get("assessment_instructions")
+
+    question_hash = hashlib.sha256(question_text.encode()).hexdigest()
 
     async with get_transaction() as conn:
         row = await submit_response(
@@ -111,9 +116,9 @@ async def submit_question_response(
             anonymous_token=anonymous_token,
             question_id=body.question_id,
             module_slug=body.module_slug,
-            question_text=body.question_text,
+            question_text=question_text,
             question_hash=question_hash,
-            assessment_instructions=body.assessment_instructions,
+            assessment_instructions=assessment_instructions,
             answer_text=body.answer_text.strip(),
             answer_metadata=body.answer_metadata,
         )
@@ -264,8 +269,6 @@ async def update_question_response(
                 "question_id": row["question_id"],
                 "module_slug": row["module_slug"],
                 "answer_text": row["answer_text"],
-                "question_text": row.get("question_text"),
-                "assessment_instructions": row.get("assessment_instructions"),
             },
         )
 

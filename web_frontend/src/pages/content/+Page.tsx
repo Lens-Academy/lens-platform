@@ -4,7 +4,7 @@ import { API_URL } from "@/config";
 interface ContentItem {
   slug: string;
   title: string;
-  type: "module" | "lens";
+  type: "module" | "lens" | "article";
 }
 
 export default function ContentIndexPage() {
@@ -23,6 +23,7 @@ export default function ContentIndexPage() {
 
   const modules = items.filter((i) => i.type === "module");
   const lenses = items.filter((i) => i.type === "lens");
+  const articles = items.filter((i) => i.type === "article");
 
   if (loading) {
     return (
@@ -54,7 +55,7 @@ export default function ContentIndexPage() {
         </ul>
       </section>
 
-      <section>
+      <section className="mb-10">
         <h2 className="text-lg font-medium text-stone-700 mb-4">
           Lenses ({lenses.length})
         </h2>
@@ -68,6 +69,26 @@ export default function ContentIndexPage() {
           ))}
         </ul>
       </section>
+
+      {articles.length > 0 && (
+        <section>
+          <h2 className="text-lg font-medium text-stone-700 mb-4">
+            Articles ({articles.length})
+          </h2>
+          <ul className="space-y-2">
+            {articles.map((a) => (
+              <li key={a.slug}>
+                <a
+                  href={`/${a.slug}`}
+                  className="text-blue-700 hover:underline"
+                >
+                  {a.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

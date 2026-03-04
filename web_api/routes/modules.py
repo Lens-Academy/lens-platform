@@ -18,6 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.modules import (
     get_available_modules,
     ModuleNotFoundError,
+    list_article_summaries,
+    build_article_module,
 )
 from core.modules.loader import load_flattened_module
 from core.modules.flattened_types import FlattenedModule
@@ -79,6 +81,18 @@ async def list_modules(type: str | None = None):
             )
         except ModuleNotFoundError:
             pass
+
+    # Append articles (skip when filtering to module or lens only)
+    if type not in ("module", "lens"):
+        for article in list_article_summaries():
+            modules.append(
+                {
+                    "slug": f"article/{article['slug']}",
+                    "title": article["title"],
+                    "type": "article",
+                }
+            )
+
     return {"modules": modules}
 
 
@@ -137,8 +151,7 @@ async def get_module_progress_endpoint(
             conn,
             user_id=user_id,
             anonymous_token=anonymous_token,
-            content_id=module.content_id,
-            content_type="module",
+            module_id=module.content_id,
         )
 
     # Build lens list with completion status (sections are dicts)
@@ -210,4 +223,11 @@ async def get_module(module_slug: str):
         module = load_flattened_module(module_slug)
         return serialize_flattened_module(module)
     except ModuleNotFoundError:
+        # Try article slugs: article/{slug}
+        if module_slug.startswith("article/"):
+            article_slug = module_slug.removeprefix("article/")
+            try:
+                return build_article_module(article_slug)
+            except FileNotFoundError:
+                pass
         raise HTTPException(status_code=404, detail="Module not found")

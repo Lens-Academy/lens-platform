@@ -47,8 +47,6 @@ export default function AnswerBox({
   } = useAutoSave({
     questionId,
     moduleSlug,
-    questionText: segment.content,
-    assessmentInstructions: segment.assessmentInstructions,
     isAuthenticated,
   });
 

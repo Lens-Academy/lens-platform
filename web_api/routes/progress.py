@@ -5,7 +5,7 @@ Endpoints:
 - POST /api/progress/time - Update time spent (heartbeat or beacon)
 """
 
-import json
+import asyncio
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request
@@ -245,6 +245,18 @@ async def complete_content(
 
                 module_progress = {"completed": completed_count, "total": total_count}
 
+    # Fire-and-forget: update study activity message in group channel
+    # Only for authenticated users completing lens content with a module_slug
+    if body.module_slug and user_id and body.content_type == "lens":
+        from core.notifications.study_activity import update_study_activity
+
+        asyncio.create_task(
+            update_study_activity(
+                user_id=user_id,
+                module_slug=body.module_slug,
+            )
+        )
+
     return MarkCompleteResponse(
         completed_at=(
             progress["completed_at"].isoformat()
@@ -259,43 +271,22 @@ async def complete_content(
 
 @router.post("/time", status_code=204)
 async def update_time_endpoint(
-    request: Request,
-    body: TimeUpdateRequest | None = None,
+    body: TimeUpdateRequest,
     auth: tuple = Depends(get_user_or_token),
 ):
     """Update time spent on content (periodic heartbeat or beacon).
 
     Called periodically while user is viewing content to track engagement time.
     Server computes elapsed time from last_heartbeat_at column.
-    Also handles sendBeacon on page unload which sends raw JSON without Content-Type.
-
-    Args:
-        request: Raw request for handling sendBeacon
-        body: Request with content_id (and optional lo_id, module_id)
-             May be None for sendBeacon requests
     """
     user_id, anonymous_token = auth
 
-    # Handle sendBeacon (raw JSON body without Content-Type header)
-    if body is None:
-        try:
-            raw = await request.body()
-            data = json.loads(raw)
-            content_id = UUID(data["content_id"])
-            lo_id = UUID(data["lo_id"]) if data.get("lo_id") else None
-            module_id = UUID(data["module_id"]) if data.get("module_id") else None
-            content_title = data.get("content_title", "")
-            module_title = data.get("module_title", "")
-            lo_title = data.get("lo_title", "")
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
-            raise HTTPException(400, f"Invalid request body: {e}")
-    else:
-        content_id = body.content_id
-        lo_id = body.lo_id
-        module_id = body.module_id
-        content_title = body.content_title
-        module_title = body.module_title
-        lo_title = body.lo_title
+    content_id = body.content_id
+    lo_id = body.lo_id
+    module_id = body.module_id
+    content_title = body.content_title
+    module_title = body.module_title
+    lo_title = body.lo_title
 
     async with get_transaction() as conn:
         # Ensure lens record exists, then update time

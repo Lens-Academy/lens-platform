@@ -7,7 +7,7 @@ All logic for direct group joining lives here. API endpoints delegate to this mo
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from .enums import GroupUserStatus
@@ -230,13 +230,15 @@ async def get_joinable_groups(
     facilitator_subq = (
         select(
             groups_users.c.group_id,
-            func.coalesce(users.c.nickname, users.c.discord_username).label(
-                "facilitator_name"
-            ),
+            func.string_agg(
+                func.coalesce(users.c.nickname, users.c.discord_username),
+                literal_column("', '"),
+            ).label("facilitator_name"),
         )
         .join(users, groups_users.c.user_id == users.c.user_id)
         .where(groups_users.c.role == "facilitator")
         .where(groups_users.c.status == GroupUserStatus.active)
+        .group_by(groups_users.c.group_id)
         .subquery()
     )
 

@@ -55,6 +55,7 @@ if sentry_dsn:
 else:
     print("Note: SENTRY_DSN not set, error tracking disabled")
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -141,6 +142,7 @@ from web_api.routes.users import router as users_router
 from web_api.routes.module import router as module_router
 from web_api.routes.modules import router as modules_router
 from web_api.routes.speech import router as speech_router
+from web_api.routes.tts_stream import router as tts_stream_router
 from web_api.routes.cohorts import router as cohorts_router
 from web_api.routes.courses import router as courses_router
 from web_api.routes.facilitator import router as facilitator_router
@@ -150,6 +152,8 @@ from web_api.routes.groups import router as groups_router
 from web_api.routes.admin import router as admin_router
 from web_api.routes.progress import router as progress_router
 from web_api.routes.questions import router as questions_router
+from web_api.routes.roleplay import router as roleplay_router
+from web_api.routes.roleplay_ws import router as roleplay_ws_router
 from web_api.routes.guest_visits import router as guest_visits_router
 
 # Track bot task for cleanup
@@ -279,6 +283,7 @@ async def lifespan(app: FastAPI):
     print("Shutting down peer services...")
     shutdown_scheduler()
     await stop_bot()
+
     await close_engine()  # Close database connections
     if _bot_task:
         _bot_task.cancel()
@@ -307,8 +312,11 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(module_router)
+app.include_router(roleplay_router)
+app.include_router(roleplay_ws_router)
 app.include_router(modules_router)
 app.include_router(speech_router)
+app.include_router(tts_stream_router)
 app.include_router(cohorts_router)
 app.include_router(courses_router)
 app.include_router(facilitator_router)

@@ -10,6 +10,8 @@ export interface ParsedSection {
   fields: Record<string, string>;
   body: string;
   line: number;
+  level: number;
+  children?: ParsedSection[];
 }
 
 export interface SectionsResult {
@@ -29,11 +31,11 @@ const ALL_STRUCTURAL_TYPES = new Set([
   // Section types
   'learning outcome', 'page', 'uncategorized', 'lens', 'test', 'module', 'meeting', 'article', 'video',
   // Segment types
-  'text', 'chat', 'article-excerpt', 'video-excerpt', 'question',
+  'text', 'chat', 'article-excerpt', 'video-excerpt', 'question', 'roleplay',
 ]);
 
 // Fields that commonly contain markdown with headings
-const MARKDOWN_CONTENT_FIELDS = new Set(['content', 'instructions']);
+const MARKDOWN_CONTENT_FIELDS = new Set(['content', 'instructions', 'ai-instructions']);
 
 // Map input section names to output types for Lens files
 export const LENS_OUTPUT_TYPE: Record<string, string> = {
@@ -47,7 +49,7 @@ function makeSectionPattern(level: number): RegExp {
   const hashes = '#'.repeat(level);
   // Match: ^#{level} <type>  OR  ^#{level} <type>: <optional title>
   // Captures: group 1 = type, group 2 = title (may be undefined)
-  return new RegExp(`^${hashes}\\s+([^:]+?)(?::\\s*(.*))?$`, 'i');
+  return new RegExp(`^${hashes}\\s+([^:]+?)(?::\\s*(.*?))?\\s*$`, 'i');
 }
 
 // Note: unrecognized headers are now caught by makeSectionPattern matching all
@@ -67,6 +69,12 @@ export function parseSections(
       wrongLevelPatterns.push({ pattern: makeSectionPattern(adjLevel as 1|2|3|4), level: adjLevel });
     }
   }
+  const parentSubmodulePattern =
+    validTypes.has('submodule') && headerLevel > 1
+      ? makeSectionPattern((headerLevel - 1) as 1 | 2 | 3 | 4)
+      : null;
+  let insideParentSubmodule = false;
+
   const lines = content.split('\n');
   const sections: ParsedSection[] = [];
   const errors: ContentError[] = [];
@@ -75,20 +83,57 @@ export function parseSections(
   let currentBody: string[] = [];
   let preHeaderWarned = false;
 
+  function finalizeSection() {
+    if (!currentSection) return;
+    currentSection.body = currentBody.join('\n');
+    const { warnings } = parseFields(currentSection, file);
+    errors.push(...warnings);
+
+    // Submodule sections get recursive children parsing
+    if (currentSection.type === 'submodule' && currentSection.level < 4) {
+      const childValidTypes = new Set([...validTypes]);
+      childValidTypes.delete('submodule'); // No nesting
+      const childLevel = (currentSection.level + 1) as 1 | 2 | 3 | 4;
+      const childResult = parseSections(currentSection.body, childLevel, childValidTypes, file);
+      currentSection.children = childResult.sections;
+      errors.push(...childResult.errors);
+    }
+
+    sections.push(currentSection);
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const lineNum = i + 1;
+
+    // Check for parent-level submodule FIRST
+    if (parentSubmodulePattern) {
+      const parentMatch = line.match(parentSubmodulePattern);
+      if (parentMatch && parentMatch[1].trim().toLowerCase() === 'submodule') {
+        finalizeSection();
+        currentSection = {
+          type: 'submodule',
+          title: (parentMatch[2] ?? '').trim(),
+          rawType: parentMatch[1].trim(),
+          fields: {}, body: '', line: lineNum,
+          level: (headerLevel - 1) as number,
+        };
+        currentBody = [];
+        insideParentSubmodule = true;
+        continue;
+      }
+    }
+    // Inside parent submodule: accumulate body, skip normal header detection
+    if (insideParentSubmodule && currentSection) {
+      currentBody.push(line);
+      continue;
+    }
 
     const headerMatch = line.match(SECTION_HEADER_PATTERN);
 
     if (headerMatch) {
       // Save previous section
-      if (currentSection) {
-        currentSection.body = currentBody.join('\n');
-        const { warnings } = parseFields(currentSection, file);
-        errors.push(...warnings);
-        sections.push(currentSection);
-      }
+      finalizeSection();
 
       const rawType = headerMatch[1].trim();
       const normalizedType = rawType.toLowerCase();
@@ -112,6 +157,7 @@ export function parseSections(
         fields: {},
         body: '',
         line: lineNum,
+        level: headerLevel,
       };
       currentBody = [];
     } else {
@@ -153,12 +199,7 @@ export function parseSections(
   }
 
   // Don't forget last section
-  if (currentSection) {
-    currentSection.body = currentBody.join('\n');
-    const { warnings } = parseFields(currentSection, file);
-    errors.push(...warnings);
-    sections.push(currentSection);
-  }
+  finalizeSection();
 
   return { sections, errors };
 }

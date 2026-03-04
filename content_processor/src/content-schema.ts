@@ -51,6 +51,11 @@ export const SEGMENT_SCHEMAS: Record<string, SegmentTypeSchema> = {
     ['assessment-instructions', 'max-time', 'max-chars', 'enforce-voice', 'optional', 'feedback'],
     ['enforce-voice', 'optional', 'feedback'],
   ),
+  'roleplay': segmentSchema(
+    ['id', 'content', 'ai-instructions'],
+    ['opening-message', 'assessment-instructions', 'optional', 'feedback'],
+    ['optional', 'feedback'],
+  ),
 };
 
 /**

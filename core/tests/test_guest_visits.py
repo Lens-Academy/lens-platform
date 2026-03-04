@@ -67,6 +67,42 @@ class TestFindAlternativeMeetings:
         assert result[0]["scheduled_at"] == future.isoformat()
 
     @pytest.mark.asyncio
+    async def test_multi_facilitator_group_appears_once(self):
+        """A group with two facilitators should appear once with both names."""
+        future = datetime.now(timezone.utc) + timedelta(days=3)
+        mock_conn = AsyncMock()
+
+        home_meeting = {
+            "group_id": 10,
+            "cohort_id": 1,
+            "meeting_number": 3,
+        }
+        user_group = {"group_id": 10}
+        # string_agg produces a single row with comma-separated facilitator names
+        alt_meeting = {
+            "meeting_id": 200,
+            "group_id": 20,
+            "scheduled_at": future,
+            "meeting_number": 3,
+            "group_name": "Group B",
+            "facilitator_name": "Alice, Bob",
+        }
+
+        mock_conn.execute = AsyncMock(
+            side_effect=[
+                _make_mapping_result([home_meeting]),
+                _make_mapping_result([user_group]),
+                _make_mapping_result([alt_meeting]),
+            ]
+        )
+
+        result = await find_alternative_meetings(mock_conn, user_id=1, meeting_id=100)
+
+        assert len(result) == 1
+        assert result[0]["facilitator_name"] == "Alice, Bob"
+        assert result[0]["group_name"] == "Group B"
+
+    @pytest.mark.asyncio
     async def test_returns_empty_list_when_no_alternatives_exist(self):
         """Should return empty list when no other groups have the same meeting_number."""
         mock_conn = AsyncMock()

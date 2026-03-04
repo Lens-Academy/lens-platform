@@ -48,6 +48,12 @@ def gather_section_context(section: dict, segment_index: int) -> str | None:
             if content:
                 parts.append(content)
 
-        # Skip chat segments - history captures those
+        elif seg_type == "roleplay":
+            # Roleplay scenario briefing provides context for subsequent segments
+            content = seg.get("content", "")
+            if content:
+                parts.append(f"[Roleplay scenario]\n{content}")
+
+        # Skip chat and roleplay segments for their own context -- history captures those
 
     return "\n\n---\n\n".join(parts) if parts else None

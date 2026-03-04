@@ -9,7 +9,7 @@ from .channels import (
     get_or_fetch_channel,
 )
 from .events import create_scheduled_event
-from .messages import send_channel_message, send_dm
+from .messages import edit_channel_message, edit_dm, send_channel_message, send_dm
 from .permissions import (
     get_members_with_access,
     grant_channel_access,
@@ -29,7 +29,9 @@ __all__ = [
     "get_dm_semaphore",
     "get_or_fetch_member",
     "send_dm",
+    "edit_dm",
     "send_channel_message",
+    "edit_channel_message",
     "create_category",
     "create_text_channel",
     "create_voice_channel",

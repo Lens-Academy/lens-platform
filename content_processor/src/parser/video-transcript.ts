@@ -2,6 +2,7 @@
 import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
+import { stripAuthoringMarkup } from './lens.js';
 
 export interface ParsedVideoTranscript {
   title: string;
@@ -16,6 +17,9 @@ export interface VideoTranscriptParseResult {
 
 export function parseVideoTranscript(content: string, file: string): VideoTranscriptParseResult {
   const errors: ContentError[] = [];
+
+  // Strip authoring markup (CriticMarkup + Obsidian comments) before parsing
+  content = stripAuthoringMarkup(content);
 
   const frontmatterResult = parseFrontmatter(content, file);
   if (frontmatterResult.error) {

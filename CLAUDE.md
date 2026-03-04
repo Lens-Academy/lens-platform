@@ -62,6 +62,10 @@ pytest web_api/tests/         # Web API tests
 
 The Chrome DevTools MCP connects to Chrome on the **user's Windows device**, not the VPS. The VPS localhost ports are tunneled to the user's device as `dev.vps`. So when navigating in Chrome DevTools, use `http://dev.vps:<port>/...` (not `localhost`).
 
+## Testing Changes
+
+After making changes, start dev servers if not already running (check with `./scripts/list-servers`). Restart the backend server after any Python changes. Use Chrome DevTools MCP to verify changes in the browser first (navigate to `http://dev.vps:<port>/...`), and only ask the user to manually test after you've confirmed things look correct.
+
 ## Dev Server Management
 
 Ports are auto-assigned based on workspace number (offset by 100 to avoid collisions when servers auto-increment):

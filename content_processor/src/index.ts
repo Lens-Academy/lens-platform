@@ -17,6 +17,8 @@ export interface FlattenedModule {
   title: string;
   contentId: string | null;
   sections: Section[];
+  parentSlug?: string;
+  parentTitle?: string;
   error?: string;
   warnings?: string[];
 }
@@ -106,7 +108,18 @@ export interface QuestionSegment {
   feedback?: boolean;
 }
 
-export type Segment = TextSegment | ChatSegment | ArticleExcerptSegment | VideoExcerptSegment | QuestionSegment;
+export interface RoleplaySegment {
+  type: 'roleplay';
+  id: string;                     // UUID for session isolation
+  content: string;
+  aiInstructions: string;
+  openingMessage?: string;
+  assessmentInstructions?: string;
+  optional?: boolean;
+  feedback?: boolean;
+}
+
+export type Segment = TextSegment | ChatSegment | ArticleExcerptSegment | VideoExcerptSegment | QuestionSegment | RoleplaySegment;
 
 import { flattenModule, flattenLens } from './flattener/index.js';
 import { parseModule } from './parser/module.js';
@@ -242,6 +255,7 @@ export function processContent(files: Map<string, string>): ProcessResult {
   const slugToPath = new Map<string, string>();
   const filePathToSlug = new Map<string, string>();  // Reverse: file path → slug (survives duplicate slugs)
   const courseSlugToFile = new Map<string, string>();
+  const parentSlugToChildren = new Map<string, string[]>();
 
   // Pre-scan: build tier map from frontmatter tags
   const tierMap = buildTierMap(files);
@@ -256,28 +270,41 @@ export function processContent(files: Map<string, string>): ProcessResult {
     if (path.startsWith('modules/')) {
       const result = flattenModule(path, files, new Set(), tierMap);
 
-      if (result.module) {
-        modules.push(result.module);
-        slugToPath.set(result.module.slug, path);
-        filePathToSlug.set(path, result.module.slug);
+      for (const mod of result.modules) {
+        modules.push(mod);
+        slugToPath.set(mod.slug, path);
 
-        // Collect slug for duplicate detection
-        slugEntries.push({
-          slug: result.module.slug,
-          file: path,
-        });
+        // Track parent→children mapping for course expansion
+        if (mod.parentSlug) {
+          if (!parentSlugToChildren.has(mod.parentSlug)) {
+            parentSlugToChildren.set(mod.parentSlug, []);
+          }
+          parentSlugToChildren.get(mod.parentSlug)!.push(mod.slug);
+        } else {
+          filePathToSlug.set(path, mod.slug);
+        }
 
-        // Collect module contentId for UUID validation
-        if (result.module.contentId) {
+        slugEntries.push({ slug: mod.slug, file: path });
+
+        if (mod.contentId) {
           uuidEntries.push({
-            uuid: result.module.contentId,
+            uuid: mod.contentId,
             file: path,
             field: 'contentId',
           });
         }
+      }
 
-        // Collect section-level id:: fields from raw # Page: sections.
-        // (Lens-derived sections inherit lens.id which is validated separately.)
+      // If no submodules, set filePathToSlug for the primary module
+      if (result.modules.length === 1 && !result.modules[0].parentSlug) {
+        filePathToSlug.set(path, result.modules[0].slug);
+      } else if (result.modules.length > 0 && result.modules[0].parentSlug) {
+        // For split modules, map the file path to the parent slug
+        filePathToSlug.set(path, result.modules[0].parentSlug);
+      }
+
+      // Collect section-level id:: fields from raw # Page: sections.
+      if (result.modules.length > 0) {
         const rawParse = parseModule(content, path);
         if (rawParse.module) {
           for (const section of rawParse.module.sections) {
@@ -461,6 +488,20 @@ export function processContent(files: Map<string, string>): ProcessResult {
     course.progression = course.progression.filter(
       item => item.type !== 'module' || item.slug !== undefined
     );
+
+    // Expand split modules: replace parent slug with child submodule slugs
+    const expanded: typeof course.progression = [];
+    for (const item of course.progression) {
+      if (item.type === 'module' && item.slug && parentSlugToChildren.has(item.slug)) {
+        const children = parentSlugToChildren.get(item.slug)!;
+        for (const childSlug of children) {
+          expanded.push({ ...item, slug: childSlug });
+        }
+      } else {
+        expanded.push(item);
+      }
+    }
+    course.progression = expanded;
   }
 
   // Check tier violations: Course → Module

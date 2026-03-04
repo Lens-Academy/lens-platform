@@ -1,7 +1,9 @@
 // src/flattener/index.test.ts
 import { describe, it, expect } from 'vitest';
-import { flattenModule, flattenLens } from './index.js';
-import type { ArticleExcerptSegment } from '../index.js';
+import { flattenModule, flattenLens, validateBoundaries, splitAtBoundaries, isBoundary, type BoundaryMarker, type FlatItem } from './index.js';
+import type { ArticleExcerptSegment, Section } from '../index.js';
+import { processContent } from '../index.js';
+import { pageLens, simpleLO, loWithSubmodules, buildFiles } from './test-helpers.js';
 
 describe('flattenModule', () => {
   it('resolves learning outcome references', () => {
@@ -993,5 +995,581 @@ Conclusion paragraph after the excerpt.
     // The content after the to:: anchor should be collapsed_after
     expect(excerpt.collapsed_after).toBeDefined();
     expect(excerpt.collapsed_after).toContain('Conclusion paragraph');
+  });
+});
+
+// -- Step 4a: Pure boundary functions --
+
+describe('splitAtBoundaries', () => {
+  const makeSection = (title: string): Section => ({
+    type: 'page',
+    meta: { title },
+    segments: [{ type: 'text', content: title }],
+    optional: false,
+    contentId: null,
+    learningOutcomeId: null,
+    learningOutcomeName: null,
+    videoId: null,
+  });
+
+  it('no boundaries → single group with all sections', () => {
+    const items: FlatItem[] = [makeSection('A'), makeSection('B')];
+    const groups = splitAtBoundaries(items, 'parent', 'Parent');
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].sections).toHaveLength(2);
+    expect(groups[0].parentSlug).toBeUndefined();
+  });
+
+  it('splits at boundary markers into groups', () => {
+    const items: FlatItem[] = [
+      { __boundary: true, title: 'Welcome' },
+      makeSection('A'),
+      { __boundary: true, title: 'Research' },
+      makeSection('B'),
+      makeSection('C'),
+    ];
+
+    const groups = splitAtBoundaries(items, 'big', 'Big Module');
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0].slug).toBe('big/welcome');
+    expect(groups[0].parentSlug).toBe('big');
+    expect(groups[0].parentTitle).toBe('Big Module');
+    expect(groups[0].sections).toHaveLength(1);
+    expect(groups[1].slug).toBe('big/research');
+    expect(groups[1].sections).toHaveLength(2);
+  });
+
+  it('preserves customSlug on groups', () => {
+    const items: FlatItem[] = [
+      { __boundary: true, title: 'Research Methods', customSlug: 'research' },
+      makeSection('A'),
+    ];
+
+    const groups = splitAtBoundaries(items, 'big', 'Big');
+
+    expect(groups[0].slug).toBe('big/research');
+  });
+});
+
+describe('validateBoundaries', () => {
+  const makeSection = (title: string): Section => ({
+    type: 'page',
+    meta: { title },
+    segments: [{ type: 'text', content: title }],
+    optional: false,
+    contentId: null,
+    learningOutcomeId: null,
+    learningOutcomeName: null,
+    videoId: null,
+  });
+
+  it('sections before first boundary → error', () => {
+    const items: FlatItem[] = [
+      makeSection('Orphan'),
+      { __boundary: true, title: 'Group' },
+      makeSection('A'),
+    ];
+
+    const errs = validateBoundaries(items, 'test.md');
+
+    expect(errs.length).toBeGreaterThan(0);
+    expect(errs[0].message).toContain('outside');
+  });
+
+  it('consecutive boundaries → error', () => {
+    const items: FlatItem[] = [
+      { __boundary: true, title: 'A' },
+      { __boundary: true, title: 'B' },
+      makeSection('Content'),
+    ];
+
+    const errs = validateBoundaries(items, 'test.md');
+
+    expect(errs.length).toBeGreaterThan(0);
+    expect(errs[0].message).toContain('empty');
+  });
+
+  it('trailing boundary with no sections → error', () => {
+    const items: FlatItem[] = [
+      { __boundary: true, title: 'A' },
+      makeSection('Content'),
+      { __boundary: true, title: 'B' },
+    ];
+
+    const errs = validateBoundaries(items, 'test.md');
+
+    expect(errs.length).toBeGreaterThan(0);
+    expect(errs[0].message).toContain('empty');
+  });
+
+  it('all content in boundaries → no errors', () => {
+    const items: FlatItem[] = [
+      { __boundary: true, title: 'A' },
+      makeSection('Content A'),
+      { __boundary: true, title: 'B' },
+      makeSection('Content B'),
+    ];
+
+    const errs = validateBoundaries(items, 'test.md');
+
+    expect(errs).toHaveLength(0);
+  });
+
+  it('no boundaries at all → no errors', () => {
+    const items: FlatItem[] = [makeSection('A'), makeSection('B')];
+
+    const errs = validateBoundaries(items, 'test.md');
+
+    expect(errs).toHaveLength(0);
+  });
+});
+
+// -- Step 4b: Full submodule fixtures --
+
+describe('flattenModule submodules', () => {
+  it('F1: no submodules → single module, no parentSlug (regression)', () => {
+    const files = buildFiles({
+      'modules/intro.md': `---
+slug: intro
+title: Intro
+---
+
+# Learning Outcome: Topic
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`,
+      'Learning Outcomes/lo1.md': simpleLO('lo-1-id', [
+        { path: '../Lenses/lens1.md' },
+      ]),
+      'Lenses/lens1.md': pageLens('lens-1-id', 'Content', 'Hello world.'),
+    });
+
+    const result = flattenModule('modules/intro.md', files);
+
+    expect(result.modules).toHaveLength(1);
+    expect(result.modules[0].slug).toBe('intro');
+    expect(result.modules[0].parentSlug).toBeUndefined();
+    expect(result.modules[0].sections).toHaveLength(1);
+  });
+
+  it('F2: module-level submodules → 2 FlattenedModules with parentSlug', () => {
+    const files = buildFiles({
+      'modules/big.md': `---
+slug: big
+title: Big Module
+---
+
+# Submodule: Welcome
+slug:: welcome
+
+## Page: Welcome to AI Safety
+id:: page-id-1
+
+### Text
+content:: We begin by examining...
+
+# Submodule: Research Methods
+
+## Learning Outcome:
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`,
+      'Learning Outcomes/lo1.md': simpleLO('lo-1-id', [
+        { path: '../Lenses/lens1.md' },
+      ]),
+      'Lenses/lens1.md': pageLens('lens-1-id', 'Research', 'Research content.'),
+    });
+
+    const result = flattenModule('modules/big.md', files);
+
+    expect(result.modules).toHaveLength(2);
+    expect(result.modules[0].slug).toBe('big/welcome');
+    expect(result.modules[0].parentSlug).toBe('big');
+    expect(result.modules[0].parentTitle).toBe('Big Module');
+    expect(result.modules[0].sections.length).toBeGreaterThan(0);
+    expect(result.modules[1].slug).toBe('big/research-methods');
+    expect(result.modules[1].parentSlug).toBe('big');
+  });
+
+  it('F3: LO-level submodules → 2 FlattenedModules', () => {
+    const files = buildFiles({
+      'modules/split.md': `---
+slug: split
+title: Split Module
+---
+
+# Learning Outcome:
+source:: [[../Learning Outcomes/lo-split.md|Split LO]]
+`,
+      'Learning Outcomes/lo-split.md': loWithSubmodules('lo-split-id', [
+        { title: 'Basics', lensRefs: ['../Lenses/lens1.md'] },
+        { title: 'Deep Dive', lensRefs: ['../Lenses/lens2.md'] },
+      ]),
+      'Lenses/lens1.md': pageLens('lens-1-id', 'Basics Content', 'Basic stuff.'),
+      'Lenses/lens2.md': pageLens('lens-2-id', 'Deep Content', 'Deep stuff.'),
+    });
+
+    const result = flattenModule('modules/split.md', files);
+
+    expect(result.modules).toHaveLength(2);
+    expect(result.modules[0].slug).toBe('split/basics');
+    expect(result.modules[0].parentSlug).toBe('split');
+    expect(result.modules[0].sections).toHaveLength(1);
+    expect(result.modules[1].slug).toBe('split/deep-dive');
+    expect(result.modules[1].parentSlug).toBe('split');
+    expect(result.modules[1].sections).toHaveLength(1);
+  });
+
+  it('F4: LO with # Submodule: (h1) groups → all content inside submodules', () => {
+    // Real-world pattern: LO uses # Submodule: (h1) with ## Lens: (h2) children.
+    // All content must be inside submodules (no orphaned top-level lenses).
+    const files = buildFiles({
+      'modules/approaches.md': `---
+slug: existing-approaches
+title: Existing Approaches
+---
+
+# Learning Outcome:
+source:: [[../Learning Outcomes/lo-approaches.md|Approaches LO]]
+`,
+      'Learning Outcomes/lo-approaches.md': `---
+id: lo-approaches-id
+---
+
+# Submodule: Mechanistic Interpretability
+
+## Lens:
+source:: [[../Lenses/lens-mi1.md]]
+
+## Lens:
+source:: [[../Lenses/lens-mi2.md]]
+
+# Submodule: Evals
+
+## Lens:
+source:: [[../Lenses/lens-evals1.md]]
+`,
+      'Lenses/lens-mi1.md': pageLens('mi1-id', 'Mech Interp', 'MI content 1.'),
+      'Lenses/lens-mi2.md': pageLens('mi2-id', 'MI for Safety', 'MI content 2.'),
+      'Lenses/lens-evals1.md': pageLens('evals1-id', 'AI Evaluations', 'Evals content.'),
+    });
+
+    const result = flattenModule('modules/approaches.md', files);
+
+    // Should not have hard errors
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+
+    // Should produce 2 submodule groups
+    expect(result.modules).toHaveLength(2);
+
+    // MI submodule: 2 sections (2 lenses)
+    const mi = result.modules.find(m => m.slug.includes('mechanistic'));
+    expect(mi).toBeDefined();
+    expect(mi!.sections).toHaveLength(2);
+    expect(mi!.parentSlug).toBe('existing-approaches');
+
+    // Evals submodule: 1 section
+    const evals = result.modules.find(m => m.slug.includes('evals'));
+    expect(evals).toBeDefined();
+    expect(evals!.sections).toHaveLength(1);
+    expect(evals!.parentSlug).toBe('existing-approaches');
+  });
+
+  it('F5: orphaned content before first submodule → error', () => {
+    const files = buildFiles({
+      'modules/bad.md': `---
+slug: bad
+title: Bad
+---
+
+# Page: Orphan
+id:: orphan-id
+
+## Text
+content:: This is orphaned.
+
+# Submodule: Group A
+
+## Learning Outcome:
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`,
+      'Learning Outcomes/lo1.md': simpleLO('lo-1-id', [
+        { path: '../Lenses/lens1.md' },
+      ]),
+      'Lenses/lens1.md': pageLens('lens-1-id', 'Content', 'Hello.'),
+    });
+
+    const result = flattenModule('modules/bad.md', files);
+
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.toLowerCase().includes('outside')
+    )).toBe(true);
+  });
+
+  it('F7: consecutive boundaries → error', () => {
+    const files = buildFiles({
+      'modules/empty-sub.md': `---
+slug: empty-sub
+title: Empty Sub
+---
+
+# Submodule: A
+
+# Submodule: B
+
+## Learning Outcome:
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`,
+      'Learning Outcomes/lo1.md': simpleLO('lo-1-id', [
+        { path: '../Lenses/lens1.md' },
+      ]),
+      'Lenses/lens1.md': pageLens('lens-1-id', 'Content', 'Hello.'),
+    });
+
+    const result = flattenModule('modules/empty-sub.md', files);
+
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.toLowerCase().includes('empty')
+    )).toBe(true);
+  });
+
+  it('F8: submodule ## Page: with ### Text subsections produces text segments', () => {
+    const files = buildFiles({
+      'modules/big.md': `---
+slug: big
+title: Big Module
+---
+
+# Submodule: Welcome
+slug:: welcome
+
+## Page: Welcome to AI Safety
+id:: page-id-1
+
+### Text
+content:: We begin by examining AI safety.
+
+### Text
+content:: This is the second paragraph.
+
+# Submodule: Research
+slug:: research
+
+## Page: Research Methods
+id:: page-id-2
+
+### Text
+content:: Research content here.
+`,
+    });
+
+    const result = flattenModule('modules/big.md', files);
+
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    expect(result.modules).toHaveLength(2);
+
+    // Welcome submodule should have 1 page section with 2 text segments
+    const welcome = result.modules[0];
+    expect(welcome.slug).toBe('big/welcome');
+    expect(welcome.sections).toHaveLength(1);
+    expect(welcome.sections[0].type).toBe('page');
+    expect(welcome.sections[0].segments).toHaveLength(2);
+    expect(welcome.sections[0].segments[0].type).toBe('text');
+    expect((welcome.sections[0].segments[0] as any).content).toContain('AI safety');
+    expect((welcome.sections[0].segments[1] as any).content).toContain('second paragraph');
+
+    // Research submodule should have 1 page section with 1 text segment
+    const research = result.modules[1];
+    expect(research.slug).toBe('big/research');
+    expect(research.sections).toHaveLength(1);
+    expect(research.sections[0].segments).toHaveLength(1);
+    expect((research.sections[0].segments[0] as any).content).toContain('Research content');
+  });
+
+  it('F9: custom slug:: on submodule', () => {
+    const files = buildFiles({
+      'modules/custom.md': `---
+slug: custom
+title: Custom
+---
+
+# Submodule: Research Methods
+slug:: research
+
+## Learning Outcome:
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`,
+      'Learning Outcomes/lo1.md': simpleLO('lo-1-id', [
+        { path: '../Lenses/lens1.md' },
+      ]),
+      'Lenses/lens1.md': pageLens('lens-1-id', 'Content', 'Hello.'),
+    });
+
+    const result = flattenModule('modules/custom.md', files);
+
+    expect(result.modules).toHaveLength(1);
+    expect(result.modules[0].slug).toBe('custom/research');
+  });
+
+  it('F11: child submodules share parent contentId', () => {
+    const files = buildFiles({
+      'modules/approaches.md': `---
+slug: existing-approaches
+title: Existing Approaches
+contentId: e2883472-3994-43a1-88a2-b4f64f70b210
+---
+
+# Submodule: Mechanistic Interpretability
+
+## Learning Outcome:
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+
+# Submodule: Evals
+
+## Learning Outcome:
+source:: [[../Learning Outcomes/lo2.md|LO2]]
+`,
+      'Learning Outcomes/lo1.md': simpleLO('lo-1-id', [
+        { path: '../Lenses/lens1.md' },
+      ]),
+      'Learning Outcomes/lo2.md': simpleLO('lo-2-id', [
+        { path: '../Lenses/lens2.md' },
+      ]),
+      'Lenses/lens1.md': pageLens('lens-1-id', 'MI', 'MI content.'),
+      'Lenses/lens2.md': pageLens('lens-2-id', 'Evals', 'Evals content.'),
+    });
+
+    const result = flattenModule('modules/approaches.md', files);
+
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    expect(result.modules).toHaveLength(2);
+    // All submodules share the parent's contentId
+    for (const mod of result.modules) {
+      expect(mod.contentId).toBe('e2883472-3994-43a1-88a2-b4f64f70b210');
+    }
+  });
+
+  it('F12: test section inside submodule appears in flattened output', () => {
+    const files = buildFiles({
+      'modules/approaches.md': `---
+slug: existing-approaches
+title: Existing Approaches
+---
+
+# Learning Outcome:
+source:: [[../Learning Outcomes/lo-with-test.md|LO With Test]]
+`,
+      'Learning Outcomes/lo-with-test.md': `---
+id: lo-test-id
+---
+
+# Submodule: Mechanistic Interpretability
+
+## Lens:
+source:: [[../Lenses/lens-mi.md]]
+
+# Submodule: Agent Foundations
+
+## Lens:
+source:: [[../Lenses/lens-af.md]]
+
+## Test:
+id:: test-inline-id
+
+#### Text
+content:: We'll be asking you some questions about this module
+
+#### Question
+feedback:: true
+content:: Explain each of these terms in one sentence.
+assessment-instructions:: Check that the student gives clear definitions.
+max-chars:: 900
+`,
+      'Lenses/lens-mi.md': pageLens('mi-id', 'Mech Interp', 'MI content.'),
+      'Lenses/lens-af.md': pageLens('af-id', 'Agent Foundations', 'AF content.'),
+    });
+
+    const result = flattenModule('modules/approaches.md', files);
+
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    expect(result.modules).toHaveLength(2);
+
+    // Agent Foundations submodule should have the test section
+    const af = result.modules.find(m => m.slug.includes('agent'));
+    expect(af).toBeDefined();
+
+    // Should have 1 lens + 1 test = 2 sections
+    expect(af!.sections).toHaveLength(2);
+
+    const testSection = af!.sections.find(s => s.type === 'test');
+    expect(testSection).toBeDefined();
+    expect(testSection!.learningOutcomeId).toBe('lo-test-id');
+    expect(testSection!.feedback).toBe(true);
+    expect(testSection!.segments).toHaveLength(2); // text + question
+
+    // MI submodule should NOT have a test (only 1 lens)
+    const mi = result.modules.find(m => m.slug.includes('mechanistic'));
+    expect(mi).toBeDefined();
+    expect(mi!.sections).toHaveLength(1);
+    expect(mi!.sections.every(s => s.type !== 'test')).toBe(true);
+  });
+});
+
+describe('processContent with submodules', () => {
+  it('F10: course referencing split module expands progression', () => {
+    const files = buildFiles({
+      'modules/big.md': `---
+slug: big
+title: Big Module
+---
+
+# Submodule: Welcome
+slug:: welcome
+
+## Page: Welcome Page
+id:: page-id-1
+
+### Text
+content:: Welcome content.
+
+# Submodule: Research
+
+## Learning Outcome:
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`,
+      'Learning Outcomes/lo1.md': simpleLO('lo-1-id', [
+        { path: '../Lenses/lens1.md' },
+      ]),
+      'Lenses/lens1.md': pageLens('lens-1-id', 'Research Content', 'Research.'),
+      'courses/test.md': `---
+slug: test-course
+title: Test Course
+---
+
+# Module: [[../modules/big]]
+
+# Meeting: 1
+`,
+    });
+
+    const result = processContent(files);
+
+    // Should have 2 submodules in the modules list
+    const submodules = result.modules.filter(m => m.parentSlug === 'big');
+    expect(submodules).toHaveLength(2);
+    expect(submodules[0].slug).toBe('big/welcome');
+    expect(submodules[1].slug).toBe('big/research');
+
+    // Course progression should auto-expand 'big' into submodule slugs
+    const course = result.courses[0];
+    expect(course).toBeDefined();
+    const moduleSlugs = course.progression
+      .filter(p => p.type === 'module')
+      .map(p => p.slug);
+    expect(moduleSlugs).toContain('big/welcome');
+    expect(moduleSlugs).toContain('big/research');
+    expect(moduleSlugs).not.toContain('big');
   });
 });

@@ -8,13 +8,14 @@ import type {
   ArticleExcerptSegment,
   VideoExcerptSegment,
   QuestionSegment,
+  RoleplaySegment,
   ContentError,
   SectionMeta,
 } from '../index.js';
 import type { ContentTier } from '../validator/tier.js';
 import { checkTierViolation } from '../validator/tier.js';
 import { parseModule, parsePageSegments } from '../parser/module.js';
-import { parseLearningOutcome } from '../parser/learning-outcome.js';
+import { parseLearningOutcome, type ParsedTestRef } from '../parser/learning-outcome.js';
 import { parseLens, type ParsedLens, type ParsedLensSegment, type ParsedLensSection } from '../parser/lens.js';
 import { parseWikilink, resolveWikilinkPath, findFileWithExtension, findSimilarFiles, formatSuggestion } from '../parser/wikilink.js';
 import { parseFrontmatter } from '../parser/frontmatter.js';
@@ -42,7 +43,125 @@ function extractVideoIdFromUrl(url: string): string | null {
 
 export interface FlattenModuleResult {
   module: FlattenedModule | null;
+  modules: FlattenedModule[];
   errors: ContentError[];
+}
+
+// Boundary marker for splitting modules into submodules
+export type BoundaryMarker = { __boundary: true; title: string; customSlug?: string };
+export type FlatItem = Section | BoundaryMarker;
+
+export function isBoundary(item: FlatItem): item is BoundaryMarker {
+  return '__boundary' in item && item.__boundary === true;
+}
+
+function toKebabCase(str: string): string {
+  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+export function validateBoundaries(items: FlatItem[], file: string): ContentError[] {
+  const errors: ContentError[] = [];
+  const hasBoundaries = items.some(isBoundary);
+  if (!hasBoundaries) return errors;
+
+  // Check: sections before first boundary
+  const firstBoundaryIdx = items.findIndex(isBoundary);
+  const sectionsBefore = items.slice(0, firstBoundaryIdx).filter(i => !isBoundary(i));
+  if (sectionsBefore.length > 0) {
+    errors.push({
+      file,
+      message: 'Content found outside submodule boundaries — all content must be inside a submodule',
+      severity: 'error',
+    });
+  }
+
+  // Check: consecutive boundaries and trailing boundary
+  for (let i = 0; i < items.length; i++) {
+    if (isBoundary(items[i])) {
+      // Find next non-boundary item
+      let nextNonBoundary = i + 1;
+      while (nextNonBoundary < items.length && isBoundary(items[nextNonBoundary])) {
+        nextNonBoundary++;
+      }
+      // If this boundary has no sections before next boundary or end
+      if (nextNonBoundary > i + 1 || nextNonBoundary >= items.length) {
+        // nextNonBoundary > i + 1 means consecutive boundaries
+        // nextNonBoundary >= items.length means trailing boundary with no content
+        if (nextNonBoundary > i + 1) {
+          errors.push({
+            file,
+            message: `Submodule "${(items[i] as BoundaryMarker).title}" is empty — no content before next submodule`,
+            severity: 'error',
+          });
+        } else if (nextNonBoundary >= items.length) {
+          errors.push({
+            file,
+            message: `Submodule "${(items[i] as BoundaryMarker).title}" is empty — no content after this marker`,
+            severity: 'error',
+          });
+        }
+      }
+    }
+  }
+
+  return errors;
+}
+
+interface VirtualModuleGroup {
+  slug: string;
+  title: string;
+  parentSlug: string;
+  parentTitle: string;
+  sections: Section[];
+  contentId: string | null;
+}
+
+export function splitAtBoundaries(
+  items: FlatItem[],
+  parentSlug: string,
+  parentTitle: string
+): VirtualModuleGroup[] {
+  const hasBoundaries = items.some(isBoundary);
+  if (!hasBoundaries) {
+    // No split — return single group without parentSlug
+    return [{
+      slug: parentSlug,
+      title: parentTitle,
+      parentSlug: undefined as unknown as string,
+      parentTitle: undefined as unknown as string,
+      sections: items.filter(i => !isBoundary(i)) as Section[],
+      contentId: null,
+    }];
+  }
+
+  const groups: VirtualModuleGroup[] = [];
+  let currentGroup: VirtualModuleGroup | null = null;
+
+  for (const item of items) {
+    if (isBoundary(item)) {
+      if (currentGroup) {
+        groups.push(currentGroup);
+      }
+      const slug = item.customSlug ?? toKebabCase(item.title);
+      currentGroup = {
+        slug: `${parentSlug}/${slug}`,
+        title: item.title,
+        parentSlug,
+        parentTitle,
+        sections: [],
+        contentId: null,
+      };
+    } else if (currentGroup) {
+      currentGroup.sections.push(item as Section);
+    }
+    // sections before first boundary are orphans — handled by validateBoundaries
+  }
+
+  if (currentGroup) {
+    groups.push(currentGroup);
+  }
+
+  return groups;
 }
 
 /**
@@ -69,6 +188,7 @@ export function flattenModule(
   if (visitedPaths.has(modulePath)) {
     return {
       module: null,
+      modules: [],
       errors: [{
         file: modulePath,
         message: `Circular reference detected: ${modulePath}`,
@@ -88,7 +208,7 @@ export function flattenModule(
       message: `Module file not found: ${modulePath}`,
       severity: 'error',
     });
-    return { module: null, errors };
+    return { module: null, modules: [], errors };
   }
 
   // Parse the module
@@ -96,19 +216,18 @@ export function flattenModule(
   errors.push(...moduleResult.errors);
 
   if (!moduleResult.module) {
-    return { module: null, errors };
+    return { module: null, modules: [], errors };
   }
 
   const parsedModule = moduleResult.module;
-  const flattenedSections: Section[] = [];
+  const flatItems: FlatItem[] = [];
 
-  // Process each section in the module
-  for (const section of parsedModule.sections) {
+  // Helper: process a section (LO, Page, Uncategorized) and return Section[]
+  function processSection(
+    section: { type: string; title: string; rawType: string; fields: Record<string, string>; body: string; line: number; level: number; children?: any[] },
+    subsectionLevel?: number
+  ): Section[] {
     if (section.type === 'learning-outcome') {
-      // Resolve the Learning Outcome reference
-      // Create a copy of visitedPaths for this section's reference chain
-      // This allows the same file to be referenced in different sections
-      // while still detecting cycles within a single chain
       const sectionVisitedPaths = new Set(visitedPaths);
       const result = flattenLearningOutcomeSection(
         section,
@@ -118,14 +237,13 @@ export function flattenModule(
         tierMap
       );
       errors.push(...result.errors);
-      flattenedSections.push(...result.sections);
+      return result.sections;
     } else if (section.type === 'page') {
-      // Page sections don't have LO references, they have inline content
-      // Parse the section body for ## Text subsections
-      const textResult = parsePageSegments(section.body, modulePath, section.line);
+      const level = subsectionLevel ?? 2;
+      const textResult = parsePageSegments(section.body, modulePath, section.line, level);
       errors.push(...textResult.errors);
 
-      const pageSection: Section = {
+      return [{
         type: 'page',
         meta: { title: section.title },
         segments: textResult.segments,
@@ -134,12 +252,8 @@ export function flattenModule(
         learningOutcomeId: null,
         learningOutcomeName: null,
         videoId: null,
-      };
-
-      flattenedSections.push(pageSection);
+      }];
     } else if (section.type === 'uncategorized') {
-      // Uncategorized sections can contain ## Lens: references
-      // Each lens becomes its own section (lens-video, lens-article, or page)
       const sectionVisitedPaths = new Set(visitedPaths);
       const result = flattenUncategorizedSection(
         section,
@@ -149,22 +263,292 @@ export function flattenModule(
         tierMap
       );
       errors.push(...result.errors);
-      flattenedSections.push(...result.sections);
+      return result.sections;
+    }
+    return [];
+  }
+
+  // Process each section in the module
+  for (const section of parsedModule.sections) {
+    if (section.type === 'submodule') {
+      // Emit boundary marker
+      flatItems.push({
+        __boundary: true,
+        title: section.title,
+        customSlug: section.fields.slug,
+      });
+
+      // Process children at level+1
+      if (section.children) {
+        for (const child of section.children) {
+          const childSections = processSection(child, child.level + 1);
+          flatItems.push(...childSections);
+        }
+      }
+    } else {
+      // Check if this is an LO with submodules
+      if (section.type === 'learning-outcome') {
+        const loSections = processLOWithSubmodules(section, modulePath, files, visitedPaths, tierMap, errors);
+        if (loSections) {
+          flatItems.push(...loSections);
+          continue;
+        }
+      }
+      const sections = processSection(section);
+      flatItems.push(...sections);
     }
   }
 
-  const flattenedModule: FlattenedModule = {
-    slug: parsedModule.slug,
-    title: parsedModule.title,
+  // Validate and split at boundaries
+  const boundaryErrors = validateBoundaries(flatItems, modulePath);
+  errors.push(...boundaryErrors);
+
+  const groups = splitAtBoundaries(flatItems, parsedModule.slug, parsedModule.title);
+
+  const resultModules: FlattenedModule[] = groups.map(g => ({
+    slug: g.slug,
+    title: g.title,
     contentId: parsedModule.contentId,
-    sections: flattenedSections,
+    sections: g.sections,
+    ...(g.parentSlug ? { parentSlug: g.parentSlug, parentTitle: g.parentTitle } : {}),
+    ...(moduleError ? { error: moduleError } : {}),
+  }));
+
+  // Backwards compat: module is the first result or a merged single module
+  const primaryModule = resultModules.length > 0 ? resultModules[0] : null;
+
+  return { module: resultModules.length === 1 && !resultModules[0].parentSlug ? resultModules[0] : primaryModule, modules: resultModules, errors };
+}
+
+/**
+ * Build a test Section from a ParsedTestRef with inline segments.
+ * Shared by both processLOWithSubmodules() and flattenLearningOutcomeSection().
+ */
+function buildTestSection(
+  testRef: ParsedTestRef,
+  loId: string | null,
+  loName: string | null,
+  loPath: string,
+  files: Map<string, string>,
+  visitedPaths: Set<string>,
+  tierMap: Map<string, ContentTier> | undefined,
+  errors: ContentError[]
+): Section | null {
+  if (!testRef.segments.length) return null;
+
+  const testSegments: Segment[] = [];
+  const stubLensSection: ParsedLensSection = {
+    type: 'page',
+    title: 'Test',
+    segments: [],
+    line: 0,
   };
 
-  if (moduleError) {
-    flattenedModule.error = moduleError;
+  for (const parsedSegment of testRef.segments) {
+    const segmentResult = convertSegment(
+      parsedSegment,
+      stubLensSection,
+      loPath,
+      files,
+      new Set(visitedPaths),
+      tierMap
+    );
+    errors.push(...segmentResult.errors);
+    if (segmentResult.segment) {
+      testSegments.push(segmentResult.segment);
+    }
   }
 
-  return { module: flattenedModule, errors };
+  if (testSegments.length === 0) return null;
+
+  const hasFeedback = testSegments.some(
+    (s) => s.type === 'question' && s.feedback
+  );
+  return {
+    type: 'test',
+    meta: { title: 'Test' },
+    segments: testSegments,
+    optional: false,
+    ...(hasFeedback && { feedback: true }),
+    contentId: null,
+    learningOutcomeId: loId,
+    learningOutcomeName: loName,
+    videoId: null,
+  };
+}
+
+/**
+ * Check if a Learning Outcome section resolves to an LO with submodules.
+ * If so, emit boundary markers + sections. Returns null if no submodules.
+ */
+function processLOWithSubmodules(
+  section: { type: string; title: string; fields: Record<string, string>; line: number },
+  modulePath: string,
+  files: Map<string, string>,
+  visitedPaths: Set<string>,
+  tierMap: Map<string, ContentTier> | undefined,
+  errors: ContentError[]
+): FlatItem[] | null {
+  // Resolve the LO file to check for submodules
+  const source = section.fields.source;
+  if (!source) return null;
+
+  const wikilink = parseWikilink(source);
+  if (!wikilink || wikilink.error) return null;
+
+  const loPathResolved = resolveWikilinkPath(wikilink.path, modulePath);
+  const loPath = findFileWithExtension(loPathResolved, files);
+  if (!loPath) return null;
+
+  const loContent = files.get(loPath);
+  if (!loContent) return null;
+
+  const loResult = parseLearningOutcome(loContent, loPath);
+  if (!loResult.learningOutcome?.submodules) return null;
+
+  // This LO has submodules — emit boundaries and resolve lenses
+  const items: FlatItem[] = [];
+
+  for (const sub of loResult.learningOutcome.submodules) {
+    items.push({
+      __boundary: true,
+      title: sub.title,
+      customSlug: sub.customSlug,
+    });
+
+    // Resolve each lens in this submodule group
+    for (const lensRef of sub.lenses) {
+      const lensPath = findFileWithExtension(lensRef.resolvedPath, files);
+      if (!lensPath) {
+        const similarFiles = findSimilarFiles(lensRef.resolvedPath, files, 'Lenses');
+        const suggestion = formatSuggestion(similarFiles, loPath) ?? 'Check the file path in the wiki-link';
+        errors.push({
+          file: loPath,
+          message: `Referenced lens file not found: ${lensRef.resolvedPath}`,
+          suggestion,
+          severity: 'error',
+        });
+        continue;
+      }
+
+      // Check tier violation
+      if (tierMap) {
+        const parentTier = tierMap.get(loPath) ?? 'production';
+        const childTier = tierMap.get(lensPath) ?? 'production';
+        const violation = checkTierViolation(loPath, parentTier, lensPath, childTier, 'lens');
+        if (violation) {
+          errors.push(violation);
+        }
+        if (childTier === 'ignored') continue;
+      }
+
+      if (visitedPaths.has(lensPath)) {
+        errors.push({
+          file: loPath,
+          message: `Circular reference detected: ${lensPath}`,
+          severity: 'error',
+        });
+        continue;
+      }
+
+      const sectionVisitedPaths = new Set(visitedPaths);
+      sectionVisitedPaths.add(lensPath);
+
+      const lensContent = files.get(lensPath)!;
+      const lensResult = parseLens(lensContent, lensPath);
+      errors.push(...lensResult.errors);
+
+      if (!lensResult.lens) continue;
+
+      const lens = lensResult.lens;
+      let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
+      const meta: SectionMeta = { title: section.title };
+      const segments: Segment[] = [];
+      let videoId: string | undefined;
+
+      for (const lensSection of lens.sections) {
+        if (lensSection.type === 'lens-article') {
+          sectionType = 'lens-article';
+          if (lensSection.source) {
+            const articleWikilink = parseWikilink(lensSection.source);
+            if (articleWikilink && !articleWikilink.error) {
+              const articlePathResolved = resolveWikilinkPath(articleWikilink.path, lensPath);
+              const articlePath = findFileWithExtension(articlePathResolved, files);
+              if (articlePath) {
+                const articleContent = files.get(articlePath)!;
+                const articleFrontmatter = parseFrontmatter(articleContent, articlePath);
+                if (articleFrontmatter.frontmatter.title) meta.title = articleFrontmatter.frontmatter.title as string;
+                if (articleFrontmatter.frontmatter.author) {
+                  const raw = articleFrontmatter.frontmatter.author;
+                  meta.author = Array.isArray(raw) ? raw.join(', ') : String(raw);
+                }
+                if (articleFrontmatter.frontmatter.source_url) meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
+              }
+            }
+          }
+        } else if (lensSection.type === 'page') {
+          sectionType = 'page';
+          if (lensSection.title) meta.title = lensSection.title;
+        } else if (lensSection.type === 'lens-video') {
+          sectionType = 'lens-video';
+          if (lensSection.source) {
+            const videoWikilink = parseWikilink(lensSection.source);
+            if (videoWikilink && !videoWikilink.error) {
+              const videoPathResolved = resolveWikilinkPath(videoWikilink.path, lensPath);
+              const videoPath = findFileWithExtension(videoPathResolved, files);
+              if (videoPath) {
+                const videoContent = files.get(videoPath)!;
+                const videoFrontmatter = parseFrontmatter(videoContent, videoPath);
+                if (videoFrontmatter.frontmatter.title) meta.title = videoFrontmatter.frontmatter.title as string;
+                if (videoFrontmatter.frontmatter.channel) meta.channel = videoFrontmatter.frontmatter.channel as string;
+                if (videoFrontmatter.frontmatter.url) {
+                  const extractedVideoId = extractVideoIdFromUrl(videoFrontmatter.frontmatter.url as string);
+                  if (extractedVideoId) videoId = extractedVideoId;
+                }
+              }
+            }
+          }
+        }
+
+        for (const parsedSegment of lensSection.segments) {
+          const segmentResult = convertSegment(parsedSegment, lensSection, lensPath, files, sectionVisitedPaths, tierMap);
+          errors.push(...segmentResult.errors);
+          if (segmentResult.segment) segments.push(segmentResult.segment);
+        }
+
+        applyCollapsedContent(segments, lensSection.segments, lensSection, lensPath, files);
+      }
+
+      const lo = loResult.learningOutcome!;
+      items.push({
+        type: sectionType,
+        meta,
+        segments,
+        optional: section.fields.optional?.toLowerCase() === 'true' || lensRef.optional,
+        learningOutcomeId: lo.id ?? null,
+        learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
+        contentId: lens.id ?? null,
+        videoId: videoId ?? null,
+      } as Section);
+    }
+
+    // Process test section if present in this submodule
+    if (sub.test) {
+      const lo = loResult.learningOutcome!;
+      const testSection = buildTestSection(
+        sub.test,
+        lo.id ?? null,
+        loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
+        loPath, files, visitedPaths, tierMap, errors
+      );
+      if (testSection) items.push(testSection);
+    }
+  }
+
+  // Also emit LO parse errors (we skipped earlier since we returned non-null)
+  errors.push(...loResult.errors);
+
+  return items;
 }
 
 interface FlattenSectionResult {
@@ -447,47 +831,14 @@ function flattenLearningOutcomeSection(
   }
 
   // After lens processing, add test section if present with inline segments
-  if (lo.test && lo.test.segments.length > 0) {
-    const testSegments: Segment[] = [];
-    for (const parsedSegment of lo.test.segments) {
-      // For test sections with question/chat/text segments, no source file resolution needed
-      // Create a minimal stub lensSection since these segment types don't need it
-      const stubLensSection: ParsedLensSection = {
-        type: 'page',
-        title: 'Test',
-        segments: [],
-        line: 0,
-      };
-      const segmentResult = convertSegment(
-        parsedSegment,
-        stubLensSection,
-        loPath,
-        files,
-        visitedPaths,
-        tierMap
-      );
-      errors.push(...segmentResult.errors);
-      if (segmentResult.segment) {
-        testSegments.push(segmentResult.segment);
-      }
-    }
-
-    if (testSegments.length > 0) {
-      const hasFeedback = testSegments.some(
-        (s) => s.type === 'question' && s.feedback
-      );
-      sections.push({
-        type: 'test',
-        meta: { title: 'Test' },
-        segments: testSegments,
-        optional: false,
-        ...(hasFeedback && { feedback: true }),
-        contentId: null,
-        learningOutcomeId: lo.id ?? null,
-        learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
-        videoId: null,
-      });
-    }
+  if (lo.test) {
+    const testSection = buildTestSection(
+      lo.test,
+      lo.id ?? null,
+      loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
+      loPath, files, visitedPaths, tierMap, errors
+    );
+    if (testSection) sections.push(testSection);
   }
 
   return { sections, errors };
@@ -1150,6 +1501,20 @@ function convertSegment(
       return { segment, errors };
     }
 
+    case 'roleplay': {
+      const segment: RoleplaySegment = {
+        type: 'roleplay',
+        id: parsedSegment.id,
+        content: parsedSegment.content,
+        aiInstructions: parsedSegment.aiInstructions,
+      };
+      if (parsedSegment.openingMessage) segment.openingMessage = parsedSegment.openingMessage;
+      if (parsedSegment.assessmentInstructions) segment.assessmentInstructions = parsedSegment.assessmentInstructions;
+      if (parsedSegment.optional) segment.optional = true;
+      if (parsedSegment.feedback) segment.feedback = true;
+      return { segment, errors };
+    }
+
     default:
       return { segment: null, errors };
   }
@@ -1182,7 +1547,7 @@ export function flattenLens(
 
   // Skip ignored lenses
   if (tierMap?.get(lensPath) === 'ignored') {
-    return { module: null, errors };
+    return { module: null, modules: [], errors };
   }
 
   const lensContent = files.get(lensPath);
@@ -1192,7 +1557,7 @@ export function flattenLens(
       message: `Lens file not found: ${lensPath}`,
       severity: 'error',
     });
-    return { module: null, errors };
+    return { module: null, modules: [], errors };
   }
 
   // Use pre-parsed lens if provided, otherwise parse
@@ -1203,7 +1568,7 @@ export function flattenLens(
   })();
 
   if (!lens) {
-    return { module: null, errors };
+    return { module: null, modules: [], errors };
   }
 
   const visitedPaths = new Set<string>([lensPath]);
@@ -1298,5 +1663,5 @@ export function flattenLens(
     sections: [section],
   };
 
-  return { module: flattenedModule, errors };
+  return { module: flattenedModule, modules: [flattenedModule], errors };
 }

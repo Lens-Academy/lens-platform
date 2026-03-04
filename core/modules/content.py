@@ -580,6 +580,90 @@ def get_stage_duration(stage) -> str:
     return duration
 
 
+# --- Article browsing ---
+
+
+def list_article_summaries() -> list[dict]:
+    """List all articles in cache with metadata summaries.
+
+    Returns:
+        Sorted list of dicts with slug, title, author, source_url.
+        Slug is derived from path: articles/my-article.md -> "my-article".
+    """
+    from core.content import get_cache
+
+    cache = get_cache()
+    summaries = []
+    for path, raw_text in cache.articles.items():
+        slug = path.removeprefix("articles/").removesuffix(".md")
+        metadata, _ = parse_frontmatter(raw_text)
+        summaries.append(
+            {
+                "slug": slug,
+                "title": metadata.title or slug,
+                "author": metadata.author,
+                "source_url": metadata.source_url,
+            }
+        )
+    summaries.sort(key=lambda s: s["slug"])
+    return summaries
+
+
+def build_article_module(slug: str) -> dict:
+    """Build a FlattenedModule-shaped dict for a standalone article.
+
+    The article is wrapped as a single lens-article section with one
+    article-excerpt segment containing the full body. This lets the
+    existing Module view render it through ArticleEmbed.
+
+    Args:
+        slug: Article slug (e.g. "my-article", without articles/ prefix or .md)
+
+    Returns:
+        Dict matching FlattenedModule shape.
+
+    Raises:
+        FileNotFoundError: If article not found in cache.
+    """
+    from core.content import get_cache
+
+    cache = get_cache()
+    path = f"articles/{slug}.md"
+
+    if path not in cache.articles:
+        raise FileNotFoundError(f"Article not found in cache: {path}")
+
+    raw_text = cache.articles[path]
+    metadata, content = parse_frontmatter(raw_text)
+
+    return {
+        "slug": f"article/{slug}",
+        "title": metadata.title or slug,
+        "contentId": None,
+        "sections": [
+            {
+                "type": "lens-article",
+                "meta": {
+                    "title": metadata.title or slug,
+                    "author": metadata.author,
+                    "sourceUrl": metadata.source_url,
+                },
+                "segments": [
+                    {
+                        "type": "article-excerpt",
+                        "content": content.strip(),
+                    }
+                ],
+                "optional": False,
+                "contentId": None,
+                "learningOutcomeId": None,
+                "learningOutcomeName": None,
+                "videoId": None,
+            }
+        ],
+    }
+
+
 # NOTE: The following functions were removed because they depended on the Python
 # markdown_parser module which has been replaced by the TypeScript content processor:
 # - bundle_article_section()

@@ -13,8 +13,6 @@ import { createResponse, updateResponse, getResponses } from "@/api/questions";
 export interface UseAutoSaveOptions {
   questionId: string;
   moduleSlug: string;
-  questionText: string;
-  assessmentInstructions?: string | null;
   isAuthenticated: boolean;
   debounceMs?: number;
 }
@@ -35,8 +33,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
   const {
     questionId,
     moduleSlug,
-    questionText,
-    assessmentInstructions,
     isAuthenticated,
     debounceMs = 2500,
   } = options;
@@ -96,8 +92,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
           {
             questionId,
             moduleSlug,
-            questionText,
-            assessmentInstructions: assessmentInstructions ?? null,
             answerText: textToSave,
             answerMetadata: metadata,
           },
@@ -140,13 +134,7 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
     } finally {
       savingRef.current = false;
     }
-  }, [
-    questionId,
-    moduleSlug,
-    questionText,
-    assessmentInstructions,
-    isAuthenticated,
-  ]);
+  }, [questionId, moduleSlug, isAuthenticated]);
 
   // setText: update text and schedule debounced save
   const setText = useCallback(
@@ -203,8 +191,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
         {
           questionId,
           moduleSlug,
-          questionText,
-          assessmentInstructions: assessmentInstructions ?? null,
           answerText: latestTextRef.current,
         },
         isAuthenticated,
@@ -219,13 +205,7 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
         setSaveStatus("error");
       }
     }
-  }, [
-    questionId,
-    moduleSlug,
-    questionText,
-    assessmentInstructions,
-    isAuthenticated,
-  ]);
+  }, [questionId, moduleSlug, isAuthenticated]);
 
   // Load existing answer on mount
   useEffect(() => {
@@ -305,8 +285,6 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
             {
               questionId,
               moduleSlug,
-              questionText,
-              assessmentInstructions: assessmentInstructions ?? null,
               answerText: textToSave,
               answerMetadata: metadata,
             },
@@ -324,13 +302,7 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
         }
       }
     };
-  }, [
-    questionId,
-    moduleSlug,
-    questionText,
-    assessmentInstructions,
-    isAuthenticated,
-  ]);
+  }, [questionId, moduleSlug, isAuthenticated]);
 
   return {
     text,

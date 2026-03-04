@@ -1,4 +1,5 @@
 // web_frontend/src/components/module/SectionDivider.tsx
+import { StickyNote } from "lucide-react";
 
 type SectionDividerProps = {
   type:
@@ -13,7 +14,11 @@ type SectionDividerProps = {
   title?: string;
 };
 
-function Icon({ type }: { type: "video" | "article" }) {
+function Icon({ type }: { type: "video" | "article" | "page" }) {
+  if (type === "page") {
+    return <StickyNote className="w-8 h-8" strokeWidth={2} />;
+  }
+
   if (type === "article") {
     return (
       <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
@@ -47,7 +52,11 @@ export default function SectionDivider({
   // lens-video and video use the video icon
   // lens-article, article, chat, and page use the article icon
   const iconType =
-    type === "video" || type === "lens-video" ? "video" : "article";
+    type === "video" || type === "lens-video"
+      ? "video"
+      : type === "page"
+        ? "page"
+        : "article";
 
   return (
     <div className="flex flex-col items-center gap-2 px-4 sm:px-6 py-6">

@@ -11,6 +11,7 @@ export interface FacilitatorGroup {
 export interface GroupMember {
   user_id: number;
   name: string;
+  role?: "participant" | "facilitator";
   discord_id: string | null;
   sections_completed: number;
   total_time_seconds: number;
@@ -78,6 +79,7 @@ export interface ModuleStats {
 export interface TimelineMember {
   user_id: number;
   name: string;
+  role?: "participant" | "facilitator";
   completed_ids: string[];
   meetings: Record<string, "attended" | "missed">;
   rsvps: Record<

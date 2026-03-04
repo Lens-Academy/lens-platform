@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: true,
+      strictPort: true,
       allowedHosts: ["dev.vps"],
       port: parseInt(
         process.env.FRONTEND_PORT || String(defaultFrontendPort),
@@ -58,6 +59,12 @@ export default defineConfig(({ mode }) => {
           target:
             process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
           changeOrigin: true,
+        },
+        "/ws": {
+          target:
+            process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
+          changeOrigin: true,
+          ws: true,
         },
       },
     },

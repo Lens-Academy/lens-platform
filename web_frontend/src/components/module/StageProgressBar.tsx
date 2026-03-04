@@ -1,5 +1,6 @@
 // web_frontend/src/components/unified-lesson/StageProgressBar.tsx
 import { useMemo } from "react";
+import { StickyNote } from "lucide-react";
 import type { Stage } from "../../types/module";
 import type { StageInfo } from "../../types/course";
 import { buildBranchLayout } from "../../utils/branchLayout";
@@ -49,8 +50,14 @@ export function StageIcon({
     );
   }
 
-  // Article icon: article, lens-article, page
-  if (type === "article" || type === "lens-article" || type === "page") {
+  // Page icon: StickyNote (slightly smaller than other icons)
+  if (type === "page") {
+    const size = small ? "w-4 h-4" : "w-5 h-5";
+    return <StickyNote className={size} strokeWidth={2.5} />;
+  }
+
+  // Article icon: article, lens-article
+  if (type === "article" || type === "lens-article") {
     const size = small ? "w-4 h-4" : "w-5 h-5";
     return (
       <svg className={size} fill="currentColor" viewBox="0 0 20 20">
@@ -95,6 +102,7 @@ function getStageTitle(stage: Stage): string {
   // Fallback based on type
   if (stage.type === "video") return "Video";
   if (stage.type === "article") return "Article";
+  if (stage.type === "page") return "Page";
   // Note: lens-video and lens-article always have titles from meta,
   // so these fallbacks won't typically be used, but we include them for safety
   return "Discussion";

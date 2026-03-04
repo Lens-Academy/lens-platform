@@ -49,23 +49,22 @@ export default function ArticleExcerptGroup({
   }
 
   return (
-    <div>
-      {/* Centered content with relative positioning for TOC */}
-      <div className="max-w-content-padded mx-auto relative">
-        {/* Content */}
-        <div className="w-full">{children}</div>
+    <div className="relative">
+      <div className="w-full">{children}</div>
 
-        {/* TOC Sidebar - positioned to the left of centered content */}
-        <div className="hidden xl:block absolute top-0 bottom-0 right-full w-[250px] mr-6">
-          <div className="sticky top-[calc(var(--module-header-height)+12px)] will-change-transform">
-            <ArticleTOC
-              title={section.meta.title}
-              author={section.meta.author}
-              headings={allHeadings}
-              registerTocItem={context?.registerTocItem ?? (() => {})}
-              onHeadingClick={context?.onHeadingClick ?? (() => {})}
-            />
-          </div>
+      {/* TOC Sidebar - absolutely positioned to the left of content */}
+      <div className="absolute top-30 bottom-0 right-full w-[250px] mr-6 pl-4 opacity-0 invisible -translate-x-2 min-[1100px]:opacity-100 min-[1100px]:visible min-[1100px]:translate-x-0 transition-[opacity,visibility,transform] duration-300 ease-out">
+        <div
+          data-toc-scroll
+          className="sticky top-[calc(var(--header-offset)+12px)] max-h-[calc(100vh-var(--header-offset)-24px)] overflow-y-auto scrollbar-hide transition-[top,max-height] duration-300"
+        >
+          <ArticleTOC
+            title={section.meta.title}
+            author={section.meta.author}
+            headings={allHeadings}
+            registerTocItem={context?.registerTocItem ?? (() => {})}
+            onHeadingClick={context?.onHeadingClick ?? (() => {})}
+          />
         </div>
       </div>
     </div>

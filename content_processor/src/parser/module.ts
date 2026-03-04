@@ -4,6 +4,7 @@ import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, MODULE_SECTION_TYPES, type ParsedSection } from './sections.js';
 import { validateSlugFormat } from '../validator/field-values.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
+import { stripAuthoringMarkup } from './lens.js';
 
 export interface PageSegmentResult {
   segments: (TextSegment | ChatSegment)[];
@@ -24,7 +25,8 @@ interface RawSubsection {
  */
 function collectRawSubsections(
   body: string,
-  baseLineNum: number
+  baseLineNum: number,
+  level: number = 2
 ): { subsections: RawSubsection[]; unknownHeaders: { rawType: string; line: number }[]; warnings: ContentError[] } {
   const subsections: RawSubsection[] = [];
   const unknownHeaders: { rawType: string; line: number }[] = [];
@@ -56,8 +58,9 @@ function collectRawSubsections(
     const line = lines[i];
     const lineNum = baseLineNum + i + 1;
 
-    // Check for ## header
-    const headerMatch = line.match(/^##\s+(\S.*?)\s*$/);
+    // Check for header at the specified level
+    const headerPattern = new RegExp(`^${'#'.repeat(level)}\\s+(\\S.*?)\\s*$`);
+    const headerMatch = line.match(headerPattern);
     if (headerMatch) {
       finalizeSubsection();
       freeTextWarned = false;
@@ -187,11 +190,12 @@ function convertSubsections(
 export function parsePageSegments(
   body: string,
   file: string = '',
-  baseLineNum: number = 0
+  baseLineNum: number = 0,
+  subsectionLevel: number = 2
 ): PageSegmentResult {
   const errors: ContentError[] = [];
 
-  const { subsections, unknownHeaders, warnings } = collectRawSubsections(body, baseLineNum);
+  const { subsections, unknownHeaders, warnings } = collectRawSubsections(body, baseLineNum, subsectionLevel);
 
   // Forward free-text warnings with file path
   for (const w of warnings) {
@@ -234,6 +238,9 @@ export interface ModuleParseResult {
 export function parseModule(content: string, file: string): ModuleParseResult {
   const errors: ContentError[] = [];
 
+  // Strip authoring markup (CriticMarkup + Obsidian comments) before parsing
+  content = stripAuthoringMarkup(content);
+
   // Parse frontmatter
   const frontmatterResult = parseFrontmatter(content, file);
   if (frontmatterResult.error) {
@@ -259,8 +266,9 @@ export function parseModule(content: string, file: string): ModuleParseResult {
     return { module: null, errors };
   }
 
-  // Parse sections (H1 headers for module files)
-  const sectionsResult = parseSections(body, 1, MODULE_SECTION_TYPES, file);
+  // Parse sections (H1 headers for module files, including submodule support)
+  const moduleSectionTypes = new Set([...MODULE_SECTION_TYPES, 'submodule']);
+  const sectionsResult = parseSections(body, 1, moduleSectionTypes, file);
 
   // Adjust line numbers to account for frontmatter
   for (const error of sectionsResult.errors) {

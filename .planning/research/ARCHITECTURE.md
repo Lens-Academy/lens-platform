@@ -1,436 +1,437 @@
-# Architecture Patterns: Prompt Lab Evaluation Workbench
+# Architecture Patterns: Roleplay Conversation Integration
 
-**Domain:** Prompt engineering evaluation tool integrated into existing AI Safety Course Platform
-**Researched:** 2026-02-20
-**Confidence:** HIGH (based on direct codebase analysis of ws2 and ws3 branches)
+**Domain:** AI roleplay conversations in AI Safety education platform
+**Researched:** 2026-02-24
+**Confidence:** HIGH (based on direct codebase analysis, not external sources)
 
 ## Recommended Architecture
 
-The Prompt Lab integrates as a **new facilitator-only feature area** within the existing 3-layer architecture. It does NOT require new database tables, new services, or architectural changes. It reuses the existing LLM abstraction, content cache, and auth system, adding only new API routes and frontend pages.
+Roleplay integrates as a new **segment type** (`roleplay`) following the exact same pattern as `question` and `chat` segments. The key insight from studying the codebase: segments are the unit of interactivity, sections are the unit of progress. Roleplay is an interactive segment, like `question`, that can appear in any section type (page, lens-article, lens-video) and in test sections.
 
-### Architecture Decision: New Module, Not Extension
-
-**Decision:** Create `core/promptlab/` as a new core subdirectory, NOT extend `core/modules/chat.py`.
-
-**Rationale:**
-- `chat.py` is tightly coupled to the student learning flow: it builds prompts from `Stage` objects, includes the `transition_to_next` tool, and assumes a module/section/segment context. Prompt Lab needs none of this -- it takes arbitrary system prompts and message histories.
-- `scoring.py` (in ws3) is tightly coupled to the `assessment_responses`/`assessment_scores` tables and fire-and-forget background scoring. Prompt Lab needs synchronous, non-persisted scoring with chain-of-thought visible to the facilitator.
-- The shared primitive is `core/modules/llm.py` (`stream_chat()` and `complete()`). Both chat eval and assessment eval should call these directly.
+### Architecture Overview
 
 ```
-core/
-  promptlab/             # NEW - Prompt Lab business logic
-    __init__.py
-    chat_eval.py         # Chat regeneration logic
-    assessment_eval.py   # Assessment scoring logic (when ws3 merges)
-    fixtures.py          # Fixture loading from JSON files
-
-web_api/routes/
-  promptlab.py           # NEW - API endpoints for Prompt Lab
-
-web_frontend/src/
-  pages/promptlab/       # NEW - Vike route page
-    +Page.tsx
-    +title.ts
-    +config.ts
-  views/PromptLab/       # NEW - Main view components
-    PromptLab.tsx         # Top-level view (mode switcher)
-    ChatEval.tsx          # Chat evaluation mode
-    AssessmentEval.tsx    # Assessment evaluation mode (Phase 2)
-  components/promptlab/   # NEW - Shared components
-    PromptEditor.tsx      # System prompt textarea with base/instructions split
-    MessageList.tsx       # Scrollable message history (reuses ChatMarkdown)
-    FixtureSelector.tsx   # Dropdown/picker for loading fixtures
-    StreamingResponse.tsx # Shows streaming AI response
+Content Markdown (lens files)
+  |
+  v
+content_processor/ -- parses #### Roleplay segments with fields
+  |                   (instructions::, character::, end-condition::, etc.)
+  v
+FlattenedModule.sections[].segments[] -- roleplay segment dict in cache
+  |
+  v
+web_api/routes/module.py -- POST /api/chat/module handles roleplay via
+  |                          segment type detection (same endpoint as chat)
+  v
+core/modules/roleplay.py -- NEW: roleplay-specific prompt assembly,
+  |                          end-condition detection
+  v
+core/modules/llm.py -- existing stream_chat() (reused)
+  |
+  v
+web_frontend -- RoleplayBox component renders conversation UI,
+               uses existing useVoiceRecording, existing SSE streaming
 ```
 
 ### Component Boundaries
 
 | Component | Responsibility | Communicates With |
 |-----------|---------------|-------------------|
-| `core/promptlab/chat_eval.py` | Build custom system prompt, call `stream_chat()` with truncated history | `core/modules/llm.py`, `core/modules/content.py` |
-| `core/promptlab/assessment_eval.py` | Build custom scoring prompt, call `complete()`, return structured score | `core/modules/llm.py` |
-| `core/promptlab/fixtures.py` | Load fixture JSON files from `fixtures/` directory | Filesystem |
-| `web_api/routes/promptlab.py` | Facilitator-authed API endpoints, SSE streaming | `core/promptlab/*`, `web_api/auth.py` |
-| `web_frontend/.../PromptLab.tsx` | Orchestrate UI state, mode switching | API client |
-| `web_frontend/.../ChatEval.tsx` | Fixture loading, prompt editing, regeneration, follow-up chat | `/api/promptlab/chat/*` |
-| `web_frontend/.../AssessmentEval.tsx` | Fixture loading, scoring prompt editing, score display | `/api/promptlab/assessment/*` |
+| `content_processor/src/parser/lens.ts` (MODIFY) | Parse `#### Roleplay` segments from markdown | Content cache |
+| `content_processor/src/content-schema.ts` (MODIFY) | Define valid fields for roleplay segment type | Parser validators |
+| `core/modules/roleplay.py` (NEW) | Roleplay prompt assembly, character instructions, end-condition tools | `core/modules/llm.py`, `core/modules/chat_sessions.py` |
+| `core/modules/types.py` (MODIFY) | Add `RoleplaySegment` dataclass | Type system |
+| `core/scoring.py` (MODIFY) | Support roleplay assessment (conversation transcript scoring) | `core/modules/llm.py`, DB |
+| `web_api/routes/module.py` (MODIFY) | Detect roleplay segments, route to `roleplay.py` | `core/modules/roleplay.py` |
+| `web_frontend/src/types/module.ts` (MODIFY) | Add `RoleplaySegment` type to `ModuleSegment` union | Frontend type system |
+| `web_frontend/src/components/module/RoleplayBox.tsx` (NEW) | Roleplay conversation UI component | `useVoiceRecording`, SSE API |
+| `web_frontend/src/views/Module.tsx` (MODIFY) | Add `case "roleplay"` to `renderSegment()` | `RoleplayBox` |
+| `web_frontend/src/components/module/TestSection.tsx` (MODIFY) | Support roleplay segments alongside question segments | `RoleplayBox` |
 
-### Data Flow: Chat Eval Mode
+### Data Flow
 
+**Content authoring flow:**
 ```
-1. LOAD FIXTURE
-   Frontend: GET /api/promptlab/fixtures/chat
-   -> core/promptlab/fixtures.py reads fixtures/chat/*.json
-   -> Returns list of fixture metadata (name, module_slug, description)
+Markdown file:
+  #### Roleplay: Ethics Board Meeting
+  instructions:: You are Dr. Chen, an AI ethics researcher...
+  character:: Dr. Chen
+  end-condition:: messages:6
+  assessment-instructions:: Evaluate whether the student...
 
-   Frontend: GET /api/promptlab/fixtures/chat/{fixture_id}
-   -> Returns full fixture: {messages, module_slug, section_context, original_system_prompt}
+    --> content_processor parses to:
+    { type: "roleplay", character: "Dr. Chen",
+      instructions: "...", endCondition: "messages:6",
+      assessmentInstructions: "..." }
 
-2. DISPLAY & EDIT
-   Frontend renders:
-   - Left panel: Message history (read-only up to regeneration point)
-   - Right panel: System prompt editor (base prompt + instructions, editable)
-   - Controls: "Regenerate from here" button, truncation point selector
-
-3. REGENERATE
-   Frontend: POST /api/promptlab/chat/regenerate (SSE streaming)
-   Body: {
-     messages: [...truncated history up to selected point...],
-     system_prompt: "...edited prompt...",
-     previous_content: "...context string (optional)..."
-   }
-   -> core/promptlab/chat_eval.py:
-      - Accepts raw system prompt (no _build_system_prompt() -- facilitator controls it)
-      - Calls stream_chat(messages, system=custom_prompt)
-      - Streams back {"type": "text", "content": "..."} / {"type": "done"}
-   -> Frontend accumulates streaming response, displays in real-time
-
-4. FOLLOW-UP (interactive student mode)
-   Frontend: POST /api/promptlab/chat/regenerate
-   Body: {
-     messages: [...truncated + AI response + new user message...],
-     system_prompt: "...same edited prompt...",
-     previous_content: "..."
-   }
-   -> Same endpoint, just longer message history
-   -> Frontend appends to conversation
-
-5. NO PERSISTENCE
-   Nothing is saved to database. Prompt Lab is ephemeral by design.
-   Facilitators copy prompts they like into the content YAML manually.
+    --> Flattened into module section segments[]
 ```
 
-### Data Flow: Assessment Eval Mode
-
+**Runtime conversation flow:**
 ```
-1. LOAD FIXTURE
-   Frontend: GET /api/promptlab/fixtures/assessment
-   -> Returns list of assessment fixtures (student answers with ground-truth scores)
+1. User sees RoleplayBox with character intro + "Begin" button
+2. User clicks Begin -> roleplay starts (or auto-starts with AI greeting)
+3. User types/speaks message
+4. Frontend calls POST /api/chat/module with { slug, sectionIndex, segmentIndex, message }
+   (same endpoint as existing chat)
+5. Backend detects segment type == "roleplay" in event_generator()
+6. Backend calls core/modules/roleplay.py:build_roleplay_prompt() instead of
+   the existing _build_system_prompt()
+7. Prompt includes character persona, scenario instructions, end-condition awareness
+8. Backend streams response via SSE (existing stream_chat)
+9. Backend checks end-condition after each exchange:
+   - Message count: count user messages in session
+   - Time-based: check elapsed time since session start
+   - AI-monitored: include end-condition tool for AI to call
+10. When end-condition met: yield special SSE event { type: "roleplay_end" }
+11. Frontend transitions to completed state
+12. If assessment_instructions present: trigger background scoring
+```
 
-   Frontend: GET /api/promptlab/fixtures/assessment/{fixture_id}
-   -> Returns: {
-        question_text, student_answer, ground_truth_score,
-        ground_truth_reasoning, module_slug, learning_outcome_name, mode
+**Assessment flow (when in test section):**
+```
+1. Roleplay completes (end-condition met)
+2. Backend sends full conversation transcript to scoring pipeline
+3. core/scoring.py scores the transcript against assessment_instructions
+4. Score written to question_assessments table (reuses existing table)
+5. Question ID format: "moduleSlug:sectionIndex:segmentIndex" (same as questions)
+```
+
+## Integration Points with Existing Systems
+
+### 1. Content Parsing (content_processor)
+
+**What exists:** `lens.ts` parses `#### Question` segments via `parseSegments()` and `convertSegment()`. The `LENS_SEGMENT_TYPES` set and `VALID_SEGMENTS_PER_SECTION` map control which segment types are valid.
+
+**What to add:**
+- Add `'roleplay'` to `LENS_SEGMENT_TYPES` set
+- Add `'roleplay'` to all entries in `VALID_SEGMENTS_PER_SECTION` (valid in page, lens-article, lens-video)
+- Add `case 'roleplay'` to `convertSegment()` switch statement
+- Add `ParsedRoleplaySegment` interface
+- Add `'roleplay'` entry to `SEGMENT_SCHEMAS` in `content-schema.ts`
+
+**Fields for roleplay segment:**
+```typescript
+// Required
+instructions: string;    // Character persona + scenario setup
+character: string;       // Character display name
+
+// Optional
+'end-condition': string; // "messages:6" | "time:300" | "ai-monitored" (default: "messages:6")
+'assessment-instructions': string; // Rubric for scoring (enables assessment)
+'max-time': string;      // Max conversation time (safety limit)
+'opening-message': string; // AI's first message (optional auto-start)
+optional: boolean;
+```
+
+### 2. Backend Chat Route (web_api/routes/module.py)
+
+**What exists:** `event_generator()` builds prompts differently based on segment type:
+- `segment.type == "question"` -> feedback prompt
+- `section.type == "test"` -> holistic feedback prompt
+- Default -> uses `segment.instructions` directly
+
+**What to modify:** Add roleplay detection before the existing question checks:
+
+```python
+# In event_generator(), after loading segment:
+if current_segment.get("type") == "roleplay":
+    # Delegate to roleplay module
+    from core.modules.roleplay import build_roleplay_stage, check_end_condition
+
+    stage = build_roleplay_stage(current_segment)
+    # ... rest of streaming logic
+```
+
+**Critical:** The existing SSE endpoint (`POST /api/chat/module`) is reused. No new API endpoint needed. The backend distinguishes behavior by segment type, which the frontend already sends via `sectionIndex` and `segmentIndex`.
+
+### 3. Chat Sessions (core/modules/chat_sessions.py)
+
+**What exists:** `chat_sessions` table stores messages as JSONB array, keyed by `user_id/anonymous_token + content_id`. One active session per user per content_id.
+
+**Roleplay reuse decision:** Roleplay conversations use the **same chat_sessions table** but with a roleplay-specific `content_type`. This is because:
+- The chat_sessions table already has the right structure (JSONB messages, user identification)
+- Active session uniqueness constraint works correctly
+- The existing `get_or_create_chat_session()` and `add_chat_message()` functions work as-is
+
+**Content ID strategy:** Use `content_id` from the module (same as chat), so roleplay shares the session with other chat segments in the module. This matches existing behavior where all chat segments in a module share one session.
+
+**Alternative considered:** Separate roleplay_sessions table. Rejected because it duplicates structure for no benefit, and sharing the session means the AI has context from earlier conversations (which is pedagogically valuable).
+
+### 4. Scoring (core/scoring.py)
+
+**What exists:** `enqueue_scoring()` fires background task, `_build_scoring_prompt()` builds prompt from question_text + answer_text, `_resolve_question_details()` looks up segment by index.
+
+**What to modify:**
+- `_resolve_question_details()`: Handle `segment.type == "roleplay"` alongside `"question"`
+- `_build_scoring_prompt()`: For roleplay, the "answer" is the full conversation transcript, not a single text response
+- `SCORE_SCHEMA`: Works as-is (overall_score, reasoning, dimensions, key_observations)
+
+**Transcript format for scoring:**
+```python
+# Instead of single answer_text, build from conversation messages
+transcript = "\n".join(
+    f"{msg['role'].upper()}: {msg['content']}"
+    for msg in conversation_messages
+)
+```
+
+### 5. Question Responses Table (core/tables.py)
+
+**What exists:** `question_responses` table stores question_id, answer_text, answer_metadata, etc.
+
+**Roleplay storage:** Roleplay completed conversations are stored in the **same question_responses table**:
+- `question_id`: `"moduleSlug:sectionIndex:segmentIndex"` (same format)
+- `question_text`: The roleplay instructions (snapshot)
+- `answer_text`: Full conversation transcript (serialized)
+- `answer_metadata`: `{ "type": "roleplay", "message_count": 6, "duration_s": 180, "voice_used": true }`
+- `assessment_instructions`: From the segment field
+
+This means the existing scoring pipeline picks up roleplay completions automatically.
+
+### 6. Frontend Type System (types/module.ts)
+
+**What exists:** `ModuleSegment` is a union: `TextSegment | ArticleExcerptSegment | VideoExcerptSegment | ChatSegment | QuestionSegment`
+
+**What to add:**
+```typescript
+export type RoleplaySegment = {
+  type: "roleplay";
+  instructions: string;
+  character: string;
+  endCondition?: string;       // "messages:6" | "time:300" | "ai-monitored"
+  assessmentInstructions?: string;
+  maxTime?: string;
+  openingMessage?: string;
+  optional?: boolean;
+};
+
+export type ModuleSegment =
+  | TextSegment
+  | ArticleExcerptSegment
+  | VideoExcerptSegment
+  | ChatSegment
+  | QuestionSegment
+  | RoleplaySegment;            // Add to union
+```
+
+### 7. Frontend Rendering (views/Module.tsx)
+
+**What exists:** `renderSegment()` switch statement dispatches by `segment.type`.
+
+**What to add:**
+```typescript
+case "roleplay":
+  return (
+    <RoleplayBox
+      key={`roleplay-${keyPrefix}`}
+      segment={segment}
+      moduleSlug={module.slug}
+      sectionIndex={sectionIndex}
+      segmentIndex={segmentIndex}
+      isAuthenticated={isAuthenticated}
+      messages={messages}
+      pendingMessage={pendingMessage}
+      streamingContent={streamingContent}
+      isLoading={isLoading}
+      onSendMessage={(content) =>
+        handleSendMessage(content, sectionIndex, segmentIndex)
       }
-
-2. DISPLAY & EDIT
-   Frontend renders:
-   - Left panel: Question + student answer (read-only)
-   - Right panel: Scoring prompt editor (editable)
-   - Ground truth panel: Expected score + reasoning (read-only, for comparison)
-
-3. RUN SCORING
-   Frontend: POST /api/promptlab/assessment/score
-   Body: {
-     question_text, student_answer, scoring_prompt,
-     mode: "socratic" | "assessment"
-   }
-   -> core/promptlab/assessment_eval.py:
-      - Builds messages from question + answer
-      - Calls complete(messages, system=custom_scoring_prompt, response_format=SCORE_SCHEMA)
-      - Returns full score_data JSON (NOT background task -- synchronous)
-   -> Frontend displays: overall_score, reasoning, dimensions, key_observations
-   -> Side-by-side with ground truth for comparison
-
-4. NO PERSISTENCE
-   Same as chat eval -- ephemeral. Results are visual comparison only.
+      onRetryMessage={handleRetryMessage}
+      onComplete={onComplete}        // For test section integration
+    />
+  );
 ```
+
+### 8. TestSection Integration
+
+**What exists:** `TestSection.tsx` extracts question segments, manages sequential reveal, tracks completion via API.
+
+**What to modify:** TestSection currently filters `seg.type === "question"` to build its question list. For roleplay support:
+- Rename concept from "questions" to "assessable items" internally
+- Filter `seg.type === "question" || seg.type === "roleplay"`
+- Render `RoleplayBox` instead of `TestQuestionCard` for roleplay segments
+- RoleplayBox calls `onComplete()` when end-condition met, matching the TestQuestionCard interface
+
+### 9. Voice Input
+
+**What exists:** `useVoiceRecording` hook handles mic access, MediaRecorder, transcription via `POST /api/transcribe`. Used by both `NarrativeChatSection` and `AnswerBox`.
+
+**Reuse:** RoleplayBox imports `useVoiceRecording` directly. The hook is already designed for reuse with the `onTranscription` callback pattern. No modifications needed.
 
 ## Patterns to Follow
 
-### Pattern 1: Facilitator Auth Guard (existing pattern)
-**What:** Reuse the `get_db_user_or_403()` pattern from `facilitator.py` routes.
-**When:** All Prompt Lab endpoints.
-**Example:**
+### Pattern 1: Segment Type Extension
+**What:** Adding new segment types follows a well-established pattern in this codebase.
+**When:** Any new interactive element in course content.
+**How (checklist):**
+1. Add to `content_processor/src/content-schema.ts` SEGMENT_SCHEMAS
+2. Add to `content_processor/src/parser/lens.ts` LENS_SEGMENT_TYPES, VALID_SEGMENTS_PER_SECTION, convertSegment()
+3. Add TypeScript type to `web_frontend/src/types/module.ts` ModuleSegment union
+4. Add Python dataclass to `core/modules/types.py`
+5. Add rendering case to `web_frontend/src/views/Module.tsx` renderSegment()
+6. Handle in backend route `web_api/routes/module.py` event_generator()
+
+### Pattern 2: Backend Segment Type Detection
+**What:** The chat endpoint (`POST /api/chat/module`) determines behavior by inspecting the segment at the given position.
+**When:** Adding new conversational segment types.
+**Example from existing code:**
 ```python
-# web_api/routes/promptlab.py
-from web_api.auth import get_current_user
-
-async def require_facilitator(user: dict = Depends(get_current_user)) -> dict:
-    """Require facilitator or admin role."""
-    discord_id = user["sub"]
-    async with get_connection() as conn:
-        db_user = await get_user_by_discord_id(conn, discord_id)
-        if not db_user:
-            raise HTTPException(403, "User not found")
-        admin = await is_admin(conn, db_user["user_id"])
-        facilitator_groups = await get_facilitator_group_ids(conn, db_user["user_id"])
-        if not admin and not facilitator_groups:
-            raise HTTPException(403, "Facilitator access required")
-        return db_user
-
-@router.post("/chat/regenerate")
-async def regenerate_chat(
-    request: RegenerateRequest,
-    user: dict = Depends(require_facilitator),
-) -> StreamingResponse:
-    ...
+# Existing pattern in event_generator():
+if section.get("type") == "test":
+    instructions = "You are a supportive tutor providing feedback..."
+elif current_segment.get("type") == "question":
+    instructions = "You are a supportive tutor providing feedback..."
+else:
+    instructions = current_segment.get("instructions", "Help the user...")
+```
+**Roleplay follows this pattern:**
+```python
+elif current_segment.get("type") == "roleplay":
+    # Use roleplay-specific prompt assembly
+    from core.modules.roleplay import build_roleplay_prompt
+    instructions = build_roleplay_prompt(current_segment)
 ```
 
-### Pattern 2: SSE Streaming (existing pattern)
-**What:** Reuse the exact SSE streaming pattern from `web_api/routes/module.py`.
-**When:** Chat eval regeneration endpoint.
+### Pattern 3: SSE Event Extension
+**What:** The SSE stream already supports multiple event types (`text`, `tool_use`, `thinking`, `done`, `error`). Adding `roleplay_end` follows the same pattern.
+**When:** End-of-conversation signaling.
 **Example:**
 ```python
-# Identical to module.py's event_generator pattern
-async def eval_stream_generator(system_prompt: str, messages: list[dict]):
-    """Stream LLM response for evaluation."""
-    try:
-        async for chunk in stream_chat(
-            messages=messages,
-            system=system_prompt,
-            max_tokens=2048,  # Longer for eval
-        ):
-            yield f"data: {json.dumps(chunk)}\n\n"
-    except Exception as e:
-        yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
-
-@router.post("/chat/regenerate")
-async def regenerate_chat(request: RegenerateRequest, ...):
-    return StreamingResponse(
-        eval_stream_generator(request.system_prompt, request.messages),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
-    )
+# After streaming, check end condition
+if should_end:
+    yield f'data: {json.dumps({"type": "roleplay_end", "reason": "message_limit"})}\n\n'
 ```
 
-### Pattern 3: Frontend SSE Consumer (existing pattern)
-**What:** Reuse the `sendMessage()` async generator pattern from `web_frontend/src/api/modules.ts`.
-**When:** Chat eval streaming in frontend.
-**Example:**
+### Pattern 4: Shared Chat Session
+**What:** All conversational segments in a module share one chat session (keyed by content_id).
+**When:** Roleplay conversations are module-scoped.
+**Why this matters:** If a student has a chat segment before a roleplay segment, the tutor's context from the chat is available to the roleplay (they share the session). This is a feature, not a bug -- it means the AI character can reference earlier learning.
+
+**However:** This means roleplay messages appear in the shared chat history. The frontend already handles this by showing different segments independently (NarrativeChatSection only shows messages from after it was activated via the `recentMessagesStartIdx` in `chatViewReducer`). RoleplayBox should use the same activation pattern.
+
+### Pattern 5: Component Reuse via Props Interface
+**What:** RoleplayBox shares props interface patterns with both NarrativeChatSection (chat UI) and AnswerBox (voice input, completion).
+**When:** Building the RoleplayBox component.
+**Key shared props:**
 ```typescript
-// web_frontend/src/api/promptlab.ts
-export async function* regenerateChat(
-  messages: Array<{role: string; content: string}>,
-  systemPrompt: string,
-  previousContent?: string,
-): AsyncGenerator<{type: string; content?: string}> {
-  const res = await fetchWithRefresh(`${API_URL}/api/promptlab/chat/regenerate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ messages, system_prompt: systemPrompt, previous_content: previousContent }),
-  });
-  if (!res.ok) throw new Error("Failed to regenerate");
-  // ... same SSE reader as sendMessage() in modules.ts
-}
-```
+// From NarrativeChatSection (chat rendering):
+messages, pendingMessage, streamingContent, isLoading, onSendMessage, onRetryMessage
 
-### Pattern 4: Fixture Files as JSON in Repo
-**What:** Store fixtures as JSON files in a `fixtures/` directory at repo root, loaded by `core/promptlab/fixtures.py`.
-**When:** Both chat and assessment eval modes.
-**Why:** Fixtures are developer/facilitator authored test data, NOT user data. They belong in the repo, not the database. They change with code, reviewed in PRs.
-
-```
-fixtures/
-  chat/
-    intro-module-good-conversation.json
-    challenging-student-response.json
-    off-topic-student.json
-  assessment/
-    strong-answer-alignment-module.json
-    weak-answer-needs-improvement.json
-    edge-case-partial-understanding.json
-```
-
-**Chat fixture format:**
-```json
-{
-  "name": "Good conversation about alignment basics",
-  "description": "Student engages well, asks follow-up questions",
-  "module_slug": "cognitive-superpowers",
-  "section_index": 0,
-  "segment_index": 1,
-  "original_system_prompt": {
-    "base": "You are a tutor helping someone learn about AI safety...",
-    "instructions": "Discuss the key takeaways from the article..."
-  },
-  "previous_content": "The article text that was shown to the student...",
-  "messages": [
-    {"role": "user", "content": "I found the concept of..."},
-    {"role": "assistant", "content": "Great observation! ..."},
-    {"role": "user", "content": "But what about..."},
-    {"role": "assistant", "content": "That's an important nuance..."}
-  ]
-}
-```
-
-**Assessment fixture format:**
-```json
-{
-  "name": "Strong answer on alignment",
-  "description": "Student demonstrates solid understanding",
-  "module_slug": "intro-to-alignment",
-  "question_id": "intro-to-alignment:2:0",
-  "question_text": "Explain the alignment problem in your own words.",
-  "learning_outcome_name": "Understanding AI Alignment",
-  "mode": "assessment",
-  "student_answer": "The alignment problem is about ensuring...",
-  "ground_truth": {
-    "overall_score": 4,
-    "reasoning": "Student shows good conceptual understanding...",
-    "dimensions": {
-      "accuracy": {"score": 4, "note": "Correct core concept"},
-      "depth": {"score": 3, "note": "Could elaborate more"}
-    }
-  }
-}
-```
-
-### Pattern 5: Vike Page with Facilitator Guard (existing pattern)
-**What:** New page at `/promptlab` with facilitator auth check, following the same structure as `/facilitator`.
-**When:** Frontend route setup.
-**Example:**
-```tsx
-// web_frontend/src/pages/promptlab/+Page.tsx
-import Layout from "@/components/Layout";
-import PromptLab from "@/views/PromptLab/PromptLab";
-
-export default function PromptLabPage() {
-  return (
-    <Layout>
-      <PromptLab />
-    </Layout>
-  );
-}
-
-// web_frontend/src/pages/promptlab/+config.ts
-export default { ssr: false };
+// From AnswerBox/TestSection (completion tracking):
+onComplete, segment, moduleSlug, sectionIndex, segmentIndex, isAuthenticated
 ```
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Extending chat.py's _build_system_prompt()
-**What:** Adding a "custom prompt mode" or "eval mode" parameter to the existing `_build_system_prompt()` function.
-**Why bad:** This function's job is to build prompts from Stage objects for the student learning flow. Adding a bypass for Prompt Lab would create a god-function with two completely different code paths. The Prompt Lab doesn't use Stages at all -- it takes raw prompt text.
-**Instead:** Call `stream_chat()` directly from `core/promptlab/chat_eval.py` with the facilitator's custom system prompt.
+### Anti-Pattern 1: Separate API Endpoint for Roleplay
+**What:** Creating a new `POST /api/chat/roleplay` endpoint.
+**Why bad:** Duplicates auth handling, session management, SSE streaming logic. The existing `/api/chat/module` endpoint already accepts `sectionIndex` and `segmentIndex` to locate the segment, and the backend can determine behavior from the segment type.
+**Instead:** Add roleplay handling to the existing `event_generator()` function in `module.py`.
 
-### Anti-Pattern 2: Storing eval results in the database
-**What:** Creating new tables for Prompt Lab sessions, results, or prompt versions.
-**Why bad:** Premature persistence. Prompt Lab is an internal development tool. The output is "which prompt text do we want to use?" -- that goes into content YAML, not a database. Adding tables creates migration burden and schema coupling for what is essentially a scratch pad.
-**Instead:** Keep it ephemeral. If persistence is needed later (e.g., A/B testing prompts at scale), that's a separate feature with different requirements.
+### Anti-Pattern 2: Separate Database Table for Roleplay Sessions
+**What:** Creating a `roleplay_sessions` table.
+**Why bad:** The `chat_sessions` table already has the right structure. Creating a parallel table means duplicating session management code, claim logic (anonymous -> authenticated), and archive logic.
+**Instead:** Use `chat_sessions` with the existing `content_type` field (could add 'roleplay' as valid content_type).
 
-### Anti-Pattern 3: Reusing NarrativeChatSection component directly
-**What:** Importing the student-facing `NarrativeChatSection.tsx` into the Prompt Lab.
-**Why bad:** That component has student-specific UX (voice recording, mobile-first layout, scroll-to-message behavior, "Tutor"/"You" labels). Prompt Lab needs a developer-tool UX: side-by-side panels, prompt editor, "regenerate from here" controls, message truncation UI.
-**Instead:** Build new components in `web_frontend/src/components/promptlab/`. Extract only the `ChatMarkdown` renderer to a shared component if needed.
+### Anti-Pattern 3: Separate Database Table for Roleplay Assessments
+**What:** Creating `roleplay_responses` + `roleplay_assessments` tables.
+**Why bad:** The question_responses/question_assessments tables are designed for flexible content. The `answer_metadata` JSONB field can hold roleplay-specific data. The scoring pipeline already handles `segment.type != "question"` gracefully.
+**Instead:** Reuse `question_responses` (answer_text = transcript, answer_metadata = roleplay details).
 
-### Anti-Pattern 4: Making assessment eval depend on ws3 being merged
-**What:** Blocking the entire Prompt Lab feature on ws3's assessment tables and scoring.py being available.
-**Why bad:** Chat eval is independently useful and has no ws3 dependency. Blocking it wastes time.
-**Instead:** Build chat eval first (Phase 1). Build assessment eval as Phase 2, which can start as soon as ws3's `core/scoring.py` and `core/modules/llm.py:complete()` are available in the working branch.
+### Anti-Pattern 4: Building RoleplayBox from Scratch
+**What:** Writing a new conversation UI component without reusing existing chat patterns.
+**Why bad:** NarrativeChatSection already has: message rendering, SSE consumption, scroll management, voice input integration, expand/collapse, pending message display. Duplicating this is wasteful and creates divergent UX.
+**Instead:** RoleplayBox should compose existing patterns. It can either:
+- (a) Wrap NarrativeChatSection with roleplay-specific chrome (character header, end-condition indicator, completion button), OR
+- (b) Extract shared chat rendering logic into a base component used by both
 
-### Anti-Pattern 5: Streaming assessment scoring
-**What:** Using SSE streaming for the assessment eval endpoint.
-**Why bad:** The scoring call uses `complete()` (non-streaming) with `response_format=SCORE_SCHEMA` for structured JSON output. Streaming structured output adds complexity for no UX benefit -- the response is a single JSON blob, not a long text.
-**Instead:** Use a normal POST endpoint that returns JSON. Show a loading spinner in the frontend while waiting (typically 2-5 seconds).
+Option (a) is simpler and recommended for initial implementation.
 
-## Integration Points with Existing Code
+### Anti-Pattern 5: Client-Side End-Condition Checking
+**What:** Having the frontend count messages or check timers to determine when roleplay ends.
+**Why bad:** The user can refresh, have stale state, or manipulate the client. End conditions should be authoritative from the backend.
+**Instead:** Backend checks end conditions after each exchange and signals via SSE. Frontend displays the end state but doesn't determine it.
 
-### Direct Reuse (no modification needed)
+## New Files to Create
 
-| Existing Code | How Prompt Lab Uses It |
-|---------------|----------------------|
-| `core/modules/llm.py:stream_chat()` | Chat eval regeneration |
-| `core/modules/llm.py:complete()` | Assessment eval scoring (from ws3) |
-| `web_api/auth.py:get_current_user` | Facilitator auth dependency |
-| `core/queries/facilitator.py:is_admin`, `get_facilitator_group_ids` | Role check |
-| `core/content/cache.py:get_cache()` | Loading module data for fixture context |
-| SSE streaming pattern (module.py) | Chat eval streaming |
-| `fetchWithRefresh` (frontend) | API calls |
+| File | Purpose | Complexity |
+|------|---------|------------|
+| `core/modules/roleplay.py` | Roleplay prompt assembly, end-condition logic, character persona building | Medium |
+| `web_frontend/src/components/module/RoleplayBox.tsx` | Roleplay conversation UI component | Medium-High |
 
-### Needs Extraction/Refactoring
+## Existing Files to Modify
 
-| What | Current Location | Action |
-|------|-----------------|--------|
-| `ChatMarkdown` component | Inline in `NarrativeChatSection.tsx` | Extract to `components/shared/ChatMarkdown.tsx` for reuse |
-| `_build_system_prompt()` base text | Inline in `chat.py` | NOT extracted -- Prompt Lab takes raw text, doesn't reuse the builder |
-| `SCORE_SCHEMA` | `core/scoring.py` (ws3) | Import directly when ws3 merges; no extraction needed |
+| File | Change | Complexity |
+|------|--------|------------|
+| `content_processor/src/content-schema.ts` | Add `'roleplay'` to SEGMENT_SCHEMAS | Low |
+| `content_processor/src/parser/lens.ts` | Add roleplay to segment types, parse fields, convertSegment case | Low |
+| `web_frontend/src/types/module.ts` | Add `RoleplaySegment` type | Low |
+| `web_frontend/src/views/Module.tsx` | Add `case "roleplay"` to renderSegment | Low |
+| `web_api/routes/module.py` | Detect roleplay segments in event_generator | Medium |
+| `core/modules/types.py` | Add RoleplaySegment dataclass (optional, for Python type hints) | Low |
+| `core/scoring.py` | Handle roleplay transcript scoring | Medium |
+| `web_frontend/src/components/module/TestSection.tsx` | Support roleplay segments alongside questions | Medium |
+| `core/tables.py` | Possibly add 'roleplay' to chat_sessions content_type constraint | Low |
 
-### ws3 Dependencies (Assessment Eval Only)
+## Suggested Build Order
 
-| ws3 Code | What Prompt Lab Needs | Status |
-|----------|----------------------|--------|
-| `core/modules/llm.py:complete()` | Non-streaming LLM call for scoring | Must be in ws2's llm.py (currently only in ws3) |
-| `core/scoring.py:SCORE_SCHEMA` | Structured output format for scores | Import from ws3's scoring.py |
-| `core/scoring.py:_build_scoring_prompt()` | Reference implementation (Prompt Lab replaces this with custom prompt) | Read-only reference |
-| `assessment_responses` / `assessment_scores` tables | NOT needed -- Prompt Lab doesn't persist | No dependency |
-
-**Critical:** The `complete()` function in `llm.py` only exists in ws3. Chat eval (Phase 1) doesn't need it -- it uses `stream_chat()`. Assessment eval (Phase 2) needs `complete()` merged into ws2's `llm.py` first.
-
-## New Files Summary
-
-### Backend (Python)
+Based on dependency analysis of the existing pipeline:
 
 ```
-core/promptlab/
-  __init__.py                    # Exports: regenerate_chat_stream, run_assessment_scoring, load_fixtures
-  chat_eval.py                   # ~40 lines: wraps stream_chat() with custom system prompt
-  assessment_eval.py             # ~60 lines: wraps complete() with custom scoring prompt + SCORE_SCHEMA
-  fixtures.py                    # ~80 lines: load/list JSON fixtures from fixtures/ directory
+Phase 1: Content Parsing (no runtime dependencies)
+  1. content-schema.ts -- define fields
+  2. lens.ts -- parse #### Roleplay
+  3. types/module.ts -- frontend types
+  4. core/modules/types.py -- backend types
 
-web_api/routes/promptlab.py      # ~120 lines: 5 endpoints (list fixtures x2, get fixture x2, regenerate chat, score assessment)
+Phase 2: Backend Core (depends on Phase 1)
+  5. core/modules/roleplay.py -- prompt assembly + end-condition
+  6. web_api/routes/module.py -- route roleplay segments
 
-fixtures/
-  chat/                          # 3-5 JSON fixture files
-  assessment/                    # 3-5 JSON fixture files
+Phase 3: Frontend Component (depends on Phases 1-2)
+  7. RoleplayBox.tsx -- conversation UI
+  8. Module.tsx -- renderSegment case
+
+Phase 4: Assessment & Test Integration (depends on Phase 3)
+  9. core/scoring.py -- transcript scoring
+  10. TestSection.tsx -- roleplay in tests
+  11. question routes -- roleplay completion recording
+
+Phase 5: Polish
+  12. End-condition UI indicators
+  13. Character avatar/styling
+  14. Session resume (partially handled by existing chat session)
 ```
 
-### Frontend (TypeScript/React)
-
-```
-web_frontend/src/
-  pages/promptlab/
-    +Page.tsx                    # Route entry point
-    +title.ts                    # "Prompt Lab"
-    +config.ts                   # ssr: false
-
-  views/PromptLab/
-    PromptLab.tsx                # ~80 lines: tab switcher (Chat Eval | Assessment Eval), auth guard
-    ChatEval.tsx                 # ~250 lines: fixture picker, prompt editor, message list, regenerate button, streaming display
-    AssessmentEval.tsx           # ~200 lines: fixture picker, scoring prompt editor, score display, ground truth comparison
-
-  components/promptlab/
-    PromptEditor.tsx             # ~60 lines: textarea with "Base Prompt" / "Instructions" sections
-    MessageList.tsx              # ~80 lines: scrollable message list with truncation point selector
-    FixtureSelector.tsx          # ~40 lines: dropdown of available fixtures
-    ScoreDisplay.tsx             # ~60 lines: renders score_data (overall, dimensions, observations)
-
-  api/promptlab.ts               # ~80 lines: API client (fixture loading, regenerate stream, score)
-```
+**Rationale:** Content parsing is independent and unblocks both backend and frontend. Backend prompt logic must exist before the frontend can test. Assessment is layered on top of working conversations.
 
 ## Scalability Considerations
 
-| Concern | Current (facilitators only) | If opened to students | Notes |
-|---------|----------------------------|----------------------|-------|
-| LLM API costs | Negligible (3-5 facilitators) | Would need rate limiting | Not a concern for eval tool |
-| Concurrent streams | 1-2 simultaneous | N/A | SSE handles this fine |
-| Fixture storage | 10-20 JSON files in repo | Would need DB storage | Stay with files for now |
-| Auth overhead | Facilitator check per request | N/A | Existing pattern, fast |
-
-## Build Order Recommendation
-
-### Phase 1: Chat Eval (no ws3 dependency)
-1. Create `core/promptlab/` with `fixtures.py` and `chat_eval.py`
-2. Create `fixtures/chat/` with 2-3 sample fixtures (manually extracted from real chat sessions)
-3. Create `web_api/routes/promptlab.py` with fixture listing + chat regeneration endpoints
-4. Register route in `main.py`
-5. Extract `ChatMarkdown` to shared component
-6. Build frontend: page, view, components for chat eval mode
-7. Test end-to-end: load fixture, edit prompt, regenerate, follow up
-
-### Phase 2: Assessment Eval (after ws3 merges)
-1. Ensure `complete()` is available in ws2's `llm.py`
-2. Create `core/promptlab/assessment_eval.py`
-3. Create `fixtures/assessment/` with sample fixtures
-4. Add assessment endpoints to `web_api/routes/promptlab.py`
-5. Build `AssessmentEval.tsx` and `ScoreDisplay.tsx`
-6. Test end-to-end: load fixture, edit scoring prompt, run scoring, compare with ground truth
+| Concern | At 100 users | At 10K users | At 1M users |
+|---------|--------------|--------------|-------------|
+| Chat session JSONB size | No issue (< 50 messages typical) | No issue | Consider archiving long conversations |
+| SSE connections | Negligible | Standard SSE scaling | Need connection pooling or switch to WebSockets |
+| LLM API calls | Direct calls fine | Rate limiting per user | Queue system, provider fallback |
+| Scoring backlog | Background tasks fine | Monitor queue depth | Dedicated scoring worker |
+| Transcript storage | JSONB in question_responses | Index by module_slug | Consider separate transcript storage |
 
 ## Sources
 
-- Direct codebase analysis of ws2 and ws3 branches (HIGH confidence)
-- All architecture decisions based on existing patterns observed in the codebase
-- No external research needed -- this is an integration architecture document
+All analysis based on direct codebase examination:
+- `core/modules/chat.py` -- existing chat prompt assembly
+- `core/modules/llm.py` -- LLM provider abstraction
+- `core/modules/chat_sessions.py` -- session management
+- `core/scoring.py` -- assessment pipeline
+- `core/tables.py` -- database schema
+- `web_api/routes/module.py` -- SSE streaming route
+- `web_api/routes/questions.py` -- question response API
+- `content_processor/src/parser/lens.ts` -- content parsing
+- `content_processor/src/content-schema.ts` -- field definitions
+- `web_frontend/src/types/module.ts` -- frontend types
+- `web_frontend/src/views/Module.tsx` -- segment rendering
+- `web_frontend/src/components/module/NarrativeChatSection.tsx` -- chat UI
+- `web_frontend/src/components/module/AnswerBox.tsx` -- question UI
+- `web_frontend/src/components/module/TestSection.tsx` -- test management
+- `web_frontend/src/hooks/useVoiceRecording.ts` -- voice input
+- `web_frontend/src/api/modules.ts` -- API client

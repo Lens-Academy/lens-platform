@@ -89,8 +89,25 @@ class ChatSegment:
     hide_previous_content_from_tutor: bool = False
 
 
+@dataclass
+class RoleplaySegment:
+    """Interactive roleplay scenario with AI character."""
+
+    type: Literal["roleplay"]
+    id: str  # UUID for session isolation
+    content: str  # Student-facing scenario briefing
+    ai_instructions: str  # Character behavior + personality
+    opening_message: str | None = None  # Optional first message
+    assessment_instructions: str | None = None  # Optional scoring rubric
+    optional: bool = False
+
+
 NarrativeSegment = (
-    TextSegment | ArticleExcerptSegment | VideoExcerptSegment | ChatSegment
+    TextSegment
+    | ArticleExcerptSegment
+    | VideoExcerptSegment
+    | ChatSegment
+    | RoleplaySegment
 )
 
 

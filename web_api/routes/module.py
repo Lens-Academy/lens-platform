@@ -22,7 +22,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.database import get_connection
 from core.modules import ModuleNotFoundError
 from core.modules.chat import send_module_message
-from core.modules.chat_sessions import add_chat_message, get_or_create_chat_session
+from core.modules.chat_sessions import (
+    add_chat_message,
+    get_latest_roleplay_session,
+    get_or_create_chat_session,
+)
 from core.modules.context import gather_section_context
 from core.modules.loader import load_flattened_module
 from core.modules.types import ChatStage
@@ -64,8 +68,7 @@ async def event_generator(
             conn,
             user_id=user_id,
             anonymous_token=anonymous_token,
-            content_id=module.content_id,
-            content_type="module",
+            module_id=module.content_id,
         )
         session_id = session["session_id"]
         existing_messages = session.get("messages", [])
@@ -111,6 +114,40 @@ async def event_generator(
             instructions += f"\nLearning Outcome: {learning_outcome_name}"
         if assessment_instructions:
             instructions += f"\nRubric:\n{assessment_instructions}"
+    # Roleplay segments: provide scenario + transcript for feedback
+    elif current_segment.get("type") == "roleplay":
+        scenario_content = current_segment.get("content", "")
+        assessment_instructions = current_segment.get("assessmentInstructions")
+        learning_outcome_name = section.get("learningOutcomeName")
+
+        instructions = (
+            "The student has completed a roleplay exercise and wants to discuss "
+            "their performance. Give specific, constructive feedback.\n\n"
+            f"Scenario: {scenario_content}"
+        )
+        if learning_outcome_name:
+            instructions += f"\nLearning Outcome: {learning_outcome_name}"
+        if assessment_instructions:
+            instructions += f"\nAssessment criteria:\n{assessment_instructions}"
+
+        # Load roleplay transcript for feedback context
+        roleplay_id_str = current_segment.get("id")
+        if roleplay_id_str:
+            async with get_connection() as conn:
+                rp_session = await get_latest_roleplay_session(
+                    conn,
+                    user_id=user_id,
+                    anonymous_token=anonymous_token,
+                    module_id=module.content_id,
+                    roleplay_id=UUID(roleplay_id_str),
+                )
+            if rp_session:
+                rp_messages = rp_session.get("messages", [])
+                if rp_messages:
+                    lines = [
+                        f"{m['role'].title()}: {m['content']}" for m in rp_messages
+                    ]
+                    instructions += "\n\nRoleplay transcript:\n" + "\n".join(lines)
     else:
         instructions = current_segment.get(
             "instructions", "Help the user learn about AI safety."
@@ -232,8 +269,7 @@ async def get_chat_history(
             conn,
             user_id=user_id,
             anonymous_token=anonymous_token,
-            content_id=module.content_id,
-            content_type="module",
+            module_id=module.content_id,
         )
 
     return ChatHistoryResponse(

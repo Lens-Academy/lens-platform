@@ -52,11 +52,11 @@ describe('CONTENT_SCHEMAS', () => {
 });
 
 describe('SEGMENT_SCHEMAS', () => {
-  it('defines schemas for all 5 segment types', () => {
+  it('defines schemas for all 6 segment types', () => {
     expect(Object.keys(SEGMENT_SCHEMAS)).toEqual(
-      expect.arrayContaining(['text', 'chat', 'article-excerpt', 'video-excerpt', 'question'])
+      expect.arrayContaining(['text', 'chat', 'article-excerpt', 'video-excerpt', 'question', 'roleplay'])
     );
-    expect(Object.keys(SEGMENT_SCHEMAS)).toHaveLength(5);
+    expect(Object.keys(SEGMENT_SCHEMAS)).toHaveLength(6);
   });
 
   it('text segment has correct fields', () => {
@@ -83,6 +83,15 @@ describe('SEGMENT_SCHEMAS', () => {
     const schema = SEGMENT_SCHEMAS['video-excerpt'];
     expect(schema.requiredFields).toEqual(['to']);
     expect(schema.optionalFields).toEqual(expect.arrayContaining(['from', 'optional']));
+  });
+
+  it('roleplay segment has correct fields', () => {
+    const schema = SEGMENT_SCHEMAS['roleplay'];
+    expect(schema.requiredFields).toEqual(['id', 'content', 'ai-instructions']);
+    expect(schema.optionalFields).toEqual(
+      expect.arrayContaining(['opening-message', 'assessment-instructions', 'optional'])
+    );
+    expect(schema.booleanFields).toEqual(['optional', 'feedback']);
   });
 
   it('booleanFields lists the boolean fields', () => {

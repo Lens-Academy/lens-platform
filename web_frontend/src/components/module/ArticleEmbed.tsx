@@ -1,6 +1,6 @@
 // web_frontend/src/components/module/ArticleEmbed.tsx
 
-import { useState } from "react";
+import { useRef, useState, isValidElement, type ReactNode } from "react";
 import {
   useFloating,
   useHover,
@@ -79,10 +79,19 @@ function CollapsibleBlock({
   endMarker?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleCollapseFromBottom = () => {
+    setIsOpen(false);
+    containerRef.current?.scrollIntoView({
+      block: "nearest",
+      behavior: "smooth",
+    });
+  };
 
   return (
-    <div className={className}>
-      <div className="flex items-center gap-1 py-1">
+    <div ref={containerRef} className={className}>
+      <div className="sticky top-[var(--header-offset)] z-10 transition-[top] duration-300 backdrop-blur-sm bg-amber-50/80 flex items-center gap-1 py-1">
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1"
@@ -115,7 +124,26 @@ function CollapsibleBlock({
         <div className="overflow-hidden">
           {children}
           {endMarker && (
-            <div className="text-sm text-gray-400 mt-2 pl-5">{endMarker}</div>
+            <button
+              onClick={handleCollapseFromBottom}
+              className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 mt-2 pl-5 flex items-center gap-1 transition-colors"
+            >
+              <svg
+                className="w-3 h-3 -rotate-90"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+              <span>{endMarker}</span>
+            </button>
           )}
         </div>
       </div>
@@ -384,6 +412,15 @@ export default function ArticleEmbed({
     return generateHeadingId(text);
   };
 
+  // Extract plain text from React children (handles inline formatting like *italic*)
+  const textOf = (node: ReactNode): string => {
+    if (typeof node === "string") return node;
+    if (typeof node === "number") return String(node);
+    if (Array.isArray(node)) return node.map(textOf).join("");
+    if (isValidElement(node)) return textOf(node.props.children);
+    return "";
+  };
+
   // Shared markdown components for both main content and collapsed sections
   const markdownComponents = {
     a: ({ children, href }: { children?: React.ReactNode; href?: string }) => (
@@ -396,11 +433,23 @@ export default function ArticleEmbed({
         {children}
       </a>
     ),
-    h1: ({ children }: { children?: React.ReactNode }) => (
-      <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>
-    ),
+    h1: ({ children }: { children?: React.ReactNode }) => {
+      const text = textOf(children);
+      const id = getHeadingId(text);
+      return (
+        <h1
+          id={id}
+          ref={(el) => {
+            if (el) sectionContext?.onHeadingRender(id, el);
+          }}
+          className="text-2xl font-bold mt-8 mb-4 scroll-mt-24"
+        >
+          {children}
+        </h1>
+      );
+    },
     h2: ({ children }: { children?: React.ReactNode }) => {
-      const text = String(children);
+      const text = textOf(children);
       const id = getHeadingId(text);
       return (
         <h2
@@ -415,7 +464,7 @@ export default function ArticleEmbed({
       );
     },
     h3: ({ children }: { children?: React.ReactNode }) => {
-      const text = String(children);
+      const text = textOf(children);
       const id = getHeadingId(text);
       return (
         <h3
@@ -541,7 +590,7 @@ export default function ArticleEmbed({
   const rehypePlugins = [rehypeRaw];
 
   return (
-    <div className="max-w-content-padded mx-auto rounded-lg overflow-hidden">
+    <div className="max-w-content-padded mx-auto rounded-lg overflow-clip">
       {/* Header — always yellow */}
       <div className="bg-amber-50/50 px-4 pt-4 sm:pt-6 pb-2">
         {isFirst ? (

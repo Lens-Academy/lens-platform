@@ -2,11 +2,12 @@
  * TestSection - Container component for test sections in modules.
  *
  * Manages a state machine (not_started -> in_progress -> completed) that
- * controls the Begin screen, sequential question reveal, and completion flow.
+ * controls the Begin screen, sequential item reveal, and completion flow.
  *
- * On mount, batch-loads existing responses to support resume:
+ * Tracks a unified list of "assessable items" -- both question and roleplay
+ * segments. On mount, batch-loads existing responses/history to support resume:
  * - All complete -> state = "completed"
- * - Some complete -> state = "in_progress", resume at first unanswered
+ * - Some complete -> state = "in_progress", resume at first incomplete
  * - None -> state = "not_started", show Begin screen
  */
 
@@ -14,13 +15,20 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import type {
   TestSection as TestSectionType,
   QuestionSegment,
+  RoleplaySegment,
 } from "@/types/module";
 import type { MarkCompleteResponse } from "@/api/progress";
 import { getResponses } from "@/api/questions";
+import { getRoleplayHistory } from "@/api/roleplay";
 import { markComplete } from "@/api/progress";
 import TestQuestionCard from "./TestQuestionCard";
+import TestRoleplayCard from "./TestRoleplayCard";
 
 type TestState = "not_started" | "in_progress" | "completed";
+
+type AssessableItem =
+  | { type: "question"; segment: QuestionSegment; segmentIndex: number }
+  | { type: "roleplay"; segment: RoleplaySegment; segmentIndex: number };
 
 interface TestSectionProps {
   section: TestSectionType;
@@ -35,11 +43,6 @@ interface TestSectionProps {
   ) => void;
 }
 
-interface QuestionInfo {
-  segment: QuestionSegment;
-  segmentIndex: number;
-}
-
 export default function TestSection({
   section,
   moduleSlug,
@@ -51,67 +54,110 @@ export default function TestSection({
   onFeedbackTrigger,
 }: TestSectionProps) {
   const [testState, setTestState] = useState<TestState>("not_started");
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [completedQuestions, setCompletedQuestions] = useState<Set<number>>(
-    new Set(),
-  );
+  const [currentItemIndex, setCurrentItemIndex] = useState(0);
+  const [completedItems, setCompletedItems] = useState<Set<number>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
 
-  // Extract question segments with their original segment indices
-  const questions: QuestionInfo[] = useMemo(() => {
-    const result: QuestionInfo[] = [];
+  // Extract assessable items (questions + roleplays) with their original segment indices
+  const assessableItems: AssessableItem[] = useMemo(() => {
+    const result: AssessableItem[] = [];
     section.segments.forEach((seg, idx) => {
       if (seg.type === "question") {
-        result.push({ segment: seg as QuestionSegment, segmentIndex: idx });
+        result.push({
+          type: "question",
+          segment: seg as QuestionSegment,
+          segmentIndex: idx,
+        });
+      } else if (seg.type === "roleplay") {
+        result.push({
+          type: "roleplay",
+          segment: seg as RoleplaySegment,
+          segmentIndex: idx,
+        });
       }
     });
     return result;
   }, [section.segments]);
 
-  // Load existing responses on mount for resume support
+  // Convenience: extract just the question items for feedback
+  const questionItems = useMemo(
+    () =>
+      assessableItems.filter(
+        (item): item is AssessableItem & { type: "question" } =>
+          item.type === "question",
+      ),
+    [assessableItems],
+  );
+
+  // Load existing responses/history on mount for resume support
   useEffect(() => {
     let cancelled = false;
 
     async function loadResponses() {
       try {
-        // Build questionIds for all questions
-        const responsePromises = questions.map((q) => {
-          const questionId = `${moduleSlug}:${sectionIndex}:${q.segmentIndex}`;
-          return getResponses({ moduleSlug, questionId }, isAuthenticated);
-        });
+        // Load completion state for each assessable item
+        const settledResults = await Promise.allSettled(
+          assessableItems.map((item) => {
+            if (item.type === "question") {
+              const questionId = `${moduleSlug}:${sectionIndex}:${item.segmentIndex}`;
+              return getResponses({ moduleSlug, questionId }, isAuthenticated);
+            } else {
+              return getRoleplayHistory(moduleSlug, item.segment.id);
+            }
+          }),
+        );
 
-        const results = await Promise.all(responsePromises);
         if (cancelled) return;
 
-        // Determine which questions have completed responses
+        // Determine which items are completed
         const completed = new Set<number>();
-        let firstUnanswered = -1;
+        let firstIncomplete = -1;
 
-        results.forEach((result, qIndex) => {
-          const hasCompletedResponse = result.responses.some(
-            (r) => r.completed_at !== null,
-          );
-          if (hasCompletedResponse) {
-            completed.add(qIndex);
-          } else if (firstUnanswered === -1) {
-            firstUnanswered = qIndex;
+        settledResults.forEach((result, itemIndex) => {
+          if (result.status === "fulfilled") {
+            const item = assessableItems[itemIndex];
+            let isComplete = false;
+
+            if (item.type === "question") {
+              // Question: check for completed response
+              const qResult = result.value as Awaited<
+                ReturnType<typeof getResponses>
+              >;
+              isComplete = qResult.responses.some(
+                (r) => r.completed_at !== null,
+              );
+            } else {
+              // Roleplay: check for completedAt
+              const rResult = result.value as Awaited<
+                ReturnType<typeof getRoleplayHistory>
+              >;
+              isComplete = rResult.completedAt !== null;
+            }
+
+            if (isComplete) {
+              completed.add(itemIndex);
+            } else if (firstIncomplete === -1) {
+              firstIncomplete = itemIndex;
+            }
+          } else if (firstIncomplete === -1) {
+            firstIncomplete = itemIndex;
           }
         });
 
         if (cancelled) return;
 
-        setCompletedQuestions(completed);
+        setCompletedItems(completed);
 
-        if (completed.size === questions.length) {
-          // All questions answered -- completed state
+        if (completed.size === assessableItems.length) {
+          // All items complete
           setTestState("completed");
         } else if (completed.size > 0) {
-          // Some answered -- resume in progress
+          // Some complete -- resume in progress
           setTestState("in_progress");
-          setCurrentQuestionIndex(firstUnanswered !== -1 ? firstUnanswered : 0);
+          setCurrentItemIndex(firstIncomplete !== -1 ? firstIncomplete : 0);
           onTestStart();
         } else {
-          // No answers -- show Begin screen
+          // None complete -- show Begin screen
           setTestState("not_started");
         }
       } catch {
@@ -129,39 +175,37 @@ export default function TestSection({
     return () => {
       cancelled = true;
     };
-  }, [questions, moduleSlug, sectionIndex, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [assessableItems, moduleSlug, sectionIndex, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle Begin button click
   const handleBegin = useCallback(() => {
     setTestState("in_progress");
-    setCurrentQuestionIndex(0);
+    setCurrentItemIndex(0);
     onTestStart();
   }, [onTestStart]);
 
-  // Handle question completion
-  const handleQuestionComplete = useCallback(
-    (questionIndex: number) => {
-      const newCompleted = new Set(completedQuestions);
-      newCompleted.add(questionIndex);
-      setCompletedQuestions(newCompleted);
+  // Handle item completion (question or roleplay)
+  const handleItemComplete = useCallback(
+    (itemIndex: number) => {
+      const newCompleted = new Set(completedItems);
+      newCompleted.add(itemIndex);
+      setCompletedItems(newCompleted);
 
-      if (newCompleted.size === questions.length) {
-        // All questions answered -- complete the test
+      if (newCompleted.size === assessableItems.length) {
+        // All items complete -- finish the test
         setTestState("completed");
         onTestTakingComplete();
 
-        // Trigger feedback if enabled
-        if (onFeedbackTrigger) {
-          // Fetch all answers from API
+        // Trigger feedback if enabled (only include question answers)
+        if (onFeedbackTrigger && questionItems.length > 0) {
           Promise.all(
-            questions.map((q) => {
+            questionItems.map((q) => {
               const questionId = `${moduleSlug}:${sectionIndex}:${q.segmentIndex}`;
               return getResponses({ moduleSlug, questionId }, isAuthenticated);
             }),
           )
             .then((results) => {
-              const pairs = questions.map((q, idx) => {
-                // API returns newest-first; find the completed response
+              const pairs = questionItems.map((q, idx) => {
                 const completed = results[idx].responses.find(
                   (r) => r.completed_at !== null,
                 );
@@ -173,8 +217,7 @@ export default function TestSection({
               onFeedbackTrigger(pairs);
             })
             .catch(() => {
-              // Still trigger feedback with whatever we have
-              const pairs = questions.map((q) => ({
+              const pairs = questionItems.map((q) => ({
                 question: q.segment.content,
                 answer: "(could not load answer)",
               }));
@@ -199,24 +242,27 @@ export default function TestSection({
               onMarkComplete(response);
             })
             .catch(() => {
-              // Still mark locally complete even if API fails
               onMarkComplete();
             });
         }
       } else {
-        // Advance to next unanswered question
-        let nextIndex = questionIndex + 1;
-        while (nextIndex < questions.length && newCompleted.has(nextIndex)) {
+        // Advance to next incomplete item
+        let nextIndex = itemIndex + 1;
+        while (
+          nextIndex < assessableItems.length &&
+          newCompleted.has(nextIndex)
+        ) {
           nextIndex++;
         }
-        if (nextIndex < questions.length) {
-          setCurrentQuestionIndex(nextIndex);
+        if (nextIndex < assessableItems.length) {
+          setCurrentItemIndex(nextIndex);
         }
       }
     },
     [
-      completedQuestions,
-      questions,
+      completedItems,
+      assessableItems,
+      questionItems,
       onTestTakingComplete,
       onMarkComplete,
       onFeedbackTrigger,
@@ -238,14 +284,29 @@ export default function TestSection({
     );
   }
 
+  // Build a human-readable count for the Begin screen
+  const questionCount = questionItems.length;
+  const roleplayCount = assessableItems.length - questionCount;
+
   // Begin screen (not_started)
   if (testState === "not_started") {
+    const itemDescParts: string[] = [];
+    if (questionCount > 0) {
+      itemDescParts.push(
+        `${questionCount} question${questionCount !== 1 ? "s" : ""}`,
+      );
+    }
+    if (roleplayCount > 0) {
+      itemDescParts.push(
+        `${roleplayCount} roleplay${roleplayCount !== 1 ? "s" : ""}`,
+      );
+    }
+    const itemDesc = itemDescParts.join(" and ");
+
     return (
       <div className="py-12 px-4">
         <div className="max-w-content mx-auto text-center">
-          <p className="text-stone-600 text-lg mb-6">
-            {questions.length} question{questions.length !== 1 ? "s" : ""}
-          </p>
+          <p className="text-stone-600 text-lg mb-6">{itemDesc}</p>
           <button
             onClick={handleBegin}
             className="px-8 py-2.5 bg-stone-800 text-white rounded-lg hover:bg-stone-700 transition-colors font-medium"
@@ -257,30 +318,50 @@ export default function TestSection({
     );
   }
 
-  // In-progress or completed: render all questions
+  // In-progress or completed: render all assessable items
   return (
     <div className="py-6 px-4">
       <div className="max-w-content mx-auto">
-        {questions.map((q, qIndex) => (
-          <TestQuestionCard
-            key={q.segmentIndex}
-            question={q.segment}
-            questionIndex={qIndex}
-            questionCount={questions.length}
-            isActive={
-              testState === "in_progress" && qIndex === currentQuestionIndex
-            }
-            isCompleted={completedQuestions.has(qIndex)}
-            isRevealed={
-              qIndex <= currentQuestionIndex || completedQuestions.has(qIndex)
-            }
-            moduleSlug={moduleSlug}
-            sectionIndex={sectionIndex}
-            segmentIndex={q.segmentIndex}
-            isAuthenticated={isAuthenticated}
-            onComplete={() => handleQuestionComplete(qIndex)}
-          />
-        ))}
+        {assessableItems.map((item, itemIndex) => {
+          const isActive =
+            testState === "in_progress" && itemIndex === currentItemIndex;
+          const isCompleted = completedItems.has(itemIndex);
+          const isRevealed =
+            itemIndex <= currentItemIndex || completedItems.has(itemIndex);
+
+          if (item.type === "question") {
+            return (
+              <TestQuestionCard
+                key={item.segmentIndex}
+                question={item.segment}
+                questionIndex={itemIndex}
+                questionCount={assessableItems.length}
+                isActive={isActive}
+                isCompleted={isCompleted}
+                isRevealed={isRevealed}
+                moduleSlug={moduleSlug}
+                sectionIndex={sectionIndex}
+                segmentIndex={item.segmentIndex}
+                isAuthenticated={isAuthenticated}
+                onComplete={() => handleItemComplete(itemIndex)}
+              />
+            );
+          } else {
+            return (
+              <TestRoleplayCard
+                key={item.segmentIndex}
+                segment={item.segment}
+                moduleSlug={moduleSlug}
+                itemIndex={itemIndex}
+                itemCount={assessableItems.length}
+                isActive={isActive}
+                isCompleted={isCompleted}
+                isRevealed={isRevealed}
+                onComplete={() => handleItemComplete(itemIndex)}
+              />
+            );
+          }
+        })}
       </div>
     </div>
   );
