@@ -15,7 +15,7 @@ import type {
 import type { ContentTier } from '../validator/tier.js';
 import { checkTierViolation } from '../validator/tier.js';
 import { parseModule, parsePageSegments } from '../parser/module.js';
-import { parseLearningOutcome } from '../parser/learning-outcome.js';
+import { parseLearningOutcome, type ParsedTestRef } from '../parser/learning-outcome.js';
 import { parseLens, type ParsedLens, type ParsedLensSegment, type ParsedLensSection } from '../parser/lens.js';
 import { parseWikilink, resolveWikilinkPath, findFileWithExtension, findSimilarFiles, formatSuggestion } from '../parser/wikilink.js';
 import { parseFrontmatter } from '../parser/frontmatter.js';
@@ -321,6 +321,63 @@ export function flattenModule(
 }
 
 /**
+ * Build a test Section from a ParsedTestRef with inline segments.
+ * Shared by both processLOWithSubmodules() and flattenLearningOutcomeSection().
+ */
+function buildTestSection(
+  testRef: ParsedTestRef,
+  loId: string | null,
+  loName: string | null,
+  loPath: string,
+  files: Map<string, string>,
+  visitedPaths: Set<string>,
+  tierMap: Map<string, ContentTier> | undefined,
+  errors: ContentError[]
+): Section | null {
+  if (!testRef.segments.length) return null;
+
+  const testSegments: Segment[] = [];
+  const stubLensSection: ParsedLensSection = {
+    type: 'page',
+    title: 'Test',
+    segments: [],
+    line: 0,
+  };
+
+  for (const parsedSegment of testRef.segments) {
+    const segmentResult = convertSegment(
+      parsedSegment,
+      stubLensSection,
+      loPath,
+      files,
+      new Set(visitedPaths),
+      tierMap
+    );
+    errors.push(...segmentResult.errors);
+    if (segmentResult.segment) {
+      testSegments.push(segmentResult.segment);
+    }
+  }
+
+  if (testSegments.length === 0) return null;
+
+  const hasFeedback = testSegments.some(
+    (s) => s.type === 'question' && s.feedback
+  );
+  return {
+    type: 'test',
+    meta: { title: 'Test' },
+    segments: testSegments,
+    optional: false,
+    ...(hasFeedback && { feedback: true }),
+    contentId: null,
+    learningOutcomeId: loId,
+    learningOutcomeName: loName,
+    videoId: null,
+  };
+}
+
+/**
  * Check if a Learning Outcome section resolves to an LO with submodules.
  * If so, emit boundary markers + sections. Returns null if no submodules.
  */
@@ -473,6 +530,18 @@ function processLOWithSubmodules(
         contentId: lens.id ?? null,
         videoId: videoId ?? null,
       } as Section);
+    }
+
+    // Process test section if present in this submodule
+    if (sub.test) {
+      const lo = loResult.learningOutcome!;
+      const testSection = buildTestSection(
+        sub.test,
+        lo.id ?? null,
+        loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
+        loPath, files, visitedPaths, tierMap, errors
+      );
+      if (testSection) items.push(testSection);
     }
   }
 
@@ -762,47 +831,14 @@ function flattenLearningOutcomeSection(
   }
 
   // After lens processing, add test section if present with inline segments
-  if (lo.test && lo.test.segments.length > 0) {
-    const testSegments: Segment[] = [];
-    for (const parsedSegment of lo.test.segments) {
-      // For test sections with question/chat/text segments, no source file resolution needed
-      // Create a minimal stub lensSection since these segment types don't need it
-      const stubLensSection: ParsedLensSection = {
-        type: 'page',
-        title: 'Test',
-        segments: [],
-        line: 0,
-      };
-      const segmentResult = convertSegment(
-        parsedSegment,
-        stubLensSection,
-        loPath,
-        files,
-        visitedPaths,
-        tierMap
-      );
-      errors.push(...segmentResult.errors);
-      if (segmentResult.segment) {
-        testSegments.push(segmentResult.segment);
-      }
-    }
-
-    if (testSegments.length > 0) {
-      const hasFeedback = testSegments.some(
-        (s) => s.type === 'question' && s.feedback
-      );
-      sections.push({
-        type: 'test',
-        meta: { title: 'Test' },
-        segments: testSegments,
-        optional: false,
-        ...(hasFeedback && { feedback: true }),
-        contentId: null,
-        learningOutcomeId: lo.id ?? null,
-        learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
-        videoId: null,
-      });
-    }
+  if (lo.test) {
+    const testSection = buildTestSection(
+      lo.test,
+      lo.id ?? null,
+      loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
+      loPath, files, visitedPaths, tierMap, errors
+    );
+    if (testSection) sections.push(testSection);
   }
 
   return { sections, errors };

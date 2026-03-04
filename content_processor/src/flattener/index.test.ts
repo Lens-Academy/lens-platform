@@ -1450,6 +1450,71 @@ source:: [[../Learning Outcomes/lo2.md|LO2]]
       expect(mod.contentId).toBe('e2883472-3994-43a1-88a2-b4f64f70b210');
     }
   });
+
+  it('F12: test section inside submodule appears in flattened output', () => {
+    const files = buildFiles({
+      'modules/approaches.md': `---
+slug: existing-approaches
+title: Existing Approaches
+---
+
+# Learning Outcome:
+source:: [[../Learning Outcomes/lo-with-test.md|LO With Test]]
+`,
+      'Learning Outcomes/lo-with-test.md': `---
+id: lo-test-id
+---
+
+# Submodule: Mechanistic Interpretability
+
+## Lens:
+source:: [[../Lenses/lens-mi.md]]
+
+# Submodule: Agent Foundations
+
+## Lens:
+source:: [[../Lenses/lens-af.md]]
+
+## Test:
+id:: test-inline-id
+
+#### Text
+content:: We'll be asking you some questions about this module
+
+#### Question
+feedback:: true
+content:: Explain each of these terms in one sentence.
+assessment-instructions:: Check that the student gives clear definitions.
+max-chars:: 900
+`,
+      'Lenses/lens-mi.md': pageLens('mi-id', 'Mech Interp', 'MI content.'),
+      'Lenses/lens-af.md': pageLens('af-id', 'Agent Foundations', 'AF content.'),
+    });
+
+    const result = flattenModule('modules/approaches.md', files);
+
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    expect(result.modules).toHaveLength(2);
+
+    // Agent Foundations submodule should have the test section
+    const af = result.modules.find(m => m.slug.includes('agent'));
+    expect(af).toBeDefined();
+
+    // Should have 1 lens + 1 test = 2 sections
+    expect(af!.sections).toHaveLength(2);
+
+    const testSection = af!.sections.find(s => s.type === 'test');
+    expect(testSection).toBeDefined();
+    expect(testSection!.learningOutcomeId).toBe('lo-test-id');
+    expect(testSection!.feedback).toBe(true);
+    expect(testSection!.segments).toHaveLength(2); // text + question
+
+    // MI submodule should NOT have a test (only 1 lens)
+    const mi = result.modules.find(m => m.slug.includes('mechanistic'));
+    expect(mi).toBeDefined();
+    expect(mi!.sections).toHaveLength(1);
+    expect(mi!.sections.every(s => s.type !== 'test')).toBe(true);
+  });
 });
 
 describe('processContent with submodules', () => {
