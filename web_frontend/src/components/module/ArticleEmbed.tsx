@@ -83,22 +83,41 @@ function CollapsibleBlock({
 
   const handleCollapse = () => {
     if (containerRef.current) {
-      const headerOffset =
-        parseInt(
-          getComputedStyle(document.documentElement)
-            .getPropertyValue("--header-offset")
-            .trim(),
-          10,
-        ) || 0;
+      // Walk up the DOM to find the first in-flow sibling after the collapsed
+      // block. The CollapsibleBlock container is often the last child of
+      // several wrapper divs, so we may need to ascend a few levels.
+      let nextEl: Element | null = null;
+      let el: Element | null = containerRef.current;
+      while (el && !nextEl) {
+        let sib = el.nextElementSibling;
+        while (sib) {
+          const pos = getComputedStyle(sib).position;
+          if (pos !== "absolute" && pos !== "fixed") {
+            nextEl = sib;
+            break;
+          }
+          sib = sib.nextElementSibling;
+        }
+        if (!nextEl) el = el.parentElement;
+      }
 
-      const rect = containerRef.current.getBoundingClientRect();
+      if (nextEl) {
+        // Smoothly scroll so nextEl is near the top of the viewport,
+        // pushing the collapsible section off-screen above.
+        const nextElTop = nextEl.getBoundingClientRect().top + window.scrollY;
+        const targetScrollY = nextElTop - window.innerHeight * 0.1;
+        window.scrollTo({ top: Math.max(0, targetScrollY), behavior: "smooth" });
 
-      // Snap viewport so the container top sits just below the sticky header.
-      // The sticky [...] header stays visually stationary while content
-      // collapses below it.
-      if (rect.top < headerOffset) {
-        const targetScrollY = rect.top + window.scrollY - headerOffset;
-        window.scrollTo({ top: targetScrollY, behavior: "instant" });
+        // Collapse after the scroll animation finishes (off-screen).
+        let done = false;
+        const doCollapse = () => {
+          if (done) return;
+          done = true;
+          setIsOpen(false);
+        };
+        window.addEventListener("scrollend", doCollapse, { once: true });
+        setTimeout(doCollapse, 600);
+        return;
       }
     }
 
