@@ -139,7 +139,9 @@ export default function ModuleOverview({
                   ? "Article"
                   : stage.type === "page"
                     ? "Page"
-                    : "Video")}
+                    : stage.type === "test"
+                      ? "Test"
+                      : "Video")}
           </div>
         </div>
       </div>
