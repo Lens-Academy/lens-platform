@@ -1126,6 +1126,35 @@ content:: Hello
       expect(tierError?.category).toBe('production');
     });
 
+    it('errors when production course references WIP module whose slug differs from filename', () => {
+      const files = new Map([
+        ['courses/prod-course-3.md', `---
+slug: prod-course-3
+title: Production Course 3
+---
+# Module: [[../modules/wip-module-file.md|WIP Module]]
+`],
+        ['modules/wip-module-file.md', `---
+slug: different-slug
+title: WIP Module
+tags: [wip]
+---
+# Page: Intro
+## Text
+content:: Hello
+`],
+      ]);
+
+      const result = processContent(files);
+
+      const tierError = result.errors.find(e =>
+        e.file === 'courses/prod-course-3.md' &&
+        e.message.includes('WIP')
+      );
+      expect(tierError).toBeDefined();
+      expect(tierError?.category).toBe('production');
+    });
+
     it('does NOT error when WIP course references WIP module', () => {
       const files = new Map([
         ['courses/draft-course.md', `---

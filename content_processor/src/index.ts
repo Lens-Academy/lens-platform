@@ -512,11 +512,9 @@ export function processContent(files: Map<string, string>): ProcessResult {
     for (const item of course.progression) {
       if (item.type !== 'module' || !item.slug) continue;
 
-      // Construct expected module path and find it in files
-      const expectedModulePath = `modules/${item.slug}.md`;
-      const modulePath = findFileWithExtension(expectedModulePath, files) ?? expectedModulePath;
+      const modulePath = slugToPath.get(item.slug);
 
-      if (tierMap.has(modulePath)) {
+      if (modulePath && tierMap.has(modulePath)) {
         const parentTier = tierMap.get(coursePath) ?? 'production';
         const childTier = tierMap.get(modulePath) ?? 'production';
         const violation = checkTierViolation(coursePath, parentTier, modulePath, childTier, 'module');
