@@ -9,7 +9,7 @@ import { navigate } from "vike/client/router";
 import { Menu, X } from "lucide-react";
 import { getCourseProgress } from "../api/modules";
 import type { CourseProgress, ModuleInfo } from "../types/course";
-import CourseSidebar from "../components/course/CourseSidebar";
+import CourseTimeline from "../components/course/CourseTimeline";
 import ModuleOverview from "../components/course/ModuleOverview";
 import { generateHeadingId } from "../utils/extractHeadings";
 import { DiscordInviteButton, UserMenu } from "../components/nav";
@@ -213,7 +213,7 @@ export default function CourseOverview({
         {/* Desktop: inline sidebar */}
         {!isMobile && (
           <div className="w-72 flex-shrink-0">
-            <CourseSidebar
+            <CourseTimeline
               courseTitle={courseProgress.course.title}
               units={courseProgress.units}
               selectedModuleSlug={selectedModule?.slug ?? null}
@@ -257,7 +257,7 @@ export default function CourseOverview({
               </div>
               {/* Sidebar content */}
               <div className="h-[calc(100%-4rem)]">
-                <CourseSidebar
+                <CourseTimeline
                   courseTitle={courseProgress.course.title}
                   units={courseProgress.units}
                   selectedModuleSlug={selectedModule?.slug ?? null}
