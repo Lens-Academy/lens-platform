@@ -403,3 +403,171 @@ async def test_claim_chat_sessions_skips_conflicting_content(
         )
 
     assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_claim_skips_matching_roleplay_session(
+    test_user_id, anonymous_token, content_id
+):
+    """Claim skips sessions where user already has one for same (module, roleplay)."""
+    roleplay_id = uuid.uuid4()
+
+    # User already has active session for (module_X, roleplay_Y)
+    async with get_transaction() as conn:
+        await get_or_create_chat_session(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            module_id=content_id,
+            roleplay_id=roleplay_id,
+        )
+
+    # Anonymous session for same (module_X, roleplay_Y)
+    async with get_transaction() as conn:
+        await get_or_create_chat_session(
+            conn,
+            user_id=None,
+            anonymous_token=anonymous_token,
+            module_id=content_id,
+            roleplay_id=roleplay_id,
+        )
+
+    # Claim should skip the conflicting one
+    async with get_transaction() as conn:
+        count = await claim_chat_sessions(
+            conn,
+            anonymous_token=anonymous_token,
+            user_id=test_user_id,
+        )
+
+    assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_claim_roleplay_no_conflict_with_tutor(
+    test_user_id, anonymous_token, content_id
+):
+    """Claim succeeds when user has tutor session but anon has roleplay session for same module."""
+    roleplay_id = uuid.uuid4()
+
+    # User has tutor session (roleplay_id=None) for module_X
+    async with get_transaction() as conn:
+        await get_or_create_chat_session(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            module_id=content_id,
+            roleplay_id=None,
+        )
+
+    # Anonymous has roleplay session for same module_X
+    async with get_transaction() as conn:
+        await get_or_create_chat_session(
+            conn,
+            user_id=None,
+            anonymous_token=anonymous_token,
+            module_id=content_id,
+            roleplay_id=roleplay_id,
+        )
+
+    # Claim should succeed — different roleplay_id means no conflict
+    async with get_transaction() as conn:
+        count = await claim_chat_sessions(
+            conn,
+            anonymous_token=anonymous_token,
+            user_id=test_user_id,
+        )
+
+    assert count == 1
+
+
+@pytest.mark.asyncio
+async def test_claim_mixed_some_claimed_some_skipped(
+    test_user_id, anonymous_token, content_id
+):
+    """Claim transfers non-conflicting sessions and skips conflicting ones."""
+    content_id_b = uuid.uuid4()
+
+    # User has active session for module_A
+    async with get_transaction() as conn:
+        await get_or_create_chat_session(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            module_id=content_id,
+        )
+
+    # Anonymous has sessions for module_A AND module_B
+    async with get_transaction() as conn:
+        anon_a = await get_or_create_chat_session(
+            conn,
+            user_id=None,
+            anonymous_token=anonymous_token,
+            module_id=content_id,
+        )
+
+    async with get_transaction() as conn:
+        anon_b = await get_or_create_chat_session(
+            conn,
+            user_id=None,
+            anonymous_token=anonymous_token,
+            module_id=content_id_b,
+        )
+
+    # Claim — module_B should be claimed, module_A skipped
+    async with get_transaction() as conn:
+        count = await claim_chat_sessions(
+            conn,
+            anonymous_token=anonymous_token,
+            user_id=test_user_id,
+        )
+
+    assert count == 1
+
+    # Verify module_B session now belongs to user
+    async with get_transaction() as conn:
+        session_b = await get_chat_session(conn, session_id=anon_b["session_id"])
+    assert session_b["user_id"] == test_user_id
+    assert session_b["anonymous_token"] is None
+
+    # Verify module_A session still anonymous
+    async with get_transaction() as conn:
+        session_a = await get_chat_session(conn, session_id=anon_a["session_id"])
+    assert session_a["anonymous_token"] == anonymous_token
+
+
+@pytest.mark.asyncio
+async def test_claim_ignores_archived_user_sessions(
+    test_user_id, anonymous_token, content_id
+):
+    """Claim succeeds when user's existing session for same module is archived."""
+    # User has session for module_X, then archives it
+    async with get_transaction() as conn:
+        user_session = await get_or_create_chat_session(
+            conn,
+            user_id=test_user_id,
+            anonymous_token=None,
+            module_id=content_id,
+        )
+
+    async with get_transaction() as conn:
+        await archive_chat_session(conn, session_id=user_session["session_id"])
+
+    # Anonymous has session for same module_X
+    async with get_transaction() as conn:
+        await get_or_create_chat_session(
+            conn,
+            user_id=None,
+            anonymous_token=anonymous_token,
+            module_id=content_id,
+        )
+
+    # Claim should succeed — archived session doesn't block
+    async with get_transaction() as conn:
+        count = await claim_chat_sessions(
+            conn,
+            anonymous_token=anonymous_token,
+            user_id=test_user_id,
+        )
+
+    assert count == 1
