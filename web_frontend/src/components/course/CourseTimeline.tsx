@@ -43,14 +43,22 @@ function getUnitStatus(unit: UnitInfo): UnitStatus {
   return "not_started";
 }
 
-function StatusDot({ status }: { status: ModuleInfo["status"] | UnitStatus }) {
+function StatusDot({
+  status,
+  small,
+}: {
+  status: ModuleInfo["status"] | UnitStatus;
+  small?: boolean;
+}) {
   const color =
     status === "completed" || status === "in_progress"
       ? "bg-blue-500"
       : "bg-slate-300";
   return (
     <div className="w-5 h-5 flex items-center justify-center">
-      <div className={`w-2 h-2 rounded-full ${color}`} />
+      <div
+        className={`rounded-full ${color} ${small ? "w-1.5 h-1.5" : "w-2 h-2"}`}
+      />
     </div>
   );
 }
@@ -157,10 +165,10 @@ export default function CourseTimeline({
             return (
               <div
                 key={unitIdx}
-                className={`relative rounded-xl transition-all duration-200 ${
+                className={`relative rounded-xl border-2 transition-all duration-200 ${
                   isExpanded
-                    ? "border-2 border-slate-200 shadow-sm -mx-1.5 px-1 my-0.5 py-1"
-                    : ""
+                    ? "border-slate-200 shadow-sm -mx-1.5 px-1 my-0.5 py-1"
+                    : "border-transparent mx-0 px-0 my-0 py-0"
                 }`}
               >
                 {/* Unit header row */}
@@ -315,39 +323,42 @@ function renderUnitModules(
                 <span className="text-xs text-slate-400">
                   {completed}/{children.length}
                 </span>
-                {isParentExpanded ? (
-                  <ChevronDown className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                ) : (
-                  <ChevronRight className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                )}
+                <ChevronRight
+                  className={`w-3 h-3 text-slate-400 flex-shrink-0 transition-transform duration-200 ${
+                    isParentExpanded ? "rotate-90" : ""
+                  }`}
+                />
               </div>
             </div>
           </button>
 
-          {isParentExpanded && (
-            <div className="relative ml-[24px]">
-              <div className="absolute left-[9px] top-0 bottom-0 w-px bg-slate-200 z-10 pointer-events-none" />
+          <div
+            className={`grid transition-[grid-template-rows] duration-200 ${
+              isParentExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+            }`}
+          >
+            <div className="overflow-hidden">
               {children.map((child) => {
                 const isSelected = child.slug === selectedModuleSlug;
                 return (
                   <button
                     key={child.slug}
                     onClick={() => onModuleSelect(child)}
-                    className={`relative w-full flex items-center py-1.5 text-left transition-colors rounded-lg ${
+                    className={`relative w-full flex items-center py-1 text-left transition-colors rounded-lg ${
                       isSelected
                         ? "bg-slate-200/50 -mx-2 px-2 text-slate-900"
                         : "hover:bg-slate-100/70 -mx-2 px-2 text-slate-600"
                     }`}
                   >
                     <div className="relative z-20">
-                      <StatusDot status={child.status} />
+                      <StatusDot status={child.status} small />
                     </div>
-                    <span className="ml-3 text-sm truncate">{child.title}</span>
+                    <span className="ml-6 text-sm truncate">{child.title}</span>
                   </button>
                 );
               })}
             </div>
-          )}
+          </div>
         </div>,
       );
     } else {
