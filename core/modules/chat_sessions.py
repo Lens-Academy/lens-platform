@@ -217,34 +217,30 @@ async def claim_chat_sessions(
     """
     from sqlalchemy import text as sa_text
 
-    # Use an aliased reference for the correlated subquery.
-    # The outer UPDATE targets chat_sessions directly; the EXISTS subquery
-    # checks if the user already owns an active session with the same
-    # (module_id, roleplay_id) pair, using IS NOT DISTINCT FROM for NULL-safe
-    # comparison on roleplay_id.
-    anon_sessions = chat_sessions.alias("anon_sessions")
+    # Alias for the EXISTS subquery (user's existing sessions).
+    # The outer UPDATE targets chat_sessions directly; the alias is used in the
+    # EXISTS subquery to check if the user already owns an active session with
+    # the same (module_id, roleplay_id) pair.
+    user_sessions = chat_sessions.alias("user_sessions")
 
-    # Build the NOT EXISTS condition: skip anonymous sessions where the user
-    # already has a matching active session
     already_exists = exists(
-        select(chat_sessions.c.session_id).where(
+        select(user_sessions.c.session_id).where(
             and_(
-                chat_sessions.c.user_id == user_id,
-                chat_sessions.c.archived_at.is_(None),
+                user_sessions.c.user_id == user_id,
+                user_sessions.c.archived_at.is_(None),
                 sa_text(
-                    "chat_sessions.module_id IS NOT DISTINCT FROM anon_sessions.module_id "
-                    "AND chat_sessions.roleplay_id IS NOT DISTINCT FROM anon_sessions.roleplay_id"
+                    "user_sessions.module_id IS NOT DISTINCT FROM chat_sessions.module_id "
+                    "AND user_sessions.roleplay_id IS NOT DISTINCT FROM chat_sessions.roleplay_id"
                 ),
             )
         )
     )
 
-    # Only claim sessions where the user doesn't already have a matching active session
     result = await conn.execute(
-        anon_sessions.update()
+        chat_sessions.update()
         .where(
             and_(
-                anon_sessions.c.anonymous_token == anonymous_token,
+                chat_sessions.c.anonymous_token == anonymous_token,
                 ~already_exists,
             )
         )
