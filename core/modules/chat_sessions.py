@@ -241,7 +241,7 @@ async def claim_chat_sessions(
 
     # Only claim sessions where the user doesn't already have a matching active session
     result = await conn.execute(
-        anon_sessions.update()
+        update(anon_sessions)
         .where(
             and_(
                 anon_sessions.c.anonymous_token == anonymous_token,

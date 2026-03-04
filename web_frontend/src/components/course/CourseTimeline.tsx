@@ -83,13 +83,12 @@ export default function CourseTimeline({
 
   const [expandedUnits, setExpandedUnits] = useState<Set<number>>(() => {
     const expanded = new Set<number>();
-    for (let i = 0; i < units.length; i++) {
-      const status = getUnitStatus(units[i]);
-      if (status === "in_progress") expanded.add(i);
-      if (i === upcomingIndex) expanded.add(i);
+    if (upcomingIndex >= 0) {
+      expanded.add(upcomingIndex);
+    } else if (units.length > 0) {
+      // No upcoming unit — expand the first one
+      expanded.add(0);
     }
-    // If nothing expanded, expand the first unit
-    if (expanded.size === 0 && units.length > 0) expanded.add(0);
     return expanded;
   });
 
@@ -168,13 +167,15 @@ export default function CourseTimeline({
                 className={`relative rounded-xl border-2 transition-all duration-200 ${
                   isExpanded
                     ? "border-slate-200 shadow-sm -mx-1.5 px-1 my-0.5 py-1"
-                    : "border-transparent mx-0 px-0 my-0 py-0"
+                    : "border-transparent -mx-0.5 px-0 my-0 py-0"
                 }`}
               >
                 {/* Unit header row */}
                 <button
                   onClick={() => toggleUnit(unitIdx)}
-                  className="relative w-full flex items-center py-1.5 text-left"
+                  className={`relative w-full flex items-center text-left transition-[padding] duration-200 ${
+                    isExpanded ? "py-1" : "py-1.5"
+                  }`}
                 >
                   {/* Dot: scales away when expanded */}
                   <div className="relative z-20 shrink-0">
@@ -346,8 +347,8 @@ function renderUnitModules(
                     onClick={() => onModuleSelect(child)}
                     className={`relative w-full flex items-center py-1 text-left transition-colors rounded-lg ${
                       isSelected
-                        ? "bg-slate-200/50 -mx-2 px-2 text-slate-900"
-                        : "hover:bg-slate-100/70 -mx-2 px-2 text-slate-600"
+                        ? "bg-slate-200/50 text-slate-900"
+                        : "hover:bg-slate-100/70 text-slate-600"
                     }`}
                   >
                     <div className="relative z-20">
