@@ -19,6 +19,7 @@ from core.modules import (
 )
 from core.modules.flattened_types import FlattenedModule
 from core.modules.progress import get_module_progress
+from core.queries.meetings import get_meeting_dates_for_user
 from web_api.auth import get_optional_user
 from core import get_or_create_user
 
@@ -146,16 +147,20 @@ async def get_course_progress(
             except ModuleNotFoundError:
                 continue
 
-    # Query progress for all lens UUIDs (if user_id or anonymous_token is available)
+    # Query progress and meeting dates
     progress_map: dict[UUID, dict] = {}
-    if all_lens_ids and (user_id is not None or anonymous_token is not None):
+    meeting_dates: dict[int, str] = {}
+    if user_id is not None or anonymous_token is not None:
         async with get_connection() as conn:
-            progress_map = await get_module_progress(
-                conn,
-                user_id=user_id,
-                anonymous_token=anonymous_token,
-                lens_ids=all_lens_ids,
-            )
+            if all_lens_ids:
+                progress_map = await get_module_progress(
+                    conn,
+                    user_id=user_id,
+                    anonymous_token=anonymous_token,
+                    lens_ids=all_lens_ids,
+                )
+            if user_id is not None:
+                meeting_dates = await get_meeting_dates_for_user(conn, user_id)
 
     # Build units by splitting progression on MeetingMarker objects
     units = []
@@ -169,6 +174,7 @@ async def get_course_progress(
                 units.append(
                     {
                         "meetingNumber": item.number,
+                        "meetingDate": meeting_dates.get(item.number),
                         "modules": current_modules,
                     }
                 )
@@ -245,6 +251,7 @@ async def get_course_progress(
         units.append(
             {
                 "meetingNumber": meeting_num,
+                "meetingDate": meeting_dates.get(meeting_num),
                 "modules": current_modules,
             }
         )

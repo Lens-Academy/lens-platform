@@ -1,6 +1,6 @@
 /**
  * Vertical timeline view for course overview.
- * Shows modules and meetings as nodes along a timeline with fake dates (prototype).
+ * Shows modules and meetings as nodes along a vertical timeline.
  */
 
 import { useState } from "react";
@@ -26,21 +26,27 @@ type TimelineItem =
     }
   | { kind: "meeting"; number: number; date: string };
 
-// Prototype: Meeting 1 = Mar 6 2026, weekly cadence, modules due 3 days before
+function formatMeetingDate(isoDate: string): string {
+  const d = new Date(isoDate);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 function buildTimeline(units: UnitInfo[]): TimelineItem[] {
   const items: TimelineItem[] = [];
-  const base = new Date(2026, 2, 6); // Mar 6
 
   for (const unit of units) {
     const mn = unit.meetingNumber;
-    const meetingDate = mn !== null ? new Date(base) : null;
-    if (meetingDate && mn !== null) {
-      meetingDate.setDate(base.getDate() + (mn - 1) * 7);
-    }
-
-    const dueDate = meetingDate ? new Date(meetingDate) : null;
-    if (dueDate) dueDate.setDate(dueDate.getDate() - 3);
-    const dueDateStr = dueDate ? fmt(dueDate) : "";
+    const meetingDateLabel = unit.meetingDate
+      ? formatMeetingDate(unit.meetingDate)
+      : null;
+    const dueDate = unit.meetingDate
+      ? formatMeetingDate(
+          new Date(
+            new Date(unit.meetingDate).getTime() - 3 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+        )
+      : null;
+    const weekLabel = dueDate ?? (mn !== null ? `Week ${mn}` : "");
 
     // Group modules with same parentSlug (mirrors CourseSidebar logic)
     let i = 0;
@@ -62,24 +68,24 @@ function buildTimeline(units: UnitInfo[]): TimelineItem[] {
           parentSlug,
           parentTitle,
           children,
-          dueDate: dueDateStr,
+          dueDate: weekLabel,
         });
       } else {
-        items.push({ kind: "module", module: mod, dueDate: dueDateStr });
+        items.push({ kind: "module", module: mod, dueDate: weekLabel });
         i++;
       }
     }
 
-    if (mn !== null && meetingDate) {
-      items.push({ kind: "meeting", number: mn, date: fmt(meetingDate) });
+    if (mn !== null) {
+      items.push({
+        kind: "meeting",
+        number: mn,
+        date: meetingDateLabel ?? "",
+      });
     }
   }
 
   return items;
-}
-
-function fmt(d: Date): string {
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function StatusDot({ status }: { status: ModuleInfo["status"] }) {
@@ -153,14 +159,16 @@ export default function CourseTimeline({
                   <div className="relative z-20 w-5 h-5 flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-slate-300" />
                   </div>
-                  {/* Meeting label - subtle inline text */}
+                  {/* Meeting label - aligned with module text */}
                   <div className="ml-3 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] text-slate-400 w-10 flex-shrink-0">
-                        {item.date}
+                        {item.date || `#${item.number}`}
                       </span>
                       <Users className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="text-[11px] text-slate-400">#{item.number}</span>
+                      {item.date && (
+                        <span className="text-[11px] text-slate-400">#{item.number}</span>
+                      )}
                     </div>
                   </div>
                 </div>

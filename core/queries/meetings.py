@@ -106,6 +106,38 @@ async def get_group_member_user_ids(
     return [row.user_id for row in result]
 
 
+async def get_meeting_dates_for_user(
+    conn: AsyncConnection,
+    user_id: int,
+) -> dict[int, str]:
+    """Get meeting dates for user's active group as {meeting_number: iso_date}."""
+    from ..enums import GroupUserStatus
+
+    # Find user's active group
+    group_result = await conn.execute(
+        select(groups_users.c.group_id).where(
+            groups_users.c.user_id == user_id,
+            groups_users.c.status == GroupUserStatus.active,
+        )
+    )
+    group_row = group_result.first()
+    if not group_row:
+        return {}
+
+    # Get all meetings for the group
+    result = await conn.execute(
+        select(meetings.c.meeting_number, meetings.c.scheduled_at)
+        .where(meetings.c.group_id == group_row.group_id)
+        .order_by(meetings.c.meeting_number)
+    )
+
+    return {
+        row.meeting_number: row.scheduled_at.isoformat()
+        for row in result
+        if row.meeting_number is not None
+    }
+
+
 async def get_future_meetings_for_group(
     conn: AsyncConnection,
     group_id: int,

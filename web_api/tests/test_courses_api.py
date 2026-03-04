@@ -185,6 +185,46 @@ def test_get_course_progress_returns_units():
     assert isinstance(module["optional"], bool)
 
 
+def test_get_course_progress_includes_meeting_dates():
+    """Should include meetingDate in units when user has meeting dates."""
+    from unittest.mock import AsyncMock, patch
+
+    mock_meeting_dates = {1: "2026-03-06T15:00:00+00:00"}
+
+    with (
+        patch(
+            "web_api.routes.courses.get_optional_user",
+            new_callable=AsyncMock,
+            return_value={"sub": "test_discord_id"},
+        ),
+        patch(
+            "web_api.routes.courses.get_or_create_user",
+            new_callable=AsyncMock,
+            return_value={"user_id": 42},
+        ),
+        patch(
+            "web_api.routes.courses.get_meeting_dates_for_user",
+            new_callable=AsyncMock,
+            return_value=mock_meeting_dates,
+        ),
+    ):
+        response = client.get("/api/courses/default/progress")
+
+    assert response.status_code == 200
+    data = response.json()
+    units = data["units"]
+
+    # Unit 1 (meetingNumber=1) should have meetingDate set
+    unit1 = next((u for u in units if u["meetingNumber"] == 1), None)
+    assert unit1 is not None
+    assert unit1["meetingDate"] == "2026-03-06T15:00:00+00:00"
+
+    # Unit 2 (meetingNumber=2) should have meetingDate null
+    unit2 = next((u for u in units if u["meetingNumber"] == 2), None)
+    if unit2:
+        assert unit2["meetingDate"] is None
+
+
 def test_get_course_progress_invalid_course():
     """Should return 404 for invalid course when multiple courses exist.
 
