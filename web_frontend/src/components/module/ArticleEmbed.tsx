@@ -81,19 +81,41 @@ function CollapsibleBlock({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleCollapseFromBottom = () => {
+  const handleCollapse = () => {
+    if (containerRef.current) {
+      const headerOffset =
+        parseInt(
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--header-offset")
+            .trim(),
+          10,
+        ) || 0;
+
+      const rect = containerRef.current.getBoundingClientRect();
+
+      // If the container top is above or behind the sticky header, scroll up
+      if (rect.top < headerOffset) {
+        const targetScrollY = rect.top + window.scrollY - headerOffset;
+        window.scrollTo({ top: targetScrollY, behavior: "smooth" });
+      }
+    }
+
     setIsOpen(false);
-    containerRef.current?.scrollIntoView({
-      block: "nearest",
-      behavior: "smooth",
-    });
+  };
+
+  const handleToggle = () => {
+    if (isOpen) {
+      handleCollapse();
+    } else {
+      setIsOpen(true);
+    }
   };
 
   return (
-    <div ref={containerRef} className={className}>
+    <div ref={containerRef} className={className} style={{ overflowAnchor: "none" }}>
       <div className="sticky top-[var(--header-offset)] z-10 transition-[top] duration-300 bg-[#fffdf5] flex items-center gap-1 py-1">
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleToggle}
           className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1"
         >
           <svg
@@ -125,7 +147,7 @@ function CollapsibleBlock({
           {children}
           {endMarker && (
             <button
-              onClick={handleCollapseFromBottom}
+              onClick={handleCollapse}
               className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 mt-2 pl-5 flex items-center gap-1 transition-colors"
             >
               <svg
