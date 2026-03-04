@@ -497,7 +497,7 @@
       "line": 11,
       "message": "Text outside of a field:: definition will be ignored: \"Now let's read an overview of the main concepts regarding AI...\"",
       "suggestion": "Place this text inside a field (e.g., content:: your text), or remove it",
-      "severity": "warning",
+      "severity": "error",
       "category": "production"
     },
     {
@@ -513,7 +513,7 @@
       "line": 11,
       "message": "Text outside of a field:: definition will be ignored: \"Now let's read an overview of the main concepts regarding AI...\"",
       "suggestion": "Place this text inside a field (e.g., content:: your text), or remove it",
-      "severity": "warning",
+      "severity": "error",
       "category": "production"
     }
   ],

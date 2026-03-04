@@ -1478,4 +1478,51 @@ World
       expect(slugErrors).toHaveLength(0);
     });
   });
+
+  describe('required id:: on Page sections', () => {
+    it('errors when Page section is missing id:: field', () => {
+      const files = new Map([
+        ['modules/no-page-id.md', `---
+slug: no-page-id
+title: No Page ID
+---
+
+# Page: Missing ID
+## Text
+content:: Hello
+`],
+      ]);
+
+      const result = processContent(files);
+
+      expect(result.errors.some(e =>
+        e.file === 'modules/no-page-id.md' &&
+        e.severity === 'error' &&
+        e.message.includes('missing required id::')
+      )).toBe(true);
+    });
+
+    it('does not error when Page section has id:: field', () => {
+      const files = new Map([
+        ['modules/with-page-id.md', `---
+slug: with-page-id
+title: With Page ID
+---
+
+# Page: Has ID
+id:: 550e8400-e29b-41d4-a716-446655440099
+
+## Text
+content:: Hello
+`],
+      ]);
+
+      const result = processContent(files);
+
+      expect(result.errors.filter(e =>
+        e.file === 'modules/with-page-id.md' &&
+        e.message.includes('missing required id::')
+      )).toHaveLength(0);
+    });
+  });
 });

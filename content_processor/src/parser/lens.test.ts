@@ -1107,7 +1107,7 @@ content: This uses single colon.
       const result = parseLens(content, 'Lenses/test.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
+        e.severity === 'error' &&
         e.message.includes('content') &&
         e.message.includes('::')
       )).toBe(true);

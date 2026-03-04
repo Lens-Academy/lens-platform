@@ -308,6 +308,15 @@ export function processContent(files: Map<string, string>): ProcessResult {
         const rawParse = parseModule(content, path);
         if (rawParse.module) {
           for (const section of rawParse.module.sections) {
+            if (section.type === 'page' && !section.fields.id) {
+              errors.push({
+                file: path,
+                line: section.line,
+                message: `Page section '${section.title}' is missing required id:: field`,
+                suggestion: 'Add an id:: field with a UUID (e.g., id:: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)',
+                severity: 'error',
+              });
+            }
             if (section.type === 'page' && section.fields.id) {
               uuidEntries.push({
                 uuid: section.fields.id,
