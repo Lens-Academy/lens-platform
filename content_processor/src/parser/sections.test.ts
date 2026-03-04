@@ -672,4 +672,194 @@ source:: [[../Learning Outcomes/lo1.md|LO 1]]
       expect(freeTextWarnings).toHaveLength(1);
     });
   });
+
+  describe('submodule sections', () => {
+    it('parses # Submodule: Title at H1', () => {
+      const content = `
+# Submodule: Welcome
+slug:: welcome
+
+## Page: Welcome to AI Safety
+### Text
+content:: We begin by examining...
+
+## Learning Outcome:
+source:: [[../Learning Outcomes/trial for Testing]]
+`;
+
+      const validTypes = new Set([...MODULE_SECTION_TYPES, 'submodule']);
+      const result = parseSections(content, 1, validTypes);
+
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].type).toBe('submodule');
+      expect(result.sections[0].title).toBe('Welcome');
+      expect(result.sections[0].level).toBe(1);
+    });
+
+    it('parses ## Submodule: at H2 (LO context)', () => {
+      const content = `
+## Submodule: Basics
+
+### Lens:
+source:: [[../Lenses/lens-1]]
+
+## Submodule: Deep Dive
+
+### Lens:
+source:: [[../Lenses/lens-2]]
+`;
+
+      const validTypes = new Set([...LO_SECTION_TYPES, 'submodule']);
+      const result = parseSections(content, 2, validTypes);
+
+      expect(result.sections).toHaveLength(2);
+      expect(result.sections[0].type).toBe('submodule');
+      expect(result.sections[0].title).toBe('Basics');
+      expect(result.sections[0].level).toBe(2);
+      expect(result.sections[1].type).toBe('submodule');
+      expect(result.sections[1].title).toBe('Deep Dive');
+      expect(result.sections[1].level).toBe(2);
+    });
+
+    it('recursively parses children at level+1', () => {
+      const content = `
+# Submodule: Welcome
+
+## Page: Welcome to AI Safety
+id:: abc-123
+
+## Learning Outcome:
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`;
+
+      const validTypes = new Set([...MODULE_SECTION_TYPES, 'submodule']);
+      const result = parseSections(content, 1, validTypes);
+
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].type).toBe('submodule');
+      expect(result.sections[0].children).toBeDefined();
+      expect(result.sections[0].children).toHaveLength(2);
+      expect(result.sections[0].children![0].type).toBe('page');
+      expect(result.sections[0].children![0].title).toBe('Welcome to AI Safety');
+      expect(result.sections[0].children![0].level).toBe(2);
+      expect(result.sections[0].children![1].type).toBe('learning-outcome');
+      expect(result.sections[0].children![1].level).toBe(2);
+    });
+
+    it('extracts slug:: field from submodule', () => {
+      const content = `
+# Submodule: Research Methods
+slug:: research
+`;
+
+      const validTypes = new Set([...MODULE_SECTION_TYPES, 'submodule']);
+      const result = parseSections(content, 1, validTypes);
+
+      expect(result.sections[0].fields.slug).toBe('research');
+    });
+
+    it('reports level on each ParsedSection', () => {
+      const content = `
+# Page: First
+content:: hello
+
+# Learning Outcome: Second
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`;
+
+      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+
+      expect(result.sections[0].level).toBe(1);
+      expect(result.sections[1].level).toBe(1);
+    });
+
+    it('detects parent-level submodule at headerLevel - 1', () => {
+      // Scanning at h2, find `# Submodule:` at h1, verify children parsed at h2
+      const content = `
+# Submodule: Basics
+
+## Lens:
+source:: [[../Lenses/lens-1]]
+
+# Submodule: Deep Dive
+
+## Lens:
+source:: [[../Lenses/lens-2]]
+`;
+
+      const validTypes = new Set([...LO_SECTION_TYPES, 'submodule']);
+      const result = parseSections(content, 2, validTypes);
+
+      expect(result.sections).toHaveLength(2);
+      expect(result.sections[0].type).toBe('submodule');
+      expect(result.sections[0].title).toBe('Basics');
+      expect(result.sections[0].level).toBe(1);
+      expect(result.sections[0].children).toBeDefined();
+      expect(result.sections[0].children).toHaveLength(1);
+      expect(result.sections[0].children![0].type).toBe('lens');
+      expect(result.sections[0].children![0].level).toBe(2);
+      expect(result.sections[1].type).toBe('submodule');
+      expect(result.sections[1].title).toBe('Deep Dive');
+      expect(result.sections[1].children).toHaveLength(1);
+    });
+
+    it('parent-level submodule does not fire wrong-level warning', () => {
+      const content = `
+# Submodule: Group A
+
+## Lens:
+source:: [[../Lenses/lens-1]]
+`;
+
+      const validTypes = new Set([...LO_SECTION_TYPES, 'submodule']);
+      const result = parseSections(content, 2, validTypes);
+
+      const wrongLevelWarnings = result.errors.filter(e =>
+        e.message.includes('heading level')
+      );
+      expect(wrongLevelWarnings).toHaveLength(0);
+    });
+
+    it('does not detect parent-level for non-submodule types', () => {
+      // `# Lens:` at h1 when scanning at h2 → wrong-level warning, not a section
+      const content = `
+# Lens: Stray
+source:: [[../Lenses/lens-1]]
+`;
+
+      const validTypes = new Set([...LO_SECTION_TYPES, 'submodule']);
+      const result = parseSections(content, 2, validTypes);
+
+      // Should NOT be parsed as a section
+      expect(result.sections).toHaveLength(0);
+      // Should produce wrong-level warning
+      expect(result.errors.some(e =>
+        e.message.includes('heading level') &&
+        e.message.includes('Lens')
+      )).toBe(true);
+    });
+
+    it('rejects ## Submodule inside # Submodule (no nesting)', () => {
+      const content = `
+# Submodule: Outer
+
+## Submodule: Inner
+`;
+
+      const validTypes = new Set([...MODULE_SECTION_TYPES, 'submodule']);
+      const result = parseSections(content, 1, validTypes);
+
+      // The inner ## Submodule should be rejected as an unknown type
+      // because children exclude 'submodule' from valid types
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].type).toBe('submodule');
+      expect(result.sections[0].children).toBeDefined();
+      // The inner submodule should produce an error, not a child section
+      const innerErrors = result.errors.filter(e =>
+        e.message.includes('Unknown section type') &&
+        e.message.includes('Submodule')
+      );
+      expect(innerErrors.length).toBeGreaterThan(0);
+    });
+  });
 });

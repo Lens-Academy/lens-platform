@@ -48,12 +48,15 @@ export function validateUuids(entries: UuidEntry[]): UuidValidationResult {
     // Duplicate detection
     const existing = seenUuids.get(lowerUuid);
     if (existing) {
-      errors.push({
-        file: entry.file,
-        message: `Duplicate UUID '${entry.uuid}' - also used in ${existing.file} (${existing.field})`,
-        suggestion: 'Each UUID must be unique across the entire vault',
-        severity: 'error',
-      });
+      // Allow same-file, same-field duplicates (e.g., contentId shared across submodule groups)
+      if (existing.file !== entry.file || existing.field !== entry.field) {
+        errors.push({
+          file: entry.file,
+          message: `Duplicate UUID '${entry.uuid}' - also used in ${existing.file} (${existing.field})`,
+          suggestion: 'Each UUID must be unique across the entire vault',
+          severity: 'error',
+        });
+      }
     } else {
       seenUuids.set(lowerUuid, entry);
     }

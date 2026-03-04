@@ -229,6 +229,8 @@ async def get_course_progress(
                     "slug": parsed.slug,
                     "title": parsed.title,
                     "optional": item.optional,
+                    "parentSlug": parsed.parent_slug,
+                    "parentTitle": parsed.parent_title,
                     "stages": stages,
                     "status": status,
                     "completedLenses": completed_count,

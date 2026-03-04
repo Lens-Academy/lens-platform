@@ -1,7 +1,7 @@
 // src/parser/learning-outcome.ts
 import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
-import { parseSections, LO_SECTION_TYPES } from './sections.js';
+import { parseSections, LO_SECTION_TYPES, type ParsedSection } from './sections.js';
 import { parseWikilink, resolveWikilinkPath, hasRelativePath } from './wikilink.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
@@ -19,11 +19,19 @@ export interface ParsedTestRef {
   segments: ParsedLensSegment[];  // Inline question/chat/text segments
 }
 
+export interface ParsedSubmoduleGroup {
+  title: string;
+  customSlug?: string;
+  lenses: ParsedLensRef[];
+  test?: ParsedTestRef;
+}
+
 export interface ParsedLearningOutcome {
   id: string;
   lenses: ParsedLensRef[];
   test?: ParsedTestRef;
   discussion?: string;
+  submodules?: ParsedSubmoduleGroup[];
 }
 
 export interface LearningOutcomeParseResult {
@@ -65,8 +73,9 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
     return { learningOutcome: null, errors };
   }
 
-  // Step 2: Parse sections with H2 level and LO_SECTION_TYPES ('lens', 'test')
-  const sectionsResult = parseSections(body, 2, LO_SECTION_TYPES, file);
+  // Step 2: Parse sections with H2 level and LO_SECTION_TYPES + 'submodule'
+  const loSectionTypes = new Set([...LO_SECTION_TYPES, 'submodule']);
+  const sectionsResult = parseSections(body, 2, loSectionTypes, file);
 
   // Adjust line numbers to account for frontmatter
   for (const error of sectionsResult.errors) {
@@ -80,34 +89,68 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
     section.line += bodyStartLine - 1;
   }
 
-  // Step 3: Extract lens refs with source field and optional flag
-  const lenses: ParsedLensRef[] = [];
-  let testRef: ParsedTestRef | undefined;
-
-  for (const section of sectionsResult.sections) {
-    // Detect likely typos in field names
+  // Helper: extract a lens ref from a parsed section
+  function extractLensRef(section: ParsedSection): ParsedLensRef | null {
     const typoWarnings = detectFieldTypos(section.fields, file, section.line);
     errors.push(...typoWarnings);
 
-    if (section.type === 'lens') {
-      const source = section.fields.source;
-      if (!source) {
-        errors.push({
-          file,
-          line: section.line,
-          message: 'Lens section missing source:: field',
-          suggestion: "Add 'source:: [[../Lenses/filename.md|Display]]' to the lens section",
-          severity: 'error',
-        });
-        continue;
-      }
+    const source = section.fields.source;
+    if (!source) {
+      errors.push({
+        file,
+        line: section.line,
+        message: 'Lens section missing source:: field',
+        suggestion: "Add 'source:: [[../Lenses/filename.md|Display]]' to the lens section",
+        severity: 'error',
+      });
+      return null;
+    }
 
-      // Parse wikilink and resolve path
+    const wikilink = parseWikilink(source);
+    if (!wikilink || wikilink.error) {
+      const suggestion = wikilink?.correctedPath
+        ? `Did you mean '[[${wikilink.correctedPath}]]'?`
+        : 'Use format [[../Lenses/filename.md|Display Text]]';
+      errors.push({
+        file,
+        line: section.line,
+        message: wikilink?.error
+          ? `${wikilink.error} in source:: field: ${source}`
+          : `Invalid wikilink format in source:: field: ${source}`,
+        suggestion,
+        severity: 'error',
+      });
+      return null;
+    }
+
+    if (!hasRelativePath(wikilink.path)) {
+      errors.push({
+        file,
+        line: section.line,
+        message: `source:: path must be relative (contain /): ${wikilink.path}`,
+        suggestion: 'Use format [[../Lenses/filename.md|Display Text]] with relative path',
+        severity: 'error',
+      });
+      return null;
+    }
+
+    const resolvedPath = resolveWikilinkPath(wikilink.path, file);
+    const optional = section.fields.optional?.toLowerCase() === 'true';
+
+    return { source, resolvedPath, optional };
+  }
+
+  // Helper: extract test ref from a parsed section
+  function extractTestRef(section: ParsedSection): ParsedTestRef | undefined {
+    const source = section.fields.source;
+    let resolvedPath: string | undefined;
+
+    if (source) {
       const wikilink = parseWikilink(source);
       if (!wikilink || wikilink.error) {
         const suggestion = wikilink?.correctedPath
           ? `Did you mean '[[${wikilink.correctedPath}]]'?`
-          : 'Use format [[../Lenses/filename.md|Display Text]]';
+          : 'Use format [[../Tests/filename.md|Display Text]]';
         errors.push({
           file,
           line: section.line,
@@ -117,89 +160,101 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
           suggestion,
           severity: 'error',
         });
-        continue;
+        return undefined;
       }
 
-      // Require relative path (must contain /)
-      if (!hasRelativePath(wikilink.path)) {
-        errors.push({
-          file,
-          line: section.line,
-          message: `source:: path must be relative (contain /): ${wikilink.path}`,
-          suggestion: 'Use format [[../Lenses/filename.md|Display Text]] with relative path',
-          severity: 'error',
-        });
-        continue;
+      resolvedPath = resolveWikilinkPath(wikilink.path, file);
+    }
+
+    const { segments: rawSegments, errors: segmentErrors } = parseSegments(
+      section.body,
+      section.line + 1,
+      file
+    );
+    for (const err of segmentErrors) {
+      if (err.line) {
+        err.line += bodyStartLine - 1;
       }
+    }
+    errors.push(...segmentErrors);
 
-      const resolvedPath = resolveWikilinkPath(wikilink.path, file);
-      const optional = section.fields.optional?.toLowerCase() === 'true';
-
-      lenses.push({
-        source,
-        resolvedPath,
-        optional,
-      });
-    } else if (section.type === 'test') {
-      const source = section.fields.source;
-      let resolvedPath: string | undefined;
-
-      if (source) {
-        // Parse wikilink and resolve path
-        const wikilink = parseWikilink(source);
-        if (!wikilink || wikilink.error) {
-          const suggestion = wikilink?.correctedPath
-            ? `Did you mean '[[${wikilink.correctedPath}]]'?`
-            : 'Use format [[../Tests/filename.md|Display Text]]';
-          errors.push({
-            file,
-            line: section.line,
-            message: wikilink?.error
-              ? `${wikilink.error} in source:: field: ${source}`
-              : `Invalid wikilink format in source:: field: ${source}`,
-            suggestion,
-            severity: 'error',
-          });
-          continue;
-        }
-
-        resolvedPath = resolveWikilinkPath(wikilink.path, file);
-      }
-
-      // Parse inline H4 segments (#### Question, #### Chat, #### Text) from body
-      const { segments: rawSegments, errors: segmentErrors } = parseSegments(
-        section.body,
-        section.line + 1,
-        file
-      );
-      // Adjust segment error line numbers for frontmatter offset
-      for (const err of segmentErrors) {
+    const testSegments: ParsedLensSegment[] = [];
+    for (const rawSeg of rawSegments) {
+      const { segment, errors: conversionErrors } = convertSegment(rawSeg, 'page', file);
+      for (const err of conversionErrors) {
         if (err.line) {
           err.line += bodyStartLine - 1;
         }
       }
-      errors.push(...segmentErrors);
+      errors.push(...conversionErrors);
+      if (segment) {
+        testSegments.push(segment);
+      }
+    }
 
-      const testSegments: ParsedLensSegment[] = [];
-      for (const rawSeg of rawSegments) {
-        const { segment, errors: conversionErrors } = convertSegment(rawSeg, 'page', file);
-        // Adjust conversion error line numbers for frontmatter offset
-        for (const err of conversionErrors) {
-          if (err.line) {
-            err.line += bodyStartLine - 1;
+    return { source, resolvedPath, segments: testSegments };
+  }
+
+  // Step 3: Check for submodule sections
+  const hasSubmodules = sectionsResult.sections.some(s => s.type === 'submodule');
+  const lenses: ParsedLensRef[] = [];
+  let testRef: ParsedTestRef | undefined;
+  let submodules: ParsedSubmoduleGroup[] | undefined;
+
+  if (hasSubmodules) {
+    // All-or-nothing: reject top-level lens/test sections when submodules exist
+    const orphanedSections = sectionsResult.sections.filter(
+      s => s.type !== 'submodule'
+    );
+    if (orphanedSections.length > 0) {
+      errors.push({
+        file,
+        line: orphanedSections[0].line,
+        message: 'Content found outside submodule boundaries — when using Submodule markers, all content must be inside a submodule',
+        suggestion: 'Move this content into a Submodule section',
+        severity: 'error',
+      });
+    }
+
+    submodules = [];
+    for (const section of sectionsResult.sections) {
+      if (section.type !== 'submodule') continue;
+
+      const group: ParsedSubmoduleGroup = {
+        title: section.title,
+        customSlug: section.fields.slug,
+        lenses: [],
+      };
+
+      // Process children (lens/test sections at H3)
+      if (section.children) {
+        for (const child of section.children) {
+          if (child.type === 'lens') {
+            const ref = extractLensRef(child);
+            if (ref) {
+              group.lenses.push(ref);
+              lenses.push(ref); // Also add to flat list for validation
+            }
+          } else if (child.type === 'test') {
+            group.test = extractTestRef(child);
           }
-        }
-        errors.push(...conversionErrors);
-        if (segment) {
-          testSegments.push(segment);
         }
       }
 
-      testRef = {
-        source,
-        resolvedPath,
-        segments: testSegments,
-      };
+      submodules.push(group);
+    }
+  } else {
+    // Normal path: extract lens refs from top-level sections
+    for (const section of sectionsResult.sections) {
+      const typoWarnings = detectFieldTypos(section.fields, file, section.line);
+      errors.push(...typoWarnings);
+
+      if (section.type === 'lens') {
+        const ref = extractLensRef(section);
+        if (ref) lenses.push(ref);
+      } else if (section.type === 'test') {
+        testRef = extractTestRef(section);
+      }
     }
   }
 
@@ -220,6 +275,7 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
     lenses,
     test: testRef,
     discussion: frontmatter.discussion as string | undefined,
+    submodules,
   };
 
   return { learningOutcome, errors };

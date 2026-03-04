@@ -27,6 +27,9 @@ export type ModuleInfo = {
   stages: StageInfo[];
   status: ModuleStatus;
   optional: boolean;
+  // Submodule fields (present when module was split from a parent)
+  parentSlug?: string | null;
+  parentTitle?: string | null;
   // Legacy fields (may still be present)
   currentStageIndex?: number | null;
   sessionId?: number | null;
