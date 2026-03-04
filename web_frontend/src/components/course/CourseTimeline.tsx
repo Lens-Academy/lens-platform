@@ -89,20 +89,14 @@ function buildTimeline(units: UnitInfo[]): TimelineItem[] {
 }
 
 function StatusDot({ status }: { status: ModuleInfo["status"] }) {
-  if (status === "completed") {
-    return (
-      <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-        <Check className="w-3 h-3 text-white" strokeWidth={3} />
-      </div>
-    );
-  }
-  if (status === "in_progress") {
-    return (
-      <div className="w-5 h-5 rounded-full bg-blue-500" />
-    );
-  }
+  const color =
+    status === "completed" || status === "in_progress"
+      ? "bg-blue-500"
+      : "bg-slate-300";
   return (
-    <div className="w-5 h-5 rounded-full border-2 border-slate-300 bg-slate-50" />
+    <div className="w-5 h-5 flex items-center justify-center">
+      <div className={`w-2 h-2 rounded-full ${color}`} />
+    </div>
   );
 }
 
