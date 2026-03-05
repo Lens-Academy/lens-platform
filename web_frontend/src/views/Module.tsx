@@ -1064,23 +1064,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         return;
       }
 
-      // Navigate to next section
-      if (module && sectionIndex < module.sections.length - 1) {
-        const nextIndex = sectionIndex + 1;
-        if (viewMode === "continuous") {
-          handleStageClick(nextIndex);
-        } else {
-          setCurrentSectionIndex(nextIndex);
-        }
-      }
+      // Don't auto-navigate — let the user click "Next section" when ready
     },
     [
       completedSections.size,
       isAuthenticated,
       hasPromptedAuth,
-      module,
-      viewMode,
-      handleStageClick,
       updateCompletedFromLenses,
     ],
   );

@@ -160,12 +160,7 @@ export default function NarrativeChatSection({
     }
   }, [activated, activatedWithHistory, hasInteracted, messages.length]);
 
-  // Scroll chat container into view when user first interacts
-  useEffect(() => {
-    if (hasInteracted && containerRef.current) {
-      containerRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
-    }
-  }, [hasInteracted]);
+  // No auto-scroll — let the user scroll to the chat section themselves
 
   // Auto-resize textarea
   useEffect(() => {
