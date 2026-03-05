@@ -65,9 +65,9 @@ export function ModuleHeader({
       `}
       style={{ paddingTop: "var(--safe-top)" }}
     >
-      <div className="relative flex items-center justify-between px-4 py-3">
+      <div className="grid grid-cols-[auto_1fr_auto] items-center px-4 py-3">
         {/* Left: Hamburger + Logo + Title */}
-        <div className="flex items-center gap-2 min-w-0 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
           <button
             onMouseDown={onMenuToggle}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all active:scale-95 shrink-0"
@@ -91,50 +91,49 @@ export function ModuleHeader({
           </h1>
         </div>
 
-        {/* Center: Simple prev/next navigation (mobile only, hidden for single-section) */}
-        {isMobile && stages.length > 1 && (
-          <div className="flex items-center gap-1 shrink-0 mx-2">
-            <button
-              onClick={onPrevious}
-              disabled={!canGoPrevious}
-              className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
-              aria-label="Previous section"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
+        {/* Center: navigation (mobile: prev/next, desktop: progress bar) */}
+        <div className="justify-self-center min-w-0">
+          {isMobile && stages.length > 1 ? (
+            <div className="flex items-center gap-1 shrink-0 mx-2">
+              <button
+                onClick={onPrevious}
+                disabled={!canGoPrevious}
+                className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
+                aria-label="Previous section"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-600" />
+              </button>
 
-            <span className="text-sm text-gray-500 tabular-nums min-w-[3rem] text-center">
-              {displayIndex}/{totalStages}
-            </span>
+              <span className="text-sm text-gray-500 tabular-nums min-w-[3rem] text-center">
+                {displayIndex}/{totalStages}
+              </span>
 
-            <button
-              onClick={onNext}
-              disabled={!canGoNext}
-              className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
-              aria-label="Next section"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        )}
-
-        {/* Center: StageProgressBar (desktop only, hidden for single-section) */}
-        {!isMobile && stages.length > 1 && (
-          <div className="absolute left-1/2 -translate-x-1/2">
-            <StageProgressBar
-              stages={stages}
-              completedStages={completedStages}
-              currentSectionIndex={currentSectionIndex}
-              onStageClick={onStageClick}
-              onPrevious={onPrevious}
-              onNext={onNext}
-              canGoPrevious={canGoPrevious}
-              canGoNext={canGoNext}
-              compact
-              testModeActive={testModeActive}
-            />
-          </div>
-        )}
+              <button
+                onClick={onNext}
+                disabled={!canGoNext}
+                className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
+                aria-label="Next section"
+              >
+                <ChevronRight className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+          ) : !isMobile && stages.length > 1 ? (
+            <div className="overflow-x-clip">
+              <StageProgressBar
+                stages={stages}
+                completedStages={completedStages}
+                currentSectionIndex={currentSectionIndex}
+                onStageClick={onStageClick}
+                onPrevious={onPrevious}
+                onNext={onNext}
+                canGoPrevious={canGoPrevious}
+                canGoNext={canGoNext}
+                compact
+                testModeActive={testModeActive}
+              />
+            </div>
+          ) : null}
+        </div>
 
         {/* Right: UserMenu only (skip button removed) */}
         <div className="flex items-center gap-1 md:gap-3 shrink-0">
