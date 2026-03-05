@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type {
   ChatMessage,
-  PendingMessage,
   ArticleData,
   Stage,
 } from "@/types/module";
@@ -16,8 +15,6 @@ import type {
 } from "@/types/module";
 import type { CourseProgress } from "@/types/course";
 import {
-  sendMessage,
-  getChatHistory,
   getNextModule,
   getModule,
   getCourseProgress,
@@ -27,6 +24,7 @@ import type { ModuleCompletionResult, LensProgress } from "@/api/modules";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
+import { useTutorChat } from "@/hooks/useTutorChat";
 import { markComplete } from "@/api/progress";
 import type { MarkCompleteResponse } from "@/api/progress";
 import AuthoredText from "@/components/module/AuthoredText";
@@ -54,7 +52,6 @@ import AuthPromptModal from "@/components/module/AuthPromptModal";
 import {
   trackModuleStarted,
   trackModuleCompleted,
-  trackChatMessageSent,
 } from "@/analytics";
 import { Skeleton, SkeletonText } from "@/components/Skeleton";
 import { getSectionSlug, findSectionBySlug } from "@/utils/sectionSlug";
@@ -175,63 +172,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     });
     setCompletedSections(completed);
   }, []);
-
-  // Chat state (shared across all chat sections)
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(
-    null,
-  );
-  const [streamingContent, setStreamingContent] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Fetch chat history when module loads
-  useEffect(() => {
-    if (!module) return;
-
-    // Clear messages when switching modules
-    setMessages([]);
-
-    // Track if effect is still active (prevent race condition)
-    let cancelled = false;
-
-    async function loadHistory() {
-      try {
-        const history = await getChatHistory(module!.slug);
-        if (cancelled) return; // Don't update if module changed
-
-        if (history.messages.length > 0) {
-          // Strip auto-sent assistant messages at the start of history (before the
-          // first user message). These were AI-generated opening preambles that are
-          // now replaced by the authored Lens bubble (prefixMessage).
-          const firstUserIdx = history.messages.findIndex(
-            (m) => m.role === "user",
-          );
-          const messagesToShow =
-            firstUserIdx === -1
-              ? [] // Only auto-sent messages exist — skip all
-              : history.messages.slice(firstUserIdx);
-
-          setMessages(
-            messagesToShow.map((m) => ({
-              role: m.role as "user" | "assistant" | "course-content",
-              content: m.content,
-            })),
-          );
-        }
-        // Messages already cleared above if history is empty
-      } catch (e) {
-        if (!cancelled) {
-          console.error("[Module] Failed to load chat history:", e);
-        }
-      }
-    }
-
-    loadHistory();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [module]);
 
   // Progress tracking
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -444,19 +384,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     null,
   );
 
-  // Chat sidebar state
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // Ref to keep isSidebarOpen accessible inside scroll listener without stale closure
-  const isSidebarOpenRef = useRef(false);
-  useEffect(() => {
-    isSidebarOpenRef.current = isSidebarOpen;
-  }, [isSidebarOpen]);
-  // True when sidebar was auto-closed by done-reading (scroll-up can reopen it)
-  const sidebarAutoClosedRef = useRef(false);
-  // Ref to the DoneReadingButton wrapper for scroll-position detection
+  // Ref to the DoneReadingButton wrapper (used as ref in JSX)
   const doneReadingBtnRef = useRef<HTMLDivElement>(null);
   // Whether NarrativeChatSection should activate with full history after transfer
-  const [activateNarrativeChat, setActivateNarrativeChat] = useState(false);
+  // (kept as local constant until Task 6 removes NarrativeChatSection entirely)
+  const activateNarrativeChat = false;
 
   // TOC portal container for 3-column grid layout (set by callback ref)
   const [tocContainer, setTocContainer] = useState<HTMLElement | null>(null);
@@ -600,22 +532,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     currentSection?.type === "lens-article" ||
     currentSection?.type === "article";
 
-  // Find chat segment in current article section for sidebar send handler
-  const sidebarChatSegmentIndex = useMemo(() => {
-    if (!currentSection || !isArticleSection) return -1;
-    const segments =
-      "segments" in currentSection ? currentSection.segments : [];
-    return segments?.findIndex((s) => s.type === "chat") ?? -1;
-  }, [currentSection, isArticleSection]);
-
-  // Whether the current section has a post-article chat segment to transfer to
-  const sectionHasChatSegment = useMemo(() => {
-    if (!currentSection || !isArticleSection) return false;
-    if (!("segments" in currentSection) || !currentSection.segments)
-      return false;
-    return currentSection.segments.some((s) => s.type === "chat");
-  }, [currentSection, isArticleSection]);
-
   // --- Debug overlay: track current visible segment ---
   const isDebugMode =
     typeof window !== "undefined" &&
@@ -634,6 +550,44 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     [],
   );
 
+  // Unified activity tracking for current section (5 min inactivity timeout)
+  // Covers article, video, and chat — triggerActivity() keeps it alive during chat
+  const { triggerActivity: triggerChatActivity } = useActivityTracker({
+    contentId: currentSection?.contentId ?? undefined,
+    loId:
+      currentSection && "learningOutcomeId" in currentSection
+        ? currentSection.learningOutcomeId
+        : undefined,
+    moduleId: moduleContentId,
+    isAuthenticated,
+    contentTitle: currentSection?.meta?.title ?? undefined,
+    moduleTitle: module?.title,
+    loTitle:
+      currentSection && "learningOutcomeName" in currentSection
+        ? (currentSection.learningOutcomeName ?? undefined)
+        : undefined,
+    inactivityTimeout: 300_000,
+    enabled: !!currentSection?.contentId,
+  });
+
+  // Chat state — centralised in useTutorChat hook
+  const {
+    messages, pendingMessage, streamingContent, isLoading,
+    sendMessage: handleSendMessage, retryMessage: handleRetryMessage,
+    inputText, setInputText,
+    isSidebarOpen, setSidebarOpen: setIsSidebarOpen,
+    sectionPrefixMessage, sidebarChatSegmentIndex,
+  } = useTutorChat({
+    moduleId,
+    module,
+    currentSectionIndex,
+    currentSegmentIndex,
+    currentSection,
+    isArticleSection,
+    triggerChatActivity,
+  });
+
+  // Debug overlay: scroll tracking effect
   useEffect(() => {
     if (!isDebugMode) return;
     let rafId = 0;
@@ -681,104 +635,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     const seg = currentSection.segments[currentSegmentIndex];
     if (!seg) return;
     setIsSidebarOpen(seg.type === "article-excerpt");
-  }, [isDebugMode, isArticleSection, currentSection, currentSegmentIndex]);
-
-  // Authored opening question for the current section's chat — shown as "Lens" message
-  // in both the sidebar and the NarrativeChatSection.
-  const sectionPrefixMessage = useMemo<ChatMessage | undefined>(() => {
-    if (!currentSection || !isArticleSection) return undefined;
-    if (!("segments" in currentSection) || !currentSection.segments)
-      return undefined;
-    const segs = currentSection.segments;
-    const lastExcerptIdx = segs.reduceRight(
-      (found, s, i) =>
-        found === -1 && s.type === "article-excerpt" ? i : found,
-      -1,
-    );
-    if (lastExcerptIdx === -1) return undefined;
-    const postExcerpt = segs.slice(lastExcerptIdx + 1);
-    const firstChatInPostIdx = postExcerpt.findIndex(
-      (s) => s.type === "chat",
-    );
-    if (firstChatInPostIdx <= 0) return undefined;
-    const content = postExcerpt
-      .slice(0, firstChatInPostIdx)
-      .filter((s) => s.type === "text")
-      .map((s) => ("content" in s ? s.content : ""))
-      .join("\n\n");
-    return content ? { role: "course-content", content } : undefined;
-  }, [currentSection, isArticleSection]);
-
-  // Close chat sidebar when leaving article sections
-  useEffect(() => {
-    if (!isArticleSection) setIsSidebarOpen(false);
-  }, [isArticleSection]);
-
-  // Auto-close sidebar when done reading; activate NarrativeChatSection with history.
-  // Uses isSidebarOpenRef (not state) to avoid re-running when sidebar reopens via scroll,
-  // which would create a close-reopen loop.
-  useEffect(() => {
-    if (!isArticleSection) return;
-    if (!doneReadingSections.has(currentSectionIndex)) return;
-    // Only auto-close once (first time done reading fires)
-    if (isSidebarOpenRef.current && !sidebarAutoClosedRef.current) {
-      setIsSidebarOpen(false);
-      sidebarAutoClosedRef.current = true;
-    }
-    if (sectionHasChatSegment) {
-      setActivateNarrativeChat(true);
-    }
-  }, [doneReadingSections, currentSectionIndex, isArticleSection, sectionHasChatSegment]);
-
-  // Reset per-section transfer state on section navigation
-  useEffect(() => {
-    sidebarAutoClosedRef.current = false;
-    setActivateNarrativeChat(false);
-  }, [currentSectionIndex]);
-
-  // Scroll listener: reopen sidebar when user scrolls back up to reading area
-  useEffect(() => {
-    if (!isArticleSection) return;
-    let prevScrollY = window.scrollY;
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      const scrollDelta = currentScrollY - prevScrollY;
-      prevScrollY = currentScrollY;
-      // Only act on meaningful upward scroll
-      if (scrollDelta >= -2) return;
-      if (!sidebarAutoClosedRef.current || isSidebarOpenRef.current) return;
-      const el = doneReadingBtnRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      // Reopen when DoneReadingButton is well back in viewport (user scrolled up past it)
-      if (rect.top > window.innerHeight * 0.5) {
-        setIsSidebarOpen(true);
-        sidebarAutoClosedRef.current = false;
-      }
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [isArticleSection]);
-
-  // Unified activity tracking for current section (5 min inactivity timeout)
-  // Covers article, video, and chat — triggerActivity() keeps it alive during chat
-  const { triggerActivity: triggerChatActivity } = useActivityTracker({
-    contentId: currentSection?.contentId ?? undefined,
-    loId:
-      currentSection && "learningOutcomeId" in currentSection
-        ? currentSection.learningOutcomeId
-        : undefined,
-    moduleId: moduleContentId,
-    isAuthenticated,
-    contentTitle: currentSection?.meta?.title ?? undefined,
-    moduleTitle: module?.title,
-    loTitle:
-      currentSection && "learningOutcomeName" in currentSection
-        ? (currentSection.learningOutcomeName ?? undefined)
-        : undefined,
-    inactivityTimeout: 300_000,
-    enabled: !!currentSection?.contentId,
-  });
+  }, [isDebugMode, isArticleSection, currentSection, currentSegmentIndex, setIsSidebarOpen]);
 
   // Fetch next module info when module completes
   useEffect(() => {
@@ -822,78 +679,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       trackModuleStarted(module.slug, module.title);
     }
   }, [module]);
-
-  // Track position for retry
-  const [lastPosition, setLastPosition] = useState<{
-    sectionIndex: number;
-    segmentIndex: number;
-  } | null>(null);
-
-  // Send message handler (shared across all chat sections)
-  const handleSendMessage = useCallback(
-    async (content: string, sectionIndex: number, segmentIndex: number) => {
-      // Track chat activity on message send
-      triggerChatActivity();
-
-      // Store position for potential retry
-      setLastPosition({ sectionIndex, segmentIndex });
-
-      if (content) {
-        setPendingMessage({ content, status: "sending" });
-        trackChatMessageSent(moduleId, content.length);
-      }
-      setIsLoading(true);
-      setStreamingContent("");
-
-      try {
-        let assistantContent = "";
-
-        // Use new position-based API
-        for await (const chunk of sendMessage(
-          moduleId, // slug
-          sectionIndex,
-          segmentIndex,
-          content,
-        )) {
-          if (chunk.type === "text" && chunk.content) {
-            assistantContent += chunk.content;
-            setStreamingContent(assistantContent);
-            triggerChatActivity(); // Keep user active while AI response streams
-          } else if (chunk.type === "error") {
-            throw new Error(chunk.message || "Chat failed");
-          }
-        }
-
-        // Update local display state
-        setMessages((prev) => [
-          ...prev,
-          ...(content ? [{ role: "user" as const, content }] : []),
-          { role: "assistant" as const, content: assistantContent },
-        ]);
-        setPendingMessage(null);
-        setStreamingContent("");
-      } catch {
-        if (content) {
-          setPendingMessage({ content, status: "failed" });
-        }
-        setStreamingContent("");
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [triggerChatActivity, moduleId],
-  );
-
-  const handleRetryMessage = useCallback(() => {
-    if (!pendingMessage || !lastPosition) return;
-    const content = pendingMessage.content;
-    setPendingMessage(null);
-    handleSendMessage(
-      content,
-      lastPosition.sectionIndex,
-      lastPosition.segmentIndex,
-    );
-  }, [pendingMessage, lastPosition, handleSendMessage]);
 
   // Scroll tracking with hybrid rule: >50% viewport OR fully visible, topmost wins
   // Only active in continuous mode
@@ -1948,10 +1733,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           >
             <ChatSidebar
               isOpen={isSidebarOpen}
-              onOpen={() => {
-                setIsSidebarOpen(true);
-                sidebarAutoClosedRef.current = false;
-              }}
+              onOpen={() => setIsSidebarOpen(true)}
               onClose={() => setIsSidebarOpen(false)}
               sectionTitle={currentSection?.meta?.title}
               messages={messages}
@@ -1971,6 +1753,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 )
               }
               onRetryMessage={handleRetryMessage}
+              inputText={inputText}
+              onInputTextChange={setInputText}
             />
           </div>
         </div>
