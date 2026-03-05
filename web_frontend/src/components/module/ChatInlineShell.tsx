@@ -13,6 +13,7 @@ import {
   useLayoutEffect,
   Fragment,
 } from "react";
+import { useScrollContainer } from "@/hooks/useScrollContainer";
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { renderMessage } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
@@ -49,6 +50,8 @@ export function ChatInlineShell({
   hasActiveInput,
   shellRef,
 }: ChatInlineShellProps) {
+  const pageScrollContainer = useScrollContainer();
+
   // View state reducer — centralized state transitions for chat view
   const [viewState, dispatch] = useReducer(
     chatViewReducer,
@@ -174,7 +177,7 @@ export function ChatInlineShell({
   const spacerHeight = isExpanded
     ? scrollContainerHeight
     : hasInteracted
-      ? Math.max(0, window.innerHeight - 160)
+      ? Math.max(0, (pageScrollContainer?.clientHeight ?? window.innerHeight) - 160)
       : 0;
 
   // Messages to display based on mode (normal vs expanded)
@@ -217,9 +220,10 @@ export function ChatInlineShell({
 
       const rect = wrapper.getBoundingClientRect();
       // How far the wrapper's original bottom extends below the viewport
+      const viewportH = pageScrollContainer?.clientHeight ?? window.innerHeight;
       const overflow = Math.max(
         0,
-        rect.top + wrapperMinHeight - window.innerHeight,
+        rect.top + wrapperMinHeight - viewportH,
       );
       const newReduction = Math.max(minHeightReductionRef.current, overflow);
 
@@ -230,9 +234,10 @@ export function ChatInlineShell({
       }
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [hasInteracted, isExpanded, wrapperMinHeight]);
+    const scrollTarget = pageScrollContainer ?? window;
+    scrollTarget.addEventListener("scroll", onScroll, { passive: true });
+    return () => scrollTarget.removeEventListener("scroll", onScroll);
+  }, [hasInteracted, isExpanded, wrapperMinHeight, pageScrollContainer]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;

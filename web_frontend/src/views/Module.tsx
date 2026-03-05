@@ -48,6 +48,7 @@ import type { ModuleDrawerHandle } from "@/components/module/ModuleDrawer";
 import { ChatSidebar } from "@/components/module/ChatSidebar";
 import ModuleCompleteModal from "@/components/module/ModuleCompleteModal";
 import AuthPromptModal from "@/components/module/AuthPromptModal";
+import { ScrollContainerContext } from "@/hooks/useScrollContainer";
 import {
   trackModuleStarted,
   trackModuleCompleted,
@@ -171,6 +172,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     });
     setCompletedSections(completed);
   }, []);
+
+  // Scroll container ref (setState as callback ref so re-render provides context)
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
 
   // Progress tracking
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -600,13 +604,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         if (best) setCurrentSegmentIndex(best.index);
       });
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
+    const target = scrollEl ?? window;
+    target.addEventListener("scroll", onScroll, { passive: true });
     onScroll(); // initial check
     return () => {
-      window.removeEventListener("scroll", onScroll);
+      target.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(rafId);
     };
-  }, [isDebugMode, currentSectionIndex]);
+  }, [isDebugMode, currentSectionIndex, scrollEl]);
 
   // Debug mode: auto-open sidebar only on article-excerpt segments, close on all others
   useEffect(() => {
@@ -727,22 +732,24 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     // Initial calculation (after refs are populated)
     const timeout = setTimeout(calculateCurrentSection, 0);
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const scrollTarget = scrollEl ?? window;
+    scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("resize", calculateCurrentSection);
 
     return () => {
       clearTimeout(timeout);
-      window.removeEventListener("scroll", handleScroll);
+      scrollTarget.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", calculateCurrentSection);
     };
-  }, [module, viewMode]);
+  }, [module, viewMode, scrollEl]);
 
   // Reset scroll position when navigating to a new section (paginated mode)
   useEffect(() => {
     if (viewMode === "paginated") {
-      window.scrollTo(0, 0);
+      if (scrollEl) scrollEl.scrollTop = 0;
+      else window.scrollTo(0, 0);
     }
-  }, [currentSectionIndex, viewMode]);
+  }, [currentSectionIndex, viewMode, scrollEl]);
 
   const handleStageClick = useCallback(
     (index: number) => {
@@ -1106,7 +1113,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }
 
   return (
-    <div className="min-h-dvh bg-white overflow-x-clip">
+    <div
+      ref={setScrollEl}
+      className={`h-dvh bg-white overflow-y-auto overflow-x-clip transition-[margin-right] duration-300 [transition-timing-function:var(--ease-spring)] ${
+        isArticleSection ? (isSidebarOpen ? "module-sidebar-open" : "module-sidebar-visible") : ""
+      }`}
+    >
+    <ScrollContainerContext.Provider value={scrollEl}>
       <ModuleHeader
         moduleTitle={module.title}
         stages={stages}
@@ -1639,41 +1652,27 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           );
         })}
 
-      {/* Chat sidebar: absolute-positioned to the RIGHT of the article wrapper,
-          mirroring how the TOC sits to the LEFT via absolute right-full.
-          Uses a sticky inner container so it stays in view while scrolling. */}
+      {/* Chat sidebar: fixed-positioned on desktop, handles its own layout */}
       {isArticleSection && (
-        <div
-          className={`absolute top-0 bottom-0 left-full ml-4 overflow-clip transition-[width] duration-300 [transition-timing-function:var(--ease-spring)] ${
-            isSidebarOpen ? "w-80 xl:w-96" : "w-10"
-          }`}
-        >
-          <div
-            className="sticky h-[calc(100dvh-var(--module-header-height))]"
-            style={{ top: "var(--module-header-height)" }}
-          >
-            <ChatSidebar
-              isOpen={isSidebarOpen}
-              onOpen={() => setIsSidebarOpen(true)}
-              onClose={() => setIsSidebarOpen(false)}
-              sectionTitle={currentSection?.meta?.title}
-              messages={messages}
-              prefixMessage={sectionPrefixMessage}
-              pendingMessage={pendingMessage}
-              streamingContent={streamingContent}
-              isLoading={isLoading}
-              onSendMessage={(content) =>
-                handleSendMessage(
-                  content,
-                  currentSectionIndex,
-                  sidebarChatSegmentIndex !== -1 ? sidebarChatSegmentIndex : 0,
-                )
-              }
-              onRetryMessage={handleRetryMessage}
-
-            />
-          </div>
-        </div>
+        <ChatSidebar
+          isOpen={isSidebarOpen}
+          onOpen={() => setIsSidebarOpen(true)}
+          onClose={() => setIsSidebarOpen(false)}
+          sectionTitle={currentSection?.meta?.title}
+          messages={messages}
+          prefixMessage={sectionPrefixMessage}
+          pendingMessage={pendingMessage}
+          streamingContent={streamingContent}
+          isLoading={isLoading}
+          onSendMessage={(content) =>
+            handleSendMessage(
+              content,
+              currentSectionIndex,
+              sidebarChatSegmentIndex !== -1 ? sidebarChatSegmentIndex : 0,
+            )
+          }
+          onRetryMessage={handleRetryMessage}
+        />
       )}
       </div>{/* /relative article wrapper */}
       </main>
@@ -1781,6 +1780,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           </div>
         );
       })()}
+    </ScrollContainerContext.Provider>
     </div>
   );
 }

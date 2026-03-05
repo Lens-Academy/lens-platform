@@ -149,19 +149,25 @@ body {
   }
 }
 
-/* When chat sidebar is open: reserve right margin space.
-   Mirrors the TOC's left margin reservation approach. */
+/* When chat sidebar is open: offset left margin to re-center on full viewport */
 .article-toc-margin.sidebar-open {
-  margin-right: max(
-    calc((100% - var(--container-content-padded)) / 2),
-    calc(var(--sidebar-width) + 20px)
+  margin-left: max(
+    calc((100% - var(--container-content-padded)) / 2 + var(--sidebar-width) / 2),
+    274px
   );
+  margin-right: 0;
 }
 
 @media (min-width: 1280px) {
   :root {
     --sidebar-width: 384px;
   }
+}
+
+/* Scroll container margin: reserve space for fixed sidebar */
+@media (min-width: 1024px) {
+  .module-sidebar-visible { margin-right: 40px; }
+  .module-sidebar-open { margin-right: var(--sidebar-width); }
 }
 
 

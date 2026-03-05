@@ -10,6 +10,7 @@
 
 import { useEffect, useCallback, useRef } from "react";
 import { useMedia } from "react-use";
+import { useScrollContainer } from "@/hooks/useScrollContainer";
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { ChatMessageList } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
@@ -43,6 +44,7 @@ export function ChatSidebar({
   onRetryMessage: _onRetryMessage,
 }: ChatSidebarProps) {
   const isMobile = useMedia("(max-width: 1023px)", false);
+  const scrollContainer = useScrollContainer();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleClose = useCallback(() => onClose(), [onClose]);
@@ -58,15 +60,16 @@ export function ChatSidebar({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isOpen, handleClose]);
 
-  // Lock body scroll when sidebar is open on mobile
+  // Lock scroll when sidebar is open on mobile
   useEffect(() => {
     if (isMobile && isOpen) {
-      document.body.style.overflow = "hidden";
+      const target = scrollContainer ?? document.body;
+      target.style.overflow = "hidden";
       return () => {
-        document.body.style.overflow = "";
+        target.style.overflow = "";
       };
     }
-  }, [isMobile, isOpen]);
+  }, [isMobile, isOpen, scrollContainer]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -210,14 +213,18 @@ export function ChatSidebar({
     );
   }
 
-  // ── Desktop/Tablet: content-only, parent handles positioning ──────
+  // ── Desktop/Tablet: fixed sidebar ────────────────────────────────
   return (
     <div
-      className={`overflow-hidden transition-[width,border-color] duration-300 [transition-timing-function:var(--ease-spring)] ${
+      className={`fixed right-0 z-30 overflow-hidden transition-[width,border-color] duration-300 [transition-timing-function:var(--ease-spring)] ${
         isOpen
           ? "w-80 xl:w-96 border-l border-gray-200"
           : "w-10 border-l border-transparent"
       }`}
+      style={{
+        top: "var(--module-header-height)",
+        height: "calc(100dvh - var(--module-header-height))",
+      }}
     >
       {isOpen ? (
         <div className="w-full h-full flex flex-col bg-white">
