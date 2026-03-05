@@ -164,9 +164,8 @@ body {
   }
 }
 
-/* Scroll container margin: reserve space for fixed sidebar */
+/* Scroll container margin: reserve space for fixed sidebar when open */
 @media (min-width: 1024px) {
-  .module-sidebar-visible { margin-right: 40px; }
   .module-sidebar-open { margin-right: var(--sidebar-width); }
 }
 
@@ -287,6 +286,25 @@ body {
   );
   background-size: 5px 2.5px;
   background-repeat: repeat-x;
+}
+
+/* Thin scrollbar for module scroll container */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 /* Hide scrollbar while allowing scroll */

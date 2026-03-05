@@ -1115,8 +1115,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   return (
     <div
       ref={setScrollEl}
-      className={`h-dvh bg-white overflow-y-auto overflow-x-clip transition-[margin-right] duration-300 [transition-timing-function:var(--ease-spring)] ${
-        isArticleSection ? (isSidebarOpen ? "module-sidebar-open" : "module-sidebar-visible") : ""
+      className={`h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[margin-right] duration-300 [transition-timing-function:var(--ease-spring)] ${
+        isArticleSection && isSidebarOpen ? "module-sidebar-open" : ""
       }`}
     >
     <ScrollContainerContext.Provider value={scrollEl}>
