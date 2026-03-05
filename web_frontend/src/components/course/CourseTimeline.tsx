@@ -17,7 +17,7 @@ function ProgressCircle({
   status,
   completedLenses,
   totalLenses,
-  size = 14,
+  size = 16,
 }: {
   status: "completed" | "in_progress" | "not_started";
   completedLenses?: number;
@@ -25,9 +25,15 @@ function ProgressCircle({
   size?: number;
 }) {
   if (status === "completed") {
+    const cr = 8;
+    const ccx = 10;
+    const ccy = 10;
     return (
-      <svg className="flex-shrink-0" width={size} height={size} viewBox="0 0 20 20" fill="currentColor" style={{ color: "#10b981" }}>
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+      <svg className="flex-shrink-0" width={size} height={size} viewBox="0 0 20 20" fill="none">
+        {/* Full blue ring */}
+        <circle cx={ccx} cy={ccy} r={cr} stroke="#3b82f6" strokeWidth="2" fill="none" />
+        {/* Checkmark */}
+        <path d="M6 10.5l2.5 2.5 5-5" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
       </svg>
     );
   }
@@ -187,7 +193,7 @@ export default function CourseTimeline({
     <div className="h-full flex flex-col bg-slate-50 border-r border-slate-200">
       {/* Course title */}
       <div className="p-4 border-b border-slate-200">
-        <h1 className="text-lg font-bold text-slate-900">{courseTitle}</h1>
+        <h1 className="text-xl font-bold text-slate-900">{courseTitle}</h1>
       </div>
 
       {/* Timeline */}
@@ -240,8 +246,8 @@ export default function CourseTimeline({
                   <span
                     className={`shrink-0 whitespace-nowrap transition-all duration-300 ${
                       isExpanded
-                        ? "text-xs text-slate-900"
-                        : "text-sm text-slate-900"
+                        ? "text-sm text-slate-900"
+                        : "text-base text-slate-900"
                     }`}
                   >
                     {weekLabel}
@@ -251,7 +257,7 @@ export default function CourseTimeline({
                     (() => {
                       const dueLabel = formatRelativeDate(dueDateIso);
                       return (
-                        <span className={`shrink-0 text-[11px] ml-1.5 ${
+                        <span className={`shrink-0 text-xs ml-1.5 ${
                           dueLabel === "Due Today"
                             ? "text-amber-600 font-medium"
                             : dueLabel === "Due Tomorrow"
@@ -271,7 +277,7 @@ export default function CourseTimeline({
                   />
                   {/* Chevron */}
                   <ChevronRight
-                    className={`shrink-0 w-3 h-3 text-slate-400 ml-1 transition-transform duration-300 ${
+                    className={`shrink-0 w-3.5 h-3.5 text-slate-400 ml-1 transition-transform duration-300 ${
                       isExpanded ? "rotate-90" : ""
                     }`}
                   />
@@ -296,12 +302,12 @@ export default function CourseTimeline({
                     {/* Meeting row */}
                     {unit.meetingNumber !== null && (
                       <div className="flex items-center py-1.5 gap-2">
-                          <Users className="w-3.5 h-3.5 text-slate-700" />
-                          <span className="text-sm text-slate-700">
+                          <Users className="w-4 h-4 text-slate-700" />
+                          <span className="text-base text-slate-700">
                             #{unit.meetingNumber}
                           </span>
                           {unit.meetingDate && (
-                            <span className="text-[11px] text-slate-400">
+                            <span className="text-xs text-slate-400">
                               {formatMeetingDate(unit.meetingDate)}
                             </span>
                           )}
@@ -372,11 +378,11 @@ function renderUnitModules(
                   completedLenses={completed}
                   totalLenses={children.length}
                 />
-                <span className="text-sm font-medium truncate text-slate-900">
+                <span className="text-base font-medium truncate text-slate-900">
                   {parentTitle}
                 </span>
                 <ChevronRight
-                  className={`w-3 h-3 text-slate-400 flex-shrink-0 transition-transform duration-200 ${
+                  className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform duration-200 ${
                     isParentExpanded ? "rotate-90" : ""
                   }`}
                 />
@@ -408,13 +414,13 @@ function renderUnitModules(
                         status={child.status}
                         completedLenses={child.completedLenses}
                         totalLenses={child.totalLenses}
-                        size={12}
+                        size={14}
                       />
-                      <span className="text-sm truncate text-slate-700">
+                      <span className="text-base truncate text-slate-700">
                         {child.title}
                       </span>
                       {childEstimate && child.status !== "completed" && (
-                        <span className="text-[11px] text-slate-400 ml-auto flex-shrink-0 tabular-nums">
+                        <span className="text-xs text-slate-400 ml-auto flex-shrink-0 tabular-nums">
                           {formatDuration(childEstimate)}
                         </span>
                       )}
@@ -452,7 +458,7 @@ function renderUnitModules(
                 />
               )}
               <span
-                className={`text-sm truncate ${
+                className={`text-base truncate ${
                   mod.optional
                     ? "text-slate-500"
                     : "text-slate-700"
@@ -461,13 +467,13 @@ function renderUnitModules(
                 {mod.title}
               </span>
               {mod.optional && (
-                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide flex-shrink-0">
+                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wide flex-shrink-0">
                   Optional
                 </span>
               )}
               {/* Right-aligned: due date or time estimate */}
               {dueLabel && !mod.optional && mod.status !== "completed" ? (
-                <span className={`text-[11px] ml-auto flex-shrink-0 ${
+                <span className={`text-xs ml-auto flex-shrink-0 ${
                   dueLabel === "Due Today"
                     ? "text-amber-600 font-medium"
                     : dueLabel === "Due Tomorrow"
@@ -477,7 +483,7 @@ function renderUnitModules(
                   {dueLabel}
                 </span>
               ) : estimate && mod.status !== "completed" ? (
-                <span className="text-[11px] text-slate-400 ml-auto flex-shrink-0 tabular-nums">
+                <span className="text-xs text-slate-400 ml-auto flex-shrink-0 tabular-nums">
                   {formatDuration(estimate)}
                 </span>
               ) : null}
