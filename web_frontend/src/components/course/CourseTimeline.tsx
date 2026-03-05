@@ -25,15 +25,12 @@ function ProgressCircle({
   size?: number;
 }) {
   if (status === "completed") {
-    const cr = 8;
-    const ccx = 10;
-    const ccy = 10;
     return (
       <svg className="flex-shrink-0" width={size} height={size} viewBox="0 0 20 20" fill="none">
-        {/* Full blue ring */}
-        <circle cx={ccx} cy={ccy} r={cr} stroke="#3b82f6" strokeWidth="2" fill="none" />
-        {/* Checkmark */}
-        <path d="M6 10.5l2.5 2.5 5-5" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        {/* Blue filled circle */}
+        <circle cx="10" cy="10" r="9" fill="#3b82f6" />
+        {/* White checkmark */}
+        <path d="M6 10.5l2.5 2.5 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
       </svg>
     );
   }
@@ -110,7 +107,7 @@ function formatRelativeDate(isoDate: string): string {
   if (diffDays < 0) return formatMeetingDate(isoDate);
   if (diffDays === 0) return "Due Today";
   if (diffDays === 1) return "Due Tomorrow";
-  if (diffDays <= 7) return `Due in ${diffDays}d`;
+  if (diffDays <= 7) return `Due in ${diffDays} days`;
   return formatMeetingDate(isoDate);
 }
 
@@ -262,7 +259,7 @@ export default function CourseTimeline({
                             ? "text-amber-600 font-medium"
                             : dueLabel === "Due Tomorrow"
                               ? "text-amber-500"
-                              : "text-slate-400"
+                              : "text-slate-500"
                         }`}>
                           {dueLabel}
                         </span>
@@ -380,9 +377,25 @@ function renderUnitModules(
                   completedLenses={Math.round(parentFraction * 100)}
                   totalLenses={100}
                 />
-                <span className="text-base font-medium truncate text-slate-900">
-                  {parentTitle}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-base font-medium truncate block leading-snug text-slate-900">
+                    {parentTitle}
+                  </span>
+                  {dueDateIso && parentStatus !== "completed" && (() => {
+                    const dueLabel = formatRelativeDate(dueDateIso);
+                    return (
+                      <span className={`text-xs leading-none block ${
+                        dueLabel === "Due Today"
+                          ? "text-amber-600 font-medium"
+                          : dueLabel === "Due Tomorrow"
+                            ? "text-amber-500"
+                            : "text-slate-500"
+                      }`}>
+                        {dueLabel}
+                      </span>
+                    );
+                  })()}
+                </div>
                 <ChevronRight
                   className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform duration-200 ${
                     isParentExpanded ? "rotate-90" : ""
@@ -480,7 +493,7 @@ function renderUnitModules(
                     ? "text-amber-600 font-medium"
                     : dueLabel === "Due Tomorrow"
                       ? "text-amber-500"
-                      : "text-slate-400"
+                      : "text-slate-500"
                 }`}>
                   {dueLabel}
                 </span>

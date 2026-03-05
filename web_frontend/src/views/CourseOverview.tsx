@@ -212,7 +212,7 @@ export default function CourseOverview({
       <div className="flex-1 flex overflow-hidden relative">
         {/* Desktop: inline sidebar */}
         {!isMobile && (
-          <div className="w-72 flex-shrink-0">
+          <div className="w-80 flex-shrink-0">
             <CourseTimeline
               courseTitle={courseProgress.course.title}
               units={courseProgress.units}
