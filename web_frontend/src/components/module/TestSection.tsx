@@ -56,6 +56,7 @@ export default function TestSection({
   const [testState, setTestState] = useState<TestState>("not_started");
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [completedItems, setCompletedItems] = useState<Set<number>>(new Set());
+  const [resumeItemIndex, setResumeItemIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   // Extract assessable items (questions + roleplays) with their original segment indices
@@ -147,17 +148,14 @@ export default function TestSection({
         if (cancelled) return;
 
         setCompletedItems(completed);
+        setResumeItemIndex(firstIncomplete !== -1 ? firstIncomplete : 0);
 
         if (completed.size === assessableItems.length) {
           // All items complete
           setTestState("completed");
-        } else if (completed.size > 0) {
-          // Some complete -- resume in progress
-          setTestState("in_progress");
-          setCurrentItemIndex(firstIncomplete !== -1 ? firstIncomplete : 0);
-          onTestStart();
         } else {
-          // None complete -- show Begin screen
+          // Not started or partially complete -- show Begin/Resume screen
+          // Don't auto-lock navigation; let the user opt in
           setTestState("not_started");
         }
       } catch {
@@ -177,12 +175,12 @@ export default function TestSection({
     };
   }, [assessableItems, moduleSlug, sectionIndex, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Handle Begin button click
+  // Handle Begin/Resume button click
   const handleBegin = useCallback(() => {
     setTestState("in_progress");
-    setCurrentItemIndex(0);
+    setCurrentItemIndex(completedItems.size > 0 ? resumeItemIndex : 0);
     onTestStart();
-  }, [onTestStart]);
+  }, [onTestStart, completedItems.size, resumeItemIndex]);
 
   // Handle item completion (question or roleplay)
   const handleItemComplete = useCallback(
@@ -288,8 +286,9 @@ export default function TestSection({
   const questionCount = questionItems.length;
   const roleplayCount = assessableItems.length - questionCount;
 
-  // Begin screen (not_started)
+  // Begin/Resume screen (not_started)
   if (testState === "not_started") {
+    const isResume = completedItems.size > 0;
     const itemDescParts: string[] = [];
     if (questionCount > 0) {
       itemDescParts.push(
@@ -306,12 +305,16 @@ export default function TestSection({
     return (
       <div className="py-12 px-4">
         <div className="max-w-content mx-auto text-center">
-          <p className="text-stone-600 text-lg mb-6">{itemDesc}</p>
+          <p className="text-stone-600 text-lg mb-6">
+            {isResume
+              ? `${completedItems.size} of ${assessableItems.length} completed`
+              : itemDesc}
+          </p>
           <button
             onClick={handleBegin}
             className="px-8 py-2.5 bg-stone-800 text-white rounded-lg hover:bg-stone-700 transition-colors font-medium"
           >
-            Begin
+            {isResume ? "Resume" : "Begin"}
           </button>
         </div>
       </div>
