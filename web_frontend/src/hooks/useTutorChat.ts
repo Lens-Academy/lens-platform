@@ -51,10 +51,10 @@ type ChatAction =
       type: "SEND_SUCCESS";
       userContent: string;
       assistantContent: string;
+      systemMessages?: ChatMessage[];
     }
   | { type: "SEND_FAILURE" }
-  | { type: "CLEAR_PENDING" }
-  | { type: "INJECT_SYSTEM_MESSAGE"; content: string };
+  | { type: "CLEAR_PENDING" };
 
 const initialChatState: ChatState = {
   messages: [],
@@ -100,6 +100,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ...state,
         messages: [
           ...state.messages,
+          ...(action.systemMessages || []),
           ...(action.userContent
             ? [{ role: "user" as const, content: action.userContent }]
             : []),
@@ -124,15 +125,6 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return {
         ...state,
         pendingMessage: null,
-      };
-
-    case "INJECT_SYSTEM_MESSAGE":
-      return {
-        ...state,
-        messages: [
-          ...state.messages,
-          { role: "course-content" as const, content: action.content },
-        ],
       };
 
     default:
@@ -167,8 +159,6 @@ export type UseTutorChatOptions = {
 export function useTutorChat({
   moduleId,
   module,
-  currentSectionIndex,
-  currentSegmentIndex,
   currentSection,
   isArticleSection,
   triggerChatActivity,
@@ -228,7 +218,7 @@ export function useTutorChat({
           dispatchChat({
             type: "LOAD_HISTORY",
             messages: messagesToShow.map((m) => ({
-              role: m.role as "user" | "assistant" | "course-content",
+              role: m.role as "user" | "assistant" | "system" | "course-content",
               content: m.content,
             })),
           });
@@ -247,45 +237,6 @@ export function useTutorChat({
       cancelled = true;
     };
   }, [module]);
-
-  // --- Section-transition system messages -----------------------------------
-
-  const prevSegmentRef = useRef<{
-    sectionIndex: number;
-    segmentIndex: number;
-  } | null>(null);
-  const hasUserMessage = chat.messages.some((m) => m.role === "user");
-
-  useEffect(() => {
-    // Only inject after the user has sent at least one message
-    if (!hasUserMessage) return;
-
-    const prev = prevSegmentRef.current;
-    const current = {
-      sectionIndex: currentSectionIndex,
-      segmentIndex: currentSegmentIndex,
-    };
-    prevSegmentRef.current = current;
-
-    // Skip on first render
-    if (!prev) return;
-    // Skip if no change
-    if (
-      prev.sectionIndex === current.sectionIndex &&
-      prev.segmentIndex === current.segmentIndex
-    )
-      return;
-
-    // Determine what changed and build message
-    const sectionTitle = currentSection?.meta?.title;
-    if (prev.sectionIndex !== current.sectionIndex && sectionTitle) {
-      dispatchChat({
-        type: "INJECT_SYSTEM_MESSAGE",
-        content: `Now reading: ${sectionTitle}`,
-      });
-    }
-    // Segment changed within same section — skip (no message needed)
-  }, [currentSectionIndex, currentSegmentIndex, currentSection, hasUserMessage]);
 
   // --- Computed values -----------------------------------------------------
 
@@ -437,6 +388,7 @@ export function useTutorChat({
       content: string,
       sectionIndex: number,
       segmentIndex: number,
+      source?: "sidebar" | "inline",
     ) => {
       triggerChatActivity();
 
@@ -448,8 +400,11 @@ export function useTutorChat({
       });
 
       // Lock activeSurface to this inline section for ~2s so observer doesn't override
-      setActiveSurface({ type: "inline", sectionIndex, segmentIndex });
-      activeSurfaceLockedUntil.current = Date.now() + 2000;
+      // Skip when sent from sidebar — keep the sidebar as active surface
+      if (source !== "sidebar") {
+        setActiveSurface({ type: "inline", sectionIndex, segmentIndex });
+        activeSurfaceLockedUntil.current = Date.now() + 2000;
+      }
 
       if (content) {
         trackChatMessageSent(moduleId, content.length);
@@ -457,6 +412,7 @@ export function useTutorChat({
 
       try {
         let assistantContent = "";
+        const systemMessages: ChatMessage[] = [];
 
         for await (const chunk of sendMessageApi(
           moduleId,
@@ -471,6 +427,8 @@ export function useTutorChat({
               accumulated: assistantContent,
             });
             triggerChatActivity();
+          } else if (chunk.type === "system" && chunk.content) {
+            systemMessages.push({ role: "system" as const, content: chunk.content });
           } else if (chunk.type === "error") {
             throw new Error(
               (chunk as unknown as { message?: string }).message ||
@@ -483,6 +441,7 @@ export function useTutorChat({
           type: "SEND_SUCCESS",
           userContent: content,
           assistantContent,
+          systemMessages,
         });
       } catch {
         dispatchChat({ type: "SEND_FAILURE" });

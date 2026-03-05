@@ -1669,6 +1669,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               content,
               currentSectionIndex,
               sidebarChatSegmentIndex !== -1 ? sidebarChatSegmentIndex : 0,
+              "sidebar",
             )
           }
           onRetryMessage={handleRetryMessage}

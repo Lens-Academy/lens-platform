@@ -37,6 +37,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["module"])
 
 
+def _segment_context_label(segment_type: str) -> str | None:
+    return {
+        "chat": "Moved to discussion",
+        "question": "Working on a question",
+        "roleplay": "Started roleplay exercise",
+        "article-excerpt": "Reading article",
+        "video-excerpt": "Watching video",
+    }.get(segment_type)
+
+
 class ModuleChatRequest(BaseModel):
     """Request body for module chat."""
 
@@ -73,14 +83,68 @@ async def event_generator(
         session_id = session["session_id"]
         existing_messages = session.get("messages", [])
 
-        # Save user message
+        # Detect position change from previous user message
+        context_msg_content: str | None = None
+        last_section_idx = None
+        last_segment_idx = None
+        for m in reversed(existing_messages):
+            if m.get("role") == "user" and m.get("sectionIndex") is not None:
+                last_section_idx = m["sectionIndex"]
+                last_segment_idx = m.get("segmentIndex")
+                break
+
+        has_user_message = any(m["role"] == "user" for m in existing_messages)
+
+        if has_user_message and last_section_idx is not None:
+            if last_section_idx != section_index:
+                # Section changed — inject context message with section title
+                section_data = (
+                    module.sections[section_index]
+                    if section_index < len(module.sections)
+                    else {}
+                )
+                title = section_data.get("meta", {}).get("title")
+                if title:
+                    context_msg_content = f"Now reading: {title}"
+            elif last_segment_idx is not None and last_segment_idx != segment_index:
+                # Segment changed within same section
+                section_data = (
+                    module.sections[section_index]
+                    if section_index < len(module.sections)
+                    else {}
+                )
+                segments = section_data.get("segments", [])
+                seg = (
+                    segments[segment_index]
+                    if segment_index < len(segments)
+                    else {}
+                )
+                desc = _segment_context_label(seg.get("type", ""))
+                if desc:
+                    context_msg_content = desc
+
+        if context_msg_content:
+            await add_chat_message(
+                conn,
+                session_id=session_id,
+                role="system",
+                content=context_msg_content,
+            )
+
+        # Save user message with position metadata
         if user_message:
             await add_chat_message(
                 conn,
                 session_id=session_id,
                 role="user",
                 content=user_message,
+                sectionIndex=section_index,
+                segmentIndex=segment_index,
             )
+
+    # Emit SSE event so the frontend sees system messages in real-time
+    if context_msg_content:
+        yield f"data: {json.dumps({'type': 'system', 'content': context_msg_content})}\n\n"
 
     # Get section and gather context
     section = (
@@ -154,13 +218,30 @@ async def event_generator(
         )
 
     # Build messages for LLM (existing history + new message)
-    llm_messages = [
-        {"role": m["role"], "content": m["content"]}
-        for m in existing_messages
-        if m["role"] in ("user", "assistant")
-    ]
+    # Merge system messages as [Context: ...] into adjacent user messages
+    # to avoid consecutive user-role messages (Anthropic API requirement)
+    llm_messages = []
+    pending_context: list[str] = []
+    for m in existing_messages:
+        if m["role"] == "system":
+            pending_context.append(f'[Context: {m["content"]}]')
+        elif m["role"] == "user":
+            content = m["content"]
+            if pending_context:
+                content = "\n".join(pending_context) + "\n\n" + content
+                pending_context.clear()
+            llm_messages.append({"role": "user", "content": content})
+        elif m["role"] == "assistant":
+            llm_messages.append({"role": "assistant", "content": m["content"]})
+
     if user_message:
-        llm_messages.append({"role": "user", "content": user_message})
+        content = user_message
+        if context_msg_content:
+            content = f"[Context: {context_msg_content}]\n\n{content}"
+        if pending_context:
+            content = "\n".join(pending_context) + "\n\n" + content
+            pending_context.clear()
+        llm_messages.append({"role": "user", "content": content})
 
     # Create chat stage
     stage = ChatStage(

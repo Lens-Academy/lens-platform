@@ -83,6 +83,8 @@ export function ChatInlineShell({
   // When activeScrollToResponse is true, scroll to the response (Thinking.../streaming) instead
   useLayoutEffect(() => {
     if (!pendingMessage || !scrollContainerRef.current) return;
+    // Only scroll if this shell owns the active input (message was sent from here)
+    if (!hasActiveInput) return;
     // In expanded mode, wait for scrollContainerHeight so minHeight is applied.
     // In normal mode (page scroll), no fixed-height container — skip the check.
     if (isExpanded && scrollContainerHeight <= 0) return;
@@ -113,6 +115,7 @@ export function ChatInlineShell({
     activeScrollToResponse,
     isLoading,
     isExpanded,
+    hasActiveInput,
   ]);
 
   // Scroll to recent-messages boundary after expanding conversation history
