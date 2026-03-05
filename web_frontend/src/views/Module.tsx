@@ -35,7 +35,6 @@ import AnswerBox from "@/components/module/AnswerBox";
 import RoleplaySection from "@/components/module/RoleplaySection";
 import TestSection from "@/components/module/TestSection";
 import MarkCompleteButton from "@/components/module/MarkCompleteButton";
-import { DoneReadingButton } from "@/components/module/DoneReadingButton";
 import SectionDivider from "@/components/module/SectionDivider";
 import {
   computeSectionDuration,
@@ -309,19 +308,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     new Set(),
   );
 
-  // Local "done reading" state for checkmark button (text/page/article sections)
-  const [doneReadingSections, setDoneReadingSections] = useState<Set<number>>(
-    () => new Set(),
-  );
-
-  const handleDoneReadingChange = (sectionIndex: number, checked: boolean) => {
-    setDoneReadingSections((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(sectionIndex);
-      else next.delete(sectionIndex);
-      return next;
-    });
-  };
 
   const { isAuthenticated, isInSignupsTable, isInActiveGroup, login } =
     useAuth();
@@ -384,8 +370,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     null,
   );
 
-  // Ref to the DoneReadingButton wrapper (used as ref in JSX)
-  const doneReadingBtnRef = useRef<HTMLDivElement>(null);
+
   // TOC portal container for 3-column grid layout (set by callback ref)
 
   // Convert sections to Stage format for progress bar
@@ -807,13 +792,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   const handleMarkComplete = useCallback(
     (sectionIndex: number, apiResponse?: MarkCompleteResponse) => {
-      // Also mark as done reading (for reading sections with DoneReadingButton)
-      setDoneReadingSections((prev) => {
-        const next = new Set(prev);
-        next.add(sectionIndex);
-        return next;
-      });
-
       // Check if this is the first completion (for auth prompt)
       // Must check BEFORE updating state
       const isFirstCompletion = completedSections.size === 0;
@@ -1182,12 +1160,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     duration={sectionDur}
                   />
                   <AuthoredText content={section.content} />
-                  <DoneReadingButton
-                    isChecked={doneReadingSections.has(sectionIndex)}
-                    onChange={(checked) =>
-                      handleDoneReadingChange(sectionIndex, checked)
-                    }
-                  />
                 </>
               ) : section.type === "page" ? (
                 // v2 Page section: text/chat segments only, no embedded content
@@ -1208,12 +1180,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                           {segs.map((seg, i) =>
                             renderSegment(seg, section, sectionIndex, i),
                           )}
-                          <DoneReadingButton
-                            isChecked={doneReadingSections.has(sectionIndex)}
-                            onChange={(checked) =>
-                              handleDoneReadingChange(sectionIndex, checked)
-                            }
-                          />
                         </>
                       );
                     }
@@ -1224,12 +1190,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         {beforeChat.map((seg, i) =>
                           renderSegment(seg, section, sectionIndex, i),
                         )}
-                        <DoneReadingButton
-                          isChecked={doneReadingSections.has(sectionIndex)}
-                          onChange={(checked) =>
-                            handleDoneReadingChange(sectionIndex, checked)
-                          }
-                        />
                         {fromChat.map((seg, i) =>
                           renderSegment(
                             seg,
@@ -1318,22 +1278,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                                 segmentIndex,
                               ),
                             )}
-                            <div
-                              ref={
-                                sectionIndex === currentSectionIndex
-                                  ? doneReadingBtnRef
-                                  : null
-                              }
-                            >
-                              <DoneReadingButton
-                                isChecked={doneReadingSections.has(
-                                  sectionIndex,
-                                )}
-                                onChange={(checked) =>
-                                  handleDoneReadingChange(sectionIndex, checked)
-                                }
-                              />
-                            </div>
                           </>
                         );
                       }
@@ -1382,18 +1326,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                               ),
                             )}
                           </ArticleExcerptGroup>
-
-                          {/* Done reading button — after article text, before chat/reflection */}
-                          <div
-                            ref={isCurrent ? doneReadingBtnRef : null}
-                          >
-                            <DoneReadingButton
-                              isChecked={doneReadingSections.has(sectionIndex)}
-                              onChange={(checked) =>
-                                handleDoneReadingChange(sectionIndex, checked)
-                              }
-                            />
-                          </div>
 
                           {/* Post-excerpt content (reflection, chat) — skip text segments
                               before first chat (they're passed as prefixMessage instead) */}
@@ -1461,22 +1393,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                                 segmentIndex,
                               ),
                             )}
-                            <div
-                              ref={
-                                sectionIndex === currentSectionIndex
-                                  ? doneReadingBtnRef
-                                  : null
-                              }
-                            >
-                              <DoneReadingButton
-                                isChecked={doneReadingSections.has(
-                                  sectionIndex,
-                                )}
-                                onChange={(checked) =>
-                                  handleDoneReadingChange(sectionIndex, checked)
-                                }
-                              />
-                            </div>
                           </>
                         );
                       }
@@ -1525,16 +1441,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                               ),
                             )}
                           </ArticleExcerptGroup>
-
-                          {/* Done reading button — after article text, before chat/reflection */}
-                          <div ref={isCurrent ? doneReadingBtnRef : null}>
-                            <DoneReadingButton
-                              isChecked={doneReadingSections.has(sectionIndex)}
-                              onChange={(checked) =>
-                                handleDoneReadingChange(sectionIndex, checked)
-                              }
-                            />
-                          </div>
 
                           {/* Post-excerpt content (reflection, chat) — skip text segments
                               before first chat (they're passed as prefixMessage instead) */}
@@ -1758,11 +1664,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               onClose={() => setIsSidebarOpen(false)}
               sectionTitle={currentSection?.meta?.title}
               messages={messages}
-              prefixMessage={
-                doneReadingSections.has(currentSectionIndex)
-                  ? sectionPrefixMessage
-                  : undefined
-              }
+              prefixMessage={sectionPrefixMessage}
               pendingMessage={pendingMessage}
               streamingContent={streamingContent}
               isLoading={isLoading}
