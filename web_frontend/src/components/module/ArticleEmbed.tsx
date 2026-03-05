@@ -108,7 +108,7 @@ function CollapsibleBlock({
     if (!nextEl) {
       setIsCollapsing(true);
       setIsOpen(false);
-      setTimeout(() => setIsCollapsing(false), 300);
+      setTimeout(() => setIsCollapsing(false), 500);
       return;
     }
 
@@ -120,7 +120,7 @@ function CollapsibleBlock({
     const gridEl = containerRef.current.querySelector(
       '[class*="grid"]',
     ) as HTMLElement | null;
-    if (gridEl) gridEl.style.transition = "grid-template-rows 300ms ease-out";
+    if (gridEl) gridEl.style.transition = "grid-template-rows 500ms ease-out";
 
     // Record nextEl's initial viewport position
     const initialViewportPos = nextEl.getBoundingClientRect().top;
@@ -132,7 +132,7 @@ function CollapsibleBlock({
     // Animate: ease nextEl from its current viewport position to 10% viewport.
     // On each frame, nextEl's doc position shifts (collapse shrinks content above),
     // so we read its actual position and apply a correction.
-    const duration = 300;
+    const duration = 500;
     const startTime = performance.now();
     const trackedEl = nextEl;
 
@@ -201,11 +201,11 @@ function CollapsibleBlock({
         )}
       </div>
       <div
-        className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+        className={`grid transition-[grid-template-rows] duration-500 ease-out ${
           isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
-        <div className={`overflow-hidden transition-[filter] duration-300 ${isCollapsing ? "blur-sm" : ""}`}>
+        <div className={`overflow-hidden transition-[filter] duration-500 ${isCollapsing ? "blur-sm" : ""}`}>
           {children}
           {endMarker && (
             <button
