@@ -357,9 +357,11 @@ function renderUnitModules(
       const anyChildSelected = children.some(
         (c) => c.slug === selectedModuleSlug,
       );
-      const completed = children.filter(
-        (m) => m.status === "completed",
-      ).length;
+      // Average of each child's completion fraction
+      const parentFraction = children.reduce((sum, c) => {
+        if (!c.totalLenses || c.totalLenses === 0) return sum;
+        return sum + (c.completedLenses ?? 0) / c.totalLenses;
+      }, 0) / children.length;
 
       elements.push(
         <div key={parentSlug}>
@@ -375,8 +377,8 @@ function renderUnitModules(
               <div className="flex items-center gap-2">
                 <ProgressCircle
                   status={parentStatus}
-                  completedLenses={completed}
-                  totalLenses={children.length}
+                  completedLenses={Math.round(parentFraction * 100)}
+                  totalLenses={100}
                 />
                 <span className="text-base font-medium truncate text-slate-900">
                   {parentTitle}
