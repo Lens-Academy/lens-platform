@@ -554,7 +554,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const {
     messages, pendingMessage, streamingContent, isLoading,
     sendMessage: handleSendMessage, retryMessage: handleRetryMessage,
-    inputText, setInputText,
     activeSurface, registerInlineRef,
     isSidebarOpen, setSidebarOpen: setIsSidebarOpen,
     sectionPrefixMessage, sidebarChatSegmentIndex,
@@ -944,8 +943,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             activated={options?.activateChat}
             activatedWithHistory={options?.activateChat}
             prefixMessage={options?.prefixMessage}
-            inputText={inputText}
-            onInputTextChange={setInputText}
+
             hasActiveInput={
               activeSurface.type === "inline" &&
               activeSurface.sectionIndex === sectionIndex &&
@@ -987,8 +985,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 onRetryMessage={handleRetryMessage}
                 scrollToResponse
                 activated
-                inputText={inputText}
-                onInputTextChange={setInputText}
+
                 hasActiveInput={true}
               />
             )}
@@ -1028,8 +1025,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 onRetryMessage={handleRetryMessage}
                 scrollToResponse
                 activated
-                inputText={inputText}
-                onInputTextChange={setInputText}
+
                 hasActiveInput={true}
               />
             )}
@@ -1218,8 +1214,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                       handleSendMessage(content, sectionIndex, 0)
                     }
                     onRetryMessage={handleRetryMessage}
-                    inputText={inputText}
-                    onInputTextChange={setInputText}
+
                     hasActiveInput={
                       activeSurface.type === "inline" &&
                       activeSurface.sectionIndex === sectionIndex &&
@@ -1519,8 +1514,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                               onRetryMessage={handleRetryMessage}
                               scrollToResponse
                               activated
-                              inputText={inputText}
-                              onInputTextChange={setInputText}
+
                               hasActiveInput={true}
                             />
                             <div className="flex items-center justify-center py-6">
@@ -1676,8 +1670,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 )
               }
               onRetryMessage={handleRetryMessage}
-              inputText={inputText}
-              onInputTextChange={setInputText}
+
             />
           </div>
         </div>

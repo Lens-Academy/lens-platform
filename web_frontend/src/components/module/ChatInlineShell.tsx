@@ -31,8 +31,6 @@ type ChatInlineShellProps = {
   activatedWithHistory?: boolean;
   prefixMessage?: ChatMessage;
   scrollToResponse?: boolean;
-  inputText: string;
-  onInputTextChange: (text: string) => void;
   hasActiveInput: boolean;
   shellRef?: (el: HTMLDivElement | null) => void;
 };
@@ -48,8 +46,6 @@ export function ChatInlineShell({
   activatedWithHistory,
   prefixMessage,
   scrollToResponse,
-  inputText,
-  onInputTextChange,
   hasActiveInput,
   shellRef,
 }: ChatInlineShellProps) {
@@ -461,8 +457,6 @@ export function ChatInlineShell({
                 }}
                 isLoading={isLoading}
                 placeholder="Type a message..."
-                value={inputText}
-                onValueChange={onInputTextChange}
               />
             </div>
           </div>

@@ -2,8 +2,8 @@
  * useTutorChat — centralises all chat state for the Module player.
  *
  * Uses `useReducer` for the chat lifecycle (atomic state transitions)
- * and `useState` / `useRef` for independent concerns (input text,
- * sidebar visibility, active surface).
+ * and `useState` / `useRef` for independent concerns (sidebar
+ * visibility, active surface).
  */
 
 import {
@@ -177,7 +177,7 @@ export function useTutorChat({
 
   // --- Independent state ---------------------------------------------------
 
-  const [inputText, setInputText] = useState("");
+  // Input text is managed locally by each ChatInputArea instance (uncontrolled).
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeSurface, setActiveSurface] = useState<ActiveSurface>({
     type: "sidebar",
@@ -518,8 +518,6 @@ export function useTutorChat({
     retryMessage,
 
     // Independent state
-    inputText,
-    setInputText,
     isSidebarOpen,
     setSidebarOpen: setIsSidebarOpen,
     activeSurface,

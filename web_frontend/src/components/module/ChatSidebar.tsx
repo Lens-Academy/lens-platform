@@ -27,9 +27,6 @@ type ChatSidebarProps = {
   isLoading: boolean;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
-  // Controlled input (optional — for shared input state across surfaces)
-  inputText?: string;
-  onInputTextChange?: (text: string) => void;
 };
 
 export function ChatSidebar({
@@ -44,8 +41,6 @@ export function ChatSidebar({
   isLoading,
   onSendMessage,
   onRetryMessage: _onRetryMessage,
-  inputText,
-  onInputTextChange,
 }: ChatSidebarProps) {
   const isMobile = useMedia("(max-width: 1023px)", false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -168,8 +163,6 @@ export function ChatSidebar({
           onSend={onSendMessage}
           isLoading={isLoading}
           placeholder="Ask a question..."
-          value={inputText}
-          onValueChange={onInputTextChange}
         />
       </div>
     </>

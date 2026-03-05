@@ -77,7 +77,6 @@ describe("useTutorChat", () => {
     expect(result.current.pendingMessage).toBeNull();
     expect(result.current.streamingContent).toBe("");
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.inputText).toBe("");
     expect(result.current.isSidebarOpen).toBe(false);
     expect(result.current.activeSurface).toEqual({ type: "sidebar" });
   });
@@ -127,16 +126,6 @@ describe("useTutorChat", () => {
     await act(async () => {});
 
     expect(result.current.isSidebarOpen).toBe(false);
-  });
-
-  it("shares inputText across renders", () => {
-    const { result } = renderHook(() => useTutorChat(baseOptions));
-
-    act(() => {
-      result.current.setInputText("hello world");
-    });
-
-    expect(result.current.inputText).toBe("hello world");
   });
 
   it("computes sectionPrefixMessage from article segments", () => {

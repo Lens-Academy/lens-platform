@@ -98,8 +98,7 @@ describe("ChatInlineShell minHeight on second message", () => {
         isLoading={false}
         streamingContent=""
         onSendMessage={onSendMessage}
-        inputText=""
-        onInputTextChange={vi.fn()}
+
         hasActiveInput={true}
       />,
     );
@@ -133,8 +132,7 @@ describe("ChatInlineShell minHeight on second message", () => {
         streamingContent=""
         onSendMessage={onSendMessage}
         activated
-        inputText=""
-        onInputTextChange={vi.fn()}
+
         hasActiveInput={true}
       />,
     );
@@ -160,8 +158,7 @@ describe("ChatInlineShell minHeight on second message", () => {
         streamingContent=""
         onSendMessage={onSendMessage}
         activated
-        inputText=""
-        onInputTextChange={vi.fn()}
+
         hasActiveInput={true}
       />,
     );

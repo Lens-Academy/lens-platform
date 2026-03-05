@@ -22,10 +22,6 @@ type ChatInputAreaProps = {
   isLoading: boolean;
   disabled?: boolean;
   placeholder?: string;
-  /** Controlled mode: current input value */
-  value?: string;
-  /** Controlled mode: called when input value changes */
-  onValueChange?: (value: string) => void;
 };
 
 export function ChatInputArea({
@@ -33,18 +29,10 @@ export function ChatInputArea({
   isLoading,
   disabled = false,
   placeholder = "Type a message...",
-  value,
-  onValueChange,
 }: ChatInputAreaProps) {
-  const [internalInput, setInternalInput] = useState("");
-  const input = value ?? internalInput;
+  const [input, setInput] = useState("");
   const inputRef = useRef(input);
   inputRef.current = input;
-
-  const handleInputChange = (newValue: string) => {
-    if (onValueChange) onValueChange(newValue);
-    else setInternalInput(newValue);
-  };
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [recordingTime, setRecordingTime] = useState(0);
   const [volumeBars, setVolumeBars] = useState<number[]>([0, 0, 0, 0, 0]);
@@ -265,7 +253,7 @@ export function ChatInputArea({
       const text = await transcribeAudio(audioBlob);
       if (text.trim()) {
         const current = inputRef.current;
-        handleInputChange(current ? `${current} ${text}` : text);
+        setInput(current ? `${current} ${text}` : text);
       } else {
         setErrorMessage("No speech detected");
       }
@@ -320,7 +308,7 @@ export function ChatInputArea({
     if (input.trim() && !isLoading && !disabled) {
       triggerHaptic(10);
       onSend(input.trim());
-      handleInputChange("");
+      setInput("");
     }
   };
 
@@ -381,7 +369,7 @@ export function ChatInputArea({
             <textarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => handleInputChange(e.target.value)}
+              onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={() => {
                 // Delay to let iOS keyboard animation start
