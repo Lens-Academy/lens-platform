@@ -69,6 +69,8 @@ export interface TimelineItem {
   title?: string;
   number?: number;
   is_past?: boolean;
+  meeting_id?: number;
+  scheduled_at?: string;
 }
 
 export interface ModuleStats {

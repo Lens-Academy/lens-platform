@@ -80,6 +80,15 @@ export default function Facilitator() {
   const [chatLoading, setChatLoading] = useState(false);
   const chatPanelRef = useRef<HTMLDivElement>(null);
 
+  // Postpone state
+  const [postponeConfirm, setPostponeConfirm] = useState<{
+    meetingId: number;
+    meetingNumber: number;
+  } | null>(null);
+  const [postponingMeetingId, setPostponingMeetingId] = useState<number | null>(
+    null,
+  );
+
   // --- Data fetching ---
 
   useEffect(() => {
@@ -199,6 +208,43 @@ export default function Facilitator() {
     [],
   );
 
+  const refreshTimeline = useCallback(async () => {
+    if (!selectedGroupId) return;
+    try {
+      const res = await fetchWithRefresh(
+        `${API_URL}/api/facilitator/groups/${selectedGroupId}/timeline`,
+        { credentials: "include" },
+      );
+      if (res.ok) setTimeline(await res.json());
+    } catch {
+      /* ignore */
+    }
+  }, [selectedGroupId]);
+
+  const handlePostpone = useCallback(
+    async (meetingId: number) => {
+      setPostponingMeetingId(meetingId);
+      try {
+        const res = await fetchWithRefresh(
+          `${API_URL}/api/facilitator/meetings/${meetingId}/postpone`,
+          { method: "POST", credentials: "include" },
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          alert(data.detail || "Failed to postpone meeting");
+          return;
+        }
+        await refreshTimeline();
+      } catch {
+        alert("Failed to postpone meeting");
+      } finally {
+        setPostponingMeetingId(null);
+        setPostponeConfirm(null);
+      }
+    },
+    [refreshTimeline],
+  );
+
   // --- Guards ---
 
   if (authLoading) {
@@ -307,6 +353,10 @@ export default function Facilitator() {
             )}
             onChatClick={handleChatClick}
             selectedChat={selectedChat}
+            onPostpone={(meetingId, meetingNumber) =>
+              setPostponeConfirm({ meetingId, meetingNumber })
+            }
+            postponingMeetingId={postponingMeetingId}
           />
         )}
 
@@ -320,6 +370,37 @@ export default function Facilitator() {
           onClose={() => setSelectedChat(null)}
         />
       )}
+
+      {/* Postpone confirmation dialog */}
+      {postponeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-lg p-5 max-w-sm mx-4">
+            <h3 className="text-sm font-semibold text-slate-800 mb-2">
+              Postpone Meeting {postponeConfirm.meetingNumber}?
+            </h3>
+            <p className="text-xs text-slate-600 mb-4">
+              This week&apos;s meeting will be cancelled and a new meeting added
+              at the end of the course. All subsequent meetings will be
+              renumbered.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                className="px-3 py-1.5 text-xs rounded border border-slate-300 text-slate-600 hover:bg-slate-50"
+                onClick={() => setPostponeConfirm(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-3 py-1.5 text-xs rounded bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+                disabled={postponingMeetingId !== null}
+                onClick={() => handlePostpone(postponeConfirm.meetingId)}
+              >
+                {postponingMeetingId ? "Postponing..." : "Postpone"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -332,6 +413,8 @@ interface TimelineSegment {
   items: TimelineItem[];
   slug?: string;
   meetingNumber?: number;
+  meetingId?: number;
+  scheduledAt?: string;
 }
 
 function buildSegments(items: TimelineItem[]): TimelineSegment[] {
@@ -342,6 +425,8 @@ function buildSegments(items: TimelineItem[]): TimelineSegment[] {
         type: "meeting",
         items: [item],
         meetingNumber: item.number,
+        meetingId: item.meeting_id,
+        scheduledAt: item.scheduled_at,
       });
     } else {
       const last = segs[segs.length - 1];
@@ -469,6 +554,8 @@ function VerticalTimeline({
   memberLastActive,
   onChatClick,
   selectedChat,
+  onPostpone,
+  postponingMeetingId,
 }: {
   timeline: TimelineData;
   memberDiscordIds: Record<number, string | null>;
@@ -480,6 +567,8 @@ function VerticalTimeline({
     moduleTitle: string,
   ) => void;
   selectedChat: { userId: number; moduleSlug: string } | null;
+  onPostpone?: (meetingId: number, meetingNumber: number) => void;
+  postponingMeetingId?: number | null;
 }) {
   const segs = useMemo(
     () => buildSegments(timeline.timeline_items),
@@ -505,12 +594,26 @@ function VerticalTimeline({
               seg.type === "meeting" ? (
                 <div
                   key={si}
-                  className="px-2 flex items-center"
+                  className="px-2 flex items-center gap-1"
                   style={{ height: mtgH }}
                 >
                   <span className="text-xs font-semibold text-slate-600">
                     Meeting {seg.meetingNumber}
                   </span>
+                  {onPostpone &&
+                    seg.meetingId &&
+                    !(seg.items[0]?.is_past ?? false) && (
+                      <button
+                        className="text-slate-400 hover:text-amber-500 transition-colors disabled:opacity-50"
+                        title="Postpone this meeting"
+                        disabled={postponingMeetingId === seg.meetingId}
+                        onClick={() =>
+                          onPostpone(seg.meetingId!, seg.meetingNumber!)
+                        }
+                      >
+                        <Clock size={11} />
+                      </button>
+                    )}
                 </div>
               ) : (
                 <div
