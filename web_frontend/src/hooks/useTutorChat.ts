@@ -297,21 +297,92 @@ export function useTutorChat({
     return content ? { role: "course-content", content } : undefined;
   }, [currentSection, isArticleSection]);
 
-  // --- registerInlineRef stub (Task 7 implements real IntersectionObserver) -
+  // --- Inline surface tracking (IntersectionObserver) ----------------------
 
-  const inlineRefsMap = useRef<Map<string, HTMLElement>>(new Map());
+  const inlineRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const ratioMap = useRef<Map<string, number>>(new Map());
+  const observerDirty = useRef(false);
+  const [observerVersion, setObserverVersion] = useState(0);
+  const activeSurfaceLockedUntil = useRef<number | null>(null);
 
   const registerInlineRef = useCallback(
     (sectionIndex: number, segmentIndex: number, el: HTMLElement | null) => {
-      const key = `${sectionIndex}:${segmentIndex}`;
+      const key = `${sectionIndex}-${segmentIndex}`;
       if (el) {
-        inlineRefsMap.current.set(key, el);
+        inlineRefs.current.set(key, el);
       } else {
-        inlineRefsMap.current.delete(key);
+        inlineRefs.current.delete(key);
+        ratioMap.current.delete(key);
+      }
+      // Batch: multiple shells mount in the same commit cycle.
+      // Schedule one state update instead of N.
+      if (!observerDirty.current) {
+        observerDirty.current = true;
+        queueMicrotask(() => {
+          observerDirty.current = false;
+          setObserverVersion((v) => v + 1);
+        });
       }
     },
     [],
   );
+
+  // --- IntersectionObserver for activeSurface --------------------------------
+
+  useEffect(() => {
+    if (!isArticleSection || inlineRefs.current.size === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Skip updates while locked (user just sent a message)
+        if (
+          activeSurfaceLockedUntil.current &&
+          Date.now() < activeSurfaceLockedUntil.current
+        )
+          return;
+        activeSurfaceLockedUntil.current = null; // expired, resume normal behavior
+
+        // Update persistent ratio map
+        for (const entry of entries) {
+          for (const [key, el] of inlineRefs.current) {
+            if (entry.target === el) {
+              ratioMap.current.set(key, entry.intersectionRatio);
+            }
+          }
+        }
+
+        // Find most visible from ALL tracked sections
+        let best: { key: string; ratio: number } | null = null;
+        for (const [key, ratio] of ratioMap.current) {
+          if (ratio > 0.15 && (!best || ratio > best.ratio)) {
+            best = { key, ratio };
+          }
+        }
+
+        if (best) {
+          const [si, segi] = best.key.split("-").map(Number);
+          setActiveSurface((prev) =>
+            prev.type === "inline" &&
+            prev.sectionIndex === si &&
+            prev.segmentIndex === segi
+              ? prev // avoid unnecessary re-render
+              : { type: "inline", sectionIndex: si, segmentIndex: segi },
+          );
+        } else {
+          setActiveSurface((prev) =>
+            prev.type === "sidebar" ? prev : { type: "sidebar" },
+          );
+        }
+      },
+      { threshold: [0, 0.15, 0.3, 0.5, 0.7] },
+    );
+
+    for (const [, el] of inlineRefs.current) {
+      observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+  }, [isArticleSection, observerVersion]);
 
   // --- sendMessage ---------------------------------------------------------
 
@@ -329,6 +400,10 @@ export function useTutorChat({
         sectionIndex,
         segmentIndex,
       });
+
+      // Lock activeSurface to this inline section for ~2s so observer doesn't override
+      setActiveSurface({ type: "inline", sectionIndex, segmentIndex });
+      activeSurfaceLockedUntil.current = Date.now() + 2000;
 
       if (content) {
         trackChatMessageSent(moduleId, content.length);
@@ -404,7 +479,7 @@ export function useTutorChat({
     activeSurface,
     setActiveSurface,
 
-    // Stub for Task 7
+    // Inline surface tracking
     registerInlineRef,
 
     // Computed
