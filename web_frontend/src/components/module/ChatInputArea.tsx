@@ -1,6 +1,6 @@
 /**
  * ChatInputArea — shared input area for all chat surfaces
- * (NarrativeChatSection, ChatSidebar, ReflectionChatDialog).
+ * (ChatInlineShell, ChatSidebar, ReflectionChatDialog).
  *
  * Handles:
  *   - Text input with auto-resize

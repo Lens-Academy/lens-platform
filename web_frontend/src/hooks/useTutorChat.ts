@@ -307,7 +307,7 @@ export function useTutorChat({
 
   /**
    * Authored opening question for the current section's chat — shown as a
-   * "Lens" message in both the sidebar and the NarrativeChatSection.
+   * "Lens" message in both the sidebar and the ChatInlineShell.
    *
    * Gathers text segments between the last article-excerpt and the first
    * chat segment that follows it.
@@ -340,36 +340,18 @@ export function useTutorChat({
 
   const inlineRefs = useRef<Map<string, HTMLElement>>(new Map());
   const ratioMap = useRef<Map<string, number>>(new Map());
-  const observerDirty = useRef(false);
-  const [observerVersion, setObserverVersion] = useState(0);
+  const observerRef = useRef<IntersectionObserver | null>(null);
   const activeSurfaceLockedUntil = useRef<number | null>(null);
 
-  const registerInlineRef = useCallback(
-    (sectionIndex: number, segmentIndex: number, el: HTMLElement | null) => {
-      const key = `${sectionIndex}-${segmentIndex}`;
-      if (el) {
-        inlineRefs.current.set(key, el);
-      } else {
-        inlineRefs.current.delete(key);
-        ratioMap.current.delete(key);
-      }
-      // Batch: multiple shells mount in the same commit cycle.
-      // Schedule one state update instead of N.
-      if (!observerDirty.current) {
-        observerDirty.current = true;
-        queueMicrotask(() => {
-          observerDirty.current = false;
-          setObserverVersion((v) => v + 1);
-        });
-      }
-    },
-    [],
-  );
-
   // --- IntersectionObserver for activeSurface --------------------------------
+  // Created once when isArticleSection becomes true; elements are observed/
+  // unobserved directly in registerInlineRef (no state-driven re-creation).
 
   useEffect(() => {
-    if (!isArticleSection || inlineRefs.current.size === 0) return;
+    if (!isArticleSection) {
+      observerRef.current = null;
+      return;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -416,12 +398,37 @@ export function useTutorChat({
       { threshold: [0, 0.15, 0.3, 0.5, 0.7] },
     );
 
+    observerRef.current = observer;
+
+    // Observe any elements already registered before observer was created
     for (const [, el] of inlineRefs.current) {
       observer.observe(el);
     }
 
-    return () => observer.disconnect();
-  }, [isArticleSection, observerVersion]);
+    return () => {
+      observer.disconnect();
+      observerRef.current = null;
+    };
+  }, [isArticleSection]);
+
+  const registerInlineRef = useCallback(
+    (sectionIndex: number, segmentIndex: number, el: HTMLElement | null) => {
+      const key = `${sectionIndex}-${segmentIndex}`;
+      if (el) {
+        const prev = inlineRefs.current.get(key);
+        if (prev === el) return; // same element, nothing to do
+        if (prev) observerRef.current?.unobserve(prev);
+        inlineRefs.current.set(key, el);
+        observerRef.current?.observe(el);
+      } else {
+        const prev = inlineRefs.current.get(key);
+        if (prev) observerRef.current?.unobserve(prev);
+        inlineRefs.current.delete(key);
+        ratioMap.current.delete(key);
+      }
+    },
+    [],
+  );
 
   // --- sendMessage ---------------------------------------------------------
 

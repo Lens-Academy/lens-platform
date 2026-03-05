@@ -218,7 +218,7 @@ export default function RoleplaySection({
           ) : !isCompleted ? (
             <div className="border-t border-gray-100 px-4 py-3">
               {inputMode === "text" ? (
-                /* Text input with optional STT mic (same pattern as NarrativeChatSection) */
+                /* Text input with optional STT mic (same pattern as ChatInlineShell) */
                 <>
                   <form
                     onSubmit={(e) => {

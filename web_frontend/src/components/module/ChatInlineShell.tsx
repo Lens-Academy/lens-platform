@@ -1,5 +1,5 @@
 /**
- * ChatInlineShell — thin shell replacing NarrativeChatSection.
+ * ChatInlineShell — inline chat shell for article sections.
  *
  * Keeps all layout/scroll logic (expand/collapse, scroll ratchet, min-height wrapper)
  * but delegates message rendering to `renderMessage` and input to `ChatInputArea`.

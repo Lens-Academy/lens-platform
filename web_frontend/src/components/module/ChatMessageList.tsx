@@ -1,6 +1,6 @@
 /**
  * ChatMessageList — shared message rendering for all chat surfaces
- * (NarrativeChatSection, ChatSidebar, ReflectionChatDialog).
+ * (ChatInlineShell, ChatSidebar, ReflectionChatDialog).
  *
  * Handles all four message roles:
  *   - "user"           → gray bubble, right-aligned
