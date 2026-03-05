@@ -87,49 +87,67 @@ function CollapsibleBlock({
       return;
     }
 
+    // Walk up DOM to find next in-flow sibling after the collapsible block
+    let nextEl: Element | null = null;
+    let el: Element | null = containerRef.current;
+    while (el && !nextEl) {
+      let sib = el.nextElementSibling;
+      while (sib) {
+        const pos = getComputedStyle(sib).position;
+        if (pos !== "absolute" && pos !== "fixed") {
+          nextEl = sib;
+          break;
+        }
+        sib = sib.nextElementSibling;
+      }
+      if (!nextEl) el = el.parentElement;
+    }
+
+    // Fallback: if no nextEl (end of article), just collapse in place
+    if (!nextEl) {
+      setIsOpen(false);
+      return;
+    }
+
     // Disable scroll anchoring so Chrome doesn't fight our animation
     document.documentElement.style.overflowAnchor = "none";
 
-    // Speed up the collapse (faster than the scroll)
     const gridEl = containerRef.current.querySelector(
       '[class*="grid"]',
     ) as HTMLElement | null;
     if (gridEl) gridEl.style.transition = "grid-template-rows 300ms ease-out";
 
-    // The [...] marker's doc position won't change during collapse
-    // (collapsing content is below it), so this target is stable.
-    const markerDocY =
-      containerRef.current.getBoundingClientRect().top + window.scrollY;
-    const headerOffset = parseFloat(
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--header-offset") || "0",
-    );
-    const targetViewportY = headerOffset;
-    const targetScrollY = Math.max(0, markerDocY - targetViewportY);
-    const startScrollY = window.scrollY;
-    const scrollDelta = targetScrollY - startScrollY;
+    // Record nextEl's initial viewport position
+    const initialViewportPos = nextEl.getBoundingClientRect().top;
+    const targetViewportPos = window.innerHeight * 0.1;
 
-    // Trigger collapse (CSS transition animates it over 150ms)
+    // Trigger collapse
     setIsOpen(false);
 
-    // Animate scroll over 300ms (slower than the 150ms collapse)
-    const scrollDuration = 300;
+    // Animate: ease nextEl from its current viewport position to 10% viewport.
+    // On each frame, nextEl's doc position shifts (collapse shrinks content above),
+    // so we read its actual position and apply a correction.
+    const duration = 300;
     const startTime = performance.now();
+    const trackedEl = nextEl;
 
     const animate = (now: number) => {
       const elapsed = now - startTime;
-      const t = Math.min(1, elapsed / scrollDuration);
+      const t = Math.min(1, elapsed / duration);
       const eased = 1 - (1 - t) ** 3; // ease-out cubic
 
-      window.scrollTo({
-        top: startScrollY + scrollDelta * eased,
-        behavior: "instant",
-      });
+      const desiredPos =
+        initialViewportPos + (targetViewportPos - initialViewportPos) * eased;
+      const actualPos = trackedEl.getBoundingClientRect().top;
+      const correction = actualPos - desiredPos;
+
+      if (Math.abs(correction) > 0.5) {
+        window.scrollBy({ top: correction, behavior: "instant" });
+      }
 
       if (t < 1) {
         requestAnimationFrame(animate);
       } else {
-        // Done — re-enable scroll anchoring, restore default transition
         document.documentElement.style.overflowAnchor = "";
         if (gridEl) {
           gridEl.offsetHeight; // force reflow
