@@ -1,7 +1,7 @@
 ---
 title: "Existential risk from artificial intelligence"
 author: Wikipedia
-date: 2015-05-01
+published: 2015-05-01
 source_url: https://en.wikipedia.org/wiki/Existential_risk_from_artificial_intelligence
 ---
 

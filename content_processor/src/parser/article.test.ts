@@ -9,7 +9,7 @@ describe('parseArticle', () => {
 title: "Existential risk from AI"
 author: Wikipedia
 source_url: https://en.wikipedia.org/wiki/Existential_risk_from_AI
-date: 2015-05-01
+published: 2015-05-01
 ---
 
 The article body here.
@@ -21,7 +21,7 @@ The article body here.
       expect(result.article!.title).toBe('Existential risk from AI');
       expect(result.article!.author).toBe('Wikipedia');
       expect(result.article!.sourceUrl).toBe('https://en.wikipedia.org/wiki/Existential_risk_from_AI');
-      expect(result.article!.date).toBe('2015-05-01');
+      expect(result.article!.published).toBe('2015-05-01');
       expect(result.article!.imageUrls).toEqual([]);
     });
 
@@ -32,6 +32,7 @@ author:
   - "Eliezer Yudkowsky"
   - "Nate Soares"
 source_url: https://example.com/article
+published: 2024-01-01
 ---
 
 Body text.
@@ -43,7 +44,7 @@ Body text.
       expect(result.article!.author).toBe('Eliezer Yudkowsky, Nate Soares');
     });
 
-    it('parses valid article without optional date', () => {
+    it('reports error for missing published field', () => {
       const content = `---
 title: Test Article
 author: Jane Doe
@@ -54,15 +55,14 @@ Body text.
 `;
       const result = parseArticle(content, 'articles/test.md');
 
-      expect(result.errors).toHaveLength(0);
-      expect(result.article).not.toBeNull();
-      expect(result.article!.date).toBeUndefined();
+      expect(result.errors.some(e => e.message.toLowerCase().includes('published'))).toBe(true);
     });
 
     it('reports error for missing title', () => {
       const content = `---
 author: Jane Doe
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 Body.
@@ -78,6 +78,7 @@ Body.
       const content = `---
 title: Test
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 Body.
@@ -91,6 +92,7 @@ Body.
       const content = `---
 title: Test
 author: Jane
+published: 2024-01-01
 ---
 
 Body.
@@ -105,6 +107,7 @@ Body.
 title: ""
 author: "  "
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 Body.
@@ -145,6 +148,7 @@ This never closes the frontmatter
 title: "[[Some Article]]"
 author: Jane
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 Body.
@@ -161,6 +165,7 @@ Body.
 title: Test
 author: "[[Jane Doe]]"
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 Body.
@@ -177,6 +182,7 @@ Body.
 title: Test
 author: Jane
 source_url: https://example.com/page?q=[test]
+published: 2024-01-01
 ---
 
 Body.
@@ -195,6 +201,7 @@ Body.
 title: Test
 author: Jane
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 Some text before.
@@ -216,6 +223,7 @@ Some text after.
 title: Test
 author: Jane
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 ![[path/to/image.png]]
@@ -233,6 +241,7 @@ source_url: https://example.com
 title: Test
 author: Jane
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 ![alt text](https://example.com/img.png)
@@ -249,6 +258,7 @@ source_url: https://example.com
 title: Test
 author: Jane
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 First paragraph.
@@ -274,6 +284,7 @@ More text.
 title: Test
 author: Jane
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 Just plain text, no images.

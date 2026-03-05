@@ -1,7 +1,7 @@
 ---
 title: "Cascades, Cycles, Insight... — LessWrong"
 author: Eliezer Yudkowsky
-date: 2008-11-24
+published: 2008-11-24
 source_url: https://www.lesswrong.com/posts/dq3KsCsqNotWc8nAK/cascades-cycles-insight
 ---
 

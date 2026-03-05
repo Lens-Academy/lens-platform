@@ -750,6 +750,9 @@ function flattenLearningOutcomeSection(
               if (articleFrontmatter.frontmatter.source_url) {
                 meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
               }
+              if (articleFrontmatter.frontmatter.published) {
+                meta.published = String(articleFrontmatter.frontmatter.published);
+              }
             }
           }
         }
@@ -958,6 +961,9 @@ function flattenUncategorizedSection(
               }
               if (articleFrontmatter.frontmatter.source_url) {
                 meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
+              }
+              if (articleFrontmatter.frontmatter.published) {
+                meta.published = String(articleFrontmatter.frontmatter.published);
               }
             }
           }
@@ -1598,6 +1604,8 @@ export function flattenLens(
               meta.author = articleFrontmatter.frontmatter.author as string;
             if (articleFrontmatter.frontmatter.source_url)
               meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
+            if (articleFrontmatter.frontmatter.published)
+              meta.published = String(articleFrontmatter.frontmatter.published);
           }
         }
       }

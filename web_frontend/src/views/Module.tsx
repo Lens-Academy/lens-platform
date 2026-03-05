@@ -882,6 +882,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           title: articleMeta?.title ?? null,
           author: articleMeta?.author ?? null,
           sourceUrl: articleMeta?.sourceUrl ?? null,
+          published: articleMeta?.published ?? null,
           isExcerpt: true,
           collapsed_before: segment.collapsed_before,
           collapsed_after: segment.collapsed_after,

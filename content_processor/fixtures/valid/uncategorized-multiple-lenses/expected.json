@@ -10,7 +10,8 @@
           "meta": {
             "title": "Deep Dive Article",
             "author": "Jane Doe",
-            "sourceUrl": "https://example.com/deep-dive"
+            "sourceUrl": "https://example.com/deep-dive",
+            "published": "2024-01-01"
           },
           "segments": [
             {
@@ -95,7 +96,8 @@
           "meta": {
             "title": "Deep Dive Article",
             "author": "Jane Doe",
-            "sourceUrl": "https://example.com/deep-dive"
+            "sourceUrl": "https://example.com/deep-dive",
+            "published": "2024-01-01"
           },
           "segments": [
             {

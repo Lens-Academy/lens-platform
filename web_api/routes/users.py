@@ -6,17 +6,17 @@ Endpoints:
 - GET /api/users/me/facilitator-status - Check if user is a facilitator
 - POST /api/users/me/become-facilitator - Add user to facilitators table
 - GET /api/users/me/group-info - Get current user's group information
-- GET /api/users/me/meetings - Get current user's upcoming meetings
+- GET /api/users/me/meetings - Get current user's meetings (past 2 weeks + future)
 """
 
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import and_, select
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -26,7 +26,7 @@ from core.database import get_connection, get_transaction
 from core.enums import GroupUserStatus
 from core.queries.users import get_user_by_discord_id, is_facilitator_by_user_id
 from core.nickname_sync import update_nickname_in_discord
-from core.tables import groups, groups_users, meetings
+from core.tables import attendances, groups, groups_users, meetings
 from web_api.auth import get_current_user
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -162,7 +162,7 @@ async def get_my_group_info(
 async def get_my_meetings(
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Get current user's upcoming meetings from their active group."""
+    """Get current user's meetings (past 2 weeks + future) from their active group."""
     discord_id = user["sub"]
 
     async with get_connection() as conn:
@@ -183,25 +183,42 @@ async def get_my_meetings(
 
         group_id = group_row["group_id"]
 
-        # Get upcoming meetings with group name
+        # Get meetings: all future + past 2 weeks (with attendance info)
         now = datetime.now(timezone.utc)
+        two_weeks_ago = now - timedelta(weeks=2)
+
         meetings_result = await conn.execute(
             select(
                 meetings.c.meeting_id,
                 meetings.c.meeting_number,
                 meetings.c.scheduled_at,
                 groups.c.group_name,
+                attendances.c.checked_in_at,
             )
-            .join(groups, meetings.c.group_id == groups.c.group_id)
+            .select_from(
+                meetings.join(
+                    groups, meetings.c.group_id == groups.c.group_id
+                ).outerjoin(
+                    attendances,
+                    and_(
+                        attendances.c.meeting_id == meetings.c.meeting_id,
+                        attendances.c.user_id == db_user["user_id"],
+                        attendances.c.is_guest == False,  # noqa: E712
+                    ),
+                )
+            )
             .where(
                 meetings.c.group_id == group_id,
-                meetings.c.scheduled_at > now,
+                meetings.c.scheduled_at > two_weeks_ago,
             )
             .order_by(meetings.c.scheduled_at)
         )
         result = []
         for row in meetings_result.mappings():
             r = dict(row)
+            is_past = r["scheduled_at"] <= now
+            r["is_past"] = is_past
+            r["attended"] = r.pop("checked_in_at") is not None
             r["scheduled_at"] = r["scheduled_at"].isoformat()
             result.append(r)
 

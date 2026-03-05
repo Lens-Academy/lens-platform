@@ -51,6 +51,7 @@ class ArticleMetadata:
     title: str | None = None
     author: str | None = None
     source_url: str | None = None  # Original article URL
+    published: str | None = None
 
 
 @dataclass
@@ -132,6 +133,7 @@ def parse_frontmatter(text: str) -> tuple[ArticleMetadata, str]:
         "title": "title",
         "author": "author",
         "source_url": "source_url",
+        "published": "published",
     }
     raw_metadata, content = _parse_frontmatter_generic(text, field_mapping)
 
@@ -139,6 +141,7 @@ def parse_frontmatter(text: str) -> tuple[ArticleMetadata, str]:
         title=raw_metadata.get("title"),
         author=raw_metadata.get("author"),
         source_url=raw_metadata.get("source_url"),
+        published=raw_metadata.get("published"),
     ), content
 
 
@@ -647,6 +650,7 @@ def build_article_module(slug: str) -> dict:
                     "title": metadata.title or slug,
                     "author": metadata.author,
                     "sourceUrl": metadata.source_url,
+                    "published": metadata.published,
                 },
                 "segments": [
                     {

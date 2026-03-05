@@ -84,7 +84,8 @@
           "meta": {
             "title": "Cascades, Cycles, Insight... — LessWrong",
             "author": "Eliezer Yudkowsky",
-            "sourceUrl": "https://www.lesswrong.com/posts/dq3KsCsqNotWc8nAK/cascades-cycles-insight"
+            "sourceUrl": "https://www.lesswrong.com/posts/dq3KsCsqNotWc8nAK/cascades-cycles-insight",
+            "published": "2008-11-24"
           },
           "segments": [
             {
@@ -124,7 +125,8 @@
           "meta": {
             "title": "Four Background Claims - Machine Intelligence Research Institute",
             "author": "Nate Soares",
-            "sourceUrl": "https://intelligence.org/2015/07/24/four-background-claims/"
+            "sourceUrl": "https://intelligence.org/2015/07/24/four-background-claims/",
+            "published": "2015-07-24"
           },
           "segments": [
             {
@@ -154,7 +156,8 @@
           "meta": {
             "title": "...Recursion, Magic — LessWrong",
             "author": "Eliezer Yudkowsky",
-            "sourceUrl": "https://www.lesswrong.com/posts/rJLviHqJMTy8WQkow/recursion-magic"
+            "sourceUrl": "https://www.lesswrong.com/posts/rJLviHqJMTy8WQkow/recursion-magic",
+            "published": "2008-11-25"
           },
           "segments": [
             {
@@ -194,7 +197,8 @@
           "meta": {
             "title": "Speculations Concerning the First Ultraintelligent Machine",
             "author": "Irving John Good",
-            "sourceUrl": "https://flyingpenguin.com/wp-content/uploads/2022/04/good-1964-.pdf"
+            "sourceUrl": "https://flyingpenguin.com/wp-content/uploads/2022/04/good-1964-.pdf",
+            "published": "1964"
           },
           "segments": [
             {
@@ -239,7 +243,8 @@
           "meta": {
             "title": "What are the differences between a singularity, an intelligence explosion, and a hard takeoff?",
             "author": "AISafety.info",
-            "sourceUrl": "https://aisafety.info/questions/8IHO/What-are-the-differences-between-a-singularity,-an-intelligence-explosion,-and-a-hard-takeoff"
+            "sourceUrl": "https://aisafety.info/questions/8IHO/What-are-the-differences-between-a-singularity,-an-intelligence-explosion,-and-a-hard-takeoff",
+            "published": "2026-01-16"
           },
           "segments": [
             {
@@ -283,7 +288,8 @@
           "meta": {
             "title": "Existential risk from artificial intelligence",
             "author": "Wikipedia",
-            "sourceUrl": "https://en.wikipedia.org/wiki/Existential_risk_from_artificial_intelligence"
+            "sourceUrl": "https://en.wikipedia.org/wiki/Existential_risk_from_artificial_intelligence",
+            "published": "2015-05-01"
           },
           "segments": [
             {
@@ -322,7 +328,8 @@
           "meta": {
             "title": "Worst-case thinking in AI alignment",
             "author": "Buck Shlegeris",
-            "sourceUrl": "https://www.lesswrong.com/posts/yTvBSFrXhZfL8vr5a/worst-case-thinking-in-ai-alignment"
+            "sourceUrl": "https://www.lesswrong.com/posts/yTvBSFrXhZfL8vr5a/worst-case-thinking-in-ai-alignment",
+            "published": "2021-12-23"
           },
           "segments": [
             {
@@ -393,7 +400,8 @@
           "meta": {
             "title": "Cascades, Cycles, Insight... — LessWrong",
             "author": "Eliezer Yudkowsky",
-            "sourceUrl": "https://www.lesswrong.com/posts/dq3KsCsqNotWc8nAK/cascades-cycles-insight"
+            "sourceUrl": "https://www.lesswrong.com/posts/dq3KsCsqNotWc8nAK/cascades-cycles-insight",
+            "published": "2008-11-24"
           },
           "segments": [
             {
@@ -426,7 +434,8 @@
           "meta": {
             "title": "Speculations Concerning the First Ultraintelligent Machine",
             "author": "Irving John Good",
-            "sourceUrl": "https://flyingpenguin.com/wp-content/uploads/2022/04/good-1964-.pdf"
+            "sourceUrl": "https://flyingpenguin.com/wp-content/uploads/2022/04/good-1964-.pdf",
+            "published": "1964"
           },
           "segments": [
             {
@@ -464,7 +473,8 @@
           "meta": {
             "title": "What are the differences between a singularity, an intelligence explosion, and a hard takeoff?",
             "author": "AISafety.info",
-            "sourceUrl": "https://aisafety.info/questions/8IHO/What-are-the-differences-between-a-singularity,-an-intelligence-explosion,-and-a-hard-takeoff"
+            "sourceUrl": "https://aisafety.info/questions/8IHO/What-are-the-differences-between-a-singularity,-an-intelligence-explosion,-and-a-hard-takeoff",
+            "published": "2026-01-16"
           },
           "segments": [
             {
@@ -501,7 +511,8 @@
           "meta": {
             "title": "...Recursion, Magic — LessWrong",
             "author": "Eliezer Yudkowsky",
-            "sourceUrl": "https://www.lesswrong.com/posts/rJLviHqJMTy8WQkow/recursion-magic"
+            "sourceUrl": "https://www.lesswrong.com/posts/rJLviHqJMTy8WQkow/recursion-magic",
+            "published": "2008-11-25"
           },
           "segments": [
             {
@@ -590,7 +601,8 @@
           "meta": {
             "title": "Existential risk from artificial intelligence",
             "author": "Wikipedia",
-            "sourceUrl": "https://en.wikipedia.org/wiki/Existential_risk_from_artificial_intelligence"
+            "sourceUrl": "https://en.wikipedia.org/wiki/Existential_risk_from_artificial_intelligence",
+            "published": "2015-05-01"
           },
           "segments": [
             {
@@ -650,7 +662,8 @@
           "meta": {
             "title": "Four Background Claims - Machine Intelligence Research Institute",
             "author": "Nate Soares",
-            "sourceUrl": "https://intelligence.org/2015/07/24/four-background-claims/"
+            "sourceUrl": "https://intelligence.org/2015/07/24/four-background-claims/",
+            "published": "2015-07-24"
           },
           "segments": [
             {
@@ -673,7 +686,8 @@
           "meta": {
             "title": "Worst-case thinking in AI alignment",
             "author": "Buck Shlegeris",
-            "sourceUrl": "https://www.lesswrong.com/posts/yTvBSFrXhZfL8vr5a/worst-case-thinking-in-ai-alignment"
+            "sourceUrl": "https://www.lesswrong.com/posts/yTvBSFrXhZfL8vr5a/worst-case-thinking-in-ai-alignment",
+            "published": "2021-12-23"
           },
           "segments": [
             {

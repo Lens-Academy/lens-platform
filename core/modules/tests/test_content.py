@@ -79,6 +79,7 @@ ARTICLE_WITH_ALL_FIELDS = """\
 title: Test Article One
 author: Alice Author
 source_url: https://example.com/article-one
+published: 2024-01-15
 ---
 
 This is the body of article one.
@@ -178,6 +179,7 @@ def test_build_article_module_returns_flattened_format(article_cache):
     assert section["meta"]["title"] == "Test Article One"
     assert section["meta"]["author"] == "Alice Author"
     assert section["meta"]["sourceUrl"] == "https://example.com/article-one"
+    assert section["meta"]["published"] == "2024-01-15"
 
     assert len(section["segments"]) == 1
     segment = section["segments"][0]

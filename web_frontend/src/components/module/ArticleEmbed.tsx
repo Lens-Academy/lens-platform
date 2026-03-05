@@ -24,6 +24,18 @@ import type { ArticleData } from "@/types/module";
 import { generateHeadingId } from "@/utils/extractHeadings";
 import { useArticleSectionContext } from "./ArticleSectionContext";
 
+/** Format a YYYY-MM-DD date string to readable format like "May 1, 2015". */
+function formatArticleDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (!year || !month) return dateStr;
+  const date = new Date(year, month - 1, day || 1);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    ...(day ? { day: "numeric" } : {}),
+  });
+}
+
 /**
  * Remark plugin that converts directives into HTML elements.
  * - :::collapse ... ::: (container) → <collapse-block>
@@ -484,6 +496,7 @@ export default function ArticleEmbed({
     title,
     author,
     sourceUrl,
+    published,
     collapsed_before,
     collapsed_after,
   } = article;
@@ -697,7 +710,15 @@ export default function ArticleEmbed({
                 {author && (
                   <p className="text-sm text-gray-500">by {author}</p>
                 )}
-                {author && sourceUrl && (
+                {author && published && (
+                  <span className="text-gray-400">|</span>
+                )}
+                {published && (
+                  <span className="text-sm text-gray-500">
+                    {formatArticleDate(published)}
+                  </span>
+                )}
+                {(author || published) && sourceUrl && (
                   <span className="text-gray-400">|</span>
                 )}
                 {sourceUrl && (

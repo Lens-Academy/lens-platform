@@ -35,8 +35,8 @@ describe('CONTENT_SCHEMAS', () => {
 
   it('article schema has correct required and optional fields', () => {
     const schema = CONTENT_SCHEMAS['article'];
-    expect(schema.requiredFields).toEqual(['title', 'author', 'source_url']);
-    expect(schema.optionalFields).toEqual(['date', 'published', 'created', 'description', 'tags', 'url']);
+    expect(schema.requiredFields).toEqual(['title', 'author', 'source_url', 'published']);
+    expect(schema.optionalFields).toEqual(['created', 'description', 'tags', 'url']);
   });
 
   it('video-transcript schema has correct required and optional fields', () => {

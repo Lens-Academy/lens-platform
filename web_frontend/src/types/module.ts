@@ -71,6 +71,7 @@ export type ArticleMeta = {
   title: string;
   author: string | null;
   sourceUrl: string | null;
+  published: string | null;
 };
 
 // Metadata for video sections
@@ -152,7 +153,7 @@ export type LensArticleSection = {
   contentId: string | null;
   learningOutcomeId: string | null;
   learningOutcomeName: string | null;
-  meta: { title: string; author: string | null; sourceUrl: string | null };
+  meta: { title: string; author: string | null; sourceUrl: string | null; published: string | null };
   segments: ModuleSegment[];
   optional: boolean;
 };
@@ -211,6 +212,7 @@ export type ArticleData = {
   title: string | null;
   author: string | null;
   sourceUrl: string | null;
+  published: string | null;
   isExcerpt?: boolean;
   collapsed_before?: string | null; // Omitted content before this excerpt
   collapsed_after?: string | null; // Omitted content after this excerpt

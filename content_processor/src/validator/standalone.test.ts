@@ -226,6 +226,7 @@ Just some text, no Lens section.
 title: Test Article
 author: Jane Doe
 source_url: https://example.com/article
+published: 2024-01-01
 ---
 
 The article body.
@@ -266,6 +267,7 @@ Body.
 title: Test
 author: Jane
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 ![[image.png]]

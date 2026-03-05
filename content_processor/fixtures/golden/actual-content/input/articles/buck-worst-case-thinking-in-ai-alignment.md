@@ -1,7 +1,7 @@
 ---
 title: "Worst-case thinking in AI alignment"
 author: Buck Shlegeris
-date: 2021-12-23
+published: 2021-12-23
 source_url: https://www.lesswrong.com/posts/yTvBSFrXhZfL8vr5a/worst-case-thinking-in-ai-alignment
 ---
 

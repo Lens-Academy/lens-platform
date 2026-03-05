@@ -396,6 +396,7 @@ describe('integration: directive validation via processContent', () => {
         'title: Test Article',
         'author: Test',
         'source_url: https://example.com',
+        'published: 2024-01-01',
         '---',
         ':::note',
         'Some content without closing marker.',
