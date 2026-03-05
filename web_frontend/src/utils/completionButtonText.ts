@@ -40,5 +40,13 @@ export function getCompletionButtonText(
   const isShort = getSectionTextLength(section) < 1750;
   if (!isShort) return "Mark section complete";
 
+  if (hasChatSegment(section)) return "Continue";
   return sectionIndex === 0 ? "Get started" : "Continue";
+}
+
+function hasChatSegment(section: ModuleSection): boolean {
+  if (section.type === "page") {
+    return section.segments?.some((s) => s.type === "chat") ?? false;
+  }
+  return false;
 }

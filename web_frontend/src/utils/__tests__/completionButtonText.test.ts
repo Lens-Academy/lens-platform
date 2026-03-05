@@ -114,6 +114,27 @@ describe("getCompletionButtonText", () => {
     );
   });
 
+  it("returns 'Continue' for short page with chat segment at index 0", () => {
+    const section: ModuleSection = {
+      type: "page",
+      contentId: null,
+      learningOutcomeId: null,
+      learningOutcomeName: null,
+      meta: { title: null },
+      segments: [
+        { type: "text" as const, content: "short intro" },
+        {
+          type: "chat",
+          instructions: "",
+          hidePreviousContentFromUser: false,
+          hidePreviousContentFromTutor: false,
+        },
+      ],
+      optional: false,
+    };
+    expect(getCompletionButtonText(section, 0)).toBe("Continue");
+  });
+
   it("threshold is exclusive (1749 = short, 1750 = long)", () => {
     expect(getCompletionButtonText(textSection("x".repeat(1749)), 0)).toBe(
       "Get started",
