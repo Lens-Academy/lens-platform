@@ -167,8 +167,8 @@ export type UseTutorChatOptions = {
 export function useTutorChat({
   moduleId,
   module,
-  currentSectionIndex: _currentSectionIndex,
-  currentSegmentIndex: _currentSegmentIndex,
+  currentSectionIndex,
+  currentSegmentIndex,
   currentSection,
   isArticleSection,
   triggerChatActivity,
@@ -247,6 +247,45 @@ export function useTutorChat({
       cancelled = true;
     };
   }, [module]);
+
+  // --- Section-transition system messages -----------------------------------
+
+  const prevSegmentRef = useRef<{
+    sectionIndex: number;
+    segmentIndex: number;
+  } | null>(null);
+  const hasUserMessage = chat.messages.some((m) => m.role === "user");
+
+  useEffect(() => {
+    // Only inject after the user has sent at least one message
+    if (!hasUserMessage) return;
+
+    const prev = prevSegmentRef.current;
+    const current = {
+      sectionIndex: currentSectionIndex,
+      segmentIndex: currentSegmentIndex,
+    };
+    prevSegmentRef.current = current;
+
+    // Skip on first render
+    if (!prev) return;
+    // Skip if no change
+    if (
+      prev.sectionIndex === current.sectionIndex &&
+      prev.segmentIndex === current.segmentIndex
+    )
+      return;
+
+    // Determine what changed and build message
+    const sectionTitle = currentSection?.meta?.title;
+    if (prev.sectionIndex !== current.sectionIndex && sectionTitle) {
+      dispatchChat({
+        type: "INJECT_SYSTEM_MESSAGE",
+        content: `Now reading: ${sectionTitle}`,
+      });
+    }
+    // Segment changed within same section — skip (no message needed)
+  }, [currentSectionIndex, currentSegmentIndex, currentSection, hasUserMessage]);
 
   // --- Computed values -----------------------------------------------------
 
