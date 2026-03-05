@@ -5,7 +5,83 @@
 
 import { useState } from "react";
 import type { UnitInfo, ModuleInfo } from "../../types/course";
-import { ChevronDown, ChevronRight, Users } from "lucide-react";
+import { ChevronRight, Users } from "lucide-react";
+
+/**
+ * Circular progress indicator:
+ * - not_started: gray outline ring
+ * - in_progress: gray outline ring with blue arc fill (clock-style, starting at 12 o'clock)
+ * - completed: green filled circle with white checkmark
+ */
+function ProgressCircle({
+  status,
+  completedLenses,
+  totalLenses,
+  size = 14,
+}: {
+  status: "completed" | "in_progress" | "not_started";
+  completedLenses?: number;
+  totalLenses?: number;
+  size?: number;
+}) {
+  if (status === "completed") {
+    return (
+      <svg className="flex-shrink-0" width={size} height={size} viewBox="0 0 20 20" fill="currentColor" style={{ color: "#10b981" }}>
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+      </svg>
+    );
+  }
+
+  const r = 8;
+  const cx = 10;
+  const cy = 10;
+  const circumference = 2 * Math.PI * r;
+  const fraction =
+    status === "in_progress" && totalLenses && totalLenses > 0
+      ? Math.min((completedLenses ?? 0) / totalLenses, 1)
+      : 0;
+
+  return (
+    <svg className="flex-shrink-0" width={size} height={size} viewBox="0 0 20 20" fill="none"
+      style={{ transform: "rotate(-90deg)" }}
+    >
+      {/* Gray background ring */}
+      <circle cx={cx} cy={cy} r={r} stroke="#cbd5e1" strokeWidth="2" fill="none" />
+      {/* Blue progress arc */}
+      {fraction > 0 && (
+        <circle cx={cx} cy={cy} r={r} stroke="#3b82f6" strokeWidth="2" fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - fraction)}
+          strokeLinecap="round"
+        />
+      )}
+    </svg>
+  );
+}
+
+// Hard-coded time estimates (minutes) for prototype — will be replaced by real data
+const MOCK_DURATIONS: Record<string, number> = {
+  "introduction": 25,
+  "feedback-loops": 40,
+  "what-even-is-ai": 35,
+  "cognitive-superpowers": 30,
+  "module-fundamental-difficulties": 45,
+  "existing-approaches/welcome": 10,
+  "existing-approaches/automating-alignment": 20,
+  "existing-approaches/mechanistic-interpretability": 25,
+  "existing-approaches/evals": 15,
+  "existing-approaches/control": 20,
+  "existing-approaches/agent-foundations": 25,
+  "existing-approaches/test-your-understanding": 15,
+};
+
+function formatDuration(minutes: number): string {
+  if (minutes >= 60) {
+    const h = minutes / 60;
+    return h % 1 === 0 ? `${h}h` : `${h.toFixed(1)}h`;
+  }
+  return `${minutes}min`;
+}
 
 type CourseTimelineProps = {
   courseTitle: string;
@@ -170,6 +246,23 @@ export default function CourseTimeline({
                   >
                     {weekLabel}
                   </span>
+                  {/* Due label (collapsed only) */}
+                  {!isExpanded && dueDateIso && (
+                    (() => {
+                      const dueLabel = formatRelativeDate(dueDateIso);
+                      return (
+                        <span className={`shrink-0 text-[11px] ml-1.5 ${
+                          dueLabel === "Due Today"
+                            ? "text-amber-600 font-medium"
+                            : dueLabel === "Due Tomorrow"
+                              ? "text-amber-500"
+                              : "text-slate-400"
+                        }`}>
+                          {dueLabel}
+                        </span>
+                      );
+                    })()
+                  )}
                   {/* Right spacer: grows when collapsed, shrinks when expanded */}
                   <div
                     className={`transition-[flex-grow] duration-300 ${
@@ -274,11 +367,13 @@ function renderUnitModules(
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-slate-900 truncate">
+                <ProgressCircle
+                  status={parentStatus}
+                  completedLenses={completed}
+                  totalLenses={children.length}
+                />
+                <span className="text-sm font-medium truncate text-slate-900">
                   {parentTitle}
-                </span>
-                <span className="text-xs text-slate-400">
-                  {completed}/{children.length}
                 </span>
                 <ChevronRight
                   className={`w-3 h-3 text-slate-400 flex-shrink-0 transition-transform duration-200 ${
@@ -297,6 +392,7 @@ function renderUnitModules(
             <div className="overflow-hidden">
               {children.map((child) => {
                 const isSelected = child.slug === selectedModuleSlug;
+                const childEstimate = MOCK_DURATIONS[child.slug];
                 return (
                   <button
                     key={child.slug}
@@ -307,7 +403,22 @@ function renderUnitModules(
                         : "hover:bg-slate-100/70 text-slate-600"
                     }`}
                   >
-                    <span className="ml-4 text-sm truncate">{child.title}</span>
+                    <div className="ml-4 flex-1 min-w-0 flex items-center gap-2">
+                      <ProgressCircle
+                        status={child.status}
+                        completedLenses={child.completedLenses}
+                        totalLenses={child.totalLenses}
+                        size={12}
+                      />
+                      <span className="text-sm truncate text-slate-700">
+                        {child.title}
+                      </span>
+                      {childEstimate && child.status !== "completed" && (
+                        <span className="text-[11px] text-slate-400 ml-auto flex-shrink-0 tabular-nums">
+                          {formatDuration(childEstimate)}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}
@@ -319,6 +430,7 @@ function renderUnitModules(
       // Regular module
       const isSelected = mod.slug === selectedModuleSlug;
       const dueLabel = dueDateIso ? formatRelativeDate(dueDateIso) : null;
+      const estimate = MOCK_DURATIONS[mod.slug];
 
       elements.push(
         <button
@@ -332,13 +444,18 @@ function renderUnitModules(
         >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
+              {!mod.optional && (
+                <ProgressCircle
+                  status={mod.status}
+                  completedLenses={mod.completedLenses}
+                  totalLenses={mod.totalLenses}
+                />
+              )}
               <span
                 className={`text-sm truncate ${
-                  isSelected
-                    ? "font-medium text-slate-900"
-                    : mod.optional
-                      ? "text-slate-500"
-                      : "text-slate-700"
+                  mod.optional
+                    ? "text-slate-500"
+                    : "text-slate-700"
                 }`}
               >
                 {mod.title}
@@ -348,19 +465,22 @@ function renderUnitModules(
                   Optional
                 </span>
               )}
-              {!mod.optional &&
-                mod.status === "in_progress" &&
-                mod.completedLenses !== undefined &&
-                mod.totalLenses && (
-                  <span className="text-[11px] text-blue-600 font-medium">
-                    {mod.completedLenses}/{mod.totalLenses}
-                  </span>
-                )}
-              {dueLabel && !mod.optional && (
-                <span className="text-[11px] text-slate-400 ml-auto flex-shrink-0">
+              {/* Right-aligned: due date or time estimate */}
+              {dueLabel && !mod.optional && mod.status !== "completed" ? (
+                <span className={`text-[11px] ml-auto flex-shrink-0 ${
+                  dueLabel === "Due Today"
+                    ? "text-amber-600 font-medium"
+                    : dueLabel === "Due Tomorrow"
+                      ? "text-amber-500"
+                      : "text-slate-400"
+                }`}>
                   {dueLabel}
                 </span>
-              )}
+              ) : estimate && mod.status !== "completed" ? (
+                <span className="text-[11px] text-slate-400 ml-auto flex-shrink-0 tabular-nums">
+                  {formatDuration(estimate)}
+                </span>
+              ) : null}
             </div>
           </div>
         </button>,
