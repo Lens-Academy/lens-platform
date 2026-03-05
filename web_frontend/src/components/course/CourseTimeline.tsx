@@ -43,25 +43,6 @@ function getUnitStatus(unit: UnitInfo): UnitStatus {
   return "not_started";
 }
 
-function StatusDot({
-  status,
-  small,
-}: {
-  status: ModuleInfo["status"] | UnitStatus;
-  small?: boolean;
-}) {
-  const color =
-    status === "completed" || status === "in_progress"
-      ? "bg-blue-500"
-      : "bg-slate-300";
-  return (
-    <div className="w-5 h-5 flex items-center justify-center">
-      <div
-        className={`rounded-full ${color} ${small ? "w-1.5 h-1.5" : "w-2 h-2"}`}
-      />
-    </div>
-  );
-}
 
 function getParentStatus(children: ModuleInfo[]): ModuleInfo["status"] {
   if (children.every((m) => m.status === "completed")) return "completed";
@@ -135,10 +116,7 @@ export default function CourseTimeline({
 
       {/* Timeline */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="relative">
-          {/* Vertical line */}
-          <div className="absolute left-[9px] top-0 bottom-0 w-px bg-slate-200 z-10 pointer-events-none" />
-
+        <div>
           {units.map((unit, unitIdx) => {
             const isExpanded = expandedUnits.has(unitIdx);
             const unitStatus = getUnitStatus(unit);
@@ -162,13 +140,12 @@ export default function CourseTimeline({
                 : null;
 
             return (
+              <div key={unitIdx}>
+                {unitIdx > 0 && (
+                  <div className="border-t border-slate-200 my-1" />
+                )}
               <div
-                key={unitIdx}
-                className={`relative rounded-xl border-2 transition-all duration-200 ${
-                  isExpanded
-                    ? "border-slate-200 shadow-sm -mx-1.5 px-1 my-0.5 py-1"
-                    : "border-transparent -mx-0.5 px-0 my-0 py-0"
-                }`}
+                className="relative transition-all duration-200"
               >
                 {/* Unit header row */}
                 <button
@@ -177,23 +154,9 @@ export default function CourseTimeline({
                     isExpanded ? "py-1" : "py-1.5"
                   }`}
                 >
-                  {/* Dot: scales away when expanded */}
-                  <div className="relative z-20 shrink-0">
-                    <div className="w-5 h-5 flex items-center justify-center">
-                      <div
-                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                          isExpanded
-                            ? "scale-0 opacity-0"
-                            : unitStatus === "completed" || unitStatus === "in_progress"
-                              ? "bg-blue-500 scale-100 opacity-100"
-                              : "bg-slate-300 scale-100 opacity-100"
-                        }`}
-                      />
-                    </div>
-                  </div>
-                  {/* Left spacer: fixed gap when collapsed, grows to push label right when expanded */}
+                  {/* Left spacer: grows to push label right when expanded */}
                   <div
-                    className={`w-3 transition-[flex-grow] duration-300 ${
+                    className={`transition-[flex-grow] duration-300 ${
                       isExpanded ? "grow" : "grow-0"
                     }`}
                   />
@@ -239,11 +202,7 @@ export default function CourseTimeline({
 
                     {/* Meeting row */}
                     {unit.meetingNumber !== null && (
-                      <div className="relative flex items-center py-1.5">
-                        <div className="relative z-20 w-5 h-5 flex items-center justify-center">
-                          <div className="w-2 h-2 rounded-full bg-slate-300" />
-                        </div>
-                        <div className="ml-3 flex items-center gap-2">
+                      <div className="flex items-center py-1.5 gap-2">
                           <Users className="w-3.5 h-3.5 text-slate-700" />
                           <span className="text-sm text-slate-700">
                             #{unit.meetingNumber}
@@ -253,11 +212,11 @@ export default function CourseTimeline({
                               {formatMeetingDate(unit.meetingDate)}
                             </span>
                           )}
-                        </div>
                       </div>
                     )}
                   </div>
                 </div>
+              </div>
               </div>
             );
           })}
@@ -313,10 +272,7 @@ function renderUnitModules(
                 : "-mx-2 px-2"
             }`}
           >
-            <div className="relative z-20">
-              <StatusDot status={parentStatus} />
-            </div>
-            <div className="ml-3 flex-1 min-w-0">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-slate-900 truncate">
                   {parentTitle}
@@ -351,10 +307,7 @@ function renderUnitModules(
                         : "hover:bg-slate-100/70 text-slate-600"
                     }`}
                   >
-                    <div className="relative z-20">
-                      <StatusDot status={child.status} small />
-                    </div>
-                    <span className="ml-6 text-sm truncate">{child.title}</span>
+                    <span className="ml-4 text-sm truncate">{child.title}</span>
                   </button>
                 );
               })}
@@ -377,10 +330,7 @@ function renderUnitModules(
               : "hover:bg-slate-100/70 -mx-2 px-2"
           }`}
         >
-          <div className="relative z-20">
-            <StatusDot status={mod.status} />
-          </div>
-          <div className="ml-3 flex-1 min-w-0">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span
                 className={`text-sm truncate ${
