@@ -387,7 +387,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Ref to the DoneReadingButton wrapper (used as ref in JSX)
   const doneReadingBtnRef = useRef<HTMLDivElement>(null);
   // TOC portal container for 3-column grid layout (set by callback ref)
-  const [tocContainer, setTocContainer] = useState<HTMLElement | null>(null);
+  // const [tocContainer, setTocContainer] = useState<HTMLElement | null>(null);
 
   // Convert sections to Stage format for progress bar
   const stages: Stage[] = useMemo(() => {
