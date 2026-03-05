@@ -28,7 +28,7 @@ type ChatMessageListProps = {
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 };
 
-function renderMessage(msg: ChatMessage, key: string | number) {
+export function renderMessage(msg: ChatMessage, key: string | number) {
   if (msg.role === "system") {
     return (
       <div key={key} className="flex justify-center my-3">
