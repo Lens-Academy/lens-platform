@@ -37,7 +37,7 @@ type ChatInlineShellProps = {
   shellRef?: (el: HTMLDivElement | null) => void;
 };
 
-export default function ChatInlineShell({
+export function ChatInlineShell({
   messages,
   pendingMessage,
   streamingContent,

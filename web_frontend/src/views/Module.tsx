@@ -30,7 +30,7 @@ import type { MarkCompleteResponse } from "@/api/progress";
 import AuthoredText from "@/components/module/AuthoredText";
 import ArticleEmbed from "@/components/module/ArticleEmbed";
 import VideoEmbed from "@/components/module/VideoEmbed";
-import NarrativeChatSection from "@/components/module/NarrativeChatSection";
+import { ChatInlineShell } from "@/components/module/ChatInlineShell";
 import AnswerBox from "@/components/module/AnswerBox";
 import RoleplaySection from "@/components/module/RoleplaySection";
 import TestSection from "@/components/module/TestSection";
@@ -386,10 +386,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Ref to the DoneReadingButton wrapper (used as ref in JSX)
   const doneReadingBtnRef = useRef<HTMLDivElement>(null);
-  // Whether NarrativeChatSection should activate with full history after transfer
-  // (kept as local constant until Task 6 removes NarrativeChatSection entirely)
-  const activateNarrativeChat = false;
-
   // TOC portal container for 3-column grid layout (set by callback ref)
   const [tocContainer, setTocContainer] = useState<HTMLElement | null>(null);
 
@@ -575,6 +571,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     messages, pendingMessage, streamingContent, isLoading,
     sendMessage: handleSendMessage, retryMessage: handleRetryMessage,
     inputText, setInputText,
+    activeSurface, registerInlineRef,
     isSidebarOpen, setSidebarOpen: setIsSidebarOpen,
     sectionPrefixMessage, sidebarChatSegmentIndex,
   } = useTutorChat({
@@ -957,7 +954,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       case "chat":
         // Chat components stay mounted (no lazy loading) to preserve local state
         return wrapWithSentinel(
-          <NarrativeChatSection
+          <ChatInlineShell
             key={`chat-${keyPrefix}`}
             messages={messages}
             pendingMessage={pendingMessage}
@@ -970,6 +967,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             activated={options?.activateChat}
             activatedWithHistory={options?.activateChat}
             prefixMessage={options?.prefixMessage}
+            inputText={inputText}
+            onInputTextChange={setInputText}
+            hasActiveInput={
+              activeSurface.type === "inline" &&
+              activeSurface.sectionIndex === sectionIndex &&
+              activeSurface.segmentIndex === segmentIndex
+            }
+            shellRef={(el) => registerInlineRef(sectionIndex, segmentIndex, el)}
           />,
         );
 
@@ -994,7 +999,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               }}
             />
             {segment.feedback && activeFeedbackKey === feedbackKey && (
-              <NarrativeChatSection
+              <ChatInlineShell
                 messages={messages}
                 pendingMessage={pendingMessage}
                 streamingContent={streamingContent}
@@ -1005,6 +1010,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 onRetryMessage={handleRetryMessage}
                 scrollToResponse
                 activated
+                inputText={inputText}
+                onInputTextChange={setInputText}
+                hasActiveInput={true}
               />
             )}
           </div>,
@@ -1032,7 +1040,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               }
             />
             {activeFeedbackKey === feedbackKey && (
-              <NarrativeChatSection
+              <ChatInlineShell
                 messages={messages}
                 pendingMessage={pendingMessage}
                 streamingContent={streamingContent}
@@ -1043,6 +1051,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 onRetryMessage={handleRetryMessage}
                 scrollToResponse
                 activated
+                inputText={inputText}
+                onInputTextChange={setInputText}
+                hasActiveInput={true}
               />
             )}
           </div>,
@@ -1239,7 +1250,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     title={section.meta?.title}
                     duration={sectionDur}
                   />
-                  <NarrativeChatSection
+                  <ChatInlineShell
                     messages={messages}
                     pendingMessage={pendingMessage}
                     streamingContent={streamingContent}
@@ -1248,6 +1259,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                       handleSendMessage(content, sectionIndex, 0)
                     }
                     onRetryMessage={handleRetryMessage}
+                    inputText={inputText}
+                    onInputTextChange={setInputText}
+                    hasActiveInput={
+                      activeSurface.type === "inline" &&
+                      activeSurface.sectionIndex === sectionIndex &&
+                      activeSurface.segmentIndex === 0
+                    }
+                    shellRef={(el) => registerInlineRef(sectionIndex, 0, el)}
                   />
                 </>
               ) : section.type === "lens-video" ? (
@@ -1394,7 +1413,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                               lastExcerptIdx + 1 + i,
                               {
                                 activateChat:
-                                  isCurrent && activateNarrativeChat,
+                                  false,
                                 prefixMessage:
                                   i === firstChatInPostIdx
                                     ? postExcerptPrefixMessage
@@ -1535,7 +1554,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                               lastExcerptIdx + 1 + i,
                               {
                                 activateChat:
-                                  isCurrent && activateNarrativeChat,
+                                  false,
                                 prefixMessage:
                                   i === firstChatInPostIdx
                                     ? postExcerptPrefixMessage
@@ -1584,7 +1603,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                       {section.feedback &&
                         activeFeedbackKey === feedbackKey && (
                           <>
-                            <NarrativeChatSection
+                            <ChatInlineShell
                               messages={messages}
                               pendingMessage={pendingMessage}
                               streamingContent={streamingContent}
@@ -1595,6 +1614,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                               onRetryMessage={handleRetryMessage}
                               scrollToResponse
                               activated
+                              inputText={inputText}
+                              onInputTextChange={setInputText}
+                              hasActiveInput={true}
                             />
                             <div className="flex items-center justify-center py-6">
                               <button
