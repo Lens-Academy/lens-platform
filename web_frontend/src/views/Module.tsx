@@ -1139,7 +1139,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       {/* Layout: content + optional chat sidebar (TOC uses absolute positioning via ArticleExcerptGroup) */}
       <div className="pt-[var(--module-header-height)]">
       <main className="w-full min-w-0">
-        <div className={`relative ${isArticleSection ? `max-w-content-padded article-toc-margin${isSidebarOpen ? " sidebar-open" : ""}` : ""}`}>
+        <div className={`relative ${isArticleSection ? "max-w-content-padded article-toc-margin" : ""}`}>
         {module.sections.map((section, sectionIndex) => {
           // In paginated mode, only render current section
           if (

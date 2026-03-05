@@ -213,33 +213,39 @@ export function ChatSidebar({
     );
   }
 
-  // ── Desktop/Tablet: fixed sidebar (open) or floating toggle (closed) ──
-  if (!isOpen) {
-    return (
+  // ── Desktop/Tablet: always rendered, width transitions between 0 and full ──
+  return (
+    <>
+      {/* Floating toggle — visible when sidebar is closed */}
       <button
         onMouseDown={handleOpen}
-        className="fixed right-3 z-30 flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-all active:scale-95"
+        className={`fixed right-3 z-30 flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-all active:scale-95 ${
+          isOpen ? "opacity-0 pointer-events-none" : ""
+        }`}
         style={{ top: "calc(var(--module-header-height) + 8px)" }}
         title="Ask the AI Tutor"
         aria-label="Open chat sidebar"
       >
         {chatIcon}
       </button>
-    );
-  }
 
-  return (
-    <div
-      className="fixed right-0 z-30 w-80 xl:w-96 border-l border-gray-200 overflow-hidden transition-[width,border-color] duration-300 [transition-timing-function:var(--ease-spring)]"
-      style={{
-        top: "var(--module-header-height)",
-        height: "calc(100dvh - var(--module-header-height))",
-      }}
-    >
-      <div className="w-full h-full flex flex-col bg-white">
-        {header}
-        {chatBody}
+      {/* Sidebar panel — animates width */}
+      <div
+        className={`fixed right-0 z-30 overflow-hidden transition-[width,border-color] duration-300 [transition-timing-function:var(--ease-spring)] ${
+          isOpen
+            ? "w-80 xl:w-96 border-l border-gray-200"
+            : "w-0 border-l border-transparent"
+        }`}
+        style={{
+          top: "var(--module-header-height)",
+          height: "calc(100dvh - var(--module-header-height))",
+        }}
+      >
+        <div className="w-80 xl:w-96 h-full flex flex-col bg-white">
+          {header}
+          {chatBody}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
