@@ -79,6 +79,7 @@ function CollapsibleBlock({
   endMarker?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isCollapsing, setIsCollapsing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleCollapse = () => {
@@ -105,9 +106,13 @@ function CollapsibleBlock({
 
     // Fallback: if no nextEl (end of article), just collapse in place
     if (!nextEl) {
+      setIsCollapsing(true);
       setIsOpen(false);
+      setTimeout(() => setIsCollapsing(false), 300);
       return;
     }
+
+    setIsCollapsing(true);
 
     // Disable scroll anchoring so Chrome doesn't fight our animation
     document.documentElement.style.overflowAnchor = "none";
@@ -149,6 +154,7 @@ function CollapsibleBlock({
         requestAnimationFrame(animate);
       } else {
         document.documentElement.style.overflowAnchor = "";
+        setIsCollapsing(false);
         if (gridEl) {
           gridEl.offsetHeight; // force reflow
           gridEl.style.transition = "";
@@ -199,7 +205,7 @@ function CollapsibleBlock({
           isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
-        <div className="overflow-hidden">
+        <div className={`overflow-hidden transition-[filter] duration-300 ${isCollapsing ? "blur-sm" : ""}`}>
           {children}
           {endMarker && (
             <button
