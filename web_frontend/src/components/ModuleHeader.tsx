@@ -6,6 +6,13 @@ import { UserMenu } from "./nav/UserMenu";
 import StageProgressBar from "./module/StageProgressBar";
 import type { Stage } from "../types/module";
 
+// CSS styles for hiding elements while keeping them measurable
+const hiddenStyle: React.CSSProperties = {
+  visibility: "hidden",
+  position: "absolute",
+  pointerEvents: "none",
+};
+
 interface ModuleHeaderProps {
   moduleTitle: string;
   stages: Stage[];
@@ -20,8 +27,8 @@ interface ModuleHeaderProps {
   testModeActive?: boolean;
 }
 
-// 0 = show everything, 1 = hide brand, 2 = hide brand+username, 3 = hide all (compact nav)
-type Priority = 0 | 1 | 2 | 3;
+// 0 = show everything, 1 = hide brand, 2 = hide brand+username, 3 = compact nav, 4 = hide title
+type Priority = 0 | 1 | 2 | 3 | 4;
 
 export function ModuleHeader({
   moduleTitle,
@@ -44,6 +51,8 @@ export function ModuleHeader({
   const rightRef = useRef<HTMLDivElement>(null);
   const centerRef = useRef<HTMLDivElement>(null);
   const brandRef = useRef<HTMLSpanElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const compactNavRef = useRef<HTMLDivElement>(null);
 
   // Priority-based visibility: single number, strictly ordered
   const [priority, setPriority] = useState<Priority>(0);
@@ -51,6 +60,8 @@ export function ModuleHeader({
 
   // Cached username width (from when it was visible)
   const usernameWRef = useRef(0);
+  // Cached title width (from when it was visible)
+  const titleWRef = useRef(0);
 
   // Center position for viewport-centered progress bar
   const [centerX, setCenterX] = useState<number | undefined>();
@@ -63,6 +74,9 @@ export function ModuleHeader({
     const brand = brandRef.current;
     if (!container || !left || !right) return;
 
+    const title = titleRef.current;
+    const compactNav = compactNavRef.current;
+
     const update = () => {
       const gap = 8;
       const containerWidth = container.clientWidth;
@@ -71,6 +85,12 @@ export function ModuleHeader({
 
       // Brand width: always measurable (position:absolute still has intrinsic width)
       const brandW = brand ? brand.offsetWidth + gap : 0;
+
+      // Cache title width when visible (priority < 4 means title is shown)
+      if (curP < 4 && title) {
+        titleWRef.current = title.offsetWidth + gap;
+      }
+      const titleW = titleWRef.current;
 
       // Cache username width when visible (priority < 2 means username is shown)
       const rightWidth = right.offsetWidth;
@@ -82,7 +102,8 @@ export function ModuleHeader({
       // Reconstruct "full" layout widths by adding back hidden element widths.
       // When priority >= 1, brand is position:absolute so left doesn't include it.
       // When priority >= 2, username is conditionally hidden so right is smaller.
-      let fullLeft = left.offsetWidth + (curP >= 1 ? brandW : 0);
+      // When priority >= 4, title is position:absolute so left doesn't include it.
+      let fullLeft = left.offsetWidth + (curP >= 1 ? brandW : 0) + (curP >= 4 ? titleW : 0);
       let fullRight = rightWidth + (curP >= 2 ? usernameW : 0);
       // Subtract container padding (px-4 = 16px each side) since clientWidth
       // includes padding but flex children are laid out inside the content box.
@@ -102,6 +123,19 @@ export function ModuleHeader({
       }
       if (available < barWidth + 2 * gap) {
         p = 3;
+      }
+
+      // At priority 3, compact nav replaces progress bar.
+      // Check if left + compact nav + right still overflows.
+      if (p >= 3) {
+        const compactW = compactNav ? compactNav.offsetWidth : 0;
+        // At p3, brand is hidden. Remove brandW from fullLeft to get actual left width.
+        const leftAtP3 = fullLeft - brandW;
+        const rightAtP3 = fullRight - usernameW;
+        const totalNeeded = leftAtP3 + compactW + rightAtP3 + padding;
+        if (totalNeeded + 2 * gap > containerWidth) {
+          p = 4;
+        }
       }
 
       priorityRef.current = p;
@@ -148,13 +182,6 @@ export function ModuleHeader({
   // Current viewing position (1-indexed for display)
   const displayIndex = currentSectionIndex + 1;
   const totalStages = stages.length;
-
-  // CSS styles for hiding elements while keeping them measurable
-  const hiddenStyle: React.CSSProperties = {
-    visibility: "hidden",
-    position: "absolute",
-    pointerEvents: "none",
-  };
 
   return (
     <header
@@ -203,17 +230,26 @@ export function ModuleHeader({
             </span>
             <span className="text-gray-300">|</span>
           </span>
-          <h1 className="text-base font-semibold text-gray-900 truncate max-w-[200px]">
+          <h1
+            ref={titleRef}
+            className="text-base font-semibold text-gray-900 truncate max-w-[200px]"
+            style={priority >= 4 ? hiddenStyle : undefined}
+          >
             {moduleTitle}
           </h1>
         </div>
 
-        {/* Center: Compact nav (when progress bar is hidden) */}
-        {priority >= 3 && stages.length > 1 && (
-          <div className="flex items-center gap-1 shrink-0 mx-2">
+        {/* Center: Compact nav — always in DOM for measurement, hidden when priority < 3 */}
+        {stages.length > 1 && (
+          <div
+            ref={compactNavRef}
+            className="flex items-center gap-1 shrink-0 mx-2"
+            style={priority < 3 ? hiddenStyle : undefined}
+          >
             <button
               onClick={onPrevious}
               disabled={!canGoPrevious}
+              tabIndex={priority < 3 ? -1 : undefined}
               className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
               aria-label="Previous section"
             >
@@ -227,6 +263,7 @@ export function ModuleHeader({
             <button
               onClick={onNext}
               disabled={!canGoNext}
+              tabIndex={priority < 3 ? -1 : undefined}
               className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
               aria-label="Next section"
             >
