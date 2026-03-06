@@ -20,6 +20,9 @@ interface ModuleHeaderProps {
   testModeActive?: boolean;
 }
 
+// 0 = show everything, 1 = hide brand, 2 = hide brand+username, 3 = hide all (compact nav)
+type Priority = 0 | 1 | 2 | 3;
+
 export function ModuleHeader({
   moduleTitle,
   stages,
@@ -34,41 +37,93 @@ export function ModuleHeader({
   testModeActive,
 }: ModuleHeaderProps) {
   const scrollDirection = useScrollDirection(100);
-  const isMobile = useMedia("(max-width: 767px)", false);
 
-  // True viewport centering with clamped position to avoid overlap
+  // Refs for layout measurement
   const containerRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
   const centerRef = useRef<HTMLDivElement>(null);
+  const brandRef = useRef<HTMLSpanElement>(null);
+
+  // Priority-based visibility: single number, strictly ordered
+  const [priority, setPriority] = useState<Priority>(0);
+  const priorityRef = useRef<Priority>(0);
+
+  // Cached username width (from when it was visible)
+  const usernameWRef = useRef(0);
+
+  // Center position for viewport-centered progress bar
   const [centerX, setCenterX] = useState<number | undefined>();
-  const [barFits, setBarFits] = useState(true);
 
   useEffect(() => {
     const container = containerRef.current;
     const left = leftRef.current;
     const right = rightRef.current;
     const center = centerRef.current;
-    if (!container || !left || !right || !center) return;
+    const brand = brandRef.current;
+    if (!container || !left || !right) return;
 
     const update = () => {
-      const x1 = left.offsetLeft + left.offsetWidth; // right edge of left section
-      const x2 = right.offsetLeft; // left edge of right section
-      const L = center.scrollWidth; // natural width of progress bar
-      const mid = container.clientWidth / 2; // viewport center
       const gap = 8;
-      setBarFits(x2 - x1 >= L + 2 * gap);
-      setCenterX(Math.max(x1 + L / 2 + gap, Math.min(mid, x2 - L / 2 - gap)));
+      const containerWidth = container.clientWidth;
+      const barWidth = center ? center.scrollWidth : 0;
+      const curP = priorityRef.current;
+
+      // Brand width: always measurable (position:absolute still has intrinsic width)
+      const brandW = brand ? brand.offsetWidth + gap : 0;
+
+      // Cache username width when visible (priority < 2 means username is shown)
+      const rightWidth = right.offsetWidth;
+      if (curP < 2 && rightWidth > 44) {
+        usernameWRef.current = rightWidth - 44;
+      }
+      const usernameW = usernameWRef.current;
+
+      // Reconstruct "full" layout widths by adding back hidden element widths.
+      // When priority >= 1, brand is position:absolute so left doesn't include it.
+      // When priority >= 2, username is conditionally hidden so right is smaller.
+      let fullLeft = left.offsetWidth + (curP >= 1 ? brandW : 0);
+      let fullRight = rightWidth + (curP >= 2 ? usernameW : 0);
+      let available = containerWidth - fullLeft - fullRight;
+
+      let p: Priority = 0;
+      if (available < barWidth + 2 * gap) {
+        p = 1;
+        available += brandW;
+      }
+      if (available < barWidth + 2 * gap) {
+        p = 2;
+        available += Math.max(0, usernameW);
+      }
+      if (available < barWidth + 2 * gap) {
+        p = 3;
+      }
+
+      priorityRef.current = p;
+      setPriority((prev) => (prev === p ? prev : p));
+
+      // Compute centerX for progress bar positioning
+      if (center && p < 3) {
+        const visX1 = left.offsetLeft + left.offsetWidth;
+        const visX2 = right.offsetLeft;
+        const mid = containerWidth / 2;
+        setCenterX(
+          Math.max(
+            visX1 + barWidth / 2 + gap,
+            Math.min(mid, visX2 - barWidth / 2 - gap),
+          ),
+        );
+      }
     };
 
     const ro = new ResizeObserver(update);
     ro.observe(container);
     ro.observe(left);
     ro.observe(right);
-    ro.observe(center);
+    if (center) ro.observe(center);
     update();
     return () => ro.disconnect();
-  }, [isMobile]);
+  }, []); // stable — no dependencies
 
   // Hide header on scroll down only when viewport is compact (mobile or short)
   const isCompactViewport = useMedia(
@@ -89,6 +144,13 @@ export function ModuleHeader({
   const displayIndex = currentSectionIndex + 1;
   const totalStages = stages.length;
 
+  // CSS styles for hiding elements while keeping them measurable
+  const hiddenStyle: React.CSSProperties = {
+    visibility: "hidden",
+    position: "absolute",
+    pointerEvents: "none",
+  };
+
   return (
     <header
       className={`
@@ -99,9 +161,15 @@ export function ModuleHeader({
       `}
       style={{ paddingTop: "var(--safe-top)" }}
     >
-      <div ref={containerRef} className="relative flex items-center justify-between px-4 py-3">
-        {/* Left: Hamburger + Logo + Title */}
-        <div ref={leftRef} className="flex items-center gap-2 min-w-0 flex-shrink-0">
+      <div
+        ref={containerRef}
+        className="relative flex items-center justify-between px-4 py-3"
+      >
+        {/* Left: Hamburger + Logo + Brand + Title */}
+        <div
+          ref={leftRef}
+          className="flex items-center gap-2 min-w-0 flex-shrink-0"
+        >
           <button
             onMouseDown={onMenuToggle}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all active:scale-95 shrink-0"
@@ -109,24 +177,34 @@ export function ModuleHeader({
           >
             <Menu className="w-5 h-5 text-gray-600" />
           </button>
-          <a href="/" className="min-h-[44px] flex items-center gap-2 shrink-0">
+          <a
+            href="/"
+            className="min-h-[44px] flex items-center gap-2 shrink-0"
+          >
             <img
               src="/assets/Logo only.png"
               alt="Lens Academy"
               className="h-6"
             />
-            <span className="hidden md:inline text-base font-semibold text-gray-900">
+          </a>
+          {/* Brand: always in DOM, hidden via CSS when priority >= 1 */}
+          <span
+            ref={brandRef}
+            className="flex items-center gap-2"
+            style={priority >= 1 ? hiddenStyle : undefined}
+          >
+            <span className="text-base font-semibold text-gray-900">
               Lens Academy
             </span>
-          </a>
-          <span className="hidden md:inline text-gray-300">|</span>
-          <h1 className="text-base md:text-lg font-semibold text-gray-900 truncate max-w-[200px]">
+            <span className="text-gray-300">|</span>
+          </span>
+          <h1 className="text-base font-semibold text-gray-900 truncate max-w-[200px]">
             {moduleTitle}
           </h1>
         </div>
 
-        {/* Center: Simple prev/next navigation (mobile or when progress bar doesn't fit) */}
-        {(isMobile || !barFits) && stages.length > 1 && (
+        {/* Center: Compact nav (when progress bar is hidden) */}
+        {priority >= 3 && stages.length > 1 && (
           <div className="flex items-center gap-1 shrink-0 mx-2">
             <button
               onClick={onPrevious}
@@ -152,13 +230,16 @@ export function ModuleHeader({
           </div>
         )}
 
-        {/* Center: StageProgressBar (desktop, truly viewport-centered with clamped position) */}
-        {/* Always rendered for measurement; hidden when it doesn't fit */}
-        {!isMobile && stages.length > 1 && (
+        {/* Center: StageProgressBar — always in DOM for measurement, hidden when priority >= 3 */}
+        {stages.length > 1 && (
           <div
             ref={centerRef}
-            className={`absolute -translate-x-1/2${barFits ? "" : " invisible"}`}
-            style={{ left: centerX }}
+            className="absolute -translate-x-1/2"
+            style={{
+              left: centerX,
+              visibility: priority < 3 ? "visible" : "hidden",
+              pointerEvents: priority < 3 ? "auto" : "none",
+            }}
           >
             <StageProgressBar
               stages={stages}
@@ -175,9 +256,12 @@ export function ModuleHeader({
           </div>
         )}
 
-        {/* Right: UserMenu only (skip button removed) */}
-        <div ref={rightRef} className="flex items-center gap-1 md:gap-3 shrink-0">
-          <UserMenu />
+        {/* Right: UserMenu */}
+        <div
+          ref={rightRef}
+          className="flex items-center gap-1 shrink-0"
+        >
+          <UserMenu compact={priority >= 2} />
         </div>
       </div>
     </header>
