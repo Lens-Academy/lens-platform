@@ -155,7 +155,6 @@ export type UseTutorChatOptions = {
   /** full module object — used for loading chat history */
   module: ModuleType | null;
   currentSectionIndex: number;
-  currentSegmentIndex: number;
   currentSection: ModuleSection | undefined;
   /** kept for prefix message, chat segment index computations */
   isArticleSection: boolean;
@@ -319,7 +318,7 @@ export function useTutorChat({
         // Find most visible from ALL tracked sections
         let best: { key: string; ratio: number } | null = null;
         for (const [key, ratio] of ratioMap.current) {
-          if (ratio > 0.15 && (!best || ratio > best.ratio)) {
+          if (ratio > 0 && (!best || ratio > best.ratio)) {
             best = { key, ratio };
           }
         }
@@ -339,7 +338,7 @@ export function useTutorChat({
           );
         }
       },
-      { threshold: [0, 0.15, 0.3, 0.5, 0.7] },
+      { threshold: [0, 0.3, 0.5, 0.7] },
     );
 
     observerRef.current = observer;

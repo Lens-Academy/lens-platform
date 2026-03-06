@@ -8,7 +8,9 @@
  * Mobile/tablet (<lg): fullscreen fixed overlay with backdrop.
  *
  * State lives in ChatSidebar (not Module) to avoid re-rendering Module on
- * every open/close toggle — same pattern as ModuleDrawer.
+ * every open/close toggle — same pattern as ModuleDrawer. Both `isOpen` and
+ * `isAllowed` are owned here; the parent drives `isAllowed` via the
+ * imperative handle (called from the scroll handler for instant response).
  */
 
 import {
@@ -29,10 +31,10 @@ export type ChatSidebarHandle = {
   open: () => void;
   close: () => void;
   setOpen: (open: boolean) => void;
+  setAllowed: (allowed: boolean) => void;
 };
 
 type ChatSidebarProps = {
-  sidebarAllowed: boolean;
   sectionTitle?: string;
   // Chat state (passed from Module.tsx / parent)
   messages: ChatMessage[];
@@ -47,7 +49,6 @@ type ChatSidebarProps = {
 export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
   function ChatSidebar(
     {
-      sidebarAllowed,
       sectionTitle,
       messages,
       prefixMessage,
@@ -63,12 +64,28 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     const scrollContainer = useScrollContainer();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // --- Own open/close state (like ModuleDrawer) ---
+    // --- Own open/close + allowed state (like ModuleDrawer) ---
     const [isOpen, setIsOpen] = useState(() => {
       if (typeof window === "undefined") return false;
       const pref = localStorage.getItem("chat-sidebar-pref");
       return pref === null ? true : pref === "open";
     });
+    const [isAllowed, setIsAllowed] = useState(true);
+
+    // Track the previous allowed state so we can restore from pref on
+    // allowed transitions (not-allowed → allowed).
+    const prevAllowedRef = useRef(true);
+    useEffect(() => {
+      if (!prevAllowedRef.current && isAllowed) {
+        // Transitioning to allowed — restore from pref
+        const pref = localStorage.getItem("chat-sidebar-pref");
+        setIsOpen(pref === null ? true : pref === "open");
+      } else if (!isAllowed) {
+        // Force close without updating pref
+        setIsOpen(false);
+      }
+      prevAllowedRef.current = isAllowed;
+    }, [isAllowed]);
 
     // --- Imperative handle for parent ---
     useImperativeHandle(ref, () => ({
@@ -82,7 +99,9 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       },
       setOpen: (open: boolean) => {
         setIsOpen(open);
-        // No localStorage update — used for programmatic control (debug overlay)
+      },
+      setAllowed: (allowed: boolean) => {
+        setIsAllowed(allowed);
       },
     }));
 
@@ -96,27 +115,16 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       localStorage.setItem("chat-sidebar-pref", "open");
     }, []);
 
-    // --- React to sidebarAllowed: force-close without updating pref,
-    //     restore from pref when re-allowed ---
-    useEffect(() => {
-      if (!sidebarAllowed) {
-        setIsOpen(false);
-      } else {
-        const pref = localStorage.getItem("chat-sidebar-pref");
-        setIsOpen(pref === null ? true : pref === "open");
-      }
-    }, [sidebarAllowed]);
-
     // --- Manage module-sidebar-open class on scroll container directly ---
     useEffect(() => {
       if (!scrollContainer || isMobile) return;
-      if (isOpen && sidebarAllowed) {
+      if (isOpen && isAllowed) {
         scrollContainer.classList.add("module-sidebar-open");
       } else {
         scrollContainer.classList.remove("module-sidebar-open");
       }
       return () => scrollContainer.classList.remove("module-sidebar-open");
-    }, [isOpen, sidebarAllowed, scrollContainer, isMobile]);
+    }, [isOpen, isAllowed, scrollContainer, isMobile]);
 
     // Close on Escape key
     useEffect(() => {
@@ -151,8 +159,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       }
     }, [messages, streamingContent, isLoading, isOpen]);
 
-    // Hide toggle when sidebar not allowed
-    const toggleHidden = !sidebarAllowed;
+    const toggleHidden = !isAllowed;
 
     const chatIcon = (
       <svg

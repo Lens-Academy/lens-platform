@@ -48,7 +48,6 @@ const baseOptions = {
   moduleId: "test-module",
   module: null as Module | null,
   currentSectionIndex: 0,
-  currentSegmentIndex: 0,
   currentSection: undefined as LensArticleSection | undefined,
   isArticleSection: false,
   triggerChatActivity: vi.fn(),

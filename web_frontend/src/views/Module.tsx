@@ -1,6 +1,6 @@
 // web_frontend/src/views/Module.tsx
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, useSyncExternalStore } from "react";
 import type {
   ChatMessage,
   ArticleData,
@@ -77,6 +77,89 @@ interface ModuleProps {
  * - Chat sections (75vh, all sharing same state)
  * - Progress sidebar on left
  */
+
+// ---------------------------------------------------------------------------
+// DebugOverlay — subscribes to segment index ref via useSyncExternalStore
+// so its re-renders never touch Module.
+// ---------------------------------------------------------------------------
+
+function DebugOverlay({
+  currentSection,
+  currentSectionIndex,
+  sidebarChatSegmentIndex,
+  segmentIndexRef,
+  listeners,
+}: {
+  currentSection: ModuleSection;
+  currentSectionIndex: number;
+  sidebarChatSegmentIndex: number;
+  segmentIndexRef: React.RefObject<number>;
+  listeners: React.RefObject<Set<() => void>>;
+}) {
+  const currentSegmentIndex = useSyncExternalStore(
+    (cb) => {
+      listeners.current.add(cb);
+      return () => listeners.current.delete(cb);
+    },
+    () => segmentIndexRef.current,
+  );
+
+  const segments =
+    "segments" in currentSection ? (currentSection.segments ?? []) : [];
+  const seg = segments[currentSegmentIndex] as ModuleSegment | undefined;
+  const segLabel = (s: ModuleSegment) => {
+    switch (s.type) {
+      case "article-excerpt":
+        return `from: ${(s.content ?? "").slice(0, 40)}…`;
+      case "video-excerpt":
+        return `${s.from}s–${s.to ?? "end"}s`;
+      case "text":
+        return (s.content ?? "").slice(0, 40) + "…";
+      case "chat":
+        return (s.instructions ?? "").slice(0, 40) + "…";
+      case "question":
+        return (s.content ?? "").slice(0, 40) + "…";
+      case "roleplay":
+        return "Roleplay: " + (s.content ?? "").slice(0, 40) + "…";
+      default:
+        return "";
+    }
+  };
+
+  return (
+    <div className="fixed bottom-4 left-4 z-50 max-w-xs rounded-lg bg-gray-900/85 px-3 py-2 text-xs text-gray-100 font-mono shadow-lg backdrop-blur-sm max-h-[50vh] overflow-y-auto">
+      <div className="font-bold text-yellow-300 mb-1">Debug Overlay</div>
+      <div>
+        <span className="text-gray-400">Section:</span>{" "}
+        §{currentSectionIndex}: {currentSection.meta?.title ?? "(untitled)"}
+      </div>
+      <div>
+        <span className="text-gray-400">Segment:</span>{" "}
+        [{currentSegmentIndex}] {seg ? seg.type : "—"}{" "}
+        {seg ? segLabel(seg) : ""}
+      </div>
+      <div>
+        <span className="text-gray-400">Sidebar target:</span>{" "}
+        <span className={sidebarChatSegmentIndex === currentSegmentIndex ? "text-green-400" : "text-red-400"}>
+          {sidebarChatSegmentIndex}
+        </span>
+      </div>
+      <div className="mt-1 border-t border-gray-700 pt-1">
+        <span className="text-gray-400">Segments ({segments.length}):</span>
+        {segments.map((s, i) => (
+          <div
+            key={i}
+            className={`pl-2 ${i === currentSegmentIndex ? "text-yellow-300 font-bold" : "text-gray-400"}`}
+          >
+            [{i}] {s.type}
+            {i === sidebarChatSegmentIndex && " ← sidebar"}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Module({ courseId, moduleId }: ModuleProps) {
   // Module data loading state
   const [module, setModule] = useState<ModuleType | null>(null);
@@ -525,7 +608,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const isDebugMode =
     typeof window !== "undefined" &&
     window.location.search.includes("debug");
-  const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
+  const currentSegmentIndexRef = useRef(0);
+  const segmentIndexListeners = useRef(new Set<() => void>());
   const segmentElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const registerSegmentEl = useCallback(
@@ -569,7 +653,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     moduleId,
     module,
     currentSectionIndex,
-    currentSegmentIndex,
     currentSection,
     isArticleSection,
     triggerChatActivity,
@@ -577,37 +660,46 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   const sidebarRef = useRef<ChatSidebarHandle>(null);
 
-  // Debug overlay: scroll tracking effect
+  // Segment scroll tracker: determines which segment the 30% viewport line
+  // falls inside. Always runs (drives sidebar allowed state). Writes to ref
+  // (not state) so Module never re-renders from scroll. DebugOverlay subscribes
+  // to the ref via useSyncExternalStore.
   useEffect(() => {
-    if (!isDebugMode) return;
+    if (!isArticleSection) {
+      // Non-article sections: allowed is based on section type only
+      sidebarRef.current?.setAllowed(sidebarAllowed);
+      return;
+    }
+    const segments =
+      currentSection && "segments" in currentSection
+        ? currentSection.segments
+        : undefined;
+
     let rafId = 0;
     const onScroll = () => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         const targetY = window.innerHeight * 0.3;
-        let best: { index: number; top: number } | null = null;
-        // Find segment whose top is closest to (but ≤) the target line
+        let best: { index: number; dist: number } | null = null;
+        // Find the segment that contains the target line (direction-independent)
         segmentElsRef.current.forEach((el) => {
           const rect = el.getBoundingClientRect();
-          if (rect.bottom <= 0 || rect.top >= window.innerHeight) return;
           const idx = Number(el.dataset.segmentIndex);
           if (isNaN(idx)) return;
-          if (rect.top <= targetY && (!best || rect.top > best.top)) {
-            best = { index: idx, top: rect.top };
+          if (rect.top <= targetY && rect.bottom > targetY) {
+            best = { index: idx, dist: 0 };
+          } else if (!best || best.dist > 0) {
+            const dist = Math.min(Math.abs(rect.top - targetY), Math.abs(rect.bottom - targetY));
+            if (!best || dist < best.dist) best = { index: idx, dist };
           }
         });
-        // Fallback: if nothing above target, pick closest below
-        if (!best) {
-          segmentElsRef.current.forEach((el) => {
-            const rect = el.getBoundingClientRect();
-            if (rect.bottom <= 0 || rect.top >= window.innerHeight) return;
-            const idx = Number(el.dataset.segmentIndex);
-            if (!isNaN(idx) && (!best || rect.top < best.top)) {
-              best = { index: idx, top: rect.top };
-            }
-          });
+        if (best) {
+          // Write to ref (free) + notify subscribers (DebugOverlay only)
+          currentSegmentIndexRef.current = best.index;
+          segmentIndexListeners.current.forEach(fn => fn());
+          const segType = segments?.[best.index]?.type;
+          sidebarRef.current?.setAllowed(sidebarAllowed && segType !== "chat");
         }
-        if (best) setCurrentSegmentIndex(best.index);
       });
     };
     const target = scrollEl ?? window;
@@ -617,7 +709,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       target.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(rafId);
     };
-  }, [isDebugMode, currentSectionIndex, scrollEl]);
+  }, [isArticleSection, currentSectionIndex, currentSection, sidebarAllowed, scrollEl]);
 
 
   // Fetch next module info when module completes
@@ -847,18 +939,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   ) => {
     const keyPrefix = `${sectionIndex}-${segmentIndex}`;
     const segKey = `seg-${keyPrefix}`;
-    const wrapWithSentinel = (node: React.ReactNode) =>
-      isDebugMode ? (
-        <div
-          key={`sentinel-${keyPrefix}`}
-          data-segment-index={segmentIndex}
-          ref={(el) => registerSegmentEl(segKey, el)}
-        >
-          {node}
-        </div>
-      ) : (
-        node
-      );
+    const wrapWithSentinel = (node: React.ReactNode) => (
+      <div
+        key={`sentinel-${keyPrefix}`}
+        data-segment-index={segmentIndex}
+        ref={(el) => registerSegmentEl(segKey, el)}
+      >
+        {node}
+      </div>
+    );
 
     switch (segment.type) {
       case "text":
@@ -1657,7 +1746,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       {currentSection != null && (
         <ChatSidebar
           ref={sidebarRef}
-          sidebarAllowed={sidebarAllowed}
           sectionTitle={currentSection?.meta?.title}
           messages={messages}
           prefixMessage={sectionPrefixMessage}
@@ -1668,7 +1756,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             handleSendMessage(
               content,
               currentSectionIndex,
-              currentSegmentIndex,
+              currentSegmentIndexRef.current,
               "sidebar",
             )
           }
@@ -1723,64 +1811,17 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         onDismiss={() => setShowAuthPrompt(false)}
       />
 
-      {/* Debug overlay — ?debug query param */}
-      {isDebugMode && currentSection && (() => {
-        const segments =
-          "segments" in currentSection ? (currentSection.segments ?? []) : [];
-        const seg = segments[currentSegmentIndex] as ModuleSegment | undefined;
-        const segLabel = (s: ModuleSegment) => {
-          switch (s.type) {
-            case "article-excerpt":
-              return `from: ${(s.content ?? "").slice(0, 40)}…`;
-            case "video-excerpt":
-              return `${s.from}s–${s.to ?? "end"}s`;
-            case "text":
-              return (s.content ?? "").slice(0, 40) + "…";
-            case "chat":
-              return (s.instructions ?? "").slice(0, 40) + "…";
-            case "question":
-              return (s.content ?? "").slice(0, 40) + "…";
-            case "roleplay":
-              return "Roleplay: " + (s.content ?? "").slice(0, 40) + "…";
-            default:
-              return "";
-          }
-        };
-        return (
-          <div
-            className="fixed bottom-4 left-4 z-50 max-w-xs rounded-lg bg-gray-900/85 px-3 py-2 text-xs text-gray-100 font-mono shadow-lg backdrop-blur-sm max-h-[50vh] overflow-y-auto"
-          >
-            <div className="font-bold text-yellow-300 mb-1">Debug Overlay</div>
-            <div>
-              <span className="text-gray-400">Section:</span>{" "}
-              §{currentSectionIndex}: {currentSection.meta?.title ?? "(untitled)"}
-            </div>
-            <div>
-              <span className="text-gray-400">Segment:</span>{" "}
-              [{currentSegmentIndex}] {seg ? seg.type : "—"}{" "}
-              {seg ? segLabel(seg) : ""}
-            </div>
-            <div>
-              <span className="text-gray-400">Sidebar target:</span>{" "}
-              <span className={sidebarChatSegmentIndex === currentSegmentIndex ? "text-green-400" : "text-red-400"}>
-                {sidebarChatSegmentIndex}
-              </span>
-            </div>
-            <div className="mt-1 border-t border-gray-700 pt-1">
-              <span className="text-gray-400">Segments ({segments.length}):</span>
-              {segments.map((s, i) => (
-                <div
-                  key={i}
-                  className={`pl-2 ${i === currentSegmentIndex ? "text-yellow-300 font-bold" : "text-gray-400"}`}
-                >
-                  [{i}] {s.type}
-                  {i === sidebarChatSegmentIndex && " ← sidebar"}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+      {/* Debug overlay — ?debug query param. Separate component so its
+          re-renders (driven by scroll) don't touch Module. */}
+      {isDebugMode && currentSection && (
+        <DebugOverlay
+          currentSection={currentSection}
+          currentSectionIndex={currentSectionIndex}
+          sidebarChatSegmentIndex={sidebarChatSegmentIndex}
+          segmentIndexRef={currentSegmentIndexRef}
+          listeners={segmentIndexListeners}
+        />
+      )}
     </ScrollContainerContext.Provider>
     </div>
   );
