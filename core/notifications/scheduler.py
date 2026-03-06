@@ -41,8 +41,8 @@ REMINDER_CONFIG = {
     "module_nudge_3d": {
         "offset": timedelta(days=-3),
         "message_template": "module_nudge",
-        "send_to_channel": False,
-        "condition": {"type": "module_progress", "threshold": 0.5},
+        "send_to_channel": True,
+        "per_user_progress": True,
     },
 }
 
@@ -267,19 +267,49 @@ async def _execute_reminder(meeting_id: int, reminder_type: str) -> None:
     # Get the template name
     message_type = config.get("message_template", reminder_type)
 
-    # Send to channel if configured
-    if config.get("send_to_channel"):
-        channel_id = group["discord_text_channel_id"]
-        if channel_id:
-            await send_channel_notification(channel_id, message_type, context)
+    if config.get("per_user_progress"):
+        # Per-user path: channel gets group context, DMs get personalized context
+        from core.notifications.context import get_per_user_section_progress
 
-    # Send to each member
-    for user_id in user_ids:
-        await send_notification(
-            user_id=user_id,
-            message_type=message_type,
-            context=context,
-        )
+        # Send to channel first (group-level context)
+        if config.get("send_to_channel"):
+            channel_id = group["discord_text_channel_id"]
+            if channel_id:
+                await send_channel_notification(channel_id, message_type, context)
+
+        # Get per-user remaining section counts
+        user_progress = await get_per_user_section_progress(meeting_id, user_ids)
+
+        # Send DMs only to users with remaining sections
+        for user_id in user_ids:
+            progress = user_progress.get(user_id)
+            if progress is not None and progress["remaining"] > 0:
+                user_context = {
+                    **context,
+                    "modules_remaining": str(progress["remaining"]),
+                    "cta_text": progress["cta_text"],
+                    "module_url": progress["module_url"],
+                }
+                await send_notification(
+                    user_id=user_id,
+                    message_type=message_type,
+                    context=user_context,
+                )
+    else:
+        # Standard path: same context for all users
+        # Send to channel if configured
+        if config.get("send_to_channel"):
+            channel_id = group["discord_text_channel_id"]
+            if channel_id:
+                await send_channel_notification(channel_id, message_type, context)
+
+        # Send to each member
+        for user_id in user_ids:
+            await send_notification(
+                user_id=user_id,
+                message_type=message_type,
+                context=context,
+            )
 
 
 # =============================================================================

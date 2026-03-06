@@ -38,7 +38,10 @@ import RoleplaySection from "@/components/module/RoleplaySection";
 import TestSection from "@/components/module/TestSection";
 import MarkCompleteButton from "@/components/module/MarkCompleteButton";
 import SectionDivider from "@/components/module/SectionDivider";
-import { computeSectionDuration, computeDurationBreakdown } from "@/utils/duration";
+import {
+  computeSectionDuration,
+  computeDurationBreakdown,
+} from "@/utils/duration";
 import ArticleSectionWrapper from "@/components/module/ArticleSectionWrapper";
 import ArticleExcerptGroup from "@/components/module/ArticleExcerptGroup";
 import { ModuleHeader } from "@/components/ModuleHeader";
@@ -525,7 +528,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         displayType = section.type;
       }
 
-      const dur = computeSectionDuration(section as any);
+      const dur = computeSectionDuration(section);
       return {
         type: displayType,
         title:
@@ -1142,7 +1145,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             return null;
           }
 
-          const breakdown = computeDurationBreakdown(section as any);
+          const breakdown = computeDurationBreakdown(section);
           const sectionDur = breakdown.total > 0 ? breakdown : undefined;
 
           return (
@@ -1177,7 +1180,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 </>
               ) : section.type === "chat" ? (
                 <>
-                  <SectionDivider type="chat" title={section.meta?.title} duration={sectionDur} />
+                  <SectionDivider
+                    type="chat"
+                    title={section.meta?.title}
+                    duration={sectionDur}
+                  />
                   <NarrativeChatSection
                     messages={messages}
                     pendingMessage={pendingMessage}

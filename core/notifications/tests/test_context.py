@@ -38,7 +38,9 @@ def _make_cache(course_slug="default", modules=None, progression=None):
     if modules is None:
         modules = {}
     if progression is None:
-        progression = [ModuleRef(slug=s) for s in modules] + [MeetingMarker(number=1)]
+        progression = [ModuleRef(slug=s) for s in modules] + [
+            MeetingMarker(name="Meeting 1")
+        ]
 
     cache = ContentCache(
         courses={
@@ -67,7 +69,12 @@ def _make_module(slug, section_titles, optional_titles=None):
             {
                 "type": "lens-article",
                 "contentId": str(uuid4()),
-                "meta": {"title": title, "author": None, "sourceUrl": None, "published": None},
+                "meta": {
+                    "title": title,
+                    "author": None,
+                    "sourceUrl": None,
+                    "published": None,
+                },
                 "optional": False,
             }
         )
@@ -76,11 +83,21 @@ def _make_module(slug, section_titles, optional_titles=None):
             {
                 "type": "lens-article",
                 "contentId": str(uuid4()),
-                "meta": {"title": title, "author": None, "sourceUrl": None, "published": None},
+                "meta": {
+                    "title": title,
+                    "author": None,
+                    "sourceUrl": None,
+                    "published": None,
+                },
                 "optional": True,
             }
         )
-    return FlattenedModule(slug=slug, title=slug.replace("-", " ").title(), content_id=uuid4(), sections=sections)
+    return FlattenedModule(
+        slug=slug,
+        title=slug.replace("-", " ").title(),
+        content_id=uuid4(),
+        sections=sections,
+    )
 
 
 MEETING = {
@@ -113,11 +130,16 @@ class TestBuildReminderContext:
         context = build_reminder_context(MEETING, GROUP)
 
         assert context["module_url"] == build_module_url("default", "feedback-loops")
-        assert "/course" not in context["module_url"] or "/course/default/module/" in context["module_url"]
+        assert (
+            "/course" not in context["module_url"]
+            or "/course/default/module/" in context["module_url"]
+        )
 
     def test_section_titles_in_module_list(self):
         """module_list should contain real section titles from the module."""
-        mod = _make_module("feedback-loops", ["Introduction", "Core Concepts", "Summary"])
+        mod = _make_module(
+            "feedback-loops", ["Introduction", "Core Concepts", "Summary"]
+        )
         _make_cache(modules={"feedback-loops": mod})
 
         context = build_reminder_context(MEETING, GROUP)
@@ -162,7 +184,7 @@ class TestBuildReminderContext:
             progression=[
                 ModuleRef(slug="intro"),
                 ModuleRef(slug="deep-dive"),
-                MeetingMarker(number=1),
+                MeetingMarker(name="Meeting 1"),
             ],
         )
 
@@ -179,7 +201,7 @@ class TestBuildReminderContext:
             progression=[
                 ModuleRef(slug="intro"),
                 ModuleRef(slug="deep-dive"),
-                MeetingMarker(number=1),
+                MeetingMarker(name="Meeting 1"),
             ],
         )
 
@@ -197,9 +219,9 @@ class TestBuildReminderContext:
             modules={"intro": mod_a, "advanced": mod_b},
             progression=[
                 ModuleRef(slug="intro"),
-                MeetingMarker(number=1),
+                MeetingMarker(name="Meeting 1"),
                 ModuleRef(slug="advanced"),
-                MeetingMarker(number=2),
+                MeetingMarker(name="Meeting 2"),
             ],
         )
 
@@ -217,9 +239,9 @@ class TestBuildReminderContext:
             modules={"intro": mod_a, "advanced": mod_b},
             progression=[
                 ModuleRef(slug="intro"),
-                MeetingMarker(number=1),
+                MeetingMarker(name="Meeting 1"),
                 ModuleRef(slug="advanced"),
-                MeetingMarker(number=2),
+                MeetingMarker(name="Meeting 2"),
             ],
         )
 
@@ -381,3 +403,216 @@ class TestGetActiveMemberIds:
             user_ids = await get_active_member_ids(group_id=10)
 
         assert user_ids == []
+
+
+# =============================================================================
+# DB-backed tests for get_per_user_section_progress
+# =============================================================================
+
+
+class TestGetPerUserSectionProgress:
+    """DB-backed tests using real content cache and rolled-back transactions."""
+
+    def teardown_method(self):
+        clear_cache()
+
+    @pytest.mark.asyncio
+    async def test_partial_completion(self, db_conn):
+        """User1 completed A → cta='Read B'. User2 completed none → cta='Read A'."""
+        from core.notifications.context import get_per_user_section_progress
+        from core.notifications.tests.conftest import (
+            create_test_user,
+            create_test_cohort,
+            create_test_group,
+            create_test_meeting,
+            insert_section_progress,
+        )
+
+        # Setup DB
+        user1 = await create_test_user(db_conn, "partial_u1")
+        user2 = await create_test_user(db_conn, "partial_u2")
+        cohort = await create_test_cohort(db_conn, "default")
+        group = await create_test_group(db_conn, cohort["cohort_id"])
+        meeting = await create_test_meeting(
+            db_conn, group["group_id"], cohort["cohort_id"], 1
+        )
+
+        # Build cache with 3 sections (A, B, C) in one module
+        mod = _make_module("feedback-loops", ["A", "B", "C"])
+        _make_cache(modules={"feedback-loops": mod})
+
+        # User1 completed section A
+        section_a_id = mod.sections[0]["contentId"]
+        await insert_section_progress(db_conn, user1["user_id"], section_a_id)
+
+        with patch("core.notifications.context.get_connection") as mock_gc:
+            mock_gc.return_value.__aenter__.return_value = db_conn
+            result = await get_per_user_section_progress(
+                meeting["meeting_id"], [user1["user_id"], user2["user_id"]]
+            )
+
+        assert result[user1["user_id"]]["remaining"] == 2
+        assert "Read 'B'" in result[user1["user_id"]]["cta_text"]
+        assert result[user2["user_id"]]["remaining"] == 3
+        assert "Read 'A'" in result[user2["user_id"]]["cta_text"]
+
+    @pytest.mark.asyncio
+    async def test_full_completion(self, db_conn):
+        """User completed all sections → remaining=0."""
+        from core.notifications.context import get_per_user_section_progress
+        from core.notifications.tests.conftest import (
+            create_test_user,
+            create_test_cohort,
+            create_test_group,
+            create_test_meeting,
+            insert_section_progress,
+        )
+
+        user = await create_test_user(db_conn, "full_u1")
+        cohort = await create_test_cohort(db_conn, "default")
+        group = await create_test_group(db_conn, cohort["cohort_id"])
+        meeting = await create_test_meeting(
+            db_conn, group["group_id"], cohort["cohort_id"], 1
+        )
+
+        mod = _make_module("feedback-loops", ["A", "B"])
+        _make_cache(modules={"feedback-loops": mod})
+
+        for s in mod.sections:
+            await insert_section_progress(db_conn, user["user_id"], s["contentId"])
+
+        with patch("core.notifications.context.get_connection") as mock_gc:
+            mock_gc.return_value.__aenter__.return_value = db_conn
+            result = await get_per_user_section_progress(
+                meeting["meeting_id"], [user["user_id"]]
+            )
+
+        assert result[user["user_id"]]["remaining"] == 0
+
+    @pytest.mark.asyncio
+    async def test_no_modules_due(self, db_conn):
+        """Meeting 2 but modules only due at meeting 1 → empty dict."""
+        from core.notifications.context import get_per_user_section_progress
+        from core.notifications.tests.conftest import (
+            create_test_user,
+            create_test_cohort,
+            create_test_group,
+            create_test_meeting,
+        )
+
+        user = await create_test_user(db_conn, "nodue_u1")
+        cohort = await create_test_cohort(db_conn, "default")
+        group = await create_test_group(db_conn, cohort["cohort_id"])
+        # Meeting 2, but modules are only due at meeting 1
+        meeting = await create_test_meeting(
+            db_conn, group["group_id"], cohort["cohort_id"], 2
+        )
+
+        mod = _make_module("feedback-loops", ["A"])
+        _make_cache(
+            modules={"feedback-loops": mod},
+            progression=[
+                ModuleRef(slug="feedback-loops"),
+                MeetingMarker(name="Meeting 1"),
+            ],
+        )
+
+        with patch("core.notifications.context.get_connection") as mock_gc:
+            mock_gc.return_value.__aenter__.return_value = db_conn
+            result = await get_per_user_section_progress(
+                meeting["meeting_id"], [user["user_id"]]
+            )
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_optional_sections_excluded(self, db_conn):
+        """2 required + 1 optional → remaining=2, cta points to first required."""
+        from core.notifications.context import get_per_user_section_progress
+        from core.notifications.tests.conftest import (
+            create_test_user,
+            create_test_cohort,
+            create_test_group,
+            create_test_meeting,
+        )
+
+        user = await create_test_user(db_conn, "opt_u1")
+        cohort = await create_test_cohort(db_conn, "default")
+        group = await create_test_group(db_conn, cohort["cohort_id"])
+        meeting = await create_test_meeting(
+            db_conn, group["group_id"], cohort["cohort_id"], 1
+        )
+
+        mod = _make_module(
+            "feedback-loops",
+            ["Required A", "Required B"],
+            optional_titles=["Optional C"],
+        )
+        _make_cache(modules={"feedback-loops": mod})
+
+        with patch("core.notifications.context.get_connection") as mock_gc:
+            mock_gc.return_value.__aenter__.return_value = db_conn
+            result = await get_per_user_section_progress(
+                meeting["meeting_id"], [user["user_id"]]
+            )
+
+        assert result[user["user_id"]]["remaining"] == 2
+        assert "Read 'Required A'" in result[user["user_id"]]["cta_text"]
+
+    @pytest.mark.asyncio
+    async def test_empty_user_list(self, db_conn):
+        """Empty user list → empty dict."""
+        from core.notifications.context import get_per_user_section_progress
+
+        result = await get_per_user_section_progress(1, [])
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_missing_meeting(self, db_conn):
+        """Non-existent meeting_id → empty dict."""
+        from core.notifications.context import get_per_user_section_progress
+
+        with patch("core.notifications.context.get_connection") as mock_gc:
+            mock_gc.return_value.__aenter__.return_value = db_conn
+            result = await get_per_user_section_progress(999999, [1, 2])
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_cta_skips_completed_sections(self, db_conn):
+        """3 sections, user completed first 2 → cta='Read C'."""
+        from core.notifications.context import get_per_user_section_progress
+        from core.notifications.tests.conftest import (
+            create_test_user,
+            create_test_cohort,
+            create_test_group,
+            create_test_meeting,
+            insert_section_progress,
+        )
+
+        user = await create_test_user(db_conn, "skip_u1")
+        cohort = await create_test_cohort(db_conn, "default")
+        group = await create_test_group(db_conn, cohort["cohort_id"])
+        meeting = await create_test_meeting(
+            db_conn, group["group_id"], cohort["cohort_id"], 1
+        )
+
+        mod = _make_module("feedback-loops", ["A", "B", "C"])
+        _make_cache(modules={"feedback-loops": mod})
+
+        # Complete first 2 sections
+        await insert_section_progress(
+            db_conn, user["user_id"], mod.sections[0]["contentId"]
+        )
+        await insert_section_progress(
+            db_conn, user["user_id"], mod.sections[1]["contentId"]
+        )
+
+        with patch("core.notifications.context.get_connection") as mock_gc:
+            mock_gc.return_value.__aenter__.return_value = db_conn
+            result = await get_per_user_section_progress(
+                meeting["meeting_id"], [user["user_id"]]
+            )
+
+        assert result[user["user_id"]]["remaining"] == 1
+        assert "Read 'C'" in result[user["user_id"]]["cta_text"]

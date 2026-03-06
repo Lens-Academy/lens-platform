@@ -103,8 +103,9 @@ export function ModuleHeader({
       // When priority >= 1, brand is position:absolute so left doesn't include it.
       // When priority >= 2, username is conditionally hidden so right is smaller.
       // When priority >= 4, title is position:absolute so left doesn't include it.
-      let fullLeft = left.offsetWidth + (curP >= 1 ? brandW : 0) + (curP >= 4 ? titleW : 0);
-      let fullRight = rightWidth + (curP >= 2 ? usernameW : 0);
+      const fullLeft =
+        left.offsetWidth + (curP >= 1 ? brandW : 0) + (curP >= 4 ? titleW : 0);
+      const fullRight = rightWidth + (curP >= 2 ? usernameW : 0);
       // Subtract container padding (px-4 = 16px each side) since clientWidth
       // includes padding but flex children are laid out inside the content box.
       const padding =
@@ -209,10 +210,7 @@ export function ModuleHeader({
           >
             <Menu className="w-5 h-5 text-gray-600" />
           </button>
-          <a
-            href="/"
-            className="min-h-[44px] flex items-center gap-2 shrink-0"
-          >
+          <a href="/" className="min-h-[44px] flex items-center gap-2 shrink-0">
             <img
               src="/assets/Logo only.png"
               alt="Lens Academy"
@@ -299,10 +297,7 @@ export function ModuleHeader({
         )}
 
         {/* Right: UserMenu */}
-        <div
-          ref={rightRef}
-          className="flex items-center gap-1 shrink-0"
-        >
+        <div ref={rightRef} className="flex items-center gap-1 shrink-0">
           <UserMenu compact={priority >= 2} />
         </div>
       </div>

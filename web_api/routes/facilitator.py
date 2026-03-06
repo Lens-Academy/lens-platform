@@ -496,7 +496,9 @@ async def postpone_meeting_endpoint(
 
     now = datetime.now(timezone.utc)
     if meeting["scheduled_at"] <= now - timedelta(days=7):
-        raise HTTPException(400, "Cannot postpone a meeting more than 1 week in the past")
+        raise HTTPException(
+            400, "Cannot postpone a meeting more than 1 week in the past"
+        )
 
     try:
         result = await postpone_meeting(meeting_id)

@@ -71,12 +71,14 @@ class TestGetMyMeetings:
                 "meeting_number": 3,
                 "scheduled_at": datetime(2026, 3, 15, 14, 0, tzinfo=timezone.utc),
                 "group_name": "Group Alpha",
+                "checked_in_at": None,
             },
             {
                 "meeting_id": 11,
                 "meeting_number": 4,
                 "scheduled_at": datetime(2026, 3, 22, 14, 0, tzinfo=timezone.utc),
                 "group_name": "Group Alpha",
+                "checked_in_at": None,
             },
         ]
 

@@ -23,26 +23,34 @@ import type {
 
 function formatMeetingTime(iso: string): { utc: string; local: string } {
   const d = new Date(iso);
-  const utc = d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  }) + ", " + d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "UTC",
-  }) + " UTC";
+  const utc =
+    d.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    }) +
+    ", " +
+    d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: "UTC",
+    }) +
+    " UTC";
 
-  const local = (d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  }) + ", " + d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
-  })).replace(/\bGMT\b/, "UTC");
+  const local = (
+    d.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }) +
+    ", " +
+    d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    })
+  ).replace(/\bGMT\b/, "UTC");
 
   return { utc, local };
 }
@@ -443,7 +451,8 @@ export default function Facilitator() {
               Postpone Meeting {postponeConfirm.meetingNumber}
               {postponeConfirm.scheduledAt && (
                 <span className="font-normal text-slate-500">
-                  {" "}({formatMeetingTime(postponeConfirm.scheduledAt).utc})
+                  {" "}
+                  ({formatMeetingTime(postponeConfirm.scheduledAt).utc})
                 </span>
               )}
             </h3>
@@ -635,7 +644,11 @@ function VerticalTimeline({
     moduleTitle: string,
   ) => void;
   selectedChat: { userId: number; moduleSlug: string } | null;
-  onPostpone?: (meetingId: number, meetingNumber: number, scheduledAt?: string) => void;
+  onPostpone?: (
+    meetingId: number,
+    meetingNumber: number,
+    scheduledAt?: string,
+  ) => void;
   postponingMeetingId?: number | null;
 }) {
   const segs = useMemo(
@@ -671,28 +684,35 @@ function VerticalTimeline({
                     </span>
                     {onPostpone &&
                       seg.meetingId &&
-                      (!seg.scheduledAt || Date.now() - new Date(seg.scheduledAt).getTime() < 7 * 86_400_000) && (
+                      (!seg.scheduledAt ||
+                        Date.now() - new Date(seg.scheduledAt).getTime() <
+                          7 * 86_400_000) && (
                         <button
                           className="text-slate-400 hover:text-amber-500 transition-colors disabled:opacity-50"
                           title="Postpone this meeting"
                           disabled={postponingMeetingId === seg.meetingId}
                           onClick={() =>
-                            onPostpone(seg.meetingId!, seg.meetingNumber!, seg.scheduledAt)
+                            onPostpone(
+                              seg.meetingId!,
+                              seg.meetingNumber!,
+                              seg.scheduledAt,
+                            )
                           }
                         >
                           <Clock size={11} />
                         </button>
                       )}
                   </div>
-                  {seg.scheduledAt && (() => {
-                    const { utc, local } = formatMeetingTime(seg.scheduledAt);
-                    return (
-                      <div className="text-[10px] text-slate-400 leading-tight mt-0.5 whitespace-nowrap">
-                        <div>{utc}</div>
-                        <div>{local}</div>
-                      </div>
-                    );
-                  })()}
+                  {seg.scheduledAt &&
+                    (() => {
+                      const { utc, local } = formatMeetingTime(seg.scheduledAt);
+                      return (
+                        <div className="text-[10px] text-slate-400 leading-tight mt-0.5 whitespace-nowrap">
+                          <div>{utc}</div>
+                          <div>{local}</div>
+                        </div>
+                      );
+                    })()}
                 </div>
               ) : (
                 <div

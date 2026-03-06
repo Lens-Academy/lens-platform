@@ -153,7 +153,12 @@ export type LensArticleSection = {
   contentId: string | null;
   learningOutcomeId: string | null;
   learningOutcomeName: string | null;
-  meta: { title: string; author: string | null; sourceUrl: string | null; published: string | null };
+  meta: {
+    title: string;
+    author: string | null;
+    sourceUrl: string | null;
+    published: string | null;
+  };
   segments: ModuleSegment[];
   optional: boolean;
 };

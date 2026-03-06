@@ -44,6 +44,8 @@ class TestTimezoneFormatting:
                         "group_name": "Test Group",
                         "module_url": "https://example.com",
                         "module_list": "- Module 1",
+                        "modules_remaining": "3",
+                        "cta_text": "Continue where you left off",
                         "discord_channel_url": "https://discord.com/channels/123",
                     },
                 )
@@ -92,6 +94,8 @@ class TestTimezoneFormatting:
                         "group_name": "Test Group",
                         "module_url": "https://example.com",
                         "module_list": "- Module 1",
+                        "modules_remaining": "3",
+                        "cta_text": "Continue where you left off",
                         "discord_channel_url": "https://discord.com/channels/123",
                     },
                 )

@@ -26,7 +26,14 @@ from core.tables import user_content_progress
 
 @pytest_asyncio.fixture(autouse=True)
 async def cleanup_engine():
-    """Clean up the database engine after each test."""
+    """Clean up the database engine before and after each test.
+
+    The before-test cleanup is needed because sync TestClient tests (e.g.
+    test_user_meetings_api) may create an engine on a different event loop.
+    Without clearing it first, this test's async operations would fail with
+    "Future attached to a different loop".
+    """
+    await close_engine()
     yield
     await close_engine()
 

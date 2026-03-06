@@ -243,9 +243,7 @@ export default function StageProgressBar({
   return (
     <div className="flex items-start gap-2">
       {/* Previous button — wrapped to align with trunk dot center */}
-      <div
-        className={`flex items-center shrink-0 ${compact ? "h-7" : "h-11"}`}
-      >
+      <div className={`flex items-center shrink-0 ${compact ? "h-7" : "h-11"}`}>
         <Tooltip content="Previous content">
           <button
             onClick={onPrevious}
@@ -438,9 +436,7 @@ export default function StageProgressBar({
       </div>
 
       {/* Next button — wrapped to align with trunk dot center */}
-      <div
-        className={`flex items-center shrink-0 ${compact ? "h-7" : "h-11"}`}
-      >
+      <div className={`flex items-center shrink-0 ${compact ? "h-7" : "h-11"}`}>
         <Tooltip content="Next content">
           <button
             onClick={onNext}

@@ -262,7 +262,9 @@ export default function ReschedulePage() {
               </h2>
               <div className="space-y-3">
                 {pastMeetings.map((meeting) => {
-                  const hasVisit = rescheduledMeetingNumbers.has(meeting.meeting_number);
+                  const hasVisit = rescheduledMeetingNumbers.has(
+                    meeting.meeting_number,
+                  );
                   const isSelected = selectedMeetingId === meeting.meeting_id;
                   return (
                     <div
@@ -385,7 +387,9 @@ export default function ReschedulePage() {
             ) : (
               <div className="space-y-3">
                 {upcomingMeetings.map((meeting) => {
-                  const hasVisit = rescheduledMeetingNumbers.has(meeting.meeting_number);
+                  const hasVisit = rescheduledMeetingNumbers.has(
+                    meeting.meeting_number,
+                  );
                   const isSelected = selectedMeetingId === meeting.meeting_id;
                   return (
                     <div

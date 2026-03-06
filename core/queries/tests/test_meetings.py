@@ -176,7 +176,9 @@ class TestRenumberMeetingsAfterDelete:
 
         # Delete meeting 3, then renumber
         await delete_meeting(db_conn, mtgs[2]["meeting_id"])
-        await renumber_meetings_after_delete(db_conn, group_id, deleted_meeting_number=3)
+        await renumber_meetings_after_delete(
+            db_conn, group_id, deleted_meeting_number=3
+        )
 
         # Meetings 4 and 5 should now be 3 and 4
         result = await db_conn.execute(
@@ -199,7 +201,9 @@ class TestRenumberMeetingsAfterDelete:
         group_id = group["group_id"]
 
         await delete_meeting(db_conn, mtgs[3]["meeting_id"])  # delete meeting 4
-        await renumber_meetings_after_delete(db_conn, group_id, deleted_meeting_number=4)
+        await renumber_meetings_after_delete(
+            db_conn, group_id, deleted_meeting_number=4
+        )
 
         # Meetings 1-3 should be unchanged
         for i in range(3):
@@ -221,7 +225,9 @@ class TestRenumberMeetingsAfterDelete:
         group_id = group["group_id"]
 
         # Call renumber WITHOUT deleting meeting 3 first
-        await renumber_meetings_after_delete(db_conn, group_id, deleted_meeting_number=3)
+        await renumber_meetings_after_delete(
+            db_conn, group_id, deleted_meeting_number=3
+        )
 
         # Meeting 3 itself should NOT have been decremented
         result = await db_conn.execute(

@@ -7,9 +7,9 @@ and mocks external side effects (reminders, calendar).
 import pytest
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from sqlalchemy import insert, select
+from sqlalchemy import insert
 
 from core.tables import users, cohorts, groups, meetings
 from core.meetings import postpone_meeting

@@ -28,11 +28,24 @@ function ProgressCircle({
 }) {
   if (status === "completed") {
     return (
-      <svg className="flex-shrink-0" width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <svg
+        className="flex-shrink-0"
+        width={size}
+        height={size}
+        viewBox="0 0 20 20"
+        fill="none"
+      >
         {/* Blue filled circle */}
         <circle cx="10" cy="10" r="9" fill="#3b82f6" />
         {/* White checkmark */}
-        <path d="M6 10.5l2.5 2.5 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path
+          d="M6 10.5l2.5 2.5 5-5"
+          stroke="white"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
       </svg>
     );
   }
@@ -47,14 +60,32 @@ function ProgressCircle({
       : 0;
 
   return (
-    <svg className="flex-shrink-0" width={size} height={size} viewBox="0 0 20 20" fill="none"
+    <svg
+      className="flex-shrink-0"
+      width={size}
+      height={size}
+      viewBox="0 0 20 20"
+      fill="none"
       style={{ transform: "rotate(-90deg)" }}
     >
       {/* Gray background ring */}
-      <circle cx={cx} cy={cy} r={r} stroke="#cbd5e1" strokeWidth="2" fill="none" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        stroke="#cbd5e1"
+        strokeWidth="2"
+        fill="none"
+      />
       {/* Blue progress arc */}
       {fraction > 0 && (
-        <circle cx={cx} cy={cy} r={r} stroke="#3b82f6" strokeWidth="2" fill="none"
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          stroke="#3b82f6"
+          strokeWidth="2"
+          fill="none"
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - fraction)}
           strokeLinecap="round"
@@ -75,8 +106,14 @@ type CourseTimelineProps = {
 
 function formatMeetingDate(isoDate: string): string {
   const d = new Date(isoDate);
-  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const date = d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  const time = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
   return `${date}, ${time}`;
 }
 
@@ -109,21 +146,11 @@ function formatRelativeDate(isoDate: string): string {
   return formatDateOnly(isoDate);
 }
 
-type UnitStatus = "completed" | "in_progress" | "not_started";
-
-function getUnitStatus(unit: UnitInfo): UnitStatus {
-  const required = unit.modules.filter((m) => !m.optional);
-  if (required.length === 0) return "not_started";
-  if (required.every((m) => m.status === "completed")) return "completed";
-  if (required.some((m) => m.status === "in_progress" || m.status === "completed"))
-    return "in_progress";
-  return "not_started";
-}
-
-
 function getParentStatus(children: ModuleInfo[]): ModuleInfo["status"] {
   if (children.every((m) => m.status === "completed")) return "completed";
-  if (children.some((m) => m.status === "in_progress" || m.status === "completed"))
+  if (
+    children.some((m) => m.status === "in_progress" || m.status === "completed")
+  )
     return "in_progress";
   return "not_started";
 }
@@ -196,23 +223,19 @@ export default function CourseTimeline({
         <div>
           {units.map((unit, unitIdx) => {
             const isExpanded = expandedUnits.has(unitIdx);
-            const unitStatus = getUnitStatus(unit);
             const weekLabel = unit.meetingName
               ? `${unit.meetingNumber}. ${unit.meetingName}`
               : unit.meetingNumber !== null
                 ? `Week ${unit.meetingNumber}`
                 : `Week ${unitIdx + 1}`;
-            const required = unit.modules.filter((m) => !m.optional);
-            const completedCount = required.filter(
-              (m) => m.status === "completed",
-            ).length;
             const isUpcoming = unitIdx === upcomingIndex;
 
             // Due date for the upcoming unit (3 days before meeting)
             const dueDateIso =
               isUpcoming && unit.meetingDate
                 ? new Date(
-                    new Date(unit.meetingDate).getTime() - 3 * 24 * 60 * 60 * 1000,
+                    new Date(unit.meetingDate).getTime() -
+                      3 * 24 * 60 * 60 * 1000,
                   ).toISOString()
                 : null;
 
@@ -221,96 +244,98 @@ export default function CourseTimeline({
                 {unitIdx > 0 && (
                   <div className="border-t border-slate-200 my-1" />
                 )}
-              <div
-                className="relative transition-all duration-200"
-              >
-                {/* Unit header row */}
-                <button
-                  onClick={() => toggleUnit(unitIdx)}
-                  className={`relative w-full flex items-center text-left transition-[padding] duration-200 ${
-                    isExpanded ? "py-1" : "py-1.5"
-                  }`}
-                >
-                  {/* Left spacer: grows to push label right when expanded */}
-                  <div
-                    className={`transition-[flex-grow] duration-300 ${
-                      isExpanded ? "grow" : "grow-0"
-                    }`}
-                  />
-                  {/* Label */}
-                  <span
-                    className={`shrink-0 whitespace-nowrap transition-all duration-300 ${
-                      isExpanded
-                        ? "text-sm text-slate-900"
-                        : "text-base text-slate-900"
+                <div className="relative transition-all duration-200">
+                  {/* Unit header row */}
+                  <button
+                    onClick={() => toggleUnit(unitIdx)}
+                    className={`relative w-full flex items-center text-left transition-[padding] duration-200 ${
+                      isExpanded ? "py-1" : "py-1.5"
                     }`}
                   >
-                    {weekLabel}
-                  </span>
-                  {/* Due label (collapsed only) */}
-                  {!isExpanded && dueDateIso && (
-                    (() => {
-                      const dueLabel = formatRelativeDate(dueDateIso);
-                      return (
-                        <span className={`shrink-0 text-xs ml-1.5 ${
-                          dueLabel === "Due Today"
-                            ? "text-amber-600 font-medium"
-                            : dueLabel === "Due Tomorrow"
-                              ? "text-amber-500"
-                              : "text-slate-500"
-                        }`}>
-                          {dueLabel}
-                        </span>
-                      );
-                    })()
-                  )}
-                  {/* Right spacer: grows when collapsed, shrinks when expanded */}
+                    {/* Left spacer: grows to push label right when expanded */}
+                    <div
+                      className={`transition-[flex-grow] duration-300 ${
+                        isExpanded ? "grow" : "grow-0"
+                      }`}
+                    />
+                    {/* Label */}
+                    <span
+                      className={`shrink-0 whitespace-nowrap transition-all duration-300 ${
+                        isExpanded
+                          ? "text-sm text-slate-900"
+                          : "text-base text-slate-900"
+                      }`}
+                    >
+                      {weekLabel}
+                    </span>
+                    {/* Due label (collapsed only) */}
+                    {!isExpanded &&
+                      dueDateIso &&
+                      (() => {
+                        const dueLabel = formatRelativeDate(dueDateIso);
+                        return (
+                          <span
+                            className={`shrink-0 text-xs ml-1.5 ${
+                              dueLabel === "Due Today"
+                                ? "text-amber-600 font-medium"
+                                : dueLabel === "Due Tomorrow"
+                                  ? "text-amber-500"
+                                  : "text-slate-500"
+                            }`}
+                          >
+                            {dueLabel}
+                          </span>
+                        );
+                      })()}
+                    {/* Right spacer: grows when collapsed, shrinks when expanded */}
+                    <div
+                      className={`transition-[flex-grow] duration-300 ${
+                        isExpanded ? "grow-0" : "grow min-w-0"
+                      }`}
+                    />
+                    {/* Chevron */}
+                    <ChevronRight
+                      className={`shrink-0 w-3.5 h-3.5 text-slate-400 ml-1 transition-transform duration-300 ${
+                        isExpanded ? "rotate-90" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {/* Expandable content */}
                   <div
-                    className={`transition-[flex-grow] duration-300 ${
-                      isExpanded ? "grow-0" : "grow min-w-0"
+                    className={`grid transition-[grid-template-rows] duration-200 ${
+                      isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                     }`}
-                  />
-                  {/* Chevron */}
-                  <ChevronRight
-                    className={`shrink-0 w-3.5 h-3.5 text-slate-400 ml-1 transition-transform duration-300 ${
-                      isExpanded ? "rotate-90" : ""
-                    }`}
-                  />
-                </button>
+                  >
+                    <div className="overflow-hidden">
+                      {renderUnitModules(
+                        unit,
+                        selectedModuleSlug,
+                        onModuleSelect,
+                        expandedParents,
+                        toggleParent,
+                        isUpcoming ? dueDateIso : null,
+                      )}
 
-                {/* Expandable content */}
-                <div
-                  className={`grid transition-[grid-template-rows] duration-200 ${
-                    isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                  }`}
-                >
-                  <div className="overflow-hidden">
-                    {renderUnitModules(
-                      unit,
-                      selectedModuleSlug,
-                      onModuleSelect,
-                      expandedParents,
-                      toggleParent,
-                      isUpcoming ? dueDateIso : null,
-                    )}
-
-                    {/* Meeting row */}
-                    {unit.meetingNumber !== null && (
-                      <Tooltip
-                        placement="right"
-                        delay={200}
-                        content={
-                          unit.meetingDate ? (
-                            <span>
-                              You'll discuss this unit with your group on{" "}
-                              {formatMeetingDateLong(unit.meetingDate)}
-                            </span>
-                          ) : (
-                            <span>Group discussion meeting #{unit.meetingNumber}</span>
-                          )
-                        }
-                      >
-                        <div className="flex items-center py-1.5 gap-2 cursor-default">
+                      {/* Meeting row */}
+                      {unit.meetingNumber !== null && (
+                        <Tooltip
+                          placement="right"
+                          delay={200}
+                          content={
+                            unit.meetingDate ? (
+                              <span>
+                                You'll discuss this unit with your group on{" "}
+                                {formatMeetingDateLong(unit.meetingDate)}
+                              </span>
+                            ) : (
+                              <span>
+                                Group discussion meeting #{unit.meetingNumber}
+                              </span>
+                            )
+                          }
+                        >
+                          <div className="flex items-center py-1.5 gap-2 cursor-default">
                             <Users className="w-4 h-4 text-slate-700" />
                             <span className="text-base text-slate-700">
                               #{unit.meetingNumber}
@@ -320,12 +345,12 @@ export default function CourseTimeline({
                                 {formatMeetingDate(unit.meetingDate)}
                               </span>
                             )}
-                        </div>
-                      </Tooltip>
-                    )}
+                          </div>
+                        </Tooltip>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
               </div>
             );
           })}
@@ -368,10 +393,11 @@ function renderUnitModules(
         (c) => c.slug === selectedModuleSlug,
       );
       // Average of each child's completion fraction
-      const parentFraction = children.reduce((sum, c) => {
-        if (!c.totalLenses || c.totalLenses === 0) return sum;
-        return sum + (c.completedLenses ?? 0) / c.totalLenses;
-      }, 0) / children.length;
+      const parentFraction =
+        children.reduce((sum, c) => {
+          if (!c.totalLenses || c.totalLenses === 0) return sum;
+          return sum + (c.completedLenses ?? 0) / c.totalLenses;
+        }, 0) / children.length;
       // Sum core (non-optional) child durations for the collapsed parent row
       const parentDuration = children
         .filter((c) => !c.optional)
@@ -398,20 +424,24 @@ function renderUnitModules(
                   <span className="text-base font-medium truncate block leading-snug text-slate-900">
                     {parentTitle}
                   </span>
-                  {dueDateIso && parentStatus !== "completed" && (() => {
-                    const dueLabel = formatRelativeDate(dueDateIso);
-                    return (
-                      <span className={`text-xs leading-none block ${
-                        dueLabel === "Due Today"
-                          ? "text-amber-600 font-medium"
-                          : dueLabel === "Due Tomorrow"
-                            ? "text-amber-500"
-                            : "text-slate-500"
-                      }`}>
-                        {dueLabel}
-                      </span>
-                    );
-                  })()}
+                  {dueDateIso &&
+                    parentStatus !== "completed" &&
+                    (() => {
+                      const dueLabel = formatRelativeDate(dueDateIso);
+                      return (
+                        <span
+                          className={`text-xs leading-none block ${
+                            dueLabel === "Due Today"
+                              ? "text-amber-600 font-medium"
+                              : dueLabel === "Due Tomorrow"
+                                ? "text-amber-500"
+                                : "text-slate-500"
+                          }`}
+                        >
+                          {dueLabel}
+                        </span>
+                      );
+                    })()}
                 </div>
                 {!isParentExpanded && parentDuration > 0 && (
                   <span className="text-xs text-slate-400 flex-shrink-0 tabular-nums">
@@ -496,9 +526,7 @@ function renderUnitModules(
               )}
               <span
                 className={`text-base truncate ${
-                  mod.optional
-                    ? "text-slate-500"
-                    : "text-slate-700"
+                  mod.optional ? "text-slate-500" : "text-slate-700"
                 }`}
               >
                 {mod.title}
@@ -510,13 +538,15 @@ function renderUnitModules(
               )}
               {/* Right-aligned: due date and/or time estimate */}
               {dueLabel && !mod.optional && mod.status !== "completed" ? (
-                <span className={`text-xs ml-auto flex-shrink-0 flex items-center gap-1.5 ${
-                  dueLabel === "Due Today"
-                    ? "text-amber-600 font-medium"
-                    : dueLabel === "Due Tomorrow"
-                      ? "text-amber-500"
-                      : "text-slate-500"
-                }`}>
+                <span
+                  className={`text-xs ml-auto flex-shrink-0 flex items-center gap-1.5 ${
+                    dueLabel === "Due Today"
+                      ? "text-amber-600 font-medium"
+                      : dueLabel === "Due Tomorrow"
+                        ? "text-amber-500"
+                        : "text-slate-500"
+                  }`}
+                >
                   {dueLabel}
                   {estimate ? (
                     <span className="text-slate-400 font-normal tabular-nums">

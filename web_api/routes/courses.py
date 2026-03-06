@@ -224,9 +224,7 @@ async def get_course_progress(
 
                 section_words = section.get("wordCount", 0)
                 section_video = section.get("videoDurationSeconds", 0)
-                section_dur = round(
-                    (section_words / 200 + section_video / 60) * 1.5
-                )
+                section_dur = round((section_words / 200 + section_video / 60) * 1.5)
 
                 stages.append(
                     {
@@ -240,12 +238,8 @@ async def get_course_progress(
                 )
 
             # Compute module duration from core (non-optional) content only
-            core_sections = [
-                s for s in parsed.sections if not s.get("optional", False)
-            ]
-            total_words = sum(
-                s.get("wordCount", 0) for s in core_sections
-            )
+            core_sections = [s for s in parsed.sections if not s.get("optional", False)]
+            total_words = sum(s.get("wordCount", 0) for s in core_sections)
             total_video_seconds = sum(
                 s.get("videoDurationSeconds", 0) for s in core_sections
             )

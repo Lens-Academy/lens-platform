@@ -216,7 +216,9 @@ async def gather_group_study_data(
                 "discord_id": member["discord_id"],
                 "display_name": display_name,
                 "module_title": module.title,
-                "sections_completed": min(user_total_count.get(uid, count), total_sections),
+                "sections_completed": min(
+                    user_total_count.get(uid, count), total_sections
+                ),
                 "sections_total": total_sections,
                 "module_completed": uid in module_completed_users,
                 "early_bird_days": None,

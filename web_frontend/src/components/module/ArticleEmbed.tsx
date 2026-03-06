@@ -168,7 +168,7 @@ function CollapsibleBlock({
         document.documentElement.style.overflowAnchor = "";
         setIsCollapsing(false);
         if (gridEl) {
-          gridEl.offsetHeight; // force reflow
+          void gridEl.offsetHeight; // force reflow
           gridEl.style.transition = "";
         }
       }
@@ -186,7 +186,11 @@ function CollapsibleBlock({
   };
 
   return (
-    <div ref={containerRef} className={className} style={{ overflowAnchor: "none" }}>
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ overflowAnchor: "none" }}
+    >
       <div className="sticky top-[var(--header-offset)] z-10 transition-[top] duration-300 bg-[#fffdf5] flex items-center gap-1 py-1">
         <button
           onClick={handleToggle}
@@ -217,7 +221,9 @@ function CollapsibleBlock({
           isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
-        <div className={`overflow-hidden transition-[filter] duration-500 ${isCollapsing ? "blur-sm" : ""}`}>
+        <div
+          className={`overflow-hidden transition-[filter] duration-500 ${isCollapsing ? "blur-sm" : ""}`}
+        >
           {children}
           {endMarker && (
             <button
@@ -707,9 +713,7 @@ export default function ArticleEmbed({
                 <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
               )}
               <div className="flex items-center gap-3 mt-1">
-                {author && (
-                  <p className="text-sm text-gray-500">by {author}</p>
-                )}
+                {author && <p className="text-sm text-gray-500">by {author}</p>}
                 {author && published && (
                   <span className="text-gray-400">|</span>
                 )}
