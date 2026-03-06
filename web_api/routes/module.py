@@ -44,6 +44,7 @@ def _segment_context_label(segment_type: str) -> str | None:
         "roleplay": "Started roleplay exercise",
         "article-excerpt": "Reading article",
         "video-excerpt": "Watching video",
+        "text": "Reading text",
     }.get(segment_type)
 
 
