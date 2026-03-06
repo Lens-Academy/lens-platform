@@ -659,12 +659,18 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   });
 
   const sidebarRef = useRef<ChatSidebarHandle>(null);
+  const lastSidebarAllowed = useRef(true);
+  const sidebarAllowedLockUntil = useRef(0);
 
   // Segment scroll tracker: determines which segment the 30% viewport line
   // falls inside. Always runs (drives sidebar allowed state). Writes to ref
   // (not state) so Module never re-renders from scroll. DebugOverlay subscribes
   // to the ref via useSyncExternalStore.
   useEffect(() => {
+    // Reset lock on section change
+    lastSidebarAllowed.current = true;
+    sidebarAllowedLockUntil.current = 0;
+
     if (!isArticleSection) {
       // Non-article sections: allowed is based on section type only
       sidebarRef.current?.setAllowed(sidebarAllowed);
@@ -698,7 +704,19 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           currentSegmentIndexRef.current = best.index;
           segmentIndexListeners.current.forEach(fn => fn());
           const segType = segments?.[best.index]?.type;
-          sidebarRef.current?.setAllowed(sidebarAllowed && segType !== "chat");
+          const allowed = sidebarAllowed && segType !== "chat";
+
+          // Guard against reflow feedback loop: closing the sidebar changes margin →
+          // content reflows → scroll fires → segment shifts → setAllowed(true) reopens.
+          // Lock for the transition duration after closing to prevent this.
+          if (Date.now() < sidebarAllowedLockUntil.current) return;
+          if (allowed !== lastSidebarAllowed.current) {
+            lastSidebarAllowed.current = allowed;
+            sidebarRef.current?.setAllowed(allowed);
+            if (!allowed) {
+              sidebarAllowedLockUntil.current = Date.now() + 350;
+            }
+          }
         }
       });
     };
@@ -1205,7 +1223,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   return (
     <div
       ref={setScrollEl}
-      className="h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[margin-right] duration-500 [transition-timing-function:var(--ease-spring)]"
+      className="h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[margin-right] duration-300 ease-in-out"
     >
     <ScrollContainerContext.Provider value={scrollEl}>
       <ModuleHeader

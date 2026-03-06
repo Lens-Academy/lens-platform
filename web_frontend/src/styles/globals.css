@@ -154,12 +154,6 @@ body {
   }
 }
 
-/* Scroll container margin: reserve space for fixed sidebar when open */
-@media (min-width: 1024px) {
-  .module-sidebar-open { margin-right: var(--sidebar-width); }
-}
-
-
 /* ToC item styles - controlled via direct DOM manipulation for performance */
 .toc-current {
   color: #111827; /* gray-900 */

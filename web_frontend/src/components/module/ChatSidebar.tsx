@@ -16,6 +16,7 @@
 import {
   useState,
   useEffect,
+  useLayoutEffect,
   useCallback,
   useRef,
   useImperativeHandle,
@@ -64,28 +65,16 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     const scrollContainer = useScrollContainer();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // --- Own open/close + allowed state (like ModuleDrawer) ---
+    // --- Own open/close state + allowed flag ---
+    // `isOpen` is the single source of truth for visibility — both user clicks
+    // and setAllowed() drive it, so they share the exact same render path.
+    // `isAllowed` only controls whether the toggle button is shown.
     const [isOpen, setIsOpen] = useState(() => {
       if (typeof window === "undefined") return false;
       const pref = localStorage.getItem("chat-sidebar-pref");
       return pref === null ? true : pref === "open";
     });
     const [isAllowed, setIsAllowed] = useState(true);
-
-    // Track the previous allowed state so we can restore from pref on
-    // allowed transitions (not-allowed → allowed).
-    const prevAllowedRef = useRef(true);
-    useEffect(() => {
-      if (!prevAllowedRef.current && isAllowed) {
-        // Transitioning to allowed — restore from pref
-        const pref = localStorage.getItem("chat-sidebar-pref");
-        setIsOpen(pref === null ? true : pref === "open");
-      } else if (!isAllowed) {
-        // Force close without updating pref
-        setIsOpen(false);
-      }
-      prevAllowedRef.current = isAllowed;
-    }, [isAllowed]);
 
     // --- Imperative handle for parent ---
     useImperativeHandle(ref, () => ({
@@ -102,6 +91,14 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       },
       setAllowed: (allowed: boolean) => {
         setIsAllowed(allowed);
+        if (!allowed) {
+          // Close via the same path as clicking the close button
+          setIsOpen(false);
+        } else {
+          // Restore from user preference
+          const pref = localStorage.getItem("chat-sidebar-pref");
+          setIsOpen(pref === null ? true : pref === "open");
+        }
       },
     }));
 
@@ -115,16 +112,16 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       localStorage.setItem("chat-sidebar-pref", "open");
     }, []);
 
-    // --- Manage module-sidebar-open class on scroll container directly ---
-    useEffect(() => {
+    // isAllowed only controls toggle button visibility, not the panel
+    const toggleHidden = !isAllowed;
+
+    // --- Manage scroll container margin via inline style (useLayoutEffect
+    // ensures it's set before paint, in the same frame as the panel width change) ---
+    useLayoutEffect(() => {
       if (!scrollContainer || isMobile) return;
-      if (isOpen && isAllowed) {
-        scrollContainer.classList.add("module-sidebar-open");
-      } else {
-        scrollContainer.classList.remove("module-sidebar-open");
-      }
-      return () => scrollContainer.classList.remove("module-sidebar-open");
-    }, [isOpen, isAllowed, scrollContainer, isMobile]);
+      scrollContainer.style.marginRight = isOpen ? "var(--sidebar-width)" : "";
+      return () => { scrollContainer.style.marginRight = ""; };
+    }, [isOpen, scrollContainer, isMobile]);
 
     // Close on Escape key
     useEffect(() => {
@@ -158,8 +155,6 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         }
       }
     }, [messages, streamingContent, isLoading, isOpen]);
-
-    const toggleHidden = !isAllowed;
 
     const chatIcon = (
       <svg
@@ -276,7 +271,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
 
           {/* Fullscreen panel — slides in from right */}
           <div
-            className={`fixed inset-0 z-50 bg-white flex flex-col transition-transform duration-300 [transition-timing-function:var(--ease-spring)] ${
+            className={`fixed inset-0 z-50 bg-white flex flex-col transition-transform duration-300 ease-in-out ${
               isOpen ? "translate-x-0" : "translate-x-full"
             }`}
             style={{
@@ -309,7 +304,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
 
         {/* Sidebar panel — animates width */}
         <div
-          className={`fixed right-0 z-30 overflow-hidden transition-[width,border-color] duration-500 [transition-timing-function:var(--ease-spring)] ${
+          className={`fixed right-0 z-30 overflow-hidden transition-[width,border-color] duration-300 ease-in-out ${
             isOpen
               ? "w-80 xl:w-96 border-l border-gray-200"
               : "w-0 border-l border-transparent"
