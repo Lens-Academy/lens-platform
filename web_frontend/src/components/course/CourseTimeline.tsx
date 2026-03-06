@@ -338,11 +338,10 @@ function renderUnitModules(
         if (!c.totalLenses || c.totalLenses === 0) return sum;
         return sum + (c.completedLenses ?? 0) / c.totalLenses;
       }, 0) / children.length;
-      // Sum child durations for the collapsed parent row
-      const parentDuration = children.reduce(
-        (sum, c) => sum + (c.duration ?? 0),
-        0,
-      );
+      // Sum core (non-optional) child durations for the collapsed parent row
+      const parentDuration = children
+        .filter((c) => !c.optional)
+        .reduce((sum, c) => sum + (c.duration ?? 0), 0);
 
       elements.push(
         <div key={parentSlug}>

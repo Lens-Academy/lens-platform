@@ -239,12 +239,15 @@ async def get_course_progress(
                     }
                 )
 
-            # Compute module duration from content stats
+            # Compute module duration from core (non-optional) content only
+            core_sections = [
+                s for s in parsed.sections if not s.get("optional", False)
+            ]
             total_words = sum(
-                s.get("wordCount", 0) for s in parsed.sections
+                s.get("wordCount", 0) for s in core_sections
             )
             total_video_seconds = sum(
-                s.get("videoDurationSeconds", 0) for s in parsed.sections
+                s.get("videoDurationSeconds", 0) for s in core_sections
             )
             reading_minutes = total_words / 200
             video_minutes = total_video_seconds / 60
