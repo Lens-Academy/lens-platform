@@ -183,8 +183,14 @@ Database: PostgreSQL (Supabase-hosted, accessed via SQLAlchemy).
 # Link to staging (default for development)
 railway link -p 779edcd4-bb95-40ad-836f-0bf4113c4453 -e 0cadba59-5e24-4d9f-8620-c8fc2722a2de -s lensacademy
 
+# Link to production — ONLY when explicitly asked by the user
+railway link -p 779edcd4-bb95-40ad-836f-0bf4113c4453 -e production -s lens-academy
+
 # View logs
 railway logs -n 100
+
+# List all services in current environment
+railway service status --all
 ```
 
-For production access, go to Railway Dashboard → production environment.
+**IMPORTANT:** Never connect to production unless the user explicitly asks. Default to staging for all development work.
