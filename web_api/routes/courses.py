@@ -19,6 +19,7 @@ from core.modules import (
 )
 from core.modules.flattened_types import FlattenedModule
 from core.modules.progress import get_module_progress
+from core.queries.meetings import get_meeting_dates_for_user
 from web_api.auth import get_optional_user
 from core import get_or_create_user
 
@@ -146,34 +147,42 @@ async def get_course_progress(
             except ModuleNotFoundError:
                 continue
 
-    # Query progress for all lens UUIDs (if user_id or anonymous_token is available)
+    # Query progress and meeting dates
     progress_map: dict[UUID, dict] = {}
-    if all_lens_ids and (user_id is not None or anonymous_token is not None):
+    meeting_dates: dict[int, str] = {}
+    if user_id is not None or anonymous_token is not None:
         async with get_connection() as conn:
-            progress_map = await get_module_progress(
-                conn,
-                user_id=user_id,
-                anonymous_token=anonymous_token,
-                lens_ids=all_lens_ids,
-            )
+            if all_lens_ids:
+                progress_map = await get_module_progress(
+                    conn,
+                    user_id=user_id,
+                    anonymous_token=anonymous_token,
+                    lens_ids=all_lens_ids,
+                )
+            if user_id is not None:
+                meeting_dates = await get_meeting_dates_for_user(conn, user_id)
 
     # Build units by splitting progression on MeetingMarker objects
     units = []
     current_modules = []
     current_meeting_number = None
+    meeting_count = 0
 
     for item in course.progression:
         if isinstance(item, MeetingMarker):
+            meeting_count += 1
             # When we hit a meeting, save the current unit if it has modules
             if current_modules:
                 units.append(
                     {
-                        "meetingNumber": item.number,
+                        "meetingNumber": meeting_count,
+                        "meetingName": item.name,
+                        "meetingDate": meeting_dates.get(meeting_count),
                         "modules": current_modules,
                     }
                 )
                 current_modules = []
-            current_meeting_number = item.number
+            current_meeting_number = meeting_count
         elif isinstance(item, ModuleRef):
             # Get module slug from progression item
             module_slug = item.slug
@@ -213,16 +222,36 @@ async def get_course_progress(
                     else False
                 )
 
+                section_words = section.get("wordCount", 0)
+                section_video = section.get("videoDurationSeconds", 0)
+                section_dur = round(
+                    (section_words / 200 + section_video / 60) * 1.5
+                )
+
                 stages.append(
                     {
                         "type": section_type,
                         "title": title,
-                        "duration": None,  # Duration calculation not available for new format
+                        "duration": section_dur or None,
                         "optional": section.get("optional", False),
                         "contentId": content_id_str,
                         "completed": lens_completed,
                     }
                 )
+
+            # Compute module duration from core (non-optional) content only
+            core_sections = [
+                s for s in parsed.sections if not s.get("optional", False)
+            ]
+            total_words = sum(
+                s.get("wordCount", 0) for s in core_sections
+            )
+            total_video_seconds = sum(
+                s.get("videoDurationSeconds", 0) for s in core_sections
+            )
+            reading_minutes = total_words / 200
+            video_minutes = total_video_seconds / 60
+            duration_minutes = round((reading_minutes + video_minutes) * 1.5)
 
             current_modules.append(
                 {
@@ -235,6 +264,7 @@ async def get_course_progress(
                     "status": status,
                     "completedLenses": completed_count,
                     "totalLenses": total_count,
+                    "duration": duration_minutes or None,
                 }
             )
 
@@ -245,6 +275,8 @@ async def get_course_progress(
         units.append(
             {
                 "meetingNumber": meeting_num,
+                "meetingName": None,
+                "meetingDate": meeting_dates.get(meeting_num),
                 "modules": current_modules,
             }
         )

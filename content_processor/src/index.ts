@@ -40,6 +40,8 @@ export interface Section {
   learningOutcomeId: string | null;
   learningOutcomeName: string | null;
   videoId: string | null;  // video sections only
+  wordCount?: number;              // word count of text + article-excerpt segments
+  videoDurationSeconds?: number;   // total seconds of video-excerpt segments
 }
 
 export interface SectionMeta {
@@ -53,7 +55,7 @@ export interface ProgressionItem {
   type: 'module' | 'meeting';
   slug?: string;      // Frontmatter slug — set by processContent after resolving path
   path?: string;      // Raw wikilink path — set by course parser, removed by processContent
-  number?: number;
+  name?: string;
   optional?: boolean;
 }
 

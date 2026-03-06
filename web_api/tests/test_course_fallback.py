@@ -37,7 +37,7 @@ def single_course_cache():
         title="The Actual Course",
         progression=[
             ModuleRef(slug="intro", optional=False),
-            MeetingMarker(number=1),
+            MeetingMarker(name="Week 1"),
         ],
     )
 

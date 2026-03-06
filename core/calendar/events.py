@@ -2,11 +2,12 @@
 
 import asyncio
 import logging
+import re
 from datetime import datetime, timedelta
 
 import sentry_sdk
 
-from .client import get_calendar_service, get_calendar_email
+from .client import get_calendar_service, get_calendar_email, batch_patch_events
 
 logger = logging.getLogger(__name__)
 
@@ -326,3 +327,108 @@ async def get_event_rsvps(event_id: str) -> list[dict] | None:
     except Exception as e:
         print(f"Failed to get RSVPs for event {event_id}: {e}")
         return None
+
+
+async def postpone_meeting_in_recurring_event(
+    recurring_event_id: str,
+    instance_start: datetime,
+) -> bool:
+    """
+    Postpone one instance of a recurring event: extend the series by 1 and cancel
+    the instance matching `instance_start`.
+
+    Steps:
+    1. Get the parent event, parse RRULE COUNT, increment by 1
+    2. Patch the parent event with new COUNT (no notifications for extending)
+    3. Find the matching instance by start time
+    4. Cancel (delete) that instance (sends cancellation notification)
+
+    Returns True if successful, False otherwise.
+    """
+    service = get_calendar_service()
+    if not service:
+        logger.warning("Google Calendar not configured, skipping postpone")
+        return False
+
+    calendar_id = get_calendar_email()
+
+    # Step 1: Get parent event and update RRULE COUNT
+    def _sync_get_parent():
+        return (
+            service.events()
+            .get(calendarId=calendar_id, eventId=recurring_event_id)
+            .execute()
+        )
+
+    try:
+        parent = await asyncio.to_thread(_sync_get_parent)
+    except Exception as e:
+        logger.error(f"Failed to get parent event {recurring_event_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        return False
+
+    # Parse and increment COUNT in RRULE
+    recurrence = parent.get("recurrence", [])
+    new_recurrence = []
+    count_updated = False
+    for rule in recurrence:
+        match = re.search(r"COUNT=(\d+)", rule)
+        if match:
+            old_count = int(match.group(1))
+            new_count = old_count + 1
+            rule = rule.replace(f"COUNT={old_count}", f"COUNT={new_count}")
+            count_updated = True
+        new_recurrence.append(rule)
+
+    if not count_updated:
+        logger.error(
+            f"No COUNT found in RRULE for event {recurring_event_id}: {recurrence}"
+        )
+        return False
+
+    # Step 2: Patch parent to extend the series
+    result = await asyncio.to_thread(
+        lambda: batch_patch_events(
+            [
+                {
+                    "event_id": recurring_event_id,
+                    "body": {"recurrence": new_recurrence},
+                    "send_updates": "none",
+                }
+            ]
+        )
+    )
+    if not result or not result.get(recurring_event_id, {}).get("success"):
+        logger.error(f"Failed to extend recurring event {recurring_event_id}")
+        return False
+
+    # Step 3: Find and cancel the instance matching instance_start
+    instances = await get_event_instances(recurring_event_id)
+    if not instances:
+        logger.error(f"Failed to get instances for event {recurring_event_id}")
+        return False
+
+    # Match by start time (within 60-second tolerance for timezone differences)
+    target_instance = None
+    for inst in instances:
+        inst_start_str = inst.get("start", {}).get("dateTime")
+        if not inst_start_str:
+            continue
+        inst_start = datetime.fromisoformat(inst_start_str)
+        if abs((inst_start - instance_start).total_seconds()) < 60:
+            target_instance = inst
+            break
+
+    if not target_instance:
+        logger.warning(
+            f"Could not find instance near {instance_start} for event {recurring_event_id}"
+        )
+        return True  # Series was extended, just couldn't cancel the instance
+
+    # Step 4: Cancel the instance
+    instance_id = target_instance["id"]
+    cancelled = await cancel_meeting_event(instance_id)
+    if not cancelled:
+        logger.warning(f"Failed to cancel instance {instance_id}")
+
+    return True

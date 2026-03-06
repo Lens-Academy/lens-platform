@@ -23,6 +23,27 @@ import { fileNameToSlug } from '../utils/slug.js';
 import { extractArticleExcerpt, bundleArticleWithCollapsed } from '../bundler/article.js';
 import { extractVideoExcerpt, type TimestampEntry } from '../bundler/video.js';
 
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/** Compute word count and video duration from a section's segments. */
+function computeSectionStats(segments: Segment[]): { wordCount?: number; videoDurationSeconds?: number } {
+  let words = 0;
+  let videoSeconds = 0;
+  for (const seg of segments) {
+    if (seg.type === 'text' || seg.type === 'article-excerpt') {
+      words += countWords(seg.content);
+    } else if (seg.type === 'video-excerpt') {
+      if (seg.to != null) videoSeconds += seg.to - seg.from;
+    }
+  }
+  const stats: { wordCount?: number; videoDurationSeconds?: number } = {};
+  if (words > 0) stats.wordCount = words;
+  if (videoSeconds > 0) stats.videoDurationSeconds = videoSeconds;
+  return stats;
+}
+
 /**
  * Extract YouTube video ID from a YouTube URL.
  *
@@ -252,6 +273,7 @@ export function flattenModule(
         learningOutcomeId: null,
         learningOutcomeName: null,
         videoId: null,
+        ...computeSectionStats(textResult.segments),
       }];
     } else if (section.type === 'uncategorized') {
       const sectionVisitedPaths = new Set(visitedPaths);
@@ -529,6 +551,7 @@ function processLOWithSubmodules(
         learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
         contentId: lens.id ?? null,
         videoId: videoId ?? null,
+        ...computeSectionStats(segments),
       } as Section);
     }
 
@@ -828,6 +851,7 @@ function flattenLearningOutcomeSection(
       learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
       contentId: lens.id ?? null,
       videoId: videoId ?? null,
+      ...computeSectionStats(segments),
     };
 
     sections.push(resultSection);
@@ -1037,6 +1061,7 @@ function flattenUncategorizedSection(
       learningOutcomeName: null,
       contentId: lens.id ?? null,
       videoId: videoId ?? null,
+      ...computeSectionStats(segments),
     };
 
     sections.push(resultSection);
@@ -1662,6 +1687,7 @@ export function flattenLens(
     learningOutcomeName: null,
     contentId: lens.id ?? null,
     videoId: videoId ?? null,
+    ...computeSectionStats(segments),
   };
 
   const flattenedModule: FlattenedModule = {

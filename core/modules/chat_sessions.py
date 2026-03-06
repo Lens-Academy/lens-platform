@@ -237,7 +237,7 @@ async def claim_chat_sessions(
     )
 
     result = await conn.execute(
-        chat_sessions.update()
+        update(chat_sessions)
         .where(
             and_(
                 chat_sessions.c.anonymous_token == anonymous_token,

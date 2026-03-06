@@ -1003,9 +1003,9 @@ def test_content_cache():
             progression=[
                 ModuleRef(slug="module-a"),  # required, due by meeting 1
                 ModuleRef(slug="module-b"),  # required, due by meeting 1
-                MeetingMarker(number=1),
+                MeetingMarker(name="Week 1"),
                 ModuleRef(slug="module-c", optional=True),  # optional
-                MeetingMarker(number=2),
+                MeetingMarker(name="Week 2"),
                 ModuleRef(slug="module-d"),  # required, no meeting after
             ],
         ),

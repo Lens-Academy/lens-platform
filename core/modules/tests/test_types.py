@@ -17,10 +17,10 @@ def test_module_ref_optional():
     assert ref.optional is True
 
 
-def test_meeting_number():
-    """Meeting should store its number."""
-    meeting = Meeting(number=1)
-    assert meeting.number == 1
+def test_meeting_name():
+    """Meeting should store its name."""
+    meeting = Meeting(name="Introduction")
+    assert meeting.name == "Introduction"
 
 
 def test_course_with_progression():
@@ -31,7 +31,7 @@ def test_course_with_progression():
         progression=[
             ModuleRef(slug="module-1"),
             ModuleRef(slug="module-2", optional=True),
-            Meeting(number=1),
+            Meeting(name="Week 1"),
         ],
     )
     assert len(course.progression) == 3

@@ -14,7 +14,7 @@ title: Introduction to AI Safety
 # Module: [[../modules/advanced.md|Advanced Topics]]
 optional:: true
 
-# Meeting: 1
+# Meeting: Introduction
 
 # Module: [[../modules/conclusion.md|Conclusion]]
 `;
@@ -31,7 +31,7 @@ optional:: true
     expect(result.course?.progression[1].path).toBe('../modules/advanced.md');
     expect(result.course?.progression[1].optional).toBe(true);
     expect(result.course?.progression[2].type).toBe('meeting');
-    expect(result.course?.progression[2].number).toBe(1);
+    expect(result.course?.progression[2].name).toBe('Introduction');
     expect(result.course?.progression[3].type).toBe('module');
     expect(result.course?.progression[3].path).toBe('../modules/conclusion.md');
     expect(result.errors).toHaveLength(0);
@@ -124,18 +124,18 @@ title: Test Course
     expect(result.errors.some(e => e.message.includes('wikilink'))).toBe(true);
   });
 
-  it('reports error for Meeting section without number', () => {
+  it('reports error for Meeting section with empty name', () => {
     const content = `---
 slug: test-course
 title: Test Course
 ---
 
-# Meeting: not a number
+# Meeting: ${''}
 `;
 
     const result = parseCourse(content, 'courses/bad-meeting.md');
 
-    expect(result.errors.some(e => e.message.includes('number'))).toBe(true);
+    expect(result.errors.some(e => e.message.includes('name'))).toBe(true);
   });
 
   it('validates slug format', () => {

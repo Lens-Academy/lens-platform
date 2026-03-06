@@ -45,7 +45,7 @@ class ModuleRef:
 class MeetingMarker:
     """A meeting marker in the course progression."""
 
-    number: int
+    name: str
 
 
 # Type alias for progression items
