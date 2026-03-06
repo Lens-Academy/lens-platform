@@ -2,8 +2,10 @@
  * useTutorChat — centralises all chat state for the Module player.
  *
  * Uses `useReducer` for the chat lifecycle (atomic state transitions)
- * and `useState` / `useRef` for independent concerns (sidebar
- * visibility, active surface).
+ * and `useState` / `useRef` for independent concerns (active surface).
+ *
+ * Sidebar open/close state lives in ChatSidebar (not here) to avoid
+ * re-rendering Module on every toggle.
  */
 
 import {
@@ -155,6 +157,7 @@ export type UseTutorChatOptions = {
   currentSectionIndex: number;
   currentSegmentIndex: number;
   currentSection: ModuleSection | undefined;
+  /** kept for prefix message, chat segment index computations */
   isArticleSection: boolean;
   triggerChatActivity: () => void;
 };
@@ -174,26 +177,9 @@ export function useTutorChat({
 
   // --- Independent state ---------------------------------------------------
 
-  // Input text is managed locally by each ChatInputArea instance (uncontrolled).
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeSurface, setActiveSurface] = useState<ActiveSurface>({
     type: "sidebar",
   });
-
-  // --- Sidebar auto-open once on first article section visit ---------------
-
-  const sidebarHasAutoOpened = useRef(false);
-  useEffect(() => {
-    if (!isArticleSection || sidebarHasAutoOpened.current) return;
-    sidebarHasAutoOpened.current = true;
-    setIsSidebarOpen(true);
-  }, [isArticleSection]);
-
-  // --- Close sidebar when leaving article sections -------------------------
-
-  useEffect(() => {
-    if (!isArticleSection) setIsSidebarOpen(false);
-  }, [isArticleSection]);
 
   // --- Load chat history when module changes -------------------------------
 
@@ -302,7 +288,7 @@ export function useTutorChat({
   const activeSurfaceLockedUntil = useRef<number | null>(null);
 
   // --- IntersectionObserver for activeSurface --------------------------------
-  // Created once when isArticleSection becomes true; elements are observed/
+  // Created once when sidebarAllowed becomes true; elements are observed/
   // unobserved directly in registerInlineRef (no state-driven re-creation).
 
   useEffect(() => {
@@ -485,8 +471,6 @@ export function useTutorChat({
     retryMessage,
 
     // Independent state
-    isSidebarOpen,
-    setSidebarOpen: setIsSidebarOpen,
     activeSurface,
     setActiveSurface,
 

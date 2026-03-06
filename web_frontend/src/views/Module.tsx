@@ -46,6 +46,7 @@ import { ModuleHeader } from "@/components/ModuleHeader";
 import ModuleDrawer from "@/components/module/ModuleDrawer";
 import type { ModuleDrawerHandle } from "@/components/module/ModuleDrawer";
 import { ChatSidebar } from "@/components/module/ChatSidebar";
+import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import ModuleCompleteModal from "@/components/module/ModuleCompleteModal";
 import AuthPromptModal from "@/components/module/AuthPromptModal";
 import { ScrollContainerContext } from "@/hooks/useScrollContainer";
@@ -515,6 +516,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const isArticleSection =
     currentSection?.type === "lens-article" ||
     currentSection?.type === "article";
+  const sidebarAllowed =
+    currentSection != null &&
+    currentSection.type !== "chat" &&
+    currentSection.type !== "test";
 
   // --- Debug overlay: track current visible segment ---
   const isDebugMode =
@@ -559,7 +564,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     messages, pendingMessage, streamingContent, isLoading, sendSource,
     sendMessage: handleSendMessage, retryMessage: handleRetryMessage,
     activeSurface, registerInlineRef,
-    isSidebarOpen, setSidebarOpen: setIsSidebarOpen,
     sectionPrefixMessage, sidebarChatSegmentIndex,
   } = useTutorChat({
     moduleId,
@@ -570,6 +574,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     isArticleSection,
     triggerChatActivity,
   });
+
+  const sidebarRef = useRef<ChatSidebarHandle>(null);
 
   // Debug overlay: scroll tracking effect
   useEffect(() => {
@@ -613,14 +619,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     };
   }, [isDebugMode, currentSectionIndex, scrollEl]);
 
-  // Debug mode: auto-open sidebar only on article-excerpt segments, close on all others
-  useEffect(() => {
-    if (!isDebugMode || !isArticleSection || !currentSection) return;
-    if (!("segments" in currentSection) || !currentSection.segments) return;
-    const seg = currentSection.segments[currentSegmentIndex];
-    if (!seg) return;
-    setIsSidebarOpen(seg.type === "article-excerpt");
-  }, [isDebugMode, isArticleSection, currentSection, currentSegmentIndex, setIsSidebarOpen]);
 
   // Fetch next module info when module completes
   useEffect(() => {
@@ -1118,9 +1116,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   return (
     <div
       ref={setScrollEl}
-      className={`h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[margin-right] duration-300 [transition-timing-function:var(--ease-spring)] ${
-        isArticleSection && isSidebarOpen ? "module-sidebar-open" : ""
-      }`}
+      className="h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[margin-right] duration-500 [transition-timing-function:var(--ease-spring)]"
     >
     <ScrollContainerContext.Provider value={scrollEl}>
       <ModuleHeader
@@ -1658,11 +1654,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         })}
 
       {/* Chat sidebar: fixed-positioned on desktop, handles its own layout */}
-      {isArticleSection && (
+      {currentSection != null && (
         <ChatSidebar
-          isOpen={isSidebarOpen}
-          onOpen={() => setIsSidebarOpen(true)}
-          onClose={() => setIsSidebarOpen(false)}
+          ref={sidebarRef}
+          sidebarAllowed={sidebarAllowed}
           sectionTitle={currentSection?.meta?.title}
           messages={messages}
           prefixMessage={sectionPrefixMessage}

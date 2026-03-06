@@ -60,6 +60,7 @@ const baseOptions = {
 
 describe("useTutorChat", () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.mocked(getChatHistory).mockResolvedValue({
       sessionId: 1,
       messages: [],
@@ -77,61 +78,14 @@ describe("useTutorChat", () => {
     expect(result.current.pendingMessage).toBeNull();
     expect(result.current.streamingContent).toBe("");
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.isSidebarOpen).toBe(false);
     expect(result.current.activeSurface).toEqual({ type: "sidebar" });
-  });
-
-  it("auto-opens sidebar on first article section", async () => {
-    const { result } = renderHook(() =>
-      useTutorChat({
-        ...baseOptions,
-        isArticleSection: true,
-        currentSection: testArticleSection,
-      }),
-    );
-
-    // The useEffect should have fired after render
-    await act(async () => {});
-
-    expect(result.current.isSidebarOpen).toBe(true);
-  });
-
-  it("does not re-auto-open after user closes sidebar", async () => {
-    const { result, rerender } = renderHook(
-      (props: { isArticleSection: boolean }) =>
-        useTutorChat({
-          ...baseOptions,
-          isArticleSection: props.isArticleSection,
-          currentSection: testArticleSection,
-        }),
-      { initialProps: { isArticleSection: true } },
-    );
-
-    // Sidebar auto-opened
-    await act(async () => {});
-    expect(result.current.isSidebarOpen).toBe(true);
-
-    // User closes sidebar
-    act(() => {
-      result.current.setSidebarOpen(false);
-    });
-    expect(result.current.isSidebarOpen).toBe(false);
-
-    // Leave article section
-    rerender({ isArticleSection: false });
-    await act(async () => {});
-
-    // Return to article section - should NOT re-auto-open
-    rerender({ isArticleSection: true });
-    await act(async () => {});
-
-    expect(result.current.isSidebarOpen).toBe(false);
   });
 
   it("computes sectionPrefixMessage from article segments", () => {
     const { result } = renderHook(() =>
       useTutorChat({
         ...baseOptions,
+
         isArticleSection: true,
         currentSection: testArticleSection,
       }),
@@ -162,6 +116,7 @@ describe("useTutorChat", () => {
     const { result } = renderHook(() =>
       useTutorChat({
         ...baseOptions,
+
         isArticleSection: true,
         currentSection: sectionWithoutExcerpt,
       }),
@@ -193,6 +148,7 @@ describe("useTutorChat", () => {
     const { result } = renderHook(() =>
       useTutorChat({
         ...baseOptions,
+
         isArticleSection: true,
         currentSection: sectionNoText,
       }),
@@ -207,6 +163,7 @@ describe("useTutorChat", () => {
     const { result } = renderHook(() =>
       useTutorChat({
         ...baseOptions,
+
         isArticleSection: true,
         currentSection: testArticleSection,
       }),
@@ -220,6 +177,7 @@ describe("useTutorChat", () => {
     const { result } = renderHook(() =>
       useTutorChat({
         ...baseOptions,
+
         isArticleSection: false,
         currentSection: undefined,
       }),
@@ -232,6 +190,7 @@ describe("useTutorChat", () => {
     const { result: withChat } = renderHook(() =>
       useTutorChat({
         ...baseOptions,
+
         isArticleSection: true,
         currentSection: testArticleSection,
       }),
@@ -247,6 +206,7 @@ describe("useTutorChat", () => {
     const { result: withoutChat } = renderHook(() =>
       useTutorChat({
         ...baseOptions,
+
         isArticleSection: true,
         currentSection: sectionWithoutChat,
       }),
@@ -318,28 +278,5 @@ describe("useTutorChat", () => {
       { role: "user", content: "First real message" },
       { role: "assistant", content: "Reply" },
     ]);
-  });
-
-  it("closes sidebar when leaving article section", async () => {
-    const { result, rerender } = renderHook(
-      (props: { isArticleSection: boolean }) =>
-        useTutorChat({
-          ...baseOptions,
-          isArticleSection: props.isArticleSection,
-          currentSection: props.isArticleSection
-            ? testArticleSection
-            : undefined,
-        }),
-      { initialProps: { isArticleSection: true } },
-    );
-
-    await act(async () => {});
-    expect(result.current.isSidebarOpen).toBe(true);
-
-    // Leave article section
-    rerender({ isArticleSection: false });
-    await act(async () => {});
-
-    expect(result.current.isSidebarOpen).toBe(false);
   });
 });
