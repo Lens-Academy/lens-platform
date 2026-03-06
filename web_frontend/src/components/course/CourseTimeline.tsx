@@ -7,6 +7,7 @@ import { useState } from "react";
 import type { UnitInfo, ModuleInfo } from "../../types/course";
 import { ChevronRight, Users } from "lucide-react";
 import { formatDurationMinutes } from "../../utils/duration";
+import { Tooltip } from "../Tooltip";
 
 /**
  * Circular progress indicator:
@@ -74,6 +75,24 @@ type CourseTimelineProps = {
 
 function formatMeetingDate(isoDate: string): string {
   const d = new Date(isoDate);
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${date}, ${time}`;
+}
+
+function formatMeetingDateLong(isoDate: string): string {
+  const d = new Date(isoDate);
+  return d.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatDateOnly(isoDate: string): string {
+  const d = new Date(isoDate);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
@@ -83,11 +102,11 @@ function formatRelativeDate(isoDate: string): string {
   const diffMs = target.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays < 0) return formatMeetingDate(isoDate);
+  if (diffDays < 0) return formatDateOnly(isoDate);
   if (diffDays === 0) return "Due Today";
   if (diffDays === 1) return "Due Tomorrow";
   if (diffDays <= 7) return `Due in ${diffDays} days`;
-  return formatMeetingDate(isoDate);
+  return formatDateOnly(isoDate);
 }
 
 type UnitStatus = "completed" | "in_progress" | "not_started";
@@ -277,17 +296,32 @@ export default function CourseTimeline({
 
                     {/* Meeting row */}
                     {unit.meetingNumber !== null && (
-                      <div className="flex items-center py-1.5 gap-2">
-                          <Users className="w-4 h-4 text-slate-700" />
-                          <span className="text-base text-slate-700">
-                            #{unit.meetingNumber}
-                          </span>
-                          {unit.meetingDate && (
-                            <span className="text-xs text-slate-400">
-                              {formatMeetingDate(unit.meetingDate)}
+                      <Tooltip
+                        placement="right"
+                        delay={200}
+                        content={
+                          unit.meetingDate ? (
+                            <span>
+                              You'll discuss this unit with your group on{" "}
+                              {formatMeetingDateLong(unit.meetingDate)}
                             </span>
-                          )}
-                      </div>
+                          ) : (
+                            <span>Group discussion meeting #{unit.meetingNumber}</span>
+                          )
+                        }
+                      >
+                        <div className="flex items-center py-1.5 gap-2 cursor-default">
+                            <Users className="w-4 h-4 text-slate-700" />
+                            <span className="text-base text-slate-700">
+                              #{unit.meetingNumber}
+                            </span>
+                            {unit.meetingDate && (
+                              <span className="text-xs text-slate-400">
+                                {formatMeetingDate(unit.meetingDate)}
+                              </span>
+                            )}
+                        </div>
+                      </Tooltip>
                     )}
                   </div>
                 </div>
