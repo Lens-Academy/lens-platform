@@ -164,11 +164,28 @@ async def gather_group_study_data(
     if not completions:
         return []
 
-    # Count per user
+    # Count today's completions per user (used to decide who appears in the message)
     user_completion_count: dict[int, int] = {}
     for row in completions:
         uid = row["user_id"]
         user_completion_count[uid] = user_completion_count.get(uid, 0) + 1
+
+    # Get all-time completions for users who studied today
+    all_time_query = select(user_content_progress).where(
+        and_(
+            user_content_progress.c.user_id.in_(list(user_completion_count.keys())),
+            user_content_progress.c.content_id.in_(section_content_ids),
+            user_content_progress.c.content_type == "lens",
+            user_content_progress.c.completed_at.isnot(None),
+        )
+    )
+    all_time_result = await conn.execute(all_time_query)
+    all_time_completions = all_time_result.mappings().fetchall()
+
+    user_total_count: dict[int, int] = {}
+    for row in all_time_completions:
+        uid = row["user_id"]
+        user_total_count[uid] = user_total_count.get(uid, 0) + 1
 
     # Check module completion
     module_completed_users: set[int] = set()
@@ -199,7 +216,7 @@ async def gather_group_study_data(
                 "discord_id": member["discord_id"],
                 "display_name": display_name,
                 "module_title": module.title,
-                "sections_completed": min(count, total_sections),
+                "sections_completed": min(user_total_count.get(uid, count), total_sections),
                 "sections_total": total_sections,
                 "module_completed": uid in module_completed_users,
                 "early_bird_days": None,
