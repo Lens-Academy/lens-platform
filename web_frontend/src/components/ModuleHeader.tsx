@@ -68,7 +68,7 @@ export function ModuleHeader({
     ro.observe(center);
     update();
     return () => ro.disconnect();
-  }, []);
+  }, [isMobile]);
 
   // Hide header on scroll down only when viewport is compact (mobile or short)
   const isCompactViewport = useMedia(
