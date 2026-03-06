@@ -83,12 +83,9 @@ meeting_reminder_24h:
   email_body: |
     Hi {name},
 
-    Your study group meets tomorrow at {meeting_time}.
+    Your study group meets tomorrow at {meeting_time}. You have {modules_remaining} sections left to complete.
 
-    Modules to complete before the meeting:
-    {module_list}
-
-    [Continue the course]({module_url})
+    [{cta_text}]({module_url})
 
     Questions? [Chat with your group]({discord_channel_url})
 
@@ -116,16 +113,13 @@ meeting_reminder_1h:
     Meeting starting in 1 hour!
 
 module_nudge:
-  email_subject: "Don't forget: {modules_remaining} modules before your meeting"
+  email_subject: "Don't forget: {modules_remaining} sections before your meeting"
   email_body: |
     Hi {name},
 
-    Your next meeting is {meeting_time}. You have {modules_remaining}
-    modules left to complete:
+    Your next meeting is {meeting_time}. You have {modules_remaining} sections left to complete.
 
-    {module_list}
-
-    [Continue the course]({module_url})
+    [{cta_text}]({module_url})
 
     Questions for your group? [Chat on Discord]({discord_channel_url})
 
@@ -133,6 +127,6 @@ module_nudge:
     Luc
     Founder of Lens Academy
   discord: |
-    Heads up! You have {modules_remaining} modules to finish before
-    your meeting {meeting_time}. [Continue the course]({module_url})
+    Heads up! You have {modules_remaining} sections to finish before
+    your meeting {meeting_time}. [{cta_text}]({module_url})
 

@@ -11,9 +11,9 @@ class TestBuildUrls:
             "core.notifications.urls.get_frontend_url",
             return_value="https://aisafety.com",
         ):
-            url = build_module_url("module-123")
+            url = build_module_url("default", "module-123")
 
-        assert url == "https://aisafety.com/module/module-123"
+        assert url == "https://aisafety.com/course/default/module/module-123"
 
     def test_builds_profile_url(self):
         from core.notifications.urls import build_profile_url

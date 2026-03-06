@@ -8,12 +8,17 @@ The key insight: store only meeting_id in scheduler jobs, then fetch
 fresh context when executing the reminder. This avoids stale data.
 """
 
+import logging
+
 from sqlalchemy import select
+from sqlalchemy.sql import func
 
 from core.database import get_connection
 from core.enums import GroupUserStatus
-from core.notifications.urls import build_course_url, build_discord_channel_url
-from core.tables import groups, groups_users, meetings
+from core.notifications.urls import build_course_url, build_discord_channel_url, build_module_url
+from core.tables import cohorts, groups, groups_users, meetings
+
+logger = logging.getLogger(__name__)
 
 
 async def get_meeting_with_group(meeting_id: int) -> tuple[dict, dict] | None:
@@ -36,9 +41,14 @@ async def get_meeting_with_group(meeting_id: int) -> tuple[dict, dict] | None:
                 meetings.c.meeting_number,
                 groups.c.group_name,
                 groups.c.discord_text_channel_id,
+                func.coalesce(
+                    groups.c.course_slug_override, cohorts.c.course_slug
+                ).label("course_slug"),
             )
             .select_from(
-                meetings.join(groups, meetings.c.group_id == groups.c.group_id)
+                meetings.join(
+                    groups, meetings.c.group_id == groups.c.group_id
+                ).join(cohorts, groups.c.cohort_id == cohorts.c.cohort_id)
             )
             .where(meetings.c.meeting_id == meeting_id)
         )
@@ -59,6 +69,7 @@ async def get_meeting_with_group(meeting_id: int) -> tuple[dict, dict] | None:
             "group_id": row["group_id"],
             "group_name": row["group_name"],
             "discord_text_channel_id": row["discord_text_channel_id"],
+            "course_slug": row["course_slug"],
         }
         return meeting, group
 
@@ -92,12 +103,76 @@ def build_reminder_context(meeting: dict, group: dict) -> dict:
 
     Args:
         meeting: Dict with scheduled_at (datetime) and other meeting fields
-        group: Dict with group_name, discord_text_channel_id
+        group: Dict with group_name, discord_text_channel_id, course_slug
 
     Returns:
         Context dict with all fields needed for meeting reminder templates
     """
     scheduled_at = meeting["scheduled_at"]
+
+    # Try to resolve the specific module due for this meeting
+    module_url = build_course_url()
+    module_list = "- Check your course page for the next module"
+    modules_remaining = "some"
+    first_section_title = ""
+    module_title = ""
+
+    course_slug = group.get("course_slug")
+    meeting_number = meeting.get("meeting_number")
+    if course_slug and meeting_number:
+        try:
+            from core.modules.course_loader import (
+                load_course,
+                get_due_by_meeting,
+                get_required_modules,
+            )
+            from core.modules.loader import load_flattened_module
+
+            course = load_course(course_slug)
+            required = get_required_modules(course)
+
+            # Find modules due AT this meeting (not cumulative from prior meetings)
+            due_slugs = []
+            for m in required:
+                due_by = get_due_by_meeting(course, m.slug)
+                if due_by is not None and due_by == meeting_number:
+                    due_slugs.append(m.slug)
+
+            if due_slugs:
+                # Link to the last module due (the one they should be working on)
+                last_due_slug = due_slugs[-1]
+                module_url = build_module_url(course_slug, last_due_slug)
+
+                # Count total non-optional sections across due modules
+                section_titles = []
+                for slug in due_slugs:
+                    try:
+                        mod = load_flattened_module(slug)
+                        if not module_title:
+                            module_title = mod.title
+                        for s in mod.sections:
+                            if not s.get("optional", False):
+                                title = s.get("title") or s.get("meta", {}).get(
+                                    "title"
+                                )
+                                if title:
+                                    section_titles.append(f"- {title}")
+                                    if not first_section_title:
+                                        first_section_title = title
+                    except Exception:
+                        pass
+
+                if section_titles:
+                    modules_remaining = str(len(section_titles))
+                    module_list = "\n".join(section_titles)
+        except Exception:
+            logger.debug("Could not resolve module info for reminder", exc_info=True)
+
+    # Build CTA text
+    if first_section_title and module_title:
+        cta_text = f"Read '{first_section_title}' from '{module_title}' now"
+    else:
+        cta_text = "Continue where you left off"
 
     return {
         "group_name": group["group_name"],
@@ -107,13 +182,11 @@ def build_reminder_context(meeting: dict, group: dict) -> dict:
         # Human-readable UTC fallback for channel messages (no user context)
         "meeting_time": scheduled_at.strftime("%A at %H:%M UTC"),
         "meeting_date": scheduled_at.strftime("%A, %B %d"),
-        # Fresh URL - not stale like the old module_url bug!
-        "module_url": build_course_url(),
+        "module_url": module_url,
         "discord_channel_url": build_discord_channel_url(
             channel_id=group["discord_text_channel_id"]
         ),
-        # Placeholders for module-related info
-        # TODO: Could be enhanced to fetch actual module progress
-        "module_list": "- Check your course dashboard for assigned modules",
-        "modules_remaining": "some",
+        "module_list": module_list,
+        "modules_remaining": modules_remaining,
+        "cta_text": cta_text,
     }

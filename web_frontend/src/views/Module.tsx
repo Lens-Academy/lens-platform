@@ -113,6 +113,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       setLoadingModule(true);
       setLoadError(null);
       wasCompleteOnLoad.current = false; // Reset when loading new module
+      initialCompletedRef.current = new Set();
       try {
         // Fetch module, course progress, and module progress in parallel
         const [moduleResult, courseResult, progressResult] = await Promise.all([
@@ -134,6 +135,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               completed.add(index);
             }
           });
+          initialCompletedRef.current = completed;
           setCompletedSections(completed);
 
           // Store module content UUID for multi-level time tracking
@@ -221,6 +223,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Track if this is initial load vs user navigation (for pushState vs replaceState)
   const isInitialLoad = useRef(true);
 
+  // Ref to hold initial completed sections for the hash effect (avoids dependency on completedSections)
+  const initialCompletedRef = useRef<Set<number>>(new Set());
+
   // Parse URL hash on mount, module load, and browser navigation
   useEffect(() => {
     if (!module) return;
@@ -228,8 +233,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1); // Remove leading #
       if (!hash) {
-        // No hash - go to first section
-        setCurrentSectionIndex(0);
+        // No hash - find first non-optional incomplete section
+        const completed = initialCompletedRef.current;
+        const firstIncomplete = module.sections.findIndex(
+          (section, index) =>
+            !completed.has(index) &&
+            !("optional" in section && section.optional),
+        );
+        setCurrentSectionIndex(firstIncomplete !== -1 ? firstIncomplete : 0);
         return;
       }
 
