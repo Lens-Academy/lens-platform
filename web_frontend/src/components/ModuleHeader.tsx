@@ -84,7 +84,12 @@ export function ModuleHeader({
       // When priority >= 2, username is conditionally hidden so right is smaller.
       let fullLeft = left.offsetWidth + (curP >= 1 ? brandW : 0);
       let fullRight = rightWidth + (curP >= 2 ? usernameW : 0);
-      let available = containerWidth - fullLeft - fullRight;
+      // Subtract container padding (px-4 = 16px each side) since clientWidth
+      // includes padding but flex children are laid out inside the content box.
+      const padding =
+        parseFloat(getComputedStyle(container).paddingLeft) +
+        parseFloat(getComputedStyle(container).paddingRight);
+      let available = containerWidth - fullLeft - fullRight - padding;
 
       let p: Priority = 0;
       if (available < barWidth + 2 * gap) {
