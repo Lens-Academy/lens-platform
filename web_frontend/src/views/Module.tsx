@@ -1668,7 +1668,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             handleSendMessage(
               content,
               currentSectionIndex,
-              sidebarChatSegmentIndex !== -1 ? sidebarChatSegmentIndex : 0,
+              currentSegmentIndex,
               "sidebar",
             )
           }
