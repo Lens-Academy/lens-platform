@@ -31,7 +31,9 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "3f1fc921-560f-4d47-8eb6-3c4dab872b9d",
-          "videoId": "9i1WlcCudpU"
+          "videoId": "9i1WlcCudpU",
+          "wordCount": 7,
+          "videoDurationSeconds": 937
         }
       ]
     },
@@ -70,7 +72,9 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "8a701cd5-82b1-46a2-8ebb-e08d10588177",
-          "videoId": "fa8k8IQ1_X0"
+          "videoId": "fa8k8IQ1_X0",
+          "wordCount": 17,
+          "videoDurationSeconds": 889
         }
       ]
     },
@@ -110,7 +114,8 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "3dd47fce-a0fe-4e03-916d-a160fe697dd0",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 1592
         }
       ]
     },
@@ -140,7 +145,8 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "c3d4e5f6-a7b8-9012-cdef-345678901234",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 2117
         }
       ]
     },
@@ -180,7 +186,8 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "e79dd07a-e837-483f-8534-b53b86d509b4",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 1277
         }
       ]
     },
@@ -225,7 +232,8 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "8a7ca9c4-c111-467b-2c2b-e08d10698767",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 571
         }
       ]
     },
@@ -269,7 +277,8 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "c42889f8-e7bc-4e36-a3b6-faf408280102",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 339
         }
       ]
     },
@@ -308,7 +317,8 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "01f6df31-099f-48ed-adef-773cc4f947e4",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 7619
         }
       ]
     },
@@ -338,7 +348,8 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "2e4f6a8b-0c2d-4e6f-8a0b-2c4d6e8f0a2b",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 1973
         }
       ]
     },
@@ -419,7 +430,8 @@
           "learningOutcomeId": "7635aa6d-ce02-407d-a1ad-0247479b963c",
           "learningOutcomeName": "Feedback cycles create discontinuity",
           "contentId": "3dd47fce-a0fe-4e03-916d-a160fe697dd0",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 1592
         },
         {
           "type": "lens-article",
@@ -457,7 +469,8 @@
           "learningOutcomeId": "7635aa6d-ce02-407d-a1ad-0247479b963c",
           "learningOutcomeName": "Feedback cycles create discontinuity",
           "contentId": "8a7ca9c4-c111-467b-2c2b-e08d10698767",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 571
         },
         {
           "type": "lens-article",
@@ -494,7 +507,8 @@
           "learningOutcomeId": "5ed688d4-61bf-4df7-8a87-9b3bfd1776c4",
           "learningOutcomeName": "Fizzle or Foom",
           "contentId": "c42889f8-e7bc-4e36-a3b6-faf408280102",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 339
         },
         {
           "type": "lens-article",
@@ -527,7 +541,8 @@
           "learningOutcomeId": "5ed688d4-61bf-4df7-8a87-9b3bfd1776c4",
           "learningOutcomeName": "Fizzle or Foom",
           "contentId": "e79dd07a-e837-483f-8534-b53b86d509b4",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 1277
         }
       ]
     },
@@ -583,7 +598,9 @@
           "learningOutcomeId": "e8f86891-a3b8-4176-b917-044b4015e0bd",
           "learningOutcomeName": "Unknown intro outcome 1",
           "contentId": "8a701cd5-82b1-46a2-8ebb-e08d10588177",
-          "videoId": "fa8k8IQ1_X0"
+          "videoId": "fa8k8IQ1_X0",
+          "wordCount": 17,
+          "videoDurationSeconds": 889
         },
         {
           "type": "lens-article",
@@ -615,7 +632,8 @@
           "learningOutcomeId": "e8f86891-a3b8-4176-b917-044b4015e0bd",
           "learningOutcomeName": "Unknown intro outcome 1",
           "contentId": "01f6df31-099f-48ed-adef-773cc4f947e4",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 7619
         },
         {
           "type": "lens-video",
@@ -643,7 +661,9 @@
           "learningOutcomeId": "23015073-0877-418d-ac9a-ae3868a1d1f2",
           "learningOutcomeName": "Objections L1 - Realize objections and rebuttals exist",
           "contentId": "3f1fc921-560f-4d47-8eb6-3c4dab872b9d",
-          "videoId": "9i1WlcCudpU"
+          "videoId": "9i1WlcCudpU",
+          "wordCount": 7,
+          "videoDurationSeconds": 937
         },
         {
           "type": "lens-article",
@@ -666,7 +686,8 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "c3d4e5f6-a7b8-9012-cdef-345678901234",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 2117
         },
         {
           "type": "lens-article",
@@ -689,7 +710,8 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "2e4f6a8b-0c2d-4e6f-8a0b-2c4d6e8f0a2b",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 1973
         }
       ]
     }

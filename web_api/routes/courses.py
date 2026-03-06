@@ -222,16 +222,33 @@ async def get_course_progress(
                     else False
                 )
 
+                section_words = section.get("wordCount", 0)
+                section_video = section.get("videoDurationSeconds", 0)
+                section_dur = round(
+                    (section_words / 200 + section_video / 60) * 1.5
+                )
+
                 stages.append(
                     {
                         "type": section_type,
                         "title": title,
-                        "duration": None,  # Duration calculation not available for new format
+                        "duration": section_dur or None,
                         "optional": section.get("optional", False),
                         "contentId": content_id_str,
                         "completed": lens_completed,
                     }
                 )
+
+            # Compute module duration from content stats
+            total_words = sum(
+                s.get("wordCount", 0) for s in parsed.sections
+            )
+            total_video_seconds = sum(
+                s.get("videoDurationSeconds", 0) for s in parsed.sections
+            )
+            reading_minutes = total_words / 200
+            video_minutes = total_video_seconds / 60
+            duration_minutes = round((reading_minutes + video_minutes) * 1.5)
 
             current_modules.append(
                 {
@@ -244,6 +261,7 @@ async def get_course_progress(
                     "status": status,
                     "completedLenses": completed_count,
                     "totalLenses": total_count,
+                    "duration": duration_minutes or None,
                 }
             )
 

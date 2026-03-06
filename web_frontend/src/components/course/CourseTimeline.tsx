@@ -6,6 +6,7 @@
 import { useState } from "react";
 import type { UnitInfo, ModuleInfo } from "../../types/course";
 import { ChevronRight, Users } from "lucide-react";
+import { formatDurationMinutes } from "../../utils/duration";
 
 /**
  * Circular progress indicator:
@@ -62,29 +63,7 @@ function ProgressCircle({
   );
 }
 
-// Hard-coded time estimates (minutes) for prototype — will be replaced by real data
-const MOCK_DURATIONS: Record<string, number> = {
-  "introduction": 25,
-  "feedback-loops": 40,
-  "what-even-is-ai": 35,
-  "cognitive-superpowers": 30,
-  "module-fundamental-difficulties": 45,
-  "existing-approaches/welcome": 10,
-  "existing-approaches/automating-alignment": 20,
-  "existing-approaches/mechanistic-interpretability": 25,
-  "existing-approaches/evals": 15,
-  "existing-approaches/control": 20,
-  "existing-approaches/agent-foundations": 25,
-  "existing-approaches/test-your-understanding": 15,
-};
-
-function formatDuration(minutes: number): string {
-  if (minutes >= 60) {
-    const h = minutes / 60;
-    return h % 1 === 0 ? `${h}h` : `${h.toFixed(1)}h`;
-  }
-  return `${minutes}min`;
-}
+const formatDuration = formatDurationMinutes;
 
 type CourseTimelineProps = {
   courseTitle: string;
@@ -359,6 +338,11 @@ function renderUnitModules(
         if (!c.totalLenses || c.totalLenses === 0) return sum;
         return sum + (c.completedLenses ?? 0) / c.totalLenses;
       }, 0) / children.length;
+      // Sum child durations for the collapsed parent row
+      const parentDuration = children.reduce(
+        (sum, c) => sum + (c.duration ?? 0),
+        0,
+      );
 
       elements.push(
         <div key={parentSlug}>
@@ -396,6 +380,11 @@ function renderUnitModules(
                     );
                   })()}
                 </div>
+                {!isParentExpanded && parentDuration > 0 && (
+                  <span className="text-xs text-slate-400 flex-shrink-0 tabular-nums">
+                    {formatDuration(parentDuration)}
+                  </span>
+                )}
                 <ChevronRight
                   className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform duration-200 ${
                     isParentExpanded ? "rotate-90" : ""
@@ -413,7 +402,7 @@ function renderUnitModules(
             <div className="overflow-hidden">
               {children.map((child) => {
                 const isSelected = child.slug === selectedModuleSlug;
-                const childEstimate = MOCK_DURATIONS[child.slug];
+                const childEstimate = child.duration;
                 return (
                   <button
                     key={child.slug}
@@ -434,7 +423,7 @@ function renderUnitModules(
                       <span className="text-base truncate text-slate-700">
                         {child.title}
                       </span>
-                      {childEstimate && child.status !== "completed" && (
+                      {childEstimate && (
                         <span className="text-xs text-slate-400 ml-auto flex-shrink-0 tabular-nums">
                           {formatDuration(childEstimate)}
                         </span>
@@ -451,7 +440,7 @@ function renderUnitModules(
       // Regular module
       const isSelected = mod.slug === selectedModuleSlug;
       const dueLabel = dueDateIso ? formatRelativeDate(dueDateIso) : null;
-      const estimate = MOCK_DURATIONS[mod.slug];
+      const estimate = mod.duration;
 
       elements.push(
         <button
@@ -486,9 +475,9 @@ function renderUnitModules(
                   Optional
                 </span>
               )}
-              {/* Right-aligned: due date or time estimate */}
+              {/* Right-aligned: due date and/or time estimate */}
               {dueLabel && !mod.optional && mod.status !== "completed" ? (
-                <span className={`text-xs ml-auto flex-shrink-0 ${
+                <span className={`text-xs ml-auto flex-shrink-0 flex items-center gap-1.5 ${
                   dueLabel === "Due Today"
                     ? "text-amber-600 font-medium"
                     : dueLabel === "Due Tomorrow"
@@ -496,8 +485,13 @@ function renderUnitModules(
                       : "text-slate-500"
                 }`}>
                   {dueLabel}
+                  {estimate ? (
+                    <span className="text-slate-400 font-normal tabular-nums">
+                      · {formatDuration(estimate)}
+                    </span>
+                  ) : null}
                 </span>
-              ) : estimate && mod.status !== "completed" ? (
+              ) : estimate ? (
                 <span className="text-xs text-slate-400 ml-auto flex-shrink-0 tabular-nums">
                   {formatDuration(estimate)}
                 </span>
