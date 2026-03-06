@@ -34,6 +34,7 @@ type ChatInlineShellProps = {
   scrollToResponse?: boolean;
   hasActiveInput: boolean;
   shellRef?: (el: HTMLDivElement | null) => void;
+  sendSource?: "sidebar" | "inline" | null;
 };
 
 export function ChatInlineShell({
@@ -49,6 +50,7 @@ export function ChatInlineShell({
   scrollToResponse,
   hasActiveInput,
   shellRef,
+  sendSource,
 }: ChatInlineShellProps) {
   const pageScrollContainer = useScrollContainer();
 
@@ -84,7 +86,7 @@ export function ChatInlineShell({
   useLayoutEffect(() => {
     if (!pendingMessage || !scrollContainerRef.current) return;
     // Only scroll if this shell owns the active input (message was sent from here)
-    if (!hasActiveInput) return;
+    if (!hasActiveInput || sendSource === "sidebar") return;
     // In expanded mode, wait for scrollContainerHeight so minHeight is applied.
     // In normal mode (page scroll), no fixed-height container — skip the check.
     if (isExpanded && scrollContainerHeight <= 0) return;
@@ -116,6 +118,7 @@ export function ChatInlineShell({
     isLoading,
     isExpanded,
     hasActiveInput,
+    sendSource,
   ]);
 
   // Scroll to recent-messages boundary after expanding conversation history
@@ -149,6 +152,15 @@ export function ChatInlineShell({
       });
     }
   }, [activated, activatedWithHistory, hasInteracted, messages.length]);
+
+  // Deactivate when another surface sends (collapse back to just the input bar).
+  // When re-activated later, ACTIVATE with current messagesLength means only the
+  // new exchange is shown (old messages behind the "earlier" button).
+  useEffect(() => {
+    if (sendSource && !hasActiveInput) {
+      dispatch({ type: "DEACTIVATE" });
+    }
+  }, [sendSource, hasActiveInput]);
 
   // Track scroll container height for min-height calculation
   useLayoutEffect(() => {

@@ -556,7 +556,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Chat state — centralised in useTutorChat hook
   const {
-    messages, pendingMessage, streamingContent, isLoading,
+    messages, pendingMessage, streamingContent, isLoading, sendSource,
     sendMessage: handleSendMessage, retryMessage: handleRetryMessage,
     activeSurface, registerInlineRef,
     isSidebarOpen, setSidebarOpen: setIsSidebarOpen,
@@ -943,6 +943,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             pendingMessage={pendingMessage}
             streamingContent={streamingContent}
             isLoading={isLoading}
+            sendSource={sendSource}
             onSendMessage={(content) =>
               handleSendMessage(content, sectionIndex, segmentIndex)
             }
@@ -986,6 +987,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 pendingMessage={pendingMessage}
                 streamingContent={streamingContent}
                 isLoading={isLoading}
+                sendSource={sendSource}
                 onSendMessage={(content) =>
                   handleSendMessage(content, sectionIndex, segmentIndex)
                 }
@@ -1026,6 +1028,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 pendingMessage={pendingMessage}
                 streamingContent={streamingContent}
                 isLoading={isLoading}
+                sendSource={sendSource}
                 onSendMessage={(content) =>
                   handleSendMessage(content, sectionIndex, segmentIndex)
                 }
@@ -1223,6 +1226,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     pendingMessage={pendingMessage}
                     streamingContent={streamingContent}
                     isLoading={isLoading}
+                    sendSource={sendSource}
                     onSendMessage={(content) =>
                       handleSendMessage(content, sectionIndex, 0)
                     }
@@ -1521,6 +1525,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                               pendingMessage={pendingMessage}
                               streamingContent={streamingContent}
                               isLoading={isLoading}
+                              sendSource={sendSource}
                               onSendMessage={(content) =>
                                 handleSendMessage(content, sectionIndex, 0)
                               }
@@ -1661,9 +1666,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           sectionTitle={currentSection?.meta?.title}
           messages={messages}
           prefixMessage={sectionPrefixMessage}
-          pendingMessage={pendingMessage}
-          streamingContent={streamingContent}
-          isLoading={isLoading}
+          pendingMessage={sendSource !== "inline" ? pendingMessage : null}
+          streamingContent={sendSource !== "inline" ? streamingContent : ""}
+          isLoading={sendSource !== "inline" ? isLoading : false}
           onSendMessage={(content) =>
             handleSendMessage(
               content,

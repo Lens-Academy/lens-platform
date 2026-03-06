@@ -36,6 +36,7 @@ type ChatState = {
   streamingContent: string;
   isLoading: boolean;
   lastPosition: { sectionIndex: number; segmentIndex: number } | null;
+  sendSource: "sidebar" | "inline" | null;
 };
 
 type ChatAction =
@@ -45,6 +46,7 @@ type ChatAction =
       content: string;
       sectionIndex: number;
       segmentIndex: number;
+      source: "sidebar" | "inline";
     }
   | { type: "STREAM_CHUNK"; accumulated: string }
   | {
@@ -62,6 +64,7 @@ const initialChatState: ChatState = {
   streamingContent: "",
   isLoading: false,
   lastPosition: null,
+  sendSource: null,
 };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -87,6 +90,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
           sectionIndex: action.sectionIndex,
           segmentIndex: action.segmentIndex,
         },
+        sendSource: action.source,
       };
 
     case "STREAM_CHUNK":
@@ -109,6 +113,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         pendingMessage: null,
         streamingContent: "",
         isLoading: false,
+        sendSource: null,
       };
 
     case "SEND_FAILURE":
@@ -119,12 +124,14 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
           : null,
         streamingContent: "",
         isLoading: false,
+        sendSource: null,
       };
 
     case "CLEAR_PENDING":
       return {
         ...state,
         pendingMessage: null,
+        sendSource: null,
       };
 
     default:
@@ -397,10 +404,10 @@ export function useTutorChat({
         content,
         sectionIndex,
         segmentIndex,
+        source: source ?? "inline",
       });
 
-      // Lock activeSurface to this inline section for ~2s so observer doesn't override
-      // Skip when sent from sidebar — keep the sidebar as active surface
+      // Lock activeSurface so observer doesn't override during streaming
       if (source !== "sidebar") {
         setActiveSurface({ type: "inline", sectionIndex, segmentIndex });
         activeSurfaceLockedUntil.current = Date.now() + 2000;
@@ -471,6 +478,7 @@ export function useTutorChat({
     pendingMessage: chat.pendingMessage,
     streamingContent: chat.streamingContent,
     isLoading: chat.isLoading,
+    sendSource: chat.sendSource,
 
     // Actions
     sendMessage,

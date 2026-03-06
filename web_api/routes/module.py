@@ -146,8 +146,9 @@ async def event_generator(
     if context_msg_content:
         yield f"data: {json.dumps({'type': 'system', 'content': context_msg_content})}\n\n"
 
-    # DEBUG: always emit a system message with position info
-    yield f"data: {json.dumps({'type': 'system', 'content': f'[debug] section={section_index} segment={segment_index}'})}\n\n"
+    # DEBUG: emit position info only when position changed
+    if context_msg_content:
+        yield f"data: {json.dumps({'type': 'system', 'content': f'[debug] section={section_index} segment={segment_index}'})}\n\n"
 
     # Get section and gather context
     section = (
