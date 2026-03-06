@@ -491,10 +491,12 @@ async def postpone_meeting_endpoint(
         if not await can_access_group(conn, db_user["user_id"], group_id):
             raise HTTPException(403, "Access denied to this group")
 
-    # Validate meeting is in the future
+    # Validate meeting is not too far in the past (allow up to 7 days)
+    from datetime import timedelta
+
     now = datetime.now(timezone.utc)
-    if meeting["scheduled_at"] <= now:
-        raise HTTPException(400, "Cannot postpone a past meeting")
+    if meeting["scheduled_at"] <= now - timedelta(days=7):
+        raise HTTPException(400, "Cannot postpone a meeting more than 1 week in the past")
 
     try:
         result = await postpone_meeting(meeting_id)

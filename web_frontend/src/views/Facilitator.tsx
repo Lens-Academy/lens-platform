@@ -21,6 +21,32 @@ import type {
 
 // --- Helpers ---
 
+function formatMeetingTime(iso: string): { utc: string; local: string } {
+  const d = new Date(iso);
+  const utc = d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }) + ", " + d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }) + " UTC";
+
+  const local = (d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }) + ", " + d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  })).replace(/\bGMT\b/, "UTC");
+
+  return { utc, local };
+}
+
 function formatLastActive(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(ms / 60_000);
@@ -84,6 +110,11 @@ export default function Facilitator() {
   const [postponeConfirm, setPostponeConfirm] = useState<{
     meetingId: number;
     meetingNumber: number;
+    scheduledAt?: string;
+  } | null>(null);
+  const [postponeResult, setPostponeResult] = useState<{
+    type: "success" | "error";
+    message: string;
   } | null>(null);
   const [postponingMeetingId, setPostponingMeetingId] = useState<number | null>(
     null,
@@ -221,8 +252,17 @@ export default function Facilitator() {
     }
   }, [selectedGroupId]);
 
+  const showPostponeResult = useCallback(
+    (type: "success" | "error", message: string) => {
+      setPostponeResult({ type, message });
+      setTimeout(() => setPostponeResult(null), 5000);
+    },
+    [],
+  );
+
   const handlePostpone = useCallback(
     async (meetingId: number) => {
+      const meetingNumber = postponeConfirm?.meetingNumber;
       setPostponingMeetingId(meetingId);
       try {
         const res = await fetchWithRefresh(
@@ -231,18 +271,29 @@ export default function Facilitator() {
         );
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          alert(data.detail || "Failed to postpone meeting");
+          showPostponeResult(
+            "error",
+            data.detail || "Failed to postpone meeting",
+          );
           return;
         }
+        const data = await res.json();
+        const result = data.result;
+        let msg = `Meeting ${meetingNumber ?? result?.deleted_meeting_number ?? ""} postponed.`;
+        if (result?.new_meeting_number && result?.new_meeting_time) {
+          const { utc } = formatMeetingTime(result.new_meeting_time);
+          msg += ` New meeting ${result.new_meeting_number} added on ${utc}.`;
+        }
+        showPostponeResult("success", msg);
         await refreshTimeline();
       } catch {
-        alert("Failed to postpone meeting");
+        showPostponeResult("error", "Failed to postpone meeting");
       } finally {
         setPostponingMeetingId(null);
         setPostponeConfirm(null);
       }
     },
-    [refreshTimeline],
+    [refreshTimeline, showPostponeResult, postponeConfirm],
   );
 
   // --- Guards ---
@@ -353,8 +404,8 @@ export default function Facilitator() {
             )}
             onChatClick={handleChatClick}
             selectedChat={selectedChat}
-            onPostpone={(meetingId, meetingNumber) =>
-              setPostponeConfirm({ meetingId, meetingNumber })
+            onPostpone={(meetingId, meetingNumber, scheduledAt) =>
+              setPostponeConfirm({ meetingId, meetingNumber, scheduledAt })
             }
             postponingMeetingId={postponingMeetingId}
           />
@@ -371,17 +422,34 @@ export default function Facilitator() {
         />
       )}
 
+      {/* Postpone result banner */}
+      {postponeResult && (
+        <div
+          className={`fixed top-4 right-4 z-50 max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-opacity ${
+            postponeResult.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+              : "bg-red-50 text-red-800 border border-red-200"
+          }`}
+        >
+          {postponeResult.message}
+        </div>
+      )}
+
       {/* Postpone confirmation dialog */}
       {postponeConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-lg shadow-lg p-5 max-w-sm mx-4">
             <h3 className="text-sm font-semibold text-slate-800 mb-2">
-              Postpone Meeting {postponeConfirm.meetingNumber}?
+              Postpone Meeting {postponeConfirm.meetingNumber}
+              {postponeConfirm.scheduledAt && (
+                <span className="font-normal text-slate-500">
+                  {" "}({formatMeetingTime(postponeConfirm.scheduledAt).utc})
+                </span>
+              )}
             </h3>
             <p className="text-xs text-slate-600 mb-4">
-              This week&apos;s meeting will be cancelled and a new meeting added
-              at the end of the course. All subsequent meetings will be
-              renumbered.
+              Postpone this meeting by 1 week? This will also move back the
+              course&apos;s end date by 1 week.
             </p>
             <div className="flex gap-2 justify-end">
               <button
@@ -567,7 +635,7 @@ function VerticalTimeline({
     moduleTitle: string,
   ) => void;
   selectedChat: { userId: number; moduleSlug: string } | null;
-  onPostpone?: (meetingId: number, meetingNumber: number) => void;
+  onPostpone?: (meetingId: number, meetingNumber: number, scheduledAt?: string) => void;
   postponingMeetingId?: number | null;
 }) {
   const segs = useMemo(
@@ -581,7 +649,7 @@ function VerticalTimeline({
   const V_PAD = 5; // vertical padding above/below every element (module or meeting)
   const DOT_COL = 18; // fixed dot column width
   const moduleH = (n: number) => n * DOT_H + V_PAD * 2;
-  const mtgH = 16 + V_PAD * 2; // meeting dot + symmetric padding
+  const mtgH = 46 + V_PAD * 2; // meeting label + 2 date lines + symmetric padding
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg">
@@ -594,26 +662,37 @@ function VerticalTimeline({
               seg.type === "meeting" ? (
                 <div
                   key={si}
-                  className="px-2 flex items-center gap-1"
+                  className="px-2 flex flex-col justify-center"
                   style={{ height: mtgH }}
                 >
-                  <span className="text-xs font-semibold text-slate-600">
-                    Meeting {seg.meetingNumber}
-                  </span>
-                  {onPostpone &&
-                    seg.meetingId &&
-                    !(seg.items[0]?.is_past ?? false) && (
-                      <button
-                        className="text-slate-400 hover:text-amber-500 transition-colors disabled:opacity-50"
-                        title="Postpone this meeting"
-                        disabled={postponingMeetingId === seg.meetingId}
-                        onClick={() =>
-                          onPostpone(seg.meetingId!, seg.meetingNumber!)
-                        }
-                      >
-                        <Clock size={11} />
-                      </button>
-                    )}
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-semibold text-slate-600">
+                      Meeting {seg.meetingNumber}
+                    </span>
+                    {onPostpone &&
+                      seg.meetingId &&
+                      (!seg.scheduledAt || Date.now() - new Date(seg.scheduledAt).getTime() < 7 * 86_400_000) && (
+                        <button
+                          className="text-slate-400 hover:text-amber-500 transition-colors disabled:opacity-50"
+                          title="Postpone this meeting"
+                          disabled={postponingMeetingId === seg.meetingId}
+                          onClick={() =>
+                            onPostpone(seg.meetingId!, seg.meetingNumber!, seg.scheduledAt)
+                          }
+                        >
+                          <Clock size={11} />
+                        </button>
+                      )}
+                  </div>
+                  {seg.scheduledAt && (() => {
+                    const { utc, local } = formatMeetingTime(seg.scheduledAt);
+                    return (
+                      <div className="text-[10px] text-slate-400 leading-tight mt-0.5 whitespace-nowrap">
+                        <div>{utc}</div>
+                        <div>{local}</div>
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 <div
