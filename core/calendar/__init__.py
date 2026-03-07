@@ -9,6 +9,7 @@ from .events import (
     update_meeting_event,
     cancel_meeting_event,
     get_event_rsvps,
+    postpone_meeting_in_recurring_event,
 )
 from .rsvp import sync_group_rsvps_from_recurring
 
@@ -23,5 +24,6 @@ __all__ = [
     "update_meeting_event",
     "cancel_meeting_event",
     "get_event_rsvps",
+    "postpone_meeting_in_recurring_event",
     "sync_group_rsvps_from_recurring",
 ]

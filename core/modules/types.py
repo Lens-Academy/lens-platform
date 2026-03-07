@@ -170,7 +170,7 @@ class ModuleRef:
 class Meeting:
     """A meeting marker in the course progression."""
 
-    number: int
+    name: str
 
 
 ProgressionItem = ModuleRef | Meeting

@@ -335,7 +335,10 @@ describe("TestSection resume", () => {
     vi.clearAllMocks();
   });
 
-  it("skips Begin screen when responses already exist", async () => {
+  it("shows Resume screen when responses already exist (not auto-locked)", async () => {
+    const user = userEvent.setup();
+    const onTestStart = vi.fn();
+
     // Q1 has a completed response, Q2 has no response
     (getResponses as ReturnType<typeof vi.fn>).mockImplementation(
       async ({ questionId }: { questionId: string }) => {
@@ -360,20 +363,26 @@ describe("TestSection resume", () => {
       },
     );
 
-    render(<TestSection section={makeTestSection(2)} {...defaultProps} />);
+    render(
+      <TestSection
+        section={makeTestSection(2)}
+        {...defaultProps}
+        onTestStart={onTestStart}
+      />,
+    );
 
-    // Should NOT show Begin button (we have existing responses)
+    // Should show Resume button, not auto-lock navigation
     await waitFor(() => {
-      expect(screen.queryByText("Begin")).not.toBeInTheDocument();
+      expect(screen.getByText("Resume")).toBeInTheDocument();
     });
+    expect(screen.getByText("1 of 2 completed")).toBeInTheDocument();
+    expect(onTestStart).not.toHaveBeenCalled();
 
-    // Q1 should be collapsed with "Answered"
-    await waitFor(() => {
-      expect(screen.getByText("Answered")).toBeInTheDocument();
-    });
+    // Click Resume to enter test mode
+    await user.click(screen.getByText("Resume"));
+    expect(onTestStart).toHaveBeenCalled();
 
-    // Q2 should have a reveal mechanism (the answer-box for Q2 should appear
-    // or a reveal button should be visible)
+    // Q2 should now be visible (resumes at first incomplete)
     await waitFor(() => {
       expect(
         screen.getByTestId("answer-box-test-module:2:1"),

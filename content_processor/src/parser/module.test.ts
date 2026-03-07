@@ -172,13 +172,14 @@ title: Valid Title
     const content = `---
 slug: test-module
 title: Test Module
-some_unknown_field: hello
+slg: extra-value
 ---
 
 # Page: Welcome
+id:: d1e2f3a4-5678-90ab-cdef-1234567890ab
 
-## Text:
-Hello world
+## Text
+content:: Hello world
 `;
 
     const result = parseModule(content, 'modules/test.md');
@@ -186,7 +187,7 @@ Hello world
     // Module should still be returned — unrecognized fields are warnings, not errors
     expect(result.module).not.toBeNull();
     expect(result.module?.slug).toBe('test-module');
-    // Should have a warning about the unrecognized field
+    // Should have a warning about the unrecognized field ('slg' → 'slug' typo)
     expect(result.errors.some(e => e.severity === 'warning')).toBe(true);
     expect(result.errors.some(e => e.severity === 'error')).toBe(false);
   });
@@ -570,7 +571,7 @@ content:: The actual content
     const result = parsePageSegments(body, 'modules/test.md', 10);
 
     expect(result.errors.some(e =>
-      e.severity === 'warning' &&
+      e.severity === 'error' &&
       e.message.includes('ignored')
     )).toBe(true);
     expect(result.segments).toHaveLength(1);
@@ -586,7 +587,7 @@ instructions:: Discuss AI safety concepts
     const result = parsePageSegments(body, 'modules/test.md', 10);
 
     expect(result.errors.some(e =>
-      e.severity === 'warning' &&
+      e.severity === 'error' &&
       e.message.includes('ignored')
     )).toBe(true);
   });

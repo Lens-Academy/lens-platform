@@ -24,6 +24,18 @@ import type { ArticleData } from "@/types/module";
 import { generateHeadingId } from "@/utils/extractHeadings";
 import { useArticleSectionContext } from "./ArticleSectionContext";
 
+/** Format a YYYY-MM-DD date string to readable format like "May 1, 2015". */
+function formatArticleDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (!year || !month) return dateStr;
+  const date = new Date(year, month - 1, day || 1);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    ...(day ? { day: "numeric" } : {}),
+  });
+}
+
 /**
  * Remark plugin that converts directives into HTML elements.
  * - :::collapse ... ::: (container) → <collapse-block>
@@ -79,21 +91,109 @@ function CollapsibleBlock({
   endMarker?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isCollapsing, setIsCollapsing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleCollapseFromBottom = () => {
+  const handleCollapse = () => {
+    if (!containerRef.current) {
+      setIsOpen(false);
+      return;
+    }
+
+    // Walk up DOM to find next in-flow sibling after the collapsible block
+    let nextEl: Element | null = null;
+    let el: Element | null = containerRef.current;
+    while (el && !nextEl) {
+      let sib = el.nextElementSibling;
+      while (sib) {
+        const pos = getComputedStyle(sib).position;
+        if (pos !== "absolute" && pos !== "fixed") {
+          nextEl = sib;
+          break;
+        }
+        sib = sib.nextElementSibling;
+      }
+      if (!nextEl) el = el.parentElement;
+    }
+
+    // Fallback: if no nextEl (end of article), just collapse in place
+    if (!nextEl) {
+      setIsCollapsing(true);
+      setIsOpen(false);
+      setTimeout(() => setIsCollapsing(false), 500);
+      return;
+    }
+
+    setIsCollapsing(true);
+
+    // Disable scroll anchoring so Chrome doesn't fight our animation
+    document.documentElement.style.overflowAnchor = "none";
+
+    const gridEl = containerRef.current.querySelector(
+      '[class*="grid"]',
+    ) as HTMLElement | null;
+    if (gridEl) gridEl.style.transition = "grid-template-rows 500ms ease-out";
+
+    // Record nextEl's initial viewport position
+    const initialViewportPos = nextEl.getBoundingClientRect().top;
+    const targetViewportPos = window.innerHeight * 0.1;
+
+    // Trigger collapse
     setIsOpen(false);
-    containerRef.current?.scrollIntoView({
-      block: "nearest",
-      behavior: "smooth",
-    });
+
+    // Animate: ease nextEl from its current viewport position to 10% viewport.
+    // On each frame, nextEl's doc position shifts (collapse shrinks content above),
+    // so we read its actual position and apply a correction.
+    const duration = 500;
+    const startTime = performance.now();
+    const trackedEl = nextEl;
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const t = Math.min(1, elapsed / duration);
+      const eased = 1 - (1 - t) ** 3; // ease-out cubic
+
+      const desiredPos =
+        initialViewportPos + (targetViewportPos - initialViewportPos) * eased;
+      const actualPos = trackedEl.getBoundingClientRect().top;
+      const correction = actualPos - desiredPos;
+
+      if (Math.abs(correction) > 0.5) {
+        window.scrollBy({ top: correction, behavior: "instant" });
+      }
+
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        document.documentElement.style.overflowAnchor = "";
+        setIsCollapsing(false);
+        if (gridEl) {
+          void gridEl.offsetHeight; // force reflow
+          gridEl.style.transition = "";
+        }
+      }
+    };
+
+    requestAnimationFrame(animate);
+  };
+
+  const handleToggle = () => {
+    if (isOpen) {
+      handleCollapse();
+    } else {
+      setIsOpen(true);
+    }
   };
 
   return (
-    <div ref={containerRef} className={className}>
-      <div className="sticky top-[var(--header-offset)] z-10 transition-[top] duration-300 backdrop-blur-sm bg-amber-50/80 flex items-center gap-1 py-1">
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ overflowAnchor: "none" }}
+    >
+      <div className="sticky top-[var(--header-offset)] z-10 transition-[top] duration-300 bg-[#fffdf5] flex items-center gap-1 py-1">
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleToggle}
           className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1"
         >
           <svg
@@ -117,15 +217,17 @@ function CollapsibleBlock({
         )}
       </div>
       <div
-        className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+        className={`grid transition-[grid-template-rows] duration-500 ease-out ${
           isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
-        <div className="overflow-hidden">
+        <div
+          className={`overflow-hidden transition-[filter] duration-500 ${isCollapsing ? "blur-sm" : ""}`}
+        >
           {children}
           {endMarker && (
             <button
-              onClick={handleCollapseFromBottom}
+              onClick={handleCollapse}
               className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 mt-2 pl-5 flex items-center gap-1 transition-colors"
             >
               <svg
@@ -381,6 +483,8 @@ type ArticleEmbedProps = {
   article: ArticleData;
   /** Whether this is the first excerpt in the section (shows full attribution) */
   isFirstExcerpt?: boolean;
+  /** Whether this excerpt immediately follows another excerpt (no intervening segments) */
+  isConsecutiveExcerpt?: boolean;
 };
 
 /**
@@ -390,6 +494,7 @@ type ArticleEmbedProps = {
 export default function ArticleEmbed({
   article,
   isFirstExcerpt,
+  isConsecutiveExcerpt,
 }: ArticleEmbedProps) {
   const isFirst = isFirstExcerpt ?? true;
   const {
@@ -397,6 +502,7 @@ export default function ArticleEmbed({
     title,
     author,
     sourceUrl,
+    published,
     collapsed_before,
     collapsed_after,
   } = article;
@@ -592,25 +698,66 @@ export default function ArticleEmbed({
   return (
     <div className="max-w-content-padded mx-auto rounded-lg overflow-clip">
       {/* Header — always yellow */}
-      <div className="bg-amber-50/50 px-4 pt-4 sm:pt-6 pb-2">
-        {isFirst ? (
-          <div className="mb-1 max-w-content mx-auto">
-            {title && (
-              <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-            )}
-            <div className="flex items-center gap-3 mt-1">
-              {author && <p className="text-sm text-gray-500">by {author}</p>}
-              {author && sourceUrl && <span className="text-gray-400">|</span>}
-              {sourceUrl && (
-                <a
-                  href={sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1"
-                >
-                  Read original
+      {isConsecutiveExcerpt ? (
+        // Consecutive excerpt: skip attribution, just show collapsed_before if present
+        collapsed_before && (
+          <div className="bg-amber-50/50 px-4 py-1">
+            <CollapsedSection content={collapsed_before} />
+          </div>
+        )
+      ) : (
+        <div className="bg-amber-50/50 px-4 pt-4 sm:pt-6 pb-2">
+          {isFirst ? (
+            <div className="mb-1 max-w-content mx-auto">
+              {title && (
+                <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+              )}
+              <div className="flex items-center gap-3 mt-1">
+                {author && <p className="text-sm text-gray-500">by {author}</p>}
+                {author && published && (
+                  <span className="text-gray-400">|</span>
+                )}
+                {published && (
+                  <span className="text-sm text-gray-500">
+                    {formatArticleDate(published)}
+                  </span>
+                )}
+                {(author || published) && sourceUrl && (
+                  <span className="text-gray-400">|</span>
+                )}
+                {sourceUrl && (
+                  <a
+                    href={sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1"
+                  >
+                    Read original
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      />
+                    </svg>
+                  </a>
+                )}
+              </div>
+              <hr className="mt-3 border-gray-300" />
+            </div>
+          ) : (
+            <div className="mb-1 max-w-content mx-auto">
+              <div className="flex justify-end">
+                <span className="text-sm text-gray-400 flex items-center gap-1.5">
                   <svg
-                    className="w-3 h-3"
+                    className="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -619,42 +766,20 @@ export default function ArticleEmbed({
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      strokeWidth={1.5}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                </a>
-              )}
+                  from &ldquo;{title}&rdquo;
+                </span>
+              </div>
+              <hr className="mt-2 border-gray-300" />
             </div>
-            <hr className="mt-3 border-gray-300" />
-          </div>
-        ) : (
-          <div className="mb-1 max-w-content mx-auto">
-            <div className="flex justify-end">
-              <span className="text-sm text-gray-400 flex items-center gap-1.5">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                from &ldquo;{title}&rdquo;
-              </span>
-            </div>
-            <hr className="mt-2 border-gray-300" />
-          </div>
-        )}
+          )}
 
-        {collapsed_before && <CollapsedSection content={collapsed_before} />}
-      </div>
+          {collapsed_before && <CollapsedSection content={collapsed_before} />}
+        </div>
+      )}
 
       {/* Content segments — alternating yellow (article) / white (note) */}
       {segments.map((segment, i) => {

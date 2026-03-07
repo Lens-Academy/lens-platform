@@ -56,7 +56,7 @@ describe('validateFrontmatter', () => {
 
   it('works for article content type', () => {
     const errors = validateFrontmatter(
-      { title: 'My Article', author: 'Jane', source_url: 'https://example.com' },
+      { title: 'My Article', author: 'Jane', source_url: 'https://example.com', published: '2024-01-01' },
       'article',
       'articles/test.md'
     );
@@ -81,6 +81,6 @@ describe('validateFrontmatter', () => {
       'articles/test.md'
     );
     const missingErrors = errors.filter(e => e.message.includes('Missing required'));
-    expect(missingErrors.length).toBe(3); // title, author, source_url
+    expect(missingErrors.length).toBe(4); // title, author, source_url, published
   });
 });

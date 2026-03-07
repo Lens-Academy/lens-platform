@@ -174,7 +174,7 @@ export function parseSegments(
           line: lineNum,
           message: `Found '${singleColonMatch[1]}:' with single colon — did you mean '${singleColonMatch[1]}::'?`,
           suggestion: `Change '${singleColonMatch[1]}:' to '${singleColonMatch[1]}::' (double colon)`,
-          severity: 'warning',
+          severity: 'error',
         });
       }
       currentFieldLines.push(line);

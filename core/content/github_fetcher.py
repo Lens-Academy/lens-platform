@@ -30,7 +30,7 @@ def _convert_ts_course_to_parsed_course(ts_course: dict) -> ParsedCourse:
 
     TypeScript outputs progression items as dicts:
         {"type": "module", "slug": "intro", "optional": false}
-        {"type": "meeting", "number": 1}
+        {"type": "meeting", "name": "Introduction"}
 
     This function converts them to ModuleRef and MeetingMarker instances.
     """
@@ -44,7 +44,7 @@ def _convert_ts_course_to_parsed_course(ts_course: dict) -> ParsedCourse:
                 )
             )
         elif item.get("type") == "meeting":
-            progression.append(MeetingMarker(number=item["number"]))
+            progression.append(MeetingMarker(name=item["name"]))
 
     return ParsedCourse(
         slug=ts_course["slug"],

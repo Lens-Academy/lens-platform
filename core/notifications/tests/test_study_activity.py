@@ -141,6 +141,26 @@ class TestGatherGroupStudyData:
         mock_module = _mock_module(num_sections=8)
         section_ids = [UUID(s["contentId"]) for s in mock_module.sections]
 
+        today_completions = [
+            {
+                "user_id": 1,
+                "content_id": section_ids[0],
+                "content_type": "lens",
+                "completed_at": datetime.now(timezone.utc),
+            },
+            {
+                "user_id": 1,
+                "content_id": section_ids[1],
+                "content_type": "lens",
+                "completed_at": datetime.now(timezone.utc),
+            },
+            {
+                "user_id": 1,
+                "content_id": section_ids[2],
+                "content_type": "lens",
+                "completed_at": datetime.now(timezone.utc),
+            },
+        ]
         mock_conn = _mock_execute_results(
             [
                 {
@@ -156,26 +176,9 @@ class TestGatherGroupStudyData:
                     "discord_username": "bob",
                 },
             ],
-            [
-                {
-                    "user_id": 1,
-                    "content_id": section_ids[0],
-                    "content_type": "lens",
-                    "completed_at": datetime.now(timezone.utc),
-                },
-                {
-                    "user_id": 1,
-                    "content_id": section_ids[1],
-                    "content_type": "lens",
-                    "completed_at": datetime.now(timezone.utc),
-                },
-                {
-                    "user_id": 1,
-                    "content_id": section_ids[2],
-                    "content_type": "lens",
-                    "completed_at": datetime.now(timezone.utc),
-                },
-            ],
+            today_completions,
+            # All-time completions (same as today for this simple case)
+            today_completions,
             [],
         )
 
@@ -196,7 +199,7 @@ class TestGatherGroupStudyData:
         assert entries[0]["sections_completed"] == 3
         assert entries[0]["sections_total"] == 8
         assert entries[0]["module_completed"] is False
-        assert mock_conn.execute.call_count == 3
+        assert mock_conn.execute.call_count == 4
 
     @pytest.mark.asyncio
     async def test_module_completed_flag_set_correctly(self):
@@ -205,6 +208,20 @@ class TestGatherGroupStudyData:
         mock_module = _mock_module(num_sections=2)
         section_ids = [UUID(s["contentId"]) for s in mock_module.sections]
 
+        today_completions = [
+            {
+                "user_id": 1,
+                "content_id": section_ids[0],
+                "content_type": "lens",
+                "completed_at": datetime.now(timezone.utc),
+            },
+            {
+                "user_id": 1,
+                "content_id": section_ids[1],
+                "content_type": "lens",
+                "completed_at": datetime.now(timezone.utc),
+            },
+        ]
         mock_conn = _mock_execute_results(
             [
                 {
@@ -214,20 +231,9 @@ class TestGatherGroupStudyData:
                     "discord_username": "alice",
                 }
             ],
-            [
-                {
-                    "user_id": 1,
-                    "content_id": section_ids[0],
-                    "content_type": "lens",
-                    "completed_at": datetime.now(timezone.utc),
-                },
-                {
-                    "user_id": 1,
-                    "content_id": section_ids[1],
-                    "content_type": "lens",
-                    "completed_at": datetime.now(timezone.utc),
-                },
-            ],
+            today_completions,
+            # All-time completions (same as today)
+            today_completions,
             [{"user_id": 1}],
         )
 
@@ -283,6 +289,14 @@ class TestGatherGroupStudyData:
         mock_module = _mock_module(num_sections=4)
         section_ids = [UUID(s["contentId"]) for s in mock_module.sections]
 
+        today_completions = [
+            {
+                "user_id": 1,
+                "content_id": section_ids[0],
+                "content_type": "lens",
+                "completed_at": datetime.now(timezone.utc),
+            }
+        ]
         mock_conn = _mock_execute_results(
             [
                 {
@@ -292,14 +306,9 @@ class TestGatherGroupStudyData:
                     "discord_username": "discord_user",
                 }
             ],
-            [
-                {
-                    "user_id": 1,
-                    "content_id": section_ids[0],
-                    "content_type": "lens",
-                    "completed_at": datetime.now(timezone.utc),
-                }
-            ],
+            today_completions,
+            # All-time completions (same as today)
+            today_completions,
             [],
         )
 
@@ -315,6 +324,76 @@ class TestGatherGroupStudyData:
             )
 
         assert entries[0]["display_name"] == "CustomName"
+
+    @pytest.mark.asyncio
+    async def test_sections_completed_reflects_all_time_total(self):
+        """User completed 2 sections yesterday + 1 today → sections_completed = 3."""
+        from core.notifications.study_activity import gather_group_study_data
+
+        mock_module = _mock_module(num_sections=5)
+        section_ids = [UUID(s["contentId"]) for s in mock_module.sections]
+        yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+
+        # Today: only 1 completion
+        today_completions = [
+            {
+                "user_id": 1,
+                "content_id": section_ids[2],
+                "content_type": "lens",
+                "completed_at": datetime.now(timezone.utc),
+            },
+        ]
+        # All-time: 3 completions (2 yesterday + 1 today)
+        all_time_completions = [
+            {
+                "user_id": 1,
+                "content_id": section_ids[0],
+                "content_type": "lens",
+                "completed_at": yesterday,
+            },
+            {
+                "user_id": 1,
+                "content_id": section_ids[1],
+                "content_type": "lens",
+                "completed_at": yesterday,
+            },
+            {
+                "user_id": 1,
+                "content_id": section_ids[2],
+                "content_type": "lens",
+                "completed_at": datetime.now(timezone.utc),
+            },
+        ]
+
+        mock_conn = _mock_execute_results(
+            [
+                {
+                    "user_id": 1,
+                    "discord_id": "111",
+                    "nickname": "Alice",
+                    "discord_username": "alice",
+                }
+            ],
+            today_completions,
+            all_time_completions,
+            [],  # module completion check
+        )
+
+        with patch(
+            "core.notifications.study_activity.load_flattened_module",
+            return_value=mock_module,
+        ):
+            entries = await gather_group_study_data(
+                conn=mock_conn,
+                group_id=1,
+                module_slug="test",
+                today=date.today(),
+            )
+
+        assert len(entries) == 1
+        assert entries[0]["sections_completed"] == 3
+        assert entries[0]["sections_total"] == 5
+        assert mock_conn.execute.call_count == 4
 
 
 class TestComputeEarlyBirdDays:

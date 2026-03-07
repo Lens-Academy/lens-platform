@@ -83,14 +83,13 @@ meeting_reminder_24h:
   email_body: |
     Hi {name},
 
-    Your study group meets tomorrow at {meeting_time}.
+    Your study group meets tomorrow at {meeting_time}. You have {modules_remaining} sections left to complete.
 
-    Modules to complete before the meeting:
-    {module_list}
+    Haven't finished the module yet? Try to make some progress today — late submissions are still accepted.
 
-    [Continue the course]({module_url})
+    [{cta_text}]({module_url})
 
-    Questions? [Chat with your group]({discord_channel_url})
+    [Chat with your group]({discord_channel_url})
 
     Best,
     Luc
@@ -98,12 +97,16 @@ meeting_reminder_24h:
   discord_channel: |
     Reminder: Meeting tomorrow at {meeting_time}!
 
+    Haven't finished the module yet? Late submissions are still accepted — try to make some progress today!
+
 meeting_reminder_1h:
   email_subject: "Reminder: {group_name} meeting in 1 hour"
   email_body: |
     Hi {name},
 
     Your study group meets in 1 hour at {meeting_time}.
+
+    Even if you haven't finished the module, join the discussion — you'll still get a lot out of it. You can submit late afterwards.
 
     [Join your group channel]({discord_channel_url})
 
@@ -113,26 +116,32 @@ meeting_reminder_1h:
     Luc
     Founder of Lens Academy
   discord_channel: |
-    Meeting starting in 1 hour!
+    Meeting starting in 1 hour! Even if you haven't finished the module, join the discussion — late submissions are accepted.
 
 module_nudge:
-  email_subject: "Don't forget: {modules_remaining} modules before your meeting"
+  email_subject: "Your module is due today"
   email_body: |
     Hi {name},
 
-    Your next meeting is {meeting_time}. You have {modules_remaining}
-    modules left to complete:
+    Your module is due today! You'll discuss it with your study group in 3 days ({meeting_date}).
 
-    {module_list}
+    You have {modules_remaining} sections left. Studying works better when spaced out, so we highly suggest finishing today.
 
-    [Continue the course]({module_url})
+    [{cta_text}]({module_url})
 
-    Questions for your group? [Chat on Discord]({discord_channel_url})
+    Can't finish it all today? That's OK — try to at least make some progress now. You can still submit late in the following days.
 
     Best,
     Luc
     Founder of Lens Academy
   discord: |
-    Heads up! You have {modules_remaining} modules to finish before
-    your meeting {meeting_time}. [Continue the course]({module_url})
+    Your module is due today! You'll discuss it with {group_name} in 3 days ({meeting_date}).
+
+    You have **{modules_remaining} sections** left. Studying works better when spaced out, so we highly suggest finishing today.
+
+    Can't finish today? Try to make some progress now — you can still submit late. [{cta_text}]({module_url})
+  discord_channel: |
+    📚 **Module due today!** You'll discuss it at your meeting on {meeting_date}.
+
+    Studying works better when spaced out — try to finish today! [{cta_text}]({module_url})
 

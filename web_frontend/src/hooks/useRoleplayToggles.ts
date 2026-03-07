@@ -4,7 +4,7 @@
  * Manages text display, TTS enabled, and input mode settings for a roleplay
  * conversation. All combinations are valid -- these are independent settings.
  *
- * Defaults: text display ON, TTS OFF, text input mode.
+ * Defaults: text display OFF, TTS ON, voice input mode.
  * Persisted in localStorage keyed by roleplay_id to survive page refresh.
  */
 
@@ -30,9 +30,9 @@ export interface UseRoleplayTogglesReturn {
 const STORAGE_KEY_PREFIX = "roleplay-toggles-";
 
 const DEFAULT_STATE: ToggleState = {
-  textDisplay: true,
+  textDisplay: false,
   ttsEnabled: true,
-  inputMode: "text",
+  inputMode: "voice",
 };
 
 export function useRoleplayToggles(

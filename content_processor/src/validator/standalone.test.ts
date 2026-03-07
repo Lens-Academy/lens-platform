@@ -226,6 +226,7 @@ Just some text, no Lens section.
 title: Test Article
 author: Jane Doe
 source_url: https://example.com/article
+published: 2024-01-01
 ---
 
 The article body.
@@ -266,6 +267,7 @@ Body.
 title: Test
 author: Jane
 source_url: https://example.com
+published: 2024-01-01
 ---
 
 ![[image.png]]
@@ -1126,6 +1128,35 @@ content:: Hello
       expect(tierError?.category).toBe('production');
     });
 
+    it('errors when production course references WIP module whose slug differs from filename', () => {
+      const files = new Map([
+        ['courses/prod-course-3.md', `---
+slug: prod-course-3
+title: Production Course 3
+---
+# Module: [[../modules/wip-module-file.md|WIP Module]]
+`],
+        ['modules/wip-module-file.md', `---
+slug: different-slug
+title: WIP Module
+tags: [wip]
+---
+# Page: Intro
+## Text
+content:: Hello
+`],
+      ]);
+
+      const result = processContent(files);
+
+      const tierError = result.errors.find(e =>
+        e.file === 'courses/prod-course-3.md' &&
+        e.message.includes('WIP')
+      );
+      expect(tierError).toBeDefined();
+      expect(tierError?.category).toBe('production');
+    });
+
     it('does NOT error when WIP course references WIP module', () => {
       const files = new Map([
         ['courses/draft-course.md', `---
@@ -1447,6 +1478,53 @@ World
 
       const slugErrors = result.errors.filter(e => e.message.includes('Duplicate slug'));
       expect(slugErrors).toHaveLength(0);
+    });
+  });
+
+  describe('required id:: on Page sections', () => {
+    it('errors when Page section is missing id:: field', () => {
+      const files = new Map([
+        ['modules/no-page-id.md', `---
+slug: no-page-id
+title: No Page ID
+---
+
+# Page: Missing ID
+## Text
+content:: Hello
+`],
+      ]);
+
+      const result = processContent(files);
+
+      expect(result.errors.some(e =>
+        e.file === 'modules/no-page-id.md' &&
+        e.severity === 'error' &&
+        e.message.includes('missing required id::')
+      )).toBe(true);
+    });
+
+    it('does not error when Page section has id:: field', () => {
+      const files = new Map([
+        ['modules/with-page-id.md', `---
+slug: with-page-id
+title: With Page ID
+---
+
+# Page: Has ID
+id:: 550e8400-e29b-41d4-a716-446655440099
+
+## Text
+content:: Hello
+`],
+      ]);
+
+      const result = processContent(files);
+
+      expect(result.errors.filter(e =>
+        e.file === 'modules/with-page-id.md' &&
+        e.message.includes('missing required id::')
+      )).toHaveLength(0);
     });
   });
 });

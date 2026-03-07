@@ -1,7 +1,7 @@
 ---
 title: "What are the differences between a singularity, an intelligence explosion, and a hard takeoff?"
 author: AISafety.info
-date: 2026-01-16
+published: 2026-01-16
 source_url: https://aisafety.info/questions/8IHO/What-are-the-differences-between-a-singularity,-an-intelligence-explosion,-and-a-hard-takeoff
 ---
 These are all terms for future processes that could rapidly result in superintelligence. They have been used by different people, at different times, with overlapping and sometimes changing meanings.

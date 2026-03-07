@@ -12,7 +12,7 @@ export type StageInfo = {
     | "page"
     | "test";
   title: string;
-  duration: string | null;
+  duration: number | null;
   optional: boolean;
   // New fields for lens-level progress tracking
   contentId?: string | null;
@@ -36,10 +36,14 @@ export type ModuleInfo = {
   // New lens progress fields
   completedLenses?: number;
   totalLenses?: number;
+  // Module duration in minutes (computed from content word count + video duration)
+  duration?: number | null;
 };
 
 export type UnitInfo = {
   meetingNumber: number | null;
+  meetingName?: string | null;
+  meetingDate?: string | null;
   modules: ModuleInfo[];
 };
 

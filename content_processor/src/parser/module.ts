@@ -96,7 +96,7 @@ function collectRawSubsections(
         line: lineNum,
         message: `Text outside of a field:: definition will be ignored: "${preview}"`,
         suggestion: 'Place this text inside a field (e.g., content:: your text), or remove it',
-        severity: 'warning' as const,
+        severity: 'error' as const,
       });
     }
   }

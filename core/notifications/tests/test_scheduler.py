@@ -417,8 +417,8 @@ class TestExecuteReminder:
         mock_channel.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_no_channel_notification_for_module_nudge(self):
-        """Should not send channel notification for module_nudge_3d."""
+    async def test_module_nudge_sends_channel_and_per_user_dms(self):
+        """module_nudge_3d should send channel msg and per-user DMs for incomplete users."""
         from core.notifications.scheduler import _execute_reminder
 
         mock_meeting = {
@@ -441,28 +441,108 @@ class TestExecuteReminder:
             patch(
                 "core.notifications.context.get_active_member_ids",
                 new_callable=AsyncMock,
-                return_value=[1],
+                return_value=[1, 2],
             ),
             patch(
                 "core.notifications.context.build_reminder_context",
-                return_value={"group_name": "Test"},
+                return_value={"group_name": "Test", "modules_remaining": "3"},
+            ),
+            patch(
+                "core.notifications.context.get_per_user_section_progress",
+                new_callable=AsyncMock,
+                return_value={
+                    1: {
+                        "remaining": 2,
+                        "cta_text": "Read 'Core Concepts' from 'Module A' now",
+                        "module_url": "http://example.com/module-a",
+                    },
+                    2: {
+                        "remaining": 0,
+                        "cta_text": "Continue where you left off",
+                        "module_url": "http://example.com/course",
+                    },
+                },
             ),
             patch(
                 "core.notifications.dispatcher.send_notification",
                 new_callable=AsyncMock,
                 return_value={"email": True, "discord": True},
-            ),
+            ) as mock_notify,
             patch(
                 "core.notifications.dispatcher.send_channel_notification",
                 new_callable=AsyncMock,
                 return_value=True,
             ) as mock_channel,
         ):
-            # Module nudge should NOT send to channel
             await _execute_reminder(meeting_id=42, reminder_type="module_nudge_3d")
 
-        # Should not send to channel for module nudges
-        mock_channel.assert_not_called()
+        # Should send to channel
+        mock_channel.assert_called_once()
+        # Should only DM user 1 (2 remaining), not user 2 (0 remaining)
+        assert mock_notify.call_count == 1
+        call_kwargs = mock_notify.call_args
+        assert call_kwargs.kwargs["user_id"] == 1
+        assert call_kwargs.kwargs["context"]["modules_remaining"] == "2"
+        assert (
+            call_kwargs.kwargs["context"]["cta_text"]
+            == "Read 'Core Concepts' from 'Module A' now"
+        )
+        assert (
+            call_kwargs.kwargs["context"]["module_url"] == "http://example.com/module-a"
+        )
+
+    @pytest.mark.asyncio
+    async def test_per_user_progress_empty_still_sends_channel(self):
+        """When get_per_user_section_progress returns {}, channel sends but no DMs."""
+        from core.notifications.scheduler import _execute_reminder
+
+        mock_meeting = {
+            "meeting_id": 42,
+            "group_id": 10,
+            "scheduled_at": datetime.now(timezone.utc) + timedelta(hours=1),
+        }
+        mock_group = {
+            "group_id": 10,
+            "group_name": "Test Group",
+            "discord_text_channel_id": "123456789",
+        }
+
+        with (
+            patch(
+                "core.notifications.context.get_meeting_with_group",
+                new_callable=AsyncMock,
+                return_value=(mock_meeting, mock_group),
+            ),
+            patch(
+                "core.notifications.context.get_active_member_ids",
+                new_callable=AsyncMock,
+                return_value=[1, 2],
+            ),
+            patch(
+                "core.notifications.context.build_reminder_context",
+                return_value={"group_name": "Test"},
+            ),
+            patch(
+                "core.notifications.context.get_per_user_section_progress",
+                new_callable=AsyncMock,
+                return_value={},
+            ),
+            patch(
+                "core.notifications.dispatcher.send_notification",
+                new_callable=AsyncMock,
+            ) as mock_notify,
+            patch(
+                "core.notifications.dispatcher.send_channel_notification",
+                new_callable=AsyncMock,
+                return_value=True,
+            ) as mock_channel,
+        ):
+            await _execute_reminder(meeting_id=42, reminder_type="module_nudge_3d")
+
+        # Channel should still send
+        mock_channel.assert_called_once()
+        # No DMs since progress is empty
+        mock_notify.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_uses_correct_message_type_mapping(self):
@@ -794,14 +874,13 @@ class TestReminderConfig:
                 f"{reminder_type} missing send_to_channel"
             )
 
-    def test_module_nudge_has_condition(self):
-        """module_nudge_3d should have a condition for module progress."""
+    def test_module_nudge_has_per_user_progress(self):
+        """module_nudge_3d should use per-user progress filtering."""
         from core.notifications.scheduler import REMINDER_CONFIG
 
         config = REMINDER_CONFIG["module_nudge_3d"]
-        assert "condition" in config
-        assert config["condition"]["type"] == "module_progress"
-        assert "threshold" in config["condition"]
+        assert config.get("per_user_progress") is True
+        assert config.get("send_to_channel") is True
 
     def test_offsets_are_negative_timedeltas(self):
         """Offsets should be negative (before meeting time)."""
@@ -1003,9 +1082,9 @@ def test_content_cache():
             progression=[
                 ModuleRef(slug="module-a"),  # required, due by meeting 1
                 ModuleRef(slug="module-b"),  # required, due by meeting 1
-                MeetingMarker(number=1),
+                MeetingMarker(name="Week 1"),
                 ModuleRef(slug="module-c", optional=True),  # optional
-                MeetingMarker(number=2),
+                MeetingMarker(name="Week 2"),
                 ModuleRef(slug="module-d"),  # required, no meeting after
             ],
         ),

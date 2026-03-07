@@ -1,10 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMedia } from "react-use";
 import { useScrollDirection } from "../hooks/useScrollDirection";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { UserMenu } from "./nav/UserMenu";
 import StageProgressBar from "./module/StageProgressBar";
 import type { Stage } from "../types/module";
+
+// CSS styles for hiding elements while keeping them measurable
+const hiddenStyle: React.CSSProperties = {
+  visibility: "hidden",
+  position: "absolute",
+  pointerEvents: "none",
+};
 
 interface ModuleHeaderProps {
   moduleTitle: string;
@@ -20,6 +27,9 @@ interface ModuleHeaderProps {
   testModeActive?: boolean;
 }
 
+// 0 = show everything, 1 = hide brand, 2 = hide brand+username, 3 = compact nav, 4 = hide title
+type Priority = 0 | 1 | 2 | 3 | 4;
+
 export function ModuleHeader({
   moduleTitle,
   stages,
@@ -34,7 +44,126 @@ export function ModuleHeader({
   testModeActive,
 }: ModuleHeaderProps) {
   const scrollDirection = useScrollDirection(100);
-  const isMobile = useMedia("(max-width: 767px)", false);
+
+  // Refs for layout measurement
+  const containerRef = useRef<HTMLDivElement>(null);
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+  const centerRef = useRef<HTMLDivElement>(null);
+  const brandRef = useRef<HTMLSpanElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const compactNavRef = useRef<HTMLDivElement>(null);
+
+  // Priority-based visibility: single number, strictly ordered
+  const [priority, setPriority] = useState<Priority>(0);
+  const priorityRef = useRef<Priority>(0);
+
+  // Cached username width (from when it was visible)
+  const usernameWRef = useRef(0);
+  // Cached title width (from when it was visible)
+  const titleWRef = useRef(0);
+
+  // Center position for viewport-centered progress bar
+  const [centerX, setCenterX] = useState<number | undefined>();
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const left = leftRef.current;
+    const right = rightRef.current;
+    const center = centerRef.current;
+    const brand = brandRef.current;
+    if (!container || !left || !right) return;
+
+    const title = titleRef.current;
+    const compactNav = compactNavRef.current;
+
+    const update = () => {
+      const gap = 8;
+      const containerWidth = container.clientWidth;
+      const barWidth = center ? center.scrollWidth : 0;
+      const curP = priorityRef.current;
+
+      // Brand width: always measurable (position:absolute still has intrinsic width)
+      const brandW = brand ? brand.offsetWidth + gap : 0;
+
+      // Cache title width when visible (priority < 4 means title is shown)
+      if (curP < 4 && title) {
+        titleWRef.current = title.offsetWidth + gap;
+      }
+      const titleW = titleWRef.current;
+
+      // Cache username width when visible (priority < 2 means username is shown)
+      const rightWidth = right.offsetWidth;
+      if (curP < 2 && rightWidth > 44) {
+        usernameWRef.current = rightWidth - 44;
+      }
+      const usernameW = usernameWRef.current;
+
+      // Reconstruct "full" layout widths by adding back hidden element widths.
+      // When priority >= 1, brand is position:absolute so left doesn't include it.
+      // When priority >= 2, username is conditionally hidden so right is smaller.
+      // When priority >= 4, title is position:absolute so left doesn't include it.
+      const fullLeft =
+        left.offsetWidth + (curP >= 1 ? brandW : 0) + (curP >= 4 ? titleW : 0);
+      const fullRight = rightWidth + (curP >= 2 ? usernameW : 0);
+      // Subtract container padding (px-4 = 16px each side) since clientWidth
+      // includes padding but flex children are laid out inside the content box.
+      const padding =
+        parseFloat(getComputedStyle(container).paddingLeft) +
+        parseFloat(getComputedStyle(container).paddingRight);
+      let available = containerWidth - fullLeft - fullRight - padding;
+
+      let p: Priority = 0;
+      if (available < barWidth + 2 * gap) {
+        p = 1;
+        available += brandW;
+      }
+      if (available < barWidth + 2 * gap) {
+        p = 2;
+        available += Math.max(0, usernameW);
+      }
+      if (available < barWidth + 2 * gap) {
+        p = 3;
+      }
+
+      // At priority 3, compact nav replaces progress bar.
+      // Check if left + compact nav + right still overflows.
+      if (p >= 3) {
+        const compactW = compactNav ? compactNav.offsetWidth : 0;
+        // At p3, brand is hidden. Remove brandW from fullLeft to get actual left width.
+        const leftAtP3 = fullLeft - brandW;
+        const rightAtP3 = fullRight - usernameW;
+        const totalNeeded = leftAtP3 + compactW + rightAtP3 + padding;
+        if (totalNeeded + 2 * gap > containerWidth) {
+          p = 4;
+        }
+      }
+
+      priorityRef.current = p;
+      setPriority((prev) => (prev === p ? prev : p));
+
+      // Compute centerX for progress bar positioning
+      if (center && p < 3) {
+        const visX1 = left.offsetLeft + left.offsetWidth;
+        const visX2 = right.offsetLeft;
+        const mid = containerWidth / 2;
+        setCenterX(
+          Math.max(
+            visX1 + barWidth / 2 + gap,
+            Math.min(mid, visX2 - barWidth / 2 - gap),
+          ),
+        );
+      }
+    };
+
+    const ro = new ResizeObserver(update);
+    ro.observe(container);
+    ro.observe(left);
+    ro.observe(right);
+    if (center) ro.observe(center);
+    update();
+    return () => ro.disconnect();
+  }, []); // stable — no dependencies
 
   // Hide header on scroll down only when viewport is compact (mobile or short)
   const isCompactViewport = useMedia(
@@ -65,9 +194,15 @@ export function ModuleHeader({
       `}
       style={{ paddingTop: "var(--safe-top)" }}
     >
-      <div className="relative flex items-center justify-between px-4 py-3">
-        {/* Left: Hamburger + Logo + Title */}
-        <div className="flex items-center gap-2 min-w-0 flex-shrink-0">
+      <div
+        ref={containerRef}
+        className="relative flex items-center justify-between px-4 py-3"
+      >
+        {/* Left: Hamburger + Logo + Brand + Title */}
+        <div
+          ref={leftRef}
+          className="flex items-center gap-2 min-w-0 flex-shrink-0"
+        >
           <button
             onMouseDown={onMenuToggle}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all active:scale-95 shrink-0"
@@ -81,22 +216,38 @@ export function ModuleHeader({
               alt="Lens Academy"
               className="h-6"
             />
-            <span className="hidden md:inline text-base font-semibold text-gray-900">
+          </a>
+          {/* Brand: always in DOM, hidden via CSS when priority >= 1 */}
+          <span
+            ref={brandRef}
+            className="flex items-center gap-2"
+            style={priority >= 1 ? hiddenStyle : undefined}
+          >
+            <span className="text-base font-semibold text-gray-900">
               Lens Academy
             </span>
-          </a>
-          <span className="hidden md:inline text-gray-300">|</span>
-          <h1 className="text-base md:text-lg font-semibold text-gray-900 truncate max-w-[200px]">
+            <span className="text-gray-300">|</span>
+          </span>
+          <h1
+            ref={titleRef}
+            className="text-base font-semibold text-gray-900 truncate max-w-[200px]"
+            style={priority >= 4 ? hiddenStyle : undefined}
+          >
             {moduleTitle}
           </h1>
         </div>
 
-        {/* Center: Simple prev/next navigation (mobile only, hidden for single-section) */}
-        {isMobile && stages.length > 1 && (
-          <div className="flex items-center gap-1 shrink-0 mx-2">
+        {/* Center: Compact nav — always in DOM for measurement, hidden when priority < 3 */}
+        {stages.length > 1 && (
+          <div
+            ref={compactNavRef}
+            className="flex items-center gap-1 shrink-0 mx-2"
+            style={priority < 3 ? hiddenStyle : undefined}
+          >
             <button
               onClick={onPrevious}
               disabled={!canGoPrevious}
+              tabIndex={priority < 3 ? -1 : undefined}
               className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
               aria-label="Previous section"
             >
@@ -110,6 +261,7 @@ export function ModuleHeader({
             <button
               onClick={onNext}
               disabled={!canGoNext}
+              tabIndex={priority < 3 ? -1 : undefined}
               className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
               aria-label="Next section"
             >
@@ -118,9 +270,17 @@ export function ModuleHeader({
           </div>
         )}
 
-        {/* Center: StageProgressBar (desktop only, hidden for single-section) */}
-        {!isMobile && stages.length > 1 && (
-          <div className="absolute left-1/2 -translate-x-1/2">
+        {/* Center: StageProgressBar — always in DOM for measurement, hidden when priority >= 3 */}
+        {stages.length > 1 && (
+          <div
+            ref={centerRef}
+            className="absolute -translate-x-1/2"
+            style={{
+              left: centerX,
+              visibility: priority < 3 ? "visible" : "hidden",
+              pointerEvents: priority < 3 ? "auto" : "none",
+            }}
+          >
             <StageProgressBar
               stages={stages}
               completedStages={completedStages}
@@ -136,9 +296,9 @@ export function ModuleHeader({
           </div>
         )}
 
-        {/* Right: UserMenu only (skip button removed) */}
-        <div className="flex items-center gap-1 md:gap-3 shrink-0">
-          <UserMenu />
+        {/* Right: UserMenu */}
+        <div ref={rightRef} className="flex items-center gap-1 shrink-0">
+          <UserMenu compact={priority >= 2} />
         </div>
       </div>
     </header>

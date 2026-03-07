@@ -192,7 +192,7 @@ content:: Second value
       const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
+        e.severity === 'error' &&
         e.message.includes('Duplicate')
       )).toBe(true);
     });
@@ -219,9 +219,9 @@ content:: Some content
 
       const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
 
-      // No warnings about duplicates
+      // No errors about duplicates
       expect(result.errors.filter(e =>
-        e.severity === 'warning' &&
+        e.severity === 'error' &&
         e.message.includes('Duplicate')
       )).toHaveLength(0);
     });
@@ -275,9 +275,9 @@ Discuss what the user learned from the video.
       // Should have 2 sections (Article and Video)
       expect(result.sections).toHaveLength(2);
 
-      // Should NOT have any duplicate field warnings
+      // Should NOT have any duplicate field errors
       const duplicateWarnings = result.errors.filter(e =>
-        e.severity === 'warning' &&
+        e.severity === 'error' &&
         e.message.includes('Duplicate')
       );
       expect(duplicateWarnings).toHaveLength(0);
@@ -305,7 +305,7 @@ content:: Second paragraph that overwrites the first
 
       // This IS a real duplicate - same field twice within the same #### Text segment
       const duplicateWarnings = result.errors.filter(e =>
-        e.severity === 'warning' &&
+        e.severity === 'error' &&
         e.message.includes('Duplicate')
       );
       expect(duplicateWarnings).toHaveLength(1);
@@ -366,7 +366,7 @@ content:: Hello.
       expect(result.sections).toHaveLength(1);
       expect(result.errors.some(e =>
         e.message.includes('before') &&
-        e.severity === 'warning'
+        e.severity === 'error'
       )).toBe(true);
     });
 
@@ -428,13 +428,13 @@ content:: Important questions.
   });
 
   describe('single-colon field detection', () => {
-    it('warns when known field uses single colon instead of double colon', () => {
+    it('errors when known field uses single colon instead of double colon', () => {
       const content = `## Lens: Test\nsource: [[../Lenses/lens1.md|Lens]]`;
 
       const result = parseSections(content, 2, LO_SECTION_TYPES, 'test.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
+        e.severity === 'error' &&
         e.message.includes('source') &&
         e.message.includes('::')
       )).toBe(true);
@@ -447,7 +447,7 @@ content:: Important questions.
       const result = parseSections(content, 2, LO_SECTION_TYPES, 'test.md');
 
       const singleColonWarnings = result.errors.filter(e =>
-        e.severity === 'warning' &&
+        e.severity === 'error' &&
         e.message.includes("'Summary:'")
       );
       expect(singleColonWarnings).toHaveLength(0);
@@ -471,7 +471,7 @@ Summary: The key points about security mindset are important.
       const result = parseSections(content, 3, LENS_SECTION_TYPES, 'test.md');
 
       const summaryWarnings = result.errors.filter(e =>
-        e.severity === 'warning' &&
+        e.severity === 'error' &&
         e.message.includes("'Summary:'")
       );
       expect(summaryWarnings).toHaveLength(0);
@@ -493,7 +493,7 @@ source: [[../Lenses/lens1.md|Lens]]
       const result = parseSections(content, 3, LENS_SECTION_TYPES, 'test.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
+        e.severity === 'error' &&
         e.message.includes("'source:'") &&
         e.message.includes('::')
       )).toBe(true);
@@ -611,7 +611,7 @@ content::
   });
 
   describe('free text warnings', () => {
-    it('warns when free text appears before first field in section body', () => {
+    it('errors when free text appears before first field in section body', () => {
       const content = `
 # Learning Outcome: Test LO
 Here is a description of this learning outcome.
@@ -623,7 +623,7 @@ source:: [[../Learning Outcomes/lo1.md|LO 1]]
 
       expect(result.sections).toHaveLength(1);
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
+        e.severity === 'error' &&
         e.message.includes('ignored')
       )).toBe(true);
     });

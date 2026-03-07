@@ -31,7 +31,9 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 13,
+          "videoDurationSeconds": 300
         }
       ]
     },
@@ -66,7 +68,9 @@
           "learningOutcomeId": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
           "learningOutcomeName": "video-lo",
           "contentId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-          "videoId": null
+          "videoId": null,
+          "wordCount": 13,
+          "videoDurationSeconds": 300
         }
       ]
     }

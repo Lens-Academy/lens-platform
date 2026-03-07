@@ -9,7 +9,7 @@ export interface ParsedArticle {
   title: string;
   author: string;
   sourceUrl: string;
-  date?: string;
+  published?: string;
   imageUrls: Array<{ url: string; line: number }>;
 }
 
@@ -98,7 +98,7 @@ export function parseArticle(content: string, file: string): ArticleParseResult 
       ? frontmatter.author.join(', ')
       : String(frontmatter.author),
     sourceUrl: String(frontmatter.source_url),
-    date: frontmatter.date !== undefined ? String(frontmatter.date) : undefined,
+    published: frontmatter.published !== undefined ? String(frontmatter.published) : undefined,
     imageUrls,
   };
 

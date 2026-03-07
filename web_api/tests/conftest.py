@@ -154,10 +154,10 @@ def api_test_cache():
             progression=[
                 ModuleRef(slug="introduction"),
                 ModuleRef(slug="core-concepts"),
-                MeetingMarker(number=1),
+                MeetingMarker(name="Week 1"),
                 ModuleRef(slug="advanced-topics"),
                 ModuleRef(slug="supplementary-reading", optional=True),
-                MeetingMarker(number=2),
+                MeetingMarker(name="Week 2"),
                 ModuleRef(slug="final-discussion"),
             ],
         ),

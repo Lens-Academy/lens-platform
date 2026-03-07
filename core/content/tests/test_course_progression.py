@@ -12,7 +12,7 @@ class TestCourseProgressionConversion:
 
         The TypeScript processor outputs:
             {"type": "module", "slug": "intro", "optional": false}
-            {"type": "meeting", "number": 1}
+            {"type": "meeting", "name": "Introduction"}
 
         These must be converted to ModuleRef and MeetingMarker dataclass instances
         so that isinstance() checks work in the course progress endpoint.
@@ -23,10 +23,10 @@ class TestCourseProgressionConversion:
             "title": "AI Safety Course",
             "progression": [
                 {"type": "module", "slug": "introduction", "optional": False},
-                {"type": "meeting", "number": 1},
+                {"type": "meeting", "name": "Introduction"},
                 {"type": "module", "slug": "feedback-loops", "optional": False},
                 {"type": "module", "slug": "coming-soon", "optional": True},
-                {"type": "meeting", "number": 2},
+                {"type": "meeting", "name": "Feedback Loops"},
             ],
         }
 
@@ -50,7 +50,7 @@ class TestCourseProgressionConversion:
         assert isinstance(course.progression[1], MeetingMarker), (
             f"Expected MeetingMarker, got {type(course.progression[1])}"
         )
-        assert course.progression[1].number == 1
+        assert course.progression[1].name == "Introduction"
 
         # Third item - another ModuleRef
         assert isinstance(course.progression[2], ModuleRef)
@@ -62,4 +62,4 @@ class TestCourseProgressionConversion:
 
         # Fifth item - another meeting
         assert isinstance(course.progression[4], MeetingMarker)
-        assert course.progression[4].number == 2
+        assert course.progression[4].name == "Feedback Loops"

@@ -44,28 +44,28 @@ function parseModuleSection(
 }
 
 /**
- * Parses a Meeting section title to extract the meeting number
- * Title format: 1, 2, 3, etc.
+ * Parses a Meeting section title to extract the meeting name.
+ * Title format: any non-empty string (e.g., "Introduction", "Week 1")
  */
 function parseMeetingSection(
   section: ParsedSection,
   file: string
-): { number: number } | { error: ContentError } {
-  const meetingNumber = parseInt(section.title, 10);
+): { name: string } | { error: ContentError } {
+  const name = section.title.trim();
 
-  if (isNaN(meetingNumber)) {
+  if (!name) {
     return {
       error: {
         file,
         line: section.line,
-        message: `Meeting section must have a number in title, got: "${section.title}"`,
-        suggestion: 'Use format: # Meeting: 1',
+        message: `Meeting section must have a name in title, got: "${section.title}"`,
+        suggestion: 'Use format: # Meeting: Introduction',
         severity: 'error',
       },
     };
   }
 
-  return { number: meetingNumber };
+  return { name };
 }
 
 /**
@@ -146,7 +146,7 @@ export function parseCourse(content: string, file: string): CourseParseResult {
       } else {
         progression.push({
           type: 'meeting',
-          number: result.number,
+          name: result.name,
         });
       }
     }

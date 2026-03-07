@@ -192,7 +192,7 @@ export function parseSections(
           line: lineNum,
           message: 'Content found before first section header — this text will be ignored',
           suggestion: 'Move this text into a section, or remove it',
-          severity: 'warning',
+          severity: 'error',
         });
       }
     }
@@ -278,7 +278,7 @@ function parseFields(section: ParsedSection, file: string): ParseFieldsResult {
           line: lineNum,
           message: `Duplicate field '${currentField}' (previous value will be overwritten)`,
           suggestion: `Remove the duplicate '${currentField}::' definition`,
-          severity: 'warning',
+          severity: 'error',
         });
       }
       seenFields.add(currentField);
@@ -295,7 +295,7 @@ function parseFields(section: ParsedSection, file: string): ParseFieldsResult {
           line: lineNum,
           message: `Found '${singleColonMatch[1]}:' with single colon — did you mean '${singleColonMatch[1]}::'?`,
           suggestion: `Change '${singleColonMatch[1]}:' to '${singleColonMatch[1]}::' (double colon)`,
-          severity: 'warning',
+          severity: 'error',
         });
       } else if (line.trim() && !freeTextWarned) {
         freeTextWarned = true;
@@ -305,7 +305,7 @@ function parseFields(section: ParsedSection, file: string): ParseFieldsResult {
           line: lineNum,
           message: `Text outside of a field:: definition will be ignored: "${preview}"`,
           suggestion: 'Place this text inside a field (e.g., content:: your text), or remove it',
-          severity: 'warning',
+          severity: 'error',
         });
       }
     }

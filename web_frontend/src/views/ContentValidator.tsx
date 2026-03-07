@@ -488,21 +488,10 @@ function IssueCard({ issue }: { issue: ValidationIssue }) {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="font-mono text-sm text-gray-600 mb-1">
-            {issue.file}
-            {issue.line != null && `:${issue.line}`}
-            {isLinkable && (
-              <>
-                {" "}
-                <a
-                  href={fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline font-sans text-xs"
-                >
-                  Show on GitHub
-                </a>
-              </>
+          <div className="font-mono text-sm mb-1">
+            <span className="text-gray-700">{issue.file}</span>
+            {issue.line != null && (
+              <span className="text-gray-500">:{issue.line}</span>
             )}
           </div>
           <div
@@ -514,6 +503,26 @@ function IssueCard({ issue }: { issue: ValidationIssue }) {
             <div className="mt-1 text-sm text-gray-600">{issue.suggestion}</div>
           )}
         </div>
+        {isLinkable && (
+          <div className="flex gap-2 shrink-0">
+            <a
+              href={fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-2.5 py-1 rounded border border-gray-300 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+            >
+              GitHub
+            </a>
+            <a
+              href={`https://editor.lensacademy.org/open/Lens%20Edu/${issue.file}${issue.line ? "#L" + issue.line : ""}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-2.5 py-1 rounded border border-blue-300 bg-blue-50 text-xs font-medium text-blue-700 hover:bg-blue-100 hover:border-blue-400 transition-colors"
+            >
+              Lens Editor
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

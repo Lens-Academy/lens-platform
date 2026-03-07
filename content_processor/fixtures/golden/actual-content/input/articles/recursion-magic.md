@@ -1,7 +1,7 @@
 ---
 title: "...Recursion, Magic — LessWrong"
 author: Eliezer Yudkowsky
-date: 2008-11-25
+published: 2008-11-25
 source_url: https://www.lesswrong.com/posts/rJLviHqJMTy8WQkow/recursion-magic
 ---
 

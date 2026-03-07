@@ -5,8 +5,8 @@ title: Test Course
 progression:
   - lesson: lesson-a
   - lesson: lesson-b
-  - meeting: 1
+  - meeting: Week 1
   - lesson: lesson-c
     optional: true
-  - meeting: 2
+  - meeting: Week 2
   - lesson: lesson-d

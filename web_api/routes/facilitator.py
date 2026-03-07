@@ -6,6 +6,7 @@ Endpoints:
 - GET /api/facilitator/groups/{group_id}/members - List group members with progress
 - GET /api/facilitator/groups/{group_id}/users/{user_id}/progress - User progress detail
 - GET /api/facilitator/groups/{group_id}/users/{user_id}/chats - User chat sessions
+- POST /api/facilitator/meetings/{meeting_id}/postpone - Postpone a meeting
 """
 
 import json
@@ -38,6 +39,7 @@ from core.queries.facilitator import (
     is_admin,
     is_user_in_group,
 )
+from core.queries.meetings import get_meetings_for_group
 from core.queries.users import get_user_by_discord_id
 from web_api.auth import get_current_user
 
@@ -133,6 +135,13 @@ async def get_group_timeline(
         time_data, chat_data = await get_group_time_and_chat_data(
             conn, group_id, roles=both_roles
         )
+        db_meetings = await get_meetings_for_group(conn, group_id)
+
+    # Build meeting_number -> meeting metadata map
+    meetings_by_number: dict[int, dict] = {}
+    for m in db_meetings:
+        if m.get("meeting_number") is not None:
+            meetings_by_number[m["meeting_number"]] = m
 
     # Build timeline structure from course progression
     try:
@@ -144,6 +153,7 @@ async def get_group_timeline(
     content_to_slug: dict[str, str] = {}
     module_cid_to_slug: dict[str, str] = {}  # module content_id -> slug
     timeline_items: list[dict[str, Any]] = []
+    meeting_count = 0
     for item in course.progression:
         if isinstance(item, ModuleRef):
             slug = item.slug
@@ -171,13 +181,19 @@ async def get_group_timeline(
                         }
                     )
         elif isinstance(item, MeetingMarker):
-            timeline_items.append(
-                {
-                    "type": "meeting",
-                    "number": item.number,
-                    "is_past": item.number in past_meetings,
-                }
-            )
+            meeting_count += 1
+            db_mtg = meetings_by_number.get(meeting_count)
+            mtg_item: dict[str, Any] = {
+                "type": "meeting",
+                "number": meeting_count,
+                "name": item.name,
+                "is_past": meeting_count in past_meetings,
+            }
+            if db_mtg:
+                mtg_item["meeting_id"] = db_mtg["meeting_id"]
+                scheduled = db_mtg.get("scheduled_at")
+                mtg_item["scheduled_at"] = scheduled.isoformat() if scheduled else None
+            timeline_items.append(mtg_item)
 
     # Build per-member data with module_stats
     members_out = []
@@ -446,3 +462,47 @@ async def get_user_chats(
         )
 
     return {"chats": chats_out}
+
+
+@router.post("/meetings/{meeting_id}/postpone")
+async def postpone_meeting_endpoint(
+    meeting_id: int,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """
+    Postpone a meeting: cancel this week's meeting, shift numbers down,
+    add a new meeting at the end of the course.
+    """
+    from datetime import datetime, timezone
+
+    from core.queries.meetings import get_meeting
+    from core.meetings import postpone_meeting
+
+    discord_id = user["sub"]
+    db_user = await get_db_user_or_403(discord_id)
+
+    # Verify meeting exists and user has access to its group
+    async with get_connection() as conn:
+        meeting = await get_meeting(conn, meeting_id)
+        if not meeting:
+            raise HTTPException(404, "Meeting not found")
+
+        group_id = meeting["group_id"]
+        if not await can_access_group(conn, db_user["user_id"], group_id):
+            raise HTTPException(403, "Access denied to this group")
+
+    # Validate meeting is not too far in the past (allow up to 7 days)
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    if meeting["scheduled_at"] <= now - timedelta(days=7):
+        raise HTTPException(
+            400, "Cannot postpone a meeting more than 1 week in the past"
+        )
+
+    try:
+        result = await postpone_meeting(meeting_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    return {"success": True, "result": result}

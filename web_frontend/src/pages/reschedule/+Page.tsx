@@ -17,6 +17,8 @@ interface Meeting {
   meeting_number: number;
   scheduled_at: string;
   group_name: string;
+  is_past: boolean;
+  attended: boolean;
 }
 
 function formatDate(iso: string): string {
@@ -183,8 +185,13 @@ export default function ReschedulePage() {
   const activeVisits = guestVisits.filter((v) => !v.is_past);
   const pastVisits = guestVisits.filter((v) => v.is_past);
 
-  // Set of meeting IDs the user already has a guest visit for
-  const meetingsWithVisits = new Set(activeVisits.map((v) => v.meeting_id));
+  // Meeting numbers the user has rescheduled (guest visits are always same meeting_number)
+  const rescheduledMeetingNumbers = new Set(
+    guestVisits.map((v) => v.meeting_number),
+  );
+
+  const pastMeetings = meetings.filter((m) => m.is_past).reverse();
+  const upcomingMeetings = meetings.filter((m) => !m.is_past);
 
   return (
     <Layout>
@@ -247,17 +254,142 @@ export default function ReschedulePage() {
             </section>
           )}
 
+          {/* Recent Meetings (past 2 weeks) */}
+          {pastMeetings.length > 0 && (
+            <section className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">
+                Recent Meetings
+              </h2>
+              <div className="space-y-3">
+                {pastMeetings.map((meeting) => {
+                  const hasVisit = rescheduledMeetingNumbers.has(
+                    meeting.meeting_number,
+                  );
+                  const isSelected = selectedMeetingId === meeting.meeting_id;
+                  return (
+                    <div
+                      key={meeting.meeting_id}
+                      className={`border rounded-lg p-4 transition-colors ${
+                        isSelected
+                          ? "border-blue-400 bg-blue-50"
+                          : "border-gray-200"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            Meeting {meeting.meeting_number}
+                            {meeting.attended ? (
+                              <span className="ml-2 text-xs font-normal text-green-600">
+                                Attended
+                              </span>
+                            ) : (
+                              <span className="ml-2 text-xs font-normal text-amber-600">
+                                Missed
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {formatDateTime(meeting.scheduled_at)} &middot;{" "}
+                            {meeting.group_name}
+                          </p>
+                        </div>
+                        {hasVisit ? (
+                          <span className="text-sm text-blue-600 font-medium">
+                            Rescheduled
+                          </span>
+                        ) : !meeting.attended ? (
+                          <button
+                            onClick={() =>
+                              isSelected
+                                ? setSelectedMeetingId(null)
+                                : handleCantAttend(meeting.meeting_id)
+                            }
+                            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                          >
+                            {isSelected ? "Never mind" : "Reschedule"}
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {/* Alternatives Panel */}
+                      {isSelected && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          {alternativesLoading ? (
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                              Finding alternative meetings...
+                            </div>
+                          ) : alternativesError ? (
+                            <p className="text-sm text-red-600">
+                              {alternativesError}
+                            </p>
+                          ) : alternatives.length === 0 ? (
+                            <p className="text-sm text-gray-500">
+                              No alternative meetings available for this one.
+                            </p>
+                          ) : (
+                            <div>
+                              <p className="text-sm text-gray-600 mb-3">
+                                Choose a meeting to attend as a guest:
+                              </p>
+                              <div className="space-y-2">
+                                {alternatives.map((alt) => (
+                                  <div
+                                    key={alt.meeting_id}
+                                    className="flex items-center justify-between bg-white border border-gray-200 rounded-md p-3"
+                                  >
+                                    <div>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {alt.group_name} &middot; Meeting{" "}
+                                        {alt.meeting_number}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        {formatDateTime(alt.scheduled_at)}
+                                        {alt.facilitator_name &&
+                                          ` \u00b7 Led by ${alt.facilitator_name}`}
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() =>
+                                        handleJoinAlternative(alt.meeting_id)
+                                      }
+                                      disabled={
+                                        actionLoading === alt.meeting_id
+                                      }
+                                      className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50"
+                                    >
+                                      {actionLoading === alt.meeting_id
+                                        ? "Joining..."
+                                        : "Join this meeting"}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* Upcoming Meetings */}
           <section className="mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-3">
               Upcoming Meetings
             </h2>
-            {meetings.length === 0 ? (
+            {upcomingMeetings.length === 0 ? (
               <p className="text-gray-500">No upcoming meetings found.</p>
             ) : (
               <div className="space-y-3">
-                {meetings.map((meeting) => {
-                  const hasVisit = meetingsWithVisits.has(meeting.meeting_id);
+                {upcomingMeetings.map((meeting) => {
+                  const hasVisit = rescheduledMeetingNumbers.has(
+                    meeting.meeting_number,
+                  );
                   const isSelected = selectedMeetingId === meeting.meeting_id;
                   return (
                     <div

@@ -65,6 +65,10 @@ activities/_dev/
 node_modules/
 web_frontend/dist/
 
+# Screenshots (debug/dev)
+screenshot*.png
+debug-screenshot*.png
+
 # OS
 .DS_Store
 Thumbs.db

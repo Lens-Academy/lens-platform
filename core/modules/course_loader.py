@@ -73,7 +73,17 @@ def get_next_module(course_slug: str, current_module_slug: str) -> dict | None:
     next_item = course.progression[next_index]
 
     if isinstance(next_item, MeetingMarker):
-        return {"type": "unit_complete", "unit_number": next_item.number}
+        # Derive meeting number by counting meetings up to this point
+        meeting_number = sum(
+            1
+            for item in course.progression[: next_index + 1]
+            if isinstance(item, MeetingMarker)
+        )
+        return {
+            "type": "unit_complete",
+            "unit_number": meeting_number,
+            "unit_name": next_item.name,
+        }
 
     if isinstance(next_item, ModuleRef):
         next_slug = next_item.slug
@@ -132,13 +142,15 @@ def get_due_by_meeting(course: ParsedCourse, module_slug: str) -> int | None:
         Meeting number if there's a following meeting, None otherwise.
     """
     found_module = False
+    meeting_count = 0
 
     for item in course.progression:
-        if isinstance(item, ModuleRef):
-            item_slug = item.slug
-            if item_slug == module_slug:
+        if isinstance(item, MeetingMarker):
+            meeting_count += 1
+            if found_module:
+                return meeting_count
+        elif isinstance(item, ModuleRef):
+            if item.slug == module_slug:
                 found_module = True
-        elif found_module and isinstance(item, MeetingMarker):
-            return item.number
 
     return None

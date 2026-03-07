@@ -40,6 +40,8 @@ export interface Section {
   learningOutcomeId: string | null;
   learningOutcomeName: string | null;
   videoId: string | null;  // video sections only
+  wordCount?: number;              // word count of text + article-excerpt segments
+  videoDurationSeconds?: number;   // total seconds of video-excerpt segments
 }
 
 export interface SectionMeta {
@@ -53,7 +55,7 @@ export interface ProgressionItem {
   type: 'module' | 'meeting';
   slug?: string;      // Frontmatter slug — set by processContent after resolving path
   path?: string;      // Raw wikilink path — set by course parser, removed by processContent
-  number?: number;
+  name?: string;
   optional?: boolean;
 }
 
@@ -308,6 +310,15 @@ export function processContent(files: Map<string, string>): ProcessResult {
         const rawParse = parseModule(content, path);
         if (rawParse.module) {
           for (const section of rawParse.module.sections) {
+            if (section.type === 'page' && !section.fields.id) {
+              errors.push({
+                file: path,
+                line: section.line,
+                message: `Page section '${section.title}' is missing required id:: field`,
+                suggestion: 'Add an id:: field with a UUID (e.g., id:: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)',
+                severity: 'error',
+              });
+            }
             if (section.type === 'page' && section.fields.id) {
               uuidEntries.push({
                 uuid: section.fields.id,
@@ -512,11 +523,9 @@ export function processContent(files: Map<string, string>): ProcessResult {
     for (const item of course.progression) {
       if (item.type !== 'module' || !item.slug) continue;
 
-      // Construct expected module path and find it in files
-      const expectedModulePath = `modules/${item.slug}.md`;
-      const modulePath = findFileWithExtension(expectedModulePath, files) ?? expectedModulePath;
+      const modulePath = slugToPath.get(item.slug);
 
-      if (tierMap.has(modulePath)) {
+      if (modulePath && tierMap.has(modulePath)) {
         const parentTier = tierMap.get(coursePath) ?? 'production';
         const childTier = tierMap.get(modulePath) ?? 'production';
         const violation = checkTierViolation(coursePath, parentTier, modulePath, childTier, 'module');

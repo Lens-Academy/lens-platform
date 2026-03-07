@@ -26,7 +26,7 @@ title: Test Course
 
 # Module: [[../modules/My Cool Module]]
 
-# Meeting: 1
+# Meeting: Week 1
 `);
 
     const result = processContent(files);
@@ -53,7 +53,7 @@ title: Test Course
 
 # Module: [[../modules/nonexistent]]
 
-# Meeting: 1
+# Meeting: Week 1
 `);
 
     const result = processContent(files);

@@ -213,7 +213,7 @@ export default function StageProgressBar({
 
     const sizeClasses = compact
       ? "w-7 h-7"
-      : "min-w-8 min-h-8 w-8 h-8 sm:min-w-[44px] sm:min-h-[44px] sm:w-11 sm:h-11";
+      : "min-w-[44px] min-h-[44px] w-11 h-11";
 
     return (
       <Tooltip
@@ -243,9 +243,7 @@ export default function StageProgressBar({
   return (
     <div className="flex items-start gap-2">
       {/* Previous button — wrapped to align with trunk dot center */}
-      <div
-        className={`flex items-center shrink-0 ${compact ? "h-7" : "h-8 sm:h-11"}`}
-      >
+      <div className={`flex items-center shrink-0 ${compact ? "h-7" : "h-11"}`}>
         <Tooltip content="Previous content">
           <button
             onClick={onPrevious}
@@ -253,11 +251,11 @@ export default function StageProgressBar({
             className={`rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default ${
               compact
                 ? "p-1"
-                : "min-w-8 min-h-8 sm:min-w-[44px] sm:min-h-[44px] p-1.5 sm:p-2 transition-all active:scale-95 shrink-0"
+                : "min-w-[44px] min-h-[44px] p-2 transition-all active:scale-95 shrink-0"
             }`}
           >
             <svg
-              className={compact ? "w-4 h-4" : "w-4 h-4 sm:w-5 sm:h-5"}
+              className={compact ? "w-4 h-4" : "w-5 h-5"}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -438,9 +436,7 @@ export default function StageProgressBar({
       </div>
 
       {/* Next button — wrapped to align with trunk dot center */}
-      <div
-        className={`flex items-center shrink-0 ${compact ? "h-7" : "h-8 sm:h-11"}`}
-      >
+      <div className={`flex items-center shrink-0 ${compact ? "h-7" : "h-11"}`}>
         <Tooltip content="Next content">
           <button
             onClick={onNext}
@@ -448,11 +444,11 @@ export default function StageProgressBar({
             className={`rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default ${
               compact
                 ? "p-1"
-                : "min-w-8 min-h-8 sm:min-w-[44px] sm:min-h-[44px] p-1.5 sm:p-2 transition-all active:scale-95 shrink-0"
+                : "min-w-[44px] min-h-[44px] p-2 transition-all active:scale-95 shrink-0"
             }`}
           >
             <svg
-              className={compact ? "w-4 h-4" : "w-4 h-4 sm:w-5 sm:h-5"}
+              className={compact ? "w-4 h-4" : "w-5 h-5"}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

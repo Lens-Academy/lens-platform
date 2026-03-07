@@ -38,6 +38,10 @@ import RoleplaySection from "@/components/module/RoleplaySection";
 import TestSection from "@/components/module/TestSection";
 import MarkCompleteButton from "@/components/module/MarkCompleteButton";
 import SectionDivider from "@/components/module/SectionDivider";
+import {
+  computeSectionDuration,
+  computeDurationBreakdown,
+} from "@/utils/duration";
 import ArticleSectionWrapper from "@/components/module/ArticleSectionWrapper";
 import ArticleExcerptGroup from "@/components/module/ArticleExcerptGroup";
 import { ModuleHeader } from "@/components/ModuleHeader";
@@ -113,6 +117,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       setLoadingModule(true);
       setLoadError(null);
       wasCompleteOnLoad.current = false; // Reset when loading new module
+      initialCompletedRef.current = new Set();
       try {
         // Fetch module, course progress, and module progress in parallel
         const [moduleResult, courseResult, progressResult] = await Promise.all([
@@ -134,6 +139,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               completed.add(index);
             }
           });
+          initialCompletedRef.current = completed;
           setCompletedSections(completed);
 
           // Store module content UUID for multi-level time tracking
@@ -221,6 +227,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Track if this is initial load vs user navigation (for pushState vs replaceState)
   const isInitialLoad = useRef(true);
 
+  // Ref to hold initial completed sections for the hash effect (avoids dependency on completedSections)
+  const initialCompletedRef = useRef<Set<number>>(new Set());
+
   // Parse URL hash on mount, module load, and browser navigation
   useEffect(() => {
     if (!module) return;
@@ -228,8 +237,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1); // Remove leading #
       if (!hash) {
-        // No hash - go to first section
-        setCurrentSectionIndex(0);
+        // No hash - find first non-optional incomplete section
+        const completed = initialCompletedRef.current;
+        const firstIncomplete = module.sections.findIndex(
+          (section, index) =>
+            !completed.has(index) &&
+            !("optional" in section && section.optional),
+        );
+        setCurrentSectionIndex(firstIncomplete !== -1 ? firstIncomplete : 0);
         return;
       }
 
@@ -513,6 +528,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         displayType = section.type;
       }
 
+      const dur = computeSectionDuration(section);
       return {
         type: displayType,
         title:
@@ -522,7 +538,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               ? section.meta?.title || `Page ${index + 1}`
               : section.meta?.title ||
                 `${section.type || "Section"} ${index + 1}`,
-        duration: null,
+        duration: dur || null,
         optional: "optional" in section && section.optional === true,
       };
     });
@@ -882,6 +898,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           title: articleMeta?.title ?? null,
           author: articleMeta?.author ?? null,
           sourceUrl: articleMeta?.sourceUrl ?? null,
+          published: articleMeta?.published ?? null,
           isExcerpt: true,
           collapsed_before: segment.collapsed_before,
           collapsed_after: segment.collapsed_after,
@@ -896,11 +913,16 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             : 0;
         const isFirstExcerpt = excerptsBefore === 0;
 
+        // Check if previous segment is also an article-excerpt (consecutive)
+        const prevSegment = section.segments[segmentIndex - 1];
+        const isPrevAlsoExcerpt = prevSegment?.type === "article-excerpt";
+
         return (
           <ArticleEmbed
             key={`article-${keyPrefix}`}
             article={excerptData}
             isFirstExcerpt={isFirstExcerpt}
+            isConsecutiveExcerpt={!isFirstExcerpt && isPrevAlsoExcerpt}
           />
         );
       }
@@ -1123,6 +1145,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             return null;
           }
 
+          const breakdown = computeDurationBreakdown(section);
+          const sectionDur = breakdown.total > 0 ? breakdown : undefined;
+
           return (
             <div
               key={sectionIndex}
@@ -1137,6 +1162,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                   <SectionDivider
                     type="article"
                     title={`Section ${sectionIndex + 1}`}
+                    duration={sectionDur}
                   />
                   <AuthoredText content={section.content} />
                 </>
@@ -1146,6 +1172,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                   <SectionDivider
                     type="page"
                     title={section.meta?.title || `Page ${sectionIndex + 1}`}
+                    duration={sectionDur}
                   />
                   {section.segments?.map((segment, segmentIndex) =>
                     renderSegment(segment, section, sectionIndex, segmentIndex),
@@ -1153,7 +1180,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 </>
               ) : section.type === "chat" ? (
                 <>
-                  <SectionDivider type="chat" title={section.meta?.title} />
+                  <SectionDivider
+                    type="chat"
+                    title={section.meta?.title}
+                    duration={sectionDur}
+                  />
                   <NarrativeChatSection
                     messages={messages}
                     pendingMessage={pendingMessage}
@@ -1172,6 +1203,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     type="lens-video"
                     optional={section.optional}
                     title={section.meta?.title}
+                    duration={sectionDur}
                   />
                   {/* Render segments (text, video-excerpt, chat) */}
                   {section.segments?.map((segment, segmentIndex) =>
@@ -1185,6 +1217,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     type="lens-article"
                     optional={section.optional}
                     title={section.meta?.title}
+                    duration={sectionDur}
                   />
                   <ArticleSectionWrapper>
                     {(() => {
@@ -1260,6 +1293,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     type="article"
                     optional={section.optional}
                     title={section.meta?.title}
+                    duration={sectionDur}
                   />
                   <ArticleSectionWrapper>
                     {(() => {
@@ -1430,6 +1464,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     type={section.type}
                     optional={"optional" in section ? section.optional : false}
                     title={"meta" in section ? section.meta?.title : undefined}
+                    duration={sectionDur}
                   />
                   {"segments" in section &&
                     section.segments?.map((segment, segmentIndex) =>
