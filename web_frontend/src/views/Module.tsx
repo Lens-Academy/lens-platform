@@ -704,8 +704,20 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           // Write to ref (free) + notify subscribers (DebugOverlay only)
           currentSegmentIndexRef.current = best.index;
           segmentIndexListeners.current.forEach(fn => fn());
-          const segType = segments?.[best.index]?.type;
-          const allowed = sidebarAllowed && segType !== "chat";
+
+          // Sidebar disallowed when any chat segment overlaps the 20%-80% viewport band
+          const bandTop = window.innerHeight * 0.2;
+          const bandBottom = window.innerHeight * 0.8;
+          let chatInBand = false;
+          segmentElsRef.current.forEach((el) => {
+            const idx = Number(el.dataset.segmentIndex);
+            if (isNaN(idx) || segments?.[idx]?.type !== "chat") return;
+            const rect = el.getBoundingClientRect();
+            if (rect.bottom > bandTop && rect.top < bandBottom) {
+              chatInBand = true;
+            }
+          });
+          const allowed = sidebarAllowed && !chatInBand;
 
           // Guard against reflow feedback loop: closing the sidebar changes margin →
           // content reflows → scroll fires → segment shifts → setAllowed(true) reopens.
