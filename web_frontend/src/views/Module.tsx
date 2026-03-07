@@ -49,6 +49,7 @@ import { ChatSidebar } from "@/components/module/ChatSidebar";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import ModuleCompleteModal from "@/components/module/ModuleCompleteModal";
 import AuthPromptModal from "@/components/module/AuthPromptModal";
+import { animateInputFlight } from "@/utils/animateInputFlight";
 import { ScrollContainerContext } from "@/hooks/useScrollContainer";
 import {
   trackModuleStarted,
@@ -712,6 +713,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           if (Date.now() < sidebarAllowedLockUntil.current) return;
           if (allowed !== lastSidebarAllowed.current) {
             lastSidebarAllowed.current = allowed;
+
+            // Trigger FLIP animation before state change
+            if (!allowed) {
+              animateInputFlight("to-inline");
+            } else {
+              animateInputFlight("to-sidebar");
+            }
+
             sidebarRef.current?.setAllowed(allowed);
             if (!allowed) {
               sidebarAllowedLockUntil.current = Date.now() + 350;

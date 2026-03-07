@@ -236,6 +236,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         />
         <div className="shrink-0 border-t border-gray-200">
           <ChatInputArea
+            pillId="sidebar"
             onSend={onSendMessage}
             isLoading={isLoading}
             placeholder="Ask a question..."

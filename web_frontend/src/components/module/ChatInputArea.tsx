@@ -22,6 +22,7 @@ type ChatInputAreaProps = {
   isLoading: boolean;
   disabled?: boolean;
   placeholder?: string;
+  pillId?: string;
 };
 
 export function ChatInputArea({
@@ -29,6 +30,7 @@ export function ChatInputArea({
   isLoading,
   disabled = false,
   placeholder = "Type a message...",
+  pillId,
 }: ChatInputAreaProps) {
   const [input, setInput] = useState("");
   const inputRef = useRef(input);
@@ -344,7 +346,7 @@ export function ChatInputArea({
 
       {/* Input form */}
       <form onSubmit={handleSubmit} className="p-3">
-        <div className="border border-gray-200 rounded-2xl bg-white shadow-sm">
+        <div className="border border-gray-200 rounded-2xl bg-white shadow-sm" data-chat-input-pill={pillId}>
           {/* Recording indicator inside pill */}
           {recordingState === "recording" && (
             <div className="flex items-center gap-2 justify-center pt-3 px-4">

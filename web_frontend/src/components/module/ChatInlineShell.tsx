@@ -461,6 +461,7 @@ export function ChatInlineShell({
           >
             <div className={`${!isExpanded ? "max-w-content mx-auto" : ""}`}>
               <ChatInputArea
+                pillId="inline"
                 onSend={(content) => {
                   dispatch({
                     type: "SEND_MESSAGE",
