@@ -156,6 +156,10 @@ async def event_generator(
         module.sections[section_index] if section_index < len(module.sections) else {}
     )
     section_context = gather_section_context(section, segment_index)
+    if section_context:
+        section_context.module_title = module.title
+        section_context.section_title = section.get("meta", {}).get("title")
+        section_context.learning_outcome = section.get("learningOutcomeName")
 
     # Get chat instructions from segment
     segments = section.get("segments", [])

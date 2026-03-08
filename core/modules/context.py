@@ -12,6 +12,12 @@ class SectionContext:
     """Content from segments before the current one (already read)."""
     current: str | None
     """Content of the current segment (currently reading)."""
+    module_title: str | None = None
+    """Module title (e.g. 'Introduction to AI Safety')."""
+    section_title: str | None = None
+    """Section/lens title (e.g. 'The "most important century" blog post series')."""
+    learning_outcome: str | None = None
+    """Learning outcome name (submodule grouping), if applicable."""
 
 
 def _extract_segment_content(seg: dict) -> str | None:

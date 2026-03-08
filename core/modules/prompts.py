@@ -15,6 +15,18 @@ DEFAULT_BASE_PROMPT = (
 )
 
 
+def _format_location(context: "SectionContext") -> str | None:
+    """Build a 'Module > Learning Outcome > Section' breadcrumb string."""
+    parts = []
+    if context.module_title:
+        parts.append(context.module_title)
+    if context.learning_outcome:
+        parts.append(context.learning_outcome)
+    if context.section_title:
+        parts.append(context.section_title)
+    return " > ".join(parts) if parts else None
+
+
 def assemble_chat_prompt(
     base: str,
     instructions: str | None = None,
@@ -42,6 +54,9 @@ def assemble_chat_prompt(
                 f"---\n{context}\n---"
             )
         else:
+            location = _format_location(context)
+            if location:
+                prompt += f"\n\nCurrent location in course: {location}"
             if context.previous:
                 prompt += (
                     f"\n\nThe user previously read this content:\n"
