@@ -178,6 +178,7 @@ async def get_group_timeline(
                             "content_id": content_id,
                             "module_slug": slug,
                             "title": title,
+                            "optional": section.get("optional", False),
                         }
                     )
         elif isinstance(item, MeetingMarker):

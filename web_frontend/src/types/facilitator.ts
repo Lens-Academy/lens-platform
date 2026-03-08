@@ -67,6 +67,7 @@ export interface TimelineItem {
   content_id?: string;
   module_slug?: string;
   title?: string;
+  optional?: boolean;
   number?: number;
   is_past?: boolean;
   meeting_id?: number;
