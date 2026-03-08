@@ -798,6 +798,39 @@ to:: "End"
 
     expect(result.errors.some(e => e.message.toLowerCase().includes('circular'))).toBe(true);
   });
+
+  it('carries tldr from lens frontmatter into flattened section', () => {
+    const files = buildFiles({
+      'modules/test-module.md': `---
+slug: test-module
+title: Test Module
+contentId: 550e8400-e29b-41d4-a716-446655440000
+---
+
+# Learning Outcome: Topic
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`,
+      'Learning Outcomes/lo1.md': simpleLO('550e8400-e29b-41d4-a716-446655440010', [
+        { path: '../Lenses/my-lens.md' },
+      ]),
+      'Lenses/my-lens.md': `---
+id: 550e8400-e29b-41d4-a716-446655440001
+tldr: This is a short summary of the lens content
+---
+
+### Page: Intro
+
+#### Text
+content:: Hello world.
+`,
+    });
+
+    const result = processContent(files);
+    const mod = result.modules.find(m => m.slug === 'test-module');
+    expect(mod).toBeDefined();
+    const lensSection = mod!.sections.find(s => s.contentId === '550e8400-e29b-41d4-a716-446655440001');
+    expect(lensSection?.tldr).toBe('This is a short summary of the lens content');
+  });
 });
 
 describe('flattenLens', () => {

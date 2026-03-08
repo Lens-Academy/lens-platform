@@ -42,6 +42,7 @@ export interface Section {
   videoId: string | null;  // video sections only
   wordCount?: number;              // word count of text + article-excerpt segments
   videoDurationSeconds?: number;   // total seconds of video-excerpt segments
+  tldr?: string;
 }
 
 export interface SectionMeta {

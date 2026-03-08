@@ -550,6 +550,7 @@ function processLOWithSubmodules(
         learningOutcomeId: lo.id ?? null,
         learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
         contentId: lens.id ?? null,
+        tldr: lens.tldr,
         videoId: videoId ?? null,
         ...computeSectionStats(segments),
       } as Section);
@@ -850,6 +851,7 @@ function flattenLearningOutcomeSection(
       learningOutcomeId: lo.id ?? null,
       learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
       contentId: lens.id ?? null,
+      tldr: lens.tldr,
       videoId: videoId ?? null,
       ...computeSectionStats(segments),
     };
@@ -1060,6 +1062,7 @@ function flattenUncategorizedSection(
       learningOutcomeId: null,
       learningOutcomeName: null,
       contentId: lens.id ?? null,
+      tldr: lens.tldr,
       videoId: videoId ?? null,
       ...computeSectionStats(segments),
     };
@@ -1686,6 +1689,7 @@ export function flattenLens(
     learningOutcomeId: null,
     learningOutcomeName: null,
     contentId: lens.id ?? null,
+    tldr: lens.tldr,
     videoId: videoId ?? null,
     ...computeSectionStats(segments),
   };
