@@ -1,6 +1,7 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { pillReducer, inlinePillVisible, sidebarOpen, usePillVisibility, type PillState } from "../usePillVisibility";
+import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 
 // Mock animateInputFlight — the slow/external boundary
 vi.mock("@/utils/animateInputFlight", () => ({
@@ -171,12 +172,12 @@ describe("usePillVisibility hook", () => {
   test("transitions when store changes from true to false", async () => {
     const store = createStore(true);
     const mockSetAllowed = vi.fn();
-    const sidebarRef = { current: { setAllowed: mockSetAllowed } };
+    const sidebarRef = { current: { setAllowed: mockSetAllowed } as unknown as ChatSidebarHandle };
     const { result } = renderHook(() =>
       usePillVisibility({
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
-        sidebarRef: sidebarRef as any,
+        sidebarRef,
       }),
     );
 
@@ -198,12 +199,12 @@ describe("usePillVisibility hook", () => {
   test("transitions when store changes from false to true", async () => {
     const store = createStore(false);
     const mockSetAllowed = vi.fn();
-    const sidebarRef = { current: { setAllowed: mockSetAllowed } };
+    const sidebarRef = { current: { setAllowed: mockSetAllowed } as unknown as ChatSidebarHandle };
     const { result } = renderHook(() =>
       usePillVisibility({
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
-        sidebarRef: sidebarRef as any,
+        sidebarRef,
       }),
     );
 
