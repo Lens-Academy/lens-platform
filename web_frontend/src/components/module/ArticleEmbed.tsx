@@ -74,6 +74,7 @@ function remarkLensDirectives() {
       ) {
         const data = node.data || (node.data = {});
         data.hName = "footnote-inline";
+        data.hProperties = { "data-source": "lens" };
       }
     });
   };
@@ -411,7 +412,15 @@ function InlineNote({ children }: { children?: React.ReactNode }) {
   );
 }
 
-function InlineFootnote({ children }: { children?: React.ReactNode }) {
+function InlineFootnote({
+  children,
+  "data-source": source,
+  "data-label": label,
+}: {
+  children?: React.ReactNode;
+  "data-source"?: string;
+  "data-label"?: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
 
   const { refs, floatingStyles, context } = useFloating({
@@ -444,6 +453,7 @@ function InlineFootnote({ children }: { children?: React.ReactNode }) {
         ref={refs.setReference}
         {...getReferenceProps()}
         tabIndex={0}
+        data-source={source}
         className="inline-flex items-center justify-center w-[1.38em] h-[1.38em] mx-0.5 rounded-full
           bg-gray-100 shadow-sm hover:bg-gray-200 cursor-default align-middle -translate-y-[0.1em]"
       >

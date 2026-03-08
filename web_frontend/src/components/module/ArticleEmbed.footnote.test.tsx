@@ -94,6 +94,15 @@ describe("Inline footnote directive", () => {
     expect(screen.queryByText("detail two")).not.toBeInTheDocument();
   });
 
+  it("lens footnote trigger has data-source='lens'", () => {
+    const article = makeArticle("Text :footnote[lens note] here.");
+    render(<ArticleEmbed article={article} />);
+    const trigger = screen
+      .getByRole("img", { name: /footnote/i })
+      .closest("[data-source]");
+    expect(trigger).toHaveAttribute("data-source", "lens");
+  });
+
   it("opens on click and dismisses on click-outside (mobile)", async () => {
     const user = userEvent.setup();
     const article = makeArticle("Text :footnote[click info] more.");
