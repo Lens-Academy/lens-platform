@@ -14,6 +14,7 @@ import ModuleOverview from "../components/course/ModuleOverview";
 import { generateHeadingId } from "../utils/extractHeadings";
 import { DiscordInviteButton, UserMenu } from "../components/nav";
 import { Skeleton } from "../components/Skeleton";
+import { useScrollDirection } from "../hooks/useScrollDirection";
 
 interface CourseOverviewProps {
   courseId?: string;
@@ -30,6 +31,8 @@ export default function CourseOverview({
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useMedia("(max-width: 767px)", false);
+  const scrollDirection = useScrollDirection(100);
+  const shouldHideHeader = scrollDirection === "down" && !sidebarOpen;
 
   // Load course progress
   useEffect(() => {
@@ -195,42 +198,55 @@ export default function CourseOverview({
   return (
     <div className="h-dvh flex flex-col bg-white">
       {/* Nav Header */}
-      <nav className="border-b border-slate-200/50 bg-stone-50">
-        <div className="px-4 md:px-6 flex items-center justify-between h-14">
-          <div className="flex items-center gap-2">
-            {/* Mobile menu button */}
-            {isMobile && (
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="p-2 -ml-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-100 rounded-lg transition-colors"
-                aria-label="Open course menu"
+      <nav
+        className={`
+          fixed top-0 left-0 right-0 z-50
+          backdrop-blur-md bg-stone-50/70 border-b border-slate-200/50
+          transition-transform duration-300
+          ${shouldHideHeader ? "-translate-y-full" : "translate-y-0"}
+        `}
+      >
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-2">
+              {/* Mobile menu button */}
+              {isMobile && (
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="p-2 -ml-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-100 rounded-lg transition-colors"
+                  aria-label="Open course menu"
+                >
+                  <Menu className="w-5 h-5 text-slate-600" />
+                </button>
+              )}
+              <a href="/" className="flex items-center gap-2">
+                <img
+                  src="/assets/Logo only.png"
+                  alt="Lens Academy"
+                  className="h-8"
+                />
+                <span className="text-xl font-semibold text-slate-800">
+                  Lens Academy
+                </span>
+              </a>
+            </div>
+            <div className="flex items-center gap-4">
+              <a
+                href="/course"
+                className="text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200 hidden md:block"
               >
-                <Menu className="w-5 h-5 text-slate-600" />
-              </button>
-            )}
-            <a href="/" className="flex items-center gap-2">
-              <img
-                src="/assets/Logo only.png"
-                alt="Lens Academy"
-                className="h-7"
-              />
-              <span className="text-lg font-semibold text-slate-800">
-                Lens Academy
-              </span>
-            </a>
-          </div>
-          <div className="flex items-center gap-4">
-            <a
-              href="/course"
-              className="text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200 hidden md:block"
-            >
-              Course
-            </a>
-            <DiscordInviteButton />
-            <UserMenu />
+                Course
+              </a>
+              <div className="hidden md:block">
+                <DiscordInviteButton />
+              </div>
+              <UserMenu />
+            </div>
           </div>
         </div>
       </nav>
+      {/* Spacer for fixed header */}
+      <div className="h-16 flex-shrink-0" />
 
       {/* Two-panel layout */}
       <div className="flex-1 flex overflow-hidden relative">
