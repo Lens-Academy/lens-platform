@@ -102,6 +102,7 @@ type CourseTimelineProps = {
   units: UnitInfo[];
   selectedModuleSlug: string | null;
   onModuleSelect: (module: ModuleInfo) => void;
+  isMobile?: boolean;
 };
 
 function formatMeetingDate(isoDate: string): string {
@@ -160,6 +161,7 @@ export default function CourseTimeline({
   units,
   selectedModuleSlug,
   onModuleSelect,
+  isMobile,
 }: CourseTimelineProps) {
   const now = new Date();
   const upcomingIndex = units.findIndex(
@@ -194,9 +196,11 @@ export default function CourseTimeline({
         next.delete(idx);
       } else {
         next.add(idx);
-        // Auto-select first module when expanding
-        const firstModule = units[idx]?.modules[0];
-        if (firstModule) onModuleSelect(firstModule);
+        // Auto-select first module on desktop (on mobile, let user browse)
+        if (!isMobile) {
+          const firstModule = units[idx]?.modules[0];
+          if (firstModule) onModuleSelect(firstModule);
+        }
       }
       return next;
     });

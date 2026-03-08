@@ -121,7 +121,6 @@ export default function CourseOverview({
     return { completedStages: completed, currentSectionIndex: currentIdx };
   }, [selectedModule]);
 
-  // Handle module selection (closes sidebar on mobile)
   const handleModuleSelect = (module: ModuleInfo) => {
     setSelectedModule(module);
     if (isMobile) setSidebarOpen(false);
@@ -262,6 +261,7 @@ export default function CourseOverview({
                   units={courseProgress.units}
                   selectedModuleSlug={selectedModule?.slug ?? null}
                   onModuleSelect={handleModuleSelect}
+                  isMobile
                 />
               </div>
             </div>
