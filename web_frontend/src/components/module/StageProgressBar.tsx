@@ -1,6 +1,6 @@
 // web_frontend/src/components/unified-lesson/StageProgressBar.tsx
 import { useMemo, type ReactNode } from "react";
-import { StickyNote } from "lucide-react";
+import { BotMessageSquare, StickyNote } from "lucide-react";
 import type { Stage } from "../../types/module";
 import type { StageInfo } from "../../types/course";
 import { buildBranchLayout } from "../../utils/branchLayout";
@@ -133,21 +133,42 @@ function getTooltipContent(
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="font-medium text-slate-900">{title}</span>
         {isOptional && !isViewing && (
-          <span className="text-slate-400 text-[10px] border border-slate-300 rounded px-1">
+          <span className="text-slate-400 text-xs border border-slate-300 rounded px-1">
             Optional
           </span>
         )}
         {isCompleted && (
-          <span className="text-green-600 text-[10px]">&#10003;</span>
+          <span className="text-green-600 text-xs">&#10003;</span>
         )}
       </div>
-      {hasDuration && (
-        <div className="text-slate-400 text-[10px] mt-0.5">
-          {formatDurationMinutes(stage.duration!)}
-        </div>
-      )}
+      {hasDuration && (() => {
+        const isVideo = stage.type === "video";
+        const contentTime = Math.round(stage.duration! / 1.5);
+        const aiTime = stage.duration! - contentTime;
+        return (
+          <div className="flex items-center gap-0.5 text-slate-500 text-xs mt-0.5">
+            {isVideo ? (
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+              </svg>
+            )}
+            <span>{formatDurationMinutes(contentTime)}</span>
+            {aiTime > 0 && (
+              <>
+                <span>+</span>
+                <BotMessageSquare className="w-3 h-3 ml-0.5" />
+                <span>{formatDurationMinutes(aiTime)}</span>
+              </>
+            )}
+          </div>
+        );
+      })()}
       {hasTldr && (
-        <p className="text-slate-500 mt-1 line-clamp-3">{stage.tldr}</p>
+        <p className="text-slate-600 mt-1 line-clamp-3">{stage.tldr}</p>
       )}
     </div>
   );
