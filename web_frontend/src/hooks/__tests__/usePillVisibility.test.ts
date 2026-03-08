@@ -2,6 +2,7 @@ import { renderHook, act } from "@testing-library/react";
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { pillReducer, inlinePillVisible, sidebarOpen, usePillVisibility, type PillState } from "../usePillVisibility";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
+import { animateInputFlight } from "@/utils/animateInputFlight";
 
 // Mock animateInputFlight — the slow/external boundary
 vi.mock("@/utils/animateInputFlight", () => ({
@@ -190,6 +191,7 @@ describe("usePillVisibility hook", () => {
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
         sidebarRef,
+        isActive: true,
       }),
     );
 
@@ -205,6 +207,7 @@ describe("usePillVisibility hook", () => {
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
         sidebarRef,
+        isActive: true,
       }),
     );
 
@@ -221,6 +224,7 @@ describe("usePillVisibility hook", () => {
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
         sidebarRef,
+        isActive: true,
       }),
     );
 
@@ -248,6 +252,7 @@ describe("usePillVisibility hook", () => {
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
         sidebarRef,
+        isActive: true,
       }),
     );
 
@@ -271,6 +276,7 @@ describe("usePillVisibility hook", () => {
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
         sidebarRef,
+        isActive: true,
       }),
     );
 
@@ -293,6 +299,7 @@ describe("usePillVisibility hook", () => {
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
         sidebarRef,
+        isActive: true,
       }),
     );
 
@@ -310,6 +317,7 @@ describe("usePillVisibility hook", () => {
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
         sidebarRef,
+        isActive: true,
       }),
     );
 
@@ -332,6 +340,7 @@ describe("usePillVisibility hook", () => {
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
         sidebarRef,
+        isActive: true,
       }),
     );
 
@@ -355,6 +364,7 @@ describe("usePillVisibility hook", () => {
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
         sidebarRef,
+        isActive: true,
       }),
     );
 
@@ -377,12 +387,189 @@ describe("usePillVisibility hook", () => {
         sidebarAllowedRef: store.ref,
         sidebarAllowedListeners: store.listeners,
         sidebarRef,
+        isActive: true,
       }),
     );
 
     // Toggle rapidly: true → false → true
     act(() => { store.set(false); });
     act(() => { store.set(true); });
+
+    await act(async () => { vi.runAllTimers(); });
+    expect(result.current.pillState).toBe("sidebar");
+  });
+
+  // --- pillTransition ---
+  test("pillTransition is true when sidebar pref is closed", () => {
+    localStorage.setItem("chat-sidebar-pref", "closed");
+    const store = createStore(false);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+        isActive: true,
+      }),
+    );
+    expect(result.current.pillTransition).toBe(true);
+  });
+
+  test("pillTransition is false when sidebar pref is not closed", () => {
+    const store = createStore(true);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+        isActive: true,
+      }),
+    );
+    expect(result.current.pillTransition).toBe(false);
+  });
+
+  test("pillTransition updates on pref change event", () => {
+    const store = createStore(true);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+        isActive: true,
+      }),
+    );
+    expect(result.current.pillTransition).toBe(false);
+
+    act(() => {
+      localStorage.setItem("chat-sidebar-pref", "closed");
+      window.dispatchEvent(new Event("chat-sidebar-pref-change"));
+    });
+    expect(result.current.pillTransition).toBe(true);
+  });
+
+  // --- Inactive shell behavior ---
+  test("inactive: SIDEBAR_DISALLOWED skips animation, settles to inline", () => {
+    vi.mocked(animateInputFlight).mockClear();
+
+    const store = createStore(true);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+        isActive: false,
+      }),
+    );
+
+    expect(result.current.pillState).toBe("sidebar");
+
+    act(() => { store.set(false); });
+    // Should settle directly to inline — no transitional "to-inline" visible
+    expect(result.current.pillState).toBe("inline");
+    expect(result.current.pillVisible).toBe(true);
+    expect(animateInputFlight).not.toHaveBeenCalled();
+  });
+
+  test("inactive: SIDEBAR_ALLOWED skips animation, settles to sidebar", () => {
+    vi.mocked(animateInputFlight).mockClear();
+
+    const store = createStore(false);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+        isActive: false,
+      }),
+    );
+
+    expect(result.current.pillState).toBe("inline");
+
+    act(() => { store.set(true); });
+    // Should settle directly to sidebar — no transitional "to-sidebar" visible
+    expect(result.current.pillState).toBe("sidebar");
+    expect(result.current.pillVisible).toBe(false);
+    expect(animateInputFlight).not.toHaveBeenCalled();
+  });
+
+  test("inactive: PREF_CLOSED transitions to inline (visible), pillTransition=true", () => {
+    const store = createStore(true);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+        isActive: false,
+      }),
+    );
+
+    expect(result.current.pillState).toBe("sidebar");
+
+    act(() => {
+      localStorage.setItem("chat-sidebar-pref", "closed");
+      window.dispatchEvent(new Event("chat-sidebar-pref-change"));
+    });
+    expect(result.current.pillState).toBe("inline");
+    expect(result.current.pillVisible).toBe(true);
+    expect(result.current.pillTransition).toBe(true);
+  });
+
+  test("inactive: PREF_OPEN transitions to sidebar (hidden)", () => {
+    localStorage.setItem("chat-sidebar-pref", "closed");
+    const store = createStore(true);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+        isActive: false,
+      }),
+    );
+
+    expect(result.current.pillState).toBe("inline");
+
+    act(() => {
+      localStorage.setItem("chat-sidebar-pref", "open");
+      window.dispatchEvent(new Event("chat-sidebar-pref-change"));
+    });
+    expect(result.current.pillState).toBe("sidebar");
+    expect(result.current.pillVisible).toBe(false);
+  });
+
+  test("isActive false→true: subsequent transitions use animation", async () => {
+    vi.mocked(animateInputFlight).mockClear();
+
+    const store = createStore(true);
+    const sidebarRef = { current: null };
+    let isActive = false;
+    const { result, rerender } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+        isActive,
+      }),
+    );
+
+    // While inactive: transition settles immediately
+    act(() => { store.set(false); });
+    expect(result.current.pillState).toBe("inline");
+    expect(animateInputFlight).not.toHaveBeenCalled();
+
+    // Become active
+    isActive = true;
+    rerender();
+
+    // Now transition should animate
+    act(() => { store.set(true); });
+    expect(result.current.pillState).toBe("to-sidebar");
+    expect(animateInputFlight).toHaveBeenCalled();
 
     await act(async () => { vi.runAllTimers(); });
     expect(result.current.pillState).toBe("sidebar");
