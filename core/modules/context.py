@@ -1,17 +1,19 @@
 # core/modules/context.py
 """Context gathering for chat sessions."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
 class SectionContext:
-    """Content the user has read and is currently reading."""
+    """All segments in the section plus the user's current position."""
 
-    previous: str | None
-    """Content from segments before the current one (already read)."""
-    current: str | None
-    """Content of the current segment (currently reading)."""
+    segments: list[tuple[int, str]] = field(default_factory=list)
+    """List of (original_index, content) for segments with extractable content."""
+    segment_index: int = 0
+    """User's current segment position (0-based)."""
+    total_segments: int = 0
+    """Total number of segments in the section."""
     module_title: str | None = None
     """Module title (e.g. 'Introduction to AI Safety')."""
     section_title: str | None = None
@@ -20,13 +22,17 @@ class SectionContext:
     """Learning outcome name (submodule grouping), if applicable."""
 
 
-def _extract_segment_content(seg: dict) -> str | None:
+def _extract_segment_content(
+    seg: dict,
+    article_title: str | None = None,
+    article_author: str | None = None,
+) -> str | None:
     """Extract displayable content from a single segment."""
     seg_type = seg.get("type")
 
     if seg_type == "text":
         content = seg.get("content", "")
-        return content or None
+        return f"[Written by Lens Academy]\n{content}" if content else None
 
     if seg_type == "video-excerpt":
         transcript = seg.get("transcript", "")
@@ -34,20 +40,34 @@ def _extract_segment_content(seg: dict) -> str | None:
 
     if seg_type == "article-excerpt":
         content = seg.get("content", "")
-        return content or None
+        if not content:
+            return None
+        parts = []
+        if article_title:
+            parts.append(f'"{article_title}"')
+        if article_author:
+            parts.append(f"by {article_author}")
+        if parts:
+            return f"[From {', '.join(parts)}]\n{content}"
+        return content
 
     if seg_type == "roleplay":
         content = seg.get("content", "")
         return f"[Roleplay scenario]\n{content}" if content else None
 
-    # chat segments etc. — no extractable content
+    if seg_type == "chat":
+        return "[Chat discussion]"
+
+    if seg_type == "question":
+        return "[Question]"
+
     return None
 
 
 def gather_section_context(section: dict, segment_index: int) -> SectionContext | None:
-    """Gather content from segments up to and including segment_index.
+    """Gather all segment content from the section with the user's position.
 
-    Returns a SectionContext with separate previous/current content,
+    Returns a SectionContext with numbered segments and position info,
     or None if hidePreviousContentFromTutor is set or index is out of bounds.
 
     Args:
@@ -64,19 +84,23 @@ def gather_section_context(section: dict, segment_index: int) -> SectionContext 
     if current_segment.get("hidePreviousContentFromTutor"):
         return None
 
-    # Gather content from preceding segments
-    previous_parts = []
-    for i in range(segment_index):
-        content = _extract_segment_content(segments[i])
+    # Extract article metadata from section meta for attribution
+    meta = section.get("meta", {})
+    article_title = meta.get("title")
+    article_author = meta.get("author")
+
+    # Gather ALL segments in the section
+    extracted: list[tuple[int, str]] = []
+    for i, seg in enumerate(segments):
+        content = _extract_segment_content(seg, article_title, article_author)
         if content:
-            previous_parts.append(content)
+            extracted.append((i, content))
 
-    previous = "\n\n---\n\n".join(previous_parts) if previous_parts else None
-
-    # Extract current segment content
-    current = _extract_segment_content(current_segment)
-
-    if not previous and not current:
+    if not extracted:
         return None
 
-    return SectionContext(previous=previous, current=current)
+    return SectionContext(
+        segments=extracted,
+        segment_index=segment_index,
+        total_segments=len(segments),
+    )

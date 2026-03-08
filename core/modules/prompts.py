@@ -49,22 +49,23 @@ def assemble_chat_prompt(
     if context:
         if isinstance(context, str):
             # Legacy callers (e.g. promptlab) pass a plain string
-            prompt += (
-                f"\n\nThe user previously read this content:\n"
-                f"---\n{context}\n---"
-            )
+            prompt += f"\n\nThe user previously read this content:\n---\n{context}\n---"
         else:
             location = _format_location(context)
             if location:
                 prompt += f"\n\nCurrent location in course: {location}"
-            if context.previous:
-                prompt += (
-                    f"\n\nThe user previously read this content:\n"
-                    f"---\n{context.previous}\n---"
-                )
-            if context.current:
-                prompt += (
-                    f"\n\nThe user is currently reading this content:\n"
-                    f"---\n{context.current}\n---"
-                )
+
+            # Content block (cacheable — same regardless of position)
+            if context.segments:
+                prompt += "\n\nThe user is engaging with the following content:"
+                for seg_num, content in context.segments:
+                    prompt += f"\n\nSegment {seg_num + 1}:\n{content}"
+
+                # Position line (only part that changes)
+                pos = context.segment_index + 1
+                total = context.total_segments
+                if pos < total:
+                    prompt += f"\n\nThe user is currently at segment {pos}. They have probably not read segments {pos + 1}\u2013{total} yet."
+                else:
+                    prompt += f"\n\nThe user is currently at segment {pos} (the last segment)."
     return prompt

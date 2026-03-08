@@ -8,7 +8,7 @@ class TestGatherSectionContext:
     """Tests for gather_section_context()."""
 
     def test_gathers_video_transcript(self):
-        """Should include video-excerpt transcript in context."""
+        """Should include video-excerpt transcript in segments."""
         section = {
             "type": "video",
             "segments": [
@@ -24,11 +24,12 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        assert "Hello world from video" in (ctx.previous or "")
-        assert "[Video transcript]" in (ctx.previous or "")
+        contents = [c for _, c in ctx.segments]
+        assert any("Hello world from video" in c for c in contents)
+        assert any("[Video transcript]" in c for c in contents)
 
     def test_gathers_article_content(self):
-        """Should include article-excerpt content in context."""
+        """Should include article-excerpt content in segments."""
         section = {
             "type": "article",
             "segments": [
@@ -44,10 +45,11 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        assert "Article content here" in (ctx.previous or "")
+        contents = [c for _, c in ctx.segments]
+        assert any("Article content here" in c for c in contents)
 
     def test_gathers_text_content(self):
-        """Should include text segment content in context."""
+        """Should include text segment content in segments."""
         section = {
             "type": "article",
             "segments": [
@@ -63,7 +65,8 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        assert "Some authored text" in (ctx.previous or "")
+        contents = [c for _, c in ctx.segments]
+        assert any("Some authored text" in c for c in contents)
 
     def test_respects_hide_from_tutor_flag(self):
         """Should return None when hidePreviousContentFromTutor is True."""
@@ -83,8 +86,8 @@ class TestGatherSectionContext:
 
         assert ctx is None
 
-    def test_multiple_preceding_segments(self):
-        """Should gather all preceding segments separated by dividers."""
+    def test_all_segments_included(self):
+        """Should gather ALL segments in the section, not just preceding ones."""
         section = {
             "type": "article",
             "segments": [
@@ -99,16 +102,17 @@ class TestGatherSectionContext:
             ],
         }
 
-        ctx = gather_section_context(section, segment_index=3)
+        ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        assert "First text" in (ctx.previous or "")
-        assert "Article bit" in (ctx.previous or "")
-        assert "Second text" in (ctx.previous or "")
-        assert "---" in (ctx.previous or "")  # Divider between segments
+        contents = [c for _, c in ctx.segments]
+        assert any("First text" in c for c in contents)
+        assert any("Article bit" in c for c in contents)
+        assert any("Second text" in c for c in contents)
+        assert any("[Chat discussion]" in c for c in contents)
 
-    def test_skips_chat_segments_in_context(self):
-        """Should not include previous chat segments in content context."""
+    def test_chat_segments_labeled(self):
+        """Chat segments should appear as [Chat discussion]."""
         section = {
             "type": "article",
             "segments": [
@@ -126,13 +130,12 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=3)
 
         assert ctx is not None
-        prev = ctx.previous or ""
-        assert "Intro text" in prev
-        assert "More text" in prev
-        assert "First discussion" not in prev
+        contents = [c for _, c in ctx.segments]
+        assert contents.count("[Chat discussion]") == 2
+        assert "First discussion" not in str(contents)
 
-    def test_empty_preceding_returns_none(self):
-        """Should return None when there are no content segments."""
+    def test_only_chat_segment_returns_context(self):
+        """A single chat segment should still return context (with the label)."""
         section = {
             "type": "page",
             "segments": [
@@ -146,7 +149,8 @@ class TestGatherSectionContext:
 
         ctx = gather_section_context(section, segment_index=0)
 
-        assert ctx is None
+        assert ctx is not None
+        assert ctx.segments == [(0, "[Chat discussion]")]
 
     def test_segment_index_out_of_bounds(self):
         """Should handle segment_index gracefully when out of bounds."""
@@ -157,13 +161,12 @@ class TestGatherSectionContext:
             ],
         }
 
-        # Index 5 is out of bounds
         ctx = gather_section_context(section, segment_index=5)
 
         assert ctx is None
 
-    def test_includes_current_content_segment(self):
-        """Should include the current segment's content when index points to a content segment (sidebar case)."""
+    def test_segment_index_and_total_segments(self):
+        """Should track segment_index and total_segments correctly."""
         section = {
             "type": "article",
             "segments": [
@@ -173,12 +176,11 @@ class TestGatherSectionContext:
             ],
         }
 
-        # Sidebar sends segmentIndex=1 (the article-excerpt)
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        assert ctx.previous == "Intro text"
-        assert ctx.current == "The actual article"
+        assert ctx.segment_index == 1
+        assert ctx.total_segments == 3
 
     def test_skips_empty_transcripts(self):
         """Should skip video-excerpt segments with empty transcripts."""
@@ -198,13 +200,13 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=2)
 
         assert ctx is not None
-        prev = ctx.previous or ""
-        assert "Actual content" in prev
-        # Empty transcript should not add extra dividers
-        assert prev.count("---") == 0  # Only one segment with content
+        # Empty transcript segment should be skipped
+        indices = [i for i, _ in ctx.segments]
+        assert 0 not in indices  # empty transcript skipped
+        assert 1 in indices  # real content included
 
-    def test_separates_previous_and_current(self):
-        """Should put preceding content in .previous and current segment in .current."""
+    def test_preserves_original_indices(self):
+        """Segment numbering should match original indices."""
         section = {
             "type": "article",
             "segments": [
@@ -216,31 +218,38 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        assert ctx.previous == "Already read this"
-        assert ctx.current == "Reading this now"
+        indices = [i for i, _ in ctx.segments]
+        assert indices == [0, 1]
 
-    def test_current_only_no_previous(self):
-        """When first segment is content and user is on it, only .current is set."""
+    def test_article_excerpt_includes_title_and_author(self):
+        """Article excerpts should be prefixed with title and author from section meta."""
         section = {
-            "type": "article",
+            "type": "lens-article",
+            "meta": {
+                "title": "AI for AI safety",
+                "author": "Joe Carlsmith",
+            },
             "segments": [
-                {"type": "article-excerpt", "content": "First thing user sees"},
+                {"type": "text", "content": "Lens intro"},
+                {"type": "article-excerpt", "content": "The actual article text"},
                 {"type": "chat", "instructions": "Discuss"},
             ],
         }
 
-        ctx = gather_section_context(section, segment_index=0)
+        ctx = gather_section_context(section, segment_index=2)
 
         assert ctx is not None
-        assert ctx.previous is None
-        assert ctx.current == "First thing user sees"
+        contents = [c for _, c in ctx.segments]
+        assert any("[Written by Lens Academy]" in c for c in contents)
+        assert any('From "AI for AI safety", by Joe Carlsmith' in c for c in contents)
+        assert any("The actual article text" in c for c in contents)
 
-    def test_chat_segment_has_no_current_content(self):
-        """When on a chat segment, .current should be None."""
+    def test_article_excerpt_no_meta(self):
+        """Article excerpts without section meta should have no attribution prefix."""
         section = {
             "type": "article",
             "segments": [
-                {"type": "text", "content": "Some text"},
+                {"type": "article-excerpt", "content": "Some text"},
                 {"type": "chat", "instructions": "Discuss"},
             ],
         }
@@ -248,5 +257,23 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        assert ctx.previous == "Some text"
-        assert ctx.current is None
+        contents = [c for _, c in ctx.segments]
+        assert any(c == "Some text" for c in contents)
+        assert not any("[From" in c for c in contents)
+
+    def test_question_segment_labeled(self):
+        """Question segments should appear as [Question]."""
+        section = {
+            "type": "article",
+            "segments": [
+                {"type": "text", "content": "Read this"},
+                {"type": "question", "content": "What is AI safety?"},
+                {"type": "chat", "instructions": "Discuss"},
+            ],
+        }
+
+        ctx = gather_section_context(section, segment_index=2)
+
+        assert ctx is not None
+        contents = [c for _, c in ctx.segments]
+        assert "[Question]" in contents

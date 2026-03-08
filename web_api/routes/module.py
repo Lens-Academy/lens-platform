@@ -115,11 +115,7 @@ async def event_generator(
                     else {}
                 )
                 segments = section_data.get("segments", [])
-                seg = (
-                    segments[segment_index]
-                    if segment_index < len(segments)
-                    else {}
-                )
+                seg = segments[segment_index] if segment_index < len(segments) else {}
                 desc = _segment_context_label(seg.get("type", ""))
                 if desc:
                     context_msg_content = desc
@@ -233,7 +229,7 @@ async def event_generator(
     pending_context: list[str] = []
     for m in existing_messages:
         if m["role"] == "system":
-            pending_context.append(f'[Context: {m["content"]}]')
+            pending_context.append(f"[Context: {m['content']}]")
         elif m["role"] == "user":
             content = m["content"]
             if pending_context:
