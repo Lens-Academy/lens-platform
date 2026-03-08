@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { pillReducer, type PillState } from "../usePillVisibility";
+import { pillReducer, inlinePillVisible, sidebarOpen, type PillState } from "../usePillVisibility";
 
 describe("pillReducer", () => {
   // --- Forward transitions ---
@@ -71,5 +71,41 @@ describe("pillReducer", () => {
     s = pillReducer(s, { type: "SIDEBAR_ALLOWED" });
     s = pillReducer(s, { type: "ANIMATION_DONE" });
     expect(s).toBe("sidebar");
+  });
+});
+
+describe("inlinePillVisible", () => {
+  test("hidden only in sidebar state", () => {
+    expect(inlinePillVisible("sidebar")).toBe(false);
+  });
+
+  test("visible during to-inline", () => {
+    expect(inlinePillVisible("to-inline")).toBe(true);
+  });
+
+  test("visible during inline", () => {
+    expect(inlinePillVisible("inline")).toBe(true);
+  });
+
+  test("visible during to-sidebar (clone needs visible source)", () => {
+    expect(inlinePillVisible("to-sidebar")).toBe(true);
+  });
+});
+
+describe("sidebarOpen", () => {
+  test("open during sidebar", () => {
+    expect(sidebarOpen("sidebar")).toBe(true);
+  });
+
+  test("open during to-sidebar", () => {
+    expect(sidebarOpen("to-sidebar")).toBe(true);
+  });
+
+  test("closed during inline", () => {
+    expect(sidebarOpen("inline")).toBe(false);
+  });
+
+  test("closed during to-inline", () => {
+    expect(sidebarOpen("to-inline")).toBe(false);
   });
 });

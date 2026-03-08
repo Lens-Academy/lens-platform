@@ -30,3 +30,11 @@ export function pillReducer(state: PillState, event: PillEvent): PillState {
       return state;
   }
 }
+
+export function inlinePillVisible(state: PillState): boolean {
+  return state !== "sidebar";
+}
+
+export function sidebarOpen(state: PillState): boolean {
+  return state === "sidebar" || state === "to-sidebar";
+}
