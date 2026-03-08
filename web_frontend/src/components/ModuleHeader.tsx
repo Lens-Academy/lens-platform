@@ -223,9 +223,9 @@ export function ModuleHeader({
             className="flex items-center gap-2"
             style={priority >= 1 ? hiddenStyle : undefined}
           >
-            <span className="text-base font-semibold text-gray-900">
+            <a href="/" className="text-base font-semibold text-gray-900 hover:text-gray-700">
               Lens Academy
-            </span>
+            </a>
             <span className="text-gray-300">|</span>
           </span>
           <h1
