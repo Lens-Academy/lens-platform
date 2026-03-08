@@ -109,31 +109,28 @@ function collectFootnoteDefinitions(markdown: string): Map<string, string> {
       const id = defMatch[1];
       const contentLines = [defMatch[2]];
       i++;
-      // Collect continuation lines (indented by 4 spaces or tab),
-      // including blank lines between continuation paragraphs
+      // Collect continuation lines: either indented (GFM spec) or unindented
+      // (lenient — real articles often don't indent continuation paragraphs).
+      // Stop at the next footnote definition or end of input.
       while (i < lines.length) {
-        if (/^(?: {4}|\t)/.test(lines[i])) {
-          contentLines.push(lines[i].replace(/^(?: {4}|\t)/, ""));
-          i++;
-        } else if (lines[i].trim() === "" && i + 1 < lines.length && /^(?: {4}|\t)/.test(lines[i + 1])) {
-          // Blank line followed by indented continuation — keep as paragraph break
-          contentLines.push("");
-          i++;
-        } else {
+        if (/^\[\^[^\]]+\]:\s*/.test(lines[i])) {
+          // Next footnote definition — stop
           break;
         }
-      }
-      // Skip trailing blank lines before next definition or content
-      while (i < lines.length && lines[i].trim() === "") {
+        if (/^(?: {4}|\t)/.test(lines[i])) {
+          contentLines.push(lines[i].replace(/^(?: {4}|\t)/, ""));
+        } else {
+          contentLines.push(lines[i]);
+        }
         i++;
       }
-      // Join with spaces for inline display, collapsing paragraphs
+      // Collapse single newlines within paragraphs, preserve paragraph breaks
       const text = contentLines
         .join("\n")
         .split(/\n{2,}/)
         .map((p) => p.replace(/\n/g, " ").trim())
         .filter(Boolean)
-        .join(" — ");
+        .join("\n\n");
       definitions.set(id, text);
       continue;
     }
@@ -159,16 +156,8 @@ function applyFootnoteInlining(markdown: string, definitions: Map<string, string
     if (defMatch) {
       const startLine = i;
       i++;
-      while (i < lines.length) {
-        if (/^(?: {4}|\t)/.test(lines[i])) {
-          i++;
-        } else if (lines[i].trim() === "" && i + 1 < lines.length && /^(?: {4}|\t)/.test(lines[i + 1])) {
-          i++;
-        } else {
-          break;
-        }
-      }
-      while (i < lines.length && lines[i].trim() === "") {
+      // Skip all continuation lines until next definition or end
+      while (i < lines.length && !/^\[\^[^\]]+\]:\s*/.test(lines[i])) {
         i++;
       }
       defLineRanges.push([startLine, i]);
@@ -200,7 +189,7 @@ function applyFootnoteInlining(markdown: string, definitions: Map<string, string
     const def = definitions.get(id);
     if (!def) return _match; // unknown ref, leave as-is
     counter++;
-    return `<footnote-inline data-source="author" data-label="${counter}">${escapeHtml(def)}</footnote-inline>`;
+    return `<footnote-inline data-source="author" data-label="${counter}">${escapeHtml(def).replace(/\n\n/g, "<br/><br/>")}</footnote-inline>`;
   });
 
   return result;
@@ -622,8 +611,8 @@ function InlineFootnote({
             {...getFloatingProps()}
             className={`z-50 px-3 py-2 text-base text-gray-700 rounded-lg shadow-lg border leading-relaxed ${
               isAuthor
-                ? "bg-[#FFFDF5] border-gray-200 w-80 max-w-[85vw] max-h-64 overflow-y-auto"
-                : "bg-white border-gray-200 w-64 max-w-[80vw]"
+                ? "bg-[#FFFDF5] border-gray-200 w-[28rem] max-w-[90vw] max-h-96 overflow-y-auto overscroll-contain"
+                : "bg-white border-gray-200 w-96 max-w-[85vw]"
             }`}
           >
             {!isAuthor && (
