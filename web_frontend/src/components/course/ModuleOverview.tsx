@@ -189,6 +189,11 @@ export default function ModuleOverview({
                   );
                 })()}
           </div>
+          {stage.tldr && (
+            <p className="text-sm text-slate-400 mt-1 line-clamp-2">
+              {stage.tldr}
+            </p>
+          )}
         </div>
       </div>
     );
