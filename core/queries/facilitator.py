@@ -2,7 +2,7 @@
 
 from typing import Any, Sequence
 
-from sqlalchemy import select, func, literal_column
+from sqlalchemy import select, func, literal_column, true
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from ..tables import (
@@ -121,12 +121,11 @@ async def get_group_members_with_progress(
 
     # Subquery: count user-role messages across all chat sessions
     # Uses PostgreSQL jsonb_array_elements to unnest and count
+    msg = func.jsonb_array_elements(chat_sessions.c.messages).lateral("msg")
     ai_message_count_subq = (
         select(func.count())
-        .select_from(
-            chat_sessions,
-            func.jsonb_array_elements(chat_sessions.c.messages).alias("msg"),
-        )
+        .select_from(chat_sessions)
+        .join(msg, true())
         .where(
             (chat_sessions.c.user_id == groups_users.c.user_id)
             & (literal_column("msg.value->>'role'") == "user")
