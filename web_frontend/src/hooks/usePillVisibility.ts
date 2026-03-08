@@ -87,9 +87,14 @@ export function usePillVisibility({
       : "inline",
   );
 
-  // Detect transitions in scrollSidebarAllowed
+  // Detect transitions in scrollSidebarAllowed.
+  // useLayoutEffect so the dispatch (and subsequent animation) happen before
+  // paint — the sidebar's setAllowed runs in a regular useEffect (after paint),
+  // so the animation captures the sidebar pill's position while the sidebar is
+  // still open, preventing a flash where the sidebar disappears before the
+  // animation starts.
   const prevAllowedRef = useRef(scrollSidebarAllowed);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (scrollSidebarAllowed !== prevAllowedRef.current) {
       prevAllowedRef.current = scrollSidebarAllowed;
 

@@ -12,6 +12,12 @@ function cleanup() {
 export function cancelInputFlight() {
   activeAnimation?.cancel();
   cleanup();
+  // Clear leftover inline opacity from a finished to-sidebar animation
+  // (onfinish intentionally leaves it set to avoid a flash).
+  const inlinePill = document.querySelector(
+    '[data-chat-input-pill="inline"]',
+  ) as HTMLElement | null;
+  if (inlinePill) inlinePill.style.opacity = "";
 }
 
 /**
@@ -47,6 +53,10 @@ export function animateInputFlight(
     onDone();
     return;
   }
+
+  // Clear leftover inline opacity from a previous to-sidebar animation
+  // (onfinish intentionally leaves it set to avoid a flash).
+  inlinePill.style.opacity = "";
 
   if (direction === "to-inline") {
     animateToInline(sidebarPill, inlinePill, onDone);
@@ -166,7 +176,11 @@ function animateToSidebar(
   activeAnimation.onfinish = () => {
     el.remove();
     sidebarPill.style.opacity = "";
-    inlinePill.style.opacity = "";
+    // Don't restore inlinePill opacity — React will hide it via the
+    // opacity-0 class once the state machine transitions to "sidebar".
+    // Restoring it here would flash the inline pill for one frame before
+    // React re-renders. The leftover inline style is cleaned up by
+    // cancelInputFlight() or the next animateInputFlight() call.
     activeAnimation = null;
     cleanupFn = null;
     onDone();
