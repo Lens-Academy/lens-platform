@@ -1,5 +1,13 @@
-import { describe, test, expect } from "vitest";
-import { pillReducer, inlinePillVisible, sidebarOpen, type PillState } from "../usePillVisibility";
+import { renderHook, act } from "@testing-library/react";
+import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
+import { pillReducer, inlinePillVisible, sidebarOpen, usePillVisibility, type PillState } from "../usePillVisibility";
+
+// Mock animateInputFlight — the slow/external boundary
+vi.mock("@/utils/animateInputFlight", () => ({
+  animateInputFlight: vi.fn((_dir: string, onDone: () => void) => {
+    setTimeout(onDone, 0);
+  }),
+}));
 
 describe("pillReducer", () => {
   // --- Forward transitions ---
@@ -107,5 +115,124 @@ describe("sidebarOpen", () => {
 
   test("closed during to-inline", () => {
     expect(sidebarOpen("to-inline")).toBe(false);
+  });
+});
+
+describe("usePillVisibility hook", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Helper: create a minimal ref-based store (same shape as Module.tsx)
+  function createStore(initial: boolean) {
+    const ref = { current: initial };
+    const listeners = { current: new Set<() => void>() };
+    function set(value: boolean) {
+      ref.current = value;
+      listeners.current.forEach(fn => fn());
+    }
+    return { ref, listeners, set };
+  }
+
+  test("non-article section (initial false): starts in inline state", () => {
+    const store = createStore(false);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+      }),
+    );
+
+    expect(result.current.pillVisible).toBe(true);
+    expect(result.current.pillState).toBe("inline");
+  });
+
+  test("article section (initial true): starts in sidebar state", () => {
+    const store = createStore(true);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+      }),
+    );
+
+    expect(result.current.pillVisible).toBe(false);
+    expect(result.current.pillState).toBe("sidebar");
+  });
+
+  test("transitions when store changes from true to false", async () => {
+    const store = createStore(true);
+    const mockSetAllowed = vi.fn();
+    const sidebarRef = { current: { setAllowed: mockSetAllowed } };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef: sidebarRef as any,
+      }),
+    );
+
+    expect(result.current.pillState).toBe("sidebar");
+
+    // Simulate scroll handler writing to store
+    act(() => { store.set(false); });
+    expect(result.current.pillState).toBe("to-inline");
+    expect(result.current.pillVisible).toBe(true);
+
+    // Animation completes
+    await act(async () => { vi.runAllTimers(); });
+    expect(result.current.pillState).toBe("inline");
+
+    // Sidebar was updated imperatively
+    expect(mockSetAllowed).toHaveBeenCalledWith(false);
+  });
+
+  test("transitions when store changes from false to true", async () => {
+    const store = createStore(false);
+    const mockSetAllowed = vi.fn();
+    const sidebarRef = { current: { setAllowed: mockSetAllowed } };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef: sidebarRef as any,
+      }),
+    );
+
+    expect(result.current.pillState).toBe("inline");
+
+    act(() => { store.set(true); });
+    expect(result.current.pillState).toBe("to-sidebar");
+
+    await act(async () => { vi.runAllTimers(); });
+    expect(result.current.pillState).toBe("sidebar");
+    expect(mockSetAllowed).toHaveBeenCalledWith(true);
+  });
+
+  test("rapid toggle: stale onDone ignored via generation counter", async () => {
+    const store = createStore(true);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+      }),
+    );
+
+    // Toggle rapidly: true → false → true
+    act(() => { store.set(false); });
+    act(() => { store.set(true); });
+
+    await act(async () => { vi.runAllTimers(); });
+    expect(result.current.pillState).toBe("sidebar");
   });
 });
