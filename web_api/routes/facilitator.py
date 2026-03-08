@@ -195,6 +195,25 @@ async def get_group_timeline(
                 mtg_item["scheduled_at"] = scheduled.isoformat() if scheduled else None
             timeline_items.append(mtg_item)
 
+    # Fallback: if course progression has no meeting markers but DB has meetings,
+    # append them so the facilitator panel still shows meeting rows
+    if meeting_count == 0 and db_meetings:
+        for m in sorted(db_meetings, key=lambda x: x.get("meeting_number") or 0):
+            num = m.get("meeting_number")
+            if num is None:
+                continue
+            scheduled = m.get("scheduled_at")
+            timeline_items.append(
+                {
+                    "type": "meeting",
+                    "number": num,
+                    "name": f"Meeting {num}",
+                    "is_past": num in past_meetings,
+                    "meeting_id": m["meeting_id"],
+                    "scheduled_at": scheduled.isoformat() if scheduled else None,
+                }
+            )
+
     # Build per-member data with module_stats
     members_out = []
     for m in members:

@@ -688,8 +688,7 @@ function VerticalTimeline({
                         Date.now() - new Date(seg.scheduledAt).getTime() <
                           7 * 86_400_000) && (
                         <button
-                          className="text-slate-400 hover:text-amber-500 transition-colors disabled:opacity-50"
-                          title="Postpone this meeting"
+                          className="text-xs text-amber-600 hover:text-amber-700 transition-colors disabled:opacity-50"
                           disabled={postponingMeetingId === seg.meetingId}
                           onClick={() =>
                             onPostpone(
@@ -699,7 +698,7 @@ function VerticalTimeline({
                             )
                           }
                         >
-                          <Clock size={11} />
+                          postpone
                         </button>
                       )}
                   </div>
