@@ -1538,6 +1538,73 @@ ai-instructions:: You are a character.
       expect(errors.some(e => e.message.includes('id::'))).toBe(true);
     });
   });
+
+  it('parses tldr from frontmatter', () => {
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+tldr: How cognitive biases affect our ability to evaluate AI risk
+---
+
+### Page: Introduction
+
+#### Text
+content:: Some content.
+`;
+    const result = parseLens(content, 'Lenses/lens1.md');
+    expect(result.lens?.tldr).toBe('How cognitive biases affect our ability to evaluate AI risk');
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('sets tldr to undefined when not present', () => {
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Page: Introduction
+
+#### Text
+content:: Some content.
+`;
+    const result = parseLens(content, 'Lenses/lens1.md');
+    expect(result.lens?.tldr).toBeUndefined();
+  });
+
+  it('emits error when tldr exceeds 80 words', () => {
+    const longTldr = Array(81).fill('word').join(' ');
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+tldr: ${longTldr}
+---
+
+### Page: Introduction
+
+#### Text
+content:: Some content.
+`;
+    const result = parseLens(content, 'Lenses/lens1.md');
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        message: expect.stringContaining('tldr'),
+        severity: 'error',
+      })
+    );
+  });
+
+  it('accepts tldr at exactly 80 words', () => {
+    const exactTldr = Array(80).fill('word').join(' ');
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+tldr: ${exactTldr}
+---
+
+### Page: Introduction
+
+#### Text
+content:: Some content.
+`;
+    const result = parseLens(content, 'Lenses/lens1.md');
+    expect(result.errors.filter(e => e.message.includes('tldr'))).toHaveLength(0);
+  });
 });
 
 describe('CriticMarkup integration with parseLens', () => {

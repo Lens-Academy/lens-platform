@@ -83,6 +83,7 @@ export interface ParsedLensSection {
 
 export interface ParsedLens {
   id: string;
+  tldr?: string;
   sections: ParsedLensSection[];
 }
 
@@ -595,6 +596,20 @@ export function parseLens(content: string, file: string): LensParseResult {
     return { lens: null, errors };
   }
 
+  const tldr = typeof frontmatter.tldr === 'string' ? frontmatter.tldr : undefined;
+  if (tldr) {
+    const wordCount = tldr.trim().split(/\s+/).filter(Boolean).length;
+    if (wordCount > 80) {
+      errors.push({
+        file,
+        line: 2,
+        message: `tldr exceeds 80 words (has ${wordCount})`,
+        suggestion: 'Shorten the tldr to 80 words or fewer',
+        severity: 'error',
+      });
+    }
+  }
+
   // Step 2: Parse H3 sections (Text, Article, Video)
   const sectionsResult = parseSections(body, 3, LENS_SECTION_TYPES, file);
 
@@ -747,6 +762,7 @@ export function parseLens(content: string, file: string): LensParseResult {
 
   const lens: ParsedLens = {
     id: frontmatter.id as string,
+    tldr,
     sections: parsedSections,
   };
 
