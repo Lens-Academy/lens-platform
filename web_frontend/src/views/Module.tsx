@@ -49,7 +49,7 @@ import { ChatSidebar } from "@/components/module/ChatSidebar";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import ModuleCompleteModal from "@/components/module/ModuleCompleteModal";
 import AuthPromptModal from "@/components/module/AuthPromptModal";
-import { animateInputFlight } from "@/utils/animateInputFlight";
+
 import { ScrollContainerContext } from "@/hooks/useScrollContainer";
 import {
   trackModuleStarted,
@@ -459,8 +459,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     null,
   );
 
-  // Inline pill visibility — hidden by default (sidebar is allowed on initial load)
-  const [inlinePillVisible, setInlinePillVisible] = useState(false);
 
 
   // TOC portal container for 3-column grid layout (set by callback ref)
@@ -614,6 +612,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     window.location.search.includes("debug");
   const currentSegmentIndexRef = useRef(0);
   const segmentIndexListeners = useRef(new Set<() => void>());
+  // Ref-based store for scroll-refined sidebar allowed state.
+  // Same pattern as segmentIndex — write from scroll handler, subscribe
+  // from ChatInlineShell via useSyncExternalStore. Module never re-renders.
+  const sidebarAllowedRef = useRef(sidebarAllowed); // initial: section-level default
+  const sidebarAllowedListeners = useRef(new Set<() => void>());
   const segmentElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const registerSegmentEl = useCallback(
@@ -674,10 +677,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     // Reset lock on section change
     lastSidebarAllowed.current = true;
     sidebarAllowedLockUntil.current = 0;
+    sidebarAllowedRef.current = sidebarAllowed;
+    sidebarAllowedListeners.current.forEach(fn => fn());
 
     if (!isArticleSection) {
-      // Non-article sections: allowed is based on section type only
-      sidebarRef.current?.setAllowed(sidebarAllowed);
+      // sidebarAllowedRef starts at `sidebarAllowed` (false for non-article).
+      // No need to write — the hook reads the initial value on mount.
       return;
     }
     const segments =
@@ -728,19 +733,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           if (Date.now() < sidebarAllowedLockUntil.current) return;
           if (allowed !== lastSidebarAllowed.current) {
             lastSidebarAllowed.current = allowed;
-            setInlinePillVisible(!allowed);
-
-            // Trigger FLIP animation before state change
-            if (!allowed) {
-              animateInputFlight("to-inline");
-            } else {
-              animateInputFlight("to-sidebar");
-            }
-
-            sidebarRef.current?.setAllowed(allowed);
-            if (!allowed) {
-              sidebarAllowedLockUntil.current = Date.now() + 350;
-            }
+            sidebarAllowedRef.current = allowed;
+            sidebarAllowedListeners.current.forEach(fn => fn());
+            if (!allowed) sidebarAllowedLockUntil.current = Date.now() + 350;
           }
         }
       });
@@ -1082,7 +1077,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             activatedWithHistory={options?.activateChat}
             prefixMessage={options?.prefixMessage}
             pillId="inline"
-            pillVisible={inlinePillVisible}
+            sidebarAllowedRef={sidebarAllowedRef}
+            sidebarAllowedListeners={sidebarAllowedListeners}
+            sidebarRef={sidebarRef}
             hasActiveInput={
               activeSurface.type === "inline" &&
               activeSurface.sectionIndex === sectionIndex &&
@@ -1361,7 +1358,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     }
                     onRetryMessage={handleRetryMessage}
                     pillId="inline"
-                    pillVisible={inlinePillVisible}
+                    sidebarAllowedRef={sidebarAllowedRef}
+                    sidebarAllowedListeners={sidebarAllowedListeners}
+                    sidebarRef={sidebarRef}
                     hasActiveInput={
                       activeSurface.type === "inline" &&
                       activeSurface.sectionIndex === sectionIndex &&
