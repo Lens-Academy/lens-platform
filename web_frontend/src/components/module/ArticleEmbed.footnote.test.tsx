@@ -103,6 +103,40 @@ describe("Inline footnote directive", () => {
     expect(trigger).toHaveAttribute("data-source", "lens");
   });
 
+  it("GFM footnote renders as tooltip trigger, not as <sup><a>", () => {
+    const article = makeArticle(
+      "Text with a ref[^1].\n\n[^1]: The definition text.",
+    );
+    render(<ArticleEmbed article={article} />);
+    // Should NOT render default GFM footnote HTML
+    expect(document.querySelector("sup")).not.toBeInTheDocument();
+    expect(
+      document.querySelector("section[data-footnotes]"),
+    ).not.toBeInTheDocument();
+    // Should render a tooltip trigger with the number
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("GFM footnote tooltip shows definition on hover", async () => {
+    const user = userEvent.setup();
+    const article = makeArticle(
+      "Text[^1].\n\n[^1]: Author's footnote content.",
+    );
+    render(<ArticleEmbed article={article} />);
+    const trigger = screen.getByText("1");
+    await user.hover(trigger);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Author's footnote content.",
+    );
+  });
+
+  it("GFM footnote trigger has data-source='author'", () => {
+    const article = makeArticle("Text[^1].\n\n[^1]: Def.");
+    render(<ArticleEmbed article={article} />);
+    const trigger = screen.getByText("1").closest("[data-source]");
+    expect(trigger).toHaveAttribute("data-source", "author");
+  });
+
   it("opens on click and dismisses on click-outside (mobile)", async () => {
     const user = userEvent.setup();
     const article = makeArticle("Text :footnote[click info] more.");

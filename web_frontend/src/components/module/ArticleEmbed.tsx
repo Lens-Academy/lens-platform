@@ -80,6 +80,60 @@ function remarkLensDirectives() {
   };
 }
 
+/**
+ * Remark plugin that transforms GFM footnotes into tooltip elements.
+ * Replaces footnoteReference nodes with footnote-inline custom elements
+ * (same as :footnote[] directives) and removes footnoteDefinition nodes.
+ */
+function remarkGfmFootnotesToTooltips() {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  return (tree: any) => {
+    // Pass 1: Collect all footnote definitions
+    const definitions = new Map<string, any[]>();
+    visit(tree, "footnoteDefinition", (node: any) => {
+      definitions.set(node.identifier, node.children);
+    });
+
+    // Pass 2: Replace footnoteReference nodes with tooltip elements
+    let counter = 0;
+    visit(
+      tree,
+      "footnoteReference",
+      (node: any, index: number | undefined, parent: any) => {
+        if (index === undefined || !parent) return;
+        const defChildren = definitions.get(node.identifier);
+        if (!defChildren) return;
+        counter++;
+        // Flatten paragraph wrappers to inline content, preserving
+        // non-paragraph nodes as-is. This prevents block elements
+        // inside the inline tooltip trigger.
+        const inlineChildren = structuredClone(defChildren).flatMap(
+          (child: any) =>
+            child.type === "paragraph" ? child.children : [child],
+        );
+        const replacement = {
+          type: "footnote-tooltip",
+          data: {
+            hName: "footnote-inline",
+            hProperties: {
+              "data-source": "author",
+              "data-label": String(counter),
+            },
+          },
+          children: inlineChildren,
+        };
+        parent.children[index] = replacement;
+      },
+    );
+
+    // Pass 3: Remove footnoteDefinition nodes (they are direct children of root)
+    tree.children = tree.children.filter(
+      (node: any) => node.type !== "footnoteDefinition",
+    );
+  };
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+}
+
 function CollapsibleBlock({
   children,
   className,
@@ -421,6 +475,7 @@ function InlineFootnote({
   "data-source"?: string;
   "data-label"?: string;
 }) {
+  const isAuthor = source === "author";
   const [isOpen, setIsOpen] = useState(false);
 
   const { refs, floatingStyles, context } = useFloating({
@@ -454,15 +509,22 @@ function InlineFootnote({
         {...getReferenceProps()}
         tabIndex={0}
         data-source={source}
-        className="inline-flex items-center justify-center w-[1.38em] h-[1.38em] mx-0.5 rounded-full
-          bg-gray-100 shadow-sm hover:bg-gray-200 cursor-default align-middle -translate-y-[0.1em]"
+        className={
+          isAuthor
+            ? "inline-flex cursor-default align-super text-[0.7em] font-medium text-blue-600 hover:text-blue-800 hover:underline mx-px"
+            : "inline-flex items-center justify-center w-[1.38em] h-[1.38em] mx-0.5 rounded-full bg-gray-100 shadow-sm hover:bg-gray-200 cursor-default align-middle -translate-y-[0.1em]"
+        }
       >
-        <img
-          src="/assets/Logo only.png"
-          alt="footnote"
-          role="img"
-          className="w-[1.03em] h-[1.03em] opacity-70 !my-0 translate-x-[0.03em] -translate-y-[0.03em]"
-        />
+        {isAuthor ? (
+          label || "•"
+        ) : (
+          <img
+            src="/assets/Logo only.png"
+            alt="footnote"
+            role="img"
+            className="w-[1.03em] h-[1.03em] opacity-70 !my-0 translate-x-[0.03em] -translate-y-[0.03em]"
+          />
+        )}
       </span>
 
       {isOpen && (
@@ -471,16 +533,21 @@ function InlineFootnote({
             ref={refs.setFloating}
             style={floatingStyles}
             {...getFloatingProps()}
-            className="z-50 w-64 max-w-[80vw] px-3 py-2 text-sm text-gray-700 bg-white
-              rounded-lg shadow-lg border border-gray-200 leading-relaxed"
+            className={`z-50 px-3 py-2 text-sm text-gray-700 bg-white rounded-lg shadow-lg border border-gray-200 leading-relaxed ${
+              isAuthor
+                ? "w-80 max-w-[85vw] max-h-64 overflow-y-auto"
+                : "w-64 max-w-[80vw]"
+            }`}
           >
-            <span className="absolute top-1.5 right-2 flex items-center">
-              <img
-                src="/assets/Logo only.png"
-                alt=""
-                className="w-[1.1em] h-[1.1em] opacity-70 !my-0"
-              />
-            </span>
+            {!isAuthor && (
+              <span className="absolute top-1.5 right-2 flex items-center">
+                <img
+                  src="/assets/Logo only.png"
+                  alt=""
+                  className="w-[1.1em] h-[1.1em] opacity-70 !my-0"
+                />
+              </span>
+            )}
             {children}
           </div>
         </FloatingPortal>
@@ -688,7 +755,7 @@ export default function ArticleEmbed({
       >
         <article className="prose prose-gray max-w-content mx-auto text-gray-600 pt-1 pl-5">
           <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkDirective, remarkLensDirectives]}
+            remarkPlugins={[remarkGfm, remarkDirective, remarkLensDirectives, remarkGfmFootnotesToTooltips]}
             rehypePlugins={[rehypeRaw]}
             components={markdownComponents}
           >
@@ -702,7 +769,7 @@ export default function ArticleEmbed({
   // Split content at top-level block notes for alternating backgrounds
   const segments = splitAtBlockNotes(content);
 
-  const remarkPlugins = [remarkGfm, remarkDirective, remarkLensDirectives];
+  const remarkPlugins = [remarkGfm, remarkDirective, remarkLensDirectives, remarkGfmFootnotesToTooltips];
   const rehypePlugins = [rehypeRaw];
 
   return (
