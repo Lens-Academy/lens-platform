@@ -165,9 +165,7 @@ export default function CourseSidebar({
                 >
                   {module.title}
                 </span>
-                {module.optional && (
-                  <OptionalBadge />
-                )}
+                {module.optional && <OptionalBadge />}
                 {!module.optional && module.status === "in_progress" && (
                   <span className="text-xs text-blue-600 font-medium">
                     {module.completedLenses !== undefined && module.totalLenses
@@ -235,9 +233,7 @@ export default function CourseSidebar({
                         >
                           {child.title}
                         </span>
-                        {child.optional && (
-                          <OptionalBadge />
-                        )}
+                        {child.optional && <OptionalBadge />}
                       </button>
                     );
                   })}

@@ -48,7 +48,10 @@ class TestAssembleChatPrompt:
 class TestNumberedSegments:
     def test_renders_numbered_segments(self):
         ctx = SectionContext(
-            segments=[(0, "[Written by Lens Academy]\nIntro text"), (1, "Article content")],
+            segments=[
+                (0, "[Written by Lens Academy]\nIntro text"),
+                (1, "Article content"),
+            ],
             segment_index=1,
             total_segments=3,
         )

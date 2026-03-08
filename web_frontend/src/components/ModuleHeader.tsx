@@ -223,7 +223,10 @@ export function ModuleHeader({
             className="flex items-center gap-2"
             style={priority >= 1 ? hiddenStyle : undefined}
           >
-            <a href="/" className="text-base font-semibold text-gray-900 hover:text-gray-700">
+            <a
+              href="/"
+              className="text-base font-semibold text-gray-900 hover:text-gray-700"
+            >
               Lens Academy
             </a>
             <span className="text-gray-300">|</span>

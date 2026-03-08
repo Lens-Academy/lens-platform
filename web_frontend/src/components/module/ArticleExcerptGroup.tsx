@@ -69,15 +69,15 @@ export default function ArticleExcerptGroup({
       {tocPortalContainer
         ? createPortal(tocElement, tocPortalContainer)
         : !context?.hideToc && (
-          <div className="absolute top-30 bottom-0 right-full w-[250px] mr-6 pl-4 opacity-0 invisible -translate-x-2 min-[1100px]:opacity-100 min-[1100px]:visible min-[1100px]:translate-x-0 transition-[opacity,visibility,transform] duration-300 ease-out">
-            <div
-              data-toc-scroll
-              className="sticky top-[calc(var(--header-offset)+12px)] max-h-[calc(100vh-var(--header-offset)-24px)] overflow-y-auto scrollbar-hide transition-[top,max-height] duration-300"
-            >
-              {tocElement}
+            <div className="absolute top-30 bottom-0 right-full w-[250px] mr-6 pl-4 opacity-0 invisible -translate-x-2 min-[1100px]:opacity-100 min-[1100px]:visible min-[1100px]:translate-x-0 transition-[opacity,visibility,transform] duration-300 ease-out">
+              <div
+                data-toc-scroll
+                className="sticky top-[calc(var(--header-offset)+12px)] max-h-[calc(100vh-var(--header-offset)-24px)] overflow-y-auto scrollbar-hide transition-[top,max-height] duration-300"
+              >
+                {tocElement}
+              </div>
             </div>
-          </div>
-        )}
+          )}
     </div>
   );
 }

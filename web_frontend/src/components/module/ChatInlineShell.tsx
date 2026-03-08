@@ -224,7 +224,10 @@ export function ChatInlineShell({
   const spacerHeight = isExpanded
     ? scrollContainerHeight
     : hasInteracted
-      ? Math.max(0, (pageScrollContainer?.clientHeight ?? window.innerHeight) - 160)
+      ? Math.max(
+          0,
+          (pageScrollContainer?.clientHeight ?? window.innerHeight) - 160,
+        )
       : 0;
 
   // Messages to display based on mode (normal vs expanded)
@@ -268,10 +271,7 @@ export function ChatInlineShell({
       const rect = wrapper.getBoundingClientRect();
       // How far the wrapper's original bottom extends below the viewport
       const viewportH = pageScrollContainer?.clientHeight ?? window.innerHeight;
-      const overflow = Math.max(
-        0,
-        rect.top + wrapperMinHeight - viewportH,
-      );
+      const overflow = Math.max(0, rect.top + wrapperMinHeight - viewportH);
       const newReduction = Math.max(minHeightReductionRef.current, overflow);
 
       if (newReduction !== minHeightReductionRef.current) {
@@ -303,7 +303,14 @@ export function ChatInlineShell({
   };
 
   return (
-    <div ref={shellRef} className="py-4 px-4" style={{ overflowAnchor: "none", paddingTop: hasInteracted ? undefined : "20vh" }}>
+    <div
+      ref={shellRef}
+      className="py-4 px-4"
+      style={{
+        overflowAnchor: "none",
+        paddingTop: hasInteracted ? undefined : "20vh",
+      }}
+    >
       <div
         ref={containerRef}
         className={`max-w-content-padded mx-auto flex flex-col scroll-mb-8 relative ${
@@ -429,7 +436,10 @@ export function ChatInlineShell({
                     ref={activeScrollToResponse ? responseRef : undefined}
                     className="text-gray-800"
                   >
-                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
+                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+                      <Bot size={13} />
+                      Tutor
+                    </div>
                     <ChatMarkdown>{streamingContent}</ChatMarkdown>
                   </div>
                 )}
@@ -440,7 +450,10 @@ export function ChatInlineShell({
                     ref={activeScrollToResponse ? responseRef : undefined}
                     className="text-gray-800"
                   >
-                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
+                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+                      <Bot size={13} />
+                      Tutor
+                    </div>
                     <div>Thinking...</div>
                   </div>
                 )}
@@ -481,7 +494,11 @@ export function ChatInlineShell({
             content jump when pill activates). Hidden pills use opacity-0. */}
         <div
           className={`${isExpanded ? "border-t border-gray-100" : ""}`}
-          style={!isExpanded ? { position: "sticky", bottom: 0, zIndex: 10 } : undefined}
+          style={
+            !isExpanded
+              ? { position: "sticky", bottom: 0, zIndex: 10 }
+              : undefined
+          }
         >
           <div className={`${!isExpanded ? "max-w-content mx-auto" : ""}`}>
             {sidebarAllowedRef ? (
@@ -492,7 +509,11 @@ export function ChatInlineShell({
                 isActive={hasActiveInput}
               >
                 {(pillHidden, pillTransition) => (
-                  <div className={hasActiveInput ? undefined : "pointer-events-none"}>
+                  <div
+                    className={
+                      hasActiveInput ? undefined : "pointer-events-none"
+                    }
+                  >
                     <ChatInputArea
                       pillId={hasActiveInput ? pillId : undefined}
                       pillHidden={pillHidden}

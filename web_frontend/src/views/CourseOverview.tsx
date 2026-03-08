@@ -130,9 +130,7 @@ export default function CourseOverview({
       return { prevModule: null, nextModule: null };
     }
     for (const unit of courseProgress.units) {
-      const idx = unit.modules.findIndex(
-        (m) => m.slug === selectedModule.slug,
-      );
+      const idx = unit.modules.findIndex((m) => m.slug === selectedModule.slug);
       if (idx !== -1) {
         return {
           prevModule: idx > 0 ? unit.modules[idx - 1] : null,

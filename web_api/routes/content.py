@@ -393,7 +393,6 @@ async def content_graph():
 
         orphan = slug not in referenced_module_slugs
         wip = module.error is not None
-        is_submodule = module.parent_slug is not None
 
         nodes.append(
             {

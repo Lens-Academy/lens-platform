@@ -144,7 +144,10 @@ body {
 
 @media (min-width: 1100px) {
   .article-toc-margin {
-    margin-left: max(calc((100vw - var(--container-content-padded)) / 2), 274px);
+    margin-left: max(
+      calc((100vw - var(--container-content-padded)) / 2),
+      274px
+    );
   }
 }
 

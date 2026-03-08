@@ -22,10 +22,7 @@ import type {
   Module as ModuleType,
   ModuleSection,
 } from "@/types/module";
-import {
-  sendMessage as sendMessageApi,
-  getChatHistory,
-} from "@/api/modules";
+import { sendMessage as sendMessageApi, getChatHistory } from "@/api/modules";
 import { trackChatMessageSent } from "@/analytics";
 
 // ---------------------------------------------------------------------------
@@ -181,9 +178,9 @@ export function useTutorChat({
   });
 
   /** Section indices where the user has sent at least one chat message */
-  const [chatInteractedSections, setChatInteractedSections] = useState<Set<number>>(
-    () => new Set(),
-  );
+  const [chatInteractedSections, setChatInteractedSections] = useState<
+    Set<number>
+  >(() => new Set());
 
   // --- Load chat history when module changes -------------------------------
 
@@ -226,7 +223,11 @@ export function useTutorChat({
           dispatchChat({
             type: "LOAD_HISTORY",
             messages: messagesToShow.map((m) => ({
-              role: m.role as "user" | "assistant" | "system" | "course-content",
+              role: m.role as
+                | "user"
+                | "assistant"
+                | "system"
+                | "course-content",
               content: m.content,
             })),
           });
@@ -413,7 +414,10 @@ export function useTutorChat({
             });
             triggerChatActivity();
           } else if (chunk.type === "system" && chunk.content) {
-            systemMessages.push({ role: "system" as const, content: chunk.content });
+            systemMessages.push({
+              role: "system" as const,
+              content: chunk.content,
+            });
           } else if (chunk.type === "error") {
             throw new Error(
               (chunk as unknown as { message?: string }).message ||

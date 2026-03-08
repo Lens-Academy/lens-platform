@@ -144,7 +144,10 @@ function collectFootnoteDefinitions(markdown: string): Map<string, string> {
  * definition blocks. Uses a shared definitions map so definitions from other
  * fields (e.g. collapsed_after) can be resolved.
  */
-function applyFootnoteInlining(markdown: string, definitions: Map<string, string>): string {
+function applyFootnoteInlining(
+  markdown: string,
+  definitions: Map<string, string>,
+): string {
   if (definitions.size === 0) return markdown;
 
   // Remove definition blocks from this field
@@ -831,7 +834,12 @@ export default function ArticleEmbed({
       >
         <article className="prose prose-gray max-w-content mx-auto text-gray-600 pt-1 pl-5">
           <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkDirective, remarkLensDirectives, remarkGfmFootnotesToTooltips]}
+            remarkPlugins={[
+              remarkGfm,
+              remarkDirective,
+              remarkLensDirectives,
+              remarkGfmFootnotesToTooltips,
+            ]}
             rehypePlugins={[rehypeRaw]}
             components={markdownComponents}
           >
@@ -864,7 +872,12 @@ export default function ArticleEmbed({
   // Split content at top-level block notes for alternating backgrounds
   const segments = splitAtBlockNotes(processedContent);
 
-  const remarkPlugins = [remarkGfm, remarkDirective, remarkLensDirectives, remarkGfmFootnotesToTooltips];
+  const remarkPlugins = [
+    remarkGfm,
+    remarkDirective,
+    remarkLensDirectives,
+    remarkGfmFootnotesToTooltips,
+  ];
   const rehypePlugins = [rehypeRaw];
 
   return (
@@ -949,7 +962,9 @@ export default function ArticleEmbed({
             </div>
           )}
 
-          {processedCollapsedBefore && <CollapsedSection content={processedCollapsedBefore} />}
+          {processedCollapsedBefore && (
+            <CollapsedSection content={processedCollapsedBefore} />
+          )}
         </div>
       )}
 
@@ -999,7 +1014,9 @@ export default function ArticleEmbed({
       {/* If last segment is a note, add yellow footer for collapsed_after + bottom padding */}
       {segments[segments.length - 1]?.type === "note" && (
         <div className="bg-amber-50/50 px-4 pb-4 sm:pb-6">
-          {processedCollapsedAfter && <CollapsedSection content={processedCollapsedAfter} />}
+          {processedCollapsedAfter && (
+            <CollapsedSection content={processedCollapsedAfter} />
+          )}
         </div>
       )}
     </div>

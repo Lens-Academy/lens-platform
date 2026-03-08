@@ -143,7 +143,9 @@ export default function ArticleSectionWrapper({
       if (!tocItem) return;
 
       // Article position: stable document-relative offset
-      const articleTop = articleEl.getBoundingClientRect().top + (scrollContainer?.scrollTop ?? window.scrollY);
+      const articleTop =
+        articleEl.getBoundingClientRect().top +
+        (scrollContainer?.scrollTop ?? window.scrollY);
       // ToC position: use offsetTop for stability (not affected by scrollTop changes)
       const tocOffset = tocItem.element.offsetTop;
 
@@ -180,7 +182,8 @@ export default function ArticleSectionWrapper({
 
   // Main scroll handler: highlight active heading + interpolate ToC scroll position
   const recalculateCurrentHeading = useCallback(() => {
-    const threshold = (scrollContainer?.clientHeight ?? window.innerHeight) * 0.35;
+    const threshold =
+      (scrollContainer?.clientHeight ?? window.innerHeight) * 0.35;
     const scrollY = (scrollContainer?.scrollTop ?? window.scrollY) + threshold;
 
     // Use cached positions (only recompute on invalidation)
@@ -222,7 +225,12 @@ export default function ArticleSectionWrapper({
         curr.tocOffset + (next.tocOffset - curr.tocOffset) * t;
       scrollTocToOffset(lerpedOffset);
     }
-  }, [computePositions, updateTocHighlight, scrollTocToOffset, scrollContainer]);
+  }, [
+    computePositions,
+    updateTocHighlight,
+    scrollTocToOffset,
+    scrollContainer,
+  ]);
 
   // Scroll listener with rAF throttling to prevent layout thrashing
   useEffect(() => {

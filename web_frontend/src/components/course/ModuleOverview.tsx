@@ -199,9 +199,7 @@ export default function ModuleOverview({
                 })()}
           </div>
           {stage.tldr && (
-            <p className="text-sm text-slate-400 mt-1 max-w-xl">
-              {stage.tldr}
-            </p>
+            <p className="text-sm text-slate-400 mt-1 max-w-xl">{stage.tldr}</p>
           )}
         </div>
       </div>

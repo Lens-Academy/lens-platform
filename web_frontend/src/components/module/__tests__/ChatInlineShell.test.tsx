@@ -98,7 +98,6 @@ describe("ChatInlineShell minHeight on second message", () => {
         isLoading={false}
         streamingContent=""
         onSendMessage={onSendMessage}
-
         hasActiveInput={true}
       />,
     );
@@ -132,7 +131,6 @@ describe("ChatInlineShell minHeight on second message", () => {
         streamingContent=""
         onSendMessage={onSendMessage}
         activated
-
         hasActiveInput={true}
       />,
     );
@@ -158,7 +156,6 @@ describe("ChatInlineShell minHeight on second message", () => {
         streamingContent=""
         onSendMessage={onSendMessage}
         activated
-
         hasActiveInput={true}
       />,
     );

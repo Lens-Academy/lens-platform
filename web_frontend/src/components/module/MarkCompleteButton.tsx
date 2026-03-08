@@ -180,9 +180,7 @@ export default function MarkCompleteButton({
         {buttonText}
       </button>
       {chatGated && (
-        <p className="text-sm text-zinc-400">
-          Moved to discussion.
-        </p>
+        <p className="text-sm text-zinc-400">Moved to discussion.</p>
       )}
     </div>
   );

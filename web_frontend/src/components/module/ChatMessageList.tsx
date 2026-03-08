@@ -48,7 +48,10 @@ export function renderMessage(msg: ChatMessage, key: string | number) {
   if (msg.role === "course-content") {
     return (
       <div key={key} className="text-gray-800">
-        <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><BookOpen size={13} />Lens</div>
+        <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+          <BookOpen size={13} />
+          Lens
+        </div>
         <ChatMarkdown>{msg.content}</ChatMarkdown>
       </div>
     );
@@ -57,7 +60,10 @@ export function renderMessage(msg: ChatMessage, key: string | number) {
   if (msg.role === "assistant") {
     return (
       <div key={key} className="text-gray-800">
-        <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
+        <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+          <Bot size={13} />
+          Tutor
+        </div>
         <ChatMarkdown>{msg.content}</ChatMarkdown>
       </div>
     );
@@ -88,7 +94,9 @@ export function ChatMessageList({
 }: ChatMessageListProps) {
   const visibleMessages = messages.slice(startIndex);
   const useWrapper = wrapperStartIdx != null;
-  const splitAt = useWrapper ? wrapperStartIdx - startIndex : visibleMessages.length;
+  const splitAt = useWrapper
+    ? wrapperStartIdx - startIndex
+    : visibleMessages.length;
 
   const pendingEl = pendingMessage && (
     <div
@@ -109,14 +117,20 @@ export function ChatMessageList({
 
   const streamingEl = isLoading && streamingContent && (
     <div className="text-gray-800">
-      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
+      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+        <Bot size={13} />
+        Tutor
+      </div>
       <ChatMarkdown>{streamingContent}</ChatMarkdown>
     </div>
   );
 
   const thinkingEl = isLoading && !streamingContent && (
     <div className="text-gray-800">
-      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
+      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+        <Bot size={13} />
+        Tutor
+      </div>
       <div>Thinking...</div>
     </div>
   );
@@ -128,15 +142,21 @@ export function ChatMessageList({
       style={{ overflowAnchor: "none" }}
       onScroll={onScroll}
     >
-      {visibleMessages.slice(0, splitAt).map((msg, i) => renderMessage(msg, startIndex + i))}
+      {visibleMessages
+        .slice(0, splitAt)
+        .map((msg, i) => renderMessage(msg, startIndex + i))}
 
       {useWrapper ? (
         <div
           ref={minHeightWrapperRef}
           className="flex flex-col space-y-4"
-          style={{ minHeight: wrapperMinHeight ? `${wrapperMinHeight}px` : undefined }}
+          style={{
+            minHeight: wrapperMinHeight ? `${wrapperMinHeight}px` : undefined,
+          }}
         >
-          {visibleMessages.slice(splitAt).map((msg, i) => renderMessage(msg, startIndex + splitAt + i))}
+          {visibleMessages
+            .slice(splitAt)
+            .map((msg, i) => renderMessage(msg, startIndex + splitAt + i))}
           {pendingEl}
           {streamingEl}
           {thinkingEl}

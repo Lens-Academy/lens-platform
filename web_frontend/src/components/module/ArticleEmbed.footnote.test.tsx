@@ -227,7 +227,8 @@ describe("Inline footnote directive", () => {
       title: "Test",
       author: "Author",
       sourceUrl: null,
-      collapsed_after: "More text.\n\n[^1]: The definition from collapsed section.",
+      collapsed_after:
+        "More text.\n\n[^1]: The definition from collapsed section.",
     };
     render(<ArticleEmbed article={article} />);
     expect(screen.getByText("1")).toBeInTheDocument();
@@ -239,7 +240,8 @@ describe("Inline footnote directive", () => {
       title: "Test",
       author: "Author",
       sourceUrl: null,
-      collapsed_before: "[^1]: The definition from before section.\n\nSome earlier text.",
+      collapsed_before:
+        "[^1]: The definition from before section.\n\nSome earlier text.",
     };
     render(<ArticleEmbed article={article} />);
     expect(screen.getByText("1")).toBeInTheDocument();

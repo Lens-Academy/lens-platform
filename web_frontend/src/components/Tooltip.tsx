@@ -50,13 +50,10 @@ export function Tooltip({
     delay: groupDelay ?? { open: delay, close: 0 },
   });
 
-  const { isMounted, styles: transitionStyles } = useTransitionStyles(
-    context,
-    {
-      duration: isInstantPhase ? 0 : { open: 0, close: 150 },
-      initial: { opacity: 0 },
-    },
-  );
+  const { isMounted, styles: transitionStyles } = useTransitionStyles(context, {
+    duration: isInstantPhase ? 0 : { open: 0, close: 150 },
+    initial: { opacity: 0 },
+  });
 
   const focus = useFocus(context);
 

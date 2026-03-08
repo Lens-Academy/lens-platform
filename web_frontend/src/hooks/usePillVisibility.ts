@@ -1,5 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
-import { animateInputFlight, cancelInputFlight } from "@/utils/animateInputFlight";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import {
+  animateInputFlight,
+  cancelInputFlight,
+} from "@/utils/animateInputFlight";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 
 type PillVisibilityInput = {
@@ -31,7 +40,9 @@ export function usePillVisibility({
 
   // Track sidebar preference reactively.
   const [sidebarPrefClosed, setSidebarPrefClosed] = useState(
-    () => typeof window !== "undefined" && localStorage.getItem("chat-sidebar-pref") === "closed",
+    () =>
+      typeof window !== "undefined" &&
+      localStorage.getItem("chat-sidebar-pref") === "closed",
   );
 
   useEffect(() => {
@@ -41,7 +52,8 @@ export function usePillVisibility({
       cancelInputFlight();
     };
     window.addEventListener("chat-sidebar-pref-change", onPrefChange);
-    return () => window.removeEventListener("chat-sidebar-pref-change", onPrefChange);
+    return () =>
+      window.removeEventListener("chat-sidebar-pref-change", onPrefChange);
   }, []);
 
   // Derived state — the whole point of this refactor.

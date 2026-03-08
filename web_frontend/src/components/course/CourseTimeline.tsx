@@ -562,9 +562,7 @@ function renderUnitModules(
               >
                 {mod.title}
               </span>
-              {mod.optional && (
-                <OptionalBadge />
-              )}
+              {mod.optional && <OptionalBadge />}
               {/* Right-aligned: due date and/or time estimate */}
               {dueLabel && !mod.optional && mod.status !== "completed" ? (
                 <span

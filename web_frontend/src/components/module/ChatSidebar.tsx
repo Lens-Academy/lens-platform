@@ -127,7 +127,9 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     useLayoutEffect(() => {
       if (!scrollContainer || isMobile) return;
       scrollContainer.style.marginRight = isOpen ? "var(--sidebar-width)" : "";
-      return () => { scrollContainer.style.marginRight = ""; };
+      return () => {
+        scrollContainer.style.marginRight = "";
+      };
     }, [isOpen, scrollContainer, isMobile]);
 
     // Close on Escape key
@@ -170,7 +172,8 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       if (!isOpen) return;
       requestAnimationFrame(() => {
         if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+          scrollContainerRef.current.scrollTop =
+            scrollContainerRef.current.scrollHeight;
         }
       });
     }, [isOpen]);
@@ -179,7 +182,10 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     useLayoutEffect(() => {
       if (!pendingMessage || !minHeightWrapperRef.current) return;
       if (scrollContainerHeight <= 0) return;
-      minHeightWrapperRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
+      minHeightWrapperRef.current.scrollIntoView({
+        block: "start",
+        behavior: "smooth",
+      });
     }, [pendingMessage, scrollContainerHeight]);
 
     // Auto-scroll to bottom during streaming when near bottom
@@ -271,7 +277,9 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           isLoading={isLoading}
           containerRef={scrollContainerRef}
           wrapperStartIdx={wrapperStartIdx}
-          wrapperMinHeight={wrapperStartIdx != null ? scrollContainerHeight : undefined}
+          wrapperMinHeight={
+            wrapperStartIdx != null ? scrollContainerHeight : undefined
+          }
           minHeightWrapperRef={minHeightWrapperRef}
         />
         <div className="shrink-0 border-t border-gray-200">

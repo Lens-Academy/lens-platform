@@ -46,7 +46,10 @@ export function animateInputFlight(direction: "to-inline" | "to-sidebar") {
 function findScrollContainer(el: HTMLElement): HTMLElement | null {
   let node = el.parentElement;
   while (node && node !== document.body) {
-    if (getComputedStyle(node).overflowY === "auto" || getComputedStyle(node).overflowY === "scroll") {
+    if (
+      getComputedStyle(node).overflowY === "auto" ||
+      getComputedStyle(node).overflowY === "scroll"
+    ) {
       return node;
     }
     node = node.parentElement;

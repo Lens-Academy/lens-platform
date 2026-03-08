@@ -1,10 +1,14 @@
 // web_frontend/src/views/Module.tsx
 
-import { useState, useEffect, useCallback, useRef, useMemo, useSyncExternalStore } from "react";
-import type {
-  ArticleData,
-  Stage,
-} from "@/types/module";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
+import type { ArticleData, Stage } from "@/types/module";
 import type { StageInfo } from "@/types/course";
 import type { ViewMode } from "@/types/viewMode";
 import type {
@@ -52,10 +56,7 @@ import type { SectionChoice } from "@/components/module/SectionChoiceModal";
 import AuthPromptModal from "@/components/module/AuthPromptModal";
 
 import { ScrollContainerContext } from "@/hooks/useScrollContainer";
-import {
-  trackModuleStarted,
-  trackModuleCompleted,
-} from "@/analytics";
+import { trackModuleStarted, trackModuleCompleted } from "@/analytics";
 import { Skeleton, SkeletonText } from "@/components/Skeleton";
 import { getSectionSlug, findSectionBySlug } from "@/utils/sectionSlug";
 import {
@@ -132,17 +133,22 @@ function DebugOverlay({
     <div className="fixed bottom-4 left-4 z-50 max-w-xs rounded-lg bg-gray-900/85 px-3 py-2 text-xs text-gray-100 font-mono shadow-lg backdrop-blur-sm max-h-[50vh] overflow-y-auto">
       <div className="font-bold text-yellow-300 mb-1">Debug Overlay</div>
       <div>
-        <span className="text-gray-400">Section:</span>{" "}
-        §{currentSectionIndex}: {currentSection.meta?.title ?? "(untitled)"}
+        <span className="text-gray-400">Section:</span> §{currentSectionIndex}:{" "}
+        {currentSection.meta?.title ?? "(untitled)"}
       </div>
       <div>
-        <span className="text-gray-400">Segment:</span>{" "}
-        [{currentSegmentIndex}] {seg ? seg.type : "—"}{" "}
-        {seg ? segLabel(seg) : ""}
+        <span className="text-gray-400">Segment:</span> [{currentSegmentIndex}]{" "}
+        {seg ? seg.type : "—"} {seg ? segLabel(seg) : ""}
       </div>
       <div>
         <span className="text-gray-400">Sidebar target:</span>{" "}
-        <span className={sidebarChatSegmentIndex === currentSegmentIndex ? "text-green-400" : "text-red-400"}>
+        <span
+          className={
+            sidebarChatSegmentIndex === currentSegmentIndex
+              ? "text-green-400"
+              : "text-red-400"
+          }
+        >
           {sidebarChatSegmentIndex}
         </span>
       </div>
@@ -398,7 +404,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     new Set(),
   );
 
-
   const { isAuthenticated, isInSignupsTable, isInActiveGroup, login } =
     useAuth();
 
@@ -464,8 +469,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const [activeFeedbackKey, setActiveFeedbackKey] = useState<string | null>(
     null,
   );
-
-
 
   // TOC portal container for 3-column grid layout (set by callback ref)
 
@@ -606,9 +609,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         duration: dur || null,
         optional: "optional" in section && section.optional === true,
         tldr:
-          "tldr" in section
-            ? (section.tldr as string | undefined)
-            : undefined,
+          "tldr" in section ? (section.tldr as string | undefined) : undefined,
       };
     });
   }, [module]);
@@ -631,8 +632,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // --- Debug overlay: track current visible segment ---
   const isDebugMode =
-    typeof window !== "undefined" &&
-    window.location.search.includes("debug");
+    typeof window !== "undefined" && window.location.search.includes("debug");
   const currentSegmentIndexRef = useRef(0);
   const segmentIndexListeners = useRef(new Set<() => void>());
   // Ref-based store for scroll-refined sidebar allowed state.
@@ -675,9 +675,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Chat state — centralised in useTutorChat hook
   const {
-    messages, pendingMessage, streamingContent, isLoading, sendSource,
-    sendMessage: handleSendMessage, retryMessage: handleRetryMessage,
-    activeSurface, registerInlineRef,
+    messages,
+    pendingMessage,
+    streamingContent,
+    isLoading,
+    sendSource,
+    sendMessage: handleSendMessage,
+    retryMessage: handleRetryMessage,
+    activeSurface,
+    registerInlineRef,
     sidebarChatSegmentIndex,
     chatInteractedSections,
   } = useTutorChat({
@@ -703,7 +709,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     lastSidebarAllowed.current = true;
     sidebarAllowedLockUntil.current = 0;
     sidebarAllowedRef.current = sidebarAllowed;
-    sidebarAllowedListeners.current.forEach(fn => fn());
+    sidebarAllowedListeners.current.forEach((fn) => fn());
 
     hasReachedExcerptRef.current = false;
 
@@ -720,7 +726,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       currentSection && "segments" in currentSection
         ? currentSection.segments
         : undefined;
-    const firstExcerptIdx = segments?.findIndex(s => s.type === "article-excerpt") ?? -1;
+    const firstExcerptIdx =
+      segments?.findIndex((s) => s.type === "article-excerpt") ?? -1;
 
     let rafId = 0;
     const onScroll = () => {
@@ -736,17 +743,24 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           if (rect.top <= targetY && rect.bottom > targetY) {
             best = { index: idx, dist: 0 };
           } else if (!best || best.dist > 0) {
-            const dist = Math.min(Math.abs(rect.top - targetY), Math.abs(rect.bottom - targetY));
+            const dist = Math.min(
+              Math.abs(rect.top - targetY),
+              Math.abs(rect.bottom - targetY),
+            );
             if (!best || dist < best.dist) best = { index: idx, dist };
           }
         });
         if (best) {
           // Write to ref (free) + notify subscribers (DebugOverlay only)
           currentSegmentIndexRef.current = best.index;
-          segmentIndexListeners.current.forEach(fn => fn());
+          segmentIndexListeners.current.forEach((fn) => fn());
 
           // Auto-open sidebar when scrolling to first article excerpt
-          if (!hasReachedExcerptRef.current && firstExcerptIdx >= 0 && best.index >= firstExcerptIdx) {
+          if (
+            !hasReachedExcerptRef.current &&
+            firstExcerptIdx >= 0 &&
+            best.index >= firstExcerptIdx
+          ) {
             hasReachedExcerptRef.current = true;
             const pref = localStorage.getItem("chat-sidebar-pref");
             if (pref === null || pref === "open") {
@@ -777,7 +791,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           if (allowed !== lastSidebarAllowed.current) {
             lastSidebarAllowed.current = allowed;
             sidebarAllowedRef.current = allowed;
-            sidebarAllowedListeners.current.forEach(fn => fn());
+            sidebarAllowedListeners.current.forEach((fn) => fn());
             if (!allowed) sidebarAllowedLockUntil.current = Date.now() + 350;
           }
         }
@@ -790,8 +804,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       target.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(rafId);
     };
-  }, [isArticleSection, currentSectionIndex, currentSection, sidebarAllowed, scrollEl]);
-
+  }, [
+    isArticleSection,
+    currentSectionIndex,
+    currentSection,
+    sidebarAllowed,
+    scrollEl,
+  ]);
 
   // Fetch next module info when module completes
   useEffect(() => {
@@ -979,9 +998,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       // Only v2 section types have optional field directly
       if (!("optional" in section)) continue;
       const sectionType = section.type as SectionChoice["type"];
-      if (
-        !["lens-video", "lens-article", "page", "test"].includes(sectionType)
-      )
+      if (!["lens-video", "lens-article", "page", "test"].includes(sectionType))
         continue;
 
       choices.push({
@@ -1222,7 +1239,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 onRetryMessage={handleRetryMessage}
                 scrollToResponse
                 activated
-
                 hasActiveInput={true}
               />
             )}
@@ -1263,7 +1279,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 onRetryMessage={handleRetryMessage}
                 scrollToResponse
                 activated
-
                 hasActiveInput={true}
               />
             )}
@@ -1348,576 +1363,632 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       ref={setScrollEl}
       className="h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[margin-right] duration-300 ease-in-out"
     >
-    <ScrollContainerContext.Provider value={scrollEl}>
-      <ModuleHeader
-        moduleTitle={module.title}
-        stages={stages}
-        completedStages={completedSections}
-        currentSectionIndex={currentSectionIndex}
-        canGoPrevious={!testModeActive && currentSectionIndex > 0}
-        canGoNext={
-          !testModeActive && currentSectionIndex < module.sections.length - 1
-        }
-        onStageClick={handleStageClick}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onMenuToggle={() => drawerRef.current?.toggle()}
-        testModeActive={testModeActive}
-      />
-
-      {/* Layout: content + optional chat sidebar (TOC uses absolute positioning via ArticleExcerptGroup) */}
-      <div className="pt-[var(--module-header-height)]">
-      <main className="w-full min-w-0">
-        <div className={`relative ${isArticleSection ? "max-w-content-padded article-toc-margin" : ""}`}>
-        {module.sections.map((section, sectionIndex) => {
-          // In paginated mode, only render current section
-          if (
-            viewMode === "paginated" &&
-            sectionIndex !== currentSectionIndex
-          ) {
-            return null;
+      <ScrollContainerContext.Provider value={scrollEl}>
+        <ModuleHeader
+          moduleTitle={module.title}
+          stages={stages}
+          completedStages={completedSections}
+          currentSectionIndex={currentSectionIndex}
+          canGoPrevious={!testModeActive && currentSectionIndex > 0}
+          canGoNext={
+            !testModeActive && currentSectionIndex < module.sections.length - 1
           }
+          onStageClick={handleStageClick}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onMenuToggle={() => drawerRef.current?.toggle()}
+          testModeActive={testModeActive}
+        />
 
-          const breakdown = computeDurationBreakdown(section);
-          const sectionDur = breakdown.total > 0 ? breakdown : undefined;
-
-          return (
+        {/* Layout: content + optional chat sidebar (TOC uses absolute positioning via ArticleExcerptGroup) */}
+        <div className="pt-[var(--module-header-height)]">
+          <main className="w-full min-w-0">
             <div
-              key={sectionIndex}
-              ref={(el) => {
-                if (el) sectionRefs.current.set(sectionIndex, el);
-              }}
-              data-section-index={sectionIndex}
-              className="py-8"
+              className={`relative ${isArticleSection ? "max-w-content-padded article-toc-margin" : ""}`}
             >
-              {section.type === "text" ? (
-                <>
-                  <SectionDivider
-                    type="article"
-                    title={`Section ${sectionIndex + 1}`}
-                    duration={sectionDur}
-                  />
-                  <AuthoredText content={section.content} />
-                </>
-              ) : section.type === "page" ? (
-                // v2 Page section: text/chat segments only, no embedded content
-                <>
-                  <SectionDivider
-                    type="page"
-                    title={section.meta?.title || `Page ${sectionIndex + 1}`}
-                    duration={sectionDur}
-                  />
-                  {(() => {
-                    const segs = section.segments ?? [];
-                    const firstChatIdx = segs.findIndex(
-                      (s) => s.type === "chat",
-                    );
-                    if (firstChatIdx === -1) {
-                      return (
-                        <>
-                          {segs.map((seg, i) =>
-                            renderSegment(seg, section, sectionIndex, i),
-                          )}
-                        </>
-                      );
-                    }
-                    const beforeChat = segs.slice(0, firstChatIdx);
-                    const fromChat = segs.slice(firstChatIdx);
-                    return (
+              {module.sections.map((section, sectionIndex) => {
+                // In paginated mode, only render current section
+                if (
+                  viewMode === "paginated" &&
+                  sectionIndex !== currentSectionIndex
+                ) {
+                  return null;
+                }
+
+                const breakdown = computeDurationBreakdown(section);
+                const sectionDur = breakdown.total > 0 ? breakdown : undefined;
+
+                return (
+                  <div
+                    key={sectionIndex}
+                    ref={(el) => {
+                      if (el) sectionRefs.current.set(sectionIndex, el);
+                    }}
+                    data-section-index={sectionIndex}
+                    className="py-8"
+                  >
+                    {section.type === "text" ? (
                       <>
-                        {beforeChat.map((seg, i) =>
-                          renderSegment(seg, section, sectionIndex, i),
-                        )}
-                        {fromChat.map((seg, i) =>
+                        <SectionDivider
+                          type="article"
+                          title={`Section ${sectionIndex + 1}`}
+                          duration={sectionDur}
+                        />
+                        <AuthoredText content={section.content} />
+                      </>
+                    ) : section.type === "page" ? (
+                      // v2 Page section: text/chat segments only, no embedded content
+                      <>
+                        <SectionDivider
+                          type="page"
+                          title={
+                            section.meta?.title || `Page ${sectionIndex + 1}`
+                          }
+                          duration={sectionDur}
+                        />
+                        {(() => {
+                          const segs = section.segments ?? [];
+                          const firstChatIdx = segs.findIndex(
+                            (s) => s.type === "chat",
+                          );
+                          if (firstChatIdx === -1) {
+                            return (
+                              <>
+                                {segs.map((seg, i) =>
+                                  renderSegment(seg, section, sectionIndex, i),
+                                )}
+                              </>
+                            );
+                          }
+                          const beforeChat = segs.slice(0, firstChatIdx);
+                          const fromChat = segs.slice(firstChatIdx);
+                          return (
+                            <>
+                              {beforeChat.map((seg, i) =>
+                                renderSegment(seg, section, sectionIndex, i),
+                              )}
+                              {fromChat.map((seg, i) =>
+                                renderSegment(
+                                  seg,
+                                  section,
+                                  sectionIndex,
+                                  firstChatIdx + i,
+                                ),
+                              )}
+                            </>
+                          );
+                        })()}
+                      </>
+                    ) : section.type === "chat" ? (
+                      <>
+                        <SectionDivider
+                          type="chat"
+                          title={section.meta?.title}
+                          duration={sectionDur}
+                        />
+                        <ChatInlineShell
+                          messages={messages}
+                          pendingMessage={pendingMessage}
+                          streamingContent={streamingContent}
+                          isLoading={isLoading}
+                          sendSource={sendSource}
+                          onSendMessage={(content) =>
+                            handleSendMessage(content, sectionIndex, 0)
+                          }
+                          onRetryMessage={handleRetryMessage}
+                          pillId="inline"
+                          sidebarAllowedRef={sidebarAllowedRef}
+                          sidebarAllowedListeners={sidebarAllowedListeners}
+                          sidebarRef={sidebarRef}
+                          hasActiveInput={
+                            activeSurface.type === "inline" &&
+                            activeSurface.sectionIndex === sectionIndex &&
+                            activeSurface.segmentIndex === 0
+                          }
+                          shellRef={(el) =>
+                            registerInlineRef(sectionIndex, 0, el)
+                          }
+                        />
+                      </>
+                    ) : section.type === "lens-video" ? (
+                      // v2 Lens Video section: video content with optional text/chat segments
+                      <>
+                        <SectionDivider
+                          type="lens-video"
+                          optional={section.optional}
+                          title={section.meta?.title}
+                          duration={sectionDur}
+                        />
+                        {/* Render segments (text, video-excerpt, chat) */}
+                        {section.segments?.map((segment, segmentIndex) =>
                           renderSegment(
-                            seg,
+                            segment,
                             section,
                             sectionIndex,
-                            firstChatIdx + i,
+                            segmentIndex,
                           ),
                         )}
                       </>
-                    );
-                  })()}
-                </>
-              ) : section.type === "chat" ? (
-                <>
-                  <SectionDivider
-                    type="chat"
-                    title={section.meta?.title}
-                    duration={sectionDur}
-                  />
-                  <ChatInlineShell
-                    messages={messages}
-                    pendingMessage={pendingMessage}
-                    streamingContent={streamingContent}
-                    isLoading={isLoading}
-                    sendSource={sendSource}
-                    onSendMessage={(content) =>
-                      handleSendMessage(content, sectionIndex, 0)
-                    }
-                    onRetryMessage={handleRetryMessage}
-                    pillId="inline"
-                    sidebarAllowedRef={sidebarAllowedRef}
-                    sidebarAllowedListeners={sidebarAllowedListeners}
-                    sidebarRef={sidebarRef}
-                    hasActiveInput={
-                      activeSurface.type === "inline" &&
-                      activeSurface.sectionIndex === sectionIndex &&
-                      activeSurface.segmentIndex === 0
-                    }
-                    shellRef={(el) => registerInlineRef(sectionIndex, 0, el)}
-                  />
-                </>
-              ) : section.type === "lens-video" ? (
-                // v2 Lens Video section: video content with optional text/chat segments
-                <>
-                  <SectionDivider
-                    type="lens-video"
-                    optional={section.optional}
-                    title={section.meta?.title}
-                    duration={sectionDur}
-                  />
-                  {/* Render segments (text, video-excerpt, chat) */}
-                  {section.segments?.map((segment, segmentIndex) =>
-                    renderSegment(segment, section, sectionIndex, segmentIndex),
-                  )}
-                </>
-              ) : section.type === "lens-article" ? (
-                // v2 Lens Article section: article content with optional text/chat segments
-                <>
-                  <SectionDivider
-                    type="lens-article"
-                    optional={section.optional}
-                    title={section.meta?.title}
-                    duration={sectionDur}
-                  />
-                  <ArticleSectionWrapper tocPortalContainer={null} hideToc={false}>
-                    {(() => {
-                      // Split segments into pre-excerpt, excerpt, post-excerpt groups
-                      const segments = section.segments ?? [];
-                      const firstExcerptIdx = segments.findIndex(
-                        (s) => s.type === "article-excerpt",
-                      );
-                      const lastExcerptIdx = segments.reduceRight(
-                        (found, s, i) =>
-                          found === -1 && s.type === "article-excerpt"
-                            ? i
-                            : found,
-                        -1,
-                      );
+                    ) : section.type === "lens-article" ? (
+                      // v2 Lens Article section: article content with optional text/chat segments
+                      <>
+                        <SectionDivider
+                          type="lens-article"
+                          optional={section.optional}
+                          title={section.meta?.title}
+                          duration={sectionDur}
+                        />
+                        <ArticleSectionWrapper
+                          tocPortalContainer={null}
+                          hideToc={false}
+                        >
+                          {(() => {
+                            // Split segments into pre-excerpt, excerpt, post-excerpt groups
+                            const segments = section.segments ?? [];
+                            const firstExcerptIdx = segments.findIndex(
+                              (s) => s.type === "article-excerpt",
+                            );
+                            const lastExcerptIdx = segments.reduceRight(
+                              (found, s, i) =>
+                                found === -1 && s.type === "article-excerpt"
+                                  ? i
+                                  : found,
+                              -1,
+                            );
 
-                      // If no excerpts, render all segments then button
-                      if (firstExcerptIdx === -1) {
+                            // If no excerpts, render all segments then button
+                            if (firstExcerptIdx === -1) {
+                              return (
+                                <>
+                                  {segments.map((segment, segmentIndex) =>
+                                    renderSegment(
+                                      segment,
+                                      section,
+                                      sectionIndex,
+                                      segmentIndex,
+                                    ),
+                                  )}
+                                </>
+                              );
+                            }
+
+                            const preExcerpt = segments.slice(
+                              0,
+                              firstExcerptIdx,
+                            );
+                            const excerpts = segments.slice(
+                              firstExcerptIdx,
+                              lastExcerptIdx + 1,
+                            );
+                            const postExcerpt = segments.slice(
+                              lastExcerptIdx + 1,
+                            );
+                            return (
+                              <div>
+                                {/* Pre-excerpt content (intro, setup) */}
+                                {preExcerpt.map((segment, i) =>
+                                  renderSegment(
+                                    segment,
+                                    section,
+                                    sectionIndex,
+                                    i,
+                                  ),
+                                )}
+
+                                {/* Excerpt group with sticky TOC */}
+                                <ArticleExcerptGroup section={section}>
+                                  {excerpts.map((segment, i) =>
+                                    renderSegment(
+                                      segment,
+                                      section,
+                                      sectionIndex,
+                                      firstExcerptIdx + i,
+                                    ),
+                                  )}
+                                </ArticleExcerptGroup>
+
+                                {/* Post-excerpt content (reflection, chat) */}
+                                {postExcerpt.map((segment, i) =>
+                                  renderSegment(
+                                    segment,
+                                    section,
+                                    sectionIndex,
+                                    lastExcerptIdx + 1 + i,
+                                  ),
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </ArticleSectionWrapper>
+                      </>
+                    ) : section.type === "article" ? (
+                      // v1 Article section
+                      <>
+                        <SectionDivider
+                          type="article"
+                          optional={section.optional}
+                          title={section.meta?.title}
+                          duration={sectionDur}
+                        />
+                        <ArticleSectionWrapper
+                          tocPortalContainer={null}
+                          hideToc={false}
+                        >
+                          {(() => {
+                            // Split segments into pre-excerpt, excerpt, post-excerpt groups
+                            const segments = section.segments ?? [];
+                            const firstExcerptIdx = segments.findIndex(
+                              (s) => s.type === "article-excerpt",
+                            );
+                            const lastExcerptIdx = segments.reduceRight(
+                              (found, s, i) =>
+                                found === -1 && s.type === "article-excerpt"
+                                  ? i
+                                  : found,
+                              -1,
+                            );
+
+                            // If no excerpts, render all segments then button
+                            if (firstExcerptIdx === -1) {
+                              return (
+                                <>
+                                  {segments.map((segment, segmentIndex) =>
+                                    renderSegment(
+                                      segment,
+                                      section,
+                                      sectionIndex,
+                                      segmentIndex,
+                                    ),
+                                  )}
+                                </>
+                              );
+                            }
+
+                            const preExcerpt = segments.slice(
+                              0,
+                              firstExcerptIdx,
+                            );
+                            const excerpts = segments.slice(
+                              firstExcerptIdx,
+                              lastExcerptIdx + 1,
+                            );
+                            const postExcerpt = segments.slice(
+                              lastExcerptIdx + 1,
+                            );
+                            return (
+                              <div>
+                                {/* Pre-excerpt content (intro, setup) */}
+                                {preExcerpt.map((segment, i) =>
+                                  renderSegment(
+                                    segment,
+                                    section,
+                                    sectionIndex,
+                                    i,
+                                  ),
+                                )}
+
+                                {/* Excerpt group with sticky TOC */}
+                                <ArticleExcerptGroup section={section}>
+                                  {excerpts.map((segment, i) =>
+                                    renderSegment(
+                                      segment,
+                                      section,
+                                      sectionIndex,
+                                      firstExcerptIdx + i,
+                                    ),
+                                  )}
+                                </ArticleExcerptGroup>
+
+                                {/* Post-excerpt content (reflection, chat) */}
+                                {postExcerpt.map((segment, i) =>
+                                  renderSegment(
+                                    segment,
+                                    section,
+                                    sectionIndex,
+                                    lastExcerptIdx + 1 + i,
+                                  ),
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </ArticleSectionWrapper>
+                      </>
+                    ) : section.type === "test" ? (
+                      // v2 Test section: grouped assessment questions
+                      (() => {
+                        const feedbackKey = `test-${sectionIndex}`;
                         return (
                           <>
-                            {segments.map((segment, segmentIndex) =>
-                              renderSegment(
-                                segment,
-                                section,
-                                sectionIndex,
-                                segmentIndex,
-                              ),
-                            )}
+                            <TestSection
+                              section={section}
+                              moduleSlug={moduleId}
+                              sectionIndex={sectionIndex}
+                              isAuthenticated={isAuthenticated}
+                              onTestStart={() => setTestModeActive(true)}
+                              onTestTakingComplete={() =>
+                                setTestModeActive(false)
+                              }
+                              onMarkComplete={(response) =>
+                                handleMarkComplete(sectionIndex, response)
+                              }
+                              onFeedbackTrigger={
+                                section.feedback
+                                  ? (questionsAndAnswers) => {
+                                      setActiveFeedbackKey(feedbackKey);
+                                      const lines = questionsAndAnswers.map(
+                                        (qa, i) =>
+                                          `Question ${i + 1}: "${qa.question}"\nMy answer: "${qa.answer}"`,
+                                      );
+                                      handleSendMessage(
+                                        `I just completed a test. Here are the questions and my answers:\n\n${lines.join("\n\n")}\n\nCan you give me feedback on my answers?`,
+                                        sectionIndex,
+                                        0,
+                                      );
+                                    }
+                                  : undefined
+                              }
+                            />
+                            {section.feedback &&
+                              activeFeedbackKey === feedbackKey && (
+                                <>
+                                  <ChatInlineShell
+                                    messages={messages}
+                                    pendingMessage={pendingMessage}
+                                    streamingContent={streamingContent}
+                                    isLoading={isLoading}
+                                    sendSource={sendSource}
+                                    onSendMessage={(content) =>
+                                      handleSendMessage(
+                                        content,
+                                        sectionIndex,
+                                        0,
+                                      )
+                                    }
+                                    onRetryMessage={handleRetryMessage}
+                                    scrollToResponse
+                                    activated
+                                    hasActiveInput={true}
+                                  />
+                                  <div className="flex items-center justify-center py-6">
+                                    <button
+                                      onClick={() => {
+                                        const contentId = `test:${moduleId}:${sectionIndex}`;
+                                        markComplete(
+                                          {
+                                            content_id: contentId,
+                                            content_type: "test",
+                                            content_title:
+                                              section.meta?.title || "Test",
+                                            module_slug: moduleId,
+                                          },
+                                          isAuthenticated,
+                                        )
+                                          .then((response) =>
+                                            handleMarkComplete(
+                                              sectionIndex,
+                                              response,
+                                            ),
+                                          )
+                                          .catch(() =>
+                                            handleMarkComplete(sectionIndex),
+                                          );
+                                      }}
+                                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
+                                    >
+                                      Continue
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M9 5l7 7-7 7"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </>
+                              )}
                           </>
                         );
-                      }
-
-                      const preExcerpt = segments.slice(0, firstExcerptIdx);
-                      const excerpts = segments.slice(
-                        firstExcerptIdx,
-                        lastExcerptIdx + 1,
-                      );
-                      const postExcerpt = segments.slice(lastExcerptIdx + 1);
-                      return (
-                        <div>
-                          {/* Pre-excerpt content (intro, setup) */}
-                          {preExcerpt.map((segment, i) =>
-                            renderSegment(segment, section, sectionIndex, i),
-                          )}
-
-                          {/* Excerpt group with sticky TOC */}
-                          <ArticleExcerptGroup section={section}>
-                            {excerpts.map((segment, i) =>
-                              renderSegment(
-                                segment,
-                                section,
-                                sectionIndex,
-                                firstExcerptIdx + i,
-                              ),
-                            )}
-                          </ArticleExcerptGroup>
-
-                          {/* Post-excerpt content (reflection, chat) */}
-                          {postExcerpt.map((segment, i) =>
+                      })()
+                    ) : (
+                      // v1 Video section and fallback
+                      <>
+                        <SectionDivider
+                          type={section.type}
+                          optional={
+                            "optional" in section ? section.optional : false
+                          }
+                          title={
+                            "meta" in section ? section.meta?.title : undefined
+                          }
+                          duration={sectionDur}
+                        />
+                        {"segments" in section &&
+                          section.segments?.map((segment, segmentIndex) =>
                             renderSegment(
                               segment,
                               section,
                               sectionIndex,
-                              lastExcerptIdx + 1 + i,
+                              segmentIndex,
                             ),
                           )}
-                        </div>
-                      );
-                    })()}
-                  </ArticleSectionWrapper>
-                </>
-              ) : section.type === "article" ? (
-                // v1 Article section
-                <>
-                  <SectionDivider
-                    type="article"
-                    optional={section.optional}
-                    title={section.meta?.title}
-                    duration={sectionDur}
-                  />
-                  <ArticleSectionWrapper tocPortalContainer={null} hideToc={false}>
-                    {(() => {
-                      // Split segments into pre-excerpt, excerpt, post-excerpt groups
-                      const segments = section.segments ?? [];
-                      const firstExcerptIdx = segments.findIndex(
-                        (s) => s.type === "article-excerpt",
-                      );
-                      const lastExcerptIdx = segments.reduceRight(
-                        (found, s, i) =>
-                          found === -1 && s.type === "article-excerpt"
-                            ? i
-                            : found,
-                        -1,
-                      );
-
-                      // If no excerpts, render all segments then button
-                      if (firstExcerptIdx === -1) {
-                        return (
-                          <>
-                            {segments.map((segment, segmentIndex) =>
-                              renderSegment(
-                                segment,
-                                section,
-                                sectionIndex,
-                                segmentIndex,
-                              ),
-                            )}
-                          </>
-                        );
-                      }
-
-                      const preExcerpt = segments.slice(0, firstExcerptIdx);
-                      const excerpts = segments.slice(
-                        firstExcerptIdx,
-                        lastExcerptIdx + 1,
-                      );
-                      const postExcerpt = segments.slice(lastExcerptIdx + 1);
-                      return (
-                        <div>
-                          {/* Pre-excerpt content (intro, setup) */}
-                          {preExcerpt.map((segment, i) =>
-                            renderSegment(segment, section, sectionIndex, i),
-                          )}
-
-                          {/* Excerpt group with sticky TOC */}
-                          <ArticleExcerptGroup section={section}>
-                            {excerpts.map((segment, i) =>
-                              renderSegment(
-                                segment,
-                                section,
-                                sectionIndex,
-                                firstExcerptIdx + i,
-                              ),
-                            )}
-                          </ArticleExcerptGroup>
-
-                          {/* Post-excerpt content (reflection, chat) */}
-                          {postExcerpt.map((segment, i) =>
-                            renderSegment(
-                              segment,
-                              section,
-                              sectionIndex,
-                              lastExcerptIdx + 1 + i,
-                            ),
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </ArticleSectionWrapper>
-                </>
-              ) : section.type === "test" ? (
-                // v2 Test section: grouped assessment questions
-                (() => {
-                  const feedbackKey = `test-${sectionIndex}`;
-                  return (
-                    <>
-                      <TestSection
-                        section={section}
-                        moduleSlug={moduleId}
-                        sectionIndex={sectionIndex}
-                        isAuthenticated={isAuthenticated}
-                        onTestStart={() => setTestModeActive(true)}
-                        onTestTakingComplete={() => setTestModeActive(false)}
-                        onMarkComplete={(response) =>
+                      </>
+                    )}
+                    {section.type !== "test" && (
+                      <MarkCompleteButton
+                        isCompleted={completedSections.has(sectionIndex)}
+                        onComplete={(response) =>
                           handleMarkComplete(sectionIndex, response)
                         }
-                        onFeedbackTrigger={
-                          section.feedback
-                            ? (questionsAndAnswers) => {
-                                setActiveFeedbackKey(feedbackKey);
-                                const lines = questionsAndAnswers.map(
-                                  (qa, i) =>
-                                    `Question ${i + 1}: "${qa.question}"\nMy answer: "${qa.answer}"`,
-                                );
-                                handleSendMessage(
-                                  `I just completed a test. Here are the questions and my answers:\n\n${lines.join("\n\n")}\n\nCan you give me feedback on my answers?`,
-                                  sectionIndex,
-                                  0,
-                                );
-                              }
-                            : undefined
+                        onNext={handleNext}
+                        hasNext={sectionIndex < module.sections.length - 1}
+                        contentId={section.contentId ?? undefined}
+                        contentType="lens"
+                        contentTitle={
+                          section.type === "text"
+                            ? `Section ${sectionIndex + 1}`
+                            : section.type === "page"
+                              ? section.meta?.title ||
+                                `Page ${sectionIndex + 1}`
+                              : "meta" in section
+                                ? section.meta?.title ||
+                                  `${section.type || "Section"} ${sectionIndex + 1}`
+                                : `${section.type || "Section"} ${sectionIndex + 1}`
+                        }
+                        moduleSlug={moduleId}
+                        buttonText={getCompletionButtonText(
+                          section,
+                          sectionIndex,
+                        )}
+                        isShort={getSectionTextLength(section) < 1750}
+                        chatGated={
+                          ("segments" in section &&
+                            section.segments?.some((s) => s.type === "chat") &&
+                            !chatInteractedSections.has(sectionIndex)) ||
+                          false
                         }
                       />
-                      {section.feedback &&
-                        activeFeedbackKey === feedbackKey && (
-                          <>
-                            <ChatInlineShell
-                              messages={messages}
-                              pendingMessage={pendingMessage}
-                              streamingContent={streamingContent}
-                              isLoading={isLoading}
-                              sendSource={sendSource}
-                              onSendMessage={(content) =>
-                                handleSendMessage(content, sectionIndex, 0)
-                              }
-                              onRetryMessage={handleRetryMessage}
-                              scrollToResponse
-                              activated
-
-                              hasActiveInput={true}
-                            />
-                            <div className="flex items-center justify-center py-6">
-                              <button
-                                onClick={() => {
-                                  const contentId = `test:${moduleId}:${sectionIndex}`;
-                                  markComplete(
-                                    {
-                                      content_id: contentId,
-                                      content_type: "test",
-                                      content_title:
-                                        section.meta?.title || "Test",
-                                      module_slug: moduleId,
-                                    },
-                                    isAuthenticated,
-                                  )
-                                    .then((response) =>
-                                      handleMarkComplete(
-                                        sectionIndex,
-                                        response,
-                                      ),
-                                    )
-                                    .catch(() =>
-                                      handleMarkComplete(sectionIndex),
-                                    );
-                                }}
-                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
-                              >
-                                Continue
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M9 5l7 7-7 7"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                          </>
-                        )}
-                    </>
-                  );
-                })()
-              ) : (
-                // v1 Video section and fallback
-                <>
-                  <SectionDivider
-                    type={section.type}
-                    optional={"optional" in section ? section.optional : false}
-                    title={"meta" in section ? section.meta?.title : undefined}
-                    duration={sectionDur}
-                  />
-                  {"segments" in section &&
-                    section.segments?.map((segment, segmentIndex) =>
-                      renderSegment(
-                        segment,
-                        section,
-                        sectionIndex,
-                        segmentIndex,
-                      ),
                     )}
-                </>
-              )}
-              {section.type !== "test" && (
-                <MarkCompleteButton
-                  isCompleted={completedSections.has(sectionIndex)}
-                  onComplete={(response) =>
-                    handleMarkComplete(sectionIndex, response)
+                    {/* Last section completed: show course navigation */}
+                    {sectionIndex === module.sections.length - 1 &&
+                      completedSections.has(sectionIndex) &&
+                      courseId && (
+                        <div className="flex justify-center pb-12">
+                          <a
+                            href={`/course/${courseId}`}
+                            className="flex items-center gap-2 px-5 py-2.5 text-stone-600 hover:text-stone-900 border border-stone-300 hover:border-stone-400 rounded-lg transition-colors font-medium"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 19l-7-7 7-7"
+                              />
+                            </svg>
+                            Back to Course Overview
+                          </a>
+                        </div>
+                      )}
+                  </div>
+                );
+              })}
+
+              {/* Chat sidebar: fixed-positioned on desktop, handles its own layout */}
+              {currentSection != null && (
+                <ChatSidebar
+                  ref={sidebarRef}
+                  sectionTitle={currentSection?.meta?.title}
+                  messages={messages}
+                  pendingMessage={
+                    sendSource !== "inline" ? pendingMessage : null
                   }
-                  onNext={handleNext}
-                  hasNext={sectionIndex < module.sections.length - 1}
-                  contentId={section.contentId ?? undefined}
-                  contentType="lens"
-                  contentTitle={
-                    section.type === "text"
-                      ? `Section ${sectionIndex + 1}`
-                      : section.type === "page"
-                        ? section.meta?.title || `Page ${sectionIndex + 1}`
-                        : "meta" in section
-                          ? section.meta?.title ||
-                            `${section.type || "Section"} ${sectionIndex + 1}`
-                          : `${section.type || "Section"} ${sectionIndex + 1}`
+                  streamingContent={
+                    sendSource !== "inline" ? streamingContent : ""
                   }
-                  moduleSlug={moduleId}
-                  buttonText={getCompletionButtonText(section, sectionIndex)}
-                  isShort={getSectionTextLength(section) < 1750}
-                  chatGated={
-                    ("segments" in section &&
-                      section.segments?.some((s) => s.type === "chat") &&
-                      !chatInteractedSections.has(sectionIndex)) ||
-                    false
+                  isLoading={sendSource !== "inline" ? isLoading : false}
+                  onSendMessage={(content) =>
+                    handleSendMessage(
+                      content,
+                      currentSectionIndex,
+                      currentSegmentIndexRef.current,
+                      "sidebar",
+                    )
                   }
+                  onRetryMessage={handleRetryMessage}
                 />
               )}
-              {/* Last section completed: show course navigation */}
-              {sectionIndex === module.sections.length - 1 &&
-                completedSections.has(sectionIndex) &&
-                courseId && (
-                  <div className="flex justify-center pb-12">
-                    <a
-                      href={`/course/${courseId}`}
-                      className="flex items-center gap-2 px-5 py-2.5 text-stone-600 hover:text-stone-900 border border-stone-300 hover:border-stone-400 rounded-lg transition-colors font-medium"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 19l-7-7 7-7"
-                        />
-                      </svg>
-                      Back to Course Overview
-                    </a>
-                  </div>
-                )}
             </div>
-          );
-        })}
+            {/* /relative article wrapper */}
+          </main>
+        </div>
+        {/* /layout wrapper */}
 
-      {/* Chat sidebar: fixed-positioned on desktop, handles its own layout */}
-      {currentSection != null && (
-        <ChatSidebar
-          ref={sidebarRef}
-          sectionTitle={currentSection?.meta?.title}
-          messages={messages}
-          pendingMessage={sendSource !== "inline" ? pendingMessage : null}
-          streamingContent={sendSource !== "inline" ? streamingContent : ""}
-          isLoading={sendSource !== "inline" ? isLoading : false}
-          onSendMessage={(content) =>
-            handleSendMessage(
-              content,
-              currentSectionIndex,
-              currentSegmentIndexRef.current,
-              "sidebar",
-            )
-          }
-          onRetryMessage={handleRetryMessage}
-        />
-      )}
-      </div>{/* /relative article wrapper */}
-      </main>
-      </div>{/* /layout wrapper */}
-
-      <ModuleDrawer
-        ref={drawerRef}
-        moduleTitle={module.title}
-        stages={stagesForDrawer}
-        completedStages={completedSections}
-        currentSectionIndex={currentSectionIndex}
-        onStageClick={handleStageClick}
-        courseId={courseId}
-        courseTitle={courseProgress?.course.title}
-        testModeActive={testModeActive}
-      />
-
-      <ModuleCompleteModal
-        isOpen={
-          isModuleComplete &&
-          !completionModalDismissed &&
-          !wasCompleteOnLoad.current
-        }
-        moduleTitle={module.title}
-        courseId={courseContext?.courseId}
-        isInSignupsTable={isInSignupsTable}
-        isInActiveGroup={isInActiveGroup}
-        nextModule={
-          moduleCompletionResult?.type === "next_module"
-            ? {
-                slug: moduleCompletionResult.slug,
-                title: moduleCompletionResult.title,
-              }
-            : null
-        }
-        completedUnit={
-          moduleCompletionResult?.type === "unit_complete"
-            ? moduleCompletionResult.unitNumber
-            : null
-        }
-        onClose={() => setCompletionModalDismissed(true)}
-      />
-
-      <SectionChoiceModal
-        isOpen={sectionChoiceOpen}
-        completedTitle={completedSectionTitle}
-        choices={sectionChoices}
-        onChoose={(index) => {
-          setSectionChoiceOpen(false);
-          setCurrentSectionIndex(index);
-        }}
-        onDismiss={() => {
-          setSectionChoiceOpen(false);
-          // Skip to next required section, or advance by 1
-          const nextRequired = sectionChoices.find((c) => !c.optional);
-          setCurrentSectionIndex(
-            nextRequired ? nextRequired.index : currentSectionIndex + 1,
-          );
-        }}
-      />
-
-      <AuthPromptModal
-        isOpen={showAuthPrompt}
-        onLogin={login}
-        onDismiss={() => setShowAuthPrompt(false)}
-      />
-
-      {/* Debug overlay — ?debug query param. Separate component so its
-          re-renders (driven by scroll) don't touch Module. */}
-      {isDebugMode && currentSection && (
-        <DebugOverlay
-          currentSection={currentSection}
+        <ModuleDrawer
+          ref={drawerRef}
+          moduleTitle={module.title}
+          stages={stagesForDrawer}
+          completedStages={completedSections}
           currentSectionIndex={currentSectionIndex}
-          sidebarChatSegmentIndex={sidebarChatSegmentIndex}
-          segmentIndexRef={currentSegmentIndexRef}
-          listeners={segmentIndexListeners}
+          onStageClick={handleStageClick}
+          courseId={courseId}
+          courseTitle={courseProgress?.course.title}
+          testModeActive={testModeActive}
         />
-      )}
-    </ScrollContainerContext.Provider>
+
+        <ModuleCompleteModal
+          isOpen={
+            isModuleComplete &&
+            !completionModalDismissed &&
+            !wasCompleteOnLoad.current
+          }
+          moduleTitle={module.title}
+          courseId={courseContext?.courseId}
+          isInSignupsTable={isInSignupsTable}
+          isInActiveGroup={isInActiveGroup}
+          nextModule={
+            moduleCompletionResult?.type === "next_module"
+              ? {
+                  slug: moduleCompletionResult.slug,
+                  title: moduleCompletionResult.title,
+                }
+              : null
+          }
+          completedUnit={
+            moduleCompletionResult?.type === "unit_complete"
+              ? moduleCompletionResult.unitNumber
+              : null
+          }
+          onClose={() => setCompletionModalDismissed(true)}
+        />
+
+        <SectionChoiceModal
+          isOpen={sectionChoiceOpen}
+          completedTitle={completedSectionTitle}
+          choices={sectionChoices}
+          onChoose={(index) => {
+            setSectionChoiceOpen(false);
+            setCurrentSectionIndex(index);
+          }}
+          onDismiss={() => {
+            setSectionChoiceOpen(false);
+            // Skip to next required section, or advance by 1
+            const nextRequired = sectionChoices.find((c) => !c.optional);
+            setCurrentSectionIndex(
+              nextRequired ? nextRequired.index : currentSectionIndex + 1,
+            );
+          }}
+        />
+
+        <AuthPromptModal
+          isOpen={showAuthPrompt}
+          onLogin={login}
+          onDismiss={() => setShowAuthPrompt(false)}
+        />
+
+        {/* Debug overlay — ?debug query param. Separate component so its
+          re-renders (driven by scroll) don't touch Module. */}
+        {isDebugMode && currentSection && (
+          <DebugOverlay
+            currentSection={currentSection}
+            currentSectionIndex={currentSectionIndex}
+            sidebarChatSegmentIndex={sidebarChatSegmentIndex}
+            segmentIndexRef={currentSegmentIndexRef}
+            listeners={segmentIndexListeners}
+          />
+        )}
+      </ScrollContainerContext.Provider>
     </div>
   );
 }

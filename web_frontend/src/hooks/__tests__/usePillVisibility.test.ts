@@ -2,7 +2,10 @@ import { renderHook, act } from "@testing-library/react";
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { usePillVisibility } from "../usePillVisibility";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
-import { animateInputFlight, cancelInputFlight } from "@/utils/animateInputFlight";
+import {
+  animateInputFlight,
+  cancelInputFlight,
+} from "@/utils/animateInputFlight";
 
 vi.mock("@/utils/animateInputFlight", () => ({
   animateInputFlight: vi.fn(),
@@ -24,7 +27,7 @@ describe("usePillVisibility hook", () => {
     const listeners = { current: new Set<() => void>() };
     function set(value: boolean) {
       ref.current = value;
-      listeners.current.forEach(fn => fn());
+      listeners.current.forEach((fn) => fn());
     }
     return { ref, listeners, set };
   }
@@ -85,7 +88,9 @@ describe("usePillVisibility hook", () => {
   test("scroll false→true (active, pref open): pillVisible→false, animates to-sidebar", () => {
     const store = createStore(false);
     const mockSetAllowed = vi.fn();
-    const sidebarRef = { current: { setAllowed: mockSetAllowed } as unknown as ChatSidebarHandle };
+    const sidebarRef = {
+      current: { setAllowed: mockSetAllowed } as unknown as ChatSidebarHandle,
+    };
     const { result } = renderHook(() =>
       usePillVisibility({
         sidebarAllowedRef: store.ref,
@@ -97,7 +102,9 @@ describe("usePillVisibility hook", () => {
 
     expect(result.current.pillVisible).toBe(true);
 
-    act(() => { store.set(true); });
+    act(() => {
+      store.set(true);
+    });
     expect(result.current.pillVisible).toBe(false);
     expect(animateInputFlight).toHaveBeenCalledWith("to-sidebar");
     expect(mockSetAllowed).toHaveBeenCalledWith(true);
@@ -106,7 +113,9 @@ describe("usePillVisibility hook", () => {
   test("scroll true→false (active, pref open): pillVisible→true, animates to-inline", () => {
     const store = createStore(true);
     const mockSetAllowed = vi.fn();
-    const sidebarRef = { current: { setAllowed: mockSetAllowed } as unknown as ChatSidebarHandle };
+    const sidebarRef = {
+      current: { setAllowed: mockSetAllowed } as unknown as ChatSidebarHandle,
+    };
     const { result } = renderHook(() =>
       usePillVisibility({
         sidebarAllowedRef: store.ref,
@@ -118,7 +127,9 @@ describe("usePillVisibility hook", () => {
 
     expect(result.current.pillVisible).toBe(false);
 
-    act(() => { store.set(false); });
+    act(() => {
+      store.set(false);
+    });
     expect(result.current.pillVisible).toBe(true);
     expect(animateInputFlight).toHaveBeenCalledWith("to-inline");
     expect(mockSetAllowed).toHaveBeenCalledWith(false);
@@ -141,7 +152,9 @@ describe("usePillVisibility hook", () => {
 
     expect(result.current.pillVisible).toBe(true);
 
-    act(() => { store.set(true); });
+    act(() => {
+      store.set(true);
+    });
     expect(result.current.pillVisible).toBe(true);
     expect(animateInputFlight).not.toHaveBeenCalled();
   });
@@ -234,7 +247,9 @@ describe("usePillVisibility hook", () => {
 
     expect(result.current.pillVisible).toBe(false);
 
-    act(() => { store.set(false); });
+    act(() => {
+      store.set(false);
+    });
     expect(result.current.pillVisible).toBe(true);
     expect(animateInputFlight).not.toHaveBeenCalled();
   });
@@ -253,7 +268,9 @@ describe("usePillVisibility hook", () => {
     );
 
     // While inactive: no animation
-    act(() => { store.set(false); });
+    act(() => {
+      store.set(false);
+    });
     expect(result.current.pillVisible).toBe(true);
     expect(animateInputFlight).not.toHaveBeenCalled();
 
@@ -262,7 +279,9 @@ describe("usePillVisibility hook", () => {
     rerender();
 
     // Now transition should animate
-    act(() => { store.set(true); });
+    act(() => {
+      store.set(true);
+    });
     expect(result.current.pillVisible).toBe(false);
     expect(animateInputFlight).toHaveBeenCalledWith("to-sidebar");
   });
@@ -309,7 +328,9 @@ describe("usePillVisibility hook", () => {
   test("sidebar setAllowed called on scroll change", () => {
     const store = createStore(false);
     const mockSetAllowed = vi.fn();
-    const sidebarRef = { current: { setAllowed: mockSetAllowed } as unknown as ChatSidebarHandle };
+    const sidebarRef = {
+      current: { setAllowed: mockSetAllowed } as unknown as ChatSidebarHandle,
+    };
     renderHook(() =>
       usePillVisibility({
         sidebarAllowedRef: store.ref,
@@ -321,7 +342,9 @@ describe("usePillVisibility hook", () => {
 
     expect(mockSetAllowed).toHaveBeenCalledWith(false);
 
-    act(() => { store.set(true); });
+    act(() => {
+      store.set(true);
+    });
     expect(mockSetAllowed).toHaveBeenCalledWith(true);
   });
 });

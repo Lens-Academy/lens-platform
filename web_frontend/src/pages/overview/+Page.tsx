@@ -49,7 +49,8 @@ function getNodeColor(node: GraphNode): string {
   if (node.type === "course") return COLORS.course;
   if (node.type === "parent-module")
     return node.orphan ? COLORS.orphan : COLORS.parentModule;
-  if (node.type === "module") return node.orphan ? COLORS.orphan : COLORS.module;
+  if (node.type === "module")
+    return node.orphan ? COLORS.orphan : COLORS.module;
   if (node.type === "lens") {
     if (node.sectionType === "video" || node.sectionType === "lens-video")
       return COLORS.lensVideo;
@@ -82,10 +83,9 @@ function NodeDetail({
   else if (node.type === "module" || node.type === "parent-module")
     platformLink = `/module/${node.slug}`;
 
-  const githubLink =
-    node.file
-      ? `https://github.com/Lens-Academy/lens-edu-relay/blob/staging/${node.file}`
-      : null;
+  const githubLink = node.file
+    ? `https://github.com/Lens-Academy/lens-edu-relay/blob/staging/${node.file}`
+    : null;
 
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-gray-900/80 backdrop-blur-sm rounded-lg border border-gray-700/50 p-4 min-w-72 max-w-md">
@@ -225,7 +225,10 @@ function OverviewToolbar({
   ];
 
   return (
-    <div className="fixed top-4 left-4 z-50 bg-gray-900/80 backdrop-blur-sm rounded-lg border border-gray-700/50 p-3 text-sm w-56" onMouseDown={(e) => e.stopPropagation()}>
+    <div
+      className="fixed top-4 left-4 z-50 bg-gray-900/80 backdrop-blur-sm rounded-lg border border-gray-700/50 p-3 text-sm w-56"
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <div className="flex flex-col gap-1.5 mb-3">
         {legendItems.map((item) => (
           <div key={item.label} className="flex items-center gap-2">
@@ -485,7 +488,9 @@ export default function Page() {
         ctx.font = `${isFocused ? 4 : 3}px Sans-Serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        ctx.fillStyle = isDimmed ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.9)";
+        ctx.fillStyle = isDimmed
+          ? "rgba(255,255,255,0.2)"
+          : "rgba(255,255,255,0.9)";
         ctx.fillText(node.title, x, y + radius + 2);
       }
 
@@ -562,8 +567,10 @@ export default function Page() {
 
   const linkVisibility = useCallback(
     (link: GraphLink) => {
-      const s = typeof link.source === "object" ? (link.source as GraphNode) : null;
-      const t = typeof link.target === "object" ? (link.target as GraphNode) : null;
+      const s =
+        typeof link.source === "object" ? (link.source as GraphNode) : null;
+      const t =
+        typeof link.target === "object" ? (link.target as GraphNode) : null;
       // Hide root→course links (virtual root is invisible)
       if (s?.type === "root" || t?.type === "root") return false;
       if (s && !showOrphans && s.orphan) return false;
@@ -584,9 +591,7 @@ export default function Page() {
         typeof link.target === "object" ? link.target.id : link.target;
       const isConnected =
         sourceId === focusedNodeId || targetId === focusedNodeId;
-      return isConnected
-        ? "rgba(255,255,255,0.4)"
-        : "rgba(255,255,255,0.03)";
+      return isConnected ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.03)";
     },
     [focusedNodeId],
   );
@@ -614,7 +619,10 @@ export default function Page() {
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden" style={{ backgroundColor: "#1a1a2e" }}>
+    <div
+      className="w-screen h-screen overflow-hidden"
+      style={{ backgroundColor: "#1a1a2e" }}
+    >
       <OverviewToolbar
         showOrphans={showOrphans}
         setShowOrphans={setShowOrphans}
@@ -633,20 +641,22 @@ export default function Page() {
         nodePointerAreaPaint={paintArea}
         onNodeClick={handleFocus}
         onBackgroundClick={clearFocus}
-        nodeLabel={(node: GraphNode) => node.type === "root" ? "" : node.title}
+        nodeLabel={(node: GraphNode) =>
+          node.type === "root" ? "" : node.title
+        }
         linkColor={linkColor}
         linkWidth={1}
         backgroundColor="#1a1a2e"
         cooldownTicks={100}
-        onZoom={({ k }) => { zoomRef.current = k; }}
+        onZoom={({ k }) => {
+          zoomRef.current = k;
+        }}
         onEngineStop={() => fgRef.current?.zoomToFit(400)}
         nodeVisibility={nodeVisibility}
         linkVisibility={linkVisibility}
       />
 
-      {focusedNode && (
-        <NodeDetail node={focusedNode} onClose={clearFocus} />
-      )}
+      {focusedNode && <NodeDetail node={focusedNode} onClose={clearFocus} />}
     </div>
   );
 }
