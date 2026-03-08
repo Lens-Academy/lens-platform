@@ -8,38 +8,23 @@ function cleanup() {
   fn?.();
 }
 
-/** Cancel any in-flight animation and restore element styles. */
+/** Cancel any in-flight animation. */
 export function cancelInputFlight() {
   activeAnimation?.cancel();
   cleanup();
-  // Clear leftover inline opacity from a finished to-sidebar animation
-  // (onfinish intentionally leaves it set to avoid a flash).
-  const inlinePill = document.querySelector(
-    '[data-chat-input-pill="inline"]',
-  ) as HTMLElement | null;
-  if (inlinePill) inlinePill.style.opacity = "";
 }
 
 /**
  * Animate the chat input pill between sidebar and inline positions.
  *
- * Handles transform/position for to-inline; for to-sidebar, also hides
- * the inline pill while the clone flies (restored on finish/cancel).
- * Calls `onDone` on natural completion (onfinish). Does NOT
- * call `onDone` on cancel — the caller uses a generation counter to
- * discard stale callbacks regardless.
+ * Fire-and-forget: no callback. React controls inline pill opacity
+ * entirely via the `opacity-0` class — this module never touches it.
  */
-export function animateInputFlight(
-  direction: "to-inline" | "to-sidebar",
-  onDone: () => void = () => {},
-) {
+export function animateInputFlight(direction: "to-inline" | "to-sidebar") {
   activeAnimation?.cancel();
   cleanup();
 
-  // Respect reduced motion — call onDone synchronously so state machine
-  // transitions to terminal state immediately
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    onDone();
     return;
   }
 
@@ -49,27 +34,16 @@ export function animateInputFlight(
   const inlinePill = document.querySelector(
     '[data-chat-input-pill="inline"]',
   ) as HTMLElement | null;
-  if (!sidebarPill || !inlinePill) {
-    onDone();
-    return;
-  }
-
-  // Clear leftover inline opacity from a previous to-sidebar animation
-  // (onfinish intentionally leaves it set to avoid a flash).
-  inlinePill.style.opacity = "";
+  if (!sidebarPill || !inlinePill) return;
 
   if (direction === "to-inline") {
-    animateToInline(sidebarPill, inlinePill, onDone);
+    animateToInline(sidebarPill, inlinePill);
   } else {
-    animateToSidebar(sidebarPill, inlinePill, onDone);
+    animateToSidebar(sidebarPill, inlinePill);
   }
 }
 
-function animateToInline(
-  sidebarPill: HTMLElement,
-  inlinePill: HTMLElement,
-  onDone: () => void,
-) {
+function animateToInline(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
   const fromRect = sidebarPill.getBoundingClientRect();
   const toRect = inlinePill.getBoundingClientRect();
 
@@ -110,17 +84,12 @@ function animateToInline(
     inlinePill.style.transformOrigin = "";
     activeAnimation = null;
     cleanupFn = null;
-    onDone();
   };
 
   activeAnimation.oncancel = () => {};
 }
 
-function animateToSidebar(
-  sidebarPill: HTMLElement,
-  inlinePill: HTMLElement,
-  onDone: () => void,
-) {
+function animateToSidebar(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
   const fromRect = inlinePill.getBoundingClientRect();
   const closedRect = sidebarPill.getBoundingClientRect();
   const sidebarWidth = window.innerWidth >= 1280 ? 384 : 320;
@@ -141,17 +110,15 @@ function animateToSidebar(
     width: `${fromRect.width}px`,
     height: `${fromRect.height}px`,
     margin: "0",
+    opacity: "1", // override inherited opacity-0 class
   });
   document.body.appendChild(el);
 
-  // Hide both originals — only the flying clone should be visible
   sidebarPill.style.opacity = "0";
-  inlinePill.style.opacity = "0";
 
   cleanupFn = () => {
     el.remove();
     sidebarPill.style.opacity = "";
-    inlinePill.style.opacity = "";
   };
 
   activeAnimation = el.animate(
@@ -169,21 +136,11 @@ function animateToSidebar(
         height: `${toRect.height}px`,
       },
     ],
-    // fill: "forwards" keeps clone at final position until onfinish removes it
     { duration: 900, easing: "ease-in-out", fill: "forwards" },
   );
 
   activeAnimation.onfinish = () => {
-    el.remove();
-    sidebarPill.style.opacity = "";
-    // Don't restore inlinePill opacity — React will hide it via the
-    // opacity-0 class once the state machine transitions to "sidebar".
-    // Restoring it here would flash the inline pill for one frame before
-    // React re-renders. The leftover inline style is cleaned up by
-    // cancelInputFlight() or the next animateInputFlight() call.
-    activeAnimation = null;
-    cleanupFn = null;
-    onDone();
+    cleanup();
   };
 
   activeAnimation.oncancel = () => {};
