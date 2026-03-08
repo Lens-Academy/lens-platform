@@ -8,14 +8,27 @@ function cleanup() {
   fn?.();
 }
 
-export function animateInputFlight(direction: "to-inline" | "to-sidebar") {
-  // Cancel any in-progress animation — oncancel is a no-op,
-  // cleanup() handles resetting styles and removing clones.
+/**
+ * Animate the chat input pill between sidebar and inline positions.
+ *
+ * Handles transform/position only — never reads or writes opacity on the
+ * inline pill. Calls `onDone` on natural completion (onfinish). Does NOT
+ * call `onDone` on cancel — the caller uses a generation counter to
+ * discard stale callbacks regardless.
+ */
+export function animateInputFlight(
+  direction: "to-inline" | "to-sidebar",
+  onDone: () => void = () => {},
+) {
   activeAnimation?.cancel();
   cleanup();
 
-  // Respect reduced motion
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  // Respect reduced motion — call onDone synchronously so state machine
+  // transitions to terminal state immediately
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    onDone();
+    return;
+  }
 
   const sidebarPill = document.querySelector(
     '[data-chat-input-pill="sidebar"]',
@@ -23,24 +36,23 @@ export function animateInputFlight(direction: "to-inline" | "to-sidebar") {
   const inlinePill = document.querySelector(
     '[data-chat-input-pill="inline"]',
   ) as HTMLElement | null;
-  if (!sidebarPill || !inlinePill) return;
+  if (!sidebarPill || !inlinePill) {
+    onDone();
+    return;
+  }
 
   if (direction === "to-inline") {
-    animateToInline(sidebarPill, inlinePill);
+    animateToInline(sidebarPill, inlinePill, onDone);
   } else {
-    animateToSidebar(sidebarPill, inlinePill);
+    animateToSidebar(sidebarPill, inlinePill, onDone);
   }
 }
 
-/**
- * Sidebar → inline: true FLIP on the inline pill itself.
- *
- * No `fill` — we set the initial transform as an inline style so the element
- * appears at the sidebar position immediately (no flash). During playback the
- * WAAPI overrides the inline transform. After playback we clear it. This avoids
- * fill effects that persist and prevent later opacity changes.
- */
-function animateToInline(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
+function animateToInline(
+  sidebarPill: HTMLElement,
+  inlinePill: HTMLElement,
+  onDone: () => void,
+) {
   const fromRect = sidebarPill.getBoundingClientRect();
   const toRect = inlinePill.getBoundingClientRect();
 
@@ -49,12 +61,11 @@ function animateToInline(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
   const scaleX = fromRect.width / toRect.width;
   const scaleY = fromRect.height / toRect.height;
 
-  // Hide sidebar pill
   sidebarPill.style.opacity = "0";
 
-  // Position inline pill at sidebar location via inline transform (no flash).
   inlinePill.style.transformOrigin = "top left";
-  inlinePill.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
+  inlinePill.style.transform =
+    `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
 
   cleanupFn = () => {
     sidebarPill.style.opacity = "";
@@ -62,20 +73,15 @@ function animateToInline(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
     inlinePill.style.transformOrigin = "";
   };
 
-  // Animate from sidebar position to natural position (no fill).
-  // opacity: 1 in keyframes overrides the CSS opacity-0 class during playback;
-  // React state removes the class before animation finishes.
   activeAnimation = inlinePill.animate(
     [
       {
         transformOrigin: "top left",
         transform: `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`,
-        opacity: 1,
       },
       {
         transformOrigin: "top left",
         transform: "none",
-        opacity: 1,
       },
     ],
     { duration: 900, easing: "ease-in-out" },
@@ -87,18 +93,18 @@ function animateToInline(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
     inlinePill.style.transformOrigin = "";
     activeAnimation = null;
     cleanupFn = null;
+    onDone();
   };
 
   activeAnimation.oncancel = () => {};
 }
 
-/**
- * Inline → sidebar: clone-based animation to a fixed target.
- * The sidebar is fixed-positioned, so a floating clone works fine.
- */
-function animateToSidebar(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
+function animateToSidebar(
+  sidebarPill: HTMLElement,
+  inlinePill: HTMLElement,
+  onDone: () => void,
+) {
   const fromRect = inlinePill.getBoundingClientRect();
-  // Sidebar pill is off-screen right (sidebar closed); shift left by sidebar width
   const closedRect = sidebarPill.getBoundingClientRect();
   const sidebarWidth = window.innerWidth >= 1280 ? 384 : 320;
   const toRect = new DOMRect(
@@ -108,7 +114,6 @@ function animateToSidebar(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
     closedRect.height,
   );
 
-  // Clone the inline pill so buttons/icons are visible during flight
   const el = inlinePill.cloneNode(true) as HTMLElement;
   el.className = inlinePill.className + " pointer-events-none";
   Object.assign(el.style, {
@@ -122,7 +127,6 @@ function animateToSidebar(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
   });
   document.body.appendChild(el);
 
-  // Hide sidebar pill during animation; inline pill hidden by React state
   sidebarPill.style.opacity = "0";
 
   cleanupFn = () => {
@@ -145,6 +149,7 @@ function animateToSidebar(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
         height: `${toRect.height}px`,
       },
     ],
+    // fill: "forwards" keeps clone at final position until onfinish removes it
     { duration: 900, easing: "ease-in-out", fill: "forwards" },
   );
 
@@ -153,6 +158,7 @@ function animateToSidebar(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
     sidebarPill.style.opacity = "";
     activeAnimation = null;
     cleanupFn = null;
+    onDone();
   };
 
   activeAnimation.oncancel = () => {};
