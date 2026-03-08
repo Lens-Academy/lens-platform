@@ -111,6 +111,8 @@ export function ChatInlineShell({
   const containerRef = useRef<HTMLDivElement>(null);
   const recentStartRef = useRef<HTMLDivElement>(null);
   const justExpandedRef = useRef(false);
+  const scrollContainerHeightRef = useRef(0);
+  scrollContainerHeightRef.current = scrollContainerHeight;
 
   // Scroll user's new message to top when they send
   // When activeScrollToResponse is true, scroll to the response (Thinking.../streaming) instead
@@ -120,7 +122,7 @@ export function ChatInlineShell({
     if (!hasActiveInput || sendSource === "sidebar") return;
     // In expanded mode, wait for scrollContainerHeight so minHeight is applied.
     // In normal mode (page scroll), no fixed-height container — skip the check.
-    if (isExpanded && scrollContainerHeight <= 0) return;
+    if (isExpanded && scrollContainerHeightRef.current <= 0) return;
 
     const scrollBehavior = isExpanded ? "instant" : "smooth";
 
@@ -144,7 +146,6 @@ export function ChatInlineShell({
     }
   }, [
     pendingMessage,
-    scrollContainerHeight,
     activeScrollToResponse,
     isLoading,
     isExpanded,

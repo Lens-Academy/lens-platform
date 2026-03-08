@@ -119,6 +119,19 @@ async def event_generator(
                 desc = _segment_context_label(seg.get("type", ""))
                 if desc:
                     context_msg_content = desc
+                    # If entering a chat segment, include preceding text content
+                    if seg.get("type") == "chat" and segment_index > 0:
+                        prev_seg = (
+                            segments[segment_index - 1]
+                            if (segment_index - 1) < len(segments)
+                            else {}
+                        )
+                        if prev_seg.get("type") == "text":
+                            prev_content = prev_seg.get("content", "")
+                            if prev_content:
+                                context_msg_content += (
+                                    f"\n\nThe user has just read:\n{prev_content}"
+                                )
 
         if context_msg_content:
             await add_chat_message(
