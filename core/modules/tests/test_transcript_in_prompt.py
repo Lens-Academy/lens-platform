@@ -17,7 +17,7 @@ from datetime import datetime
 import pytest
 
 from core.content.cache import ContentCache, set_cache, clear_cache, get_cache
-from core.modules.context import gather_section_context
+from core.modules.context import gather_section_context, SectionContext
 from core.modules.chat import _build_system_prompt, ChatStage
 from core.transcripts.tools import get_text_at_time
 
@@ -104,8 +104,8 @@ class TestGatherSectionContext:
         context = gather_section_context(section, segment_index=1)
 
         assert context is not None
-        assert "This is the video transcript content" in context
-        assert "[Video transcript]" in context
+        assert "This is the video transcript content" in (context.previous or "")
+        assert "[Video transcript]" in (context.previous or "")
 
     def test_returns_none_when_transcript_empty(self):
         """gather_section_context should return None when transcript is empty."""
@@ -142,12 +142,15 @@ class TestSystemPromptIncludesContext:
             instructions="Help the user understand the video",
             hide_previous_content_from_tutor=False,
         )
-        previous_content = "[Video transcript]\nThis is important AI safety content"
+        context = SectionContext(
+            previous="[Video transcript]\nThis is important AI safety content",
+            current=None,
+        )
 
-        prompt = _build_system_prompt(stage, None, previous_content)
+        prompt = _build_system_prompt(stage, None, context)
 
         assert "This is important AI safety content" in prompt
-        assert "The user just engaged with this content" in prompt
+        assert "previously read" in prompt
 
     def test_chat_stage_without_previous_content(self):
         """_build_system_prompt should work without previous_content."""
@@ -169,9 +172,9 @@ class TestSystemPromptIncludesContext:
             instructions="Start fresh discussion",
             hide_previous_content_from_tutor=True,
         )
-        previous_content = "This should NOT appear"
+        context = SectionContext(previous="This should NOT appear", current=None)
 
-        prompt = _build_system_prompt(stage, None, previous_content)
+        prompt = _build_system_prompt(stage, None, context)
 
         assert "This should NOT appear" not in prompt
 
@@ -220,8 +223,8 @@ class TestEndToEndTranscriptFlow:
         # Step 4: Gather context (simulates what module.py route does)
         context = gather_section_context(section, segment_index=1)
         assert context is not None
-        assert "AI" in context
-        assert "safety" in context
+        assert "AI" in (context.previous or "")
+        assert "safety" in (context.previous or "")
 
         # Step 5: Build system prompt (simulates what send_module_message does)
         stage = ChatStage(
@@ -234,4 +237,4 @@ class TestEndToEndTranscriptFlow:
         # Final verification: transcript content is in the prompt
         assert "AI" in prompt
         assert "safety" in prompt
-        assert "The user just engaged with this content" in prompt
+        assert "previously read" in prompt

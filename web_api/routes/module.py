@@ -155,7 +155,7 @@ async def event_generator(
     section = (
         module.sections[section_index] if section_index < len(module.sections) else {}
     )
-    previous_content = gather_section_context(section, segment_index)
+    section_context = gather_section_context(section, segment_index)
 
     # Get chat instructions from segment
     segments = section.get("segments", [])
@@ -258,7 +258,7 @@ async def event_generator(
     assistant_content = ""
     try:
         async for chunk in send_module_message(
-            llm_messages, stage, None, previous_content
+            llm_messages, stage, None, section_context
         ):
             if chunk.get("type") == "text":
                 assistant_content += chunk.get("content", "")

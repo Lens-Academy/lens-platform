@@ -1,59 +1,76 @@
 # core/modules/context.py
 """Context gathering for chat sessions."""
 
+from dataclasses import dataclass
 
-def gather_section_context(section: dict, segment_index: int) -> str | None:
-    """Gather content from preceding segments for chat context.
+
+@dataclass
+class SectionContext:
+    """Content the user has read and is currently reading."""
+
+    previous: str | None
+    """Content from segments before the current one (already read)."""
+    current: str | None
+    """Content of the current segment (currently reading)."""
+
+
+def _extract_segment_content(seg: dict) -> str | None:
+    """Extract displayable content from a single segment."""
+    seg_type = seg.get("type")
+
+    if seg_type == "text":
+        content = seg.get("content", "")
+        return content or None
+
+    if seg_type == "video-excerpt":
+        transcript = seg.get("transcript", "")
+        return f"[Video transcript]\n{transcript}" if transcript else None
+
+    if seg_type == "article-excerpt":
+        content = seg.get("content", "")
+        return content or None
+
+    if seg_type == "roleplay":
+        content = seg.get("content", "")
+        return f"[Roleplay scenario]\n{content}" if content else None
+
+    # chat segments etc. — no extractable content
+    return None
+
+
+def gather_section_context(section: dict, segment_index: int) -> SectionContext | None:
+    """Gather content from segments up to and including segment_index.
+
+    Returns a SectionContext with separate previous/current content,
+    or None if hidePreviousContentFromTutor is set or index is out of bounds.
 
     Args:
         section: A flattened module section dict with "segments" list
-        segment_index: Index of the current chat segment
-
-    Returns:
-        Formatted context string, or None if:
-        - hidePreviousContentFromTutor is True on current segment
-        - No content segments precede the current segment
-        - segment_index is out of bounds
+        segment_index: Index of the current segment (chat or content)
     """
     segments = section.get("segments", [])
 
-    # Handle out of bounds
     if segment_index >= len(segments) or segment_index < 0:
         return None
 
     current_segment = segments[segment_index]
 
-    # Check if this chat hides previous content
     if current_segment.get("hidePreviousContentFromTutor"):
         return None
 
-    # Gather content from segments 0 to segment_index-1
-    parts = []
+    # Gather content from preceding segments
+    previous_parts = []
     for i in range(segment_index):
-        seg = segments[i]
-        seg_type = seg.get("type")
+        content = _extract_segment_content(segments[i])
+        if content:
+            previous_parts.append(content)
 
-        if seg_type == "text":
-            content = seg.get("content", "")
-            if content:
-                parts.append(content)
+    previous = "\n\n---\n\n".join(previous_parts) if previous_parts else None
 
-        elif seg_type == "video-excerpt":
-            transcript = seg.get("transcript", "")
-            if transcript:
-                parts.append(f"[Video transcript]\n{transcript}")
+    # Extract current segment content
+    current = _extract_segment_content(current_segment)
 
-        elif seg_type == "article-excerpt":
-            content = seg.get("content", "")
-            if content:
-                parts.append(content)
+    if not previous and not current:
+        return None
 
-        elif seg_type == "roleplay":
-            # Roleplay scenario briefing provides context for subsequent segments
-            content = seg.get("content", "")
-            if content:
-                parts.append(f"[Roleplay scenario]\n{content}")
-
-        # Skip chat and roleplay segments for their own context -- history captures those
-
-    return "\n\n---\n\n".join(parts) if parts else None
+    return SectionContext(previous=previous, current=current)

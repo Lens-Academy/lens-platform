@@ -16,7 +16,7 @@ class TestAssembleChatPrompt:
     def test_with_context(self):
         result = assemble_chat_prompt("Base", context="Some content")
         assert result == (
-            "Base\n\nThe user just engaged with this content:\n---\nSome content\n---"
+            "Base\n\nThe user previously read this content:\n---\nSome content\n---"
         )
 
     def test_with_both(self):

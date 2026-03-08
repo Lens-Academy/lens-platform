@@ -8,6 +8,7 @@ import os
 from typing import AsyncIterator
 
 from .llm import stream_chat
+from .context import SectionContext
 from .prompts import assemble_chat_prompt, DEFAULT_BASE_PROMPT
 from .types import Stage, ArticleStage, VideoStage, ChatStage
 from .content import (
@@ -43,14 +44,14 @@ TRANSITION_TOOL = {
 def _build_system_prompt(
     current_stage: Stage,
     current_content: str | None,
-    previous_content: str | None,
+    section_context: SectionContext | None,
 ) -> str:
     """Build the system prompt based on current stage and context.
 
     Args:
         current_stage: The current module stage
         current_content: Content of current stage (for article/video stages)
-        previous_content: Content from previous stage (for chat stages, unless hidePreviousContentFromTutor)
+        section_context: Previous/current content from the section
     """
 
     base = DEFAULT_BASE_PROMPT
@@ -58,7 +59,7 @@ def _build_system_prompt(
     if isinstance(current_stage, ChatStage):
         # Active chat stage - use shared assembly
         context = (
-            previous_content
+            section_context
             if not current_stage.hide_previous_content_from_tutor
             else None
         )
@@ -149,7 +150,7 @@ async def send_module_message(
     messages: list[dict],
     current_stage: Stage,
     current_content: str | None = None,
-    previous_content: str | None = None,
+    section_context: SectionContext | None = None,
     provider: str | None = None,
 ) -> AsyncIterator[dict]:
     """
@@ -159,7 +160,7 @@ async def send_module_message(
         messages: List of {"role": "user"|"assistant"|"system", "content": str}
         current_stage: The current module stage
         current_content: Content of current stage (for article/video stages)
-        previous_content: Content from previous stage (for chat stages)
+        section_context: Previous/current content from the section
         provider: LLM provider string (e.g., "anthropic/claude-sonnet-4-20250514")
                   If None, uses DEFAULT_PROVIDER from environment.
 
@@ -169,7 +170,7 @@ async def send_module_message(
         - {"type": "tool_use", "name": str} for tool calls
         - {"type": "done"} when complete
     """
-    system = _build_system_prompt(current_stage, current_content, previous_content)
+    system = _build_system_prompt(current_stage, current_content, section_context)
 
     # Debug mode: show system prompt in chat
     if os.environ.get("DEBUG") == "1":
