@@ -420,7 +420,7 @@ async def content_graph():
                     {
                         "id": lens_id,
                         "type": "lens",
-                        "title": section.get("title", ""),
+                        "title": section.get("meta", {}).get("title", ""),
                         "slug": slug,  # parent module slug for navigation
                         "sectionType": section.get("type"),
                         "file": None,

@@ -153,10 +153,17 @@ const DEFAULT_FORCES: ForceSettings = {
   bandWidth: 120,
 };
 
-// Band boundaries: band 0 = root (pinned), 1 = [0, bw], 2 = [bw, 2*bw], 3 = [2*bw, 3*bw]
+// Band boundaries with gaps between them.
+// band 0 = root (pinned to origin)
+// band 1 = [0, bw]
+// band 2 = [bw + gap, 2*bw + gap]
+// band 3 = [2*bw + 2*gap, 3*bw + 2*gap]
+const BAND_GAP = 30;
+
 function getBandRange(band: number, bw: number): [number, number] {
   if (band <= 0) return [0, 0];
-  return [(band - 1) * bw, band * bw];
+  const start = (band - 1) * bw + (band - 1) * BAND_GAP;
+  return [start, start + bw];
 }
 
 function ForceSlider({
@@ -218,7 +225,7 @@ function OverviewToolbar({
   ];
 
   return (
-    <div className="fixed top-4 left-4 z-50 bg-gray-900/80 backdrop-blur-sm rounded-lg border border-gray-700/50 p-3 text-sm w-56">
+    <div className="fixed top-4 left-4 z-50 bg-gray-900/80 backdrop-blur-sm rounded-lg border border-gray-700/50 p-3 text-sm w-56" onMouseDown={(e) => e.stopPropagation()}>
       <div className="flex flex-col gap-1.5 mb-3">
         {legendItems.map((item) => (
           <div key={item.label} className="flex items-center gap-2">
@@ -311,6 +318,8 @@ export default function Page() {
         return 6;
       }),
     );
+    // Link attraction — pull connected nodes closer within their bands
+    fg.d3Force("link")?.distance(10)?.strength(0.8);
     fg.d3ReheatSimulation();
   }, [forces.chargeStrength, forces.bandWidth]);
 
@@ -431,8 +440,8 @@ export default function Page() {
       ctx.fillStyle = color;
       ctx.fill();
 
-      // Label for course/module or focused
-      if (node.type === "course" || node.type === "parent-module" || node.type === "module" || isFocused) {
+      // Label for all nodes (except root)
+      if (node.type === "course" || node.type === "parent-module" || node.type === "module" || node.type === "lens" || isFocused) {
         ctx.font = `${isFocused ? 4 : 3}px Sans-Serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
@@ -445,19 +454,45 @@ export default function Page() {
     [focusedNodeId, connectedNodeIds],
   );
 
-  // Draw concentric band boundaries behind the graph
+  // Draw filled concentric bands behind the graph
   const paintBands = useCallback(
     (ctx: CanvasRenderingContext2D) => {
       const bw = forces.bandWidth;
+      const halfGap = BAND_GAP / 2;
+
+      const BAND_FILLS = [
+        "", // band 0 (root, not drawn)
+        "rgba(245, 158, 11, 0.06)", // courses — warm amber
+        "rgba(59, 130, 246, 0.06)", // modules — blue
+        "rgba(16, 185, 129, 0.06)", // lenses — green
+      ];
+
       ctx.save();
-      // Draw band boundaries at bw, 2*bw, 3*bw
-      for (let i = 1; i <= 3; i++) {
+
+      // Fill each band as an annulus, extending halfway into the gap on each side
+      for (let band = 1; band <= 3; band++) {
+        const [inner, outer] = getBandRange(band, bw);
+        const visInner = Math.max(0, inner - halfGap);
+        const visOuter = outer + halfGap;
+
         ctx.beginPath();
-        ctx.arc(0, 0, bw * i, 0, 2 * Math.PI);
-        ctx.strokeStyle = "rgba(255,255,255,0.2)";
+        ctx.arc(0, 0, visOuter, 0, 2 * Math.PI);
+        ctx.arc(0, 0, visInner, 0, 2 * Math.PI, true);
+        ctx.fillStyle = BAND_FILLS[band];
+        ctx.fill();
+      }
+
+      // Divider lines at the midpoint between adjacent bands
+      for (let band = 1; band < 3; band++) {
+        const [, outer] = getBandRange(band, bw);
+        const midpoint = outer + halfGap;
+        ctx.beginPath();
+        ctx.arc(0, 0, midpoint, 0, 2 * Math.PI);
+        ctx.strokeStyle = "rgba(255,255,255,0.15)";
         ctx.lineWidth = 1;
         ctx.stroke();
       }
+
       ctx.restore();
     },
     [forces.bandWidth],
