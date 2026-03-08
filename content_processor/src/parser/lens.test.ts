@@ -1389,49 +1389,6 @@ to:: "understanding this concept."
     expect(segmentIgnoredWarnings).toHaveLength(0);
   });
 
-  it('errors when Chat is the first segment in a section', () => {
-    const content = `---
-id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
----
-
-### Page: Test
-
-#### Chat
-instructions::
-Discuss something.
-`;
-    const { errors } = parseLens(content, 'test.md');
-    const chatError = errors.find(e => e.message.includes("'#### Chat' must be immediately preceded"));
-    expect(chatError).toBeDefined();
-    expect(chatError!.severity).toBe('error');
-  });
-
-  it('errors when Chat follows a non-Text segment', () => {
-    const content = `---
-id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
----
-
-### Article: Test
-source:: [[../articles/test.md]]
-
-#### Text
-content::
-Read this article.
-
-#### Article-excerpt
-from:: "start"
-to:: "end"
-
-#### Chat
-instructions::
-Discuss the article.
-`;
-    const { errors } = parseLens(content, 'test.md');
-    const chatError = errors.find(e => e.message.includes("article-excerpt"));
-    expect(chatError).toBeDefined();
-    expect(chatError!.severity).toBe('error');
-  });
-
   describe('roleplay segment parsing', () => {
     it('parses roleplay segment with required fields', () => {
       const content = `---

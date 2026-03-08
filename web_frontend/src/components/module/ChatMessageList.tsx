@@ -16,7 +16,6 @@ import { Bot, BookOpen } from "lucide-react";
 
 type ChatMessageListProps = {
   messages: ChatMessage[];
-  prefixMessage?: ChatMessage;
   pendingMessage?: PendingMessage | null;
   streamingContent?: string;
   isLoading?: boolean;
@@ -77,7 +76,6 @@ export function renderMessage(msg: ChatMessage, key: string | number) {
 
 export function ChatMessageList({
   messages,
-  prefixMessage,
   pendingMessage,
   streamingContent,
   isLoading,
@@ -130,7 +128,6 @@ export function ChatMessageList({
       style={{ overflowAnchor: "none" }}
       onScroll={onScroll}
     >
-      {prefixMessage && renderMessage(prefixMessage, "prefix")}
       {visibleMessages.slice(0, splitAt).map((msg, i) => renderMessage(msg, startIndex + i))}
 
       {useWrapper ? (

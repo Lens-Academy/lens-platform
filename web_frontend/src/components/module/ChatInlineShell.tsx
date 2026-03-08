@@ -20,7 +20,7 @@ import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import { renderMessage } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
 import ChatMarkdown from "@/components/ChatMarkdown";
-import { Bot, BookOpen, ChevronUp, ChevronDown } from "lucide-react";
+import { Bot, ChevronUp, ChevronDown } from "lucide-react";
 import { chatViewReducer, initialChatViewState } from "./chatViewReducer";
 
 type ChatInlineShellProps = {
@@ -32,7 +32,6 @@ type ChatInlineShellProps = {
   onRetryMessage?: () => void;
   activated?: boolean;
   activatedWithHistory?: boolean;
-  prefixMessage?: ChatMessage;
   scrollToResponse?: boolean;
   hasActiveInput: boolean;
   shellRef?: (el: HTMLDivElement | null) => void;
@@ -75,7 +74,6 @@ export function ChatInlineShell({
   onRetryMessage,
   activated,
   activatedWithHistory,
-  prefixMessage,
   scrollToResponse,
   hasActiveInput,
   shellRef,
@@ -341,14 +339,6 @@ export function ChatInlineShell({
           onScroll={isExpanded ? handleScroll : undefined}
         >
           <div>
-            {/* Lens prefix message (opening question from article content) */}
-            {hasInteracted && prefixMessage && (
-              <div className="text-gray-800 mb-4 max-w-content mx-auto">
-                <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><BookOpen size={13} />Lens</div>
-                <ChatMarkdown>{prefixMessage.content}</ChatMarkdown>
-              </div>
-            )}
-
             {/* Expand button (collapsed mode only) */}
             {!isExpanded &&
               recentMessagesStartIdx > 0 &&

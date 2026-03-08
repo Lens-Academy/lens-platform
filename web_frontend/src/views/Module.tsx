@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo, useSyncExternalStore } from "react";
 import type {
-  ChatMessage,
   ArticleData,
   Stage,
 } from "@/types/module";
@@ -655,7 +654,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     messages, pendingMessage, streamingContent, isLoading, sendSource,
     sendMessage: handleSendMessage, retryMessage: handleRetryMessage,
     activeSurface, registerInlineRef,
-    sectionPrefixMessage, sidebarChatSegmentIndex,
+    sidebarChatSegmentIndex,
   } = useTutorChat({
     moduleId,
     module,
@@ -668,6 +667,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const sidebarRef = useRef<ChatSidebarHandle>(null);
   const lastSidebarAllowed = useRef(true);
   const sidebarAllowedLockUntil = useRef(0);
+  const hasReachedExcerptRef = useRef(false);
 
   // Segment scroll tracker: determines which segment the 30% viewport line
   // falls inside. Always runs (drives sidebar allowed state). Writes to ref
@@ -680,15 +680,22 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     sidebarAllowedRef.current = sidebarAllowed;
     sidebarAllowedListeners.current.forEach(fn => fn());
 
+    hasReachedExcerptRef.current = false;
+
     if (!isArticleSection) {
       // sidebarAllowedRef starts at `sidebarAllowed` (false for non-article).
       // No need to write — the hook reads the initial value on mount.
       return;
     }
+
+    // Start sidebar closed on article sections — auto-opens at first excerpt
+    sidebarRef.current?.setOpen(false);
+
     const segments =
       currentSection && "segments" in currentSection
         ? currentSection.segments
         : undefined;
+    const firstExcerptIdx = segments?.findIndex(s => s.type === "article-excerpt") ?? -1;
 
     let rafId = 0;
     const onScroll = () => {
@@ -712,6 +719,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           // Write to ref (free) + notify subscribers (DebugOverlay only)
           currentSegmentIndexRef.current = best.index;
           segmentIndexListeners.current.forEach(fn => fn());
+
+          // Auto-open sidebar when scrolling to first article excerpt
+          if (!hasReachedExcerptRef.current && firstExcerptIdx >= 0 && best.index >= firstExcerptIdx) {
+            hasReachedExcerptRef.current = true;
+            const pref = localStorage.getItem("chat-sidebar-pref");
+            if (pref === null || pref === "open") {
+              sidebarRef.current?.setOpen(true);
+            }
+          }
 
           // Sidebar disallowed when any chat input pill overlaps the 20%-80% viewport band
           const bandTop = window.innerHeight * 0.35;
@@ -975,7 +991,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     section: ModuleSection,
     sectionIndex: number,
     segmentIndex: number,
-    options?: { activateChat?: boolean; prefixMessage?: ChatMessage },
+    options?: { activateChat?: boolean },
   ) => {
     const keyPrefix = `${sectionIndex}-${segmentIndex}`;
     const segKey = `seg-${keyPrefix}`;
@@ -1077,7 +1093,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             onRetryMessage={handleRetryMessage}
             activated={options?.activateChat}
             activatedWithHistory={options?.activateChat}
-            prefixMessage={options?.prefixMessage}
             pillId="inline"
             sidebarAllowedRef={sidebarAllowedRef}
             sidebarAllowedListeners={sidebarAllowedListeners}
@@ -1431,26 +1446,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         lastExcerptIdx + 1,
                       );
                       const postExcerpt = segments.slice(lastExcerptIdx + 1);
-                      const isCurrent = sectionIndex === currentSectionIndex;
-
-                      // Extract text segments before the first chat in postExcerpt
-                      // as a "Lens" prefix message — suppress their inline rendering
-                      const firstChatInPostIdx = postExcerpt.findIndex(
-                        (s) => s.type === "chat",
-                      );
-                      const prefixTextContent =
-                        firstChatInPostIdx > 0
-                          ? postExcerpt
-                              .slice(0, firstChatInPostIdx)
-                              .filter((s) => s.type === "text")
-                              .map((s) => ("content" in s ? s.content : ""))
-                              .join("\n\n")
-                          : null;
-                      const postExcerptPrefixMessage: ChatMessage | undefined =
-                        prefixTextContent
-                          ? { role: "course-content", content: prefixTextContent }
-                          : undefined;
-
                       return (
                         <div>
                           {/* Pre-excerpt content (intro, setup) */}
@@ -1470,31 +1465,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                             )}
                           </ArticleExcerptGroup>
 
-                          {/* Post-excerpt content (reflection, chat) — skip text segments
-                              before first chat (they're passed as prefixMessage instead) */}
-                          {postExcerpt.map((segment, i) => {
-                            if (
-                              firstChatInPostIdx > -1 &&
-                              i < firstChatInPostIdx &&
-                              segment.type === "text"
-                            ) {
-                              return null;
-                            }
-                            return renderSegment(
+                          {/* Post-excerpt content (reflection, chat) */}
+                          {postExcerpt.map((segment, i) =>
+                            renderSegment(
                               segment,
                               section,
                               sectionIndex,
                               lastExcerptIdx + 1 + i,
-                              {
-                                activateChat:
-                                  false,
-                                prefixMessage:
-                                  i === firstChatInPostIdx
-                                    ? postExcerptPrefixMessage
-                                    : undefined,
-                              },
-                            );
-                          })}
+                            ),
+                          )}
                         </div>
                       );
                     })()}
@@ -1546,26 +1525,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         lastExcerptIdx + 1,
                       );
                       const postExcerpt = segments.slice(lastExcerptIdx + 1);
-                      const isCurrent = sectionIndex === currentSectionIndex;
-
-                      // Extract text segments before the first chat in postExcerpt
-                      // as a "Lens" prefix message — suppress their inline rendering
-                      const firstChatInPostIdx = postExcerpt.findIndex(
-                        (s) => s.type === "chat",
-                      );
-                      const prefixTextContent =
-                        firstChatInPostIdx > 0
-                          ? postExcerpt
-                              .slice(0, firstChatInPostIdx)
-                              .filter((s) => s.type === "text")
-                              .map((s) => ("content" in s ? s.content : ""))
-                              .join("\n\n")
-                          : null;
-                      const postExcerptPrefixMessage: ChatMessage | undefined =
-                        prefixTextContent
-                          ? { role: "course-content", content: prefixTextContent }
-                          : undefined;
-
                       return (
                         <div>
                           {/* Pre-excerpt content (intro, setup) */}
@@ -1585,31 +1544,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                             )}
                           </ArticleExcerptGroup>
 
-                          {/* Post-excerpt content (reflection, chat) — skip text segments
-                              before first chat (they're passed as prefixMessage instead) */}
-                          {postExcerpt.map((segment, i) => {
-                            if (
-                              firstChatInPostIdx > -1 &&
-                              i < firstChatInPostIdx &&
-                              segment.type === "text"
-                            ) {
-                              return null;
-                            }
-                            return renderSegment(
+                          {/* Post-excerpt content (reflection, chat) */}
+                          {postExcerpt.map((segment, i) =>
+                            renderSegment(
                               segment,
                               section,
                               sectionIndex,
                               lastExcerptIdx + 1 + i,
-                              {
-                                activateChat:
-                                  false,
-                                prefixMessage:
-                                  i === firstChatInPostIdx
-                                    ? postExcerptPrefixMessage
-                                    : undefined,
-                              },
-                            );
-                          })}
+                            ),
+                          )}
                         </div>
                       );
                     })()}
@@ -1794,7 +1737,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           ref={sidebarRef}
           sectionTitle={currentSection?.meta?.title}
           messages={messages}
-          prefixMessage={sectionPrefixMessage}
           pendingMessage={sendSource !== "inline" ? pendingMessage : null}
           streamingContent={sendSource !== "inline" ? streamingContent : ""}
           isLoading={sendSource !== "inline" ? isLoading : false}

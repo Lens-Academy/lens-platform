@@ -7,7 +7,6 @@ import { validateSegmentFields } from '../validator/segment-fields.js';
 import { validateFieldValues } from '../validator/field-values.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
-import { validateChatPrecedence } from '../validator/chat-precedence.js';
 import { detectDirectivesInNonArticle } from '../validator/directives.js';
 import { parseWikilink, hasRelativePath } from './wikilink.js';
 import { parseTimestamp } from '../bundler/video.js';
@@ -703,10 +702,6 @@ export function parseLens(content: string, file: string): LensParseResult {
         segments.push(segment);
       }
     }
-
-    // Validate Chat segments are preceded by Text segments
-    const chatErrors = validateChatPrecedence(rawSegments, file);
-    errors.push(...chatErrors);
 
     // Warn if section has no segments
     if (segments.length === 0) {

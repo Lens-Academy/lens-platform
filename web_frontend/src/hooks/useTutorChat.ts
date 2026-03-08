@@ -248,37 +248,6 @@ export function useTutorChat({
     return currentSection.segments.some((s) => s.type === "chat");
   }, [currentSection, isArticleSection]);
 
-  /**
-   * Authored opening question for the current section's chat — shown as a
-   * "Lens" message in both the sidebar and the ChatInlineShell.
-   *
-   * Gathers text segments between the last article-excerpt and the first
-   * chat segment that follows it.
-   */
-  const sectionPrefixMessage = useMemo<ChatMessage | undefined>(() => {
-    if (!currentSection || !isArticleSection) return undefined;
-    if (!("segments" in currentSection) || !currentSection.segments)
-      return undefined;
-    const segs = currentSection.segments;
-    const lastExcerptIdx = segs.reduceRight(
-      (found, s, i) =>
-        found === -1 && s.type === "article-excerpt" ? i : found,
-      -1,
-    );
-    if (lastExcerptIdx === -1) return undefined;
-    const postExcerpt = segs.slice(lastExcerptIdx + 1);
-    const firstChatInPostIdx = postExcerpt.findIndex(
-      (s) => s.type === "chat",
-    );
-    if (firstChatInPostIdx <= 0) return undefined;
-    const content = postExcerpt
-      .slice(0, firstChatInPostIdx)
-      .filter((s) => s.type === "text")
-      .map((s) => ("content" in s ? s.content : ""))
-      .join("\n\n");
-    return content ? { role: "course-content", content } : undefined;
-  }, [currentSection, isArticleSection]);
-
   // --- Inline surface tracking (IntersectionObserver) ----------------------
 
   const inlineRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -477,7 +446,6 @@ export function useTutorChat({
     registerInlineRef,
 
     // Computed
-    sectionPrefixMessage,
     sidebarChatSegmentIndex,
     sectionHasChatSegment,
   };
