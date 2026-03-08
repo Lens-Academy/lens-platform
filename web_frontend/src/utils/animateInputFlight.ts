@@ -43,47 +43,77 @@ export function animateInputFlight(direction: "to-inline" | "to-sidebar") {
   }
 }
 
+function findScrollContainer(el: HTMLElement): HTMLElement | null {
+  let node = el.parentElement;
+  while (node && node !== document.body) {
+    if (getComputedStyle(node).overflowY === "auto" || getComputedStyle(node).overflowY === "scroll") {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
 function animateToInline(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
   const fromRect = sidebarPill.getBoundingClientRect();
   const toRect = inlinePill.getBoundingClientRect();
 
-  const deltaX = fromRect.left - toRect.left;
-  const deltaY = fromRect.top - toRect.top;
-  const scaleX = fromRect.width / toRect.width;
-  const scaleY = fromRect.height / toRect.height;
+  // Clone the sidebar pill and fly it in the root stacking context (above
+  // the sidebar's z-30). Can't use the actual inline pill because it's
+  // trapped inside the scroll container's stacking context.
+  const el = sidebarPill.cloneNode(true) as HTMLElement;
+  el.className = sidebarPill.className + " pointer-events-none";
+  Object.assign(el.style, {
+    position: "fixed",
+    zIndex: "100",
+    top: `${fromRect.top}px`,
+    left: `${fromRect.left}px`,
+    width: `${fromRect.width}px`,
+    height: `${fromRect.height}px`,
+    margin: "0",
+  });
+  document.body.appendChild(el);
 
   sidebarPill.style.opacity = "0";
+  inlinePill.style.opacity = "0";
 
-  inlinePill.style.transformOrigin = "top left";
-  inlinePill.style.transform =
-    `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
+  // Track scroll so the clone follows page content during the flight.
+  const scrollContainer = findScrollContainer(inlinePill);
+  const scrollAtStart = scrollContainer?.scrollTop ?? 0;
+
+  const onScroll = () => {
+    const delta = (scrollContainer?.scrollTop ?? 0) - scrollAtStart;
+    el.style.transform = `translateY(${-delta}px)`;
+  };
+  scrollContainer?.addEventListener("scroll", onScroll, { passive: true });
 
   cleanupFn = () => {
+    el.remove();
     sidebarPill.style.opacity = "";
-    inlinePill.style.transform = "";
-    inlinePill.style.transformOrigin = "";
+    inlinePill.style.opacity = "";
+    scrollContainer?.removeEventListener("scroll", onScroll);
   };
 
-  activeAnimation = inlinePill.animate(
+  activeAnimation = el.animate(
     [
       {
-        transformOrigin: "top left",
-        transform: `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`,
+        top: `${fromRect.top}px`,
+        left: `${fromRect.left}px`,
+        width: `${fromRect.width}px`,
+        height: `${fromRect.height}px`,
       },
       {
-        transformOrigin: "top left",
-        transform: "none",
+        top: `${toRect.top}px`,
+        left: `${toRect.left}px`,
+        width: `${toRect.width}px`,
+        height: `${toRect.height}px`,
       },
     ],
-    { duration: 900, easing: "ease-in-out" },
+    { duration: 900, easing: "ease-in-out", fill: "forwards" },
   );
 
   activeAnimation.onfinish = () => {
-    sidebarPill.style.opacity = "";
-    inlinePill.style.transform = "";
-    inlinePill.style.transformOrigin = "";
-    activeAnimation = null;
-    cleanupFn = null;
+    cleanup();
   };
 
   activeAnimation.oncancel = () => {};
