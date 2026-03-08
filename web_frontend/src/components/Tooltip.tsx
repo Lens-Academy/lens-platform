@@ -53,7 +53,7 @@ export function Tooltip({
   const { isMounted, styles: transitionStyles } = useTransitionStyles(
     context,
     {
-      duration: isInstantPhase ? 0 : { open: 150, close: 150 },
+      duration: isInstantPhase ? 0 : { open: 0, close: 150 },
       initial: { opacity: 0 },
     },
   );
