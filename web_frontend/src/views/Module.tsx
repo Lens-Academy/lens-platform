@@ -436,11 +436,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       if (section.type === "test") {
         const title = section.meta?.title || "Test";
         return {
-          type: "test",
+          type: "page",
           source: "",
           from: null,
           to: null,
           title,
+          tldr: section.tldr,
+          duration: computeSectionDuration(section) || null,
         } as unknown as Stage;
       }
 
@@ -467,6 +469,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             ? section.meta?.title || `Page ${index + 1}`
             : section.meta?.title ||
               `${section.type || "Section"} ${index + 1}`;
+      const tldr =
+        "tldr" in section ? (section.tldr as string | undefined) : undefined;
+      const duration = computeSectionDuration(section) || null;
 
       if (stageType === "page") {
         return {
@@ -476,6 +481,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           to: null,
           optional: isOptional,
           title,
+          tldr,
+          duration,
         };
       } else if (stageType === "article") {
         return {
@@ -485,6 +492,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           to: null,
           optional: isOptional,
           title,
+          tldr,
+          duration,
         };
       } else if (stageType === "video") {
         // Get videoId from video or lens-video sections
@@ -501,6 +510,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           to: null,
           optional: isOptional,
           title,
+          tldr,
+          duration,
         };
       } else {
         return {
@@ -509,6 +520,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           hidePreviousContentFromUser: false,
           hidePreviousContentFromTutor: false,
           title,
+          tldr,
+          duration,
         };
       }
     });
@@ -547,6 +560,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 `${section.type || "Section"} ${index + 1}`,
         duration: dur || null,
         optional: "optional" in section && section.optional === true,
+        tldr:
+          "tldr" in section
+            ? (section.tldr as string | undefined)
+            : undefined,
       };
     });
   }, [module]);

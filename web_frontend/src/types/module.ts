@@ -234,6 +234,8 @@ export type ArticleStage = {
   to: number | null;
   title?: string;
   optional?: boolean;
+  tldr?: string;
+  duration?: number | null;
 };
 
 export type VideoStage = {
@@ -243,6 +245,8 @@ export type VideoStage = {
   to: number | null;
   title?: string;
   optional?: boolean;
+  tldr?: string;
+  duration?: number | null;
 };
 
 export type ChatStage = {
@@ -252,6 +256,8 @@ export type ChatStage = {
   hidePreviousContentFromTutor: boolean;
   title?: string;
   optional?: boolean;
+  tldr?: string;
+  duration?: number | null;
 };
 
 export type PageStage = {
@@ -261,6 +267,8 @@ export type PageStage = {
   to: number | null;
   title?: string;
   optional?: boolean;
+  tldr?: string;
+  duration?: number | null;
 };
 
 export type Stage = ArticleStage | VideoStage | ChatStage | PageStage;

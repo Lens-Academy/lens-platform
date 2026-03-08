@@ -96,7 +96,7 @@ export function Tooltip({
             ref={refs.setFloating}
             style={floatingStyles}
             {...getFloatingProps()}
-            className="bg-gray-800 text-white text-xs px-2 py-1 rounded z-50"
+            className="bg-white text-slate-700 text-xs px-3 py-2 rounded-lg shadow-lg ring-1 ring-slate-200/60 max-w-xs z-50"
           >
             {content}
           </div>

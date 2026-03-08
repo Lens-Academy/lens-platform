@@ -1,9 +1,10 @@
 // web_frontend/src/components/unified-lesson/StageProgressBar.tsx
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { StickyNote } from "lucide-react";
 import type { Stage } from "../../types/module";
 import type { StageInfo } from "../../types/course";
 import { buildBranchLayout } from "../../utils/branchLayout";
+import { formatDurationMinutes } from "../../utils/duration";
 import { triggerHaptic } from "@/utils/haptics";
 import { Tooltip } from "../Tooltip";
 import {
@@ -113,16 +114,43 @@ function getTooltipContent(
   index: number,
   isCompleted: boolean,
   isViewing: boolean,
-): string {
+): ReactNode {
   const isOptional = "optional" in stage && stage.optional === true;
-  const optionalPrefix = isOptional ? "(Optional) " : "";
-  const completedSuffix = isCompleted ? " (completed)" : "";
   const title = getStageTitle(stage);
+  const hasTldr = stage.tldr;
+  const hasDuration = stage.duration != null && stage.duration > 0;
 
-  if (isViewing) {
-    return `${title}${completedSuffix}`;
+  // Simple text tooltip when no extra info
+  if (!hasTldr && !hasDuration) {
+    const optionalPrefix = isOptional && !isViewing ? "(Optional) " : "";
+    const completedSuffix = isCompleted ? " (completed)" : "";
+    return `${optionalPrefix}${title}${completedSuffix}`;
   }
-  return `${optionalPrefix}${title}${completedSuffix}`;
+
+  // Rich tooltip with title, badges, duration, and tldr
+  return (
+    <div className="max-w-xs">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="font-medium text-slate-900">{title}</span>
+        {isOptional && !isViewing && (
+          <span className="text-slate-400 text-[10px] border border-slate-300 rounded px-1">
+            Optional
+          </span>
+        )}
+        {isCompleted && (
+          <span className="text-green-600 text-[10px]">&#10003;</span>
+        )}
+      </div>
+      {hasDuration && (
+        <div className="text-slate-400 text-[10px] mt-0.5">
+          ~{formatDurationMinutes(stage.duration!)}
+        </div>
+      )}
+      {hasTldr && (
+        <p className="text-slate-500 mt-1 line-clamp-3">{stage.tldr}</p>
+      )}
+    </div>
+  );
 }
 
 export default function StageProgressBar({
