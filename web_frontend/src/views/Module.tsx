@@ -459,6 +459,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     null,
   );
 
+  // Inline pill visibility — hidden by default (sidebar is allowed on initial load)
+  const [inlinePillVisible, setInlinePillVisible] = useState(false);
+
 
   // TOC portal container for 3-column grid layout (set by callback ref)
 
@@ -725,6 +728,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           if (Date.now() < sidebarAllowedLockUntil.current) return;
           if (allowed !== lastSidebarAllowed.current) {
             lastSidebarAllowed.current = allowed;
+            setInlinePillVisible(!allowed);
 
             // Trigger FLIP animation before state change
             if (!allowed) {
@@ -1077,7 +1081,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             activated={options?.activateChat}
             activatedWithHistory={options?.activateChat}
             prefixMessage={options?.prefixMessage}
-
+            pillId="inline"
+            pillVisible={inlinePillVisible}
             hasActiveInput={
               activeSurface.type === "inline" &&
               activeSurface.sectionIndex === sectionIndex &&
@@ -1355,7 +1360,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                       handleSendMessage(content, sectionIndex, 0)
                     }
                     onRetryMessage={handleRetryMessage}
-
+                    pillId="inline"
+                    pillVisible={inlinePillVisible}
                     hasActiveInput={
                       activeSurface.type === "inline" &&
                       activeSurface.sectionIndex === sectionIndex &&

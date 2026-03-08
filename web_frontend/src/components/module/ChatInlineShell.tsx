@@ -35,6 +35,8 @@ type ChatInlineShellProps = {
   hasActiveInput: boolean;
   shellRef?: (el: HTMLDivElement | null) => void;
   sendSource?: "sidebar" | "inline" | null;
+  pillId?: string;
+  pillVisible?: boolean;
 };
 
 export function ChatInlineShell({
@@ -51,6 +53,8 @@ export function ChatInlineShell({
   hasActiveInput,
   shellRef,
   sendSource,
+  pillId,
+  pillVisible,
 }: ChatInlineShellProps) {
   const pageScrollContainer = useScrollContainer();
 
@@ -461,7 +465,8 @@ export function ChatInlineShell({
           >
             <div className={`${!isExpanded ? "max-w-content mx-auto" : ""}`}>
               <ChatInputArea
-                pillId="inline"
+                pillId={pillId}
+                pillHidden={pillVisible === false && !!pillId}
                 onSend={(content) => {
                   dispatch({
                     type: "SEND_MESSAGE",

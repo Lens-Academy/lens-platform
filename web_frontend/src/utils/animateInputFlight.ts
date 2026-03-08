@@ -2,13 +2,15 @@ let activeAnimation: Animation | null = null;
 let cleanupFn: (() => void) | null = null;
 
 function cleanup() {
-  cleanupFn?.();
+  const fn = cleanupFn;
   cleanupFn = null;
   activeAnimation = null;
+  fn?.();
 }
 
 export function animateInputFlight(direction: "to-inline" | "to-sidebar") {
-  // Cancel any in-progress animation
+  // Cancel any in-progress animation — oncancel is a no-op,
+  // cleanup() handles resetting styles and removing clones.
   activeAnimation?.cancel();
   cleanup();
 
@@ -32,49 +34,62 @@ export function animateInputFlight(direction: "to-inline" | "to-sidebar") {
 
 /**
  * Sidebar → inline: true FLIP on the inline pill itself.
- * The inline pill is in the DOM flow, so it naturally scrolls with the page —
- * the animation endpoint tracks scroll automatically.
+ *
+ * No `fill` — we set the initial transform as an inline style so the element
+ * appears at the sidebar position immediately (no flash). During playback the
+ * WAAPI overrides the inline transform. After playback we clear it. This avoids
+ * fill effects that persist and prevent later opacity changes.
  */
 function animateToInline(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
   const fromRect = sidebarPill.getBoundingClientRect();
   const toRect = inlinePill.getBoundingClientRect();
 
-  // Calculate inverse transform: move inline pill to where sidebar pill is
   const deltaX = fromRect.left - toRect.left;
   const deltaY = fromRect.top - toRect.top;
   const scaleX = fromRect.width / toRect.width;
   const scaleY = fromRect.height / toRect.height;
 
-  // Hide sidebar pill during animation
+  // Hide sidebar pill
   sidebarPill.style.opacity = "0";
 
-  const onDone = () => {
-    sidebarPill.style.opacity = "";
-    activeAnimation = null;
-    cleanupFn = null;
-  };
+  // Position inline pill at sidebar location via inline transform (no flash).
+  inlinePill.style.transformOrigin = "top left";
+  inlinePill.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
 
   cleanupFn = () => {
     sidebarPill.style.opacity = "";
+    inlinePill.style.transform = "";
+    inlinePill.style.transformOrigin = "";
   };
 
-  // Animate inline pill from sidebar position back to its natural position
+  // Animate from sidebar position to natural position (no fill).
+  // opacity: 1 in keyframes overrides the CSS opacity-0 class during playback;
+  // React state removes the class before animation finishes.
   activeAnimation = inlinePill.animate(
     [
       {
         transformOrigin: "top left",
         transform: `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`,
+        opacity: 1,
       },
       {
         transformOrigin: "top left",
         transform: "none",
+        opacity: 1,
       },
     ],
-    { duration: 900, easing: "ease-in-out", fill: "both" },
+    { duration: 900, easing: "ease-in-out" },
   );
 
-  activeAnimation.onfinish = onDone;
-  activeAnimation.oncancel = onDone;
+  activeAnimation.onfinish = () => {
+    sidebarPill.style.opacity = "";
+    inlinePill.style.transform = "";
+    inlinePill.style.transformOrigin = "";
+    activeAnimation = null;
+    cleanupFn = null;
+  };
+
+  activeAnimation.oncancel = () => {};
 }
 
 /**
@@ -107,22 +122,12 @@ function animateToSidebar(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
   });
   document.body.appendChild(el);
 
-  // Hide real inputs during animation
+  // Hide sidebar pill during animation; inline pill hidden by React state
   sidebarPill.style.opacity = "0";
-  inlinePill.style.opacity = "0";
-
-  const onDone = () => {
-    el.remove();
-    sidebarPill.style.opacity = "";
-    inlinePill.style.opacity = "";
-    activeAnimation = null;
-    cleanupFn = null;
-  };
 
   cleanupFn = () => {
     el.remove();
     sidebarPill.style.opacity = "";
-    inlinePill.style.opacity = "";
   };
 
   activeAnimation = el.animate(
@@ -143,6 +148,12 @@ function animateToSidebar(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
     { duration: 900, easing: "ease-in-out", fill: "forwards" },
   );
 
-  activeAnimation.onfinish = onDone;
-  activeAnimation.oncancel = onDone;
+  activeAnimation.onfinish = () => {
+    el.remove();
+    sidebarPill.style.opacity = "";
+    activeAnimation = null;
+    cleanupFn = null;
+  };
+
+  activeAnimation.oncancel = () => {};
 }
