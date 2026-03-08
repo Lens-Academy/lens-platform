@@ -503,7 +503,7 @@ export function ChatInlineShell({
                 {(pillHidden, pillTransition) => (
                   <div className={hasActiveInput ? undefined : "pointer-events-none"}>
                     <ChatInputArea
-                      pillId={pillId}
+                      pillId={hasActiveInput ? pillId : undefined}
                       pillHidden={pillHidden}
                       pillTransition={pillTransition || undefined}
                       onSend={(content) => {
