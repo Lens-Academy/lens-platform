@@ -7,6 +7,7 @@ import { buildBranchLayout } from "../../utils/branchLayout";
 import { formatDurationMinutes } from "../../utils/duration";
 import { triggerHaptic } from "@/utils/haptics";
 import { Tooltip } from "../Tooltip";
+import { OptionalBadge } from "../OptionalBadge";
 import {
   getCircleFillClasses,
   getRingClasses,
@@ -133,9 +134,7 @@ function getTooltipContent(
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="font-medium text-slate-900">{title}</span>
         {isOptional && !isViewing && (
-          <span className="text-slate-400 text-xs border border-slate-300 rounded px-1">
-            Optional
-          </span>
+          <OptionalBadge />
         )}
         {isCompleted && (
           <span className="text-green-600 text-xs">&#10003;</span>

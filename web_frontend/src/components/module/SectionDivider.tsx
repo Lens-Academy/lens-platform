@@ -1,6 +1,7 @@
 // web_frontend/src/components/module/SectionDivider.tsx
 import { StickyNote, BotMessageSquare } from "lucide-react";
 import { formatDurationMinutes } from "../../utils/duration";
+import { OptionalBadge } from "../OptionalBadge";
 
 type DurationBreakdown = {
   total: number;
@@ -118,9 +119,7 @@ export default function SectionDivider({
         </div>
       )}
       {optional && (
-        <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-          Optional
-        </span>
+        <OptionalBadge />
       )}
     </div>
   );

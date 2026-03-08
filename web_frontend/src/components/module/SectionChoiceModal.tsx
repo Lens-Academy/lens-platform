@@ -1,5 +1,6 @@
 import { StageIcon } from "./StageProgressBar";
 import { formatDurationMinutes } from "../../utils/duration";
+import { OptionalBadge } from "../OptionalBadge";
 
 export interface SectionChoice {
   index: number;
@@ -65,9 +66,7 @@ export default function SectionChoiceModal({
                   <span className="font-medium text-gray-900">
                     {choice.title}
                   </span>
-                  <span className="text-xs text-gray-400 border border-gray-200 rounded px-1">
-                    Optional
-                  </span>
+                  <OptionalBadge />
                 </div>
                 {choice.tldr && (
                   <p className="text-sm text-gray-500 mt-1">{choice.tldr}</p>

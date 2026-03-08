@@ -6,6 +6,7 @@
 import { useState } from "react";
 import type { UnitInfo, ModuleInfo } from "../../types/course";
 import { ChevronRight, Users } from "lucide-react";
+import { OptionalBadge } from "../OptionalBadge";
 import { formatDurationMinutes } from "../../utils/duration";
 import { Tooltip } from "../Tooltip";
 
@@ -532,9 +533,7 @@ function renderUnitModules(
                 {mod.title}
               </span>
               {mod.optional && (
-                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wide flex-shrink-0">
-                  Optional
-                </span>
+                <OptionalBadge />
               )}
               {/* Right-aligned: due date and/or time estimate */}
               {dueLabel && !mod.optional && mod.status !== "completed" ? (

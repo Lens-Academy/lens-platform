@@ -8,6 +8,7 @@
 
 import { useMemo } from "react";
 import type { StageInfo, ModuleStatus } from "../../types/course";
+import { OptionalBadge } from "../OptionalBadge";
 import { StageIcon } from "../module/StageProgressBar";
 import {
   getCircleFillClasses,
@@ -128,9 +129,7 @@ export default function ModuleOverview({
               {stage.title}
             </span>
             {stage.optional && (
-              <span className="text-xs text-slate-400 border border-slate-200 rounded px-1">
-                Optional
-              </span>
+              <OptionalBadge />
             )}
           </div>
           <div className="text-sm text-slate-500 mt-0.5">
