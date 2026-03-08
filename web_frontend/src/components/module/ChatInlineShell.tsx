@@ -14,7 +14,9 @@ import {
   Fragment,
 } from "react";
 import { useScrollContainer } from "@/hooks/useScrollContainer";
+import { usePillVisibility } from "@/hooks/usePillVisibility";
 import type { ChatMessage, PendingMessage } from "@/types/module";
+import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import { renderMessage } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
 import ChatMarkdown from "@/components/ChatMarkdown";
@@ -36,8 +38,30 @@ type ChatInlineShellProps = {
   shellRef?: (el: HTMLDivElement | null) => void;
   sendSource?: "sidebar" | "inline" | null;
   pillId?: string;
-  pillVisible?: boolean;
+  sidebarAllowedRef?: React.RefObject<boolean>;
+  sidebarAllowedListeners?: React.RefObject<Set<() => void>>;
+  sidebarRef?: React.RefObject<ChatSidebarHandle | null>;
 };
+
+/** Owns the usePillVisibility hook — isolates re-renders to this subtree. */
+function PillVisibilityWrapper({
+  sidebarAllowedRef,
+  sidebarAllowedListeners,
+  sidebarRef,
+  children,
+}: {
+  sidebarAllowedRef: React.RefObject<boolean>;
+  sidebarAllowedListeners: React.RefObject<Set<() => void>>;
+  sidebarRef: React.RefObject<ChatSidebarHandle | null>;
+  children: (pillHidden: boolean) => React.ReactNode;
+}) {
+  const { pillVisible } = usePillVisibility({
+    sidebarAllowedRef,
+    sidebarAllowedListeners,
+    sidebarRef,
+  });
+  return children(!pillVisible);
+}
 
 export function ChatInlineShell({
   messages,
@@ -54,7 +78,9 @@ export function ChatInlineShell({
   shellRef,
   sendSource,
   pillId,
-  pillVisible,
+  sidebarAllowedRef,
+  sidebarAllowedListeners,
+  sidebarRef,
 }: ChatInlineShellProps) {
   const pageScrollContainer = useScrollContainer();
 
@@ -464,26 +490,56 @@ export function ChatInlineShell({
             style={!isExpanded ? { position: "sticky", bottom: 0, zIndex: 10 } : undefined}
           >
             <div className={`${!isExpanded ? "max-w-content mx-auto" : ""}`}>
-              <ChatInputArea
-                pillId={pillId}
-                pillHidden={pillVisible === false && !!pillId}
-                onSend={(content) => {
-                  dispatch({
-                    type: "SEND_MESSAGE",
-                    messagesLength: messages.length,
-                    hasScrollToResponse: !!scrollToResponse,
-                  });
-                  minHeightReductionRef.current = 0;
-                  if (minHeightWrapperRef.current) {
-                    minHeightWrapperRef.current.style.minHeight =
-                      wrapperMinHeight > 0 ? `${wrapperMinHeight}px` : "";
-                  }
-                  setShowScrollButton(false);
-                  onSendMessage(content);
-                }}
-                isLoading={isLoading}
-                placeholder="Type a message..."
-              />
+              {sidebarAllowedRef ? (
+                <PillVisibilityWrapper
+                  sidebarAllowedRef={sidebarAllowedRef}
+                  sidebarAllowedListeners={sidebarAllowedListeners!}
+                  sidebarRef={sidebarRef!}
+                >
+                  {(pillHidden) => (
+                    <ChatInputArea
+                      pillId={pillId}
+                      pillHidden={pillHidden}
+                      onSend={(content) => {
+                        dispatch({
+                          type: "SEND_MESSAGE",
+                          messagesLength: messages.length,
+                          hasScrollToResponse: !!scrollToResponse,
+                        });
+                        minHeightReductionRef.current = 0;
+                        if (minHeightWrapperRef.current) {
+                          minHeightWrapperRef.current.style.minHeight =
+                            wrapperMinHeight > 0 ? `${wrapperMinHeight}px` : "";
+                        }
+                        setShowScrollButton(false);
+                        onSendMessage(content);
+                      }}
+                      isLoading={isLoading}
+                      placeholder="Type a message..."
+                    />
+                  )}
+                </PillVisibilityWrapper>
+              ) : (
+                <ChatInputArea
+                  pillId={pillId}
+                  onSend={(content) => {
+                    dispatch({
+                      type: "SEND_MESSAGE",
+                      messagesLength: messages.length,
+                      hasScrollToResponse: !!scrollToResponse,
+                    });
+                    minHeightReductionRef.current = 0;
+                    if (minHeightWrapperRef.current) {
+                      minHeightWrapperRef.current.style.minHeight =
+                        wrapperMinHeight > 0 ? `${wrapperMinHeight}px` : "";
+                    }
+                    setShowScrollButton(false);
+                    onSendMessage(content);
+                  }}
+                  isLoading={isLoading}
+                  placeholder="Type a message..."
+                />
+              )}
             </div>
           </div>
         )}
