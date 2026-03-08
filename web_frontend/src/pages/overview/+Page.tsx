@@ -149,7 +149,7 @@ interface ForceSettings {
 }
 
 const DEFAULT_FORCES: ForceSettings = {
-  chargeStrength: -100,
+  chargeStrength: -250,
   bandWidth: 120,
 };
 
@@ -299,6 +299,9 @@ export default function Page() {
   const bandWidthRef = useRef(forces.bandWidth);
   bandWidthRef.current = forces.bandWidth;
 
+  // Track zoom level for label visibility
+  const zoomRef = useRef(1);
+
   // Apply d3 force settings when sliders change
   useEffect(() => {
     const fg = fgRef.current;
@@ -370,6 +373,34 @@ export default function Page() {
       });
   }, []);
 
+  // Reduce scroll zoom sensitivity
+  useEffect(() => {
+    const el = document.querySelector("canvas");
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const reduced = new WheelEvent("wheel", {
+        deltaY: e.deltaY * 0.4,
+        deltaX: e.deltaX * 0.4,
+        deltaMode: e.deltaMode,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        screenX: e.screenX,
+        screenY: e.screenY,
+        ctrlKey: false, // strip ctrl so d3-zoom treats it as normal scroll zoom
+        bubbles: true,
+        cancelable: true,
+      });
+      // Temporarily remove listener to avoid recursion
+      el.removeEventListener("wheel", handler);
+      el.dispatchEvent(reduced);
+      el.addEventListener("wheel", handler, { passive: false });
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, [graphData]);
+
   // Escape key to clear focus
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -440,8 +471,17 @@ export default function Page() {
       ctx.fillStyle = color;
       ctx.fill();
 
-      // Label for all nodes (except root)
-      if (node.type === "course" || node.type === "parent-module" || node.type === "module" || node.type === "lens" || isFocused) {
+      // Zoom-based label visibility:
+      // courses: always, parent-modules/modules: zoom >= 2, lenses: zoom >= 4
+      const zoom = zoomRef.current;
+      const showLabel =
+        isFocused ||
+        node.type === "course" ||
+        node.type === "parent-module" ||
+        node.type === "module" ||
+        (node.type === "lens" && zoom > 1.5);
+
+      if (showLabel) {
         ctx.font = `${isFocused ? 4 : 3}px Sans-Serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
@@ -598,6 +638,7 @@ export default function Page() {
         linkWidth={1}
         backgroundColor="#1a1a2e"
         cooldownTicks={100}
+        onZoom={({ k }) => { zoomRef.current = k; }}
         onEngineStop={() => fgRef.current?.zoomToFit(400)}
         nodeVisibility={nodeVisibility}
         linkVisibility={linkVisibility}
