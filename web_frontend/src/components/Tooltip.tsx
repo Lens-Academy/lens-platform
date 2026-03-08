@@ -11,6 +11,7 @@ import {
   useFocus,
   useDismiss,
   useInteractions,
+  useDelayGroup,
   offset,
   flip,
   shift,
@@ -42,8 +43,10 @@ export function Tooltip({
     middleware: [offset(8), flip(), shift({ padding: 8 })],
   });
 
+  const { delay: groupDelay } = useDelayGroup(context);
+
   const hover = useHover(context, {
-    delay: { open: delay, close: 0 },
+    delay: groupDelay ?? { open: delay, close: 0 },
   });
 
   const focus = useFocus(context);
