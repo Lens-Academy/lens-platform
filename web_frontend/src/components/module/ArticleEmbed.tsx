@@ -85,48 +85,135 @@ function remarkLensDirectives() {
  * Replaces footnoteReference nodes with footnote-inline custom elements
  * (same as :footnote[] directives) and removes footnoteDefinition nodes.
  */
+/**
+ * Pre-processes raw markdown to inline GFM footnote definitions at each
+ * reference point. This must run on the full article content BEFORE splitting
+ * into segments, because definitions are typically at the end while references
+ * are scattered throughout.
+ *
+ * Replaces [^id] references with <footnote-inline> HTML elements and removes
+ * the definition block. The elements are parsed by rehype-raw and rendered
+ * by the InlineFootnote component.
+ */
+/**
+ * Extracts footnote definitions from a markdown string.
+ * Returns a Map of id → text for all [^id]: ... definitions found.
+ */
+function collectFootnoteDefinitions(markdown: string): Map<string, string> {
+  const lines = markdown.split("\n");
+  const definitions = new Map<string, string>();
+  let i = 0;
+  while (i < lines.length) {
+    const defMatch = lines[i].match(/^\[\^([^\]]+)\]:\s*(.*)/);
+    if (defMatch) {
+      const id = defMatch[1];
+      const contentLines = [defMatch[2]];
+      i++;
+      // Collect continuation lines (indented by 4 spaces or tab),
+      // including blank lines between continuation paragraphs
+      while (i < lines.length) {
+        if (/^(?: {4}|\t)/.test(lines[i])) {
+          contentLines.push(lines[i].replace(/^(?: {4}|\t)/, ""));
+          i++;
+        } else if (lines[i].trim() === "" && i + 1 < lines.length && /^(?: {4}|\t)/.test(lines[i + 1])) {
+          // Blank line followed by indented continuation — keep as paragraph break
+          contentLines.push("");
+          i++;
+        } else {
+          break;
+        }
+      }
+      // Skip trailing blank lines before next definition or content
+      while (i < lines.length && lines[i].trim() === "") {
+        i++;
+      }
+      // Join with spaces for inline display, collapsing paragraphs
+      const text = contentLines
+        .join("\n")
+        .split(/\n{2,}/)
+        .map((p) => p.replace(/\n/g, " ").trim())
+        .filter(Boolean)
+        .join(" — ");
+      definitions.set(id, text);
+      continue;
+    }
+    i++;
+  }
+  return definitions;
+}
+
+/**
+ * Replaces [^id] references with <footnote-inline> HTML elements and removes
+ * definition blocks. Uses a shared definitions map so definitions from other
+ * fields (e.g. collapsed_after) can be resolved.
+ */
+function applyFootnoteInlining(markdown: string, definitions: Map<string, string>): string {
+  if (definitions.size === 0) return markdown;
+
+  // Remove definition blocks from this field
+  const lines = markdown.split("\n");
+  const defLineRanges: [number, number][] = []; // [start, end) line indices to remove
+  let i = 0;
+  while (i < lines.length) {
+    const defMatch = lines[i].match(/^\[\^([^\]]+)\]:\s*/);
+    if (defMatch) {
+      const startLine = i;
+      i++;
+      while (i < lines.length) {
+        if (/^(?: {4}|\t)/.test(lines[i])) {
+          i++;
+        } else if (lines[i].trim() === "" && i + 1 < lines.length && /^(?: {4}|\t)/.test(lines[i + 1])) {
+          i++;
+        } else {
+          break;
+        }
+      }
+      while (i < lines.length && lines[i].trim() === "") {
+        i++;
+      }
+      defLineRanges.push([startLine, i]);
+      continue;
+    }
+    i++;
+  }
+
+  // Remove definition blocks (process in reverse to preserve indices)
+  const filteredLines = [...lines];
+  for (let r = defLineRanges.length - 1; r >= 0; r--) {
+    const [start, end] = defLineRanges[r];
+    filteredLines.splice(start, end - start);
+  }
+
+  let result = filteredLines.join("\n");
+
+  // Replace references with inline HTML elements
+  // Escape HTML special chars in definition text to prevent injection
+  const escapeHtml = (s: string) =>
+    s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+
+  let counter = 0;
+  result = result.replace(/\[\^([^\]]+)\]/g, (_match, id) => {
+    const def = definitions.get(id);
+    if (!def) return _match; // unknown ref, leave as-is
+    counter++;
+    return `<footnote-inline data-source="author" data-label="${counter}">${escapeHtml(def)}</footnote-inline>`;
+  });
+
+  return result;
+}
+
+/**
+ * Remark plugin that removes any remaining GFM footnote AST nodes.
+ * Acts as a safety net after inlineGfmFootnotes pre-processing.
+ */
 function remarkGfmFootnotesToTooltips() {
   /* eslint-disable @typescript-eslint/no-explicit-any */
   return (tree: any) => {
-    // Pass 1: Collect all footnote definitions
-    const definitions = new Map<string, any[]>();
-    visit(tree, "footnoteDefinition", (node: any) => {
-      definitions.set(node.identifier, node.children);
-    });
-
-    // Pass 2: Replace footnoteReference nodes with tooltip elements
-    let counter = 0;
-    visit(
-      tree,
-      "footnoteReference",
-      (node: any, index: number | undefined, parent: any) => {
-        if (index === undefined || !parent) return;
-        const defChildren = definitions.get(node.identifier);
-        if (!defChildren) return;
-        counter++;
-        // Flatten paragraph wrappers to inline content, preserving
-        // non-paragraph nodes as-is. This prevents block elements
-        // inside the inline tooltip trigger.
-        const inlineChildren = structuredClone(defChildren).flatMap(
-          (child: any) =>
-            child.type === "paragraph" ? child.children : [child],
-        );
-        const replacement = {
-          type: "footnote-tooltip",
-          data: {
-            hName: "footnote-inline",
-            hProperties: {
-              "data-source": "author",
-              "data-label": String(counter),
-            },
-          },
-          children: inlineChildren,
-        };
-        parent.children[index] = replacement;
-      },
-    );
-
-    // Pass 3: Remove footnoteDefinition nodes (they are direct children of root)
+    // Remove any footnoteDefinition nodes that survived
     tree.children = tree.children.filter(
       (node: any) => node.type !== "footnoteDefinition",
     );
@@ -511,7 +598,7 @@ function InlineFootnote({
         data-source={source}
         className={
           isAuthor
-            ? "inline-flex cursor-default align-super text-[0.7em] font-medium text-blue-600 hover:text-blue-800 hover:underline mx-px"
+            ? "inline-flex cursor-default align-super text-[0.8em] font-medium text-blue-600 hover:text-blue-800 hover:underline mx-px"
             : "inline-flex items-center justify-center w-[1.38em] h-[1.38em] mx-0.5 rounded-full bg-gray-100 shadow-sm hover:bg-gray-200 cursor-default align-middle -translate-y-[0.1em]"
         }
       >
@@ -533,10 +620,10 @@ function InlineFootnote({
             ref={refs.setFloating}
             style={floatingStyles}
             {...getFloatingProps()}
-            className={`z-50 px-3 py-2 text-sm text-gray-700 bg-white rounded-lg shadow-lg border border-gray-200 leading-relaxed ${
+            className={`z-50 px-3 py-2 text-base text-gray-700 rounded-lg shadow-lg border leading-relaxed ${
               isAuthor
-                ? "w-80 max-w-[85vw] max-h-64 overflow-y-auto"
-                : "w-64 max-w-[80vw]"
+                ? "bg-[#FFFDF5] border-gray-200 w-80 max-w-[85vw] max-h-64 overflow-y-auto"
+                : "bg-white border-gray-200 w-64 max-w-[80vw]"
             }`}
           >
             {!isAuthor && (
@@ -766,8 +853,27 @@ export default function ArticleEmbed({
     );
   };
 
+  // Collect footnote definitions from all content fields, then apply inlining
+  // to each field. This handles the common case where references are in `content`
+  // but definitions are in `collapsed_after`.
+  const footnoteDefs = new Map<string, string>();
+  for (const field of [collapsed_before, content, collapsed_after]) {
+    if (field) {
+      for (const [id, text] of collectFootnoteDefinitions(field)) {
+        footnoteDefs.set(id, text);
+      }
+    }
+  }
+  const processedContent = applyFootnoteInlining(content, footnoteDefs);
+  const processedCollapsedBefore = collapsed_before
+    ? applyFootnoteInlining(collapsed_before, footnoteDefs)
+    : undefined;
+  const processedCollapsedAfter = collapsed_after
+    ? applyFootnoteInlining(collapsed_after, footnoteDefs)
+    : undefined;
+
   // Split content at top-level block notes for alternating backgrounds
-  const segments = splitAtBlockNotes(content);
+  const segments = splitAtBlockNotes(processedContent);
 
   const remarkPlugins = [remarkGfm, remarkDirective, remarkLensDirectives, remarkGfmFootnotesToTooltips];
   const rehypePlugins = [rehypeRaw];
@@ -777,9 +883,9 @@ export default function ArticleEmbed({
       {/* Header — always yellow */}
       {isConsecutiveExcerpt ? (
         // Consecutive excerpt: skip attribution, just show collapsed_before if present
-        collapsed_before && (
+        processedCollapsedBefore && (
           <div className="bg-amber-50/50 px-4 py-1">
-            <CollapsedSection content={collapsed_before} />
+            <CollapsedSection content={processedCollapsedBefore} />
           </div>
         )
       ) : (
@@ -854,7 +960,7 @@ export default function ArticleEmbed({
             </div>
           )}
 
-          {collapsed_before && <CollapsedSection content={collapsed_before} />}
+          {processedCollapsedBefore && <CollapsedSection content={processedCollapsedBefore} />}
         </div>
       )}
 
@@ -894,8 +1000,8 @@ export default function ArticleEmbed({
                 {segment.content}
               </ReactMarkdown>
             </article>
-            {isLast && collapsed_after && (
-              <CollapsedSection content={collapsed_after} />
+            {isLast && processedCollapsedAfter && (
+              <CollapsedSection content={processedCollapsedAfter} />
             )}
           </div>
         );
@@ -904,7 +1010,7 @@ export default function ArticleEmbed({
       {/* If last segment is a note, add yellow footer for collapsed_after + bottom padding */}
       {segments[segments.length - 1]?.type === "note" && (
         <div className="bg-amber-50/50 px-4 pb-4 sm:pb-6">
-          {collapsed_after && <CollapsedSection content={collapsed_after} />}
+          {processedCollapsedAfter && <CollapsedSection content={processedCollapsedAfter} />}
         </div>
       )}
     </div>

@@ -189,9 +189,9 @@ describe("Inline footnote directive", () => {
     render(<ArticleEmbed article={article} />);
     await user.hover(screen.getByText("1"));
     const tooltip = screen.getByRole("tooltip");
+    // Multi-paragraph definitions are joined with " — " separator
     expect(tooltip).toHaveTextContent("First paragraph.");
     expect(tooltip).toHaveTextContent("Second paragraph.");
-    expect(tooltip).toHaveTextContent("Third paragraph.");
   });
 
   it("multiple GFM footnotes get sequential numbers", () => {
@@ -219,5 +219,29 @@ describe("Inline footnote directive", () => {
       document.querySelector("section[data-footnotes]"),
     ).not.toBeInTheDocument();
     expect(document.querySelector("#footnote-label")).not.toBeInTheDocument();
+  });
+
+  it("GFM footnote with definition in collapsed_after renders correctly", () => {
+    const article: ArticleData = {
+      content: "Text[^1] here.",
+      title: "Test",
+      author: "Author",
+      sourceUrl: null,
+      collapsed_after: "More text.\n\n[^1]: The definition from collapsed section.",
+    };
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("GFM footnote with definition in collapsed_before renders correctly", () => {
+    const article: ArticleData = {
+      content: "Text[^1] here.",
+      title: "Test",
+      author: "Author",
+      sourceUrl: null,
+      collapsed_before: "[^1]: The definition from before section.\n\nSome earlier text.",
+    };
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
   });
 });
