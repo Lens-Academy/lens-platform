@@ -180,6 +180,11 @@ export function useTutorChat({
     type: "sidebar",
   });
 
+  /** Section indices where the user has sent at least one chat message */
+  const [chatInteractedSections, setChatInteractedSections] = useState<Set<number>>(
+    () => new Set(),
+  );
+
   // --- Load chat history when module changes -------------------------------
 
   useEffect(() => {
@@ -206,6 +211,17 @@ export function useTutorChat({
             firstUserIdx === -1
               ? [] // Only auto-sent messages exist — skip all
               : history.messages.slice(firstUserIdx);
+
+          // Extract section indices where the user has sent messages
+          const interacted = new Set<number>();
+          for (const m of history.messages) {
+            if (m.role === "user" && m.sectionIndex != null) {
+              interacted.add(m.sectionIndex);
+            }
+          }
+          if (interacted.size > 0) {
+            setChatInteractedSections(interacted);
+          }
 
           dispatchChat({
             type: "LOAD_HISTORY",
@@ -353,6 +369,14 @@ export function useTutorChat({
     ) => {
       triggerChatActivity();
 
+      // Track that the user interacted with this section's chat
+      setChatInteractedSections((prev) => {
+        if (prev.has(sectionIndex)) return prev;
+        const next = new Set(prev);
+        next.add(sectionIndex);
+        return next;
+      });
+
       dispatchChat({
         type: "SEND_START",
         content,
@@ -448,5 +472,8 @@ export function useTutorChat({
     // Computed
     sidebarChatSegmentIndex,
     sectionHasChatSegment,
+
+    // Chat gate
+    chatInteractedSections,
   };
 }

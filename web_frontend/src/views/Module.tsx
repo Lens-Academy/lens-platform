@@ -655,6 +655,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     sendMessage: handleSendMessage, retryMessage: handleRetryMessage,
     activeSurface, registerInlineRef,
     sidebarChatSegmentIndex,
+    chatInteractedSections,
   } = useTutorChat({
     moduleId,
     module,
@@ -1699,6 +1700,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                   moduleSlug={moduleId}
                   buttonText={getCompletionButtonText(section, sectionIndex)}
                   isShort={getSectionTextLength(section) < 1750}
+                  chatGated={
+                    ("segments" in section &&
+                      section.segments?.some((s) => s.type === "chat") &&
+                      !chatInteractedSections.has(sectionIndex)) ||
+                    false
+                  }
                 />
               )}
               {/* Last section completed: show course navigation */}

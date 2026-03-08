@@ -39,7 +39,7 @@ router = APIRouter(prefix="/api/chat", tags=["module"])
 
 def _segment_context_label(segment_type: str) -> str | None:
     return {
-        "chat": "Moved to discussion",
+        "chat": "Moved to discussion.",
         "question": "Working on a question",
         "roleplay": "Started roleplay exercise",
         "article-excerpt": "Reading article",
@@ -156,9 +156,6 @@ async def event_generator(
     if context_msg_content:
         yield f"data: {json.dumps({'type': 'system', 'content': context_msg_content})}\n\n"
 
-    # DEBUG: emit position info only when position changed
-    if context_msg_content:
-        yield f"data: {json.dumps({'type': 'system', 'content': f'[debug] section={section_index} segment={segment_index}'})}\n\n"
 
     # Get section and gather context
     section = (
