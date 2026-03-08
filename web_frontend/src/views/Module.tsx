@@ -48,6 +48,8 @@ import { ModuleHeader } from "@/components/ModuleHeader";
 import ModuleDrawer from "@/components/module/ModuleDrawer";
 import type { ModuleDrawerHandle } from "@/components/module/ModuleDrawer";
 import ModuleCompleteModal from "@/components/module/ModuleCompleteModal";
+import SectionChoiceModal from "@/components/module/SectionChoiceModal";
+import type { SectionChoice } from "@/components/module/SectionChoiceModal";
 import AuthPromptModal from "@/components/module/AuthPromptModal";
 import {
   trackModuleStarted,
@@ -396,6 +398,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Auth prompt modal state
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [hasPromptedAuth, setHasPromptedAuth] = useState(false);
+
+  // Section choice modal state (shown when optional content follows)
+  const [sectionChoiceOpen, setSectionChoiceOpen] = useState(false);
+  const [sectionChoices, setSectionChoices] = useState<SectionChoice[]>([]);
+  const [completedSectionTitle, setCompletedSectionTitle] = useState<string>();
 
   // Analytics tracking ref
   const hasTrackedModuleStart = useRef(false);
@@ -817,6 +824,39 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
   }, [currentSectionIndex, module, viewMode, handleStageClick, testModeActive]);
 
+  // Build choices for the section navigation modal
+  // Collects upcoming sections (optional + first required) after a completed section
+  function buildSectionChoices(
+    sections: ModuleSection[],
+    completedIndex: number,
+  ): SectionChoice[] {
+    const choices: SectionChoice[] = [];
+    for (let i = completedIndex + 1; i < sections.length; i++) {
+      const section = sections[i];
+      // Only v2 section types have optional field directly
+      if (!("optional" in section)) continue;
+      const sectionType = section.type as SectionChoice["type"];
+      if (
+        !["lens-video", "lens-article", "page", "test"].includes(sectionType)
+      )
+        continue;
+
+      choices.push({
+        index: i,
+        type: sectionType,
+        title: section.meta?.title ?? section.type,
+        tldr:
+          "tldr" in section ? (section.tldr as string | undefined) : undefined,
+        optional: section.optional ?? false,
+        duration: null,
+      });
+
+      // Stop after first required section (that's the "continue" target)
+      if (!section.optional) break;
+    }
+    return choices;
+  }
+
   const handleMarkComplete = useCallback(
     (sectionIndex: number, apiResponse?: MarkCompleteResponse) => {
       // Check if this is the first completion (for auth prompt)
@@ -850,8 +890,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         return;
       }
 
-      // Navigate to next section
+      // Check if next sections include optional content worth choosing from
       if (module && sectionIndex < module.sections.length - 1) {
+        const choices = buildSectionChoices(module.sections, sectionIndex);
+        const hasOptionalAhead = choices.some((c) => c.optional);
+
+        if (hasOptionalAhead && choices.length > 1) {
+          // Show choice modal instead of auto-advancing
+          const currentSec = module.sections[sectionIndex];
+          setCompletedSectionTitle(
+            "meta" in currentSec
+              ? (currentSec.meta?.title ?? undefined)
+              : undefined,
+          );
+          setSectionChoices(choices);
+          setSectionChoiceOpen(true);
+          return; // Don't auto-advance
+        }
+
+        // Normal auto-advance (no optional content ahead)
         const nextIndex = sectionIndex + 1;
         if (viewMode === "continuous") {
           handleStageClick(nextIndex);
@@ -1569,6 +1626,24 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             : null
         }
         onClose={() => setCompletionModalDismissed(true)}
+      />
+
+      <SectionChoiceModal
+        isOpen={sectionChoiceOpen}
+        completedTitle={completedSectionTitle}
+        choices={sectionChoices}
+        onChoose={(index) => {
+          setSectionChoiceOpen(false);
+          setCurrentSectionIndex(index);
+        }}
+        onDismiss={() => {
+          setSectionChoiceOpen(false);
+          // Skip to next required section, or advance by 1
+          const nextRequired = sectionChoices.find((c) => !c.optional);
+          setCurrentSectionIndex(
+            nextRequired ? nextRequired.index : currentSectionIndex + 1,
+          );
+        }}
       />
 
       <AuthPromptModal
