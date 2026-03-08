@@ -49,6 +49,7 @@ export interface SectionMeta {
   title?: string;
   author?: string;      // article sections only
   sourceUrl?: string;   // article sections only
+  published?: string;   // article sections only
   channel?: string;     // video sections only
 }
 
