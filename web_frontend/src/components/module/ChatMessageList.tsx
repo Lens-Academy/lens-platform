@@ -26,6 +26,12 @@ type ChatMessageListProps = {
   containerRef?: React.Ref<HTMLDivElement>;
   /** Called when the scroll container scrolls */
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  /** When set, splits messages at this index into a min-height wrapper */
+  wrapperStartIdx?: number | null;
+  /** Min-height for the wrapper div (px) */
+  wrapperMinHeight?: number;
+  /** Ref for the min-height wrapper (used for scrollIntoView) */
+  minHeightWrapperRef?: React.Ref<HTMLDivElement>;
 };
 
 export function renderMessage(msg: ChatMessage, key: string | number) {
@@ -78,8 +84,44 @@ export function ChatMessageList({
   startIndex = 0,
   containerRef,
   onScroll,
+  wrapperStartIdx,
+  wrapperMinHeight,
+  minHeightWrapperRef,
 }: ChatMessageListProps) {
   const visibleMessages = messages.slice(startIndex);
+  const useWrapper = wrapperStartIdx != null;
+  const splitAt = useWrapper ? wrapperStartIdx - startIndex : visibleMessages.length;
+
+  const pendingEl = pendingMessage && (
+    <div
+      className={`ml-auto max-w-[80%] p-3 rounded-2xl ${
+        pendingMessage.status === "failed"
+          ? "bg-red-50 border border-red-200"
+          : "bg-gray-100"
+      }`}
+    >
+      {pendingMessage.status === "failed" && (
+        <div className="text-xs text-red-500 mb-1">Failed to send</div>
+      )}
+      <div className="whitespace-pre-wrap text-gray-800">
+        {pendingMessage.content}
+      </div>
+    </div>
+  );
+
+  const streamingEl = isLoading && streamingContent && (
+    <div className="text-gray-800">
+      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
+      <ChatMarkdown>{streamingContent}</ChatMarkdown>
+    </div>
+  );
+
+  const thinkingEl = isLoading && !streamingContent && (
+    <div className="text-gray-800">
+      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
+      <div>Thinking...</div>
+    </div>
+  );
 
   return (
     <div
@@ -89,40 +131,26 @@ export function ChatMessageList({
       onScroll={onScroll}
     >
       {prefixMessage && renderMessage(prefixMessage, "prefix")}
-      {visibleMessages.map((msg, i) => renderMessage(msg, startIndex + i))}
+      {visibleMessages.slice(0, splitAt).map((msg, i) => renderMessage(msg, startIndex + i))}
 
-      {/* Pending user message */}
-      {pendingMessage && (
+      {useWrapper ? (
         <div
-          className={`ml-auto max-w-[80%] p-3 rounded-2xl ${
-            pendingMessage.status === "failed"
-              ? "bg-red-50 border border-red-200"
-              : "bg-gray-100"
-          }`}
+          ref={minHeightWrapperRef}
+          className="flex flex-col space-y-4"
+          style={{ minHeight: wrapperMinHeight ? `${wrapperMinHeight}px` : undefined }}
         >
-          {pendingMessage.status === "failed" && (
-            <div className="text-xs text-red-500 mb-1">Failed to send</div>
-          )}
-          <div className="whitespace-pre-wrap text-gray-800">
-            {pendingMessage.content}
-          </div>
+          {visibleMessages.slice(splitAt).map((msg, i) => renderMessage(msg, startIndex + splitAt + i))}
+          {pendingEl}
+          {streamingEl}
+          {thinkingEl}
+          <div className="flex-grow" />
         </div>
-      )}
-
-      {/* Streaming assistant response */}
-      {isLoading && streamingContent && (
-        <div className="text-gray-800">
-          <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
-          <ChatMarkdown>{streamingContent}</ChatMarkdown>
-        </div>
-      )}
-
-      {/* Loading indicator (before first streaming token) */}
-      {isLoading && !streamingContent && (
-        <div className="text-gray-800">
-          <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
-          <div>Thinking...</div>
-        </div>
+      ) : (
+        <>
+          {pendingEl}
+          {streamingEl}
+          {thinkingEl}
+        </>
       )}
     </div>
   );

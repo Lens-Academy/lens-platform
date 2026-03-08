@@ -64,6 +64,11 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     const isMobile = useMedia("(max-width: 1023px)", false);
     const scrollContainer = useScrollContainer();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const minHeightWrapperRef = useRef<HTMLDivElement>(null);
+
+    // Wrapper state: null = no wrapper (scroll to bottom on open), number = split index (scroll to top on send)
+    const [wrapperStartIdx, setWrapperStartIdx] = useState<number | null>(null);
+    const [scrollContainerHeight, setScrollContainerHeight] = useState(0);
 
     // --- Own open/close state + allowed flag ---
     // `isOpen` is the single source of truth for visibility — both user clicks
@@ -148,7 +153,38 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       }
     }, [isMobile, isOpen, scrollContainer]);
 
-    // Scroll to bottom when new messages arrive
+    // Track scroll container height for min-height wrapper
+    useLayoutEffect(() => {
+      if (!scrollContainerRef.current) return;
+      const container = scrollContainerRef.current;
+      setScrollContainerHeight(container.clientHeight);
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          setScrollContainerHeight(entry.contentRect.height);
+        }
+      });
+      observer.observe(container);
+      return () => observer.disconnect();
+    }, []);
+
+    // On open: scroll to bottom (preserve wrapper so whitespace remains)
+    useLayoutEffect(() => {
+      if (!isOpen) return;
+      requestAnimationFrame(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
+      });
+    }, [isOpen]);
+
+    // On send: scroll user's message to top
+    useLayoutEffect(() => {
+      if (!pendingMessage || !minHeightWrapperRef.current) return;
+      if (scrollContainerHeight <= 0) return;
+      minHeightWrapperRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
+    }, [pendingMessage, scrollContainerHeight]);
+
+    // Auto-scroll to bottom during streaming when near bottom
     useEffect(() => {
       if (scrollContainerRef.current && isOpen) {
         const container = scrollContainerRef.current;
@@ -237,11 +273,17 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           streamingContent={streamingContent}
           isLoading={isLoading}
           containerRef={scrollContainerRef}
+          wrapperStartIdx={wrapperStartIdx}
+          wrapperMinHeight={wrapperStartIdx != null ? scrollContainerHeight : undefined}
+          minHeightWrapperRef={minHeightWrapperRef}
         />
         <div className="shrink-0 border-t border-gray-200">
           <ChatInputArea
             pillId="sidebar"
-            onSend={onSendMessage}
+            onSend={(content) => {
+              setWrapperStartIdx(messages.length);
+              onSendMessage(content);
+            }}
             isLoading={isLoading}
             placeholder="Ask a question..."
           />
