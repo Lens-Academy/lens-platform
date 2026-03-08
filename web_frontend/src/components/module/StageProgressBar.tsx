@@ -143,7 +143,7 @@ function getTooltipContent(
       </div>
       {hasDuration && (
         <div className="text-slate-400 text-[10px] mt-0.5">
-          ~{formatDurationMinutes(stage.duration!)}
+          {formatDurationMinutes(stage.duration!)}
         </div>
       )}
       {hasTldr && (

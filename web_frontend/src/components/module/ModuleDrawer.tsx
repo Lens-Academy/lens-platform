@@ -131,7 +131,7 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
           </div>
 
           {/* Content */}
-          <div className="p-4 h-[calc(100%-4rem)] overflow-y-auto">
+          <div className="p-4 h-[calc(100%-4rem)] overflow-y-auto overscroll-contain">
             <ModuleOverview
               moduleTitle={moduleTitle}
               stages={stages}
