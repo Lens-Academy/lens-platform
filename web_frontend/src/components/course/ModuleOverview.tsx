@@ -120,7 +120,7 @@ export default function ModuleOverview({
 
         {/* Content */}
         <div className="relative z-[5] flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 max-w-xl">
             <span
               className={`font-medium ${
                 isCompleted || isViewing ? "text-slate-900" : "text-slate-400"
@@ -187,7 +187,7 @@ export default function ModuleOverview({
                 })()}
           </div>
           {stage.tldr && (
-            <p className="text-sm text-slate-400 mt-1 line-clamp-2">
+            <p className="text-sm text-slate-400 mt-1 max-w-xl">
               {stage.tldr}
             </p>
           )}
