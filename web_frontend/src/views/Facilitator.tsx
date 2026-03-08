@@ -531,6 +531,7 @@ function SectionTitlesColumn({
   moduleH,
   mtgH,
   dotH,
+  stripeStyle,
 }: {
   segs: TimelineSegment[];
   expanded: boolean;
@@ -538,6 +539,7 @@ function SectionTitlesColumn({
   moduleH: (n: number) => number;
   mtgH: number;
   dotH: number;
+  stripeStyle: (segIdx: number, itemCount: number) => React.CSSProperties;
 }) {
   const innerRef = useRef<HTMLDivElement>(null);
   const [contentWidth, setContentWidth] = useState(0);
@@ -593,7 +595,7 @@ function SectionTitlesColumn({
             <div
               key={si}
               className="overflow-hidden flex flex-col justify-center"
-              style={{ height: moduleH(seg.items.length) }}
+              style={{ height: moduleH(seg.items.length), ...stripeStyle(si, seg.items.length) }}
             >
               {seg.items.map((item, ii) => (
                 <div
@@ -655,6 +657,16 @@ function VerticalTimeline({
     () => buildSegments(timeline.timeline_items),
     [timeline.timeline_items],
   );
+  // Running row index per segment for alternating backgrounds
+  const segRowStarts = useMemo(() => {
+    const starts: number[] = [];
+    let row = 0;
+    for (const seg of segs) {
+      starts.push(row);
+      if (seg.type === "module") row += seg.items.length;
+    }
+    return starts;
+  }, [segs]);
   const [sectionsExpanded, setSectionsExpanded] = useState(false);
 
   // Pixel constants — shared across label + member columns for alignment
@@ -662,6 +674,20 @@ function VerticalTimeline({
   const V_PAD = 5; // vertical padding above/below every element (module or meeting)
   const DOT_COL = 18; // fixed dot column width
   const moduleH = (n: number) => n * DOT_H + V_PAD * 2;
+  // Alternating row stripe background for module segments
+  const stripeStyle = (segIdx: number, itemCount: number) => {
+    const startRow = segRowStarts[segIdx];
+    const stripes: string[] = [];
+    for (let i = 0; i < itemCount; i++) {
+      const y0 = V_PAD + i * DOT_H;
+      const y1 = y0 + DOT_H;
+      const color = (startRow + i) % 2 === 1 ? "rgb(226 232 240 / 0.45)" : "transparent";
+      stripes.push(`${color} ${y0}px`, `${color} ${y1}px`);
+    }
+    return stripes.length
+      ? { background: `linear-gradient(to bottom, transparent 0px, transparent ${V_PAD}px, ${stripes.join(", ")})` }
+      : {};
+  };
   const mtgH = 46 + V_PAD * 2; // meeting label + 2 date lines + symmetric padding
 
   return (
@@ -716,12 +742,22 @@ function VerticalTimeline({
               ) : (
                 <div
                   key={si}
-                  className="px-2 flex items-center overflow-hidden"
-                  style={{ height: moduleH(seg.items.length) }}
+                  className="flex flex-col justify-center overflow-hidden"
+                  style={{ height: moduleH(seg.items.length), ...stripeStyle(si, seg.items.length) }}
                 >
-                  <span className="text-xs text-slate-500 truncate max-w-[120px] leading-tight">
-                    {seg.slug?.replace(/-/g, " ")}
-                  </span>
+                  {seg.items.map((_item, ii) => (
+                    <div
+                      key={ii}
+                      className="flex items-center px-2"
+                      style={{ height: DOT_H }}
+                    >
+                      {ii === 0 && (
+                        <span className="text-xs text-slate-500 truncate max-w-[120px] leading-tight">
+                          {seg.slug?.replace(/-/g, " ")}
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </div>
               ),
             )}
@@ -735,6 +771,7 @@ function VerticalTimeline({
             moduleH={moduleH}
             mtgH={mtgH}
             dotH={DOT_H}
+            stripeStyle={stripeStyle}
           />
 
           {/* Member columns */}
@@ -867,7 +904,7 @@ function VerticalTimeline({
                     <div
                       key={si}
                       className="overflow-visible flex items-stretch"
-                      style={{ height: moduleH(seg.items.length) }}
+                      style={{ height: moduleH(seg.items.length), ...stripeStyle(si, seg.items.length) }}
                     >
                       {/* Section rows */}
                       <div className="flex flex-col justify-center">
@@ -875,6 +912,12 @@ function VerticalTimeline({
                           const cid = item.content_id;
                           const done = cid ? completedSet.has(cid) : false;
                           const time = cid ? (sectionTimes[cid] ?? 0) : 0;
+                          const isOpt = item.optional;
+                          const dotClass = isOpt
+                            ? done
+                              ? "w-2.5 h-2.5 rounded-full border border-dashed border-emerald-500 bg-emerald-500"
+                              : "w-2.5 h-2.5 rounded-full border border-dashed border-slate-400 bg-slate-200"
+                            : `w-2.5 h-2.5 rounded-full ${done ? "bg-emerald-500" : "bg-slate-200"}`;
                           return (
                             <div
                               key={ii}
@@ -882,14 +925,15 @@ function VerticalTimeline({
                               style={{ height: DOT_H }}
                             >
                               <span
-                                className="shrink-0 flex items-center justify-center"
+                                className="relative shrink-0 flex items-center justify-center group/dot"
                                 style={{ width: DOT_COL }}
                               >
-                                <span
-                                  className={`w-2.5 h-2.5 rounded-full ${
-                                    done ? "bg-emerald-500" : "bg-slate-200"
-                                  }`}
-                                />
+                                <span className={dotClass} />
+                                {item.title && (
+                                  <span className="hidden group-hover/dot:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-slate-800 rounded whitespace-nowrap z-20 pointer-events-none">
+                                    {item.title}{isOpt ? " (optional)" : ""}
+                                  </span>
+                                )}
                               </span>
                               <span
                                 className="relative inline-flex items-center justify-end gap-px shrink-0 group/time"
@@ -975,6 +1019,21 @@ function VerticalTimeline({
               </div>
             );
           })}
+
+          {/* Filler column — extends stripes to the right edge */}
+          <div className="flex-1 min-w-[40px]">
+            <div className="h-12 border-b border-slate-200" />
+            {segs.map((seg, si) =>
+              seg.type === "meeting" ? (
+                <div key={si} style={{ height: mtgH }} />
+              ) : (
+                <div
+                  key={si}
+                  style={{ height: moduleH(seg.items.length), ...stripeStyle(si, seg.items.length) }}
+                />
+              ),
+            )}
+          </div>
         </div>
       </div>
     </div>

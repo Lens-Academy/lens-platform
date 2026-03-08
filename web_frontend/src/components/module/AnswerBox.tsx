@@ -10,6 +10,7 @@ import { useEffect, useRef } from "react";
 import type { QuestionSegment } from "@/types/module";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
+import { useScrollContainer } from "@/hooks/useScrollContainer";
 
 interface AnswerBoxProps {
   segment: QuestionSegment;
@@ -30,6 +31,7 @@ export default function AnswerBox({
   onComplete,
   onFeedbackTrigger,
 }: AnswerBoxProps) {
+  const scrollContainer = useScrollContainer();
   const questionId = `${moduleSlug}:${sectionIndex}:${segmentIndex}`;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const voiceUsedRef = useRef(false);
@@ -73,12 +75,13 @@ export default function AnswerBox({
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
-      const scrollY = window.scrollY;
+      const scrollY = scrollContainer?.scrollTop ?? window.scrollY;
       textarea.style.height = "0";
       textarea.style.height = `${Math.max(textarea.scrollHeight, 120)}px`;
-      window.scrollTo(0, scrollY);
+      if (scrollContainer) scrollContainer.scrollTop = scrollY;
+      else window.scrollTo(0, scrollY);
     }
-  }, [text]);
+  }, [text, scrollContainer]);
 
   // Wrap markComplete to also notify parent via onComplete callback
   const handleFinish = async () => {

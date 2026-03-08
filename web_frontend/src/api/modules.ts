@@ -179,7 +179,7 @@ export async function* sendMessage(
  */
 export async function getChatHistory(slug: string): Promise<{
   sessionId: number;
-  messages: Array<{ role: string; content: string }>;
+  messages: Array<{ role: string; content: string; sectionIndex?: number }>;
 }> {
   const res = await fetchWithTimeout(
     `${API_BASE}/api/chat/module/${slug}/history`,

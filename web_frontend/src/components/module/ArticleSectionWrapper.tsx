@@ -3,9 +3,14 @@
 import { useEffect, useCallback, useMemo, useRef } from "react";
 import { ArticleSectionProvider } from "./ArticleSectionContext";
 import { generateHeadingId } from "@/utils/extractHeadings";
+import { useScrollContainer } from "@/hooks/useScrollContainer";
 
 type ArticleSectionWrapperProps = {
   children: React.ReactNode;
+  /** Portal container for rendering the TOC in a grid column at the Module level */
+  tocPortalContainer?: HTMLElement | null;
+  /** Whether the TOC should be hidden (e.g. when chat sidebar is open) */
+  hideToc?: boolean;
 };
 
 /**
@@ -15,7 +20,10 @@ type ArticleSectionWrapperProps = {
  */
 export default function ArticleSectionWrapper({
   children,
+  tocPortalContainer,
+  hideToc,
 }: ArticleSectionWrapperProps) {
+  const scrollContainer = useScrollContainer();
   const headingElementsRef = useRef<Map<string, HTMLElement>>(new Map());
   // ToC items for direct DOM manipulation (bypasses React re-renders)
   const tocItemsRef = useRef<
@@ -135,7 +143,7 @@ export default function ArticleSectionWrapper({
       if (!tocItem) return;
 
       // Article position: stable document-relative offset
-      const articleTop = articleEl.getBoundingClientRect().top + window.scrollY;
+      const articleTop = articleEl.getBoundingClientRect().top + (scrollContainer?.scrollTop ?? window.scrollY);
       // ToC position: use offsetTop for stability (not affected by scrollTop changes)
       const tocOffset = tocItem.element.offsetTop;
 
@@ -144,7 +152,8 @@ export default function ArticleSectionWrapper({
 
     entries.sort((a, b) => a.articleTop - b.articleTop);
     return entries;
-  }, [getTocScrollContainer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getTocScrollContainer, scrollContainer]);
 
   // Invalidate cached positions on resize or content changes
   const invalidatePositions = useCallback(() => {
@@ -171,8 +180,8 @@ export default function ArticleSectionWrapper({
 
   // Main scroll handler: highlight active heading + interpolate ToC scroll position
   const recalculateCurrentHeading = useCallback(() => {
-    const threshold = window.innerHeight * 0.35;
-    const scrollY = window.scrollY + threshold;
+    const threshold = (scrollContainer?.clientHeight ?? window.innerHeight) * 0.35;
+    const scrollY = (scrollContainer?.scrollTop ?? window.scrollY) + threshold;
 
     // Use cached positions (only recompute on invalidation)
     if (!cachedPositionsRef.current) {
@@ -213,7 +222,7 @@ export default function ArticleSectionWrapper({
         curr.tocOffset + (next.tocOffset - curr.tocOffset) * t;
       scrollTocToOffset(lerpedOffset);
     }
-  }, [computePositions, updateTocHighlight, scrollTocToOffset]);
+  }, [computePositions, updateTocHighlight, scrollTocToOffset, scrollContainer]);
 
   // Scroll listener with rAF throttling to prevent layout thrashing
   useEffect(() => {
@@ -227,18 +236,19 @@ export default function ArticleSectionWrapper({
       });
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
+    const scrollTarget = scrollContainer ?? window;
+    scrollTarget.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", invalidatePositions);
 
     // Initial calculation (delayed to ensure ToC items are registered)
     requestAnimationFrame(() => recalculateCurrentHeading());
 
     return () => {
-      window.removeEventListener("scroll", onScroll);
+      scrollTarget.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", invalidatePositions);
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [recalculateCurrentHeading, invalidatePositions]);
+  }, [recalculateCurrentHeading, invalidatePositions, scrollContainer]);
 
   const handleHeadingClick = useCallback((id: string) => {
     const element = headingElementsRef.current.get(id);
@@ -254,6 +264,8 @@ export default function ArticleSectionWrapper({
       onHeadingRender: handleHeadingRender,
       registerTocItem,
       onHeadingClick: handleHeadingClick,
+      tocPortalContainer: tocPortalContainer ?? null,
+      hideToc: hideToc ?? false,
     }),
     [
       getHeadingId,
@@ -261,6 +273,8 @@ export default function ArticleSectionWrapper({
       handleHeadingRender,
       registerTocItem,
       handleHeadingClick,
+      tocPortalContainer,
+      hideToc,
     ],
   );
 

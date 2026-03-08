@@ -8,6 +8,7 @@
 
 import { useMemo } from "react";
 import type { StageInfo, ModuleStatus } from "../../types/course";
+import { OptionalBadge } from "../OptionalBadge";
 import { StageIcon } from "../module/StageProgressBar";
 import {
   getCircleFillClasses,
@@ -131,7 +132,7 @@ export default function ModuleOverview({
 
         {/* Content */}
         <div className="relative z-[5] flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 max-w-xl">
             <span
               className={`font-medium ${
                 isCompleted || isViewing ? "text-slate-900" : "text-slate-400"
@@ -139,13 +140,9 @@ export default function ModuleOverview({
             >
               {stage.title}
             </span>
-            {stage.optional && (
-              <span className="text-xs text-slate-400 border border-slate-200 rounded px-1">
-                Optional
-              </span>
-            )}
           </div>
-          <div className="text-sm text-slate-500 mt-0.5">
+          <div className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
+            {stage.optional && <OptionalBadge />}
             {stage.type === "chat"
               ? "Discuss with AI tutor"
               : (() => {
@@ -201,6 +198,11 @@ export default function ModuleOverview({
                   );
                 })()}
           </div>
+          {stage.tldr && (
+            <p className="text-sm text-slate-400 mt-1 max-w-xl">
+              {stage.tldr}
+            </p>
+          )}
         </div>
       </div>
     );

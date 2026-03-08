@@ -1,6 +1,7 @@
 // web_frontend/src/components/module/SectionDivider.tsx
 import { StickyNote, BotMessageSquare } from "lucide-react";
 import { formatDurationMinutes } from "../../utils/duration";
+import { OptionalBadge } from "../OptionalBadge";
 
 type DurationBreakdown = {
   total: number;
@@ -78,8 +79,9 @@ export default function SectionDivider({
         </div>
         <div className="flex-1 border-t border-gray-300" />
       </div>
-      {duration != null && duration.total > 0 && (
-        <div className="flex items-center gap-0.5 text-sm text-gray-400">
+      {duration != null && duration.total > 0 ? (
+        <div className="flex items-center gap-1.5 text-sm text-gray-400">
+          {optional && <OptionalBadge />}
           {duration.contentTime > 0 && duration.aiTime > 0 ? (
             <>
               {duration.hasVideo ? (
@@ -116,12 +118,9 @@ export default function SectionDivider({
             <span>{formatDurationMinutes(duration.total)}</span>
           )}
         </div>
-      )}
-      {optional && (
-        <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-          Optional
-        </span>
-      )}
+      ) : optional ? (
+        <OptionalBadge />
+      ) : null}
     </div>
   );
 }

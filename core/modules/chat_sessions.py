@@ -110,11 +110,17 @@ async def add_chat_message(
     role: str,
     content: str,
     icon: str | None = None,
+    sectionIndex: int | None = None,
+    segmentIndex: int | None = None,
 ) -> None:
     """Append message to chat session."""
     message = {"role": role, "content": content}
     if icon:
         message["icon"] = icon
+    if sectionIndex is not None:
+        message["sectionIndex"] = sectionIndex
+    if segmentIndex is not None:
+        message["segmentIndex"] = segmentIndex
 
     # Use PostgreSQL jsonb_insert or || operator
     await conn.execute(

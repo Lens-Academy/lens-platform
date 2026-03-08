@@ -9,6 +9,7 @@
 :root {
   --background: #fafaf9; /* stone-50 */
   --foreground: #0f172a; /* slate-900 */
+  --sidebar-width: 320px;
 
   /* Safe area insets for notched devices */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -135,16 +136,21 @@ body {
 
 /* Article section margin: centered by default, but ensures enough left
    space for the ToC (250px + 24px gap) when the viewport is tight.
-   Uses explicit calc (not auto) so margin-left can transition smoothly. */
+   margin-right: 0 (not auto) so sidebar margin can transition smoothly. */
 .article-toc-margin {
-  margin-left: max(0px, calc((100% - var(--container-content-padded)) / 2));
-  margin-right: auto;
-  transition: margin-left 0.3s ease-out;
+  margin-left: max(0px, calc((100vw - var(--container-content-padded)) / 2));
+  margin-right: 0;
 }
 
 @media (min-width: 1100px) {
   .article-toc-margin {
-    margin-left: max(calc((100% - var(--container-content-padded)) / 2), 274px);
+    margin-left: max(calc((100vw - var(--container-content-padded)) / 2), 274px);
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --sidebar-width: 384px;
   }
 }
 
@@ -264,6 +270,25 @@ body {
   );
   background-size: 5px 2.5px;
   background-repeat: repeat-x;
+}
+
+/* Thin scrollbar for module scroll container */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 /* Hide scrollbar while allowing scroll */

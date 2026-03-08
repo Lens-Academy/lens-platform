@@ -17,7 +17,8 @@ export type ChatViewAction =
       hasScrollToResponse: boolean;
     }
   | { type: "EXPAND" }
-  | { type: "COLLAPSE" };
+  | { type: "COLLAPSE" }
+  | { type: "DEACTIVATE" };
 
 export const initialChatViewState: ChatViewState = {
   hasInteracted: false,
@@ -61,5 +62,8 @@ export function chatViewReducer(
 
     case "COLLAPSE":
       return { ...state, isExpanded: false };
+
+    case "DEACTIVATE":
+      return { ...state, hasInteracted: false, isExpanded: false };
   }
 }

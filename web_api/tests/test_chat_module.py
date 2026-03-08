@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from core.content.cache import ContentCache, set_cache, clear_cache
+from core.modules.context import SectionContext
 from core.modules.flattened_types import FlattenedModule
 from main import app
 from web_api.auth import get_user_or_anonymous
@@ -209,7 +210,11 @@ class TestPostChatModule:
             ),
             patch(
                 "web_api.routes.module.gather_section_context",
-                return_value="Video content here",
+                return_value=SectionContext(
+                    segments=[(0, "Video content here")],
+                    segment_index=1,
+                    total_segments=2,
+                ),
             ) as ctx_mock,
         ):
             response = client.post(

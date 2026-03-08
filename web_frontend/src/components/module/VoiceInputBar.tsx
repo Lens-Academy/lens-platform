@@ -5,8 +5,7 @@
  * immediately, no review step). Cancel button (X) discards without sending.
  *
  * Uses useVoiceRecording hook internally with onTranscription calling onSend
- * directly -- the key difference from NarrativeChatSection's mic-fills-textarea
- * approach.
+ * directly -- the key difference from ChatInputArea's mic-fills-textarea approach.
  */
 
 import { useState, useRef } from "react";

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useScrollContainer } from "./useScrollContainer";
 
 type ScrollDirection = "up" | "down" | null;
 
@@ -10,6 +11,7 @@ type ScrollDirection = "up" | "down" | null;
  * @returns Current scroll direction: 'up', 'down', or null (initial/at top)
  */
 export function useScrollDirection(threshold = 100): ScrollDirection {
+  const container = useScrollContainer();
   const [scrollDirection, setScrollDirection] = useState<ScrollDirection>(null);
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
@@ -18,8 +20,10 @@ export function useScrollDirection(threshold = 100): ScrollDirection {
     // Handle SSR
     if (typeof window === "undefined") return;
 
+    const target = container ?? window;
+
     const updateScrollDirection = () => {
-      const scrollY = window.scrollY;
+      const scrollY = container?.scrollTop ?? window.scrollY;
       const direction = scrollY > lastScrollY.current ? "down" : "up";
 
       if (Math.abs(scrollY - lastScrollY.current) > threshold) {
@@ -36,9 +40,9 @@ export function useScrollDirection(threshold = 100): ScrollDirection {
       }
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [threshold]);
+    target.addEventListener("scroll", onScroll, { passive: true });
+    return () => target.removeEventListener("scroll", onScroll);
+  }, [threshold, container]);
 
   return scrollDirection;
 }

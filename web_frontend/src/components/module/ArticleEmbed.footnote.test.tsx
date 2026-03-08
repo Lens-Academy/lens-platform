@@ -94,6 +94,49 @@ describe("Inline footnote directive", () => {
     expect(screen.queryByText("detail two")).not.toBeInTheDocument();
   });
 
+  it("lens footnote trigger has data-source='lens'", () => {
+    const article = makeArticle("Text :footnote[lens note] here.");
+    render(<ArticleEmbed article={article} />);
+    const trigger = screen
+      .getByRole("img", { name: /footnote/i })
+      .closest("[data-source]");
+    expect(trigger).toHaveAttribute("data-source", "lens");
+  });
+
+  it("GFM footnote renders as tooltip trigger, not as <sup><a>", () => {
+    const article = makeArticle(
+      "Text with a ref[^1].\n\n[^1]: The definition text.",
+    );
+    render(<ArticleEmbed article={article} />);
+    // Should NOT render default GFM footnote HTML
+    expect(document.querySelector("sup")).not.toBeInTheDocument();
+    expect(
+      document.querySelector("section[data-footnotes]"),
+    ).not.toBeInTheDocument();
+    // Should render a tooltip trigger with the number
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("GFM footnote tooltip shows definition on hover", async () => {
+    const user = userEvent.setup();
+    const article = makeArticle(
+      "Text[^1].\n\n[^1]: Author's footnote content.",
+    );
+    render(<ArticleEmbed article={article} />);
+    const trigger = screen.getByText("1");
+    await user.hover(trigger);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Author's footnote content.",
+    );
+  });
+
+  it("GFM footnote trigger has data-source='author'", () => {
+    const article = makeArticle("Text[^1].\n\n[^1]: Def.");
+    render(<ArticleEmbed article={article} />);
+    const trigger = screen.getByText("1").closest("[data-source]");
+    expect(trigger).toHaveAttribute("data-source", "author");
+  });
+
   it("opens on click and dismisses on click-outside (mobile)", async () => {
     const user = userEvent.setup();
     const article = makeArticle("Text :footnote[click info] more.");
@@ -108,5 +151,97 @@ describe("Inline footnote directive", () => {
     // Click outside to close
     await user.click(document.body);
     expect(screen.queryByText("click info")).not.toBeInTheDocument();
+  });
+
+  it("author footnote shows superscript number, not Lens logo", () => {
+    const article = makeArticle("Text[^1].\n\n[^1]: Author note.");
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
+    const triggers = document.querySelectorAll("[data-source]");
+    const authorTrigger = Array.from(triggers).find(
+      (el) => el.getAttribute("data-source") === "author",
+    );
+    expect(
+      authorTrigger?.querySelector('img[alt="footnote"]'),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lens footnote still shows Lens logo", () => {
+    const article = makeArticle("Text :footnote[editorial note] here.");
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByRole("img", { name: /footnote/i })).toBeInTheDocument();
+  });
+
+  it("mixed author and lens footnotes render correctly", () => {
+    const article = makeArticle(
+      "Author says[^1] and :footnote[lens note].\n\n[^1]: Author's note.",
+    );
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /footnote/i })).toBeInTheDocument();
+  });
+
+  it("multi-paragraph GFM footnote renders all content in tooltip", async () => {
+    const user = userEvent.setup();
+    const article = makeArticle(
+      "Text[^1].\n\n[^1]: First paragraph.\n\n    Second paragraph.\n\n    Third paragraph.",
+    );
+    render(<ArticleEmbed article={article} />);
+    await user.hover(screen.getByText("1"));
+    const tooltip = screen.getByRole("tooltip");
+    // Multi-paragraph definitions are joined with " — " separator
+    expect(tooltip).toHaveTextContent("First paragraph.");
+    expect(tooltip).toHaveTextContent("Second paragraph.");
+  });
+
+  it("multiple GFM footnotes get sequential numbers", () => {
+    const article = makeArticle(
+      "Point A[^a] and point B[^b].\n\n[^a]: Def A.\n[^b]: Def B.",
+    );
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("duplicate references to same footnote both render", () => {
+    const article = makeArticle(
+      "First ref[^1] and second ref[^1].\n\n[^1]: Shared definition.",
+    );
+    render(<ArticleEmbed article={article} />);
+    const triggers = screen.getAllByText(/^[12]$/);
+    expect(triggers.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("GFM footnote endnotes section is suppressed", () => {
+    const article = makeArticle("Text[^1].\n\n[^1]: Def.");
+    render(<ArticleEmbed article={article} />);
+    expect(
+      document.querySelector("section[data-footnotes]"),
+    ).not.toBeInTheDocument();
+    expect(document.querySelector("#footnote-label")).not.toBeInTheDocument();
+  });
+
+  it("GFM footnote with definition in collapsed_after renders correctly", () => {
+    const article: ArticleData = {
+      content: "Text[^1] here.",
+      title: "Test",
+      author: "Author",
+      sourceUrl: null,
+      collapsed_after: "More text.\n\n[^1]: The definition from collapsed section.",
+    };
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("GFM footnote with definition in collapsed_before renders correctly", () => {
+    const article: ArticleData = {
+      content: "Text[^1] here.",
+      title: "Test",
+      author: "Author",
+      sourceUrl: null,
+      collapsed_before: "[^1]: The definition from before section.\n\nSome earlier text.",
+    };
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
   });
 });

@@ -11,6 +11,8 @@ import {
   useFocus,
   useDismiss,
   useInteractions,
+  useDelayGroup,
+  useTransitionStyles,
   offset,
   flip,
   shift,
@@ -42,9 +44,19 @@ export function Tooltip({
     middleware: [offset(8), flip(), shift({ padding: 8 })],
   });
 
+  const { delay: groupDelay, isInstantPhase } = useDelayGroup(context);
+
   const hover = useHover(context, {
-    delay: { open: delay, close: 0 },
+    delay: groupDelay ?? { open: delay, close: 0 },
   });
+
+  const { isMounted, styles: transitionStyles } = useTransitionStyles(
+    context,
+    {
+      duration: isInstantPhase ? 0 : { open: 0, close: 150 },
+      initial: { opacity: 0 },
+    },
+  );
 
   const focus = useFocus(context);
 
@@ -90,13 +102,13 @@ export function Tooltip({
   return (
     <>
       {childWithRef}
-      {isOpen && (
+      {isMounted && (
         <FloatingPortal>
           <div
             ref={refs.setFloating}
-            style={floatingStyles}
+            style={{ ...floatingStyles, ...transitionStyles }}
             {...getFloatingProps()}
-            className="bg-gray-800 text-white text-xs px-2 py-1 rounded z-50"
+            className="bg-white text-slate-700 text-sm px-3.5 py-2.5 rounded-lg shadow-lg ring-1 ring-slate-200/60 max-w-xs z-50"
           >
             {content}
           </div>

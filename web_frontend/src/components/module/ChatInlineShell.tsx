@@ -1,4 +1,9 @@
-// web_frontend_next/src/components/narrative-lesson/NarrativeChatSection.tsx
+/**
+ * ChatInlineShell — inline chat shell for article sections.
+ *
+ * Keeps all layout/scroll logic (expand/collapse, scroll ratchet, min-height wrapper)
+ * but delegates message rendering to `renderMessage` and input to `ChatInputArea`.
+ */
 
 import {
   useState,
@@ -8,40 +13,78 @@ import {
   useLayoutEffect,
   Fragment,
 } from "react";
+import { useScrollContainer } from "@/hooks/useScrollContainer";
+import { usePillVisibility } from "@/hooks/usePillVisibility";
 import type { ChatMessage, PendingMessage } from "@/types/module";
-import { useVoiceRecording } from "@/hooks/useVoiceRecording";
+import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
+import { renderMessage } from "@/components/module/ChatMessageList";
+import { ChatInputArea } from "@/components/module/ChatInputArea";
 import ChatMarkdown from "@/components/ChatMarkdown";
-import { Tooltip } from "@/components/Tooltip";
-import { StageIcon } from "@/components/module/StageProgressBar";
-import { triggerHaptic } from "@/utils/haptics";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { Bot, ChevronUp, ChevronDown } from "lucide-react";
 import { chatViewReducer, initialChatViewState } from "./chatViewReducer";
 
-type NarrativeChatSectionProps = {
+type ChatInlineShellProps = {
   messages: ChatMessage[];
   pendingMessage: PendingMessage | null;
   streamingContent: string;
   isLoading: boolean;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
-  scrollToResponse?: boolean;
   activated?: boolean;
+  activatedWithHistory?: boolean;
+  scrollToResponse?: boolean;
+  hasActiveInput: boolean;
+  shellRef?: (el: HTMLDivElement | null) => void;
+  sendSource?: "sidebar" | "inline" | null;
+  pillId?: string;
+  sidebarAllowedRef?: React.RefObject<boolean>;
+  sidebarAllowedListeners?: React.RefObject<Set<() => void>>;
+  sidebarRef?: React.RefObject<ChatSidebarHandle | null>;
 };
 
-/**
- * Chat section for NarrativeLesson.
- * Copied from ChatPanel with stage-specific features removed.
- */
-export default function NarrativeChatSection({
+/** Owns the usePillVisibility hook — isolates re-renders to this subtree. */
+function PillVisibilityWrapper({
+  sidebarAllowedRef,
+  sidebarAllowedListeners,
+  sidebarRef,
+  isActive,
+  children,
+}: {
+  sidebarAllowedRef: React.RefObject<boolean>;
+  sidebarAllowedListeners: React.RefObject<Set<() => void>>;
+  sidebarRef: React.RefObject<ChatSidebarHandle | null>;
+  isActive: boolean;
+  children: (pillHidden: boolean, pillTransition: boolean) => React.ReactNode;
+}) {
+  const { pillVisible, pillTransition } = usePillVisibility({
+    sidebarAllowedRef,
+    sidebarAllowedListeners,
+    sidebarRef,
+    isActive,
+  });
+  return children(!pillVisible, pillTransition);
+}
+
+export function ChatInlineShell({
   messages,
   pendingMessage,
   streamingContent,
   isLoading,
   onSendMessage,
   onRetryMessage,
-  scrollToResponse,
   activated,
-}: NarrativeChatSectionProps) {
+  activatedWithHistory,
+  scrollToResponse,
+  hasActiveInput,
+  shellRef,
+  sendSource,
+  pillId,
+  sidebarAllowedRef,
+  sidebarAllowedListeners,
+  sidebarRef,
+}: ChatInlineShellProps) {
+  const pageScrollContainer = useScrollContainer();
+
   // View state reducer — centralized state transitions for chat view
   const [viewState, dispatch] = useReducer(
     chatViewReducer,
@@ -56,7 +99,6 @@ export default function NarrativeChatSection({
   } = viewState;
 
   // Independent UI state
-  const [input, setInput] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [scrollContainerHeight, setScrollContainerHeight] = useState(0);
 
@@ -65,34 +107,22 @@ export default function NarrativeChatSection({
 
   const minHeightWrapperRef = useRef<HTMLDivElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const recentStartRef = useRef<HTMLDivElement>(null);
   const justExpandedRef = useRef(false);
-
-  // Voice recording (extracted to shared hook)
-  const {
-    recordingState,
-    recordingTime,
-    volumeBars,
-    errorMessage,
-    showRecordingWarning,
-    handleMicClick,
-    formatTime,
-  } = useVoiceRecording({
-    onTranscription: (text) => {
-      setInput((prev) => (prev ? `${prev} ${text}` : text));
-    },
-  });
+  const scrollContainerHeightRef = useRef(0);
+  scrollContainerHeightRef.current = scrollContainerHeight;
 
   // Scroll user's new message to top when they send
   // When activeScrollToResponse is true, scroll to the response (Thinking.../streaming) instead
   useLayoutEffect(() => {
     if (!pendingMessage || !scrollContainerRef.current) return;
+    // Only scroll if this shell owns the active input (message was sent from here)
+    if (!hasActiveInput || sendSource === "sidebar") return;
     // In expanded mode, wait for scrollContainerHeight so minHeight is applied.
     // In normal mode (page scroll), no fixed-height container — skip the check.
-    if (isExpanded && scrollContainerHeight <= 0) return;
+    if (isExpanded && scrollContainerHeightRef.current <= 0) return;
 
     const scrollBehavior = isExpanded ? "instant" : "smooth";
 
@@ -116,10 +146,11 @@ export default function NarrativeChatSection({
     }
   }, [
     pendingMessage,
-    scrollContainerHeight,
     activeScrollToResponse,
     isLoading,
     isExpanded,
+    hasActiveInput,
+    sendSource,
   ]);
 
   // Scroll to recent-messages boundary after expanding conversation history
@@ -143,31 +174,25 @@ export default function NarrativeChatSection({
     }
   }, [isExpanded]);
 
-  // Activate when parent explicitly signals this instance should show messages
+  // Activate when parent explicitly signals this instance should show messages.
+  // activatedWithHistory=true means show all existing messages (transfer from sidebar).
   useEffect(() => {
     if (!hasInteracted && activated) {
-      dispatch({ type: "ACTIVATE", messagesLength: messages.length });
+      dispatch({
+        type: "ACTIVATE",
+        messagesLength: activatedWithHistory ? 0 : messages.length,
+      });
     }
-  }, [activated, hasInteracted, messages.length]);
+  }, [activated, activatedWithHistory, hasInteracted, messages.length]);
 
-  // Scroll chat container into view when user first interacts
+  // Deactivate when another surface sends (collapse back to just the input bar).
+  // When re-activated later, ACTIVATE with current messagesLength means only the
+  // new exchange is shown (old messages behind the "earlier" button).
   useEffect(() => {
-    if (hasInteracted && containerRef.current) {
-      containerRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (sendSource && !hasActiveInput) {
+      dispatch({ type: "DEACTIVATE" });
     }
-  }, [hasInteracted]);
-
-  // Auto-resize textarea
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      const maxHeight = 200;
-      const needsScroll = textarea.scrollHeight > maxHeight;
-      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
-      textarea.style.overflowY = needsScroll ? "auto" : "hidden";
-    }
-  }, [input]);
+  }, [sendSource, hasActiveInput]);
 
   // Track scroll container height for min-height calculation
   useLayoutEffect(() => {
@@ -199,7 +224,7 @@ export default function NarrativeChatSection({
   const spacerHeight = isExpanded
     ? scrollContainerHeight
     : hasInteracted
-      ? Math.max(0, window.innerHeight - 160)
+      ? Math.max(0, (pageScrollContainer?.clientHeight ?? window.innerHeight) - 160)
       : 0;
 
   // Messages to display based on mode (normal vs expanded)
@@ -228,8 +253,6 @@ export default function NarrativeChatSection({
     : undefined;
 
   // Ratchet: reduce wrapper minHeight as user scrolls up (non-expanded only).
-  // As the wrapper moves down in the viewport, its original bottom extends below
-  // the viewport. We reduce minHeight by that overflow. Ratchet: only increases.
   useEffect(() => {
     if (!hasInteracted || isExpanded || wrapperMinHeight <= 0) return;
 
@@ -244,9 +267,10 @@ export default function NarrativeChatSection({
 
       const rect = wrapper.getBoundingClientRect();
       // How far the wrapper's original bottom extends below the viewport
+      const viewportH = pageScrollContainer?.clientHeight ?? window.innerHeight;
       const overflow = Math.max(
         0,
-        rect.top + wrapperMinHeight - window.innerHeight,
+        rect.top + wrapperMinHeight - viewportH,
       );
       const newReduction = Math.max(minHeightReductionRef.current, overflow);
 
@@ -257,36 +281,10 @@ export default function NarrativeChatSection({
       }
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [hasInteracted, isExpanded, wrapperMinHeight]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (input.trim() && !isLoading) {
-      triggerHaptic(10); // Subtle haptic feedback on send
-      dispatch({
-        type: "SEND_MESSAGE",
-        messagesLength: messages.length,
-        hasScrollToResponse: !!scrollToResponse,
-      });
-      minHeightReductionRef.current = 0;
-      if (minHeightWrapperRef.current) {
-        minHeightWrapperRef.current.style.minHeight =
-          wrapperMinHeight > 0 ? `${wrapperMinHeight}px` : "";
-      }
-      setShowScrollButton(false);
-      onSendMessage(input.trim());
-      setInput("");
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  };
+    const scrollTarget = pageScrollContainer ?? window;
+    scrollTarget.addEventListener("scroll", onScroll, { passive: true });
+    return () => scrollTarget.removeEventListener("scroll", onScroll);
+  }, [hasInteracted, isExpanded, wrapperMinHeight, pageScrollContainer]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -305,7 +303,7 @@ export default function NarrativeChatSection({
   };
 
   return (
-    <div className="py-4 px-4" style={{ overflowAnchor: "none" }}>
+    <div ref={shellRef} className="py-4 px-4" style={{ overflowAnchor: "none", paddingTop: hasInteracted ? undefined : "20vh" }}>
       <div
         ref={containerRef}
         className={`max-w-content-padded mx-auto flex flex-col scroll-mb-8 relative ${
@@ -371,27 +369,7 @@ export default function NarrativeChatSection({
                 {previousMessages.map((msg, i) => {
                   const isRecentBoundary =
                     isExpanded && i === recentMessagesStartIdx;
-                  const msgEl =
-                    msg.role === "system" ? (
-                      <div key={i} className="flex justify-center my-3">
-                        <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
-                          {msg.icon && <StageIcon type={msg.icon} small />}
-                          {msg.content}
-                        </span>
-                      </div>
-                    ) : msg.role === "assistant" ? (
-                      <div key={i} className="text-gray-800">
-                        <div className="text-sm text-gray-500 mb-1">Tutor</div>
-                        <ChatMarkdown>{msg.content}</ChatMarkdown>
-                      </div>
-                    ) : (
-                      <div
-                        key={i}
-                        className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
-                      >
-                        <div className="whitespace-pre-wrap">{msg.content}</div>
-                      </div>
-                    );
+                  const msgEl = renderMessage(msg, i);
                   return isRecentBoundary ? (
                     <Fragment key={i}>
                       <div ref={recentStartRef} />
@@ -417,29 +395,7 @@ export default function NarrativeChatSection({
               <div className="space-y-4 max-w-content mx-auto w-full">
                 {/* Messages in current exchange (user + completed assistant) */}
                 {wrapperMessages.map((msg, i) =>
-                  msg.role === "system" ? (
-                    <div
-                      key={`current-${i}`}
-                      className="flex justify-center my-3"
-                    >
-                      <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
-                        {msg.icon && <StageIcon type={msg.icon} small />}
-                        {msg.content}
-                      </span>
-                    </div>
-                  ) : msg.role === "assistant" ? (
-                    <div key={`current-${i}`} className="text-gray-800">
-                      <div className="text-sm text-gray-500 mb-1">Tutor</div>
-                      <ChatMarkdown>{msg.content}</ChatMarkdown>
-                    </div>
-                  ) : (
-                    <div
-                      key={`current-${i}`}
-                      className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
-                    >
-                      <div className="whitespace-pre-wrap">{msg.content}</div>
-                    </div>
-                  ),
+                  renderMessage(msg, `current-${i}`),
                 )}
 
                 {/* Pending user message */}
@@ -473,7 +429,7 @@ export default function NarrativeChatSection({
                     ref={activeScrollToResponse ? responseRef : undefined}
                     className="text-gray-800"
                   >
-                    <div className="text-sm text-gray-500 mb-1">Tutor</div>
+                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
                     <ChatMarkdown>{streamingContent}</ChatMarkdown>
                   </div>
                 )}
@@ -484,7 +440,7 @@ export default function NarrativeChatSection({
                     ref={activeScrollToResponse ? responseRef : undefined}
                     className="text-gray-800"
                   >
-                    <div className="text-sm text-gray-500 mb-1">Tutor</div>
+                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1"><Bot size={13} />Tutor</div>
                     <div>Thinking...</div>
                   </div>
                 )}
@@ -521,189 +477,69 @@ export default function NarrativeChatSection({
           </div>
         )}
 
-        {/* Error message */}
-        {errorMessage && (
-          <div
-            role="alert"
-            className="px-4 py-2 bg-red-50 border-t border-red-100"
-          >
-            <div className="text-sm text-red-600">{errorMessage}</div>
-          </div>
-        )}
-
-        {/* Recording warning */}
-        {showRecordingWarning && (
-          <div className="px-4 py-2 bg-amber-50 border-t border-amber-100">
-            <div className="text-sm text-amber-700">
-              Recording will stop after 2 minutes.
-            </div>
-          </div>
-        )}
-
-        {/* Input form */}
-        <form
-          onSubmit={handleSubmit}
-          className={`px-4 pb-4 pt-2 ${isExpanded ? "border-t border-gray-100" : ""}`}
-          style={
-            !isExpanded
-              ? { position: "sticky", bottom: 0, zIndex: 10 }
-              : undefined
-          }
+        {/* Input area — always rendered to reserve layout space (prevents
+            content jump when pill activates). Hidden pills use opacity-0. */}
+        <div
+          className={`${isExpanded ? "border-t border-gray-100" : ""}`}
+          style={!isExpanded ? { position: "sticky", bottom: 0, zIndex: 10 } : undefined}
         >
-          <div
-            className={`max-w-content mx-auto ${!isExpanded ? "border border-gray-200 rounded-2xl bg-white shadow-md" : ""}`}
-          >
-            {/* Recording indicator */}
-            {recordingState === "recording" && (
-              <div className="flex items-center gap-2 justify-center pt-3 px-4">
-                <div className="flex items-end gap-1 h-6">
-                  {volumeBars.map((vol, i) => (
-                    <div
-                      key={i}
-                      className="w-1.5 bg-gray-500 rounded-sm transition-[height] duration-100"
-                      style={{
-                        height: `${Math.max(6, Math.min(1, vol * 2) * 24)}px`,
-                      }}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-gray-500 tabular-nums">
-                  {formatTime(recordingTime)}
-                </span>
-              </div>
-            )}
-
-            <div className="flex gap-2 items-end p-3">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onFocus={() => {
-                  // Delay to let iOS keyboard animation start
-                  setTimeout(() => {
-                    textareaRef.current?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "nearest",
-                    });
-                  }, 100);
-                }}
-                placeholder={
-                  recordingState === "transcribing"
-                    ? "Transcribing..."
-                    : "Type a message..."
-                }
-                disabled={recordingState === "transcribing"}
-                rows={1}
-                className="flex-1 px-1 py-1 focus:outline-none resize-none leading-normal disabled:bg-gray-100 bg-transparent"
-              />
-
-              {/* Buttons */}
-              <div className="flex gap-1.5 shrink-0">
-                <Tooltip
-                  content={
-                    recordingState === "recording"
-                      ? "Stop recording"
-                      : "Start recording"
-                  }
-                >
-                  <button
-                    type="button"
-                    onClick={handleMicClick}
-                    disabled={recordingState === "transcribing"}
-                    aria-label={
-                      recordingState === "recording"
-                        ? "Stop recording"
-                        : "Start voice recording"
-                    }
-                    className="min-w-[36px] min-h-[36px] p-2 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-default text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {recordingState === "transcribing" ? (
-                      <svg
-                        className="w-5 h-5 animate-spin"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        style={
-                          recordingState === "recording"
-                            ? { animation: "mic-pulse 1s ease-in-out infinite" }
-                            : undefined
+          <div className={`${!isExpanded ? "max-w-content mx-auto" : ""}`}>
+            {sidebarAllowedRef ? (
+              <PillVisibilityWrapper
+                sidebarAllowedRef={sidebarAllowedRef}
+                sidebarAllowedListeners={sidebarAllowedListeners!}
+                sidebarRef={sidebarRef!}
+                isActive={hasActiveInput}
+              >
+                {(pillHidden, pillTransition) => (
+                  <div className={hasActiveInput ? undefined : "pointer-events-none"}>
+                    <ChatInputArea
+                      pillId={hasActiveInput ? pillId : undefined}
+                      pillHidden={pillHidden}
+                      pillTransition={pillTransition || undefined}
+                      onSend={(content) => {
+                        dispatch({
+                          type: "SEND_MESSAGE",
+                          messagesLength: messages.length,
+                          hasScrollToResponse: !!scrollToResponse,
+                        });
+                        minHeightReductionRef.current = 0;
+                        if (minHeightWrapperRef.current) {
+                          minHeightWrapperRef.current.style.minHeight =
+                            wrapperMinHeight > 0 ? `${wrapperMinHeight}px` : "";
                         }
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                        />
-                      </svg>
-                    )}
-                  </button>
-                </Tooltip>
-                {recordingState === "recording" ? (
-                  <Tooltip content="Stop recording">
-                    <button
-                      type="button"
-                      onClick={handleMicClick}
-                      aria-label="Stop recording"
-                      className="bg-gray-600 text-white p-2 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[36px] min-h-[36px] flex items-center justify-center transition-all active:scale-95"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <rect x="6" y="6" width="12" height="12" rx="1" />
-                      </svg>
-                    </button>
-                  </Tooltip>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={
-                      isLoading || !input.trim() || recordingState !== "idle"
-                    }
-                    className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-default min-w-[36px] min-h-[36px] transition-all active:scale-95"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
-                      />
-                    </svg>
-                  </button>
+                        setShowScrollButton(false);
+                        onSendMessage(content);
+                      }}
+                      isLoading={isLoading}
+                      placeholder="Type a message..."
+                    />
+                  </div>
                 )}
-              </div>
-            </div>
+              </PillVisibilityWrapper>
+            ) : (
+              <ChatInputArea
+                pillId={pillId}
+                onSend={(content) => {
+                  dispatch({
+                    type: "SEND_MESSAGE",
+                    messagesLength: messages.length,
+                    hasScrollToResponse: !!scrollToResponse,
+                  });
+                  minHeightReductionRef.current = 0;
+                  if (minHeightWrapperRef.current) {
+                    minHeightWrapperRef.current.style.minHeight =
+                      wrapperMinHeight > 0 ? `${wrapperMinHeight}px` : "";
+                  }
+                  setShowScrollButton(false);
+                  onSendMessage(content);
+                }}
+                isLoading={isLoading}
+                placeholder="Type a message..."
+              />
+            )}
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

@@ -178,6 +178,7 @@ async def get_group_timeline(
                             "content_id": content_id,
                             "module_slug": slug,
                             "title": title,
+                            "optional": section.get("optional", False),
                         }
                     )
         elif isinstance(item, MeetingMarker):
@@ -455,7 +456,7 @@ async def get_user_chats(
 
     chats_out = []
     for session in sessions:
-        content_id = session.get("content_id")
+        content_id = session.get("module_id")
         content_id_str = str(content_id) if content_id else None
         module_info = (
             content_to_module.get(content_id_str or "") if content_id_str else None

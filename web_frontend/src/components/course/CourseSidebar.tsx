@@ -7,6 +7,7 @@
 import { useState } from "react";
 import type { UnitInfo, ModuleInfo } from "../../types/course";
 import { ChevronDown, ChevronRight, Check, Circle } from "lucide-react";
+import { OptionalBadge } from "../OptionalBadge";
 
 type CourseSidebarProps = {
   courseTitle: string;
@@ -165,9 +166,7 @@ export default function CourseSidebar({
                   {module.title}
                 </span>
                 {module.optional && (
-                  <span className="text-xs text-slate-400 font-medium">
-                    Optional
-                  </span>
+                  <OptionalBadge />
                 )}
                 {!module.optional && module.status === "in_progress" && (
                   <span className="text-xs text-blue-600 font-medium">
@@ -237,9 +236,7 @@ export default function CourseSidebar({
                           {child.title}
                         </span>
                         {child.optional && (
-                          <span className="text-xs text-slate-400 font-medium">
-                            Optional
-                          </span>
+                          <OptionalBadge />
                         )}
                       </button>
                     );
