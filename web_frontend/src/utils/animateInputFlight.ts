@@ -109,7 +109,7 @@ function animateToInline(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
         height: `${toRect.height}px`,
       },
     ],
-    { duration: 900, easing: "ease-in-out", fill: "forwards" },
+    { duration: 400, easing: "ease-in-out", fill: "forwards" },
   );
 
   activeAnimation.onfinish = () => {
@@ -166,7 +166,7 @@ function animateToSidebar(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
         height: `${toRect.height}px`,
       },
     ],
-    { duration: 900, easing: "ease-in-out", fill: "forwards" },
+    { duration: 400, easing: "ease-in-out", fill: "forwards" },
   );
 
   activeAnimation.onfinish = () => {
