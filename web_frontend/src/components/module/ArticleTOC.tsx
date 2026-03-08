@@ -55,7 +55,7 @@ export default function ArticleTOC({
         {headings.map((heading) => (
           <li
             key={heading.id}
-            className={`-ml-px border-l-2 border-transparent ${heading.displayLevel === 2 ? "pl-7" : heading.displayLevel >= 3 ? "pl-11" : "pl-3"}`}
+            className={`-ml-px border-l-2 border-transparent transition-colors duration-200 ${heading.displayLevel === 2 ? "pl-7" : heading.displayLevel >= 3 ? "pl-11" : "pl-3"}`}
           >
             <button
               ref={(el) => {
