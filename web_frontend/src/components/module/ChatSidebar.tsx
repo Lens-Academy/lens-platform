@@ -81,10 +81,12 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       open: () => {
         setIsOpen(true);
         localStorage.setItem("chat-sidebar-pref", "open");
+        window.dispatchEvent(new Event("chat-sidebar-pref-change"));
       },
       close: () => {
         setIsOpen(false);
         localStorage.setItem("chat-sidebar-pref", "closed");
+        window.dispatchEvent(new Event("chat-sidebar-pref-change"));
       },
       setOpen: (open: boolean) => {
         setIsOpen(open);
@@ -106,10 +108,12 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     const handleClose = useCallback(() => {
       setIsOpen(false);
       localStorage.setItem("chat-sidebar-pref", "closed");
+      window.dispatchEvent(new Event("chat-sidebar-pref-change"));
     }, []);
     const handleOpen = useCallback(() => {
       setIsOpen(true);
       localStorage.setItem("chat-sidebar-pref", "open");
+      window.dispatchEvent(new Event("chat-sidebar-pref-change"));
     }, []);
 
     // isAllowed only controls toggle button visibility, not the panel

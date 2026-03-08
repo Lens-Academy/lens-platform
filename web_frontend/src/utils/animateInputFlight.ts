@@ -8,6 +8,12 @@ function cleanup() {
   fn?.();
 }
 
+/** Cancel any in-flight animation and restore element styles. */
+export function cancelInputFlight() {
+  activeAnimation?.cancel();
+  cleanup();
+}
+
 /**
  * Animate the chat input pill between sidebar and inline positions.
  *

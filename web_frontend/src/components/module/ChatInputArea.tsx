@@ -24,6 +24,8 @@ type ChatInputAreaProps = {
   placeholder?: string;
   pillId?: string;
   pillHidden?: boolean;
+  /** Enable CSS opacity transition (used when sidebar pref is closed). */
+  pillTransition?: boolean;
 };
 
 export function ChatInputArea({
@@ -33,6 +35,7 @@ export function ChatInputArea({
   placeholder = "Type a message...",
   pillId,
   pillHidden,
+  pillTransition,
 }: ChatInputAreaProps) {
   const [input, setInput] = useState("");
   const inputRef = useRef(input);
@@ -348,7 +351,7 @@ export function ChatInputArea({
 
       {/* Input form */}
       <form onSubmit={handleSubmit} className="p-3">
-        <div className={`border border-gray-200 rounded-2xl bg-white shadow-sm${pillHidden ? " opacity-0" : ""}`} data-chat-input-pill={pillId}>
+        <div className={`border border-gray-200 rounded-2xl bg-white shadow-sm${pillHidden ? " opacity-0" : ""}${pillTransition ? " transition-opacity duration-300" : ""}`} data-chat-input-pill={pillId}>
           {/* Recording indicator inside pill */}
           {recordingState === "recording" && (
             <div className="flex items-center gap-2 justify-center pt-3 px-4">

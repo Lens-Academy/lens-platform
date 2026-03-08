@@ -8,6 +8,7 @@ vi.mock("@/utils/animateInputFlight", () => ({
   animateInputFlight: vi.fn((_dir: string, onDone: () => void) => {
     setTimeout(onDone, 0);
   }),
+  cancelInputFlight: vi.fn(),
 }));
 
 describe("pillReducer", () => {
@@ -62,6 +63,47 @@ describe("pillReducer", () => {
 
   test("inline ignores ANIMATION_DONE", () => {
     expect(pillReducer("inline", { type: "ANIMATION_DONE" }))
+      .toBe("inline");
+  });
+
+  // --- PREF_OPEN / PREF_CLOSED (user toggle) ---
+  test("inline → sidebar on PREF_OPEN", () => {
+    expect(pillReducer("inline", { type: "PREF_OPEN" }))
+      .toBe("sidebar");
+  });
+
+  test("sidebar → inline on PREF_CLOSED", () => {
+    expect(pillReducer("sidebar", { type: "PREF_CLOSED" }))
+      .toBe("inline");
+  });
+
+  test("to-inline → sidebar on PREF_OPEN (cancels animation)", () => {
+    expect(pillReducer("to-inline", { type: "PREF_OPEN" }))
+      .toBe("sidebar");
+  });
+
+  test("to-sidebar → inline on PREF_CLOSED (cancels animation)", () => {
+    expect(pillReducer("to-sidebar", { type: "PREF_CLOSED" }))
+      .toBe("inline");
+  });
+
+  test("to-inline → inline on PREF_CLOSED", () => {
+    expect(pillReducer("to-inline", { type: "PREF_CLOSED" }))
+      .toBe("inline");
+  });
+
+  test("to-sidebar → sidebar on PREF_OPEN", () => {
+    expect(pillReducer("to-sidebar", { type: "PREF_OPEN" }))
+      .toBe("sidebar");
+  });
+
+  test("sidebar ignores PREF_OPEN (already there)", () => {
+    expect(pillReducer("sidebar", { type: "PREF_OPEN" }))
+      .toBe("sidebar");
+  });
+
+  test("inline ignores PREF_CLOSED (already there)", () => {
+    expect(pillReducer("inline", { type: "PREF_CLOSED" }))
       .toBe("inline");
   });
 
@@ -126,6 +168,7 @@ describe("usePillVisibility hook", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    localStorage.removeItem("chat-sidebar-pref");
   });
 
   // Helper: create a minimal ref-based store (same shape as Module.tsx)
@@ -216,6 +259,114 @@ describe("usePillVisibility hook", () => {
     await act(async () => { vi.runAllTimers(); });
     expect(result.current.pillState).toBe("sidebar");
     expect(mockSetAllowed).toHaveBeenCalledWith(true);
+  });
+
+  test("sidebar pref 'closed': stays inline when scrollSidebarAllowed goes true", () => {
+    localStorage.setItem("chat-sidebar-pref", "closed");
+    const store = createStore(false);
+    const mockSetAllowed = vi.fn();
+    const sidebarRef = { current: { setAllowed: mockSetAllowed } as unknown as ChatSidebarHandle };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+      }),
+    );
+
+    expect(result.current.pillState).toBe("inline");
+
+    act(() => { store.set(true); });
+    // Should stay inline — no animation, pill stays visible
+    expect(result.current.pillState).toBe("inline");
+    expect(result.current.pillVisible).toBe(true);
+    // setAllowed still called so toggle button shows
+    expect(mockSetAllowed).toHaveBeenCalledWith(true);
+  });
+
+  test("sidebar pref 'closed': initial scrollSidebarAllowed true starts inline", () => {
+    localStorage.setItem("chat-sidebar-pref", "closed");
+    const store = createStore(true);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+      }),
+    );
+
+    expect(result.current.pillState).toBe("inline");
+    expect(result.current.pillVisible).toBe(true);
+  });
+
+  test("PREF_OPEN: inline → sidebar when user opens sidebar", () => {
+    localStorage.setItem("chat-sidebar-pref", "closed");
+    const store = createStore(true);
+    const mockSetAllowed = vi.fn();
+    const sidebarRef = { current: { setAllowed: mockSetAllowed } as unknown as ChatSidebarHandle };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+      }),
+    );
+
+    expect(result.current.pillState).toBe("inline");
+
+    // User opens sidebar via toggle button
+    act(() => {
+      localStorage.setItem("chat-sidebar-pref", "open");
+      window.dispatchEvent(new Event("chat-sidebar-pref-change"));
+    });
+    expect(result.current.pillState).toBe("sidebar");
+    expect(result.current.pillVisible).toBe(false);
+  });
+
+  test("PREF_CLOSED: sidebar → inline when user closes sidebar", () => {
+    const store = createStore(true);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+      }),
+    );
+
+    expect(result.current.pillState).toBe("sidebar");
+
+    // User closes sidebar via toggle button
+    act(() => {
+      localStorage.setItem("chat-sidebar-pref", "closed");
+      window.dispatchEvent(new Event("chat-sidebar-pref-change"));
+    });
+    expect(result.current.pillState).toBe("inline");
+    expect(result.current.pillVisible).toBe(true);
+  });
+
+  test("PREF_OPEN ignored when scroll doesn't allow sidebar", () => {
+    localStorage.setItem("chat-sidebar-pref", "closed");
+    const store = createStore(false);
+    const sidebarRef = { current: null };
+    const { result } = renderHook(() =>
+      usePillVisibility({
+        sidebarAllowedRef: store.ref,
+        sidebarAllowedListeners: store.listeners,
+        sidebarRef,
+      }),
+    );
+
+    expect(result.current.pillState).toBe("inline");
+
+    // User opens sidebar but scroll doesn't allow it
+    act(() => {
+      localStorage.setItem("chat-sidebar-pref", "open");
+      window.dispatchEvent(new Event("chat-sidebar-pref-change"));
+    });
+    // Should stay inline
+    expect(result.current.pillState).toBe("inline");
   });
 
   test("rapid toggle: stale onDone ignored via generation counter", async () => {

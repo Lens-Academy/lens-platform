@@ -101,6 +101,19 @@ export function ChatInlineShell({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [scrollContainerHeight, setScrollContainerHeight] = useState(0);
 
+  // Track sidebar preference reactively — re-renders this shell when the user
+  // manually opens/closes the sidebar (via the custom event from ChatSidebar).
+  const [sidebarPrefClosed, setSidebarPrefClosed] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem("chat-sidebar-pref") === "closed",
+  );
+  useEffect(() => {
+    const onPrefChange = () => {
+      setSidebarPrefClosed(localStorage.getItem("chat-sidebar-pref") === "closed");
+    };
+    window.addEventListener("chat-sidebar-pref-change", onPrefChange);
+    return () => window.removeEventListener("chat-sidebar-pref-change", onPrefChange);
+  }, []);
+
   // scrollToResponse only applies to the first (auto-sent) message, not follow-ups
   const activeScrollToResponse = scrollToResponse && !userSentFollowup;
 
@@ -483,14 +496,15 @@ export function ChatInlineShell({
           </div>
         )}
 
-        {/* Input area — only render when this shell is the active surface */}
-        {hasActiveInput && (
+        {/* Input area — render when active, or always when sidebar pref is
+            closed (pills pre-rendered in DOM, fade in/out via CSS transition). */}
+        {(hasActiveInput || sidebarPrefClosed) && (
           <div
             className={`${isExpanded ? "border-t border-gray-100" : ""}`}
             style={!isExpanded ? { position: "sticky", bottom: 0, zIndex: 10 } : undefined}
           >
             <div className={`${!isExpanded ? "max-w-content mx-auto" : ""}`}>
-              {sidebarAllowedRef ? (
+              {sidebarAllowedRef && hasActiveInput ? (
                 <PillVisibilityWrapper
                   sidebarAllowedRef={sidebarAllowedRef}
                   sidebarAllowedListeners={sidebarAllowedListeners!}
@@ -500,6 +514,7 @@ export function ChatInlineShell({
                     <ChatInputArea
                       pillId={pillId}
                       pillHidden={pillHidden}
+                      pillTransition={sidebarPrefClosed || undefined}
                       onSend={(content) => {
                         dispatch({
                           type: "SEND_MESSAGE",
@@ -522,6 +537,8 @@ export function ChatInlineShell({
               ) : (
                 <ChatInputArea
                   pillId={pillId}
+                  pillHidden={sidebarPrefClosed ? !hasActiveInput : undefined}
+                  pillTransition={sidebarPrefClosed || undefined}
                   onSend={(content) => {
                     dispatch({
                       type: "SEND_MESSAGE",
