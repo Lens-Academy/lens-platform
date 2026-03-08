@@ -304,7 +304,7 @@ export function ChatInlineShell({
   };
 
   return (
-    <div ref={shellRef} className="py-4 px-4" style={{ overflowAnchor: "none" }}>
+    <div ref={shellRef} className="py-4 px-4" style={{ overflowAnchor: "none", paddingTop: hasInteracted ? undefined : "20vh" }}>
       <div
         ref={containerRef}
         className={`max-w-content-padded mx-auto flex flex-col scroll-mb-8 relative ${

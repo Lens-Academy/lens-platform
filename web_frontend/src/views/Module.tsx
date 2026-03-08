@@ -713,14 +713,16 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           currentSegmentIndexRef.current = best.index;
           segmentIndexListeners.current.forEach(fn => fn());
 
-          // Sidebar disallowed when any chat segment overlaps the 20%-80% viewport band
-          const bandTop = window.innerHeight * 0.2;
-          const bandBottom = window.innerHeight * 0.8;
+          // Sidebar disallowed when any chat input pill overlaps the 20%-80% viewport band
+          const bandTop = window.innerHeight * 0.35;
+          const bandBottom = window.innerHeight * 0.95;
           let chatInBand = false;
           segmentElsRef.current.forEach((el) => {
             const idx = Number(el.dataset.segmentIndex);
             if (isNaN(idx) || segments?.[idx]?.type !== "chat") return;
-            const rect = el.getBoundingClientRect();
+            const pill = el.querySelector("[data-chat-input-pill]");
+            if (!pill) return;
+            const rect = pill.getBoundingClientRect();
             if (rect.bottom > bandTop && rect.top < bandBottom) {
               chatInBand = true;
             }
