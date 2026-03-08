@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useRef, useSyncExternalStore } from "react";
+import { useReducer, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { animateInputFlight } from "@/utils/animateInputFlight";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 
@@ -84,10 +84,12 @@ export function usePillVisibility({
     }
   }, [scrollSidebarAllowed]);
 
-  // Animation trigger + generation counter
+  // Animation trigger + generation counter.
+  // useLayoutEffect so the first frame already has the transform applied —
+  // prevents a flash of the pill at its final position before the animation.
   const prevStateRef = useRef(state);
   const generationRef = useRef(0);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const prev = prevStateRef.current;
     prevStateRef.current = state;
 

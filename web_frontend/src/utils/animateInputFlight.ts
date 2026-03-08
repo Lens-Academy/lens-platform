@@ -11,8 +11,9 @@ function cleanup() {
 /**
  * Animate the chat input pill between sidebar and inline positions.
  *
- * Handles transform/position only — never reads or writes opacity on the
- * inline pill. Calls `onDone` on natural completion (onfinish). Does NOT
+ * Handles transform/position for to-inline; for to-sidebar, also hides
+ * the inline pill while the clone flies (restored on finish/cancel).
+ * Calls `onDone` on natural completion (onfinish). Does NOT
  * call `onDone` on cancel — the caller uses a generation counter to
  * discard stale callbacks regardless.
  */
@@ -127,11 +128,14 @@ function animateToSidebar(
   });
   document.body.appendChild(el);
 
+  // Hide both originals — only the flying clone should be visible
   sidebarPill.style.opacity = "0";
+  inlinePill.style.opacity = "0";
 
   cleanupFn = () => {
     el.remove();
     sidebarPill.style.opacity = "";
+    inlinePill.style.opacity = "";
   };
 
   activeAnimation = el.animate(
@@ -156,6 +160,7 @@ function animateToSidebar(
   activeAnimation.onfinish = () => {
     el.remove();
     sidebarPill.style.opacity = "";
+    inlinePill.style.opacity = "";
     activeAnimation = null;
     cleanupFn = null;
     onDone();
