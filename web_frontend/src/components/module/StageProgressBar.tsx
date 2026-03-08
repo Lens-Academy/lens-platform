@@ -124,8 +124,7 @@ function getTooltipContent(
   // Simple text tooltip when no extra info
   if (!hasTldr && !hasDuration) {
     const optionalPrefix = isOptional && !isViewing ? "(Optional) " : "";
-    const completedSuffix = isCompleted ? " (completed)" : "";
-    return `${optionalPrefix}${title}${completedSuffix}`;
+    return `${optionalPrefix}${title}`;
   }
 
   // Rich tooltip with title, badges, duration, and tldr
@@ -133,12 +132,6 @@ function getTooltipContent(
     <div className="max-w-xs">
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="font-medium text-slate-900">{title}</span>
-        {isOptional && !isViewing && (
-          <OptionalBadge />
-        )}
-        {isCompleted && (
-          <span className="text-green-600 text-xs">&#10003;</span>
-        )}
       </div>
       {hasDuration && (() => {
         const isVideo = stage.type === "video";
@@ -146,6 +139,7 @@ function getTooltipContent(
         const aiTime = stage.duration! - contentTime;
         return (
           <div className="flex items-center gap-0.5 text-slate-500 text-xs mt-0.5">
+            {isOptional && !isViewing && <><OptionalBadge />{" "}</>}
             {isVideo ? (
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
@@ -166,6 +160,9 @@ function getTooltipContent(
           </div>
         );
       })()}
+      {!hasDuration && isOptional && !isViewing && (
+        <div className="mt-0.5"><OptionalBadge /></div>
+      )}
       {hasTldr && (
         <p className="text-slate-600 mt-1 line-clamp-3">{stage.tldr}</p>
       )}

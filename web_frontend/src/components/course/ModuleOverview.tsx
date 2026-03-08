@@ -128,11 +128,9 @@ export default function ModuleOverview({
             >
               {stage.title}
             </span>
-            {stage.optional && (
-              <OptionalBadge />
-            )}
           </div>
-          <div className="text-sm text-slate-500 mt-0.5">
+          <div className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
+            {stage.optional && <OptionalBadge />}
             {stage.type === "chat"
               ? "Discuss with AI tutor"
               : (() => {
