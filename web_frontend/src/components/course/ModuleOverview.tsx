@@ -20,7 +20,7 @@ import {
 } from "../../utils/branchColors";
 import { buildBranchLayout } from "../../utils/branchLayout";
 import { formatDurationMinutes } from "../../utils/duration";
-import { BotMessageSquare } from "lucide-react";
+import { BotMessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 
 type ModuleOverviewProps = {
   moduleTitle: string;
@@ -36,6 +36,13 @@ type ModuleOverviewProps = {
   totalLenses?: number;
   // Test mode: dims non-test items during test
   testModeActive?: boolean;
+  // Navigation between modules in the same unit
+  prevModule?: { title: string } | null;
+  nextModule?: { title: string } | null;
+  onNavigate?: (direction: "prev" | "next") => void;
+  // Parent module context (shown as breadcrumb on mobile)
+  parentTitle?: string | null;
+  isMobile?: boolean;
 };
 
 export default function ModuleOverview({
@@ -50,6 +57,11 @@ export default function ModuleOverview({
   completedLenses,
   totalLenses,
   testModeActive = false,
+  prevModule,
+  nextModule,
+  onNavigate,
+  parentTitle,
+  isMobile,
 }: ModuleOverviewProps) {
   const layout = useMemo(() => buildBranchLayout(stages), [stages]);
 
@@ -204,6 +216,9 @@ export default function ModuleOverview({
     <div className="flex flex-col h-full">
       {/* Module title and progress badge */}
       <div className="mb-6">
+        {isMobile && parentTitle && (
+          <p className="text-sm text-slate-500 mb-1">{parentTitle} ›</p>
+        )}
         <h2 className="text-2xl font-bold text-slate-900">{moduleTitle}</h2>
         {/* Progress badge for in-progress modules */}
         {status === "in_progress" &&
@@ -237,6 +252,34 @@ export default function ModuleOverview({
           </div>
         )}
       </div>
+
+      {/* Prev/Next module navigation */}
+      {(prevModule || nextModule) && (
+        <div className="flex items-center justify-between mb-4 -mt-2">
+          {prevModule ? (
+            <button
+              onClick={() => onNavigate?.("prev")}
+              className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors min-w-0 max-w-[45%]"
+            >
+              <ChevronLeft className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">{prevModule.title}</span>
+            </button>
+          ) : (
+            <div />
+          )}
+          {nextModule ? (
+            <button
+              onClick={() => onNavigate?.("next")}
+              className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors min-w-0 max-w-[45%]"
+            >
+              <span className="truncate">{nextModule.title}</span>
+              <ChevronRight className="w-4 h-4 flex-shrink-0" />
+            </button>
+          ) : (
+            <div />
+          )}
+        </div>
+      )}
 
       {/* Stage list — branching layout */}
       <div className="flex-1 overflow-y-auto">

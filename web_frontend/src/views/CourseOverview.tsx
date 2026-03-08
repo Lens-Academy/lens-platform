@@ -121,9 +121,34 @@ export default function CourseOverview({
     return { completedStages: completed, currentSectionIndex: currentIdx };
   }, [selectedModule]);
 
+  // Find prev/next modules within the same unit for navigation arrows
+  const { prevModule, nextModule } = useMemo(() => {
+    if (!selectedModule || !courseProgress) {
+      return { prevModule: null, nextModule: null };
+    }
+    for (const unit of courseProgress.units) {
+      const idx = unit.modules.findIndex(
+        (m) => m.slug === selectedModule.slug,
+      );
+      if (idx !== -1) {
+        return {
+          prevModule: idx > 0 ? unit.modules[idx - 1] : null,
+          nextModule:
+            idx < unit.modules.length - 1 ? unit.modules[idx + 1] : null,
+        };
+      }
+    }
+    return { prevModule: null, nextModule: null };
+  }, [selectedModule, courseProgress]);
+
   const handleModuleSelect = (module: ModuleInfo) => {
     setSelectedModule(module);
     if (isMobile) setSidebarOpen(false);
+  };
+
+  const handleNavigate = (direction: "prev" | "next") => {
+    const target = direction === "prev" ? prevModule : nextModule;
+    if (target) handleModuleSelect(target);
   };
 
   // Lock body scroll when sidebar drawer is open on mobile
@@ -281,6 +306,11 @@ export default function CourseOverview({
               onStartModule={handleStartModule}
               completedLenses={selectedModule.completedLenses}
               totalLenses={selectedModule.totalLenses}
+              prevModule={prevModule}
+              nextModule={nextModule}
+              onNavigate={handleNavigate}
+              parentTitle={selectedModule.parentTitle}
+              isMobile={isMobile}
             />
           ) : (
             <div className="text-slate-500">

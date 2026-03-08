@@ -3,7 +3,7 @@
  * Shows units as collapsible "Week N" rows that expand to show modules and meetings.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { UnitInfo, ModuleInfo } from "../../types/course";
 import { ChevronRight, Users } from "lucide-react";
 import { formatDurationMinutes } from "../../utils/duration";
@@ -188,6 +188,32 @@ export default function CourseTimeline({
     }
     return slugs;
   });
+
+  // Auto-expand unit and parent group containing the selected module
+  useEffect(() => {
+    if (!selectedModuleSlug) return;
+    for (let ui = 0; ui < units.length; ui++) {
+      for (const mod of units[ui].modules) {
+        if (mod.slug === selectedModuleSlug) {
+          setExpandedUnits((prev) => {
+            if (prev.has(ui)) return prev;
+            const next = new Set(prev);
+            next.add(ui);
+            return next;
+          });
+          if (mod.parentSlug) {
+            setExpandedParents((prev) => {
+              if (prev.has(mod.parentSlug!)) return prev;
+              const next = new Set(prev);
+              next.add(mod.parentSlug!);
+              return next;
+            });
+          }
+          return;
+        }
+      }
+    }
+  }, [selectedModuleSlug, units]);
 
   const toggleUnit = (idx: number) => {
     setExpandedUnits((prev) => {
