@@ -127,6 +127,7 @@ export type PageSection = {
   meta: { title: string | null };
   segments: ModuleSegment[];
   optional: boolean;
+  tldr?: string;
 };
 
 /**
@@ -142,6 +143,7 @@ export type LensVideoSection = {
   meta: { title: string; channel: string | null };
   segments: ModuleSegment[];
   optional: boolean;
+  tldr?: string;
 };
 
 /**
@@ -161,6 +163,7 @@ export type LensArticleSection = {
   };
   segments: ModuleSegment[];
   optional: boolean;
+  tldr?: string;
 };
 
 /**

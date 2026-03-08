@@ -234,6 +234,7 @@ async def get_course_progress(
                         "optional": section.get("optional", False),
                         "contentId": content_id_str,
                         "completed": lens_completed,
+                        "tldr": section.get("tldr"),
                     }
                 )
 

@@ -17,6 +17,7 @@ export type StageInfo = {
   // New fields for lens-level progress tracking
   contentId?: string | null;
   completed?: boolean;
+  tldr?: string;
 };
 
 export type ModuleStatus = "completed" | "in_progress" | "not_started";
