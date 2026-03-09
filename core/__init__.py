@@ -106,6 +106,7 @@ from .attendance import record_voice_attendance
 
 # Group joining
 from .group_joining import (
+    get_cohort_groups_metadata,
     get_joinable_groups,
     get_user_current_group,
     join_group,
@@ -225,6 +226,7 @@ __all__ = [
     # Attendance
     "record_voice_attendance",
     # Group joining
+    "get_cohort_groups_metadata",
     "get_joinable_groups",
     "get_user_current_group",
     "join_group",

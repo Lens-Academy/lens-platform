@@ -15,7 +15,12 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core import get_joinable_groups, join_group, sync_after_group_change
+from core import (
+    get_cohort_groups_metadata,
+    get_joinable_groups,
+    join_group,
+    sync_after_group_change,
+)
 from core.database import get_connection, get_transaction
 from core.queries.users import get_user_by_discord_id
 from web_api.auth import get_current_user
@@ -46,8 +51,9 @@ async def get_cohort_groups(
         user_id = db_user["user_id"] if db_user else None
 
         groups = await get_joinable_groups(conn, cohort_id, user_id)
+        metadata = await get_cohort_groups_metadata(conn, cohort_id)
 
-    return {"groups": groups}
+    return {"groups": groups, **metadata}
 
 
 class JoinGroupRequest(BaseModel):
