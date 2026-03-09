@@ -356,7 +356,7 @@ function CollapsibleBlock({
         }`}
       >
         <div
-          className={`overflow-hidden transition-[filter] duration-500 ${isCollapsing ? "blur-sm" : ""}`}
+          className={`overflow-hidden ${isCollapsing ? "blur-sm transition-[filter] duration-500" : ""}`}
         >
           {children}
           {endMarker && (
