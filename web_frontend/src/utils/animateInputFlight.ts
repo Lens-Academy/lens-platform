@@ -80,13 +80,14 @@ function animateToInline(sidebarPill: HTMLElement, inlinePill: HTMLElement) {
   sidebarPill.style.opacity = "0";
   inlinePill.style.opacity = "0";
 
-  // Track scroll so the clone follows page content during the flight.
+  // Track scroll so the clone follows the inline pill during the flight.
+  // Re-read the pill's rect instead of using scroll deltas — this handles
+  // sticky pills (whose viewport position doesn't change with scroll) and
+  // the sticky→non-sticky transition mid-animation.
   const scrollContainer = findScrollContainer(inlinePill);
-  const scrollAtStart = scrollContainer?.scrollTop ?? 0;
-
   const onScroll = () => {
-    const delta = (scrollContainer?.scrollTop ?? 0) - scrollAtStart;
-    el.style.transform = `translateY(${-delta}px)`;
+    const currentRect = inlinePill.getBoundingClientRect();
+    el.style.transform = `translateY(${currentRect.top - toRect.top}px)`;
   };
   scrollContainer?.addEventListener("scroll", onScroll, { passive: true });
 
