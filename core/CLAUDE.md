@@ -59,7 +59,7 @@ This pattern allows core to use Discord APIs while keeping the bot instance inje
 | `enums.py` | Enum definitions |
 | `timezone.py` | UTC/local conversions |
 | `constants.py` | Day codes (M,T,W,R,F,S,U), timezones |
-| `cohort_names.py` | Group name generation |
+| `group_names.py` | Group name generation |
 | `nickname.py` | User nickname management |
 | `nickname_sync.py` | Discord nickname sync |
 | `speech.py` | Speech/TTS integration |

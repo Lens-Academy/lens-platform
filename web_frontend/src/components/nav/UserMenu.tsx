@@ -66,11 +66,11 @@ export function UserMenu({ signInRedirect, compact }: UserMenuProps = {}) {
             Edit Availability
           </a>
           <a
-            href="/group"
+            href="/meetings"
             className="text-sm text-gray-700 hover:text-gray-900"
             onClick={close}
           >
-            My Group
+            Meetings
           </a>
           <button
             onClick={() => {
