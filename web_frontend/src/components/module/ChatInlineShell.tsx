@@ -308,7 +308,6 @@ export function ChatInlineShell({
       className="py-4 px-4"
       style={{
         overflowAnchor: "none",
-        paddingTop: hasInteracted ? undefined : "20vh",
       }}
     >
       <div
@@ -324,6 +323,10 @@ export function ChatInlineShell({
             : { overflowAnchor: "none" }
         }
       >
+        {/* Whitespace spacer when not yet interacted — inside the container
+            so the sticky input can engage (sticky needs a tall containing block) */}
+        {!hasInteracted && <div style={{ height: "35vh" }} />}
+
         {/* Collapse button — outside scroll area so it's always visible */}
         {isExpanded && (
           <div className="flex justify-center px-3 pt-2 pb-0 shrink-0">
