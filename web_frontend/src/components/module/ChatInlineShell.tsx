@@ -107,6 +107,7 @@ export function ChatInlineShell({
 
   const minHeightWrapperRef = useRef<HTMLDivElement>(null);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
+  const systemSkipAnchorRef = useRef<HTMLDivElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -248,23 +249,6 @@ export function ChatInlineShell({
   const previousMessages = displayMessages.slice(0, adjustedWrapperStart);
   const wrapperMessages = displayMessages.slice(adjustedWrapperStart);
 
-  // Re-scroll after SEND_SUCCESS inserts system messages (runs before paint)
-  const wasLoadingRef = useRef(false);
-  useLayoutEffect(() => {
-    const justFinished = wasLoadingRef.current && !isLoading;
-    wasLoadingRef.current = isLoading;
-    if (!justFinished || !scrollAnchorRef.current) return;
-    // Only re-scroll if system messages were inserted at wrapper start
-    if (wrapperMessages.length === 0 || wrapperMessages[0]?.role !== "system")
-      return;
-    if (!hasActiveInput || sendSource === "sidebar") return;
-    scrollAnimStartRef.current = Date.now();
-    scrollAnchorRef.current.scrollIntoView({
-      block: "start",
-      behavior: "instant",
-    });
-  }, [isLoading, wrapperMessages, hasActiveInput, sendSource]);
-
   const showPending = hasInteracted && !!pendingMessage;
   const showStreaming = hasInteracted && isLoading && !!streamingContent;
   const showThinking = hasInteracted && isLoading && !streamingContent;
@@ -274,6 +258,31 @@ export function ChatInlineShell({
       ? "24px"
       : "80px"
     : undefined;
+
+  // Re-scroll after streaming finishes to compensate for DOM changes
+  // (system messages inserted, or streaming→final message height delta).
+  // scrollAnchorRef is now always at wrapper top (outside space-y-4).
+  // systemSkipAnchorRef appears only when system messages prefix the wrapper.
+  const wasLoadingRef = useRef(false);
+  useLayoutEffect(() => {
+    const justFinished = wasLoadingRef.current && !isLoading;
+    wasLoadingRef.current = isLoading;
+    if (!justFinished) return;
+    if (!hasActiveInput || sendSource === "sidebar") return;
+
+    // Use system-skip anchor when system messages exist, else main anchor
+    const target = systemSkipAnchorRef.current || scrollAnchorRef.current;
+    if (!target) return;
+
+    const expectedTop = parseInt(scrollMargin || "0", 10);
+    const actualTop = target.getBoundingClientRect().top;
+    const drift = Math.abs(actualTop - expectedTop);
+    // Only correct small drift (content reflow); skip if user scrolled away
+    if (drift < 1 || drift > 60) return;
+
+    scrollAnimStartRef.current = Date.now();
+    target.scrollIntoView({ block: "start", behavior: "instant" });
+  }, [isLoading, wrapperMessages, hasActiveInput, sendSource, scrollMargin]);
 
   // Ratchet: reduce wrapper minHeight as user scrolls up (non-expanded only).
   useEffect(() => {
@@ -422,17 +431,25 @@ export function ChatInlineShell({
                   wrapperMinHeight > 0 ? `${wrapperMinHeight}px` : undefined,
               }}
             >
+              {/* Scroll anchor — always rendered outside space-y-4 so it never
+                  creates a gap when it appears/disappears between streaming and
+                  finished states. 0-height flex child = no visual impact. */}
+              <div
+                ref={scrollAnchorRef}
+                style={{ scrollMarginTop: scrollMargin }}
+              />
               <div className="space-y-4 max-w-content mx-auto w-full">
                 {/* Messages in current exchange (user + completed assistant) */}
                 {(() => {
                   const firstNonSystem = wrapperMessages.findIndex(
                     (m) => m.role !== "system",
                   );
+                  const hasSystemPrefix = firstNonSystem > 0;
                   return wrapperMessages.map((msg, i) => (
                     <Fragment key={`current-${i}`}>
-                      {i === firstNonSystem && (
+                      {hasSystemPrefix && i === firstNonSystem && (
                         <div
-                          ref={scrollAnchorRef}
+                          ref={systemSkipAnchorRef}
                           style={{ scrollMarginTop: scrollMargin }}
                         />
                       )}
