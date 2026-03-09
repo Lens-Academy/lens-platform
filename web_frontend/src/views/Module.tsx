@@ -627,8 +627,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     currentSection?.type === "article";
   const sidebarAllowed =
     currentSection != null &&
-    currentSection.type !== "chat" &&
-    currentSection.type !== "test";
+    (currentSection.type === "lens-article" ||
+      currentSection.type === "article" ||
+      currentSection.type === "lens-video" ||
+      currentSection.type === "video");
 
   // --- Debug overlay: track current visible segment ---
   const isDebugMode =
@@ -713,8 +715,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
     hasReachedExcerptRef.current = false;
 
-    if (!isArticleSection) {
-      // sidebarAllowedRef starts at `sidebarAllowed` (false for non-article).
+    if (!sidebarAllowed) {
+      // sidebarAllowedRef starts at `sidebarAllowed` (false for non-allowed).
       // No need to write — the hook reads the initial value on mount.
       return;
     }
@@ -727,7 +729,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         ? currentSection.segments
         : undefined;
     const firstExcerptIdx =
-      segments?.findIndex((s) => s.type === "article-excerpt") ?? -1;
+      segments?.findIndex(
+        (s) => s.type === "article-excerpt" || s.type === "video-excerpt",
+      ) ?? -1;
 
     let rafId = 0;
     const onScroll = () => {
@@ -755,16 +759,18 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           currentSegmentIndexRef.current = best.index;
           segmentIndexListeners.current.forEach((fn) => fn());
 
-          // Auto-open sidebar when scrolling to first article excerpt
+          // Auto-open sidebar when scrolling to first article excerpt (never on mobile)
           if (
             !hasReachedExcerptRef.current &&
             firstExcerptIdx >= 0 &&
             best.index >= firstExcerptIdx
           ) {
             hasReachedExcerptRef.current = true;
-            const pref = localStorage.getItem("chat-sidebar-pref");
-            if (pref === null || pref === "open") {
-              sidebarRef.current?.setOpen(true);
+            if (!window.matchMedia("(max-width: 700px)").matches) {
+              const pref = localStorage.getItem("chat-sidebar-pref");
+              if (pref === null || pref === "open") {
+                sidebarRef.current?.setOpen(true);
+              }
             }
           }
 
@@ -805,7 +811,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       cancelAnimationFrame(rafId);
     };
   }, [
-    isArticleSection,
     currentSectionIndex,
     currentSection,
     sidebarAllowed,
@@ -1361,7 +1366,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   return (
     <div
       ref={setScrollEl}
-      className="h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[margin-right] duration-300 ease-in-out"
+      className="h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[border-right-width] duration-300 ease-in-out box-border"
     >
       <ScrollContainerContext.Provider value={scrollEl}>
         <ModuleHeader

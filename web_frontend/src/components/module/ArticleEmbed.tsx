@@ -356,7 +356,7 @@ function CollapsibleBlock({
         }`}
       >
         <div
-          className={`overflow-hidden transition-[filter] duration-500 ${isCollapsing ? "blur-sm" : ""}`}
+          className={`overflow-hidden ${isCollapsing ? "blur-sm transition-[filter] duration-500" : ""}`}
         >
           {children}
           {endMarker && (
@@ -395,6 +395,34 @@ function BlockCollapse({ children }: { children?: React.ReactNode }) {
       endMarker="— End of omitted text —"
     >
       <div className="text-gray-600 pt-1 pl-5">{children}</div>
+    </CollapsibleBlock>
+  );
+}
+
+// Must be at module level (not inside ArticleEmbed) for stable identity —
+// otherwise parent re-renders unmount/remount CollapsibleBlock, resetting its open state.
+function CollapsedSection({
+  content,
+  components,
+}: {
+  content: string;
+  components: Record<string, React.ComponentType<any>>;
+}) {
+  return (
+    <CollapsibleBlock
+      className="max-w-content mx-auto mb-4"
+      expandedHint="This part of the article was omitted for brevity"
+      endMarker="— End of omitted text —"
+    >
+      <article className="prose prose-gray max-w-content mx-auto text-gray-600 pt-1 pl-5">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkDirective, remarkLensDirectives, remarkGfmFootnotesToTooltips]}
+          rehypePlugins={[rehypeRaw]}
+          components={components}
+        >
+          {content}
+        </ReactMarkdown>
+      </article>
     </CollapsibleBlock>
   );
 }
@@ -824,32 +852,6 @@ export default function ArticleEmbed({
     "footnote-inline": InlineFootnote,
   };
 
-  // Collapsed section component with animation
-  const CollapsedSection = ({ content }: { content: string }) => {
-    return (
-      <CollapsibleBlock
-        className="max-w-content mx-auto mb-4"
-        expandedHint="This part of the article was omitted for brevity"
-        endMarker="— End of omitted text —"
-      >
-        <article className="prose prose-gray max-w-content mx-auto text-gray-600 pt-1 pl-5">
-          <ReactMarkdown
-            remarkPlugins={[
-              remarkGfm,
-              remarkDirective,
-              remarkLensDirectives,
-              remarkGfmFootnotesToTooltips,
-            ]}
-            rehypePlugins={[rehypeRaw]}
-            components={markdownComponents}
-          >
-            {content}
-          </ReactMarkdown>
-        </article>
-      </CollapsibleBlock>
-    );
-  };
-
   // Collect footnote definitions from all content fields, then apply inlining
   // to each field. This handles the common case where references are in `content`
   // but definitions are in `collapsed_after`.
@@ -887,7 +889,7 @@ export default function ArticleEmbed({
         // Consecutive excerpt: skip attribution, just show collapsed_before if present
         processedCollapsedBefore && (
           <div className="bg-amber-50/50 px-4 py-1">
-            <CollapsedSection content={processedCollapsedBefore} />
+            <CollapsedSection content={processedCollapsedBefore} components={markdownComponents} />
           </div>
         )
       ) : (
@@ -963,7 +965,7 @@ export default function ArticleEmbed({
           )}
 
           {processedCollapsedBefore && (
-            <CollapsedSection content={processedCollapsedBefore} />
+            <CollapsedSection content={processedCollapsedBefore} components={markdownComponents} />
           )}
         </div>
       )}
@@ -1005,7 +1007,7 @@ export default function ArticleEmbed({
               </ReactMarkdown>
             </article>
             {isLast && processedCollapsedAfter && (
-              <CollapsedSection content={processedCollapsedAfter} />
+              <CollapsedSection content={processedCollapsedAfter} components={markdownComponents} />
             )}
           </div>
         );
@@ -1015,7 +1017,7 @@ export default function ArticleEmbed({
       {segments[segments.length - 1]?.type === "note" && (
         <div className="bg-amber-50/50 px-4 pb-4 sm:pb-6">
           {processedCollapsedAfter && (
-            <CollapsedSection content={processedCollapsedAfter} />
+            <CollapsedSection content={processedCollapsedAfter} components={markdownComponents} />
           )}
         </div>
       )}

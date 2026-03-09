@@ -14,6 +14,7 @@ from .availability import availability_json_to_intervals, check_dst_warnings
 from .database import get_transaction
 from .enums import UngroupableReason
 from .queries.cohorts import get_cohort_by_id
+from .group_names import pick_available_name
 from .queries.groups import create_group, add_user_to_group
 from .tables import signups, users, facilitators, groups, groups_users
 
@@ -434,10 +435,11 @@ async def schedule_cohort(
                     meeting_time = "TBD"
 
                 # Create group record
+                group_name = await pick_available_name(conn)
                 group_record = await create_group(
                     conn,
                     cohort_id=cohort_id,
-                    group_name=f"Group {i}",
+                    group_name=group_name,
                     recurring_meeting_time_utc=meeting_time,
                 )
 
