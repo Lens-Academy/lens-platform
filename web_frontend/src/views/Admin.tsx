@@ -674,7 +674,7 @@ export default function Admin() {
                 disabled={cohortRealizing}
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:bg-green-400"
               >
-                {cohortRealizing ? "Realizing..." : "Realize All Preview"}
+                {cohortRealizing ? "Realizing..." : 'Preview "Realize All"'}
               </button>
             </div>
           )}
