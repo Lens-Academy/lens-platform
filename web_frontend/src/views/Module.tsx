@@ -627,8 +627,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     currentSection?.type === "article";
   const sidebarAllowed =
     currentSection != null &&
-    currentSection.type !== "chat" &&
-    currentSection.type !== "test";
+    (currentSection.type === "lens-article" ||
+      currentSection.type === "article" ||
+      currentSection.type === "lens-video" ||
+      currentSection.type === "video");
 
   // --- Debug overlay: track current visible segment ---
   const isDebugMode =
@@ -713,8 +715,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
     hasReachedExcerptRef.current = false;
 
-    if (!isArticleSection) {
-      // sidebarAllowedRef starts at `sidebarAllowed` (false for non-article).
+    if (!sidebarAllowed) {
+      // sidebarAllowedRef starts at `sidebarAllowed` (false for non-allowed).
       // No need to write — the hook reads the initial value on mount.
       return;
     }
@@ -727,7 +729,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         ? currentSection.segments
         : undefined;
     const firstExcerptIdx =
-      segments?.findIndex((s) => s.type === "article-excerpt") ?? -1;
+      segments?.findIndex(
+        (s) => s.type === "article-excerpt" || s.type === "video-excerpt",
+      ) ?? -1;
 
     let rafId = 0;
     const onScroll = () => {
@@ -807,7 +811,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       cancelAnimationFrame(rafId);
     };
   }, [
-    isArticleSection,
     currentSectionIndex,
     currentSection,
     sidebarAllowed,
