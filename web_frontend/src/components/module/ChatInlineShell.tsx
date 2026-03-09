@@ -562,11 +562,7 @@ export function ChatInlineShell({
                 isActive={hasActiveInput}
               >
                 {(pillHidden, pillTransition) => (
-                  <div
-                    className={
-                      hasActiveInput ? undefined : "pointer-events-none"
-                    }
-                  >
+                  <div>
                     <ChatInputArea
                       pillId={
                         hasActiveInput
