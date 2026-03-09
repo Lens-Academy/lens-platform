@@ -21,8 +21,8 @@ from .timezone import local_to_utc_time, utc_to_local_time
 # Google Docs integration
 from .google_docs import extract_doc_id, fetch_google_doc, parse_doc_tabs, make_tab_url
 
-# Cohort name generation
-from .cohort_names import CohortNameGenerator, COHORT_NAMES
+# Group name generation
+from .group_names import GROUP_NAMES, pick_available_name
 
 # Scheduling algorithm
 import cohort_scheduler
@@ -163,9 +163,9 @@ __all__ = [
     "fetch_google_doc",
     "parse_doc_tabs",
     "make_tab_url",
-    # Cohort names
-    "CohortNameGenerator",
-    "COHORT_NAMES",
+    # Group names
+    "GROUP_NAMES",
+    "pick_available_name",
     # Scheduling (cohort_scheduler package for Group, parse_interval_string, etc.)
     "cohort_scheduler",
     # Scheduling (platform-specific)
