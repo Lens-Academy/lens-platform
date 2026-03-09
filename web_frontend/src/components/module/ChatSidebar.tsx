@@ -282,7 +282,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           }
           minHeightWrapperRef={minHeightWrapperRef}
         />
-        <div className="shrink-0 border-t border-gray-200">
+        <div className="shrink-0 border-t border-gray-200 px-4 pt-4">
           <ChatInputArea
             pillId="sidebar"
             onSend={(content) => {

@@ -329,7 +329,7 @@ export function ChatInlineShell({
 
         {/* Collapse button — outside scroll area so it's always visible */}
         {isExpanded && (
-          <div className="flex justify-center px-3 pt-2 pb-0 shrink-0">
+          <div className="flex justify-center px-3 pt-2 pb-3 shrink-0">
             <button
               onClick={() => dispatch({ type: "COLLAPSE" })}
               className="inline-flex items-center gap-1.5 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 hover:border-gray-300 rounded-full transition-colors"
@@ -343,7 +343,7 @@ export function ChatInlineShell({
         {/* Messages area */}
         <div
           ref={scrollContainerRef}
-          className={`flex-1 px-4 py-4 text-base leading-relaxed ${
+          className={`flex-1 px-4 pb-7 text-base leading-relaxed ${
             hasInteracted && !isExpanded ? "" : "overflow-y-auto"
           }`}
           style={{ overflowAnchor: "none" }}
@@ -358,7 +358,7 @@ export function ChatInlineShell({
                   .slice(0, recentMessagesStartIdx)
                   .filter((m) => m.role === "user").length;
                 return earlierExchanges > 0 ? (
-                  <div className="flex justify-center pt-2 pb-4">
+                  <div className="flex justify-center pb-3">
                     <button
                       onClick={() => {
                         justExpandedRef.current = true;
@@ -496,7 +496,7 @@ export function ChatInlineShell({
         {/* Input area — always rendered to reserve layout space (prevents
             content jump when pill activates). Hidden pills use opacity-0. */}
         <div
-          className={`${isExpanded ? "border-t border-gray-100" : ""}`}
+          className={`${isExpanded ? "border-t border-gray-100 px-4 pt-4" : ""}`}
           style={
             !isExpanded
               ? { position: "sticky", bottom: 0, zIndex: 10 }

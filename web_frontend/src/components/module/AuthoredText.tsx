@@ -18,7 +18,7 @@ type AuthoredTextProps = {
 export default function AuthoredText({ content }: AuthoredTextProps) {
   return (
     <div className="py-6 px-4">
-      <article className="prose prose-gray max-w-content mx-auto text-gray-800">
+      <article className="prose prose-gray max-w-content mx-auto text-gray-800 [&>:last-child]:mb-0">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw]}

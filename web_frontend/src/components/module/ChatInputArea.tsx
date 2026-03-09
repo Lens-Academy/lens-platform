@@ -356,7 +356,7 @@ export function ChatInputArea({
       )}
 
       {/* Input form */}
-      <form onSubmit={handleSubmit} className="p-3">
+      <form onSubmit={handleSubmit} className="pb-4">
         <div
           className={`border border-gray-200 rounded-2xl bg-white shadow-sm${pillHidden ? " opacity-0 pointer-events-none" : ""}${pillTransition ? " transition-opacity duration-300" : ""}`}
           data-chat-input-pill={pillId}
