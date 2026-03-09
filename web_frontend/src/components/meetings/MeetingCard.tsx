@@ -34,10 +34,16 @@ export default function MeetingCard({
   actionLoading,
   onJoinAlternative,
 }: MeetingCardProps) {
-  const showRescheduleButton = meeting.is_past ? !meeting.attended && !hasVisit : !hasVisit;
+  const showRescheduleButton = meeting.is_past
+    ? !meeting.attended && !hasVisit
+    : !hasVisit;
   const buttonLabel = meeting.is_past
-    ? isSelected ? "Never mind" : "Reschedule"
-    : isSelected ? "Never mind" : "Can't attend";
+    ? isSelected
+      ? "Never mind"
+      : "Reschedule"
+    : isSelected
+      ? "Never mind"
+      : "Can't attend";
 
   return (
     <div
@@ -49,8 +55,8 @@ export default function MeetingCard({
         <div>
           <p className="font-medium text-gray-900">
             Meeting {meeting.meeting_number}
-            {meeting.is_past && (
-              meeting.attended ? (
+            {meeting.is_past &&
+              (meeting.attended ? (
                 <span className="ml-2 text-xs font-normal text-green-600">
                   Attended
                 </span>
@@ -58,8 +64,7 @@ export default function MeetingCard({
                 <span className="ml-2 text-xs font-normal text-amber-600">
                   Missed
                 </span>
-              )
-            )}
+              ))}
           </p>
           <p className="text-sm text-gray-600">
             {formatDateTime(meeting.scheduled_at)} &middot; {meeting.group_name}

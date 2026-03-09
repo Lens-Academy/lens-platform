@@ -14,9 +14,7 @@ export default function CurrentGroupBanner({
       <p className="text-sm text-gray-500">Your group</p>
       <p className="font-medium text-gray-900">{groupName}</p>
       <p className="text-sm text-gray-600">{meetingTime}</p>
-      {cohortName && (
-        <p className="text-sm text-gray-500 mt-1">{cohortName}</p>
-      )}
+      {cohortName && <p className="text-sm text-gray-500 mt-1">{cohortName}</p>}
     </div>
   );
 }

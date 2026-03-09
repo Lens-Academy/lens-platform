@@ -39,10 +39,10 @@ router = APIRouter(prefix="/api/chat", tags=["module"])
 
 def _segment_context_label(segment_type: str) -> str | None:
     return {
-        "chat": "Moved to discussion.",
+        "chat": "Moved to chat segment",
         "question": "Working on a question",
         "roleplay": "Started roleplay exercise",
-        "article-excerpt": "Reading article",
+        "article-excerpt": "Reading article excerpt",
         "video-excerpt": "Watching video",
         "text": "Reading text",
     }.get(segment_type)
@@ -106,7 +106,7 @@ async def event_generator(
                 )
                 title = section_data.get("meta", {}).get("title")
                 if title:
-                    context_msg_content = f"Now reading: {title}"
+                    context_msg_content = f"Now viewing: {title}"
             elif last_segment_idx is not None and last_segment_idx != segment_index:
                 # Segment changed within same section
                 section_data = (
@@ -119,6 +119,16 @@ async def event_generator(
                 desc = _segment_context_label(seg.get("type", ""))
                 if desc:
                     context_msg_content = desc
+        elif not has_user_message:
+            # First message — inject current section context
+            section_data = (
+                module.sections[section_index]
+                if section_index < len(module.sections)
+                else {}
+            )
+            title = section_data.get("meta", {}).get("title")
+            if title:
+                context_msg_content = f"Now viewing: {title}"
 
         if context_msg_content:
             await add_chat_message(

@@ -406,6 +406,7 @@ function CollapsedSection({
   components,
 }: {
   content: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   components: Record<string, React.ComponentType<any>>;
 }) {
   return (
@@ -416,7 +417,12 @@ function CollapsedSection({
     >
       <article className="prose prose-gray max-w-content mx-auto text-gray-600 pt-1 pl-5">
         <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkDirective, remarkLensDirectives, remarkGfmFootnotesToTooltips]}
+          remarkPlugins={[
+            remarkGfm,
+            remarkDirective,
+            remarkLensDirectives,
+            remarkGfmFootnotesToTooltips,
+          ]}
           rehypePlugins={[rehypeRaw]}
           components={components}
         >
@@ -889,7 +895,10 @@ export default function ArticleEmbed({
         // Consecutive excerpt: skip attribution, just show collapsed_before if present
         processedCollapsedBefore && (
           <div className="bg-amber-50/50 px-4 py-1">
-            <CollapsedSection content={processedCollapsedBefore} components={markdownComponents} />
+            <CollapsedSection
+              content={processedCollapsedBefore}
+              components={markdownComponents}
+            />
           </div>
         )
       ) : (
@@ -965,7 +974,10 @@ export default function ArticleEmbed({
           )}
 
           {processedCollapsedBefore && (
-            <CollapsedSection content={processedCollapsedBefore} components={markdownComponents} />
+            <CollapsedSection
+              content={processedCollapsedBefore}
+              components={markdownComponents}
+            />
           )}
         </div>
       )}
@@ -1007,7 +1019,10 @@ export default function ArticleEmbed({
               </ReactMarkdown>
             </article>
             {isLast && processedCollapsedAfter && (
-              <CollapsedSection content={processedCollapsedAfter} components={markdownComponents} />
+              <CollapsedSection
+                content={processedCollapsedAfter}
+                components={markdownComponents}
+              />
             )}
           </div>
         );
@@ -1017,7 +1032,10 @@ export default function ArticleEmbed({
       {segments[segments.length - 1]?.type === "note" && (
         <div className="bg-amber-50/50 px-4 pb-4 sm:pb-6">
           {processedCollapsedAfter && (
-            <CollapsedSection content={processedCollapsedAfter} components={markdownComponents} />
+            <CollapsedSection
+              content={processedCollapsedAfter}
+              components={markdownComponents}
+            />
           )}
         </div>
       )}

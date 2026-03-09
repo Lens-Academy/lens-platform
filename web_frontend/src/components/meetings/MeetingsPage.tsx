@@ -52,10 +52,14 @@ export default function MeetingsPage() {
   const [groupSuccess, setGroupSuccess] = useState(false);
 
   // Meeting reschedule state
-  const [selectedMeetingId, setSelectedMeetingId] = useState<number | null>(null);
+  const [selectedMeetingId, setSelectedMeetingId] = useState<number | null>(
+    null,
+  );
   const [alternatives, setAlternatives] = useState<AlternativeMeeting[]>([]);
   const [alternativesLoading, setAlternativesLoading] = useState(false);
-  const [alternativesError, setAlternativesError] = useState<string | null>(null);
+  const [alternativesError, setAlternativesError] = useState<string | null>(
+    null,
+  );
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -216,7 +220,9 @@ export default function MeetingsPage() {
       setGroupSuccess(true);
       await loadAllData();
     } catch (err) {
-      setGroupError(err instanceof Error ? err.message : "Failed to join group");
+      setGroupError(
+        err instanceof Error ? err.message : "Failed to join group",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -421,7 +427,9 @@ export default function MeetingsPage() {
                   <MeetingCard
                     key={meeting.meeting_id}
                     meeting={meeting}
-                    hasVisit={rescheduledMeetingNumbers.has(meeting.meeting_number)}
+                    hasVisit={rescheduledMeetingNumbers.has(
+                      meeting.meeting_number,
+                    )}
                     isSelected={selectedMeetingId === meeting.meeting_id}
                     onToggle={() =>
                       selectedMeetingId === meeting.meeting_id
@@ -450,7 +458,9 @@ export default function MeetingsPage() {
                   <MeetingCard
                     key={meeting.meeting_id}
                     meeting={meeting}
-                    hasVisit={rescheduledMeetingNumbers.has(meeting.meeting_number)}
+                    hasVisit={rescheduledMeetingNumbers.has(
+                      meeting.meeting_number,
+                    )}
                     isSelected={selectedMeetingId === meeting.meeting_id}
                     onToggle={() =>
                       selectedMeetingId === meeting.meeting_id

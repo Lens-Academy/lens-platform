@@ -40,8 +40,12 @@ export default function GroupSelectionStep({
   cohortName,
 }: GroupSelectionStepProps) {
   const [groups, setGroups] = useState<Group[]>([]);
-  const [totalGroupsInCohort, setTotalGroupsInCohort] = useState<number | null>(null);
-  const [fetchedCohortStartDate, setFetchedCohortStartDate] = useState<string | null>(null);
+  const [totalGroupsInCohort, setTotalGroupsInCohort] = useState<number | null>(
+    null,
+  );
+  const [fetchedCohortStartDate, setFetchedCohortStartDate] = useState<
+    string | null
+  >(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -145,8 +149,8 @@ export default function GroupSelectionStep({
         </h2>
         {noGroupsScheduled && cohortInFuture ? (
           <p className="text-gray-600 mb-6">
-            Groups for this cohort haven't been scheduled yet. Check back
-            closer to the start date
+            Groups for this cohort haven't been scheduled yet. Check back closer
+            to the start date
             {startDate && <> ({formatCohortDate(startDate)})</>}.
           </p>
         ) : (

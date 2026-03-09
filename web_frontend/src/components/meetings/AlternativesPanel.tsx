@@ -63,7 +63,9 @@ export default function AlternativesPanel({
               disabled={actionLoading === alt.meeting_id}
               className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50"
             >
-              {actionLoading === alt.meeting_id ? "Joining..." : "Join this meeting"}
+              {actionLoading === alt.meeting_id
+                ? "Joining..."
+                : "Join this meeting"}
             </button>
           </div>
         ))}

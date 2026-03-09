@@ -568,7 +568,13 @@ export function ChatInlineShell({
                     }
                   >
                     <ChatInputArea
-                      pillId={hasActiveInput ? pillId : pillId ? `${pillId}-idle` : undefined}
+                      pillId={
+                        hasActiveInput
+                          ? pillId
+                          : pillId
+                            ? `${pillId}-idle`
+                            : undefined
+                      }
                       pillHidden={pillHidden}
                       pillTransition={pillTransition || undefined}
                       onSend={(content) => {

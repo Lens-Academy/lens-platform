@@ -810,12 +810,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       target.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(rafId);
     };
-  }, [
-    currentSectionIndex,
-    currentSection,
-    sidebarAllowed,
-    scrollEl,
-  ]);
+  }, [currentSectionIndex, currentSection, sidebarAllowed, scrollEl]);
 
   // Fetch next module info when module completes
   useEffect(() => {
