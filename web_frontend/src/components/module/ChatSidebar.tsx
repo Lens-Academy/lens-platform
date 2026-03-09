@@ -124,13 +124,22 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     // isAllowed only controls toggle button visibility, not the panel
     const toggleHidden = !isAllowed;
 
-    // --- Manage scroll container margin via inline style (useLayoutEffect
-    // ensures it's set before paint, in the same frame as the panel width change) ---
+    // --- Manage scroll container spacing via transparent border ---
+    // DO NOT replace this with margin-right or padding-right!
+    // We use a wide transparent border (yes, 320px+) intentionally. Chrome's
+    // CSS Scroll Anchoring spec (css-scroll-anchoring-1) suppresses anchoring
+    // when margin/padding/width/height change on any element in the path from
+    // anchor node to scroll container (inclusive). Border is NOT in that list,
+    // so Chrome's built-in overflow-anchor keeps the user's reading position
+    // stable when the sidebar opens/closes and text reflows.
+    // See: https://drafts.csswg.org/css-scroll-anchoring/#suppression-triggers
     useLayoutEffect(() => {
       if (!scrollContainer || isMobile) return;
-      scrollContainer.style.marginRight = isOpen ? "var(--sidebar-width)" : "";
+      scrollContainer.style.borderRight = isOpen
+        ? "var(--sidebar-width) solid transparent"
+        : "";
       return () => {
-        scrollContainer.style.marginRight = "";
+        scrollContainer.style.borderRight = "";
       };
     }, [isOpen, scrollContainer, isMobile]);
 

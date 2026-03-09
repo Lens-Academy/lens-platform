@@ -1363,7 +1363,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   return (
     <div
       ref={setScrollEl}
-      className="h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[margin-right] duration-300 ease-in-out"
+      className="h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[border-right-width] duration-300 ease-in-out box-border"
     >
       <ScrollContainerContext.Provider value={scrollEl}>
         <ModuleHeader
