@@ -755,16 +755,18 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           currentSegmentIndexRef.current = best.index;
           segmentIndexListeners.current.forEach((fn) => fn());
 
-          // Auto-open sidebar when scrolling to first article excerpt
+          // Auto-open sidebar when scrolling to first article excerpt (never on mobile)
           if (
             !hasReachedExcerptRef.current &&
             firstExcerptIdx >= 0 &&
             best.index >= firstExcerptIdx
           ) {
             hasReachedExcerptRef.current = true;
-            const pref = localStorage.getItem("chat-sidebar-pref");
-            if (pref === null || pref === "open") {
-              sidebarRef.current?.setOpen(true);
+            if (!window.matchMedia("(max-width: 700px)").matches) {
+              const pref = localStorage.getItem("chat-sidebar-pref");
+              if (pref === null || pref === "open") {
+                sidebarRef.current?.setOpen(true);
+              }
             }
           }
 

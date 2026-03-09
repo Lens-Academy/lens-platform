@@ -59,7 +59,8 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     },
     ref,
   ) {
-    const isMobile = useMedia("(max-width: 1023px)", false);
+    const isMobile = useMedia("(max-width: 700px)", false);
+    const prevMobileRef = useRef(isMobile);
     const scrollContainer = useScrollContainer();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const minHeightWrapperRef = useRef<HTMLDivElement>(null);
@@ -74,6 +75,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     // `isAllowed` only controls whether the toggle button is shown.
     const [isOpen, setIsOpen] = useState(() => {
       if (typeof window === "undefined") return false;
+      if (window.matchMedia("(max-width: 700px)").matches) return false;
       const pref = localStorage.getItem("chat-sidebar-pref");
       return pref === null ? true : pref === "open";
     });
@@ -99,8 +101,8 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         if (!allowed) {
           // Close via the same path as clicking the close button
           setIsOpen(false);
-        } else {
-          // Restore from user preference
+        } else if (!window.matchMedia("(max-width: 700px)").matches) {
+          // Restore from user preference (never auto-open on mobile)
           const pref = localStorage.getItem("chat-sidebar-pref");
           setIsOpen(pref === null ? true : pref === "open");
         }
@@ -141,6 +143,17 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       window.addEventListener("keydown", handleEscape);
       return () => window.removeEventListener("keydown", handleEscape);
     }, [isOpen, handleClose]);
+
+    // Auto-close when crossing into mobile, auto-restore when crossing back to desktop
+    useEffect(() => {
+      if (isMobile && !prevMobileRef.current) {
+        setIsOpen(false);
+      } else if (!isMobile && prevMobileRef.current) {
+        const pref = localStorage.getItem("chat-sidebar-pref");
+        setIsOpen(pref === null ? true : pref === "open");
+      }
+      prevMobileRef.current = isMobile;
+    }, [isMobile]);
 
     // Lock scroll when sidebar is open on mobile
     useEffect(() => {
