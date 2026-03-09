@@ -1,37 +1,66 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
 import type { ChatMessage } from "@/types/module";
 
 // Mock dependencies
-vi.mock("@/components/Tooltip", () => ({
-  Tooltip: ({ children }: { children: React.ReactElement }) => children,
-}));
-vi.mock("@/utils/haptics", () => ({
-  triggerHaptic: vi.fn(),
-}));
 vi.mock("@/components/ChatMarkdown", () => ({
   default: ({ children }: { children: string }) => <div>{children}</div>,
 }));
 vi.mock("@/components/module/StageProgressBar", () => ({
   StageIcon: () => null,
 }));
-vi.mock("@/hooks/useVoiceRecording", () => ({
-  useVoiceRecording: () => ({
-    recordingState: "idle",
-    recordingTime: 0,
-    volumeBars: [],
-    errorMessage: null,
-    showRecordingWarning: false,
-    handleMicClick: vi.fn(),
-    formatTime: () => "0:00",
-  }),
+vi.mock("@/components/module/ChatMessageList", () => ({
+  renderMessage: (msg: ChatMessage, key: string | number) => (
+    <div key={key} data-testid={`msg-${key}`}>
+      {msg.content}
+    </div>
+  ),
+}));
+vi.mock("../ChatInputArea", () => ({
+  ChatInputArea: ({
+    onSend,
+    placeholder,
+  }: {
+    onSend: (content: string) => void;
+    placeholder?: string;
+  }) => {
+    const [input, setInput] = React.useState("");
+    const submit = () => {
+      if (input.trim()) {
+        onSend(input.trim());
+        setInput("");
+      }
+    };
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
+        <textarea
+          placeholder={placeholder || "Type a message..."}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+        />
+        <button type="submit">Send</button>
+      </form>
+    );
+  },
 }));
 
 // Stub scrollIntoView (jsdom doesn't implement it)
 Element.prototype.scrollIntoView = vi.fn();
 
-import NarrativeChatSection from "../NarrativeChatSection";
+import { ChatInlineShell } from "../ChatInlineShell";
 
 // Viewport height drives the minHeight calculation (window.innerHeight - 160)
 const VIEWPORT_HEIGHT = 800;
@@ -48,7 +77,7 @@ function getMinHeightWrapper(container: HTMLElement): HTMLElement {
   throw new Error("Could not find min-height wrapper");
 }
 
-describe("NarrativeChatSection minHeight on second message", () => {
+describe("ChatInlineShell minHeight on second message", () => {
   beforeEach(() => {
     Object.defineProperty(window, "innerHeight", {
       writable: true,
@@ -63,12 +92,13 @@ describe("NarrativeChatSection minHeight on second message", () => {
     const onSendMessage = vi.fn();
 
     const { container } = render(
-      <NarrativeChatSection
+      <ChatInlineShell
         messages={messages}
         pendingMessage={null}
         isLoading={false}
         streamingContent=""
         onSendMessage={onSendMessage}
+        hasActiveInput={true}
       />,
     );
 
@@ -94,13 +124,14 @@ describe("NarrativeChatSection minHeight on second message", () => {
     ];
 
     const { container, rerender } = render(
-      <NarrativeChatSection
+      <ChatInlineShell
         messages={messages}
         pendingMessage={null}
         isLoading={false}
         streamingContent=""
         onSendMessage={onSendMessage}
         activated
+        hasActiveInput={true}
       />,
     );
 
@@ -118,13 +149,14 @@ describe("NarrativeChatSection minHeight on second message", () => {
     ];
 
     rerender(
-      <NarrativeChatSection
+      <ChatInlineShell
         messages={updatedMessages}
         pendingMessage={{ content: "Follow-up", status: "sending" }}
         isLoading={true}
         streamingContent=""
         onSendMessage={onSendMessage}
         activated
+        hasActiveInput={true}
       />,
     );
 

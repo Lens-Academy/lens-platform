@@ -18,6 +18,8 @@ type MarkCompleteButtonProps = {
   buttonText?: string;
   // Short sections show minimal completed state (just "Next" button)
   isShort?: boolean;
+  // When true, the button is disabled until the user sends a chat message
+  chatGated?: boolean;
 };
 
 export default function MarkCompleteButton({
@@ -31,6 +33,7 @@ export default function MarkCompleteButton({
   moduleSlug,
   buttonText = "Mark section complete",
   isShort = false,
+  chatGated = false,
 }: MarkCompleteButtonProps) {
   const { isAuthenticated } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,12 +133,18 @@ export default function MarkCompleteButton({
     );
   }
 
+  const disabled = isSubmitting || chatGated;
+
   return (
-    <div className="flex items-center justify-center py-6">
+    <div className="flex flex-col items-center justify-center py-6 gap-2">
       <button
         onClick={handleComplete}
-        disabled={isSubmitting}
-        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium disabled:opacity-50"
+        disabled={disabled}
+        className={`flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg transition-all font-medium ${
+          disabled
+            ? "opacity-50 cursor-default"
+            : "hover:bg-emerald-700 active:scale-95"
+        }`}
       >
         {isSubmitting ? (
           <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -170,6 +179,11 @@ export default function MarkCompleteButton({
         )}
         {buttonText}
       </button>
+      {chatGated && (
+        <p className="text-sm text-zinc-400">
+          Chat with the AI first before finishing this page.
+        </p>
+      )}
     </div>
   );
 }

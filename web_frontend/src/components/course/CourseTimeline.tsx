@@ -3,9 +3,10 @@
  * Shows units as collapsible "Week N" rows that expand to show modules and meetings.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { UnitInfo, ModuleInfo } from "../../types/course";
 import { ChevronRight, Users } from "lucide-react";
+import { OptionalBadge } from "../OptionalBadge";
 import { formatDurationMinutes } from "../../utils/duration";
 import { Tooltip } from "../Tooltip";
 
@@ -102,6 +103,7 @@ type CourseTimelineProps = {
   units: UnitInfo[];
   selectedModuleSlug: string | null;
   onModuleSelect: (module: ModuleInfo) => void;
+  isMobile?: boolean;
 };
 
 function formatMeetingDate(isoDate: string): string {
@@ -160,6 +162,7 @@ export default function CourseTimeline({
   units,
   selectedModuleSlug,
   onModuleSelect,
+  isMobile,
 }: CourseTimelineProps) {
   const now = new Date();
   const upcomingIndex = units.findIndex(
@@ -187,6 +190,32 @@ export default function CourseTimeline({
     return slugs;
   });
 
+  // Auto-expand unit and parent group containing the selected module
+  useEffect(() => {
+    if (!selectedModuleSlug) return;
+    for (let ui = 0; ui < units.length; ui++) {
+      for (const mod of units[ui].modules) {
+        if (mod.slug === selectedModuleSlug) {
+          setExpandedUnits((prev) => {
+            if (prev.has(ui)) return prev;
+            const next = new Set(prev);
+            next.add(ui);
+            return next;
+          });
+          if (mod.parentSlug) {
+            setExpandedParents((prev) => {
+              if (prev.has(mod.parentSlug!)) return prev;
+              const next = new Set(prev);
+              next.add(mod.parentSlug!);
+              return next;
+            });
+          }
+          return;
+        }
+      }
+    }
+  }, [selectedModuleSlug, units]);
+
   const toggleUnit = (idx: number) => {
     setExpandedUnits((prev) => {
       const next = new Set(prev);
@@ -194,9 +223,11 @@ export default function CourseTimeline({
         next.delete(idx);
       } else {
         next.add(idx);
-        // Auto-select first module when expanding
-        const firstModule = units[idx]?.modules[0];
-        if (firstModule) onModuleSelect(firstModule);
+        // Auto-select first module on desktop (on mobile, let user browse)
+        if (!isMobile) {
+          const firstModule = units[idx]?.modules[0];
+          if (firstModule) onModuleSelect(firstModule);
+        }
       }
       return next;
     });
@@ -531,11 +562,7 @@ function renderUnitModules(
               >
                 {mod.title}
               </span>
-              {mod.optional && (
-                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wide flex-shrink-0">
-                  Optional
-                </span>
-              )}
+              {mod.optional && <OptionalBadge />}
               {/* Right-aligned: due date and/or time estimate */}
               {dueLabel && !mod.optional && mod.status !== "completed" ? (
                 <span

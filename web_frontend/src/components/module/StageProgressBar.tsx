@@ -1,11 +1,13 @@
 // web_frontend/src/components/unified-lesson/StageProgressBar.tsx
-import { useMemo } from "react";
-import { StickyNote } from "lucide-react";
+import { useMemo, type ReactNode } from "react";
+import { BotMessageSquare, StickyNote } from "lucide-react";
 import type { Stage } from "../../types/module";
 import type { StageInfo } from "../../types/course";
 import { buildBranchLayout } from "../../utils/branchLayout";
+import { formatDurationMinutes } from "../../utils/duration";
 import { triggerHaptic } from "@/utils/haptics";
 import { Tooltip } from "../Tooltip";
+import { OptionalBadge } from "../OptionalBadge";
 import {
   getCircleFillClasses,
   getRingClasses,
@@ -113,16 +115,82 @@ function getTooltipContent(
   index: number,
   isCompleted: boolean,
   isViewing: boolean,
-): string {
+): ReactNode {
   const isOptional = "optional" in stage && stage.optional === true;
-  const optionalPrefix = isOptional ? "(Optional) " : "";
-  const completedSuffix = isCompleted ? " (completed)" : "";
   const title = getStageTitle(stage);
+  const hasTldr = stage.tldr;
+  const hasDuration = stage.duration != null && stage.duration > 0;
 
-  if (isViewing) {
-    return `${title}${completedSuffix}`;
+  // Simple text tooltip when no extra info
+  if (!hasTldr && !hasDuration) {
+    const optionalPrefix = isOptional && !isViewing ? "(Optional) " : "";
+    return `${optionalPrefix}${title}`;
   }
-  return `${optionalPrefix}${title}${completedSuffix}`;
+
+  // Rich tooltip with title, badges, duration, and tldr
+  return (
+    <div className="max-w-xs">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="font-medium text-slate-900">{title}</span>
+      </div>
+      {hasDuration &&
+        (() => {
+          const isVideo = stage.type === "video";
+          const contentTime = Math.round(stage.duration! / 1.5);
+          const aiTime = stage.duration! - contentTime;
+          return (
+            <div className="flex items-center gap-0.5 text-slate-500 text-xs mt-0.5">
+              {isOptional && !isViewing && (
+                <>
+                  <OptionalBadge />{" "}
+                </>
+              )}
+              {isVideo ? (
+                <svg
+                  className="w-3 h-3"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-3 h-3"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              )}
+              <span>{formatDurationMinutes(contentTime)}</span>
+              {aiTime > 0 && (
+                <>
+                  <span>+</span>
+                  <BotMessageSquare className="w-3 h-3 ml-0.5" />
+                  <span>{formatDurationMinutes(aiTime)}</span>
+                </>
+              )}
+            </div>
+          );
+        })()}
+      {!hasDuration && isOptional && !isViewing && (
+        <div className="mt-0.5">
+          <OptionalBadge />
+        </div>
+      )}
+      {hasTldr && (
+        <p className="text-slate-600 mt-1 line-clamp-3">{stage.tldr}</p>
+      )}
+    </div>
+  );
 }
 
 export default function StageProgressBar({

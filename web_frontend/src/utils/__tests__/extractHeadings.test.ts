@@ -122,6 +122,11 @@ describe("extractHeadings", () => {
     expect(result[0].id).toBe("title-1");
   });
 
+  it("strips backslash escapes from heading text", () => {
+    const result = extractHeadings("### 1\\. Foo");
+    expect(result).toEqual([{ id: "1-foo", text: "1. Foo", level: 3 }]);
+  });
+
   it("trims whitespace from markdown heading text", () => {
     const result = extractHeadings("## Hello World  ");
     expect(result).toEqual([

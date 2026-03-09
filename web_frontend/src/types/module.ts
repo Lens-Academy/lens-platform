@@ -127,6 +127,7 @@ export type PageSection = {
   meta: { title: string | null };
   segments: ModuleSegment[];
   optional: boolean;
+  tldr?: string;
 };
 
 /**
@@ -142,6 +143,7 @@ export type LensVideoSection = {
   meta: { title: string; channel: string | null };
   segments: ModuleSegment[];
   optional: boolean;
+  tldr?: string;
 };
 
 /**
@@ -161,6 +163,7 @@ export type LensArticleSection = {
   };
   segments: ModuleSegment[];
   optional: boolean;
+  tldr?: string;
 };
 
 /**
@@ -201,9 +204,9 @@ export type Module = {
 
 // Chat types (used in module player)
 export type ChatMessage = {
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant" | "system" | "course-content";
   content: string;
-  icon?: "article" | "video" | "chat"; // Optional icon for system messages
+  icon?: "article" | "video" | "chat" | "course-content"; // Optional icon for system messages
 };
 
 export type PendingMessage = {
@@ -231,6 +234,8 @@ export type ArticleStage = {
   to: number | null;
   title?: string;
   optional?: boolean;
+  tldr?: string;
+  duration?: number | null;
 };
 
 export type VideoStage = {
@@ -240,6 +245,8 @@ export type VideoStage = {
   to: number | null;
   title?: string;
   optional?: boolean;
+  tldr?: string;
+  duration?: number | null;
 };
 
 export type ChatStage = {
@@ -249,6 +256,8 @@ export type ChatStage = {
   hidePreviousContentFromTutor: boolean;
   title?: string;
   optional?: boolean;
+  tldr?: string;
+  duration?: number | null;
 };
 
 export type PageStage = {
@@ -258,6 +267,8 @@ export type PageStage = {
   to: number | null;
   title?: string;
   optional?: boolean;
+  tldr?: string;
+  duration?: number | null;
 };
 
 export type Stage = ArticleStage | VideoStage | ChatStage | PageStage;

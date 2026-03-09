@@ -1389,49 +1389,6 @@ to:: "understanding this concept."
     expect(segmentIgnoredWarnings).toHaveLength(0);
   });
 
-  it('errors when Chat is the first segment in a section', () => {
-    const content = `---
-id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
----
-
-### Page: Test
-
-#### Chat
-instructions::
-Discuss something.
-`;
-    const { errors } = parseLens(content, 'test.md');
-    const chatError = errors.find(e => e.message.includes("'#### Chat' must be immediately preceded"));
-    expect(chatError).toBeDefined();
-    expect(chatError!.severity).toBe('error');
-  });
-
-  it('errors when Chat follows a non-Text segment', () => {
-    const content = `---
-id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
----
-
-### Article: Test
-source:: [[../articles/test.md]]
-
-#### Text
-content::
-Read this article.
-
-#### Article-excerpt
-from:: "start"
-to:: "end"
-
-#### Chat
-instructions::
-Discuss the article.
-`;
-    const { errors } = parseLens(content, 'test.md');
-    const chatError = errors.find(e => e.message.includes("article-excerpt"));
-    expect(chatError).toBeDefined();
-    expect(chatError!.severity).toBe('error');
-  });
-
   describe('roleplay segment parsing', () => {
     it('parses roleplay segment with required fields', () => {
       const content = `---
@@ -1537,6 +1494,73 @@ ai-instructions:: You are a character.
       const errors = result.errors.filter(e => e.severity === 'error');
       expect(errors.some(e => e.message.includes('id::'))).toBe(true);
     });
+  });
+
+  it('parses tldr from frontmatter', () => {
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+tldr: How cognitive biases affect our ability to evaluate AI risk
+---
+
+### Page: Introduction
+
+#### Text
+content:: Some content.
+`;
+    const result = parseLens(content, 'Lenses/lens1.md');
+    expect(result.lens?.tldr).toBe('How cognitive biases affect our ability to evaluate AI risk');
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('sets tldr to undefined when not present', () => {
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+---
+
+### Page: Introduction
+
+#### Text
+content:: Some content.
+`;
+    const result = parseLens(content, 'Lenses/lens1.md');
+    expect(result.lens?.tldr).toBeUndefined();
+  });
+
+  it('emits error when tldr exceeds 80 words', () => {
+    const longTldr = Array(81).fill('word').join(' ');
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+tldr: ${longTldr}
+---
+
+### Page: Introduction
+
+#### Text
+content:: Some content.
+`;
+    const result = parseLens(content, 'Lenses/lens1.md');
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        message: expect.stringContaining('tldr'),
+        severity: 'error',
+      })
+    );
+  });
+
+  it('accepts tldr at exactly 80 words', () => {
+    const exactTldr = Array(80).fill('word').join(' ');
+    const content = `---
+id: 550e8400-e29b-41d4-a716-446655440002
+tldr: ${exactTldr}
+---
+
+### Page: Introduction
+
+#### Text
+content:: Some content.
+`;
+    const result = parseLens(content, 'Lenses/lens1.md');
+    expect(result.errors.filter(e => e.message.includes('tldr'))).toHaveLength(0);
   });
 });
 

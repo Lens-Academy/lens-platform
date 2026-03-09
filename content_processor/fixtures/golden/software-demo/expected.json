@@ -259,7 +259,8 @@
           "contentId": "d1e2f3a4-b5c6-7890-d1e2-f3a4b5c67890",
           "learningOutcomeId": null,
           "learningOutcomeName": null,
-          "videoId": null
+          "videoId": null,
+          "wordCount": 22
         },
         {
           "type": "lens-article",
@@ -480,7 +481,8 @@
           "contentId": "5ec4268f-757c-4ef7-89c1-a24b35cea850",
           "learningOutcomeId": null,
           "learningOutcomeName": null,
-          "videoId": null
+          "videoId": null,
+          "wordCount": 250
         },
         {
           "type": "page",
@@ -497,7 +499,8 @@
           "contentId": "e2f3a4b5-c6d7-8901-e2f3-a4b5c6d78901",
           "learningOutcomeId": null,
           "learningOutcomeName": null,
-          "videoId": null
+          "videoId": null,
+          "wordCount": 87
         }
       ]
     }

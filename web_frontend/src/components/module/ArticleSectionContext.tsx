@@ -11,6 +11,10 @@ type ArticleSectionContextValue = {
   /** Register a ToC item element for direct DOM updates (bypasses React re-renders) */
   registerTocItem: (id: string, index: number, element: HTMLElement) => void;
   onHeadingClick: (id: string) => void;
+  /** Portal container for rendering the TOC in a grid column at the Module level */
+  tocPortalContainer: HTMLElement | null;
+  /** Whether the TOC should be hidden (e.g. when chat sidebar is open) */
+  hideToc: boolean;
 };
 
 const ArticleSectionContext = createContext<ArticleSectionContextValue | null>(

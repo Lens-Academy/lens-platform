@@ -3,7 +3,7 @@
  *
  * Encapsulates microphone access, MediaRecorder, volume metering,
  * timer, transcription via API, and cleanup. Used by both
- * NarrativeChatSection (chat voice input) and AnswerBox (answer voice input).
+ * ChatInputArea (chat voice input) and AnswerBox (answer voice input).
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";

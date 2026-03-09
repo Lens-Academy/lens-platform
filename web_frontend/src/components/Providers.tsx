@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { usePageContext } from "vike-react/usePageContext";
+import { FloatingDelayGroup } from "@floating-ui/react";
 import { initPostHog, capturePageView, hasConsent } from "@/analytics";
 import { initSentry } from "@/errorTracking";
 
@@ -54,5 +55,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
-  return <>{children}</>;
+  return (
+    <FloatingDelayGroup delay={{ open: 400, close: 200 }} timeoutMs={500}>
+      {children}
+    </FloatingDelayGroup>
+  );
 }

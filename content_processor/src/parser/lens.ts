@@ -7,7 +7,6 @@ import { validateSegmentFields } from '../validator/segment-fields.js';
 import { validateFieldValues } from '../validator/field-values.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
-import { validateChatPrecedence } from '../validator/chat-precedence.js';
 import { detectDirectivesInNonArticle } from '../validator/directives.js';
 import { parseWikilink, hasRelativePath } from './wikilink.js';
 import { parseTimestamp } from '../bundler/video.js';
@@ -83,6 +82,7 @@ export interface ParsedLensSection {
 
 export interface ParsedLens {
   id: string;
+  tldr?: string;
   sections: ParsedLensSection[];
 }
 
@@ -595,6 +595,20 @@ export function parseLens(content: string, file: string): LensParseResult {
     return { lens: null, errors };
   }
 
+  const tldr = typeof frontmatter.tldr === 'string' ? frontmatter.tldr : undefined;
+  if (tldr) {
+    const wordCount = tldr.trim().split(/\s+/).filter(Boolean).length;
+    if (wordCount > 80) {
+      errors.push({
+        file,
+        line: 2,
+        message: `tldr exceeds 80 words (has ${wordCount})`,
+        suggestion: 'Shorten the tldr to 80 words or fewer',
+        severity: 'error',
+      });
+    }
+  }
+
   // Step 2: Parse H3 sections (Text, Article, Video)
   const sectionsResult = parseSections(body, 3, LENS_SECTION_TYPES, file);
 
@@ -704,10 +718,6 @@ export function parseLens(content: string, file: string): LensParseResult {
       }
     }
 
-    // Validate Chat segments are preceded by Text segments
-    const chatErrors = validateChatPrecedence(rawSegments, file);
-    errors.push(...chatErrors);
-
     // Warn if section has no segments
     if (segments.length === 0) {
       errors.push({
@@ -747,6 +757,7 @@ export function parseLens(content: string, file: string): LensParseResult {
 
   const lens: ParsedLens = {
     id: frontmatter.id as string,
+    tldr,
     sections: parsedSections,
   };
 

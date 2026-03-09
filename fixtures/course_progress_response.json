@@ -18,7 +18,8 @@
               "duration": null,
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000102",
-              "completed": false
+              "completed": false,
+              "tldr": null
             },
             {
               "type": "page",
@@ -26,7 +27,8 @@
               "duration": null,
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000103",
-              "completed": false
+              "completed": false,
+              "tldr": null
             }
           ],
           "status": "not_started",
@@ -44,7 +46,8 @@
               "duration": null,
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000202",
-              "completed": false
+              "completed": false,
+              "tldr": null
             },
             {
               "type": "page",
@@ -52,7 +55,8 @@
               "duration": null,
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000203",
-              "completed": false
+              "completed": false,
+              "tldr": null
             }
           ],
           "status": "not_started",
@@ -75,7 +79,8 @@
               "duration": null,
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000302",
-              "completed": false
+              "completed": false,
+              "tldr": null
             }
           ],
           "status": "not_started",
@@ -93,7 +98,8 @@
               "duration": null,
               "optional": true,
               "contentId": "00000000-0000-0000-0000-000000000402",
-              "completed": false
+              "completed": false,
+              "tldr": null
             }
           ],
           "status": "not_started",
@@ -116,7 +122,8 @@
               "duration": null,
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000502",
-              "completed": false
+              "completed": false,
+              "tldr": null
             }
           ],
           "status": "not_started",

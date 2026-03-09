@@ -6,6 +6,7 @@ Endpoints:
 - POST /api/content/refresh - Manual refresh for development
 - GET /api/content/validation-stream - SSE endpoint for live validation updates
 - POST /api/content/refresh-validation - Manual refresh trigger for validation dashboard
+- GET /api/content/graph - Graph data for concentric overview visualization
 """
 
 import asyncio
@@ -22,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.content import refresh_cache, get_cache, CacheNotInitializedError
 from core.content.github_fetcher import get_content_branch
 from core.content.validation_broadcaster import broadcaster
+from core.modules.flattened_types import ModuleRef
 from core.content.webhook_handler import (
     handle_content_update,
     verify_webhook_signature,
@@ -258,6 +260,182 @@ async def validation_stream(request: Request):
             "X-Accel-Buffering": "no",  # Disable nginx buffering
         },
     )
+
+
+@router.get("/graph")
+async def content_graph():
+    """
+    Assemble graph data from ContentCache for the concentric overview visualization.
+
+    Returns nodes (courses, modules, lenses) and links between them.
+    """
+    try:
+        cache = get_cache()
+    except CacheNotInitializedError:
+        raise HTTPException(status_code=503, detail="Content cache not initialized")
+
+    nodes = []
+    links = []
+
+    # Collect all module slugs referenced by courses (for orphan detection)
+    referenced_module_slugs: set[str] = set()
+    seen_lens_ids: set[str] = set()
+
+    # Build parent→children mapping from parent_slug fields.
+    # Parent modules may not exist in flattened_modules themselves —
+    # we synthesize them from child metadata.
+    parent_children: dict[str, list[str]] = {}  # parent_slug → [child slugs]
+    parent_titles: dict[str, str] = {}  # parent_slug → title
+    for slug, module in cache.flattened_modules.items():
+        if slug.startswith("lens/"):
+            continue
+        if module.parent_slug:
+            parent_children.setdefault(module.parent_slug, []).append(slug)
+            if module.parent_title:
+                parent_titles[module.parent_slug] = module.parent_title
+
+    # Virtual root node — gives courses their own ring instead of all
+    # sharing the center point (ring 0) where dagMode can't separate them.
+    nodes.append(
+        {
+            "id": "root",
+            "type": "root",
+            "title": "",
+            "slug": "",
+            "band": 0,
+        }
+    )
+
+    # 1. Course nodes + course→module/parent-module edges
+    for slug, course in cache.courses.items():
+        nodes.append(
+            {
+                "id": f"course:{slug}",
+                "type": "course",
+                "title": course.title,
+                "slug": slug,
+                "band": 1,
+            }
+        )
+        links.append(
+            {
+                "source": "root",
+                "target": f"course:{slug}",
+            }
+        )
+        for item in course.progression:
+            if isinstance(item, ModuleRef):
+                referenced_module_slugs.add(item.slug)
+                mod = cache.flattened_modules.get(item.slug)
+                if mod and mod.parent_slug:
+                    # Submodule — course links to parent, parent links to child
+                    # (parent→child edge added below; just mark parent as referenced)
+                    referenced_module_slugs.add(mod.parent_slug)
+                    links.append(
+                        {
+                            "source": f"course:{slug}",
+                            "target": f"module:{mod.parent_slug}",
+                        }
+                    )
+                else:
+                    # Standalone module — course links directly
+                    links.append(
+                        {
+                            "source": f"course:{slug}",
+                            "target": f"module:{item.slug}",
+                        }
+                    )
+
+    # Deduplicate course→parent links (multiple children share one parent)
+    seen_links: set[tuple[str, str]] = set()
+    deduped_links = []
+    for link in links:
+        key = (link["source"], link["target"])
+        if key not in seen_links:
+            seen_links.add(key)
+            deduped_links.append(link)
+    links = deduped_links
+
+    # 2. Parent module nodes (synthesized from children)
+    for parent_slug, children in parent_children.items():
+        orphan = parent_slug not in referenced_module_slugs
+        # Check if the parent exists as an actual module in cache
+        parent_mod = cache.flattened_modules.get(parent_slug)
+        wip = parent_mod.error is not None if parent_mod else False
+        nodes.append(
+            {
+                "id": f"module:{parent_slug}",
+                "type": "parent-module",
+                "title": parent_titles.get(parent_slug, parent_slug),
+                "slug": parent_slug,
+                "orphan": orphan,
+                "wip": wip,
+                "file": f"Modules/{parent_slug}.md",
+                "band": 2,
+            }
+        )
+        # Parent→child edges
+        for child_slug in children:
+            links.append(
+                {
+                    "source": f"module:{parent_slug}",
+                    "target": f"module:{child_slug}",
+                }
+            )
+
+    # 3. Module nodes (skip lens/ prefixed and parent-only modules) + lens nodes
+    for slug, module in cache.flattened_modules.items():
+        if slug.startswith("lens/"):
+            continue
+        # Skip if this slug is a synthesized parent (already added above)
+        if slug in parent_children:
+            continue
+
+        orphan = slug not in referenced_module_slugs
+        wip = module.error is not None
+
+        nodes.append(
+            {
+                "id": f"module:{slug}",
+                "type": "module",
+                "title": module.title,
+                "slug": slug,
+                "orphan": orphan,
+                "wip": wip,
+                "file": f"Modules/{slug}.md",
+                "band": 2,
+            }
+        )
+
+        # Lens nodes from sections with contentId
+        for section in module.sections:
+            content_id = section.get("contentId")
+            if content_id is None:
+                continue
+            lens_id = f"lens:{content_id}"
+            if lens_id not in seen_lens_ids:
+                seen_lens_ids.add(lens_id)
+                nodes.append(
+                    {
+                        "id": lens_id,
+                        "type": "lens",
+                        "title": section.get("meta", {}).get("title", ""),
+                        "slug": slug,  # parent module slug for navigation
+                        "sectionType": section.get("type"),
+                        "file": None,
+                        "orphan": orphan,
+                        "wip": wip,
+                        "band": 3,
+                    }
+                )
+            links.append(
+                {
+                    "source": f"module:{slug}",
+                    "target": lens_id,
+                }
+            )
+
+    return {"nodes": nodes, "links": links}
 
 
 @router.post("/refresh-validation")

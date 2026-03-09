@@ -173,6 +173,37 @@ def assign_group_badge(member_count: int) -> str | None:
     return None
 
 
+async def get_cohort_groups_metadata(
+    conn: AsyncConnection,
+    cohort_id: int,
+) -> dict[str, Any]:
+    """
+    Get metadata about a cohort's groups for the empty-state message.
+
+    Returns:
+        {
+            "total_groups_in_cohort": int,  # ALL groups, before filtering
+            "cohort_start_date": "YYYY-MM-DD" | None,
+        }
+    """
+    # Total groups in cohort (regardless of filtering)
+    count_query = (
+        select(func.count()).select_from(groups).where(groups.c.cohort_id == cohort_id)
+    )
+    total = (await conn.execute(count_query)).scalar() or 0
+
+    # Cohort start date
+    cohort_query = select(cohorts.c.cohort_start_date).where(
+        cohorts.c.cohort_id == cohort_id
+    )
+    start_date = (await conn.execute(cohort_query)).scalar()
+
+    return {
+        "total_groups_in_cohort": total,
+        "cohort_start_date": start_date.isoformat() if start_date else None,
+    }
+
+
 async def get_joinable_groups(
     conn: AsyncConnection,
     cohort_id: int,
@@ -462,10 +493,17 @@ async def get_user_group_info(
     # Get current group if any
     current_group = await get_user_current_group(conn, user_id, cohort_id)
 
+    start_date = signup["cohort_start_date"]
+    end_date = (
+        start_date + timedelta(days=signup["duration_days"]) if start_date else None
+    )
+
     return {
         "is_enrolled": True,
         "cohort_id": cohort_id,
         "cohort_name": signup["cohort_name"],
+        "cohort_start_date": start_date.isoformat() if start_date else None,
+        "cohort_end_date": end_date.isoformat() if end_date else None,
         "current_group": {
             "group_id": current_group["group_id"],
             "group_name": current_group["group_name"],

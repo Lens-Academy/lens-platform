@@ -11,6 +11,7 @@ import {
   useImperativeHandle,
 } from "react";
 import { useMedia } from "react-use";
+import { useScrollContainer } from "@/hooks/useScrollContainer";
 import { X, ChevronRight } from "lucide-react";
 import type { StageInfo } from "../../types/course";
 import ModuleOverview from "../course/ModuleOverview";
@@ -46,6 +47,7 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
   ) {
     const [isOpen, setIsOpen] = useState(false);
     const isMobile = useMedia("(max-width: 767px)", false);
+    const scrollContainer = useScrollContainer();
 
     useImperativeHandle(ref, () => ({
       toggle: () => setIsOpen((prev) => !prev),
@@ -63,15 +65,16 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
       return () => window.removeEventListener("keydown", handleEscape);
     }, [isOpen, handleClose]);
 
-    // Lock body scroll when drawer is open on mobile
+    // Lock scroll when drawer is open on mobile
     useEffect(() => {
       if (isMobile && isOpen) {
-        document.body.style.overflow = "hidden";
+        const target = scrollContainer ?? document.body;
+        target.style.overflow = "hidden";
         return () => {
-          document.body.style.overflow = "";
+          target.style.overflow = "";
         };
       }
-    }, [isMobile, isOpen]);
+    }, [isMobile, isOpen, scrollContainer]);
 
     return (
       <>
@@ -131,7 +134,7 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
           </div>
 
           {/* Content */}
-          <div className="p-4 h-[calc(100%-4rem)] overflow-y-auto">
+          <div className="p-4 h-[calc(100%-4rem)] overflow-y-auto overscroll-contain">
             <ModuleOverview
               moduleTitle={moduleTitle}
               stages={stages}

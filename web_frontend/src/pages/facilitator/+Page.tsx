@@ -3,7 +3,7 @@ import Facilitator from "@/views/Facilitator";
 
 export default function FacilitatorPage() {
   return (
-    <Layout>
+    <Layout fullWidth>
       <Facilitator />
     </Layout>
   );

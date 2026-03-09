@@ -1,7 +1,7 @@
 """Tests for group joining business logic (TDD)."""
 
 import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from core.group_joining import (
@@ -360,6 +360,8 @@ class TestGetUserGroupInfo:
         mock_signup.mappings.return_value.first.return_value = {
             "cohort_id": 10,
             "cohort_name": "Test Cohort",
+            "cohort_start_date": date(2026, 1, 1),
+            "duration_days": 90,
         }
 
         # Second call: current group query (no group)

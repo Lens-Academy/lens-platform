@@ -237,6 +237,7 @@ title: Big Module
 slug:: welcome
 
 ## Page: Welcome Page
+id:: d1e2f3a4-0000-0000-0000-000000000001
 ### Text
 content:: Hello world.
 

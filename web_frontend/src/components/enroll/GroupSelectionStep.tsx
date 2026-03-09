@@ -40,6 +40,12 @@ export default function GroupSelectionStep({
   cohortName,
 }: GroupSelectionStepProps) {
   const [groups, setGroups] = useState<Group[]>([]);
+  const [totalGroupsInCohort, setTotalGroupsInCohort] = useState<number | null>(
+    null,
+  );
+  const [fetchedCohortStartDate, setFetchedCohortStartDate] = useState<
+    string | null
+  >(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +67,8 @@ export default function GroupSelectionStep({
       const data = await response.json();
       // Backend returns pre-filtered, pre-sorted groups - just use them
       setGroups(data.groups);
+      setTotalGroupsInCohort(data.total_groups_in_cohort ?? null);
+      setFetchedCohortStartDate(data.cohort_start_date ?? null);
     } catch (err) {
       setError("Failed to load groups. Please try again.");
       console.error(err);
@@ -130,30 +138,44 @@ export default function GroupSelectionStep({
   }
 
   if (groups.length === 0) {
+    const startDate = cohortStartDate ?? fetchedCohortStartDate;
+    const noGroupsScheduled = totalGroupsInCohort === 0;
+    const cohortInFuture = startDate ? new Date(startDate) > new Date() : false;
+
     return (
       <div className="max-w-md mx-auto">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           No Groups Available
         </h2>
-        <p className="text-gray-600 mb-6">
-          No groups are available to join in this cohort. Groups may not be
-          scheduled yet, may be full, or may have already started. You can join
-          a different cohort and be matched based on your availability.
-        </p>
-        <div className="flex gap-3">
-          <button
-            onClick={onBack}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            Back
-          </button>
-          <button
-            onClick={onSwitchToAvailability}
-            className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
-            Choose Different Cohort
-          </button>
-        </div>
+        {noGroupsScheduled && cohortInFuture ? (
+          <p className="text-gray-600 mb-6">
+            Groups for this cohort haven't been scheduled yet. Check back closer
+            to the start date
+            {startDate && <> ({formatCohortDate(startDate)})</>}.
+          </p>
+        ) : (
+          <>
+            <p className="text-gray-600 mb-6">
+              All groups in this cohort are full or have already started. You
+              can join a different cohort and be matched based on your
+              availability.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={onBack}
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Back
+              </button>
+              <button
+                onClick={onSwitchToAvailability}
+                className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              >
+                Choose Different Cohort
+              </button>
+            </div>
+          </>
+        )}
       </div>
     );
   }

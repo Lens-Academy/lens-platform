@@ -32,6 +32,8 @@ function stripInlineMarkdown(text: string): string {
       .replace(/`(.+?)`/g, "$1")
       // Strikethrough: ~~text~~
       .replace(/~~(.+?)~~/g, "$1")
+      // Backslash escapes: \X → X
+      .replace(/\\(.)/g, "$1")
   );
 }
 

@@ -1,12 +1,14 @@
 // web_frontend/src/views/Module.tsx
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import type {
-  ChatMessage,
-  PendingMessage,
-  ArticleData,
-  Stage,
-} from "@/types/module";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
+import type { ArticleData, Stage } from "@/types/module";
 import type { StageInfo } from "@/types/course";
 import type { ViewMode } from "@/types/viewMode";
 import type {
@@ -16,8 +18,6 @@ import type {
 } from "@/types/module";
 import type { CourseProgress } from "@/types/course";
 import {
-  sendMessage,
-  getChatHistory,
   getNextModule,
   getModule,
   getCourseProgress,
@@ -27,12 +27,13 @@ import type { ModuleCompletionResult, LensProgress } from "@/api/modules";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
+import { useTutorChat } from "@/hooks/useTutorChat";
 import { markComplete } from "@/api/progress";
 import type { MarkCompleteResponse } from "@/api/progress";
 import AuthoredText from "@/components/module/AuthoredText";
 import ArticleEmbed from "@/components/module/ArticleEmbed";
 import VideoEmbed from "@/components/module/VideoEmbed";
-import NarrativeChatSection from "@/components/module/NarrativeChatSection";
+import { ChatInlineShell } from "@/components/module/ChatInlineShell";
 import AnswerBox from "@/components/module/AnswerBox";
 import RoleplaySection from "@/components/module/RoleplaySection";
 import TestSection from "@/components/module/TestSection";
@@ -47,13 +48,15 @@ import ArticleExcerptGroup from "@/components/module/ArticleExcerptGroup";
 import { ModuleHeader } from "@/components/ModuleHeader";
 import ModuleDrawer from "@/components/module/ModuleDrawer";
 import type { ModuleDrawerHandle } from "@/components/module/ModuleDrawer";
+import { ChatSidebar } from "@/components/module/ChatSidebar";
+import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import ModuleCompleteModal from "@/components/module/ModuleCompleteModal";
+import SectionChoiceModal from "@/components/module/SectionChoiceModal";
+import type { SectionChoice } from "@/components/module/SectionChoiceModal";
 import AuthPromptModal from "@/components/module/AuthPromptModal";
-import {
-  trackModuleStarted,
-  trackModuleCompleted,
-  trackChatMessageSent,
-} from "@/analytics";
+
+import { ScrollContainerContext } from "@/hooks/useScrollContainer";
+import { trackModuleStarted, trackModuleCompleted } from "@/analytics";
 import { Skeleton, SkeletonText } from "@/components/Skeleton";
 import { getSectionSlug, findSectionBySlug } from "@/utils/sectionSlug";
 import {
@@ -77,6 +80,94 @@ interface ModuleProps {
  * - Chat sections (75vh, all sharing same state)
  * - Progress sidebar on left
  */
+
+// ---------------------------------------------------------------------------
+// DebugOverlay — subscribes to segment index ref via useSyncExternalStore
+// so its re-renders never touch Module.
+// ---------------------------------------------------------------------------
+
+function DebugOverlay({
+  currentSection,
+  currentSectionIndex,
+  sidebarChatSegmentIndex,
+  segmentIndexRef,
+  listeners,
+}: {
+  currentSection: ModuleSection;
+  currentSectionIndex: number;
+  sidebarChatSegmentIndex: number;
+  segmentIndexRef: React.RefObject<number>;
+  listeners: React.RefObject<Set<() => void>>;
+}) {
+  const currentSegmentIndex = useSyncExternalStore(
+    (cb) => {
+      listeners.current.add(cb);
+      return () => listeners.current.delete(cb);
+    },
+    () => segmentIndexRef.current,
+  );
+
+  const segments =
+    "segments" in currentSection ? (currentSection.segments ?? []) : [];
+  const seg = segments[currentSegmentIndex] as ModuleSegment | undefined;
+  const segLabel = (s: ModuleSegment) => {
+    switch (s.type) {
+      case "article-excerpt":
+        return `from: ${(s.content ?? "").slice(0, 40)}…`;
+      case "video-excerpt":
+        return `${s.from}s–${s.to ?? "end"}s`;
+      case "text":
+        return (s.content ?? "").slice(0, 40) + "…";
+      case "chat":
+        return (s.instructions ?? "").slice(0, 40) + "…";
+      case "question":
+        return (s.content ?? "").slice(0, 40) + "…";
+      case "roleplay":
+        return "Roleplay: " + (s.content ?? "").slice(0, 40) + "…";
+      default:
+        return "";
+    }
+  };
+
+  return (
+    <div className="fixed bottom-4 left-4 z-50 max-w-xs rounded-lg bg-gray-900/85 px-3 py-2 text-xs text-gray-100 font-mono shadow-lg backdrop-blur-sm max-h-[50vh] overflow-y-auto">
+      <div className="font-bold text-yellow-300 mb-1">Debug Overlay</div>
+      <div>
+        <span className="text-gray-400">Section:</span> §{currentSectionIndex}:{" "}
+        {currentSection.meta?.title ?? "(untitled)"}
+      </div>
+      <div>
+        <span className="text-gray-400">Segment:</span> [{currentSegmentIndex}]{" "}
+        {seg ? seg.type : "—"} {seg ? segLabel(seg) : ""}
+      </div>
+      <div>
+        <span className="text-gray-400">Sidebar target:</span>{" "}
+        <span
+          className={
+            sidebarChatSegmentIndex === currentSegmentIndex
+              ? "text-green-400"
+              : "text-red-400"
+          }
+        >
+          {sidebarChatSegmentIndex}
+        </span>
+      </div>
+      <div className="mt-1 border-t border-gray-700 pt-1">
+        <span className="text-gray-400">Segments ({segments.length}):</span>
+        {segments.map((s, i) => (
+          <div
+            key={i}
+            className={`pl-2 ${i === currentSegmentIndex ? "text-yellow-300 font-bold" : "text-gray-400"}`}
+          >
+            [{i}] {s.type}
+            {i === sidebarChatSegmentIndex && " ← sidebar"}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Module({ courseId, moduleId }: ModuleProps) {
   // Module data loading state
   const [module, setModule] = useState<ModuleType | null>(null);
@@ -174,51 +265,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     setCompletedSections(completed);
   }, []);
 
-  // Chat state (shared across all chat sections)
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(
-    null,
-  );
-  const [streamingContent, setStreamingContent] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Fetch chat history when module loads
-  useEffect(() => {
-    if (!module) return;
-
-    // Clear messages when switching modules
-    setMessages([]);
-
-    // Track if effect is still active (prevent race condition)
-    let cancelled = false;
-
-    async function loadHistory() {
-      try {
-        const history = await getChatHistory(module!.slug);
-        if (cancelled) return; // Don't update if module changed
-
-        if (history.messages.length > 0) {
-          setMessages(
-            history.messages.map((m) => ({
-              role: m.role as "user" | "assistant",
-              content: m.content,
-            })),
-          );
-        }
-        // Messages already cleared above if history is empty
-      } catch (e) {
-        if (!cancelled) {
-          console.error("[Module] Failed to load chat history:", e);
-        }
-      }
-    }
-
-    loadHistory();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [module]);
+  // Scroll container ref (setState as callback ref so re-render provides context)
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
 
   // Progress tracking
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -397,6 +445,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [hasPromptedAuth, setHasPromptedAuth] = useState(false);
 
+  // Section choice modal state (shown when optional content follows)
+  const [sectionChoiceOpen, setSectionChoiceOpen] = useState(false);
+  const [sectionChoices, setSectionChoices] = useState<SectionChoice[]>([]);
+  const [completedSectionTitle, setCompletedSectionTitle] = useState<string>();
+
   // Analytics tracking ref
   const hasTrackedModuleStart = useRef(false);
 
@@ -417,6 +470,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     null,
   );
 
+  // TOC portal container for 3-column grid layout (set by callback ref)
+
   // Convert sections to Stage format for progress bar
   const stages: Stage[] = useMemo(() => {
     if (!module) return [];
@@ -429,11 +484,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       if (section.type === "test") {
         const title = section.meta?.title || "Test";
         return {
-          type: "test",
+          type: "page",
           source: "",
           from: null,
           to: null,
           title,
+          tldr: section.tldr,
+          duration: computeSectionDuration(section) || null,
         } as unknown as Stage;
       }
 
@@ -460,6 +517,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             ? section.meta?.title || `Page ${index + 1}`
             : section.meta?.title ||
               `${section.type || "Section"} ${index + 1}`;
+      const tldr =
+        "tldr" in section ? (section.tldr as string | undefined) : undefined;
+      const duration = computeSectionDuration(section) || null;
 
       if (stageType === "page") {
         return {
@@ -469,6 +529,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           to: null,
           optional: isOptional,
           title,
+          tldr,
+          duration,
         };
       } else if (stageType === "article") {
         return {
@@ -478,6 +540,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           to: null,
           optional: isOptional,
           title,
+          tldr,
+          duration,
         };
       } else if (stageType === "video") {
         // Get videoId from video or lens-video sections
@@ -494,6 +558,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           to: null,
           optional: isOptional,
           title,
+          tldr,
+          duration,
         };
       } else {
         return {
@@ -502,6 +568,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           hidePreviousContentFromUser: false,
           hidePreviousContentFromTutor: false,
           title,
+          tldr,
+          duration,
         };
       }
     });
@@ -540,6 +608,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                 `${section.type || "Section"} ${index + 1}`,
         duration: dur || null,
         optional: "optional" in section && section.optional === true,
+        tldr:
+          "tldr" in section ? (section.tldr as string | undefined) : undefined,
       };
     });
   }, [module]);
@@ -552,6 +622,38 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Activity tracking for current section
   const currentSection = module?.sections[currentSectionIndex];
+  const isArticleSection =
+    currentSection?.type === "lens-article" ||
+    currentSection?.type === "article";
+  const sidebarAllowed =
+    currentSection != null &&
+    (currentSection.type === "lens-article" ||
+      currentSection.type === "article" ||
+      currentSection.type === "lens-video" ||
+      currentSection.type === "video");
+
+  // --- Debug overlay: track current visible segment ---
+  const isDebugMode =
+    typeof window !== "undefined" && window.location.search.includes("debug");
+  const currentSegmentIndexRef = useRef(0);
+  const segmentIndexListeners = useRef(new Set<() => void>());
+  // Ref-based store for scroll-refined sidebar allowed state.
+  // Same pattern as segmentIndex — write from scroll handler, subscribe
+  // from ChatInlineShell via useSyncExternalStore. Module never re-renders.
+  const sidebarAllowedRef = useRef(sidebarAllowed); // initial: section-level default
+  const sidebarAllowedListeners = useRef(new Set<() => void>());
+  const segmentElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const registerSegmentEl = useCallback(
+    (key: string, el: HTMLDivElement | null) => {
+      if (el) {
+        segmentElsRef.current.set(key, el);
+      } else {
+        segmentElsRef.current.delete(key);
+      }
+    },
+    [],
+  );
 
   // Unified activity tracking for current section (5 min inactivity timeout)
   // Covers article, video, and chat — triggerActivity() keeps it alive during chat
@@ -572,6 +674,143 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     inactivityTimeout: 300_000,
     enabled: !!currentSection?.contentId,
   });
+
+  // Chat state — centralised in useTutorChat hook
+  const {
+    messages,
+    pendingMessage,
+    streamingContent,
+    isLoading,
+    sendSource,
+    sendMessage: handleSendMessage,
+    retryMessage: handleRetryMessage,
+    activeSurface,
+    registerInlineRef,
+    sidebarChatSegmentIndex,
+    chatInteractedSections,
+  } = useTutorChat({
+    moduleId,
+    module,
+    currentSectionIndex,
+    currentSection,
+    isArticleSection,
+    triggerChatActivity,
+  });
+
+  const sidebarRef = useRef<ChatSidebarHandle>(null);
+  const lastSidebarAllowed = useRef(true);
+  const sidebarAllowedLockUntil = useRef(0);
+  const hasReachedExcerptRef = useRef(false);
+
+  // Segment scroll tracker: determines which segment the 30% viewport line
+  // falls inside. Always runs (drives sidebar allowed state). Writes to ref
+  // (not state) so Module never re-renders from scroll. DebugOverlay subscribes
+  // to the ref via useSyncExternalStore.
+  useEffect(() => {
+    // Reset lock on section change
+    lastSidebarAllowed.current = true;
+    sidebarAllowedLockUntil.current = 0;
+    sidebarAllowedRef.current = sidebarAllowed;
+    sidebarAllowedListeners.current.forEach((fn) => fn());
+
+    hasReachedExcerptRef.current = false;
+
+    if (!sidebarAllowed) {
+      // sidebarAllowedRef starts at `sidebarAllowed` (false for non-allowed).
+      // No need to write — the hook reads the initial value on mount.
+      return;
+    }
+
+    // Start sidebar closed on article sections — auto-opens at first excerpt
+    sidebarRef.current?.setOpen(false);
+
+    const segments =
+      currentSection && "segments" in currentSection
+        ? currentSection.segments
+        : undefined;
+    const firstExcerptIdx =
+      segments?.findIndex(
+        (s) => s.type === "article-excerpt" || s.type === "video-excerpt",
+      ) ?? -1;
+
+    let rafId = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const targetY = window.innerHeight * 0.3;
+        let best: { index: number; dist: number } | null = null;
+        // Find the segment that contains the target line (direction-independent)
+        segmentElsRef.current.forEach((el) => {
+          const rect = el.getBoundingClientRect();
+          const idx = Number(el.dataset.segmentIndex);
+          if (isNaN(idx)) return;
+          if (rect.top <= targetY && rect.bottom > targetY) {
+            best = { index: idx, dist: 0 };
+          } else if (!best || best.dist > 0) {
+            const dist = Math.min(
+              Math.abs(rect.top - targetY),
+              Math.abs(rect.bottom - targetY),
+            );
+            if (!best || dist < best.dist) best = { index: idx, dist };
+          }
+        });
+        if (best) {
+          // Write to ref (free) + notify subscribers (DebugOverlay only)
+          currentSegmentIndexRef.current = best.index;
+          segmentIndexListeners.current.forEach((fn) => fn());
+
+          // Auto-open sidebar when scrolling to first article excerpt (never on mobile)
+          if (
+            !hasReachedExcerptRef.current &&
+            firstExcerptIdx >= 0 &&
+            best.index >= firstExcerptIdx
+          ) {
+            hasReachedExcerptRef.current = true;
+            if (!window.matchMedia("(max-width: 700px)").matches) {
+              const pref = localStorage.getItem("chat-sidebar-pref");
+              if (pref === null || pref === "open") {
+                sidebarRef.current?.setOpen(true);
+              }
+            }
+          }
+
+          // Sidebar disallowed when any chat input pill overlaps the 20%-80% viewport band
+          const bandTop = window.innerHeight * 0.35;
+          const bandBottom = window.innerHeight * 0.95;
+          let chatInBand = false;
+          segmentElsRef.current.forEach((el) => {
+            const idx = Number(el.dataset.segmentIndex);
+            if (isNaN(idx) || segments?.[idx]?.type !== "chat") return;
+            const pill = el.querySelector("[data-chat-input-pill]");
+            if (!pill) return;
+            const rect = pill.getBoundingClientRect();
+            if (rect.bottom > bandTop && rect.top < bandBottom) {
+              chatInBand = true;
+            }
+          });
+          const allowed = sidebarAllowed && !chatInBand;
+
+          // Guard against reflow feedback loop: closing the sidebar changes margin →
+          // content reflows → scroll fires → segment shifts → setAllowed(true) reopens.
+          // Lock for the transition duration after closing to prevent this.
+          if (Date.now() < sidebarAllowedLockUntil.current) return;
+          if (allowed !== lastSidebarAllowed.current) {
+            lastSidebarAllowed.current = allowed;
+            sidebarAllowedRef.current = allowed;
+            sidebarAllowedListeners.current.forEach((fn) => fn());
+            if (!allowed) sidebarAllowedLockUntil.current = Date.now() + 350;
+          }
+        }
+      });
+    };
+    const target = scrollEl ?? window;
+    target.addEventListener("scroll", onScroll, { passive: true });
+    onScroll(); // initial check
+    return () => {
+      target.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(rafId);
+    };
+  }, [currentSectionIndex, currentSection, sidebarAllowed, scrollEl]);
 
   // Fetch next module info when module completes
   useEffect(() => {
@@ -615,78 +854,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       trackModuleStarted(module.slug, module.title);
     }
   }, [module]);
-
-  // Track position for retry
-  const [lastPosition, setLastPosition] = useState<{
-    sectionIndex: number;
-    segmentIndex: number;
-  } | null>(null);
-
-  // Send message handler (shared across all chat sections)
-  const handleSendMessage = useCallback(
-    async (content: string, sectionIndex: number, segmentIndex: number) => {
-      // Track chat activity on message send
-      triggerChatActivity();
-
-      // Store position for potential retry
-      setLastPosition({ sectionIndex, segmentIndex });
-
-      if (content) {
-        setPendingMessage({ content, status: "sending" });
-        trackChatMessageSent(moduleId, content.length);
-      }
-      setIsLoading(true);
-      setStreamingContent("");
-
-      try {
-        let assistantContent = "";
-
-        // Use new position-based API
-        for await (const chunk of sendMessage(
-          moduleId, // slug
-          sectionIndex,
-          segmentIndex,
-          content,
-        )) {
-          if (chunk.type === "text" && chunk.content) {
-            assistantContent += chunk.content;
-            setStreamingContent(assistantContent);
-            triggerChatActivity(); // Keep user active while AI response streams
-          } else if (chunk.type === "error") {
-            throw new Error(chunk.message || "Chat failed");
-          }
-        }
-
-        // Update local display state
-        setMessages((prev) => [
-          ...prev,
-          ...(content ? [{ role: "user" as const, content }] : []),
-          { role: "assistant" as const, content: assistantContent },
-        ]);
-        setPendingMessage(null);
-        setStreamingContent("");
-      } catch {
-        if (content) {
-          setPendingMessage({ content, status: "failed" });
-        }
-        setStreamingContent("");
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [triggerChatActivity, moduleId],
-  );
-
-  const handleRetryMessage = useCallback(() => {
-    if (!pendingMessage || !lastPosition) return;
-    const content = pendingMessage.content;
-    setPendingMessage(null);
-    handleSendMessage(
-      content,
-      lastPosition.sectionIndex,
-      lastPosition.segmentIndex,
-    );
-  }, [pendingMessage, lastPosition, handleSendMessage]);
 
   // Scroll tracking with hybrid rule: >50% viewport OR fully visible, topmost wins
   // Only active in continuous mode
@@ -755,22 +922,24 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     // Initial calculation (after refs are populated)
     const timeout = setTimeout(calculateCurrentSection, 0);
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const scrollTarget = scrollEl ?? window;
+    scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("resize", calculateCurrentSection);
 
     return () => {
       clearTimeout(timeout);
-      window.removeEventListener("scroll", handleScroll);
+      scrollTarget.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", calculateCurrentSection);
     };
-  }, [module, viewMode]);
+  }, [module, viewMode, scrollEl]);
 
   // Reset scroll position when navigating to a new section (paginated mode)
   useEffect(() => {
     if (viewMode === "paginated") {
-      window.scrollTo(0, 0);
+      if (scrollEl) scrollEl.scrollTop = 0;
+      else window.scrollTo(0, 0);
     }
-  }, [currentSectionIndex, viewMode]);
+  }, [currentSectionIndex, viewMode, scrollEl]);
 
   const handleStageClick = useCallback(
     (index: number) => {
@@ -817,6 +986,37 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
   }, [currentSectionIndex, module, viewMode, handleStageClick, testModeActive]);
 
+  // Build choices for the section navigation modal
+  // Collects upcoming sections (optional + first required) after a completed section
+  function buildSectionChoices(
+    sections: ModuleSection[],
+    completedIndex: number,
+  ): SectionChoice[] {
+    const choices: SectionChoice[] = [];
+    for (let i = completedIndex + 1; i < sections.length; i++) {
+      const section = sections[i];
+      // Only v2 section types have optional field directly
+      if (!("optional" in section)) continue;
+      const sectionType = section.type as SectionChoice["type"];
+      if (!["lens-video", "lens-article", "page", "test"].includes(sectionType))
+        continue;
+
+      choices.push({
+        index: i,
+        type: sectionType,
+        title: section.meta?.title ?? section.type,
+        tldr:
+          "tldr" in section ? (section.tldr as string | undefined) : undefined,
+        optional: section.optional ?? false,
+        duration: null,
+      });
+
+      // Stop after first required section (that's the "continue" target)
+      if (!section.optional) break;
+    }
+    return choices;
+  }
+
   const handleMarkComplete = useCallback(
     (sectionIndex: number, apiResponse?: MarkCompleteResponse) => {
       // Check if this is the first completion (for auth prompt)
@@ -850,8 +1050,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         return;
       }
 
-      // Navigate to next section
+      // Check if next sections include optional content worth choosing from
       if (module && sectionIndex < module.sections.length - 1) {
+        const choices = buildSectionChoices(module.sections, sectionIndex);
+        const hasOptionalAhead = choices.some((c) => c.optional);
+
+        if (hasOptionalAhead && choices.length > 1) {
+          // Show choice modal instead of auto-advancing
+          const currentSec = module.sections[sectionIndex];
+          setCompletedSectionTitle(
+            "meta" in currentSec
+              ? (currentSec.meta?.title ?? undefined)
+              : undefined,
+          );
+          setSectionChoices(choices);
+          setSectionChoiceOpen(true);
+          return; // Don't auto-advance
+        }
+
+        // Normal auto-advance (no optional content ahead)
         const nextIndex = sectionIndex + 1;
         if (viewMode === "continuous") {
           handleStageClick(nextIndex);
@@ -864,9 +1081,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       completedSections.size,
       isAuthenticated,
       hasPromptedAuth,
-      module,
-      viewMode,
-      handleStageClick,
       updateCompletedFromLenses,
     ],
   );
@@ -877,13 +1091,24 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     section: ModuleSection,
     sectionIndex: number,
     segmentIndex: number,
+    options?: { activateChat?: boolean },
   ) => {
     const keyPrefix = `${sectionIndex}-${segmentIndex}`;
+    const segKey = `seg-${keyPrefix}`;
+    const wrapWithSentinel = (node: React.ReactNode) => (
+      <div
+        key={`sentinel-${keyPrefix}`}
+        data-segment-index={segmentIndex}
+        ref={(el) => registerSegmentEl(segKey, el)}
+      >
+        {node}
+      </div>
+    );
 
     switch (segment.type) {
       case "text":
-        return (
-          <AuthoredText key={`text-${keyPrefix}`} content={segment.content} />
+        return wrapWithSentinel(
+          <AuthoredText key={`text-${keyPrefix}`} content={segment.content} />,
         );
 
       case "article-excerpt": {
@@ -917,13 +1142,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         const prevSegment = section.segments[segmentIndex - 1];
         const isPrevAlsoExcerpt = prevSegment?.type === "article-excerpt";
 
-        return (
+        return wrapWithSentinel(
           <ArticleEmbed
             key={`article-${keyPrefix}`}
             article={excerptData}
             isFirstExcerpt={isFirstExcerpt}
             isConsecutiveExcerpt={!isFirstExcerpt && isPrevAlsoExcerpt}
-          />
+          />,
         );
       }
 
@@ -939,7 +1164,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           .filter((s) => s.type === "video-excerpt").length;
         const excerptNumber = videoExcerptsBefore + 1; // 1-indexed
 
-        return (
+        return wrapWithSentinel(
           <VideoEmbed
             key={`video-${keyPrefix}`}
             videoId={section.videoId}
@@ -948,29 +1173,42 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             excerptNumber={excerptNumber}
             title={section.meta.title}
             channel={section.meta.channel}
-          />
+          />,
         );
       }
 
       case "chat":
         // Chat components stay mounted (no lazy loading) to preserve local state
-        return (
-          <NarrativeChatSection
+        return wrapWithSentinel(
+          <ChatInlineShell
             key={`chat-${keyPrefix}`}
             messages={messages}
             pendingMessage={pendingMessage}
             streamingContent={streamingContent}
             isLoading={isLoading}
+            sendSource={sendSource}
             onSendMessage={(content) =>
               handleSendMessage(content, sectionIndex, segmentIndex)
             }
             onRetryMessage={handleRetryMessage}
-          />
+            activated={options?.activateChat}
+            activatedWithHistory={options?.activateChat}
+            pillId="inline"
+            sidebarAllowedRef={sidebarAllowedRef}
+            sidebarAllowedListeners={sidebarAllowedListeners}
+            sidebarRef={sidebarRef}
+            hasActiveInput={
+              activeSurface.type === "inline" &&
+              activeSurface.sectionIndex === sectionIndex &&
+              activeSurface.segmentIndex === segmentIndex
+            }
+            shellRef={(el) => registerInlineRef(sectionIndex, segmentIndex, el)}
+          />,
         );
 
       case "question": {
         const feedbackKey = `${sectionIndex}-${segmentIndex}`;
-        return (
+        return wrapWithSentinel(
           <div key={`question-${keyPrefix}`}>
             <AnswerBox
               segment={segment}
@@ -989,26 +1227,28 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               }}
             />
             {segment.feedback && activeFeedbackKey === feedbackKey && (
-              <NarrativeChatSection
+              <ChatInlineShell
                 messages={messages}
                 pendingMessage={pendingMessage}
                 streamingContent={streamingContent}
                 isLoading={isLoading}
+                sendSource={sendSource}
                 onSendMessage={(content) =>
                   handleSendMessage(content, sectionIndex, segmentIndex)
                 }
                 onRetryMessage={handleRetryMessage}
                 scrollToResponse
                 activated
+                hasActiveInput={true}
               />
             )}
-          </div>
+          </div>,
         );
       }
 
       case "roleplay": {
         const feedbackKey = `roleplay-${sectionIndex}-${segmentIndex}`;
-        return (
+        return wrapWithSentinel(
           <div key={`roleplay-${keyPrefix}`}>
             <RoleplaySection
               segment={segment}
@@ -1027,20 +1267,22 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               }
             />
             {activeFeedbackKey === feedbackKey && (
-              <NarrativeChatSection
+              <ChatInlineShell
                 messages={messages}
                 pendingMessage={pendingMessage}
                 streamingContent={streamingContent}
                 isLoading={isLoading}
+                sendSource={sendSource}
                 onSendMessage={(content) =>
                   handleSendMessage(content, sectionIndex, segmentIndex)
                 }
                 onRetryMessage={handleRetryMessage}
                 scrollToResponse
                 activated
+                hasActiveInput={true}
               />
             )}
-          </div>
+          </div>,
         );
       }
 
@@ -1117,465 +1359,636 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }
 
   return (
-    <div className="min-h-dvh bg-white overflow-x-clip">
-      <ModuleHeader
-        moduleTitle={module.title}
-        stages={stages}
-        completedStages={completedSections}
-        currentSectionIndex={currentSectionIndex}
-        canGoPrevious={!testModeActive && currentSectionIndex > 0}
-        canGoNext={
-          !testModeActive && currentSectionIndex < module.sections.length - 1
-        }
-        onStageClick={handleStageClick}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onMenuToggle={() => drawerRef.current?.toggle()}
-        testModeActive={testModeActive}
-      />
-
-      {/* Main content - padding-top accounts for fixed header */}
-      <main className="pt-[var(--module-header-height)]">
-        {module.sections.map((section, sectionIndex) => {
-          // In paginated mode, only render current section
-          if (
-            viewMode === "paginated" &&
-            sectionIndex !== currentSectionIndex
-          ) {
-            return null;
+    <div
+      ref={setScrollEl}
+      className="h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[border-right-width] duration-300 ease-in-out box-border"
+    >
+      <ScrollContainerContext.Provider value={scrollEl}>
+        <ModuleHeader
+          moduleTitle={module.title}
+          stages={stages}
+          completedStages={completedSections}
+          currentSectionIndex={currentSectionIndex}
+          canGoPrevious={!testModeActive && currentSectionIndex > 0}
+          canGoNext={
+            !testModeActive && currentSectionIndex < module.sections.length - 1
           }
+          onStageClick={handleStageClick}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onMenuToggle={() => drawerRef.current?.toggle()}
+          testModeActive={testModeActive}
+        />
 
-          const breakdown = computeDurationBreakdown(section);
-          const sectionDur = breakdown.total > 0 ? breakdown : undefined;
-
-          return (
+        {/* Layout: content + optional chat sidebar (TOC uses absolute positioning via ArticleExcerptGroup) */}
+        <div className="pt-[var(--module-header-height)]">
+          <main className="w-full min-w-0">
             <div
-              key={sectionIndex}
-              ref={(el) => {
-                if (el) sectionRefs.current.set(sectionIndex, el);
-              }}
-              data-section-index={sectionIndex}
-              className="py-8"
+              className={`relative ${isArticleSection ? "max-w-content-padded article-toc-margin" : ""}`}
             >
-              {section.type === "text" ? (
-                <>
-                  <SectionDivider
-                    type="article"
-                    title={`Section ${sectionIndex + 1}`}
-                    duration={sectionDur}
-                  />
-                  <AuthoredText content={section.content} />
-                </>
-              ) : section.type === "page" ? (
-                // v2 Page section: text/chat segments only, no embedded content
-                <>
-                  <SectionDivider
-                    type="page"
-                    title={section.meta?.title || `Page ${sectionIndex + 1}`}
-                    duration={sectionDur}
-                  />
-                  {section.segments?.map((segment, segmentIndex) =>
-                    renderSegment(segment, section, sectionIndex, segmentIndex),
-                  )}
-                </>
-              ) : section.type === "chat" ? (
-                <>
-                  <SectionDivider
-                    type="chat"
-                    title={section.meta?.title}
-                    duration={sectionDur}
-                  />
-                  <NarrativeChatSection
-                    messages={messages}
-                    pendingMessage={pendingMessage}
-                    streamingContent={streamingContent}
-                    isLoading={isLoading}
-                    onSendMessage={(content) =>
-                      handleSendMessage(content, sectionIndex, 0)
-                    }
-                    onRetryMessage={handleRetryMessage}
-                  />
-                </>
-              ) : section.type === "lens-video" ? (
-                // v2 Lens Video section: video content with optional text/chat segments
-                <>
-                  <SectionDivider
-                    type="lens-video"
-                    optional={section.optional}
-                    title={section.meta?.title}
-                    duration={sectionDur}
-                  />
-                  {/* Render segments (text, video-excerpt, chat) */}
-                  {section.segments?.map((segment, segmentIndex) =>
-                    renderSegment(segment, section, sectionIndex, segmentIndex),
-                  )}
-                </>
-              ) : section.type === "lens-article" ? (
-                // v2 Lens Article section: article content with optional text/chat segments
-                <>
-                  <SectionDivider
-                    type="lens-article"
-                    optional={section.optional}
-                    title={section.meta?.title}
-                    duration={sectionDur}
-                  />
-                  <ArticleSectionWrapper>
-                    {(() => {
-                      // Split segments into pre-excerpt, excerpt, post-excerpt groups
-                      const segments = section.segments ?? [];
-                      const firstExcerptIdx = segments.findIndex(
-                        (s) => s.type === "article-excerpt",
-                      );
-                      const lastExcerptIdx = segments.reduceRight(
-                        (found, s, i) =>
-                          found === -1 && s.type === "article-excerpt"
-                            ? i
-                            : found,
-                        -1,
-                      );
+              {module.sections.map((section, sectionIndex) => {
+                // In paginated mode, only render current section
+                if (
+                  viewMode === "paginated" &&
+                  sectionIndex !== currentSectionIndex
+                ) {
+                  return null;
+                }
 
-                      // If no excerpts, render all segments normally
-                      if (firstExcerptIdx === -1) {
-                        return segments.map((segment, segmentIndex) =>
+                const breakdown = computeDurationBreakdown(section);
+                const sectionDur = breakdown.total > 0 ? breakdown : undefined;
+
+                return (
+                  <div
+                    key={sectionIndex}
+                    ref={(el) => {
+                      if (el) sectionRefs.current.set(sectionIndex, el);
+                    }}
+                    data-section-index={sectionIndex}
+                    className="py-8"
+                  >
+                    {section.type === "text" ? (
+                      <>
+                        <SectionDivider
+                          type="article"
+                          title={`Section ${sectionIndex + 1}`}
+                          duration={sectionDur}
+                        />
+                        <AuthoredText content={section.content} />
+                      </>
+                    ) : section.type === "page" ? (
+                      // v2 Page section: text/chat segments only, no embedded content
+                      <>
+                        <SectionDivider
+                          type="page"
+                          title={
+                            section.meta?.title || `Page ${sectionIndex + 1}`
+                          }
+                          duration={sectionDur}
+                        />
+                        {(() => {
+                          const segs = section.segments ?? [];
+                          const firstChatIdx = segs.findIndex(
+                            (s) => s.type === "chat",
+                          );
+                          if (firstChatIdx === -1) {
+                            return (
+                              <>
+                                {segs.map((seg, i) =>
+                                  renderSegment(seg, section, sectionIndex, i),
+                                )}
+                              </>
+                            );
+                          }
+                          const beforeChat = segs.slice(0, firstChatIdx);
+                          const fromChat = segs.slice(firstChatIdx);
+                          return (
+                            <>
+                              {beforeChat.map((seg, i) =>
+                                renderSegment(seg, section, sectionIndex, i),
+                              )}
+                              {fromChat.map((seg, i) =>
+                                renderSegment(
+                                  seg,
+                                  section,
+                                  sectionIndex,
+                                  firstChatIdx + i,
+                                ),
+                              )}
+                            </>
+                          );
+                        })()}
+                      </>
+                    ) : section.type === "chat" ? (
+                      <>
+                        <SectionDivider
+                          type="chat"
+                          title={section.meta?.title}
+                          duration={sectionDur}
+                        />
+                        <ChatInlineShell
+                          messages={messages}
+                          pendingMessage={pendingMessage}
+                          streamingContent={streamingContent}
+                          isLoading={isLoading}
+                          sendSource={sendSource}
+                          onSendMessage={(content) =>
+                            handleSendMessage(content, sectionIndex, 0)
+                          }
+                          onRetryMessage={handleRetryMessage}
+                          pillId="inline"
+                          sidebarAllowedRef={sidebarAllowedRef}
+                          sidebarAllowedListeners={sidebarAllowedListeners}
+                          sidebarRef={sidebarRef}
+                          hasActiveInput={
+                            activeSurface.type === "inline" &&
+                            activeSurface.sectionIndex === sectionIndex &&
+                            activeSurface.segmentIndex === 0
+                          }
+                          shellRef={(el) =>
+                            registerInlineRef(sectionIndex, 0, el)
+                          }
+                        />
+                      </>
+                    ) : section.type === "lens-video" ? (
+                      // v2 Lens Video section: video content with optional text/chat segments
+                      <>
+                        <SectionDivider
+                          type="lens-video"
+                          optional={section.optional}
+                          title={section.meta?.title}
+                          duration={sectionDur}
+                        />
+                        {/* Render segments (text, video-excerpt, chat) */}
+                        {section.segments?.map((segment, segmentIndex) =>
                           renderSegment(
                             segment,
                             section,
                             sectionIndex,
                             segmentIndex,
                           ),
+                        )}
+                      </>
+                    ) : section.type === "lens-article" ? (
+                      // v2 Lens Article section: article content with optional text/chat segments
+                      <>
+                        <SectionDivider
+                          type="lens-article"
+                          optional={section.optional}
+                          title={section.meta?.title}
+                          duration={sectionDur}
+                        />
+                        <ArticleSectionWrapper
+                          tocPortalContainer={null}
+                          hideToc={false}
+                        >
+                          {(() => {
+                            // Split segments into pre-excerpt, excerpt, post-excerpt groups
+                            const segments = section.segments ?? [];
+                            const firstExcerptIdx = segments.findIndex(
+                              (s) => s.type === "article-excerpt",
+                            );
+                            const lastExcerptIdx = segments.reduceRight(
+                              (found, s, i) =>
+                                found === -1 && s.type === "article-excerpt"
+                                  ? i
+                                  : found,
+                              -1,
+                            );
+
+                            // If no excerpts, render all segments then button
+                            if (firstExcerptIdx === -1) {
+                              return (
+                                <>
+                                  {segments.map((segment, segmentIndex) =>
+                                    renderSegment(
+                                      segment,
+                                      section,
+                                      sectionIndex,
+                                      segmentIndex,
+                                    ),
+                                  )}
+                                </>
+                              );
+                            }
+
+                            const preExcerpt = segments.slice(
+                              0,
+                              firstExcerptIdx,
+                            );
+                            const excerpts = segments.slice(
+                              firstExcerptIdx,
+                              lastExcerptIdx + 1,
+                            );
+                            const postExcerpt = segments.slice(
+                              lastExcerptIdx + 1,
+                            );
+                            return (
+                              <div>
+                                {/* Pre-excerpt content (intro, setup) */}
+                                {preExcerpt.map((segment, i) =>
+                                  renderSegment(
+                                    segment,
+                                    section,
+                                    sectionIndex,
+                                    i,
+                                  ),
+                                )}
+
+                                {/* Excerpt group with sticky TOC */}
+                                <ArticleExcerptGroup section={section}>
+                                  {excerpts.map((segment, i) =>
+                                    renderSegment(
+                                      segment,
+                                      section,
+                                      sectionIndex,
+                                      firstExcerptIdx + i,
+                                    ),
+                                  )}
+                                </ArticleExcerptGroup>
+
+                                {/* Post-excerpt content (reflection, chat) */}
+                                {postExcerpt.map((segment, i) =>
+                                  renderSegment(
+                                    segment,
+                                    section,
+                                    sectionIndex,
+                                    lastExcerptIdx + 1 + i,
+                                  ),
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </ArticleSectionWrapper>
+                      </>
+                    ) : section.type === "article" ? (
+                      // v1 Article section
+                      <>
+                        <SectionDivider
+                          type="article"
+                          optional={section.optional}
+                          title={section.meta?.title}
+                          duration={sectionDur}
+                        />
+                        <ArticleSectionWrapper
+                          tocPortalContainer={null}
+                          hideToc={false}
+                        >
+                          {(() => {
+                            // Split segments into pre-excerpt, excerpt, post-excerpt groups
+                            const segments = section.segments ?? [];
+                            const firstExcerptIdx = segments.findIndex(
+                              (s) => s.type === "article-excerpt",
+                            );
+                            const lastExcerptIdx = segments.reduceRight(
+                              (found, s, i) =>
+                                found === -1 && s.type === "article-excerpt"
+                                  ? i
+                                  : found,
+                              -1,
+                            );
+
+                            // If no excerpts, render all segments then button
+                            if (firstExcerptIdx === -1) {
+                              return (
+                                <>
+                                  {segments.map((segment, segmentIndex) =>
+                                    renderSegment(
+                                      segment,
+                                      section,
+                                      sectionIndex,
+                                      segmentIndex,
+                                    ),
+                                  )}
+                                </>
+                              );
+                            }
+
+                            const preExcerpt = segments.slice(
+                              0,
+                              firstExcerptIdx,
+                            );
+                            const excerpts = segments.slice(
+                              firstExcerptIdx,
+                              lastExcerptIdx + 1,
+                            );
+                            const postExcerpt = segments.slice(
+                              lastExcerptIdx + 1,
+                            );
+                            return (
+                              <div>
+                                {/* Pre-excerpt content (intro, setup) */}
+                                {preExcerpt.map((segment, i) =>
+                                  renderSegment(
+                                    segment,
+                                    section,
+                                    sectionIndex,
+                                    i,
+                                  ),
+                                )}
+
+                                {/* Excerpt group with sticky TOC */}
+                                <ArticleExcerptGroup section={section}>
+                                  {excerpts.map((segment, i) =>
+                                    renderSegment(
+                                      segment,
+                                      section,
+                                      sectionIndex,
+                                      firstExcerptIdx + i,
+                                    ),
+                                  )}
+                                </ArticleExcerptGroup>
+
+                                {/* Post-excerpt content (reflection, chat) */}
+                                {postExcerpt.map((segment, i) =>
+                                  renderSegment(
+                                    segment,
+                                    section,
+                                    sectionIndex,
+                                    lastExcerptIdx + 1 + i,
+                                  ),
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </ArticleSectionWrapper>
+                      </>
+                    ) : section.type === "test" ? (
+                      // v2 Test section: grouped assessment questions
+                      (() => {
+                        const feedbackKey = `test-${sectionIndex}`;
+                        return (
+                          <>
+                            <TestSection
+                              section={section}
+                              moduleSlug={moduleId}
+                              sectionIndex={sectionIndex}
+                              isAuthenticated={isAuthenticated}
+                              onTestStart={() => setTestModeActive(true)}
+                              onTestTakingComplete={() =>
+                                setTestModeActive(false)
+                              }
+                              onMarkComplete={(response) =>
+                                handleMarkComplete(sectionIndex, response)
+                              }
+                              onFeedbackTrigger={
+                                section.feedback
+                                  ? (questionsAndAnswers) => {
+                                      setActiveFeedbackKey(feedbackKey);
+                                      const lines = questionsAndAnswers.map(
+                                        (qa, i) =>
+                                          `Question ${i + 1}: "${qa.question}"\nMy answer: "${qa.answer}"`,
+                                      );
+                                      handleSendMessage(
+                                        `I just completed a test. Here are the questions and my answers:\n\n${lines.join("\n\n")}\n\nCan you give me feedback on my answers?`,
+                                        sectionIndex,
+                                        0,
+                                      );
+                                    }
+                                  : undefined
+                              }
+                            />
+                            {section.feedback &&
+                              activeFeedbackKey === feedbackKey && (
+                                <>
+                                  <ChatInlineShell
+                                    messages={messages}
+                                    pendingMessage={pendingMessage}
+                                    streamingContent={streamingContent}
+                                    isLoading={isLoading}
+                                    sendSource={sendSource}
+                                    onSendMessage={(content) =>
+                                      handleSendMessage(
+                                        content,
+                                        sectionIndex,
+                                        0,
+                                      )
+                                    }
+                                    onRetryMessage={handleRetryMessage}
+                                    scrollToResponse
+                                    activated
+                                    hasActiveInput={true}
+                                  />
+                                  <div className="flex items-center justify-center py-6">
+                                    <button
+                                      onClick={() => {
+                                        const contentId = `test:${moduleId}:${sectionIndex}`;
+                                        markComplete(
+                                          {
+                                            content_id: contentId,
+                                            content_type: "test",
+                                            content_title:
+                                              section.meta?.title || "Test",
+                                            module_slug: moduleId,
+                                          },
+                                          isAuthenticated,
+                                        )
+                                          .then((response) =>
+                                            handleMarkComplete(
+                                              sectionIndex,
+                                              response,
+                                            ),
+                                          )
+                                          .catch(() =>
+                                            handleMarkComplete(sectionIndex),
+                                          );
+                                      }}
+                                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
+                                    >
+                                      Continue
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M9 5l7 7-7 7"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                          </>
                         );
-                      }
-
-                      const preExcerpt = segments.slice(0, firstExcerptIdx);
-                      const excerpts = segments.slice(
-                        firstExcerptIdx,
-                        lastExcerptIdx + 1,
-                      );
-                      const postExcerpt = segments.slice(lastExcerptIdx + 1);
-
-                      return (
-                        <div className="max-w-content-padded mx-auto article-toc-margin">
-                          {/* Pre-excerpt content (intro, setup) */}
-                          {preExcerpt.map((segment, i) =>
-                            renderSegment(segment, section, sectionIndex, i),
-                          )}
-
-                          {/* Excerpt group with sticky TOC */}
-                          <ArticleExcerptGroup section={section}>
-                            {excerpts.map((segment, i) =>
-                              renderSegment(
-                                segment,
-                                section,
-                                sectionIndex,
-                                firstExcerptIdx + i,
-                              ),
-                            )}
-                          </ArticleExcerptGroup>
-
-                          {/* Post-excerpt content (reflection, chat) */}
-                          {postExcerpt.map((segment, i) =>
+                      })()
+                    ) : (
+                      // v1 Video section and fallback
+                      <>
+                        <SectionDivider
+                          type={section.type}
+                          optional={
+                            "optional" in section ? section.optional : false
+                          }
+                          title={
+                            "meta" in section ? section.meta?.title : undefined
+                          }
+                          duration={sectionDur}
+                        />
+                        {"segments" in section &&
+                          section.segments?.map((segment, segmentIndex) =>
                             renderSegment(
                               segment,
                               section,
                               sectionIndex,
-                              lastExcerptIdx + 1 + i,
+                              segmentIndex,
                             ),
                           )}
-                        </div>
-                      );
-                    })()}
-                  </ArticleSectionWrapper>
-                </>
-              ) : section.type === "article" ? (
-                // v1 Article section
-                <>
-                  <SectionDivider
-                    type="article"
-                    optional={section.optional}
-                    title={section.meta?.title}
-                    duration={sectionDur}
-                  />
-                  <ArticleSectionWrapper>
-                    {(() => {
-                      // Split segments into pre-excerpt, excerpt, post-excerpt groups
-                      const segments = section.segments ?? [];
-                      const firstExcerptIdx = segments.findIndex(
-                        (s) => s.type === "article-excerpt",
-                      );
-                      const lastExcerptIdx = segments.reduceRight(
-                        (found, s, i) =>
-                          found === -1 && s.type === "article-excerpt"
-                            ? i
-                            : found,
-                        -1,
-                      );
-
-                      // If no excerpts, render all segments normally
-                      if (firstExcerptIdx === -1) {
-                        return segments.map((segment, segmentIndex) =>
-                          renderSegment(
-                            segment,
-                            section,
-                            sectionIndex,
-                            segmentIndex,
-                          ),
-                        );
-                      }
-
-                      const preExcerpt = segments.slice(0, firstExcerptIdx);
-                      const excerpts = segments.slice(
-                        firstExcerptIdx,
-                        lastExcerptIdx + 1,
-                      );
-                      const postExcerpt = segments.slice(lastExcerptIdx + 1);
-
-                      return (
-                        <div className="max-w-content-padded mx-auto article-toc-margin">
-                          {/* Pre-excerpt content (intro, setup) */}
-                          {preExcerpt.map((segment, i) =>
-                            renderSegment(segment, section, sectionIndex, i),
-                          )}
-
-                          {/* Excerpt group with sticky TOC */}
-                          <ArticleExcerptGroup section={section}>
-                            {excerpts.map((segment, i) =>
-                              renderSegment(
-                                segment,
-                                section,
-                                sectionIndex,
-                                firstExcerptIdx + i,
-                              ),
-                            )}
-                          </ArticleExcerptGroup>
-
-                          {/* Post-excerpt content (reflection, chat) */}
-                          {postExcerpt.map((segment, i) =>
-                            renderSegment(
-                              segment,
-                              section,
-                              sectionIndex,
-                              lastExcerptIdx + 1 + i,
-                            ),
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </ArticleSectionWrapper>
-                </>
-              ) : section.type === "test" ? (
-                // v2 Test section: grouped assessment questions
-                (() => {
-                  const feedbackKey = `test-${sectionIndex}`;
-                  return (
-                    <>
-                      <TestSection
-                        section={section}
-                        moduleSlug={moduleId}
-                        sectionIndex={sectionIndex}
-                        isAuthenticated={isAuthenticated}
-                        onTestStart={() => setTestModeActive(true)}
-                        onTestTakingComplete={() => setTestModeActive(false)}
-                        onMarkComplete={(response) =>
+                      </>
+                    )}
+                    {section.type !== "test" && (
+                      <MarkCompleteButton
+                        isCompleted={completedSections.has(sectionIndex)}
+                        onComplete={(response) =>
                           handleMarkComplete(sectionIndex, response)
                         }
-                        onFeedbackTrigger={
-                          section.feedback
-                            ? (questionsAndAnswers) => {
-                                setActiveFeedbackKey(feedbackKey);
-                                const lines = questionsAndAnswers.map(
-                                  (qa, i) =>
-                                    `Question ${i + 1}: "${qa.question}"\nMy answer: "${qa.answer}"`,
-                                );
-                                handleSendMessage(
-                                  `I just completed a test. Here are the questions and my answers:\n\n${lines.join("\n\n")}\n\nCan you give me feedback on my answers?`,
-                                  sectionIndex,
-                                  0,
-                                );
-                              }
-                            : undefined
+                        onNext={handleNext}
+                        hasNext={sectionIndex < module.sections.length - 1}
+                        contentId={section.contentId ?? undefined}
+                        contentType="lens"
+                        contentTitle={
+                          section.type === "text"
+                            ? `Section ${sectionIndex + 1}`
+                            : section.type === "page"
+                              ? section.meta?.title ||
+                                `Page ${sectionIndex + 1}`
+                              : "meta" in section
+                                ? section.meta?.title ||
+                                  `${section.type || "Section"} ${sectionIndex + 1}`
+                                : `${section.type || "Section"} ${sectionIndex + 1}`
+                        }
+                        moduleSlug={moduleId}
+                        buttonText={getCompletionButtonText(
+                          section,
+                          sectionIndex,
+                        )}
+                        isShort={getSectionTextLength(section) < 1750}
+                        chatGated={
+                          ("segments" in section &&
+                            section.segments?.some((s) => s.type === "chat") &&
+                            !chatInteractedSections.has(sectionIndex)) ||
+                          false
                         }
                       />
-                      {section.feedback &&
-                        activeFeedbackKey === feedbackKey && (
-                          <>
-                            <NarrativeChatSection
-                              messages={messages}
-                              pendingMessage={pendingMessage}
-                              streamingContent={streamingContent}
-                              isLoading={isLoading}
-                              onSendMessage={(content) =>
-                                handleSendMessage(content, sectionIndex, 0)
-                              }
-                              onRetryMessage={handleRetryMessage}
-                              scrollToResponse
-                              activated
-                            />
-                            <div className="flex items-center justify-center py-6">
-                              <button
-                                onClick={() => {
-                                  const contentId = `test:${moduleId}:${sectionIndex}`;
-                                  markComplete(
-                                    {
-                                      content_id: contentId,
-                                      content_type: "test",
-                                      content_title:
-                                        section.meta?.title || "Test",
-                                      module_slug: moduleId,
-                                    },
-                                    isAuthenticated,
-                                  )
-                                    .then((response) =>
-                                      handleMarkComplete(
-                                        sectionIndex,
-                                        response,
-                                      ),
-                                    )
-                                    .catch(() =>
-                                      handleMarkComplete(sectionIndex),
-                                    );
-                                }}
-                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
-                              >
-                                Continue
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M9 5l7 7-7 7"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                          </>
-                        )}
-                    </>
-                  );
-                })()
-              ) : (
-                // v1 Video section and fallback
-                <>
-                  <SectionDivider
-                    type={section.type}
-                    optional={"optional" in section ? section.optional : false}
-                    title={"meta" in section ? section.meta?.title : undefined}
-                    duration={sectionDur}
-                  />
-                  {"segments" in section &&
-                    section.segments?.map((segment, segmentIndex) =>
-                      renderSegment(
-                        segment,
-                        section,
-                        sectionIndex,
-                        segmentIndex,
-                      ),
                     )}
-                </>
-              )}
-              {section.type !== "test" && (
-                <MarkCompleteButton
-                  isCompleted={completedSections.has(sectionIndex)}
-                  onComplete={(response) =>
-                    handleMarkComplete(sectionIndex, response)
+                    {/* Last section completed: show course navigation */}
+                    {sectionIndex === module.sections.length - 1 &&
+                      completedSections.has(sectionIndex) &&
+                      courseId && (
+                        <div className="flex justify-center pb-12">
+                          <a
+                            href={`/course/${courseId}`}
+                            className="flex items-center gap-2 px-5 py-2.5 text-stone-600 hover:text-stone-900 border border-stone-300 hover:border-stone-400 rounded-lg transition-colors font-medium"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 19l-7-7 7-7"
+                              />
+                            </svg>
+                            Back to Course Overview
+                          </a>
+                        </div>
+                      )}
+                  </div>
+                );
+              })}
+
+              {/* Chat sidebar: fixed-positioned on desktop, handles its own layout */}
+              {currentSection != null && (
+                <ChatSidebar
+                  ref={sidebarRef}
+                  sectionTitle={currentSection?.meta?.title}
+                  messages={messages}
+                  pendingMessage={
+                    sendSource !== "inline" ? pendingMessage : null
                   }
-                  onNext={handleNext}
-                  hasNext={sectionIndex < module.sections.length - 1}
-                  contentId={section.contentId ?? undefined}
-                  contentType="lens"
-                  contentTitle={
-                    section.type === "text"
-                      ? `Section ${sectionIndex + 1}`
-                      : section.type === "page"
-                        ? section.meta?.title || `Page ${sectionIndex + 1}`
-                        : "meta" in section
-                          ? section.meta?.title ||
-                            `${section.type || "Section"} ${sectionIndex + 1}`
-                          : `${section.type || "Section"} ${sectionIndex + 1}`
+                  streamingContent={
+                    sendSource !== "inline" ? streamingContent : ""
                   }
-                  moduleSlug={moduleId}
-                  buttonText={getCompletionButtonText(section, sectionIndex)}
-                  isShort={getSectionTextLength(section) < 1750}
+                  isLoading={sendSource !== "inline" ? isLoading : false}
+                  onSendMessage={(content) =>
+                    handleSendMessage(
+                      content,
+                      currentSectionIndex,
+                      currentSegmentIndexRef.current,
+                      "sidebar",
+                    )
+                  }
+                  onRetryMessage={handleRetryMessage}
                 />
               )}
-              {/* Last section completed: show course navigation */}
-              {sectionIndex === module.sections.length - 1 &&
-                completedSections.has(sectionIndex) &&
-                courseId && (
-                  <div className="flex justify-center pb-12">
-                    <a
-                      href={`/course/${courseId}`}
-                      className="flex items-center gap-2 px-5 py-2.5 text-stone-600 hover:text-stone-900 border border-stone-300 hover:border-stone-400 rounded-lg transition-colors font-medium"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 19l-7-7 7-7"
-                        />
-                      </svg>
-                      Back to Course Overview
-                    </a>
-                  </div>
-                )}
             </div>
-          );
-        })}
-      </main>
+            {/* /relative article wrapper */}
+          </main>
+        </div>
+        {/* /layout wrapper */}
 
-      <ModuleDrawer
-        ref={drawerRef}
-        moduleTitle={module.title}
-        stages={stagesForDrawer}
-        completedStages={completedSections}
-        currentSectionIndex={currentSectionIndex}
-        onStageClick={handleStageClick}
-        courseId={courseId}
-        courseTitle={courseProgress?.course.title}
-        testModeActive={testModeActive}
-      />
+        <ModuleDrawer
+          ref={drawerRef}
+          moduleTitle={module.title}
+          stages={stagesForDrawer}
+          completedStages={completedSections}
+          currentSectionIndex={currentSectionIndex}
+          onStageClick={handleStageClick}
+          courseId={courseId}
+          courseTitle={courseProgress?.course.title}
+          testModeActive={testModeActive}
+        />
 
-      <ModuleCompleteModal
-        isOpen={
-          isModuleComplete &&
-          !completionModalDismissed &&
-          !wasCompleteOnLoad.current
-        }
-        moduleTitle={module.title}
-        courseId={courseContext?.courseId}
-        isInSignupsTable={isInSignupsTable}
-        isInActiveGroup={isInActiveGroup}
-        nextModule={
-          moduleCompletionResult?.type === "next_module"
-            ? {
-                slug: moduleCompletionResult.slug,
-                title: moduleCompletionResult.title,
-              }
-            : null
-        }
-        completedUnit={
-          moduleCompletionResult?.type === "unit_complete"
-            ? moduleCompletionResult.unitNumber
-            : null
-        }
-        onClose={() => setCompletionModalDismissed(true)}
-      />
+        <ModuleCompleteModal
+          isOpen={
+            isModuleComplete &&
+            !completionModalDismissed &&
+            !wasCompleteOnLoad.current
+          }
+          moduleTitle={module.title}
+          courseId={courseContext?.courseId}
+          isInSignupsTable={isInSignupsTable}
+          isInActiveGroup={isInActiveGroup}
+          nextModule={
+            moduleCompletionResult?.type === "next_module"
+              ? {
+                  slug: moduleCompletionResult.slug,
+                  title: moduleCompletionResult.title,
+                }
+              : null
+          }
+          completedUnit={
+            moduleCompletionResult?.type === "unit_complete"
+              ? moduleCompletionResult.unitNumber
+              : null
+          }
+          onClose={() => setCompletionModalDismissed(true)}
+        />
 
-      <AuthPromptModal
-        isOpen={showAuthPrompt}
-        onLogin={login}
-        onDismiss={() => setShowAuthPrompt(false)}
-      />
+        <SectionChoiceModal
+          isOpen={sectionChoiceOpen}
+          completedTitle={completedSectionTitle}
+          choices={sectionChoices}
+          onChoose={(index) => {
+            setSectionChoiceOpen(false);
+            setCurrentSectionIndex(index);
+          }}
+          onDismiss={() => {
+            setSectionChoiceOpen(false);
+            // Skip to next required section, or advance by 1
+            const nextRequired = sectionChoices.find((c) => !c.optional);
+            setCurrentSectionIndex(
+              nextRequired ? nextRequired.index : currentSectionIndex + 1,
+            );
+          }}
+        />
+
+        <AuthPromptModal
+          isOpen={showAuthPrompt}
+          onLogin={login}
+          onDismiss={() => setShowAuthPrompt(false)}
+        />
+
+        {/* Debug overlay — ?debug query param. Separate component so its
+          re-renders (driven by scroll) don't touch Module. */}
+        {isDebugMode && currentSection && (
+          <DebugOverlay
+            currentSection={currentSection}
+            currentSectionIndex={currentSectionIndex}
+            sidebarChatSegmentIndex={sidebarChatSegmentIndex}
+            segmentIndexRef={currentSegmentIndexRef}
+            listeners={segmentIndexListeners}
+          />
+        )}
+      </ScrollContainerContext.Provider>
     </div>
   );
 }
