@@ -106,6 +106,7 @@ export function ChatInlineShell({
   const activeScrollToResponse = scrollToResponse && !userSentFollowup;
 
   const minHeightWrapperRef = useRef<HTMLDivElement>(null);
+  const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -137,9 +138,11 @@ export function ChatInlineShell({
     }
 
     // Default: scroll to the user's message at the top
-    if (minHeightWrapperRef.current) {
+    // Use scrollAnchorRef to skip past any leading system messages in the wrapper
+    const scrollTarget = scrollAnchorRef.current || minHeightWrapperRef.current;
+    if (scrollTarget) {
       scrollAnimStartRef.current = Date.now();
-      minHeightWrapperRef.current.scrollIntoView({
+      scrollTarget.scrollIntoView({
         block: "start",
         behavior: scrollBehavior,
       });
@@ -244,6 +247,23 @@ export function ChatInlineShell({
     : Math.max(0, minHeightWrapperStartIdx - recentMessagesStartIdx);
   const previousMessages = displayMessages.slice(0, adjustedWrapperStart);
   const wrapperMessages = displayMessages.slice(adjustedWrapperStart);
+
+  // Re-scroll after SEND_SUCCESS inserts system messages (runs before paint)
+  const wasLoadingRef = useRef(false);
+  useLayoutEffect(() => {
+    const justFinished = wasLoadingRef.current && !isLoading;
+    wasLoadingRef.current = isLoading;
+    if (!justFinished || !scrollAnchorRef.current) return;
+    // Only re-scroll if system messages were inserted at wrapper start
+    if (wrapperMessages.length === 0 || wrapperMessages[0]?.role !== "system")
+      return;
+    if (!hasActiveInput || sendSource === "sidebar") return;
+    scrollAnimStartRef.current = Date.now();
+    scrollAnchorRef.current.scrollIntoView({
+      block: "start",
+      behavior: "instant",
+    });
+  }, [isLoading, wrapperMessages, hasActiveInput, sendSource]);
 
   const showPending = hasInteracted && !!pendingMessage;
   const showStreaming = hasInteracted && isLoading && !!streamingContent;
@@ -404,9 +424,22 @@ export function ChatInlineShell({
             >
               <div className="space-y-4 max-w-content mx-auto w-full">
                 {/* Messages in current exchange (user + completed assistant) */}
-                {wrapperMessages.map((msg, i) =>
-                  renderMessage(msg, `current-${i}`),
-                )}
+                {(() => {
+                  const firstNonSystem = wrapperMessages.findIndex(
+                    (m) => m.role !== "system",
+                  );
+                  return wrapperMessages.map((msg, i) => (
+                    <Fragment key={`current-${i}`}>
+                      {i === firstNonSystem && (
+                        <div
+                          ref={scrollAnchorRef}
+                          style={{ scrollMarginTop: scrollMargin }}
+                        />
+                      )}
+                      {renderMessage(msg, `current-${i}`)}
+                    </Fragment>
+                  ));
+                })()}
 
                 {/* Pending user message */}
                 {showPending && (

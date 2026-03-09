@@ -188,6 +188,16 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       });
     }, [pendingMessage, scrollContainerHeight]);
 
+    // Scroll to bottom after streaming finishes (before paint — no flash)
+    const wasLoadingRef = useRef(false);
+    useLayoutEffect(() => {
+      const justFinished = wasLoadingRef.current && !isLoading;
+      wasLoadingRef.current = isLoading;
+      if (!justFinished || !scrollContainerRef.current) return;
+      const container = scrollContainerRef.current;
+      container.scrollTop = container.scrollHeight;
+    }, [isLoading]);
+
     // Auto-scroll to bottom during streaming when near bottom
     useEffect(() => {
       if (scrollContainerRef.current && isOpen) {

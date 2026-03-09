@@ -94,9 +94,18 @@ export function ChatMessageList({
 }: ChatMessageListProps) {
   const visibleMessages = messages.slice(startIndex);
   const useWrapper = wrapperStartIdx != null;
-  const splitAt = useWrapper
+  let splitAt = useWrapper
     ? wrapperStartIdx - startIndex
     : visibleMessages.length;
+  // Skip system messages at the split point so they stay above the wrapper
+  if (useWrapper) {
+    while (
+      splitAt < visibleMessages.length &&
+      visibleMessages[splitAt]?.role === "system"
+    ) {
+      splitAt++;
+    }
+  }
 
   const pendingEl = pendingMessage && (
     <div
