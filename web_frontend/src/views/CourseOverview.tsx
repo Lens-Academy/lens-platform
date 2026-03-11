@@ -204,7 +204,8 @@ export default function CourseOverview({
           ${shouldHideHeader ? "-translate-y-full" : "translate-y-0"}
         `}
         style={{
-          backgroundColor: "color-mix(in srgb, var(--brand-bg) 80%, transparent)",
+          backgroundColor:
+            "color-mix(in srgb, var(--brand-bg) 80%, transparent)",
           borderColor: "var(--brand-border)",
           fontFamily: "var(--brand-font-body)",
         }}
@@ -219,7 +220,10 @@ export default function CourseOverview({
                   className="p-2 -ml-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-black/5 rounded-lg transition-colors"
                   aria-label="Open course menu"
                 >
-                  <Menu className="w-5 h-5" style={{ color: "var(--brand-text-muted)" }} />
+                  <Menu
+                    className="w-5 h-5"
+                    style={{ color: "var(--brand-text-muted)" }}
+                  />
                 </button>
               )}
               <a href="/" className="flex items-center gap-2">
@@ -230,7 +234,10 @@ export default function CourseOverview({
                 />
                 <span
                   className="text-xl font-medium"
-                  style={{ color: "var(--brand-text)", fontFamily: "var(--brand-font-display)" }}
+                  style={{
+                    color: "var(--brand-text)",
+                    fontFamily: "var(--brand-font-display)",
+                  }}
                 >
                   Lens Academy
                 </span>
@@ -293,9 +300,15 @@ export default function CourseOverview({
               {/* Drawer header with close button */}
               <div
                 className="flex items-center justify-between p-4 border-b"
-                style={{ borderColor: "var(--brand-border)", backgroundColor: "var(--brand-bg)" }}
+                style={{
+                  borderColor: "var(--brand-border)",
+                  backgroundColor: "var(--brand-bg)",
+                }}
               >
-                <span className="font-semibold" style={{ color: "var(--brand-text)" }}>
+                <span
+                  className="font-semibold"
+                  style={{ color: "var(--brand-text)" }}
+                >
                   Course Menu
                 </span>
                 <button
@@ -303,7 +316,10 @@ export default function CourseOverview({
                   className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-black/5 rounded-lg transition-colors"
                   aria-label="Close menu"
                 >
-                  <X className="w-5 h-5" style={{ color: "var(--brand-text-muted)" }} />
+                  <X
+                    className="w-5 h-5"
+                    style={{ color: "var(--brand-text-muted)" }}
+                  />
                 </button>
               </div>
               {/* Sidebar content */}

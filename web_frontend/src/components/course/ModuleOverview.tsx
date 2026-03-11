@@ -121,7 +121,10 @@ export default function ModuleOverview({
       >
         {/* Hover background — absolutely positioned at z-auto, paints below z-[1]+ elements */}
         {isClickable && (
-          <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: "var(--brand-bg)" }} />
+          <div
+            className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ backgroundColor: "var(--brand-bg)" }}
+          />
         )}
         {/* Circle */}
         <div
@@ -221,14 +224,30 @@ export default function ModuleOverview({
           <p className="text-sm text-slate-500 mb-1">{parentTitle} ›</p>
         )}
         <div className="flex items-start justify-between gap-4">
-          <h2 className="text-2xl font-bold" style={{ color: "var(--brand-text)", fontFamily: "var(--brand-font-display)" }}>{moduleTitle}</h2>
+          <h2
+            className="text-2xl font-bold"
+            style={{
+              color: "var(--brand-text)",
+              fontFamily: "var(--brand-font-display)",
+            }}
+          >
+            {moduleTitle}
+          </h2>
           {showActions && onStartModule && (
             <button
               onClick={onStartModule}
               className="px-5 py-1.5 text-sm font-semibold rounded-lg transition-colors shrink-0"
-              style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-accent-text)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--brand-accent-hover)")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--brand-accent)")}
+              style={{
+                backgroundColor: "var(--brand-accent)",
+                color: "var(--brand-accent-text)",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor =
+                  "var(--brand-accent-hover)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "var(--brand-accent)")
+              }
             >
               {getActionLabel()}
             </button>
@@ -240,7 +259,10 @@ export default function ModuleOverview({
           totalLenses !== undefined &&
           totalLenses > 0 && (
             <div className="mt-2 flex items-center gap-2">
-              <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--brand-border)" }}>
+              <div
+                className="flex-1 h-2 rounded-full overflow-hidden"
+                style={{ backgroundColor: "var(--brand-border)" }}
+              >
                 <div
                   className="h-full bg-lens-gold-400 rounded-full transition-all"
                   style={{
@@ -461,7 +483,6 @@ export default function ModuleOverview({
           })}
         </div>
       </div>
-
     </div>
   );
 }

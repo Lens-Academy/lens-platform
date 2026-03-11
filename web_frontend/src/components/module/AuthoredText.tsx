@@ -36,10 +36,14 @@ export default function AuthoredText({ content }: AuthoredTextProps) {
             ),
             // Headings
             h2: ({ children }) => (
-              <h2 className="text-xl font-bold mt-6 mb-3 font-display">{children}</h2>
+              <h2 className="text-xl font-bold mt-6 mb-3 font-display">
+                {children}
+              </h2>
             ),
             h3: ({ children }) => (
-              <h3 className="text-lg font-bold mt-5 mb-2 font-display">{children}</h3>
+              <h3 className="text-lg font-bold mt-5 mb-2 font-display">
+                {children}
+              </h3>
             ),
             // Paragraphs
             p: ({ children }) => (
@@ -63,7 +67,10 @@ export default function AuthoredText({ content }: AuthoredTextProps) {
             em: ({ children }) => <em className="italic">{children}</em>,
             // Blockquotes
             blockquote: ({ children }) => (
-              <blockquote className="not-prose border-l-3 pl-4 my-4 text-gray-800 [&>p]:mb-0" style={{ borderColor: "var(--brand-border)" }}>
+              <blockquote
+                className="not-prose border-l-3 pl-4 my-4 text-gray-800 [&>p]:mb-0"
+                style={{ borderColor: "var(--brand-border)" }}
+              >
                 {children}
               </blockquote>
             ),

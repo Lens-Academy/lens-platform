@@ -245,10 +245,27 @@ export default function CourseTimeline({
   };
 
   return (
-    <div className="h-full flex flex-col border-r" style={{ backgroundColor: "var(--brand-bg)", borderColor: "var(--brand-border)" }}>
+    <div
+      className="h-full flex flex-col border-r"
+      style={{
+        backgroundColor: "var(--brand-bg)",
+        borderColor: "var(--brand-border)",
+      }}
+    >
       {/* Course title */}
-      <div className="p-4 border-b" style={{ borderColor: "var(--brand-border)" }}>
-        <h1 className="text-xl font-bold" style={{ color: "var(--brand-text)", fontFamily: "var(--brand-font-display)" }}>{courseTitle}</h1>
+      <div
+        className="p-4 border-b"
+        style={{ borderColor: "var(--brand-border)" }}
+      >
+        <h1
+          className="text-xl font-bold"
+          style={{
+            color: "var(--brand-text)",
+            fontFamily: "var(--brand-font-display)",
+          }}
+        >
+          {courseTitle}
+        </h1>
       </div>
 
       {/* Timeline */}
@@ -275,7 +292,10 @@ export default function CourseTimeline({
             return (
               <div key={unitIdx}>
                 {unitIdx > 0 && (
-                  <div className="border-t my-1 mx-2" style={{ borderColor: "var(--brand-border)" }} />
+                  <div
+                    className="border-t my-1 mx-2"
+                    style={{ borderColor: "var(--brand-border)" }}
+                  />
                 )}
                 <div className="relative transition-all duration-200">
                   {/* Unit header row */}
@@ -441,9 +461,7 @@ function renderUnitModules(
           <button
             onClick={() => toggleParent(parentSlug)}
             className={`relative w-full flex items-center py-1.5 group text-left px-2 rounded-lg ${
-              anyChildSelected && !isParentExpanded
-                ? "bg-[#f0ece4]"
-                : ""
+              anyChildSelected && !isParentExpanded ? "bg-[#f0ece4]" : ""
             }`}
           >
             <div className="flex-1 min-w-0">
@@ -545,9 +563,7 @@ function renderUnitModules(
           key={mod.slug}
           onClick={() => onModuleSelect(mod)}
           className={`relative w-full flex items-center py-1.5 text-left group transition-colors px-2 rounded-lg ${
-            isSelected
-              ? "bg-[#f0ece4]"
-              : "hover:bg-[var(--brand-border)]/30"
+            isSelected ? "bg-[#f0ece4]" : "hover:bg-[var(--brand-border)]/30"
           }`}
         >
           <div className="flex-1 min-w-0">

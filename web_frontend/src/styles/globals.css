@@ -17,7 +17,8 @@
 
 /* Newsreader baseline correction — nudge down to align with DM Sans.
    Applied globally so every element using this font family is fixed. */
-[style*="Newsreader"], .font-display {
+[style*="Newsreader"],
+.font-display {
   transform: translateY(0.13em);
   display: inline-block;
 }

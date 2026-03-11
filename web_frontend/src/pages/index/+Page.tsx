@@ -158,7 +158,8 @@ export default function LandingPage() {
             className="text-[2.25rem] sm:text-[3.5rem] lg:text-[4.25rem] leading-[1.08] tracking-tight mb-8"
             style={fontDisplay}
           >
-            Some of the smartest people alive are worried about AI. Understand why.
+            Some of the smartest people alive are worried about AI. Understand
+            why.
           </h1>
 
           <p
@@ -196,8 +197,7 @@ export default function LandingPage() {
                 color: "var(--landing-text)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor =
-                  "var(--landing-bg-alt)";
+                e.currentTarget.style.backgroundColor = "var(--landing-bg-alt)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = "transparent";
@@ -214,13 +214,11 @@ export default function LandingPage() {
             Get started in under 1 minute. Continue for as long as you like.
           </p>
           <p className="text-sm" style={{ color: "var(--landing-text-muted)" }}>
-            Free for you. Funded by people who believe AI Safety education should reach
-            everyone.
+            Free for you. Funded by people who believe AI Safety education
+            should reach everyone.
           </p>
         </div>
-
       </section>
-
 
       {/* ================================================================= */}
       {/* SCREENSHOT                                                        */}
@@ -249,7 +247,11 @@ export default function LandingPage() {
                 className="text-base leading-relaxed"
                 style={{ color: "var(--landing-text-muted)" }}
               >
-                Designed by a team with years of AI Safety experience and formal training in education. We&rsquo;re building a learning experience grounded in evidence-based principles&thinsp;&mdash;&thinsp;from the course design to the AI tutor.
+                Designed by a team with years of AI Safety experience and formal
+                training in education. We&rsquo;re building a learning
+                experience grounded in evidence-based
+                principles&thinsp;&mdash;&thinsp;from the course design to the
+                AI tutor.
               </p>
             </div>
           </div>
@@ -355,9 +357,10 @@ export default function LandingPage() {
                 className="text-base leading-relaxed mb-8 flex-1"
                 style={{ color: "var(--landing-text-muted)" }}
               >
-                The core arguments for why superintelligence poses an existential
-                risk, what makes alignment genuinely hard, and how to think about
-                what to do about it. Interactive, tutor-guided, and free.
+                The core arguments for why superintelligence poses an
+                existential risk, what makes alignment genuinely hard, and how
+                to think about what to do about it. Interactive, tutor-guided,
+                and free.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -424,9 +427,9 @@ export default function LandingPage() {
                 className="text-base leading-relaxed mb-8 flex-1"
                 style={{ color: "var(--landing-text-muted)" }}
               >
-                Read and discuss the book together with a cohort. Weekly sessions
-                exploring the arguments, evidence, and implications with fellow
-                students and an AI tutor.
+                Read and discuss the book together with a cohort. Weekly
+                sessions exploring the arguments, evidence, and implications
+                with fellow students and an AI tutor.
               </p>
               <p
                 className="text-sm font-semibold"
@@ -439,17 +442,12 @@ export default function LandingPage() {
         </div>
       </RevealSection>
 
-
-
       {/* ================================================================= */}
       {/* BOTTOM CTA                                                        */}
       {/* ================================================================= */}
       <RevealSection className="py-20 sm:py-28 px-4">
         <div className="max-w-2xl mx-auto text-center">
-          <h2
-            className="text-3xl sm:text-4xl mb-8"
-            style={fontDisplay}
-          >
+          <h2 className="text-3xl sm:text-4xl mb-8" style={fontDisplay}>
             Start learning today
           </h2>
 
@@ -480,8 +478,7 @@ export default function LandingPage() {
                 color: "var(--landing-text)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor =
-                  "var(--landing-bg-alt)";
+                e.currentTarget.style.backgroundColor = "var(--landing-bg-alt)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = "transparent";
@@ -491,10 +488,7 @@ export default function LandingPage() {
             </a>
           </div>
 
-          <p
-            className="text-sm"
-            style={{ color: "var(--landing-text-muted)" }}
-          >
+          <p className="text-sm" style={{ color: "var(--landing-text-muted)" }}>
             Free. No application process. Takes 1 minute to get started.
           </p>
         </div>

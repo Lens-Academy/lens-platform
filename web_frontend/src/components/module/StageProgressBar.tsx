@@ -251,7 +251,10 @@ export default function StageProgressBar({
 
   // Static color mappings for Tailwind CSS v4 scanner
   const branchColorMap: Record<string, { text: string; border: string }> = {
-    "bg-lens-gold-400": { text: "text-lens-gold-400", border: "border-lens-gold-400" },
+    "bg-lens-gold-400": {
+      text: "text-lens-gold-400",
+      border: "border-lens-gold-400",
+    },
     "bg-gray-400": { text: "text-gray-400", border: "border-gray-400" },
     "bg-gray-200": { text: "text-gray-300", border: "border-gray-200" },
   };

@@ -793,7 +793,10 @@ export default function ArticleEmbed({
       <em className="italic">{children}</em>
     ),
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className="not-prose border-l-3 pl-4 my-4 text-gray-800 [&>p]:mb-0" style={{ borderColor: "var(--brand-border)" }}>
+      <blockquote
+        className="not-prose border-l-3 pl-4 my-4 text-gray-800 [&>p]:mb-0"
+        style={{ borderColor: "var(--brand-border)" }}
+      >
         {children}
       </blockquote>
     ),
@@ -826,7 +829,9 @@ export default function ArticleEmbed({
         className="w-full max-w-full my-4 rounded-lg"
       />
     ),
-    hr: () => <hr className="my-8" style={{ borderColor: "var(--brand-border)" }} />,
+    hr: () => (
+      <hr className="my-8" style={{ borderColor: "var(--brand-border)" }} />
+    ),
     table: ({ children }: { children?: React.ReactNode }) => (
       <div className="overflow-x-auto my-4">
         <table className="min-w-full border-collapse border border-gray-300">
@@ -906,7 +911,9 @@ export default function ArticleEmbed({
           {isFirst ? (
             <div className="mb-1 max-w-content mx-auto">
               {title && (
-                <h2 className="text-xl font-semibold text-gray-900 font-display">{title}</h2>
+                <h2 className="text-xl font-semibold text-gray-900 font-display">
+                  {title}
+                </h2>
               )}
               <div className="flex items-center gap-3 mt-1">
                 {author && <p className="text-sm text-gray-500">by {author}</p>}

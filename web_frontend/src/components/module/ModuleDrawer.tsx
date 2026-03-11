@@ -104,7 +104,10 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
           }}
         >
           {/* Header with breadcrumb */}
-          <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "var(--brand-border)" }}>
+          <div
+            className="flex items-center justify-between p-4 border-b"
+            style={{ borderColor: "var(--brand-border)" }}
+          >
             <div className="flex items-center gap-1.5 min-w-0 text-sm">
               {courseId ? (
                 <>

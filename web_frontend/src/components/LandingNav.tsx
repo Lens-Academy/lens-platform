@@ -36,7 +36,8 @@ export function LandingNav() {
           translate-y-0
         `}
         style={{
-          backgroundColor: "color-mix(in srgb, var(--landing-bg) 80%, transparent)",
+          backgroundColor:
+            "color-mix(in srgb, var(--landing-bg) 80%, transparent)",
           borderColor: "var(--landing-border)",
           fontFamily: "var(--landing-font-body)",
         }}
@@ -52,7 +53,10 @@ export function LandingNav() {
               />
               <span
                 className="text-xl font-medium"
-                style={{ color: "var(--landing-text)", fontFamily: "var(--landing-font-display)" }}
+                style={{
+                  color: "var(--landing-text)",
+                  fontFamily: "var(--landing-font-display)",
+                }}
               >
                 Lens Academy
               </span>
@@ -181,7 +185,10 @@ export function LandingNav() {
             Start Learning
           </a>
 
-          <div className="border-t pt-6" style={{ borderColor: "var(--landing-border)" }}>
+          <div
+            className="border-t pt-6"
+            style={{ borderColor: "var(--landing-border)" }}
+          >
             <UserMenu signInRedirect="/course" />
           </div>
         </nav>

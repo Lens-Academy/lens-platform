@@ -3,7 +3,13 @@ import { LandingFooter } from "@/components/LandingFooter";
 
 export default function AboutPage() {
   return (
-    <div style={{ fontFamily: "var(--landing-font-body)", backgroundColor: "var(--landing-bg)", color: "var(--landing-text)" }}>
+    <div
+      style={{
+        fontFamily: "var(--landing-font-body)",
+        backgroundColor: "var(--landing-bg)",
+        color: "var(--landing-text)",
+      }}
+    >
       <LandingNav />
       <main className="pt-32 pb-20 px-4">
         <div className="max-w-2xl mx-auto">

@@ -13,7 +13,10 @@ export function LandingFooter() {
     >
       <div className="max-w-4xl mx-auto text-center">
         <nav className="flex items-center justify-center gap-8 mb-6 text-sm font-medium">
-          <a href="/course/default" className="hover:text-[var(--landing-text)] transition-colors">
+          <a
+            href="/course/default"
+            className="hover:text-[var(--landing-text)] transition-colors"
+          >
             Courses
           </a>
           <a
@@ -22,13 +25,14 @@ export function LandingFooter() {
           >
             Community
           </a>
-          <a href="/about" className="hover:text-[var(--landing-text)] transition-colors">
+          <a
+            href="/about"
+            className="hover:text-[var(--landing-text)] transition-colors"
+          >
             About
           </a>
         </nav>
-        <p className="text-sm">
-          Lens Academy is a registered nonprofit.
-        </p>
+        <p className="text-sm">Lens Academy is a registered nonprofit.</p>
       </div>
     </footer>
   );

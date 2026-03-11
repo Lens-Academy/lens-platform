@@ -72,12 +72,20 @@ export default function SectionDivider({
   return (
     <div className="flex flex-col items-center gap-2 px-4 sm:px-6 py-6">
       <div className="flex items-center gap-4 w-full">
-        <div className="flex-1 border-t" style={{ borderColor: "var(--brand-border)" }} />
+        <div
+          className="flex-1 border-t"
+          style={{ borderColor: "var(--brand-border)" }}
+        />
         <div className="flex items-center gap-2 text-gray-600">
           <Icon type={iconType} />
-          {title && <span className="text-xl font-medium font-display">{title}</span>}
+          {title && (
+            <span className="text-xl font-medium font-display">{title}</span>
+          )}
         </div>
-        <div className="flex-1 border-t" style={{ borderColor: "var(--brand-border)" }} />
+        <div
+          className="flex-1 border-t"
+          style={{ borderColor: "var(--brand-border)" }}
+        />
       </div>
       {duration != null && duration.total > 0 ? (
         <div className="flex items-center gap-1.5 text-sm text-gray-500">

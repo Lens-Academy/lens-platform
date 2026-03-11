@@ -192,7 +192,10 @@ export function ModuleHeader({
         transition-transform duration-300
         ${shouldHideHeader ? "-translate-y-full" : "translate-y-0"}
       `}
-      style={{ paddingTop: "var(--safe-top)", borderColor: "var(--brand-border)" }}
+      style={{
+        paddingTop: "var(--safe-top)",
+        borderColor: "var(--brand-border)",
+      }}
     >
       <div
         ref={containerRef}
