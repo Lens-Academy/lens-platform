@@ -135,13 +135,14 @@ export default function ModuleOverview({
           <div className="flex items-center gap-2 max-w-xl">
             <span
               className={`font-medium ${
-                isCompleted || isViewing ? "text-slate-900" : "text-slate-400"
+                isCompleted || isViewing ? "text-slate-900" : "text-slate-500"
               }`}
+              style={{ fontFamily: "var(--brand-font-display)" }}
             >
               {stage.title}
             </span>
           </div>
-          <div className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
+          <div className="text-sm text-slate-500 flex items-center gap-1.5">
             {stage.optional && <OptionalBadge />}
             {stage.type === "chat"
               ? "Discuss with AI tutor"
@@ -160,7 +161,7 @@ export default function ModuleOverview({
                   const contentTime = Math.round(stage.duration / 1.5);
                   const aiTime = stage.duration - contentTime;
                   return (
-                    <span className="inline-flex items-center gap-0.5 text-slate-400">
+                    <span className="inline-flex items-center gap-0.5 text-slate-500">
                       {isVideo ? (
                         <svg
                           className="w-3 h-3 inline translate-y-px"
@@ -199,7 +200,7 @@ export default function ModuleOverview({
                 })()}
           </div>
           {stage.tldr && (
-            <p className="text-sm text-slate-400 mt-1 max-w-xl">{stage.tldr}</p>
+            <p className="text-sm text-slate-500 mt-1 max-w-xl">{stage.tldr}</p>
           )}
         </div>
       </div>

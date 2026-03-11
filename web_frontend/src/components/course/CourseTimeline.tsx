@@ -250,7 +250,7 @@ export default function CourseTimeline({
       </div>
 
       {/* Timeline */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="flex-1 overflow-y-auto py-4 px-2">
         <div>
           {units.map((unit, unitIdx) => {
             const isExpanded = expandedUnits.has(unitIdx);
@@ -273,13 +273,13 @@ export default function CourseTimeline({
             return (
               <div key={unitIdx}>
                 {unitIdx > 0 && (
-                  <div className="border-t my-1" style={{ borderColor: "var(--brand-border)" }} />
+                  <div className="border-t my-1 mx-2" style={{ borderColor: "var(--brand-border)" }} />
                 )}
                 <div className="relative transition-all duration-200">
                   {/* Unit header row */}
                   <button
                     onClick={() => toggleUnit(unitIdx)}
-                    className={`relative w-full flex items-center text-left transition-[padding] duration-200 ${
+                    className={`relative w-full flex items-center text-left px-2 transition-[padding] duration-200 ${
                       isExpanded ? "py-1" : "py-1.5"
                     }`}
                   >
@@ -366,13 +366,13 @@ export default function CourseTimeline({
                             )
                           }
                         >
-                          <div className="flex items-center py-1.5 gap-2 cursor-default">
+                          <div className="flex items-center py-1.5 px-2 gap-2 cursor-default">
                             <Users className="w-4 h-4 text-slate-700" />
                             <span className="text-base text-slate-700">
                               #{unit.meetingNumber}
                             </span>
                             {unit.meetingDate && (
-                              <span className="text-xs text-slate-400">
+                              <span className="text-xs text-slate-500">
                                 {formatMeetingDate(unit.meetingDate)}
                               </span>
                             )}
@@ -438,10 +438,10 @@ function renderUnitModules(
         <div key={parentSlug}>
           <button
             onClick={() => toggleParent(parentSlug)}
-            className={`relative w-full flex items-center py-1.5 group text-left rounded-lg ${
+            className={`relative w-full flex items-center py-1.5 group text-left px-2 rounded-lg ${
               anyChildSelected && !isParentExpanded
-                ? "bg-[var(--brand-accent)]/10 -mx-2 px-2"
-                : "-mx-2 px-2"
+                ? "bg-[var(--brand-accent)]/10"
+                : ""
             }`}
           >
             <div className="flex-1 min-w-0">
@@ -475,7 +475,7 @@ function renderUnitModules(
                     })()}
                 </div>
                 {!isParentExpanded && parentDuration > 0 && (
-                  <span className="text-xs text-slate-400 flex-shrink-0 tabular-nums">
+                  <span className="text-xs text-slate-500 flex-shrink-0 tabular-nums">
                     {formatDuration(parentDuration)}
                   </span>
                 )}
@@ -501,7 +501,7 @@ function renderUnitModules(
                   <button
                     key={child.slug}
                     onClick={() => onModuleSelect(child)}
-                    className={`relative w-full flex items-center py-1 text-left transition-colors rounded-lg ${
+                    className={`relative w-full flex items-center py-1 text-left transition-colors px-2 rounded-lg ${
                       isSelected
                         ? "bg-[var(--brand-accent)]/10 text-slate-900"
                         : "hover:bg-[var(--brand-border)]/30 text-slate-600"
@@ -518,7 +518,7 @@ function renderUnitModules(
                         {child.title}
                       </span>
                       {childEstimate && (
-                        <span className="text-xs text-slate-400 ml-auto flex-shrink-0 tabular-nums">
+                        <span className="text-xs text-slate-500 ml-auto flex-shrink-0 tabular-nums">
                           {formatDuration(childEstimate)}
                         </span>
                       )}
@@ -540,10 +540,10 @@ function renderUnitModules(
         <button
           key={mod.slug}
           onClick={() => onModuleSelect(mod)}
-          className={`relative w-full flex items-center py-1.5 text-left group transition-colors rounded-lg ${
+          className={`relative w-full flex items-center py-1.5 text-left group transition-colors px-2 rounded-lg ${
             isSelected
-              ? "bg-[var(--brand-accent)]/10 -mx-2 px-2"
-              : "hover:bg-[var(--brand-border)]/30 -mx-2 px-2"
+              ? "bg-[var(--brand-accent)]/10"
+              : "hover:bg-[var(--brand-border)]/30"
           }`}
         >
           <div className="flex-1 min-w-0">
@@ -576,13 +576,13 @@ function renderUnitModules(
                 >
                   {dueLabel}
                   {estimate ? (
-                    <span className="text-slate-400 font-normal tabular-nums">
+                    <span className="text-slate-500 font-normal tabular-nums">
                       · {formatDuration(estimate)}
                     </span>
                   ) : null}
                 </span>
               ) : estimate ? (
-                <span className="text-xs text-slate-400 ml-auto flex-shrink-0 tabular-nums">
+                <span className="text-xs text-slate-500 ml-auto flex-shrink-0 tabular-nums">
                   {formatDuration(estimate)}
                 </span>
               ) : null}
