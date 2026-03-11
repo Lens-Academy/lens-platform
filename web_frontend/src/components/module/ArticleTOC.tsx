@@ -40,7 +40,7 @@ export default function ArticleTOC({
   return (
     <nav aria-label="Article table of contents">
       {/* Article title */}
-      <h2 className="text-base font-semibold text-gray-900 leading-snug">
+      <h2 className="text-base font-semibold text-gray-900 leading-snug font-display">
         {title}
       </h2>
 
@@ -48,7 +48,7 @@ export default function ArticleTOC({
       {author && <p className="text-sm text-gray-500 mt-1">by {author}</p>}
 
       {/* Divider */}
-      <hr className="my-4 border-gray-200" />
+      <hr className="my-4" style={{ borderColor: "var(--brand-border)" }} />
 
       {/* Headings list */}
       <ul className="space-y-2" role="list">

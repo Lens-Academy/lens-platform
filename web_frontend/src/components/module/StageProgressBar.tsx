@@ -251,7 +251,7 @@ export default function StageProgressBar({
 
   // Static color mappings for Tailwind CSS v4 scanner
   const branchColorMap: Record<string, { text: string; border: string }> = {
-    "bg-blue-400": { text: "text-blue-400", border: "border-blue-400" },
+    "bg-lens-gold-400": { text: "text-lens-gold-400", border: "border-lens-gold-400" },
     "bg-gray-400": { text: "text-gray-400", border: "border-gray-400" },
     "bg-gray-200": { text: "text-gray-300", border: "border-gray-200" },
   };
@@ -275,7 +275,7 @@ export default function StageProgressBar({
 
     const fillClasses = getCircleFillClasses(
       { isCompleted, isViewing, isOptional },
-      { includeHover: !isDimmed },
+      { includeHover: !isDimmed, optionalBg: "bg-[var(--brand-bg)]" },
     );
     const ringClasses = getRingClasses(isViewing, isCompleted);
 
@@ -316,7 +316,7 @@ export default function StageProgressBar({
           <button
             onClick={onPrevious}
             disabled={!canGoPrevious}
-            className={`rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default ${
+            className={`rounded hover:bg-black/5 disabled:opacity-30 disabled:cursor-default ${
               compact
                 ? "p-1"
                 : "min-w-[44px] min-h-[44px] p-2 transition-all active:scale-95 shrink-0"
@@ -373,7 +373,7 @@ export default function StageProgressBar({
             const colorRank: Record<string, number> = {
               "bg-gray-200": 0,
               "bg-gray-400": 1,
-              "bg-blue-400": 2,
+              "bg-lens-gold-400": 2,
             };
             const arcDarker =
               (colorRank[segmentColors[0]] ?? 0) > (colorRank[passColor] ?? 0);
@@ -509,7 +509,7 @@ export default function StageProgressBar({
           <button
             onClick={onNext}
             disabled={!canGoNext}
-            className={`rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default ${
+            className={`rounded hover:bg-black/5 disabled:opacity-30 disabled:cursor-default ${
               compact
                 ? "p-1"
                 : "min-w-[44px] min-h-[44px] p-2 transition-all active:scale-95 shrink-0"

@@ -188,11 +188,11 @@ export function ModuleHeader({
     <header
       className={`
         fixed top-0 left-0 right-0 z-40
-        bg-white border-b border-gray-200
+        border-b bg-[var(--brand-bg)]
         transition-transform duration-300
         ${shouldHideHeader ? "-translate-y-full" : "translate-y-0"}
       `}
-      style={{ paddingTop: "var(--safe-top)" }}
+      style={{ paddingTop: "var(--safe-top)", borderColor: "var(--brand-border)" }}
     >
       <div
         ref={containerRef}
@@ -205,14 +205,14 @@ export function ModuleHeader({
         >
           <button
             onMouseDown={onMenuToggle}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all active:scale-95 shrink-0"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-black/5 transition-all active:scale-95 shrink-0"
             aria-label="Module overview"
           >
-            <Menu className="w-5 h-5 text-gray-600" />
+            <Menu className="w-5 h-5 text-gray-500" />
           </button>
           <a href="/" className="min-h-[44px] flex items-center gap-2 shrink-0">
             <img
-              src="/assets/Logo only.png"
+              src="/assets/Logo_magnifying_glass.png"
               alt="Lens Academy"
               className="h-6"
             />
@@ -225,15 +225,15 @@ export function ModuleHeader({
           >
             <a
               href="/"
-              className="text-base font-semibold text-gray-900 hover:text-gray-700"
+              className="text-base font-semibold text-gray-900 hover:text-gray-700 font-display"
             >
               Lens Academy
             </a>
-            <span className="text-gray-300">|</span>
+            <span style={{ color: "var(--brand-border)" }}>|</span>
           </span>
           <h1
             ref={titleRef}
-            className="text-base font-semibold text-gray-900 truncate max-w-[200px]"
+            className="text-base font-semibold text-gray-900 truncate max-w-[200px] font-display"
             style={priority >= 4 ? hiddenStyle : undefined}
           >
             {moduleTitle}
@@ -251,10 +251,10 @@ export function ModuleHeader({
               onClick={onPrevious}
               disabled={!canGoPrevious}
               tabIndex={priority < 3 ? -1 : undefined}
-              className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
+              className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-black/5 disabled:opacity-30 transition-all active:scale-95"
               aria-label="Previous section"
             >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
+              <ChevronLeft className="w-5 h-5 text-gray-500" />
             </button>
 
             <span className="text-sm text-gray-500 tabular-nums min-w-[3rem] text-center">
@@ -265,10 +265,10 @@ export function ModuleHeader({
               onClick={onNext}
               disabled={!canGoNext}
               tabIndex={priority < 3 ? -1 : undefined}
-              className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
+              className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-black/5 disabled:opacity-30 transition-all active:scale-95"
               aria-label="Next section"
             >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
+              <ChevronRight className="w-5 h-5 text-gray-500" />
             </button>
           </div>
         )}

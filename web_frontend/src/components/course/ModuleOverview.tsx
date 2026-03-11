@@ -114,7 +114,7 @@ export default function ModuleOverview({
 
     return (
       <div
-        className={`group relative flex items-center gap-4 py-2 rounded-lg ${
+        className={`group relative flex items-start gap-4 py-2 rounded-lg ${
           isClickable && !isDimmed ? "cursor-pointer" : ""
         } ${isDimmed ? "opacity-30 pointer-events-none" : ""}`}
         onClick={() => isClickable && !isDimmed && onStageClick(index)}
@@ -311,20 +311,21 @@ export default function ModuleOverview({
                 <div key={li} className="relative">
                   {/* Top connector: from previous item to this circle center */}
                   {/* left-[0.875rem] = half of w-7 (14px) = center of circle within this wrapper */}
+                  {/* h-[22px] = py-2 (8px) + half circle (14px) = circle center from top */}
                   {!isFirst && (
                     <div
-                      className={`absolute left-[0.875rem] top-0 bottom-1/2 w-0.5 -translate-x-1/2 z-[1] ${colors.connectorColor}`}
+                      className={`absolute left-[0.875rem] top-0 h-[22px] w-0.5 -translate-x-1/2 z-[1] ${colors.connectorColor}`}
                     />
                   )}
                   {/* Bottom connector: from this circle center to next item */}
                   {!isLast &&
                     (trailsIntoBranchOnly ? (
                       <div
-                        className={`absolute left-[0.875rem] top-1/2 bottom-0 -translate-x-1/2 z-[1] dotted-round-v ${textColorMap[colors.outgoingColor] ?? "text-gray-200"}`}
+                        className={`absolute left-[0.875rem] top-[22px] bottom-0 -translate-x-1/2 z-[1] dotted-round-v ${textColorMap[colors.outgoingColor] ?? "text-gray-200"}`}
                       />
                     ) : (
                       <div
-                        className={`absolute left-[0.875rem] top-1/2 bottom-0 w-0.5 -translate-x-1/2 z-[1] ${colors.outgoingColor}`}
+                        className={`absolute left-[0.875rem] top-[22px] bottom-0 w-0.5 -translate-x-1/2 z-[1] ${colors.outgoingColor}`}
                       />
                     ))}
                   {renderStageRow(item.stage, item.index)}
@@ -429,23 +430,23 @@ export default function ModuleOverview({
                   <div className="ml-8 pt-6 pb-1">
                     {item.items.map((branchItem, bi) => (
                       <div key={bi} className="relative">
-                        {/* Fork-to-circle connector for first item (adapts to row height via bottom-1/2) */}
+                        {/* Fork-to-circle connector for first item — ends at circle center (22px from top) */}
                         {bi === 0 && hasPrecedingTrunk && (
                           <div
-                            className={`absolute ${branchConnZ} left-[0.875rem] bottom-1/2 -translate-x-1/2 dotted-round-v ${forkDotColor(0)}`}
+                            className={`absolute ${branchConnZ} left-[0.875rem] bottom-[calc(100%-22px)] -translate-x-1/2 dotted-round-v ${forkDotColor(0)}`}
                             style={{ top: forkConnectorTop }}
                           />
                         )}
                         {/* Branch connector above (dashed, between items) */}
                         {bi > 0 && (
                           <div
-                            className={`absolute ${branchConnZ} left-[0.875rem] top-0 bottom-1/2 -translate-x-1/2 dotted-round-v ${forkDotColor(bi)}`}
+                            className={`absolute ${branchConnZ} left-[0.875rem] top-0 h-[22px] -translate-x-1/2 dotted-round-v ${forkDotColor(bi)}`}
                           />
                         )}
                         {/* Branch connector below */}
                         {bi < item.items.length - 1 && (
                           <div
-                            className={`absolute ${branchConnZ} left-[0.875rem] top-1/2 bottom-0 -translate-x-1/2 dotted-round-v ${forkDotColor(bi + 1)}`}
+                            className={`absolute ${branchConnZ} left-[0.875rem] top-[22px] bottom-0 -translate-x-1/2 dotted-round-v ${forkDotColor(bi + 1)}`}
                           />
                         )}
                         {renderStageRow(branchItem.stage, branchItem.index)}

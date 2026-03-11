@@ -90,7 +90,7 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
 
         {/* Drawer panel - slides in from left */}
         <div
-          className={`fixed top-0 left-0 h-full bg-white z-50 transition-transform duration-300 [transition-timing-function:var(--ease-spring)] ${
+          className={`fixed top-0 left-0 h-full z-50 transition-transform duration-300 [transition-timing-function:var(--ease-spring)] ${
             isMobile ? "w-[80%]" : "w-[40%] max-w-md"
           } ${
             isOpen
@@ -100,33 +100,34 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
           style={{
             paddingTop: "var(--safe-top)",
             paddingBottom: "var(--safe-bottom)",
+            backgroundColor: "var(--brand-bg)",
           }}
         >
           {/* Header with breadcrumb */}
-          <div className="flex items-center justify-between p-4 border-b border-slate-200">
+          <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "var(--brand-border)" }}>
             <div className="flex items-center gap-1.5 min-w-0 text-sm">
               {courseId ? (
                 <>
                   <a
                     href={`/course/${courseId}`}
-                    className="text-slate-500 hover:text-slate-900 transition-colors truncate shrink-0"
+                    className="text-slate-500 hover:text-slate-900 transition-colors truncate shrink-0 font-display"
                   >
                     {courseTitle || "Course"}
                   </a>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="font-medium text-slate-900 truncate">
+                  <span className="font-medium text-slate-900 truncate font-display">
                     {moduleTitle}
                   </span>
                 </>
               ) : (
-                <span className="font-medium text-slate-900 truncate">
+                <span className="font-medium text-slate-900 truncate font-display">
                   {moduleTitle}
                 </span>
               )}
             </div>
             <button
               onMouseDown={handleClose}
-              className="p-3 min-h-[44px] min-w-[44px] hover:bg-slate-100 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
+              className="p-3 min-h-[44px] min-w-[44px] hover:bg-black/5 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
               title="Close sidebar"
             >
               <X className="w-5 h-5 text-slate-500" />

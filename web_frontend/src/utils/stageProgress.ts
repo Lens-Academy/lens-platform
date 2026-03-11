@@ -18,25 +18,25 @@ type CircleState = {
  */
 export function getCircleFillClasses(
   state: CircleState,
-  options: { includeHover?: boolean } = {},
+  options: { includeHover?: boolean; optionalBg?: string } = {},
 ): string {
   const { isCompleted, isViewing, isOptional } = state;
-  const { includeHover = false } = options;
+  const { includeHover = false, optionalBg = "bg-white" } = options;
 
   if (isOptional) {
     if (isCompleted) {
       return includeHover
-        ? "bg-white text-lens-gold-400 border-2 border-dashed border-lens-gold-400 hover:border-lens-gold-400"
-        : "bg-white text-lens-gold-400 border-2 border-dashed border-lens-gold-400";
+        ? `${optionalBg} text-lens-gold-400 border-2 border-dashed border-lens-gold-400 hover:border-lens-gold-400`
+        : `${optionalBg} text-lens-gold-400 border-2 border-dashed border-lens-gold-400`;
     }
     if (isViewing) {
       return includeHover
-        ? "bg-white text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500"
-        : "bg-white text-gray-400 border-2 border-dashed border-gray-400";
+        ? `${optionalBg} text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500`
+        : `${optionalBg} text-gray-400 border-2 border-dashed border-gray-400`;
     }
     return includeHover
-      ? "bg-white text-gray-400 border-2 border-dashed border-gray-300 hover:border-gray-400"
-      : "bg-white text-gray-400 border-2 border-dashed border-gray-300";
+      ? `${optionalBg} text-gray-400 border-2 border-dashed border-gray-300 hover:border-gray-400`
+      : `${optionalBg} text-gray-400 border-2 border-dashed border-gray-300`;
   }
 
   if (isCompleted) {

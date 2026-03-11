@@ -21,11 +21,13 @@ function ProgressCircle({
   completedLenses,
   totalLenses,
   size = 16,
+  selected,
 }: {
   status: "completed" | "in_progress" | "not_started";
   completedLenses?: number;
   totalLenses?: number;
   size?: number;
+  selected?: boolean;
 }) {
   if (status === "completed") {
     return (
@@ -74,7 +76,7 @@ function ProgressCircle({
         cx={cx}
         cy={cy}
         r={r}
-        stroke="#cbd5e1"
+        stroke={selected ? "#94a3b8" : "#cbd5e1"}
         strokeWidth="2"
         fill="none"
       />
@@ -440,7 +442,7 @@ function renderUnitModules(
             onClick={() => toggleParent(parentSlug)}
             className={`relative w-full flex items-center py-1.5 group text-left px-2 rounded-lg ${
               anyChildSelected && !isParentExpanded
-                ? "bg-[var(--brand-accent)]/10"
+                ? "bg-[#f0ece4]"
                 : ""
             }`}
           >
@@ -450,6 +452,7 @@ function renderUnitModules(
                   status={parentStatus}
                   completedLenses={Math.round(parentFraction * 100)}
                   totalLenses={100}
+                  selected={anyChildSelected && !isParentExpanded}
                 />
                 <div className="flex-1 min-w-0">
                   <span className="text-base font-medium truncate block leading-snug text-slate-900">
@@ -503,7 +506,7 @@ function renderUnitModules(
                     onClick={() => onModuleSelect(child)}
                     className={`relative w-full flex items-center py-1 text-left transition-colors px-2 rounded-lg ${
                       isSelected
-                        ? "bg-[var(--brand-accent)]/10 text-slate-900"
+                        ? "bg-[#f0ece4] text-slate-900"
                         : "hover:bg-[var(--brand-border)]/30 text-slate-600"
                     }`}
                   >
@@ -513,6 +516,7 @@ function renderUnitModules(
                         completedLenses={child.completedLenses}
                         totalLenses={child.totalLenses}
                         size={14}
+                        selected={isSelected}
                       />
                       <span className="text-base truncate text-slate-700">
                         {child.title}
@@ -542,7 +546,7 @@ function renderUnitModules(
           onClick={() => onModuleSelect(mod)}
           className={`relative w-full flex items-center py-1.5 text-left group transition-colors px-2 rounded-lg ${
             isSelected
-              ? "bg-[var(--brand-accent)]/10"
+              ? "bg-[#f0ece4]"
               : "hover:bg-[var(--brand-border)]/30"
           }`}
         >
@@ -553,6 +557,7 @@ function renderUnitModules(
                   status={mod.status}
                   completedLenses={mod.completedLenses}
                   totalLenses={mod.totalLenses}
+                  selected={isSelected}
                 />
               )}
               <span
