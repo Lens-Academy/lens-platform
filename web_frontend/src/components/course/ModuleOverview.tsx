@@ -108,7 +108,7 @@ export default function ModuleOverview({
 
     const fillClasses = getCircleFillClasses(
       { isCompleted, isViewing, isOptional: stage.optional },
-      { includeHover: false },
+      { includeHover: false, optionalBg: "bg-[var(--brand-bg)]" },
     );
     const ringClasses = getRingClasses(isViewing, isCompleted);
 
