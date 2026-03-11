@@ -4,6 +4,23 @@
 @theme {
   --container-content: 640px;
   --container-content-padded: calc(var(--container-content) + 128px);
+
+  /* Brand gold palette — Blend B: warm earthy tone, hue drifts 73°→64° in darks */
+  --color-lens-gold-50: #fdf8f0;
+  --color-lens-gold-100: #f9eedb;
+  --color-lens-gold-300: #dea96c;
+  --color-lens-gold-400: #d08838;
+  --color-lens-gold-500: #b87018;
+  --color-lens-gold-600: #9a5c10;
+  --color-lens-gold-700: #7a470c;
+}
+
+/* Newsreader baseline correction — nudge down to align with DM Sans.
+   Applied globally so every element using this font family is fixed. */
+[style*="Newsreader"],
+.font-display {
+  transform: translateY(0.13em);
+  display: inline-block;
 }
 
 :root {
@@ -23,6 +40,30 @@
   /* Dynamic header offset — tracks whether header is visible or hidden.
      Set by ModuleHeader/Layout via JS; consumed by sticky elements. */
   --header-offset: var(--module-header-height);
+
+  /* Brand palette (shared across landing + course) */
+  --brand-bg: #faf8f3;
+  --brand-bg-alt: #ffffff;
+  --brand-text: #1a1a1a;
+  --brand-text-muted: #6b6b6b;
+  --brand-accent: #b87018;
+  --brand-accent-hover: #9a5c10;
+  --brand-accent-text: #ffffff;
+  --brand-border: #e8e5df;
+  --brand-font-display: "Newsreader", serif;
+  --brand-font-body: "DM Sans", sans-serif;
+
+  /* Aliases for existing landing page components */
+  --landing-bg: var(--brand-bg);
+  --landing-bg-alt: var(--brand-bg-alt);
+  --landing-text: var(--brand-text);
+  --landing-text-muted: var(--brand-text-muted);
+  --landing-accent: var(--brand-accent);
+  --landing-accent-hover: var(--brand-accent-hover);
+  --landing-accent-text: var(--brand-accent-text);
+  --landing-border: var(--brand-border);
+  --landing-font-display: var(--brand-font-display);
+  --landing-font-body: var(--brand-font-body);
 
   /* Spring easing - slight overshoot and settle */
   --ease-spring: linear(
@@ -250,6 +291,11 @@ body {
   to {
     opacity: 1;
   }
+}
+
+/* Shorthand: apply Newsreader (baseline correction is automatic via global rule above) */
+@utility font-display {
+  font-family: var(--brand-font-display);
 }
 
 /* Round-dotted lines — matches SVG strokeDasharray="0 4" strokeLinecap="round" */

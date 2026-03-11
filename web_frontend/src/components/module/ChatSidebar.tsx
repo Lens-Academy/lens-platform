@@ -249,7 +249,10 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     );
 
     const header = (
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
+      <div
+        className="flex items-center justify-between px-4 py-3 border-b shrink-0"
+        style={{ borderColor: "var(--brand-border)" }}
+      >
         <div className="flex items-center gap-2 min-w-0">
           <svg
             className="w-4 h-4 text-blue-600 shrink-0"
@@ -280,7 +283,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         </div>
         <button
           onMouseDown={handleClose}
-          className="p-2 min-h-[44px] min-w-[44px] hover:bg-gray-100 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
+          className="p-2 min-h-[44px] min-w-[44px] hover:bg-black/5 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
           aria-label="Close chat sidebar"
         >
           <svg
@@ -314,7 +317,10 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           }
           minHeightWrapperRef={minHeightWrapperRef}
         />
-        <div className="shrink-0 border-t border-gray-200 px-4 pt-4">
+        <div
+          className="shrink-0 border-t px-4 pt-4"
+          style={{ borderColor: "var(--brand-border)" }}
+        >
           <ChatInputArea
             pillId="sidebar"
             onSend={(content) => {
@@ -335,10 +341,13 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           {/* Floating toggle button on right edge */}
           <button
             onMouseDown={handleOpen}
-            className={`fixed right-0 z-50 bg-white border border-r-0 border-gray-200 rounded-l-lg shadow-sm px-1.5 py-2.5 hover:bg-gray-50 transition-all active:scale-95 ${
+            className={`fixed right-0 z-50 bg-white border border-r-0 rounded-l-lg shadow-sm px-1.5 py-2.5 hover:bg-black/5 transition-all active:scale-95 ${
               isOpen || toggleHidden ? "opacity-0 pointer-events-none" : ""
             }`}
-            style={{ top: "calc(4rem + var(--safe-top, 0px))" }}
+            style={{
+              top: "calc(4rem + var(--safe-top, 0px))",
+              borderColor: "var(--brand-border)",
+            }}
             title="Ask the AI Tutor"
             aria-label="Open chat sidebar"
           >
@@ -376,10 +385,13 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         {/* Floating toggle — visible when sidebar is closed */}
         <button
           onMouseDown={handleOpen}
-          className={`fixed right-3 z-30 flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-all active:scale-95 ${
+          className={`fixed right-3 z-30 flex items-center justify-center w-10 h-10 bg-white border rounded-lg shadow-sm hover:bg-black/5 transition-all active:scale-95 ${
             isOpen || toggleHidden ? "opacity-0 pointer-events-none" : ""
           }`}
-          style={{ top: "calc(var(--module-header-height) + 8px)" }}
+          style={{
+            top: "calc(var(--module-header-height) + 8px)",
+            borderColor: "var(--brand-border)",
+          }}
           title="Ask the AI Tutor"
           aria-label="Open chat sidebar"
         >
@@ -389,10 +401,9 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         {/* Sidebar panel — animates width */}
         <div
           className={`fixed right-0 z-30 overflow-hidden transition-[width,border-color] duration-300 ease-in-out ${
-            isOpen
-              ? "w-80 xl:w-96 border-l border-gray-200"
-              : "w-0 border-l border-transparent"
+            isOpen ? "w-80 xl:w-96 border-l" : "w-0 border-l border-transparent"
           }`}
+          style={isOpen ? { borderColor: "var(--brand-border)" } : undefined}
           style={{
             top: "var(--module-header-height)",
             height: "calc(100dvh - var(--module-header-height))",

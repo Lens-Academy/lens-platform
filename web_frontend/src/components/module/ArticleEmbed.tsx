@@ -325,7 +325,7 @@ function CollapsibleBlock({
       className={className}
       style={{ overflowAnchor: "none" }}
     >
-      <div className="sticky top-[var(--header-offset)] z-10 transition-[top] duration-300 bg-[#fffdf5] flex items-center gap-1 py-1">
+      <div className="sticky top-[var(--header-offset)] z-10 transition-[top] duration-300 bg-lens-gold-50/60 flex items-center gap-1 py-1">
         <button
           onClick={handleToggle}
           className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1"
@@ -550,7 +550,7 @@ function NoteBox({
     >
       <div className="absolute top-2 right-3 flex items-center gap-1.5 text-sm text-gray-600">
         <img
-          src="/assets/Logo only.png"
+          src="/assets/Logo_magnifying_glass.png"
           alt=""
           className="w-4 h-4 opacity-70 !my-0"
         />
@@ -570,7 +570,7 @@ function InlineNote({ children }: { children?: React.ReactNode }) {
   return (
     <span className="bg-white/85 rounded border border-gray-100 shadow-[inset_0_0_4px_0_rgba(0,0,0,0.06)] px-1.5 py-0.5">
       <img
-        src="/assets/Logo only.png"
+        src="/assets/Logo_magnifying_glass.png"
         alt="Lens"
         className="inline h-[1em] w-auto opacity-70 align-baseline mr-1 !my-0 translate-y-[0.08em]"
       />
@@ -632,7 +632,7 @@ function InlineFootnote({
           label || "•"
         ) : (
           <img
-            src="/assets/Logo only.png"
+            src="/assets/Logo_magnifying_glass.png"
             alt="footnote"
             role="img"
             className="w-[1.03em] h-[1.03em] opacity-70 !my-0 translate-x-[0.03em] -translate-y-[0.03em]"
@@ -655,7 +655,7 @@ function InlineFootnote({
             {!isAuthor && (
               <span className="absolute top-1.5 right-2 flex items-center">
                 <img
-                  src="/assets/Logo only.png"
+                  src="/assets/Logo_magnifying_glass.png"
                   alt=""
                   className="w-[1.1em] h-[1.1em] opacity-70 !my-0"
                 />
@@ -793,7 +793,10 @@ export default function ArticleEmbed({
       <em className="italic">{children}</em>
     ),
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className="not-prose border-l-3 border-gray-300 pl-4 my-4 text-gray-800 [&>p]:mb-0">
+      <blockquote
+        className="not-prose border-l-3 pl-4 my-4 text-gray-800 [&>p]:mb-0"
+        style={{ borderColor: "var(--brand-border)" }}
+      >
         {children}
       </blockquote>
     ),
@@ -826,7 +829,9 @@ export default function ArticleEmbed({
         className="w-full max-w-full my-4 rounded-lg"
       />
     ),
-    hr: () => <hr className="my-8 border-gray-300" />,
+    hr: () => (
+      <hr className="my-8" style={{ borderColor: "var(--brand-border)" }} />
+    ),
     table: ({ children }: { children?: React.ReactNode }) => (
       <div className="overflow-x-auto my-4">
         <table className="min-w-full border-collapse border border-gray-300">
@@ -894,7 +899,7 @@ export default function ArticleEmbed({
       {isConsecutiveExcerpt ? (
         // Consecutive excerpt: skip attribution, just show collapsed_before if present
         processedCollapsedBefore && (
-          <div className="bg-amber-50/50 px-4 py-1">
+          <div className="bg-lens-gold-50/60 px-4 py-1">
             <CollapsedSection
               content={processedCollapsedBefore}
               components={markdownComponents}
@@ -902,11 +907,13 @@ export default function ArticleEmbed({
           </div>
         )
       ) : (
-        <div className="bg-amber-50/50 px-4 pt-4 sm:pt-6 pb-2">
+        <div className="bg-lens-gold-50/60 px-4 pt-4 sm:pt-6 pb-2">
           {isFirst ? (
             <div className="mb-1 max-w-content mx-auto">
               {title && (
-                <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+                <h2 className="text-xl font-semibold text-gray-900 font-display">
+                  {title}
+                </h2>
               )}
               <div className="flex items-center gap-3 mt-1">
                 {author && <p className="text-sm text-gray-500">by {author}</p>}
@@ -988,7 +995,7 @@ export default function ArticleEmbed({
 
         if (segment.type === "note") {
           return (
-            <div key={i} className="bg-amber-50/50 px-4 py-2">
+            <div key={i} className="bg-lens-gold-50/60 px-4 py-2">
               <NoteBox className="max-w-[calc(var(--container-content)+2rem)] mx-auto">
                 <article className="prose prose-gray max-w-content [&>*:last-child]:mb-0">
                   <ReactMarkdown
@@ -1007,7 +1014,7 @@ export default function ArticleEmbed({
         return (
           <div
             key={i}
-            className={`bg-amber-50/50 px-4 py-1 ${isLast ? "pb-4 sm:pb-6" : ""}`}
+            className={`bg-lens-gold-50/60 px-4 py-1 ${isLast ? "pb-4 sm:pb-6" : ""}`}
           >
             <article className="prose prose-gray max-w-content mx-auto overflow-x-hidden [&>*:last-child]:mb-0">
               <ReactMarkdown
@@ -1030,7 +1037,7 @@ export default function ArticleEmbed({
 
       {/* If last segment is a note, add yellow footer for collapsed_after + bottom padding */}
       {segments[segments.length - 1]?.type === "note" && (
-        <div className="bg-amber-50/50 px-4 pb-4 sm:pb-6">
+        <div className="bg-lens-gold-50/60 px-4 pb-4 sm:pb-6">
           {processedCollapsedAfter && (
             <CollapsedSection
               content={processedCollapsedAfter}

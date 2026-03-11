@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Logo Prototypes — Circles</title>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "DM Sans", sans-serif;
+      background: #faf9f6;
+      color: #1a1a1a;
+      padding: 60px 40px;
+    }
+    h1 {
+      font-family: "Newsreader", serif;
+      font-size: 2rem;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 28px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e8e5df;
+      border-radius: 12px;
+      padding: 36px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .card h2 {
+      font-family: "DM Sans", sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #6b6b6b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 50px;
+    }
+    .logo-area .text {
+      font-family: "Newsreader", serif;
+      font-size: 1.4rem;
+      font-weight: 500;
+      color: #1a1a1a;
+    }
+  </style>
+</head>
+<body>
+  <h1>Circle / Convergence Variations</h1>
+
+  <div class="grid">
+
+    <!-- 1: Original two equal -->
+    <div class="card">
+      <h2>1 — Equal pair</h2>
+      <div class="logo-area">
+        <svg width="40" height="36" viewBox="0 0 40 36" fill="none">
+          <circle cx="14" cy="18" r="12" stroke="#1a1a1a" stroke-width="1.5" fill="none"/>
+          <circle cx="26" cy="18" r="12" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 2: Large + small -->
+    <div class="card">
+      <h2>2 — Large + small</h2>
+      <div class="logo-area">
+        <svg width="44" height="36" viewBox="0 0 44 36" fill="none">
+          <circle cx="18" cy="18" r="14" stroke="#1a1a1a" stroke-width="1.2" fill="none"/>
+          <circle cx="28" cy="18" r="8" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 3: Large + small, amber filled small -->
+    <div class="card">
+      <h2>3 — Large + filled small</h2>
+      <div class="logo-area">
+        <svg width="44" height="36" viewBox="0 0 44 36" fill="none">
+          <circle cx="18" cy="18" r="14" stroke="#1a1a1a" stroke-width="1.2" fill="none"/>
+          <circle cx="28" cy="18" r="8" fill="#c9952d" opacity="0.15"/>
+          <circle cx="28" cy="18" r="8" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 4: Three descending, left to right -->
+    <div class="card">
+      <h2>4 — Triple descending</h2>
+      <div class="logo-area">
+        <svg width="48" height="36" viewBox="0 0 48 36" fill="none">
+          <circle cx="14" cy="18" r="13" stroke="#1a1a1a" stroke-width="1" fill="none" opacity="0.3"/>
+          <circle cx="24" cy="18" r="10" stroke="#1a1a1a" stroke-width="1.2" fill="none" opacity="0.6"/>
+          <circle cx="32" cy="18" r="7" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 5: Triple descending, all amber -->
+    <div class="card">
+      <h2>5 — Triple amber</h2>
+      <div class="logo-area">
+        <svg width="48" height="36" viewBox="0 0 48 36" fill="none">
+          <circle cx="14" cy="18" r="13" stroke="#c9952d" stroke-width="1" fill="none" opacity="0.25"/>
+          <circle cx="24" cy="18" r="10" stroke="#c9952d" stroke-width="1.2" fill="none" opacity="0.5"/>
+          <circle cx="32" cy="18" r="7" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 6: Triple with dot -->
+    <div class="card">
+      <h2>6 — Triple + dot</h2>
+      <div class="logo-area">
+        <svg width="48" height="36" viewBox="0 0 48 36" fill="none">
+          <circle cx="14" cy="18" r="13" stroke="#1a1a1a" stroke-width="1" fill="none" opacity="0.25"/>
+          <circle cx="24" cy="18" r="10" stroke="#1a1a1a" stroke-width="1.1" fill="none" opacity="0.5"/>
+          <circle cx="32" cy="18" r="7" stroke="#1a1a1a" stroke-width="1.2" fill="none" opacity="0.8"/>
+          <circle cx="36" cy="18" r="2" fill="#c9952d"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 7: Two concentric, offset -->
+    <div class="card">
+      <h2>7 — Concentric offset</h2>
+      <div class="logo-area">
+        <svg width="40" height="36" viewBox="0 0 40 36" fill="none">
+          <circle cx="17" cy="18" r="14" stroke="#1a1a1a" stroke-width="1.2" fill="none"/>
+          <circle cx="22" cy="18" r="9" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 8: Concentric offset + center dot -->
+    <div class="card">
+      <h2>8 — Offset + dot</h2>
+      <div class="logo-area">
+        <svg width="40" height="36" viewBox="0 0 40 36" fill="none">
+          <circle cx="17" cy="18" r="14" stroke="#1a1a1a" stroke-width="1.2" fill="none"/>
+          <circle cx="22" cy="18" r="9" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+          <circle cx="25" cy="18" r="2" fill="#c9952d"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 9: Small inside large, right-aligned -->
+    <div class="card">
+      <h2>9 — Nested right</h2>
+      <div class="logo-area">
+        <svg width="38" height="36" viewBox="0 0 38 36" fill="none">
+          <circle cx="18" cy="18" r="15" stroke="#1a1a1a" stroke-width="1.2" fill="none"/>
+          <circle cx="24" cy="18" r="6" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 10: Nested right, filled -->
+    <div class="card">
+      <h2>10 — Nested filled</h2>
+      <div class="logo-area">
+        <svg width="38" height="36" viewBox="0 0 38 36" fill="none">
+          <circle cx="18" cy="18" r="15" stroke="#1a1a1a" stroke-width="1.2" fill="none"/>
+          <circle cx="24" cy="18" r="6" fill="#c9952d" opacity="0.2"/>
+          <circle cx="24" cy="18" r="6" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 11: Two side-by-side, small amber -->
+    <div class="card">
+      <h2>11 — Big dark + small amber</h2>
+      <div class="logo-area">
+        <svg width="42" height="36" viewBox="0 0 42 36" fill="none">
+          <circle cx="16" cy="18" r="14" stroke="#1a1a1a" stroke-width="1.2" fill="none"/>
+          <circle cx="34" cy="18" r="5" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 12: Big dark + small amber dot (no stroke) -->
+    <div class="card">
+      <h2>12 — Circle + amber dot</h2>
+      <div class="logo-area">
+        <svg width="42" height="36" viewBox="0 0 42 36" fill="none">
+          <circle cx="16" cy="18" r="14" stroke="#1a1a1a" stroke-width="1.2" fill="none"/>
+          <circle cx="34" cy="18" r="4" fill="#c9952d"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 13: Triple concentric, all offset right -->
+    <div class="card">
+      <h2>13 — Triple nested offset</h2>
+      <div class="logo-area">
+        <svg width="42" height="36" viewBox="0 0 42 36" fill="none">
+          <circle cx="16" cy="18" r="15" stroke="#1a1a1a" stroke-width="1" fill="none" opacity="0.3"/>
+          <circle cx="21" cy="18" r="10" stroke="#1a1a1a" stroke-width="1.1" fill="none" opacity="0.6"/>
+          <circle cx="25" cy="18" r="6" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 14: Triple nested offset + dot -->
+    <div class="card">
+      <h2>14 — Triple nested + dot</h2>
+      <div class="logo-area">
+        <svg width="42" height="36" viewBox="0 0 42 36" fill="none">
+          <circle cx="16" cy="18" r="15" stroke="#1a1a1a" stroke-width="1" fill="none" opacity="0.3"/>
+          <circle cx="21" cy="18" r="10" stroke="#1a1a1a" stroke-width="1.1" fill="none" opacity="0.6"/>
+          <circle cx="25" cy="18" r="6" stroke="#c9952d" stroke-width="1.5" fill="none"/>
+          <circle cx="27" cy="18" r="1.5" fill="#c9952d"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 15: Lens shape (two arcs) -->
+    <div class="card">
+      <h2>15 — Lens shape</h2>
+      <div class="logo-area">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <!-- Two overlapping circles, only showing the intersection area -->
+          <clipPath id="lens-clip">
+            <circle cx="13" cy="18" r="14"/>
+          </clipPath>
+          <circle cx="23" cy="18" r="14" stroke="#c9952d" stroke-width="1.5" fill="none" clip-path="url(#lens-clip)"/>
+          <clipPath id="lens-clip2">
+            <circle cx="23" cy="18" r="14"/>
+          </clipPath>
+          <circle cx="13" cy="18" r="14" stroke="#c9952d" stroke-width="1.5" fill="none" clip-path="url(#lens-clip2)"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+    <!-- 16: Lens shape filled -->
+    <div class="card">
+      <h2>16 — Lens filled</h2>
+      <div class="logo-area">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <clipPath id="lens-fill1">
+            <circle cx="13" cy="18" r="14"/>
+          </clipPath>
+          <circle cx="23" cy="18" r="14" fill="#c9952d" opacity="0.15" clip-path="url(#lens-fill1)"/>
+          <clipPath id="lens-fill2">
+            <circle cx="23" cy="18" r="14"/>
+          </clipPath>
+          <circle cx="13" cy="18" r="14" fill="#c9952d" opacity="0.15" clip-path="url(#lens-fill2)"/>
+          <!-- Outlines of both -->
+          <circle cx="13" cy="18" r="14" stroke="#1a1a1a" stroke-width="1" fill="none" opacity="0.3"/>
+          <circle cx="23" cy="18" r="14" stroke="#1a1a1a" stroke-width="1" fill="none" opacity="0.3"/>
+        </svg>
+        <span class="text">Lens Academy</span>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

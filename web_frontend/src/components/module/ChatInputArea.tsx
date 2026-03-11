@@ -494,7 +494,7 @@ export function ChatInputArea({
                     recordingState !== "idle" ||
                     isDisabled
                   }
-                  className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-default min-w-[36px] min-h-[36px] transition-all active:scale-95"
+                  className="bg-[var(--brand-accent)] text-white p-2 rounded-lg hover:bg-[var(--brand-accent-hover)] focus:outline-none focus:ring-2 focus:ring-lens-gold-400 disabled:opacity-50 disabled:cursor-default min-w-[36px] min-h-[36px] transition-all active:scale-95"
                 >
                   <svg
                     className="w-5 h-5"

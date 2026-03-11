@@ -13,7 +13,7 @@ import { Tooltip } from "../Tooltip";
 /**
  * Circular progress indicator:
  * - not_started: gray outline ring
- * - in_progress: gray outline ring with blue arc fill (clock-style, starting at 12 o'clock)
+ * - in_progress: gray outline ring with amber arc fill (clock-style, starting at 12 o'clock)
  * - completed: green filled circle with white checkmark
  */
 function ProgressCircle({
@@ -21,11 +21,13 @@ function ProgressCircle({
   completedLenses,
   totalLenses,
   size = 16,
+  selected,
 }: {
   status: "completed" | "in_progress" | "not_started";
   completedLenses?: number;
   totalLenses?: number;
   size?: number;
+  selected?: boolean;
 }) {
   if (status === "completed") {
     return (
@@ -37,7 +39,7 @@ function ProgressCircle({
         fill="none"
       >
         {/* Blue filled circle */}
-        <circle cx="10" cy="10" r="9" fill="#3b82f6" />
+        <circle cx="10" cy="10" r="9" fill="#b87018" />
         {/* White checkmark */}
         <path
           d="M6 10.5l2.5 2.5 5-5"
@@ -74,7 +76,7 @@ function ProgressCircle({
         cx={cx}
         cy={cy}
         r={r}
-        stroke="#cbd5e1"
+        stroke={selected ? "#94a3b8" : "#cbd5e1"}
         strokeWidth="2"
         fill="none"
       />
@@ -84,7 +86,7 @@ function ProgressCircle({
           cx={cx}
           cy={cy}
           r={r}
-          stroke="#3b82f6"
+          stroke="#b87018"
           strokeWidth="2"
           fill="none"
           strokeDasharray={circumference}
@@ -243,14 +245,31 @@ export default function CourseTimeline({
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 border-r border-slate-200">
+    <div
+      className="h-full flex flex-col border-r"
+      style={{
+        backgroundColor: "var(--brand-bg)",
+        borderColor: "var(--brand-border)",
+      }}
+    >
       {/* Course title */}
-      <div className="p-4 border-b border-slate-200">
-        <h1 className="text-xl font-bold text-slate-900">{courseTitle}</h1>
+      <div
+        className="p-4 border-b"
+        style={{ borderColor: "var(--brand-border)" }}
+      >
+        <h1
+          className="text-xl font-bold"
+          style={{
+            color: "var(--brand-text)",
+            fontFamily: "var(--brand-font-display)",
+          }}
+        >
+          {courseTitle}
+        </h1>
       </div>
 
       {/* Timeline */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="flex-1 overflow-y-auto py-4 px-2">
         <div>
           {units.map((unit, unitIdx) => {
             const isExpanded = expandedUnits.has(unitIdx);
@@ -273,13 +292,16 @@ export default function CourseTimeline({
             return (
               <div key={unitIdx}>
                 {unitIdx > 0 && (
-                  <div className="border-t border-slate-200 my-1" />
+                  <div
+                    className="border-t my-1 mx-2"
+                    style={{ borderColor: "var(--brand-border)" }}
+                  />
                 )}
                 <div className="relative transition-all duration-200">
                   {/* Unit header row */}
                   <button
                     onClick={() => toggleUnit(unitIdx)}
-                    className={`relative w-full flex items-center text-left transition-[padding] duration-200 ${
+                    className={`relative w-full flex items-center text-left px-2 transition-[padding] duration-200 ${
                       isExpanded ? "py-1" : "py-1.5"
                     }`}
                   >
@@ -366,13 +388,13 @@ export default function CourseTimeline({
                             )
                           }
                         >
-                          <div className="flex items-center py-1.5 gap-2 cursor-default">
+                          <div className="flex items-center py-1.5 px-2 gap-2 cursor-default">
                             <Users className="w-4 h-4 text-slate-700" />
                             <span className="text-base text-slate-700">
                               #{unit.meetingNumber}
                             </span>
                             {unit.meetingDate && (
-                              <span className="text-xs text-slate-400">
+                              <span className="text-xs text-slate-500">
                                 {formatMeetingDate(unit.meetingDate)}
                               </span>
                             )}
@@ -438,10 +460,8 @@ function renderUnitModules(
         <div key={parentSlug}>
           <button
             onClick={() => toggleParent(parentSlug)}
-            className={`relative w-full flex items-center py-1.5 group text-left rounded-lg ${
-              anyChildSelected && !isParentExpanded
-                ? "bg-slate-200/50 -mx-2 px-2"
-                : "-mx-2 px-2"
+            className={`relative w-full flex items-center py-1.5 group text-left px-2 rounded-lg ${
+              anyChildSelected && !isParentExpanded ? "bg-[#f0ece4]" : ""
             }`}
           >
             <div className="flex-1 min-w-0">
@@ -450,6 +470,7 @@ function renderUnitModules(
                   status={parentStatus}
                   completedLenses={Math.round(parentFraction * 100)}
                   totalLenses={100}
+                  selected={anyChildSelected && !isParentExpanded}
                 />
                 <div className="flex-1 min-w-0">
                   <span className="text-base font-medium truncate block leading-snug text-slate-900">
@@ -475,7 +496,7 @@ function renderUnitModules(
                     })()}
                 </div>
                 {!isParentExpanded && parentDuration > 0 && (
-                  <span className="text-xs text-slate-400 flex-shrink-0 tabular-nums">
+                  <span className="text-xs text-slate-500 flex-shrink-0 tabular-nums">
                     {formatDuration(parentDuration)}
                   </span>
                 )}
@@ -501,10 +522,10 @@ function renderUnitModules(
                   <button
                     key={child.slug}
                     onClick={() => onModuleSelect(child)}
-                    className={`relative w-full flex items-center py-1 text-left transition-colors rounded-lg ${
+                    className={`relative w-full flex items-center py-1 text-left transition-colors px-2 rounded-lg ${
                       isSelected
-                        ? "bg-slate-200/50 text-slate-900"
-                        : "hover:bg-slate-100/70 text-slate-600"
+                        ? "bg-[#f0ece4] text-slate-900"
+                        : "hover:bg-[var(--brand-border)]/30 text-slate-600"
                     }`}
                   >
                     <div className="ml-4 flex-1 min-w-0 flex items-center gap-2">
@@ -513,12 +534,13 @@ function renderUnitModules(
                         completedLenses={child.completedLenses}
                         totalLenses={child.totalLenses}
                         size={14}
+                        selected={isSelected}
                       />
                       <span className="text-base truncate text-slate-700">
                         {child.title}
                       </span>
                       {childEstimate && (
-                        <span className="text-xs text-slate-400 ml-auto flex-shrink-0 tabular-nums">
+                        <span className="text-xs text-slate-500 ml-auto flex-shrink-0 tabular-nums">
                           {formatDuration(childEstimate)}
                         </span>
                       )}
@@ -540,10 +562,8 @@ function renderUnitModules(
         <button
           key={mod.slug}
           onClick={() => onModuleSelect(mod)}
-          className={`relative w-full flex items-center py-1.5 text-left group transition-colors rounded-lg ${
-            isSelected
-              ? "bg-slate-200/50 -mx-2 px-2"
-              : "hover:bg-slate-100/70 -mx-2 px-2"
+          className={`relative w-full flex items-center py-1.5 text-left group transition-colors px-2 rounded-lg ${
+            isSelected ? "bg-[#f0ece4]" : "hover:bg-[var(--brand-border)]/30"
           }`}
         >
           <div className="flex-1 min-w-0">
@@ -553,6 +573,7 @@ function renderUnitModules(
                   status={mod.status}
                   completedLenses={mod.completedLenses}
                   totalLenses={mod.totalLenses}
+                  selected={isSelected}
                 />
               )}
               <span
@@ -576,13 +597,13 @@ function renderUnitModules(
                 >
                   {dueLabel}
                   {estimate ? (
-                    <span className="text-slate-400 font-normal tabular-nums">
+                    <span className="text-slate-500 font-normal tabular-nums">
                       · {formatDuration(estimate)}
                     </span>
                   ) : null}
                 </span>
               ) : estimate ? (
-                <span className="text-xs text-slate-400 ml-auto flex-shrink-0 tabular-nums">
+                <span className="text-xs text-slate-500 ml-auto flex-shrink-0 tabular-nums">
                   {formatDuration(estimate)}
                 </span>
               ) : null}

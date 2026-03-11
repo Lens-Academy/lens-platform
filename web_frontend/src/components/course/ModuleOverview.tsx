@@ -91,7 +91,7 @@ export default function ModuleOverview({
 
   // Static mapping so Tailwind's scanner sees full class names
   const textColorMap: Record<string, string> = {
-    "bg-blue-400": "text-blue-400",
+    "bg-lens-gold-400": "text-lens-gold-400",
     "bg-gray-400": "text-gray-400",
     "bg-gray-200": "text-gray-300",
   };
@@ -108,20 +108,23 @@ export default function ModuleOverview({
 
     const fillClasses = getCircleFillClasses(
       { isCompleted, isViewing, isOptional: stage.optional },
-      { includeHover: false },
+      { includeHover: false, optionalBg: "bg-[var(--brand-bg)]" },
     );
     const ringClasses = getRingClasses(isViewing, isCompleted);
 
     return (
       <div
-        className={`group relative flex items-center gap-4 py-2 rounded-lg ${
+        className={`group relative flex items-start gap-4 py-2 rounded-lg ${
           isClickable && !isDimmed ? "cursor-pointer" : ""
         } ${isDimmed ? "opacity-30 pointer-events-none" : ""}`}
         onClick={() => isClickable && !isDimmed && onStageClick(index)}
       >
         {/* Hover background — absolutely positioned at z-auto, paints below z-[1]+ elements */}
         {isClickable && (
-          <div className="absolute inset-0 rounded-lg bg-slate-50 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div
+            className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ backgroundColor: "var(--brand-bg)" }}
+          />
         )}
         {/* Circle */}
         <div
@@ -135,13 +138,14 @@ export default function ModuleOverview({
           <div className="flex items-center gap-2 max-w-xl">
             <span
               className={`font-medium ${
-                isCompleted || isViewing ? "text-slate-900" : "text-slate-400"
+                isCompleted || isViewing ? "text-slate-900" : "text-slate-500"
               }`}
+              style={{ fontFamily: "var(--brand-font-display)" }}
             >
               {stage.title}
             </span>
           </div>
-          <div className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
+          <div className="text-sm text-slate-500 flex items-center gap-1.5">
             {stage.optional && <OptionalBadge />}
             {stage.type === "chat"
               ? "Discuss with AI tutor"
@@ -160,7 +164,7 @@ export default function ModuleOverview({
                   const contentTime = Math.round(stage.duration / 1.5);
                   const aiTime = stage.duration - contentTime;
                   return (
-                    <span className="inline-flex items-center gap-0.5 text-slate-400">
+                    <span className="inline-flex items-center gap-0.5 text-slate-500">
                       {isVideo ? (
                         <svg
                           className="w-3 h-3 inline translate-y-px"
@@ -199,7 +203,7 @@ export default function ModuleOverview({
                 })()}
           </div>
           {stage.tldr && (
-            <p className="text-sm text-slate-400 mt-1 max-w-xl">{stage.tldr}</p>
+            <p className="text-sm text-slate-500 mt-1 max-w-xl">{stage.tldr}</p>
           )}
         </div>
       </div>
@@ -219,16 +223,48 @@ export default function ModuleOverview({
         {isMobile && parentTitle && (
           <p className="text-sm text-slate-500 mb-1">{parentTitle} ›</p>
         )}
-        <h2 className="text-2xl font-bold text-slate-900">{moduleTitle}</h2>
+        <div className="flex items-start justify-between gap-4">
+          <h2
+            className="text-2xl font-bold"
+            style={{
+              color: "var(--brand-text)",
+              fontFamily: "var(--brand-font-display)",
+            }}
+          >
+            {moduleTitle}
+          </h2>
+          {showActions && onStartModule && (
+            <button
+              onClick={onStartModule}
+              className="px-5 py-1.5 text-sm font-semibold rounded-lg transition-colors shrink-0"
+              style={{
+                backgroundColor: "var(--brand-accent)",
+                color: "var(--brand-accent-text)",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor =
+                  "var(--brand-accent-hover)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "var(--brand-accent)")
+              }
+            >
+              {getActionLabel()}
+            </button>
+          )}
+        </div>
         {/* Progress badge for in-progress modules */}
         {status === "in_progress" &&
           completedLenses !== undefined &&
           totalLenses !== undefined &&
           totalLenses > 0 && (
             <div className="mt-2 flex items-center gap-2">
-              <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="flex-1 h-2 rounded-full overflow-hidden"
+                style={{ backgroundColor: "var(--brand-border)" }}
+              >
                 <div
-                  className="h-full bg-blue-500 rounded-full transition-all"
+                  className="h-full bg-lens-gold-400 rounded-full transition-all"
                   style={{
                     width: `${(completedLenses / totalLenses) * 100}%`,
                   }}
@@ -297,20 +333,21 @@ export default function ModuleOverview({
                 <div key={li} className="relative">
                   {/* Top connector: from previous item to this circle center */}
                   {/* left-[0.875rem] = half of w-7 (14px) = center of circle within this wrapper */}
+                  {/* h-[22px] = py-2 (8px) + half circle (14px) = circle center from top */}
                   {!isFirst && (
                     <div
-                      className={`absolute left-[0.875rem] top-0 bottom-1/2 w-0.5 -translate-x-1/2 z-[1] ${colors.connectorColor}`}
+                      className={`absolute left-[0.875rem] top-0 h-[22px] w-0.5 -translate-x-1/2 z-[1] ${colors.connectorColor}`}
                     />
                   )}
                   {/* Bottom connector: from this circle center to next item */}
                   {!isLast &&
                     (trailsIntoBranchOnly ? (
                       <div
-                        className={`absolute left-[0.875rem] top-1/2 bottom-0 -translate-x-1/2 z-[1] dotted-round-v ${textColorMap[colors.outgoingColor] ?? "text-gray-200"}`}
+                        className={`absolute left-[0.875rem] top-[22px] bottom-0 -translate-x-1/2 z-[1] dotted-round-v ${textColorMap[colors.outgoingColor] ?? "text-gray-200"}`}
                       />
                     ) : (
                       <div
-                        className={`absolute left-[0.875rem] top-1/2 bottom-0 w-0.5 -translate-x-1/2 z-[1] ${colors.outgoingColor}`}
+                        className={`absolute left-[0.875rem] top-[22px] bottom-0 w-0.5 -translate-x-1/2 z-[1] ${colors.outgoingColor}`}
                       />
                     ))}
                   {renderStageRow(item.stage, item.index)}
@@ -344,9 +381,9 @@ export default function ModuleOverview({
                 string,
                 { text: string; border: string }
               > = {
-                "bg-blue-400": {
-                  text: "text-blue-400",
-                  border: "border-blue-400",
+                "bg-lens-gold-400": {
+                  text: "text-lens-gold-400",
+                  border: "border-lens-gold-400",
                 },
                 "bg-gray-400": {
                   text: "text-gray-400",
@@ -369,7 +406,7 @@ export default function ModuleOverview({
               const colorRank: Record<string, number> = {
                 "bg-gray-200": 0,
                 "bg-gray-400": 1,
-                "bg-blue-400": 2,
+                "bg-lens-gold-400": 2,
               };
               const arcDarker =
                 (colorRank[segmentColors[0]] ?? 0) >
@@ -415,23 +452,23 @@ export default function ModuleOverview({
                   <div className="ml-8 pt-6 pb-1">
                     {item.items.map((branchItem, bi) => (
                       <div key={bi} className="relative">
-                        {/* Fork-to-circle connector for first item (adapts to row height via bottom-1/2) */}
+                        {/* Fork-to-circle connector for first item — ends at circle center (22px from top) */}
                         {bi === 0 && hasPrecedingTrunk && (
                           <div
-                            className={`absolute ${branchConnZ} left-[0.875rem] bottom-1/2 -translate-x-1/2 dotted-round-v ${forkDotColor(0)}`}
+                            className={`absolute ${branchConnZ} left-[0.875rem] bottom-[calc(100%-22px)] -translate-x-1/2 dotted-round-v ${forkDotColor(0)}`}
                             style={{ top: forkConnectorTop }}
                           />
                         )}
                         {/* Branch connector above (dashed, between items) */}
                         {bi > 0 && (
                           <div
-                            className={`absolute ${branchConnZ} left-[0.875rem] top-0 bottom-1/2 -translate-x-1/2 dotted-round-v ${forkDotColor(bi)}`}
+                            className={`absolute ${branchConnZ} left-[0.875rem] top-0 h-[22px] -translate-x-1/2 dotted-round-v ${forkDotColor(bi)}`}
                           />
                         )}
                         {/* Branch connector below */}
                         {bi < item.items.length - 1 && (
                           <div
-                            className={`absolute ${branchConnZ} left-[0.875rem] top-1/2 bottom-0 -translate-x-1/2 dotted-round-v ${forkDotColor(bi + 1)}`}
+                            className={`absolute ${branchConnZ} left-[0.875rem] top-[22px] bottom-0 -translate-x-1/2 dotted-round-v ${forkDotColor(bi + 1)}`}
                           />
                         )}
                         {renderStageRow(branchItem.stage, branchItem.index)}
@@ -446,18 +483,6 @@ export default function ModuleOverview({
           })}
         </div>
       </div>
-
-      {/* Action button */}
-      {showActions && onStartModule && (
-        <div className="pt-6 mt-auto border-t border-slate-100">
-          <button
-            onClick={onStartModule}
-            className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            {getActionLabel()}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
