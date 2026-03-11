@@ -91,7 +91,7 @@ export default function ModuleOverview({
 
   // Static mapping so Tailwind's scanner sees full class names
   const textColorMap: Record<string, string> = {
-    "bg-blue-400": "text-blue-400",
+    "bg-lens-gold-400": "text-lens-gold-400",
     "bg-gray-400": "text-gray-400",
     "bg-gray-200": "text-gray-300",
   };
@@ -121,7 +121,7 @@ export default function ModuleOverview({
       >
         {/* Hover background — absolutely positioned at z-auto, paints below z-[1]+ elements */}
         {isClickable && (
-          <div className="absolute inset-0 rounded-lg bg-slate-50 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: "var(--brand-bg)" }} />
         )}
         {/* Circle */}
         <div
@@ -219,16 +219,29 @@ export default function ModuleOverview({
         {isMobile && parentTitle && (
           <p className="text-sm text-slate-500 mb-1">{parentTitle} ›</p>
         )}
-        <h2 className="text-2xl font-bold text-slate-900">{moduleTitle}</h2>
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-2xl font-bold" style={{ color: "var(--brand-text)", fontFamily: "var(--brand-font-display)" }}>{moduleTitle}</h2>
+          {showActions && onStartModule && (
+            <button
+              onClick={onStartModule}
+              className="px-5 py-1.5 text-sm font-semibold rounded-lg transition-colors shrink-0"
+              style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-accent-text)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--brand-accent-hover)")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--brand-accent)")}
+            >
+              {getActionLabel()}
+            </button>
+          )}
+        </div>
         {/* Progress badge for in-progress modules */}
         {status === "in_progress" &&
           completedLenses !== undefined &&
           totalLenses !== undefined &&
           totalLenses > 0 && (
             <div className="mt-2 flex items-center gap-2">
-              <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--brand-border)" }}>
                 <div
-                  className="h-full bg-blue-500 rounded-full transition-all"
+                  className="h-full bg-lens-gold-400 rounded-full transition-all"
                   style={{
                     width: `${(completedLenses / totalLenses) * 100}%`,
                   }}
@@ -344,9 +357,9 @@ export default function ModuleOverview({
                 string,
                 { text: string; border: string }
               > = {
-                "bg-blue-400": {
-                  text: "text-blue-400",
-                  border: "border-blue-400",
+                "bg-lens-gold-400": {
+                  text: "text-lens-gold-400",
+                  border: "border-lens-gold-400",
                 },
                 "bg-gray-400": {
                   text: "text-gray-400",
@@ -369,7 +382,7 @@ export default function ModuleOverview({
               const colorRank: Record<string, number> = {
                 "bg-gray-200": 0,
                 "bg-gray-400": 1,
-                "bg-blue-400": 2,
+                "bg-lens-gold-400": 2,
               };
               const arcDarker =
                 (colorRank[segmentColors[0]] ?? 0) >
@@ -447,17 +460,6 @@ export default function ModuleOverview({
         </div>
       </div>
 
-      {/* Action button */}
-      {showActions && onStartModule && (
-        <div className="pt-6 mt-auto border-t border-slate-100">
-          <button
-            onClick={onStartModule}
-            className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            {getActionLabel()}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

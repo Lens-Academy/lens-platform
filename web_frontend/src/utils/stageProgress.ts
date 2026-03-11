@@ -11,7 +11,7 @@ type CircleState = {
 
 /**
  * Get Tailwind classes for stage circle fill color.
- * - Completed: blue
+ * - Completed: amber
  * - Viewing + not completed: dark gray
  * - Not completed: light gray
  * - Optional: dashed border variant
@@ -26,8 +26,8 @@ export function getCircleFillClasses(
   if (isOptional) {
     if (isCompleted) {
       return includeHover
-        ? "bg-white text-blue-500 border-2 border-dashed border-blue-400 hover:border-blue-500"
-        : "bg-white text-blue-500 border-2 border-dashed border-blue-400";
+        ? "bg-white text-lens-gold-400 border-2 border-dashed border-lens-gold-400 hover:border-lens-gold-400"
+        : "bg-white text-lens-gold-400 border-2 border-dashed border-lens-gold-400";
     }
     if (isViewing) {
       return includeHover
@@ -41,8 +41,8 @@ export function getCircleFillClasses(
 
   if (isCompleted) {
     return includeHover
-      ? "bg-blue-500 text-white hover:bg-blue-600"
-      : "bg-blue-500 text-white";
+      ? "bg-lens-gold-400 text-white hover:bg-lens-gold-400"
+      : "bg-lens-gold-400 text-white";
   }
 
   if (isViewing) {
@@ -58,7 +58,7 @@ export function getCircleFillClasses(
 
 /**
  * Get Tailwind classes for stage circle ring (selection indicator).
- * Ring color matches fill: blue for completed, gray for not completed.
+ * Ring color matches fill: amber for completed, gray for not completed.
  */
 export function getRingClasses(
   isViewing: boolean,
@@ -66,6 +66,6 @@ export function getRingClasses(
 ): string {
   if (!isViewing) return "";
   return isCompleted
-    ? "ring-2 ring-offset-2 ring-blue-500"
+    ? "ring-2 ring-offset-2 ring-lens-gold-400"
     : "ring-2 ring-offset-2 ring-gray-500";
 }

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lens Gold Palette Comparison</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "DM Sans", sans-serif;
+    background: #f5f3ef;
+    padding: 40px 20px;
+    color: #1a1a1a;
+  }
+  h1 {
+    font-family: "Newsreader", serif;
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #6b6b6b;
+    margin-bottom: 40px;
+    font-size: 14px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .palette-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px;
+    border: 1px solid #e8e5df;
+  }
+  .palette-name {
+    font-family: "Newsreader", serif;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .palette-desc {
+    font-size: 13px;
+    color: #6b6b6b;
+    margin-bottom: 20px;
+  }
+
+  /* Swatch row */
+  .swatches {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .swatch {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: white;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+
+  /* CTA button */
+  .cta {
+    display: inline-block;
+    padding: 10px 28px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: filter 0.15s;
+  }
+  .cta:hover { filter: brightness(0.92); }
+  .cta-small {
+    display: inline-block;
+    padding: 6px 18px;
+    border-radius: 6px;
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    border: none;
+    cursor: pointer;
+    margin-left: 12px;
+  }
+
+  /* Module title row */
+  .module-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .module-title {
+    font-family: "Newsreader", serif;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  /* Progress bar */
+  .progress-track {
+    height: 6px;
+    background: #e8e5df;
+    border-radius: 3px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    width: 60%;
+  }
+
+  /* Stage list */
+  .stage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .stage {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #faf9f6;
+  }
+  .stage-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .stage-circle svg {
+    width: 14px;
+    height: 14px;
+  }
+  .stage-label {
+    font-size: 13px;
+    flex: 1;
+  }
+  .stage-type {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  /* Connecting line segment */
+  .line-segment {
+    width: 3px;
+    height: 20px;
+    margin-left: 24px;
+    border-radius: 2px;
+  }
+
+  /* Current palette label */
+  .current-badge {
+    display: inline-block;
+    background: #e8e5df;
+    color: #6b6b6b;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  .hex-label {
+    font-size: 11px;
+    color: #999;
+    font-family: monospace;
+    margin-top: 2px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Lens Gold Palette Comparison</h1>
+<p class="subtitle">Exploring warmer, earthier, more ocher alternatives to the current gold</p>
+
+<div class="grid">
+
+  <!-- CURRENT -->
+  <div class="palette-card">
+    <div class="palette-name">Current Gold <span class="current-badge">CURRENT</span></div>
+    <p class="palette-desc">Warm gold — slightly orange-leaning, bright</p>
+    <div class="swatches">
+      <div class="swatch" style="background:#e0be6a">300</div>
+      <div class="swatch" style="background:#d4a94a">400</div>
+      <div class="swatch" style="background:#c9952d">500</div>
+      <div class="swatch" style="background:#b8862a">600</div>
+      <div class="swatch" style="background:#a07524">700</div>
+    </div>
+    <div class="hex-label">500: #c9952d</div>
+
+    <div class="module-row" style="margin-top:16px">
+      <span class="module-title">Module Overview</span>
+      <button class="cta-small" style="background:#c9952d">Continue Module</button>
+    </div>
+    <div class="progress-track"><div class="progress-fill" style="background:#d4a94a"></div></div>
+
+    <div class="stage-list">
+      <div class="stage">
+        <div class="stage-circle" style="background:#c9952d"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Introduction to AI Safety</span>
+        <span class="stage-type" style="background:#c9952d22;color:#c9952d">Article</span>
+      </div>
+      <div class="line-segment" style="background:#d4a94a"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#c9952d"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Alignment Problem Overview</span>
+        <span class="stage-type" style="background:#c9952d22;color:#c9952d">Video</span>
+      </div>
+      <div class="line-segment" style="background:#d4a94a"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#d1d5db"><svg fill="#9ca3af" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg></div>
+        <span class="stage-label">Risks and Benefits</span>
+        <span class="stage-type" style="background:#f3f4f6;color:#9ca3af">Article</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION A: Ocher / Raw Sienna -->
+  <div class="palette-card">
+    <div class="palette-name">Ocher Sienna</div>
+    <p class="palette-desc">Earthy ocher — warm brownish-yellow, like raw sienna clay</p>
+    <div class="swatches">
+      <div class="swatch" style="background:#d4b072">300</div>
+      <div class="swatch" style="background:#c49a52">400</div>
+      <div class="swatch" style="background:#b58536">500</div>
+      <div class="swatch" style="background:#9e7430">600</div>
+      <div class="swatch" style="background:#876328">700</div>
+    </div>
+    <div class="hex-label">500: #b58536</div>
+
+    <div class="module-row" style="margin-top:16px">
+      <span class="module-title">Module Overview</span>
+      <button class="cta-small" style="background:#b58536">Continue Module</button>
+    </div>
+    <div class="progress-track"><div class="progress-fill" style="background:#c49a52"></div></div>
+
+    <div class="stage-list">
+      <div class="stage">
+        <div class="stage-circle" style="background:#b58536"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Introduction to AI Safety</span>
+        <span class="stage-type" style="background:#b5853622;color:#b58536">Article</span>
+      </div>
+      <div class="line-segment" style="background:#c49a52"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#b58536"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Alignment Problem Overview</span>
+        <span class="stage-type" style="background:#b5853622;color:#b58536">Video</span>
+      </div>
+      <div class="line-segment" style="background:#c49a52"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#d1d5db"><svg fill="#9ca3af" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg></div>
+        <span class="stage-label">Risks and Benefits</span>
+        <span class="stage-type" style="background:#f3f4f6;color:#9ca3af">Article</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION B: Warm Khaki -->
+  <div class="palette-card">
+    <div class="palette-name">Warm Khaki</div>
+    <p class="palette-desc">Sandy khaki — desaturated, subtle, very earthy and muted</p>
+    <div class="swatches">
+      <div class="swatch" style="background:#c9b17a">300</div>
+      <div class="swatch" style="background:#b89d5e">400</div>
+      <div class="swatch" style="background:#a78b45">500</div>
+      <div class="swatch" style="background:#93793c">600</div>
+      <div class="swatch" style="background:#7d6732">700</div>
+    </div>
+    <div class="hex-label">500: #a78b45</div>
+
+    <div class="module-row" style="margin-top:16px">
+      <span class="module-title">Module Overview</span>
+      <button class="cta-small" style="background:#a78b45">Continue Module</button>
+    </div>
+    <div class="progress-track"><div class="progress-fill" style="background:#b89d5e"></div></div>
+
+    <div class="stage-list">
+      <div class="stage">
+        <div class="stage-circle" style="background:#a78b45"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Introduction to AI Safety</span>
+        <span class="stage-type" style="background:#a78b4522;color:#a78b45">Article</span>
+      </div>
+      <div class="line-segment" style="background:#b89d5e"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#a78b45"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Alignment Problem Overview</span>
+        <span class="stage-type" style="background:#a78b4522;color:#a78b45">Video</span>
+      </div>
+      <div class="line-segment" style="background:#b89d5e"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#d1d5db"><svg fill="#9ca3af" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg></div>
+        <span class="stage-label">Risks and Benefits</span>
+        <span class="stage-type" style="background:#f3f4f6;color:#9ca3af">Article</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION C: Amber Earth -->
+  <div class="palette-card">
+    <div class="palette-name">Amber Earth</div>
+    <p class="palette-desc">Halfway between current gold and ocher — warm but still has presence</p>
+    <div class="swatches">
+      <div class="swatch" style="background:#dab566">300</div>
+      <div class="swatch" style="background:#cca24e">400</div>
+      <div class="swatch" style="background:#be8f32">500</div>
+      <div class="swatch" style="background:#a97f2c">600</div>
+      <div class="swatch" style="background:#916d26">700</div>
+    </div>
+    <div class="hex-label">500: #be8f32</div>
+
+    <div class="module-row" style="margin-top:16px">
+      <span class="module-title">Module Overview</span>
+      <button class="cta-small" style="background:#be8f32">Continue Module</button>
+    </div>
+    <div class="progress-track"><div class="progress-fill" style="background:#cca24e"></div></div>
+
+    <div class="stage-list">
+      <div class="stage">
+        <div class="stage-circle" style="background:#be8f32"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Introduction to AI Safety</span>
+        <span class="stage-type" style="background:#be8f3222;color:#be8f32">Article</span>
+      </div>
+      <div class="line-segment" style="background:#cca24e"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#be8f32"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Alignment Problem Overview</span>
+        <span class="stage-type" style="background:#be8f3222;color:#be8f32">Video</span>
+      </div>
+      <div class="line-segment" style="background:#cca24e"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#d1d5db"><svg fill="#9ca3af" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg></div>
+        <span class="stage-label">Risks and Benefits</span>
+        <span class="stage-type" style="background:#f3f4f6;color:#9ca3af">Article</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION D: Bronze Olive -->
+  <div class="palette-card">
+    <div class="palette-name">Bronze Olive</div>
+    <p class="palette-desc">Green-bronze undertone — very earthy, like aged brass or olive wood</p>
+    <div class="swatches">
+      <div class="swatch" style="background:#c4ac6a">300</div>
+      <div class="swatch" style="background:#b09750">400</div>
+      <div class="swatch" style="background:#9c8338">500</div>
+      <div class="swatch" style="background:#897331">600</div>
+      <div class="swatch" style="background:#746228">700</div>
+    </div>
+    <div class="hex-label">500: #9c8338</div>
+
+    <div class="module-row" style="margin-top:16px">
+      <span class="module-title">Module Overview</span>
+      <button class="cta-small" style="background:#9c8338">Continue Module</button>
+    </div>
+    <div class="progress-track"><div class="progress-fill" style="background:#b09750"></div></div>
+
+    <div class="stage-list">
+      <div class="stage">
+        <div class="stage-circle" style="background:#9c8338"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Introduction to AI Safety</span>
+        <span class="stage-type" style="background:#9c833822;color:#9c8338">Article</span>
+      </div>
+      <div class="line-segment" style="background:#b09750"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#9c8338"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Alignment Problem Overview</span>
+        <span class="stage-type" style="background:#9c833822;color:#9c8338">Video</span>
+      </div>
+      <div class="line-segment" style="background:#b09750"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#d1d5db"><svg fill="#9ca3af" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg></div>
+        <span class="stage-label">Risks and Benefits</span>
+        <span class="stage-type" style="background:#f3f4f6;color:#9ca3af">Article</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION E: Burnt Honey -->
+  <div class="palette-card">
+    <div class="palette-name">Burnt Honey</div>
+    <p class="palette-desc">Deep honey brown — rich and warm, slightly reddish-brown undertone</p>
+    <div class="swatches">
+      <div class="swatch" style="background:#d4a862">300</div>
+      <div class="swatch" style="background:#c49348">400</div>
+      <div class="swatch" style="background:#b47f30">500</div>
+      <div class="swatch" style="background:#9d6e2a">600</div>
+      <div class="swatch" style="background:#875e22">700</div>
+    </div>
+    <div class="hex-label">500: #b47f30</div>
+
+    <div class="module-row" style="margin-top:16px">
+      <span class="module-title">Module Overview</span>
+      <button class="cta-small" style="background:#b47f30">Continue Module</button>
+    </div>
+    <div class="progress-track"><div class="progress-fill" style="background:#c49348"></div></div>
+
+    <div class="stage-list">
+      <div class="stage">
+        <div class="stage-circle" style="background:#b47f30"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Introduction to AI Safety</span>
+        <span class="stage-type" style="background:#b47f3022;color:#b47f30">Article</span>
+      </div>
+      <div class="line-segment" style="background:#c49348"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#b47f30"><svg fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>
+        <span class="stage-label">Alignment Problem Overview</span>
+        <span class="stage-type" style="background:#b47f3022;color:#b47f30">Video</span>
+      </div>
+      <div class="line-segment" style="background:#c49348"></div>
+      <div class="stage">
+        <div class="stage-circle" style="background:#d1d5db"><svg fill="#9ca3af" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg></div>
+        <span class="stage-label">Risks and Benefits</span>
+        <span class="stage-type" style="background:#f3f4f6;color:#9ca3af">Article</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -199,10 +199,15 @@ export default function CourseOverview({
       <nav
         className={`
           fixed top-0 left-0 right-0 z-50
-          backdrop-blur-md bg-stone-50/70 border-b border-slate-200/50
+          backdrop-blur-md border-b
           transition-transform duration-300
           ${shouldHideHeader ? "-translate-y-full" : "translate-y-0"}
         `}
+        style={{
+          backgroundColor: "color-mix(in srgb, var(--brand-bg) 80%, transparent)",
+          borderColor: "var(--brand-border)",
+          fontFamily: "var(--brand-font-body)",
+        }}
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -211,19 +216,22 @@ export default function CourseOverview({
               {isMobile && (
                 <button
                   onClick={() => setSidebarOpen(true)}
-                  className="p-2 -ml-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-100 rounded-lg transition-colors"
+                  className="p-2 -ml-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-black/5 rounded-lg transition-colors"
                   aria-label="Open course menu"
                 >
-                  <Menu className="w-5 h-5 text-slate-600" />
+                  <Menu className="w-5 h-5" style={{ color: "var(--brand-text-muted)" }} />
                 </button>
               )}
               <a href="/" className="flex items-center gap-2">
                 <img
-                  src="/assets/Logo only.png"
+                  src="/assets/Logo_magnifying_glass.png"
                   alt="Lens Academy"
                   className="h-8"
                 />
-                <span className="text-xl font-semibold text-slate-800">
+                <span
+                  className="text-xl font-medium"
+                  style={{ color: "var(--brand-text)", fontFamily: "var(--brand-font-display)" }}
+                >
                   Lens Academy
                 </span>
               </a>
@@ -231,7 +239,8 @@ export default function CourseOverview({
             <div className="flex items-center gap-4">
               <a
                 href="/course"
-                className="text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200 hidden md:block"
+                className="font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200 hidden md:block"
+                style={{ color: "var(--brand-text-muted)" }}
               >
                 Course
               </a>
@@ -272,25 +281,29 @@ export default function CourseOverview({
             )}
             {/* Drawer */}
             <div
-              className={`fixed top-0 left-0 h-full w-[80%] max-w-sm z-50 bg-white transition-transform duration-300 ${
+              className={`fixed top-0 left-0 h-full w-[80%] max-w-sm z-50 transition-transform duration-300 ${
                 sidebarOpen ? "translate-x-0" : "-translate-x-full"
               }`}
               style={{
+                backgroundColor: "var(--brand-bg)",
                 paddingTop: "var(--safe-top)",
                 paddingBottom: "var(--safe-bottom)",
               }}
             >
               {/* Drawer header with close button */}
-              <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50">
-                <span className="font-semibold text-slate-800">
+              <div
+                className="flex items-center justify-between p-4 border-b"
+                style={{ borderColor: "var(--brand-border)", backgroundColor: "var(--brand-bg)" }}
+              >
+                <span className="font-semibold" style={{ color: "var(--brand-text)" }}>
                   Course Menu
                 </span>
                 <button
                   onClick={() => setSidebarOpen(false)}
-                  className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-100 rounded-lg transition-colors"
+                  className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-black/5 rounded-lg transition-colors"
                   aria-label="Close menu"
                 >
-                  <X className="w-5 h-5 text-slate-600" />
+                  <X className="w-5 h-5" style={{ color: "var(--brand-text-muted)" }} />
                 </button>
               </div>
               {/* Sidebar content */}
@@ -327,7 +340,7 @@ export default function CourseOverview({
               isMobile={isMobile}
             />
           ) : (
-            <div className="text-slate-500">
+            <div style={{ color: "var(--brand-text-muted)" }}>
               Select a module to view details
             </div>
           )}

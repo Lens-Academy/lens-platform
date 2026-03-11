@@ -18,10 +18,10 @@ type CourseSidebarProps = {
 
 function ModuleStatusIcon({ status }: { status: ModuleInfo["status"] }) {
   if (status === "completed") {
-    return <Check className="w-4 h-4 text-blue-500" />;
+    return <Check className="w-4 h-4 text-lens-gold-500" />;
   }
   if (status === "in_progress") {
-    return <Circle className="w-4 h-4 text-blue-500 fill-blue-500" />;
+    return <Circle className="w-4 h-4 text-lens-gold-500 fill-lens-gold-500" />;
   }
   return <Circle className="w-4 h-4 text-slate-300" />;
 }
@@ -137,10 +137,10 @@ export default function CourseSidebar({
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 border-r border-slate-200">
+    <div className="h-full flex flex-col border-r" style={{ backgroundColor: "var(--brand-bg)", borderColor: "var(--brand-border)" }}>
       {/* Course title */}
-      <div className="p-4 border-b border-slate-200">
-        <h1 className="text-lg font-bold text-slate-900">{courseTitle}</h1>
+      <div className="p-4 border-b" style={{ borderColor: "var(--brand-border)" }}>
+        <h1 className="text-lg font-bold" style={{ color: "var(--brand-text)", fontFamily: "var(--brand-font-display)" }}>{courseTitle}</h1>
       </div>
 
       {/* Flat module list */}
@@ -155,8 +155,8 @@ export default function CourseSidebar({
                 onClick={() => onModuleSelect(module)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
                   isSelected
-                    ? "bg-blue-50 text-blue-900"
-                    : "hover:bg-slate-100 text-slate-700"
+                    ? "bg-[var(--brand-accent)]/10 text-[var(--brand-text)]"
+                    : "hover:bg-[var(--brand-border)]/30 text-slate-700"
                 }`}
               >
                 <ModuleStatusIcon status={module.status} />
@@ -167,7 +167,7 @@ export default function CourseSidebar({
                 </span>
                 {module.optional && <OptionalBadge />}
                 {!module.optional && module.status === "in_progress" && (
-                  <span className="text-xs text-blue-600 font-medium">
+                  <span className="text-xs text-lens-gold-500 font-medium">
                     {module.completedLenses !== undefined && module.totalLenses
                       ? `${module.completedLenses}/${module.totalLenses}`
                       : "Continue"}
@@ -193,8 +193,8 @@ export default function CourseSidebar({
                 onClick={() => toggleParent(parentSlug)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
                   anyChildSelected && !isExpanded
-                    ? "bg-blue-50"
-                    : "hover:bg-slate-100"
+                    ? "bg-[var(--brand-accent)]/10"
+                    : "hover:bg-[var(--brand-border)]/30"
                 }`}
               >
                 <ModuleStatusIcon status={parentStatus} />
@@ -223,8 +223,8 @@ export default function CourseSidebar({
                         onClick={() => onModuleSelect(child)}
                         className={`w-full flex items-center gap-3 pl-10 pr-4 py-2 text-left transition-colors ${
                           isSelected
-                            ? "bg-blue-50 text-blue-900"
-                            : "hover:bg-slate-100 text-slate-600"
+                            ? "bg-[var(--brand-accent)]/10 text-[var(--brand-text)]"
+                            : "hover:bg-[var(--brand-border)]/30 text-slate-600"
                         }`}
                       >
                         <ModuleStatusIcon status={child.status} />

@@ -13,7 +13,7 @@ import { Tooltip } from "../Tooltip";
 /**
  * Circular progress indicator:
  * - not_started: gray outline ring
- * - in_progress: gray outline ring with blue arc fill (clock-style, starting at 12 o'clock)
+ * - in_progress: gray outline ring with amber arc fill (clock-style, starting at 12 o'clock)
  * - completed: green filled circle with white checkmark
  */
 function ProgressCircle({
@@ -37,7 +37,7 @@ function ProgressCircle({
         fill="none"
       >
         {/* Blue filled circle */}
-        <circle cx="10" cy="10" r="9" fill="#3b82f6" />
+        <circle cx="10" cy="10" r="9" fill="#c9952d" />
         {/* White checkmark */}
         <path
           d="M6 10.5l2.5 2.5 5-5"
@@ -84,7 +84,7 @@ function ProgressCircle({
           cx={cx}
           cy={cy}
           r={r}
-          stroke="#3b82f6"
+          stroke="#c9952d"
           strokeWidth="2"
           fill="none"
           strokeDasharray={circumference}
@@ -243,10 +243,10 @@ export default function CourseTimeline({
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 border-r border-slate-200">
+    <div className="h-full flex flex-col border-r" style={{ backgroundColor: "var(--brand-bg)", borderColor: "var(--brand-border)" }}>
       {/* Course title */}
-      <div className="p-4 border-b border-slate-200">
-        <h1 className="text-xl font-bold text-slate-900">{courseTitle}</h1>
+      <div className="p-4 border-b" style={{ borderColor: "var(--brand-border)" }}>
+        <h1 className="text-xl font-bold" style={{ color: "var(--brand-text)", fontFamily: "var(--brand-font-display)" }}>{courseTitle}</h1>
       </div>
 
       {/* Timeline */}
@@ -273,7 +273,7 @@ export default function CourseTimeline({
             return (
               <div key={unitIdx}>
                 {unitIdx > 0 && (
-                  <div className="border-t border-slate-200 my-1" />
+                  <div className="border-t my-1" style={{ borderColor: "var(--brand-border)" }} />
                 )}
                 <div className="relative transition-all duration-200">
                   {/* Unit header row */}
@@ -440,7 +440,7 @@ function renderUnitModules(
             onClick={() => toggleParent(parentSlug)}
             className={`relative w-full flex items-center py-1.5 group text-left rounded-lg ${
               anyChildSelected && !isParentExpanded
-                ? "bg-slate-200/50 -mx-2 px-2"
+                ? "bg-[var(--brand-accent)]/10 -mx-2 px-2"
                 : "-mx-2 px-2"
             }`}
           >
@@ -503,8 +503,8 @@ function renderUnitModules(
                     onClick={() => onModuleSelect(child)}
                     className={`relative w-full flex items-center py-1 text-left transition-colors rounded-lg ${
                       isSelected
-                        ? "bg-slate-200/50 text-slate-900"
-                        : "hover:bg-slate-100/70 text-slate-600"
+                        ? "bg-[var(--brand-accent)]/10 text-slate-900"
+                        : "hover:bg-[var(--brand-border)]/30 text-slate-600"
                     }`}
                   >
                     <div className="ml-4 flex-1 min-w-0 flex items-center gap-2">
@@ -542,8 +542,8 @@ function renderUnitModules(
           onClick={() => onModuleSelect(mod)}
           className={`relative w-full flex items-center py-1.5 text-left group transition-colors rounded-lg ${
             isSelected
-              ? "bg-slate-200/50 -mx-2 px-2"
-              : "hover:bg-slate-100/70 -mx-2 px-2"
+              ? "bg-[var(--brand-accent)]/10 -mx-2 px-2"
+              : "hover:bg-[var(--brand-border)]/30 -mx-2 px-2"
           }`}
         >
           <div className="flex-1 min-w-0">
