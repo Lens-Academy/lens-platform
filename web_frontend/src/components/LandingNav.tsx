@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useMedia } from "react-use";
 import { Menu, X } from "lucide-react";
 import { UserMenu } from "./nav";
-import { useScrollDirection } from "../hooks/useScrollDirection";
 import { DISCORD_INVITE_URL } from "../config";
 
 const NAV_LINKS = [
@@ -16,8 +15,6 @@ const CTA_HREF = "/course/default/module/introduction";
 export function LandingNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const isMobile = useMedia("(max-width: 767px)", false);
-  const scrollDirection = useScrollDirection(100);
-  const shouldHideHeader = scrollDirection === "down" && !menuOpen;
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -36,7 +33,7 @@ export function LandingNav() {
           fixed top-0 left-0 right-0 z-50
           backdrop-blur-md border-b
           transition-transform duration-300
-          ${shouldHideHeader ? "-translate-y-full" : "translate-y-0"}
+          translate-y-0
         `}
         style={{
           backgroundColor: "color-mix(in srgb, var(--landing-bg) 80%, transparent)",
