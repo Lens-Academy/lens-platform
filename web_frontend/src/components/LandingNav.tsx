@@ -46,13 +46,13 @@ export function LandingNav() {
             {/* Logo */}
             <a href="/" className="flex items-center gap-2">
               <img
-                src="/assets/Logo only.png"
+                src="/assets/Logo_magnifying_glass.png"
                 alt="Lens Academy"
                 className="h-8"
               />
               <span
-                className="text-xl font-semibold"
-                style={{ color: "var(--landing-text)" }}
+                className="text-xl font-medium"
+                style={{ color: "var(--landing-text)", fontFamily: "var(--landing-font-display)" }}
               >
                 Lens Academy
               </span>
