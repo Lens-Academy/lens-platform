@@ -20,7 +20,7 @@ export default function Head() {
 
       <meta
         name="description"
-        content="A free, high quality course on AI existential risk. No gatekeeping, no application process."
+        content="Understand why superintelligence might end everything — and what to do about it. A free, in-depth AI Safety course with a 1-on-1 AI tutor. No application process."
       />
     </>
   );
