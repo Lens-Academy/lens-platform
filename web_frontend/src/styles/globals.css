@@ -24,6 +24,18 @@
      Set by ModuleHeader/Layout via JS; consumed by sticky elements. */
   --header-offset: var(--module-header-height);
 
+  /* Landing page palette */
+  --landing-bg: #faf9f6;
+  --landing-bg-alt: #ffffff;
+  --landing-text: #1a1a1a;
+  --landing-text-muted: #6b6b6b;
+  --landing-accent: #c9952d;
+  --landing-accent-hover: #b8862a;
+  --landing-accent-text: #ffffff;
+  --landing-border: #e8e5df;
+  --landing-font-display: "Instrument Serif", serif;
+  --landing-font-body: "DM Sans", sans-serif;
+
   /* Spring easing - slight overshoot and settle */
   --ease-spring: linear(
     0,
