@@ -37,7 +37,7 @@ function ProgressCircle({
         fill="none"
       >
         {/* Blue filled circle */}
-        <circle cx="10" cy="10" r="9" fill="#c9952d" />
+        <circle cx="10" cy="10" r="9" fill="#b87018" />
         {/* White checkmark */}
         <path
           d="M6 10.5l2.5 2.5 5-5"
@@ -84,7 +84,7 @@ function ProgressCircle({
           cx={cx}
           cy={cy}
           r={r}
-          stroke="#c9952d"
+          stroke="#b87018"
           strokeWidth="2"
           fill="none"
           strokeDasharray={circumference}

@@ -5,12 +5,12 @@
   --container-content: 640px;
   --container-content-padded: calc(var(--container-content) + 128px);
 
-  /* Brand gold palette — custom color (matches --brand-accent #c9952d) */
-  --color-lens-gold-300: #e0be6a;
-  --color-lens-gold-400: #d4a94a;
-  --color-lens-gold-500: #c9952d;
-  --color-lens-gold-600: #b8862a;
-  --color-lens-gold-700: #a07524;
+  /* Brand gold palette — Blend B: warm earthy tone, hue drifts 73°→64° in darks */
+  --color-lens-gold-300: #dea96c;
+  --color-lens-gold-400: #d08838;
+  --color-lens-gold-500: #b87018;
+  --color-lens-gold-600: #9a5c10;
+  --color-lens-gold-700: #7a470c;
 }
 
 :root {
@@ -36,8 +36,8 @@
   --brand-bg-alt: #ffffff;
   --brand-text: #1a1a1a;
   --brand-text-muted: #6b6b6b;
-  --brand-accent: #c9952d;
-  --brand-accent-hover: #b8862a;
+  --brand-accent: #b87018;
+  --brand-accent-hover: #9a5c10;
   --brand-accent-text: #ffffff;
   --brand-border: #e8e5df;
   --brand-font-display: "Newsreader", serif;
