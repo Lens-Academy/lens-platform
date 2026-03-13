@@ -532,6 +532,25 @@ question_assessments = Table(
 # =====================================================
 # 15. ROLEPLAY_ASSESSMENTS
 # =====================================================
+# =====================================================
+# PROSPECTS (email capture for course notifications)
+# =====================================================
+prospects = Table(
+    "prospects",
+    metadata,
+    Column("prospect_id", Integer, primary_key=True, autoincrement=True),
+    Column("email", Text, nullable=False),
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column("unsubscribed_at", TIMESTAMP(timezone=True)),
+    Column("notified_at", TIMESTAMP(timezone=True)),
+    UniqueConstraint("email", name="uq_prospects_email"),
+    Index("idx_prospects_email", "email"),
+)
+
+
+# =====================================================
+# 15. ROLEPLAY_ASSESSMENTS
+# =====================================================
 roleplay_assessments = Table(
     "roleplay_assessments",
     metadata,
