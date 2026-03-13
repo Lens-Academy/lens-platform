@@ -309,6 +309,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# Prospects endpoint needs Access-Control-Allow-Origin: * for sandboxed iframes
+# (e.g. LessWrong custom widgets). This middleware runs BEFORE CORSMiddleware
+# (LIFO order) and handles /api/prospects preflight/responses directly.
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class ProspectsCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if not request.url.path.startswith("/api/prospects"):
+            return await call_next(request)
+        # Handle preflight
+        if request.method == "OPTIONS":
+            from starlette.responses import Response
+            return Response(
+                status_code=204,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "POST, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type",
+                },
+            )
+        # Add CORS headers to actual response
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
+
+app.add_middleware(ProspectsCORSMiddleware)
+
 # Include routers
 app.include_router(auth_router)
 app.include_router(users_router)
