@@ -6,6 +6,7 @@ import CohortRoleStep from "./CohortRoleStep";
 import AvailabilityStep from "./AvailabilityStep";
 import GroupSelectionStep from "./GroupSelectionStep";
 import EnrollSuccessMessage from "./EnrollSuccessMessage";
+import ProspectEmailForm from "../ProspectEmailForm";
 import { useAuth } from "../../hooks/useAuth";
 import { API_URL } from "../../config";
 import { fetchWithRefresh } from "../../api/fetchWithRefresh";
@@ -39,6 +40,11 @@ export default function EnrollWizard() {
   // Force availability mode when user clicks "switch to availability" from GroupSelectionStep
   const [forceAvailabilityMode, setForceAvailabilityMode] = useState(false);
 
+  // Public cohort availability check (before auth)
+  const [hasAvailableCohorts, setHasAvailableCohorts] = useState<
+    boolean | null
+  >(null);
+
   // Cohort data
   const [enrolledCohorts, setEnrolledCohorts] = useState<Cohort[]>([]);
   const [availableCohorts, setAvailableCohorts] = useState<Cohort[]>([]);
@@ -63,6 +69,14 @@ export default function EnrollWizard() {
     startDate.setDate(startDate.getDate() + selectedCohort.duration_days);
     return startDate.toISOString().split("T")[0];
   }, [selectedCohort]);
+
+  // Check if any cohorts are available (public, no auth)
+  useEffect(() => {
+    fetch(`${API_URL}/api/cohorts/available-public`)
+      .then((res) => res.json())
+      .then((data) => setHasAvailableCohorts(data.has_available))
+      .catch(() => setHasAvailableCohorts(true)); // Assume available on error
+  }, []);
 
   // Track enrollment started on mount
   useEffect(() => {
@@ -211,7 +225,29 @@ export default function EnrollWizard() {
     }
   };
 
-  if (isLoading) {
+  // Show email capture if no cohorts are available (checked before auth)
+  if (hasAvailableCohorts === false && !isAuthenticated) {
+    return (
+      <div className="max-w-md mx-auto text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-900 mb-3">
+          No courses are currently open for enrollment
+        </h2>
+        <p className="text-gray-600 mb-8">
+          Leave your email and we'll notify you when the next cohort opens.
+        </p>
+        <ProspectEmailForm variant="standalone" />
+        <p className="text-sm text-gray-500 mt-6">
+          In the meantime, you can{" "}
+          <a href="/course/default" className="text-blue-600 hover:underline">
+            explore our free course materials
+          </a>
+          .
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoading || hasAvailableCohorts === null) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
