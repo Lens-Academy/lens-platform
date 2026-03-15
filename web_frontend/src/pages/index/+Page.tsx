@@ -1,6 +1,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { LandingNav } from "@/components/LandingNav";
 import { LandingFooter } from "@/components/LandingFooter";
+import ProspectEmailForm from "@/components/ProspectEmailForm";
 import { Target, MessageSquare, Users } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -431,12 +432,7 @@ export default function LandingPage() {
                 sessions exploring the arguments, evidence, and implications
                 with fellow students and an AI tutor.
               </p>
-              <p
-                className="text-sm font-semibold"
-                style={{ color: "var(--landing-text-muted)" }}
-              >
-                Available soon
-              </p>
+              <ProspectEmailForm variant="inline" />
             </div>
           </div>
         </div>
