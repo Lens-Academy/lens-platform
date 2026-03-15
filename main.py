@@ -155,7 +155,7 @@ from web_api.routes.questions import router as questions_router
 from web_api.routes.roleplay import router as roleplay_router
 from web_api.routes.roleplay_ws import router as roleplay_ws_router
 from web_api.routes.guest_visits import router as guest_visits_router
-from web_api.routes.prospects import router as prospects_router
+from web_api.routes.subscribe import router as subscribe_router
 
 # Track bot task for cleanup
 _bot_task: asyncio.Task | None = None
@@ -258,6 +258,17 @@ async def lifespan(app: FastAPI):
                 replace_existing=True,
             )
             print("Scheduled RSVP sync job (every 6 hours)")
+
+            from core.substack_sync import sync_substack_subscribers
+
+            scheduler.add_job(
+                sync_substack_subscribers,
+                trigger="interval",
+                hours=6,
+                id="sync_substack",
+                replace_existing=True,
+            )
+            print("Scheduled Substack sync job (every 6 hours)")
     else:
         print("Running in --no-db mode (database operations will fail)")
 
@@ -310,18 +321,20 @@ app.add_middleware(
 )
 
 
-# Prospects endpoint needs Access-Control-Allow-Origin: * for sandboxed iframes
+# Subscribe endpoint needs Access-Control-Allow-Origin: * for sandboxed iframes
 # (e.g. LessWrong custom widgets). This middleware runs BEFORE CORSMiddleware
-# (LIFO order) and handles /api/prospects preflight/responses directly.
+# (LIFO order) and handles /api/subscribe preflight/responses directly.
 from starlette.middleware.base import BaseHTTPMiddleware
 
-class ProspectsCORSMiddleware(BaseHTTPMiddleware):
+
+class SubscribeCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        if not request.url.path.startswith("/api/prospects"):
+        if not request.url.path.startswith("/api/subscribe"):
             return await call_next(request)
         # Handle preflight
         if request.method == "OPTIONS":
             from starlette.responses import Response
+
             return Response(
                 status_code=204,
                 headers={
@@ -335,7 +348,8 @@ class ProspectsCORSMiddleware(BaseHTTPMiddleware):
         response.headers["Access-Control-Allow-Origin"] = "*"
         return response
 
-app.add_middleware(ProspectsCORSMiddleware)
+
+app.add_middleware(SubscribeCORSMiddleware)
 
 # Include routers
 app.include_router(auth_router)
@@ -356,7 +370,7 @@ app.include_router(admin_router)
 app.include_router(progress_router)
 app.include_router(questions_router)
 app.include_router(guest_visits_router)
-app.include_router(prospects_router)
+app.include_router(subscribe_router)
 
 
 # New paths for static files
