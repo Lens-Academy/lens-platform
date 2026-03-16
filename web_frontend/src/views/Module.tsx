@@ -783,9 +783,19 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           }
           isInitialCheck = false;
 
-          // Sidebar disallowed when any chat input pill overlaps the 20%-80% viewport band
+          // Sidebar disallowed when any chat input pill overlaps the viewport band.
+          // Hysteresis: use different thresholds depending on current state to
+          // prevent oscillation when the sidebar open/close reflow shifts the
+          // pill by a few pixels across the boundary.
+          const hysteresis = 20; // px
           const bandTop = window.innerHeight * 0.35;
           const bandBottom = window.innerHeight * 0.95;
+          const effectiveBandTop = lastSidebarAllowed.current
+            ? bandTop + hysteresis
+            : bandTop - hysteresis;
+          const effectiveBandBottom = lastSidebarAllowed.current
+            ? bandBottom - hysteresis
+            : bandBottom + hysteresis;
           let chatInBand = false;
           segmentElsRef.current.forEach((el) => {
             const idx = Number(el.dataset.segmentIndex);
@@ -793,23 +803,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             const pill = el.querySelector("[data-chat-input-pill]");
             if (!pill) return;
             const rect = pill.getBoundingClientRect();
-            if (rect.bottom > bandTop && rect.top < bandBottom) {
+            if (
+              rect.bottom > effectiveBandTop &&
+              rect.top < effectiveBandBottom
+            ) {
               chatInBand = true;
             }
           });
           const allowed = sidebarAllowed && !chatInBand;
 
-          // Guard against reflow feedback loop: closing the sidebar changes margin →
-          // content reflows → scroll fires → segment shifts → setAllowed(true) reopens.
-          // Lock for the transition duration after closing to prevent this.
+          // Guard against reflow feedback loop: opening or closing the sidebar
+          // changes layout → content reflows → scroll fires → pill shifts →
+          // state flips back. Lock both directions for longer than the CSS
+          // transition (300ms) to let the layout fully settle.
           if (Date.now() < sidebarAllowedLockUntil.current) return;
           if (allowed !== lastSidebarAllowed.current) {
             lastSidebarAllowed.current = allowed;
             sidebarAllowedRef.current = allowed;
             sidebarAllowedListeners.current.forEach((fn) => fn());
-            if (!allowed) {
-              sidebarAllowedLockUntil.current = Date.now() + 350;
-            }
+            sidebarAllowedLockUntil.current = Date.now() + 600;
           }
         }
       });
