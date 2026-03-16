@@ -716,8 +716,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     hasReachedExcerptRef.current = false;
 
     if (!sidebarAllowed) {
-      // sidebarAllowedRef starts at `sidebarAllowed` (false for non-allowed).
-      // No need to write — the hook reads the initial value on mount.
+      sidebarRef.current?.setAllowed(false);
       return;
     }
 
@@ -734,6 +733,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       ) ?? -1;
 
     let rafId = 0;
+    let isInitialCheck = true;
     const onScroll = () => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
@@ -759,8 +759,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           currentSegmentIndexRef.current = best.index;
           segmentIndexListeners.current.forEach((fn) => fn());
 
-          // Auto-open sidebar when scrolling to first article excerpt (never on mobile)
+          // Auto-open sidebar when scrolling to first article excerpt (never on mobile).
+          // Skip the initial synchronous check — if the excerpt is already in view on
+          // load, we still want the sidebar to start closed and only open on real scroll.
           if (
+            !isInitialCheck &&
             !hasReachedExcerptRef.current &&
             firstExcerptIdx >= 0 &&
             best.index >= firstExcerptIdx
@@ -768,11 +771,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             hasReachedExcerptRef.current = true;
             if (!window.matchMedia("(max-width: 700px)").matches) {
               const pref = localStorage.getItem("chat-sidebar-pref");
-              if (pref === null || pref === "open") {
-                sidebarRef.current?.setOpen(true);
+              if (pref !== "closed") {
+                sidebarRef.current?.open();
               }
             }
           }
+          isInitialCheck = false;
 
           // Sidebar disallowed when any chat input pill overlaps the 20%-80% viewport band
           const bandTop = window.innerHeight * 0.35;

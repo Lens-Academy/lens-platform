@@ -73,12 +73,10 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     // `isOpen` is the single source of truth for visibility — both user clicks
     // and setAllowed() drive it, so they share the exact same render path.
     // `isAllowed` only controls whether the toggle button is shown.
-    const [isOpen, setIsOpen] = useState(() => {
-      if (typeof window === "undefined") return false;
-      if (window.matchMedia("(max-width: 700px)").matches) return false;
-      const pref = localStorage.getItem("chat-sidebar-pref");
-      return pref === null ? true : pref === "open";
-    });
+    // Always start closed — Module.tsx scroll handler opens at the right moment
+    // (respecting user pref). This prevents the flash of sidebar-open before the
+    // page decides whether it should be shown.
+    const [isOpen, setIsOpen] = useState(false);
     const [isAllowed, setIsAllowed] = useState(true);
 
     // --- Imperative handle for parent ---
@@ -104,7 +102,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         } else if (!window.matchMedia("(max-width: 700px)").matches) {
           // Restore from user preference (never auto-open on mobile)
           const pref = localStorage.getItem("chat-sidebar-pref");
-          setIsOpen(pref === null ? true : pref === "open");
+          setIsOpen(pref !== "closed");
         }
       },
     }));
