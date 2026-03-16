@@ -50,15 +50,24 @@ export default function VideoEmbed({
 
   // All clips start compact, expand when activated
   // Mobile-first: full width on mobile, constrained on desktop (sm: 640px+)
+  // When activated, bound by both max-width (1600px) and viewport height
+  // so the 16:9 video never gets clipped on short/wide screens.
+  // max-width: min(1600px, calc(75vh * 16/9)) ensures height stays ≤ 75vh.
   const containerClasses = isActivated
-    ? "w-full sm:w-[90%] sm:max-w-[1100px] mx-auto py-4 scroll-mt-20 transition-all duration-300"
+    ? "w-[98%] mx-auto py-4 scroll-mt-20 transition-all duration-300"
     : "w-full px-4 sm:px-0 sm:max-w-content mx-auto py-4 scroll-mt-20 transition-all duration-300";
+
+  // Available height = viewport minus header, then take 90% of that
+  // Width capped so the 16:9 video fits within that height
+  const activatedStyle = isActivated
+    ? { maxWidth: "min(1600px, calc((100dvh - var(--module-header-height)) * 0.9 * 16 / 9))" }
+    : undefined;
 
   // Label: "Watch" for first clip, "Watch Part N" for subsequent
   const label = isFirst ? "Watch" : `Watch Part ${excerptNumber}`;
 
   return (
-    <div ref={containerRef} className={containerClasses}>
+    <div ref={containerRef} className={containerClasses} style={activatedStyle}>
       {isActivated ? (
         <VideoPlayer
           videoId={videoId}
