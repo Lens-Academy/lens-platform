@@ -403,10 +403,10 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           className={`fixed right-0 z-30 overflow-hidden transition-[width,border-color] duration-300 ease-in-out ${
             isOpen ? "w-80 xl:w-96 border-l" : "w-0 border-l border-transparent"
           }`}
-          style={isOpen ? { borderColor: "var(--brand-border)" } : undefined}
           style={{
             top: "var(--module-header-height)",
             height: "calc(100dvh - var(--module-header-height))",
+            ...(isOpen ? { borderColor: "color-mix(in srgb, var(--brand-border) 60%, transparent)" } : undefined),
           }}
         >
           <div className="w-80 xl:w-96 h-full flex flex-col bg-white">
