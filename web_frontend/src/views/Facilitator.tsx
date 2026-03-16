@@ -350,16 +350,34 @@ export default function Facilitator() {
   // --- Render ---
 
   return (
-    <div className="py-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+    <div className="pt-2">
+      {/* Header + Group Tabs */}
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2.5">
-          <h1 className="text-xl font-bold text-slate-900">
+          <h1 className="text-lg font-bold text-slate-900">
             Facilitator Panel
           </h1>
           <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 uppercase tracking-wide">
             {isAdmin ? "Admin" : "Facilitator"}
           </span>
+          {groups.length > 0 && (
+            <div className="flex gap-1 overflow-x-auto scrollbar-hide ml-1">
+              {groups.map((g) => (
+                <button
+                  key={g.group_id}
+                  onClick={() => setSelectedGroupId(g.group_id)}
+                  className={`px-3 py-1 text-sm rounded-lg whitespace-nowrap transition-colors ${
+                    selectedGroupId === g.group_id
+                      ? "bg-slate-900 text-white font-medium"
+                      : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  }`}
+                >
+                  {g.group_name}
+                  <span className="ml-1.5 text-xs opacity-60">{g.cohort_name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {groupChannelUrl && (
           <a
@@ -372,26 +390,6 @@ export default function Facilitator() {
           </a>
         )}
       </div>
-
-      {/* Group Tabs */}
-      {groups.length > 0 && (
-        <div className="flex gap-1 mb-3 overflow-x-auto scrollbar-hide -mx-1 px-1">
-          {groups.map((g) => (
-            <button
-              key={g.group_id}
-              onClick={() => setSelectedGroupId(g.group_id)}
-              className={`px-3 py-1.5 text-sm rounded-lg whitespace-nowrap transition-colors ${
-                selectedGroupId === g.group_id
-                  ? "bg-slate-900 text-white font-medium"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
-            >
-              {g.group_name}
-              <span className="ml-1.5 text-xs opacity-60">{g.cohort_name}</span>
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Progress Timeline */}
       {membersLoading && (
@@ -575,7 +573,7 @@ function SectionTitlesColumn({
       }}
     >
       <div
-        className="h-12 border-b border-slate-200 flex items-center justify-center"
+        className="h-12 border-b border-slate-200 flex items-center justify-center sticky top-0 z-20 bg-white"
         style={{ width: BUTTON_W }}
       >
         <button
@@ -671,6 +669,18 @@ function VerticalTimeline({
     return starts;
   }, [segs]);
   const [sectionsExpanded, setSectionsExpanded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerTop, setContainerTop] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      if (containerRef.current) {
+        setContainerTop(containerRef.current.getBoundingClientRect().top + window.scrollY);
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [timeline]);
 
   // Pixel constants — shared across label + member columns for alignment
   const DOT_H = 14; // height per dot row
@@ -697,12 +707,15 @@ function VerticalTimeline({
   const mtgH = 46 + V_PAD * 2; // meeting label + 2 date lines + symmetric padding
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg">
-      <div className="overflow-x-auto overflow-y-visible">
+    <div
+      ref={containerRef}
+      className="bg-white border border-slate-200 rounded-lg overflow-auto"
+      style={{ maxHeight: containerTop > 0 ? `calc(100vh - ${containerTop}px)` : undefined }}
+    >
         <div className="inline-flex min-w-full">
           {/* Left labels column */}
           <div className="shrink-0 sticky left-0 z-10 bg-white border-r border-slate-200">
-            <div className="h-12 border-b border-slate-200" />
+            <div className="h-12 border-b border-slate-200 sticky top-0 z-30 bg-white" />
             {segs.map((seg, si) =>
               seg.type === "meeting" ? (
                 <div
@@ -791,7 +804,7 @@ function VerticalTimeline({
             return (
               <div key={tm.user_id} className="shrink-0">
                 {/* Name + last active + DM link */}
-                <div className="h-12 border-b border-slate-200 px-1.5 flex flex-col justify-end pb-1">
+                <div className="h-12 border-b border-slate-200 px-1.5 flex flex-col justify-end pb-1 sticky top-0 z-20 bg-white">
                   <div className="flex items-center gap-0.5">
                     {tm.role === "facilitator" && (
                       <span
@@ -1035,7 +1048,7 @@ function VerticalTimeline({
 
           {/* Filler column — extends stripes to the right edge */}
           <div className="flex-1 min-w-[40px]">
-            <div className="h-12 border-b border-slate-200" />
+            <div className="h-12 border-b border-slate-200 sticky top-0 z-20 bg-white" />
             {segs.map((seg, si) =>
               seg.type === "meeting" ? (
                 <div key={si} style={{ height: mtgH }} />
@@ -1052,7 +1065,6 @@ function VerticalTimeline({
           </div>
         </div>
       </div>
-    </div>
   );
 }
 
