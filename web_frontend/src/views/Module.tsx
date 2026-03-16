@@ -630,7 +630,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     (currentSection.type === "lens-article" ||
       currentSection.type === "article" ||
       currentSection.type === "lens-video" ||
-      currentSection.type === "video");
+      currentSection.type === "video" ||
+      currentSection.type === "page");
 
   // --- Debug overlay: track current visible segment ---
   const isDebugMode =
