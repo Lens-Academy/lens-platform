@@ -207,7 +207,7 @@ export default function Facilitator() {
         const data = await res.json();
         if (cancelled) return;
         const filtered = (data.chats as ChatSession[]).filter(
-          (s) => s.module_slug === selectedChat.moduleSlug,
+          (s) => s.module_slugs.includes(selectedChat.moduleSlug),
         );
         setChatSessions(filtered);
       } catch {
