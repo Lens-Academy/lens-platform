@@ -328,7 +328,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
               onSendMessage(content);
             }}
             isLoading={isLoading}
-            placeholder="Ask a question..."
+            placeholder="Message AI Tutor..."
           />
         </div>
       </>
