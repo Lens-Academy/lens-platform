@@ -458,6 +458,11 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const [sectionChoiceOpen, setSectionChoiceOpen] = useState(false);
   const [sectionChoices, setSectionChoices] = useState<SectionChoice[]>([]);
   const [completedSectionTitle, setCompletedSectionTitle] = useState<string>();
+  // Deferred choices when auth prompt takes priority
+  const pendingSectionChoicesRef = useRef<{
+    choices: SectionChoice[];
+    title?: string;
+  } | null>(null);
 
   // Analytics tracking ref
   const hasTrackedModuleStart = useRef(false);
@@ -1042,10 +1047,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   const handleMarkComplete = useCallback(
     (sectionIndex: number, apiResponse?: MarkCompleteResponse) => {
-      // Check if this is the first completion (for auth prompt)
-      // Must check BEFORE updating state
-      const isFirstCompletion = completedSections.size === 0;
-
       // Update state from API response if lenses array provided
       if (apiResponse?.lenses) {
         updateCompletedFromLenses(apiResponse.lenses);
@@ -1058,39 +1059,68 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         });
       }
 
-      // Prompt for auth after first section completion (if anonymous)
-      if (isFirstCompletion && !isAuthenticated && !hasPromptedAuth) {
-        setShowAuthPrompt(true);
-        setHasPromptedAuth(true);
-      }
+      // Determine if auth prompt should show:
+      // Skip if completing a "page" section as the very first completion
+      // (the welcome/intro page shouldn't trigger auth prompt)
+      const completionCount = completedSections.size; // before adding new one
+      const currentSec = module?.sections[sectionIndex];
+      const isPageType = currentSec?.type === "page";
+      const shouldPromptAuth =
+        (completionCount >= 1 || !isPageType) &&
+        !isAuthenticated &&
+        !hasPromptedAuth;
 
       // Check if module is now complete based on API response
       // This handles the case where server says "completed" even if local state doesn't match
       if (apiResponse?.module_status === "completed") {
         // Module is complete - mark as confirmed by API to show modal
         setApiConfirmedComplete(true);
+        // Still show auth prompt if needed (before completion modal)
+        if (shouldPromptAuth) {
+          setShowAuthPrompt(true);
+          setHasPromptedAuth(true);
+        }
         // No need to navigate to next section
         return;
       }
 
       // Check if next sections include optional content worth choosing from
+      let hasSectionChoices = false;
       if (module && sectionIndex < module.sections.length - 1) {
         const choices = buildSectionChoices(module.sections, sectionIndex);
         const hasOptionalAhead = choices.some((c) => c.optional);
 
         if (hasOptionalAhead && choices.length > 1) {
-          // Show choice modal instead of auto-advancing
-          const currentSec = module.sections[sectionIndex];
-          setCompletedSectionTitle(
-            "meta" in currentSec
+          const choiceTitle =
+            currentSec && "meta" in currentSec
               ? (currentSec.meta?.title ?? undefined)
-              : undefined,
-          );
-          setSectionChoices(choices);
-          setSectionChoiceOpen(true);
-          return; // Don't auto-advance
-        }
+              : undefined;
 
+          if (shouldPromptAuth) {
+            // Auth prompt takes priority — stash choices for after dismissal
+            pendingSectionChoicesRef.current = {
+              choices,
+              title: choiceTitle,
+            };
+            setShowAuthPrompt(true);
+            setHasPromptedAuth(true);
+          } else {
+            // Show choice modal directly
+            setCompletedSectionTitle(choiceTitle);
+            setSectionChoices(choices);
+            setSectionChoiceOpen(true);
+          }
+          hasSectionChoices = true;
+        }
+      }
+
+      // Show auth prompt even without section choices
+      if (!hasSectionChoices && shouldPromptAuth) {
+        setShowAuthPrompt(true);
+        setHasPromptedAuth(true);
+      }
+
+      if (!hasSectionChoices && module && sectionIndex < module.sections.length - 1) {
         // Normal auto-advance (no optional content ahead)
         const nextIndex = sectionIndex + 1;
         if (viewMode === "continuous") {
@@ -1105,6 +1135,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       isAuthenticated,
       hasPromptedAuth,
       updateCompletedFromLenses,
+      module,
     ],
   );
 
@@ -2041,7 +2072,17 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         <AuthPromptModal
           isOpen={showAuthPrompt}
           onLogin={login}
-          onDismiss={() => setShowAuthPrompt(false)}
+          onDismiss={() => {
+            setShowAuthPrompt(false);
+            // Show deferred section choices after auth prompt is dismissed
+            const pending = pendingSectionChoicesRef.current;
+            if (pending) {
+              pendingSectionChoicesRef.current = null;
+              setCompletedSectionTitle(pending.title);
+              setSectionChoices(pending.choices);
+              setSectionChoiceOpen(true);
+            }
+          }}
         />
 
         {/* Debug overlay — ?debug query param. Separate component so its
