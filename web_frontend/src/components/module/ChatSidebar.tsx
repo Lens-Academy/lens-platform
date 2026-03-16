@@ -29,10 +29,8 @@ import { ChatMessageList } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
 
 export type ChatSidebarHandle = {
-  open: () => void;
-  close: () => void;
-  setOpen: (open: boolean) => void;
   setAllowed: (allowed: boolean) => void;
+  setSystemOpenPref: (open: boolean) => void;
 };
 
 type ChatSidebarProps = {
@@ -60,7 +58,6 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     ref,
   ) {
     const isMobile = useMedia("(max-width: 700px)", false);
-    const prevMobileRef = useRef(isMobile);
     const scrollContainer = useScrollContainer();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const minHeightWrapperRef = useRef<HTMLDivElement>(null);
@@ -69,57 +66,40 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     const [wrapperStartIdx, setWrapperStartIdx] = useState<number | null>(null);
     const [scrollContainerHeight, setScrollContainerHeight] = useState(0);
 
-    // --- Own open/close state + allowed flag ---
-    // `isOpen` is the single source of truth for visibility — both user clicks
-    // and setAllowed() drive it, so they share the exact same render path.
-    // `isAllowed` only controls whether the toggle button is shown.
-    // Always start closed — Module.tsx scroll handler opens at the right moment
-    // (respecting user pref). This prevents the flash of sidebar-open before the
-    // page decides whether it should be shown.
-    const [isOpen, setIsOpen] = useState(false);
+    // --- Three independent states → derived isOpen ---
+    // isAllowed:      can the sidebar exist here? (section type + chat pill gating)
+    // systemOpenPref: does the system recommend it be open? (false on section load,
+    //                 true at excerpt scroll)
+    // userOpenPref:   does the user want it open? (persisted in localStorage)
     const [isAllowed, setIsAllowed] = useState(true);
+    const [systemOpenPref, setSystemOpenPref] = useState(false);
+    const [userOpenPref, setUserOpenPref] = useState<string | null>(() =>
+      typeof window !== "undefined"
+        ? localStorage.getItem("chat-sidebar-pref")
+        : null,
+    );
+
+    const isOpen = isAllowed && systemOpenPref && !isMobile && userOpenPref !== "closed";
 
     // --- Imperative handle for parent ---
     useImperativeHandle(ref, () => ({
-      open: () => {
-        setIsOpen(true);
-        localStorage.setItem("chat-sidebar-pref", "open");
-        window.dispatchEvent(new Event("chat-sidebar-pref-change"));
-      },
-      close: () => {
-        setIsOpen(false);
-        localStorage.setItem("chat-sidebar-pref", "closed");
-        window.dispatchEvent(new Event("chat-sidebar-pref-change"));
-      },
-      setOpen: (open: boolean) => {
-        setIsOpen(open);
-      },
-      setAllowed: (allowed: boolean) => {
-        setIsAllowed(allowed);
-        if (!allowed) {
-          // Close via the same path as clicking the close button
-          setIsOpen(false);
-        } else if (!window.matchMedia("(max-width: 700px)").matches) {
-          // Restore from user preference (never auto-open on mobile)
-          const pref = localStorage.getItem("chat-sidebar-pref");
-          setIsOpen(pref !== "closed");
-        }
-      },
+      setAllowed: (allowed: boolean) => setIsAllowed(allowed),
+      setSystemOpenPref: (open: boolean) => setSystemOpenPref(open),
     }));
 
     // --- Preference-persisting open/close ---
     const handleClose = useCallback(() => {
-      setIsOpen(false);
+      setUserOpenPref("closed");
       localStorage.setItem("chat-sidebar-pref", "closed");
       window.dispatchEvent(new Event("chat-sidebar-pref-change"));
     }, []);
     const handleOpen = useCallback(() => {
-      setIsOpen(true);
+      setSystemOpenPref(true);
+      setUserOpenPref("open");
       localStorage.setItem("chat-sidebar-pref", "open");
       window.dispatchEvent(new Event("chat-sidebar-pref-change"));
     }, []);
 
-    // isAllowed only controls toggle button visibility, not the panel
     const toggleHidden = !isAllowed;
 
     // --- Manage scroll container spacing via transparent border ---
@@ -151,16 +131,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       return () => window.removeEventListener("keydown", handleEscape);
     }, [isOpen, handleClose]);
 
-    // Auto-close when crossing into mobile, auto-restore when crossing back to desktop
-    useEffect(() => {
-      if (isMobile && !prevMobileRef.current) {
-        setIsOpen(false);
-      } else if (!isMobile && prevMobileRef.current) {
-        const pref = localStorage.getItem("chat-sidebar-pref");
-        setIsOpen(pref === null ? true : pref === "open");
-      }
-      prevMobileRef.current = isMobile;
-    }, [isMobile]);
+    // (Mobile ↔ desktop crossing handled by derived isOpen: isMobile gates it)
 
     // Lock scroll when sidebar is open on mobile
     useEffect(() => {

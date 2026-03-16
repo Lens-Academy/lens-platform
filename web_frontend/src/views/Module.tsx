@@ -720,8 +720,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       return;
     }
 
-    // Start sidebar closed on article sections — auto-opens at first excerpt
-    sidebarRef.current?.setOpen(false);
+    sidebarRef.current?.setAllowed(true);
+    sidebarRef.current?.setSystemOpenPref(false); // starts closed, opens at excerpt
 
     const segments =
       currentSection && "segments" in currentSection
@@ -769,12 +769,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             best.index >= firstExcerptIdx
           ) {
             hasReachedExcerptRef.current = true;
-            if (!window.matchMedia("(max-width: 700px)").matches) {
-              const pref = localStorage.getItem("chat-sidebar-pref");
-              if (pref !== "closed") {
-                sidebarRef.current?.open();
-              }
-            }
+            sidebarRef.current?.setSystemOpenPref(true);
           }
           isInitialCheck = false;
 
@@ -802,7 +797,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             lastSidebarAllowed.current = allowed;
             sidebarAllowedRef.current = allowed;
             sidebarAllowedListeners.current.forEach((fn) => fn());
-            if (!allowed) sidebarAllowedLockUntil.current = Date.now() + 350;
+            if (!allowed) {
+              sidebarAllowedLockUntil.current = Date.now() + 350;
+            }
           }
         }
       });
