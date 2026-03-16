@@ -345,7 +345,7 @@ function CollapsibleBlock({
       className={className}
       style={{ overflowAnchor: "none" }}
     >
-      <div className="sticky top-[var(--header-offset)] z-10 transition-[top] duration-300 bg-lens-gold-50/60 flex items-center gap-1 py-1">
+      <div className="sticky top-[var(--header-offset)] z-10 transition-[top] duration-300 bg-inherit flex items-center gap-1 py-1">
         <button
           onClick={handleToggle}
           className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1"
