@@ -53,7 +53,6 @@ import ModuleDrawer from "@/components/module/ModuleDrawer";
 import type { ModuleDrawerHandle } from "@/components/module/ModuleDrawer";
 import { ChatSidebar } from "@/components/module/ChatSidebar";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
-import ModuleCompleteModal from "@/components/module/ModuleCompleteModal";
 import SectionChoiceModal from "@/components/module/SectionChoiceModal";
 import type { SectionChoice } from "@/components/module/SectionChoiceModal";
 import AuthPromptModal from "@/components/module/AuthPromptModal";
@@ -211,6 +210,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       setLoadingModule(true);
       setLoadError(null);
       wasCompleteOnLoad.current = false; // Reset when loading new module
+      moduleCompleteDismissed.current = false;
+      setModuleCompletionResult(undefined);
       initialCompletedRef.current = new Set();
       try {
         // Fetch module, course progress, and module progress in parallel
@@ -443,10 +444,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }, [isAuthenticated, moduleId, updateCompletedFromLenses]);
 
   // Module completion modal state
+  // undefined = not yet fetched, null = end of course, object = next module or unit complete
   const [moduleCompletionResult, setModuleCompletionResult] =
-    useState<ModuleCompletionResult>(null);
-  const [completionModalDismissed, setCompletionModalDismissed] =
-    useState(false);
+    useState<ModuleCompletionResult | undefined>(undefined);
   // Track if module was marked complete by API (all required lenses done)
   const [apiConfirmedComplete, setApiConfirmedComplete] = useState(false);
 
@@ -454,14 +454,16 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [hasPromptedAuth, setHasPromptedAuth] = useState(false);
 
-  // Section choice modal state (shown when optional content follows)
+  // Unified section choice modal state
   const [sectionChoiceOpen, setSectionChoiceOpen] = useState(false);
   const [sectionChoices, setSectionChoices] = useState<SectionChoice[]>([]);
   const [completedSectionTitle, setCompletedSectionTitle] = useState<string>();
+  const [showModuleCompleteInModal, setShowModuleCompleteInModal] = useState(false);
   // Deferred choices when auth prompt takes priority
   const pendingSectionChoicesRef = useRef<{
     choices: SectionChoice[];
     title?: string;
+    showModuleComplete?: boolean;
   } | null>(null);
 
   // Analytics tracking ref
@@ -469,6 +471,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Track if module was already complete when page loaded (for suppressing modal on review)
   const wasCompleteOnLoad = useRef(false);
+  // Track if user dismissed the module-complete modal (so the effect doesn't re-open it)
+  const moduleCompleteDismissed = useRef(false);
+  // Store fromIndex when Case 1 defers to useEffect, so it can call prependNextSection
+  const deferredFromIndexRef = useRef<number | null>(null);
 
   // Test mode: dims lesson navigation during test
   const [testModeActive, setTestModeActive] = useState(false);
@@ -633,6 +639,91 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const isModuleComplete = module
     ? apiConfirmedComplete || completedSections.size === module.sections.length
     : false;
+
+  // Compute submodule context from courseProgress
+  const submoduleContext = useMemo((): {
+    parentTitle: string | null;
+    isLastInParentGroup: boolean;
+    nextModuleSharesParent: boolean;
+  } | undefined => {
+    if (!courseProgress || !module) return undefined;
+    let currentModuleInfo = null;
+    let currentModuleIndex = -1;
+    let unitModules: typeof courseProgress.units[0]["modules"] = [];
+    for (const unit of courseProgress.units) {
+      const idx = unit.modules.findIndex((m) => m.slug === module.slug);
+      if (idx !== -1) {
+        currentModuleInfo = unit.modules[idx];
+        currentModuleIndex = idx;
+        unitModules = unit.modules;
+        break;
+      }
+    }
+    if (!currentModuleInfo?.parentSlug) return undefined;
+
+    const parentSlug = currentModuleInfo.parentSlug;
+    const parentTitle = currentModuleInfo.parentTitle ?? null;
+    const nextModule = currentModuleIndex < unitModules.length - 1
+      ? unitModules[currentModuleIndex + 1]
+      : null;
+    const nextModuleSharesParent = nextModule?.parentSlug === parentSlug;
+    // Is last if next module doesn't share parent
+    const isLastInParentGroup = !nextModuleSharesParent;
+
+    return { parentTitle, isLastInParentGroup, nextModuleSharesParent };
+  }, [courseProgress, module]);
+
+  // Compute skipped optional sections (for module-complete modal)
+  const skippedOptionalSections = useMemo((): SectionChoice[] => {
+    if (!module) return [];
+    return module.sections
+      .map((section, index) => ({ section, index }))
+      .filter(
+        ({ section, index }) =>
+          "optional" in section &&
+          section.optional &&
+          !completedSections.has(index),
+      )
+      .filter(({ section }) => {
+        const sectionType = section.type as SectionChoice["type"];
+        return ["lens-video", "lens-article", "page", "test"].includes(sectionType);
+      })
+      .map(({ section, index }) => ({
+        index,
+        type: section.type as SectionChoice["type"],
+        title: ("meta" in section ? section.meta?.title : undefined) ?? section.type,
+        tldr: "tldr" in section ? (section.tldr as string | undefined) : undefined,
+        optional: true,
+        completed: false,
+        duration: null,
+      }));
+  }, [module, completedSections]);
+
+  // Compute navigation links for the section choice modal
+  const isEnrolled = isInSignupsTable || isInActiveGroup;
+
+  const nextModuleLink = useMemo((): { label: string; href: string } | null => {
+    if (!courseId || !moduleCompletionResult || moduleCompletionResult.type !== "next_module") return null;
+    const nextModuleUrl = `/course/${courseId}/module/${moduleCompletionResult.slug}`;
+    let label = `Next: ${moduleCompletionResult.title}`;
+    if (submoduleContext?.nextModuleSharesParent && submoduleContext.parentTitle) {
+      label = `Continue ${submoduleContext.parentTitle}: ${moduleCompletionResult.title}`;
+    }
+    return { label, href: nextModuleUrl };
+  }, [courseId, moduleCompletionResult, submoduleContext]);
+
+  const enrollLink = useMemo((): { label: string; href: string } | null => {
+    if (isEnrolled) return null;
+    return { label: "Join the Full Course", href: "/enroll" };
+  }, [isEnrolled]);
+
+  const courseLinkForModal = useMemo((): { label: string; href: string } | null => {
+    if (!courseId) return null;
+    return { label: "Back to Course Overview", href: `/course/${courseId}` };
+  }, [courseId]);
+
+  const isSubmodule = !!submoduleContext?.parentTitle;
+  const parentTitle = submoduleContext?.parentTitle ?? undefined;
 
   // Activity tracking for current section
   const currentSection = module?.sections[currentSectionIndex];
@@ -867,6 +958,29 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     fetchNext();
   }, [isModuleComplete, courseContext, module]);
 
+  // Open module-complete modal once moduleCompletionResult is fetched
+  // (deferred from tryShowChoicesOrNavigate to avoid showing stale data)
+  useEffect(() => {
+    if (
+      !isModuleComplete ||
+      wasCompleteOnLoad.current ||
+      moduleCompletionResult === undefined || // not yet fetched
+      sectionChoiceOpen // already showing a modal
+    ) return;
+    // Don't re-open if user dismissed
+    if (moduleCompleteDismissed.current) return;
+    setShowModuleCompleteInModal(true);
+    // Include skipped optional sections as choices, with next section prepended
+    const fromIndex = deferredFromIndexRef.current;
+    const choices = fromIndex != null && module
+      ? prependNextSection(skippedOptionalSections, module.sections, fromIndex)
+      : skippedOptionalSections;
+    deferredFromIndexRef.current = null;
+    setSectionChoices(choices);
+    setSectionChoiceOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- prependNextSection is a stable local helper
+  }, [isModuleComplete, moduleCompletionResult, sectionChoiceOpen, skippedOptionalSections, module]);
+
   // Track module completed
   useEffect(() => {
     if (isModuleComplete && module) {
@@ -1000,20 +1114,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
   }, [currentSectionIndex, viewMode, handleStageClick, testModeActive]);
 
-  const handleNext = useCallback(() => {
-    if (testModeActive) return; // Block during test mode
-    if (!module) return;
-    const nextIndex = Math.min(
-      module.sections.length - 1,
-      currentSectionIndex + 1,
-    );
-    if (viewMode === "continuous") {
-      handleStageClick(nextIndex);
-    } else {
-      setCurrentSectionIndex(nextIndex);
-    }
-  }, [currentSectionIndex, module, viewMode, handleStageClick, testModeActive]);
-
   // Build choices for the section navigation modal
   // Collects upcoming sections (optional + first required) after a completed section
   function buildSectionChoices(
@@ -1036,6 +1136,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         tldr:
           "tldr" in section ? (section.tldr as string | undefined) : undefined,
         optional: section.optional ?? false,
+        completed: completedSections.has(i),
         duration: null,
       });
 
@@ -1044,6 +1145,236 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
     return choices;
   }
+
+  // Build list of all incomplete sections (for "incomplete" mode)
+  function buildIncompleteSections(
+    sections: ModuleSection[],
+    completed: Set<number>,
+  ): SectionChoice[] {
+    const choices: SectionChoice[] = [];
+    for (let i = 0; i < sections.length; i++) {
+      if (completed.has(i)) continue;
+      const section = sections[i];
+      if (!("optional" in section)) continue;
+      const sectionType = section.type as SectionChoice["type"];
+      if (!["lens-video", "lens-article", "page", "test"].includes(sectionType))
+        continue;
+      choices.push({
+        index: i,
+        type: sectionType,
+        title: section.meta?.title ?? section.type,
+        tldr:
+          "tldr" in section ? (section.tldr as string | undefined) : undefined,
+        optional: section.optional ?? false,
+        completed: false,
+        duration: null,
+      });
+    }
+    return choices;
+  }
+
+  // Build a choice for the immediate next section (regardless of completion status)
+  function buildNextSectionChoice(
+    sections: ModuleSection[],
+    afterIndex: number,
+  ): SectionChoice | null {
+    const i = afterIndex + 1;
+    if (i >= sections.length) return null;
+    const section = sections[i];
+    if (!("optional" in section)) return null;
+    const sectionType = section.type as SectionChoice["type"];
+    if (!["lens-video", "lens-article", "page", "test"].includes(sectionType))
+      return null;
+    return {
+      index: i,
+      type: sectionType,
+      title: section.meta?.title ?? section.type,
+      tldr:
+        "tldr" in section ? (section.tldr as string | undefined) : undefined,
+      optional: section.optional ?? false,
+      completed: completedSections.has(i),
+      duration: null,
+    };
+  }
+
+  // Ensure the immediate next section is always first in choices
+  function prependNextSection(
+    choices: SectionChoice[],
+    sections: ModuleSection[],
+    fromIndex: number,
+  ): SectionChoice[] {
+    const nextChoice = buildNextSectionChoice(sections, fromIndex);
+    if (nextChoice && !choices.some((c) => c.index === nextChoice.index)) {
+      return [nextChoice, ...choices];
+    }
+    return choices;
+  }
+
+  // Shared navigation logic: show modal or navigate directly
+  // Called from handleMarkComplete (after completion) and handleNext (on already-completed sections)
+  function tryShowChoicesOrNavigate(
+    fromIndex: number,
+    completedTitle?: string,
+    opts?: { shouldPromptAuth?: boolean; isModuleJustCompleted?: boolean },
+  ) {
+    if (!module) return;
+
+    // Always reset completed title — either to the passed value or undefined
+    setCompletedSectionTitle(completedTitle);
+
+    const shouldPromptAuth = opts?.shouldPromptAuth ?? false;
+
+    // Case 1: Module just completed by API — defer to useEffect
+    // The modal will open once moduleCompletionResult is fetched (see effect above)
+    if (opts?.isModuleJustCompleted) {
+      deferredFromIndexRef.current = fromIndex;
+      if (shouldPromptAuth) {
+        setShowAuthPrompt(true);
+        setHasPromptedAuth(true);
+      }
+      // Don't open modal here — the useEffect watching moduleCompletionResult will do it
+      return;
+    }
+
+    // Case 2: At or past last section and module NOT complete → show incomplete sections
+    if (fromIndex >= module.sections.length - 1 && !isModuleComplete) {
+      const incomplete = prependNextSection(
+        buildIncompleteSections(module.sections, completedSections),
+        module.sections,
+        fromIndex,
+      );
+      if (incomplete.length > 0) {
+        if (shouldPromptAuth) {
+          pendingSectionChoicesRef.current = { choices: incomplete };
+          setShowAuthPrompt(true);
+          setHasPromptedAuth(true);
+        } else {
+          setShowModuleCompleteInModal(false);
+          setSectionChoices(incomplete);
+          setSectionChoiceOpen(true);
+        }
+        return;
+      }
+    }
+
+    // Case 3: Module is complete (detected locally) → show module-complete with optional sections
+    // nextModuleLink (passed to modal) is null while moduleCompletionResult is loading,
+    // and updates dynamically when the fetch completes.
+    if (isModuleComplete) {
+      const choices = prependNextSection(skippedOptionalSections, module.sections, fromIndex);
+      if (shouldPromptAuth) {
+        pendingSectionChoicesRef.current = { choices, showModuleComplete: true };
+        setShowAuthPrompt(true);
+        setHasPromptedAuth(true);
+      } else {
+        setShowModuleCompleteInModal(true);
+        setSectionChoices(choices);
+        setSectionChoiceOpen(true);
+      }
+      return;
+    }
+
+    // Case 4: Show "What's Next?" modal with upcoming section choices
+    // Special sub-case: if optional sections ahead but no required ones, and there ARE
+    // incomplete required sections elsewhere → show all incomplete sections instead.
+    if (fromIndex < module.sections.length - 1) {
+      const choices = buildSectionChoices(module.sections, fromIndex);
+      const hasOptionalAhead = choices.some((c) => c.optional);
+      const hasRequiredAhead = choices.some((c) => !c.optional);
+
+      if (hasOptionalAhead && !hasRequiredAhead) {
+        // Only optional sections ahead — check if there are incomplete required sections
+        // anywhere in the module (including earlier ones the user skipped).
+        const hasIncompleteRequired = module.sections.some(
+          (s, i) =>
+            !completedSections.has(i) &&
+            "optional" in s &&
+            !s.optional,
+        );
+
+        if (hasIncompleteRequired) {
+          // Show incomplete mode with ALL incomplete sections (required + optional)
+          const incomplete = prependNextSection(
+            buildIncompleteSections(module.sections, completedSections),
+            module.sections,
+            fromIndex,
+          );
+          if (shouldPromptAuth) {
+            pendingSectionChoicesRef.current = { choices: incomplete };
+            setShowAuthPrompt(true);
+            setHasPromptedAuth(true);
+          } else {
+            setShowModuleCompleteInModal(false);
+            setSectionChoices(incomplete);
+            setSectionChoiceOpen(true);
+          }
+          return;
+        }
+      }
+
+      // Show "What's Next?" modal with the upcoming choices
+      const withNext = prependNextSection(choices, module.sections, fromIndex);
+      if (withNext.length > 0) {
+        if (shouldPromptAuth) {
+          pendingSectionChoicesRef.current = {
+            choices: withNext,
+            title: completedTitle,
+          };
+          setShowAuthPrompt(true);
+          setHasPromptedAuth(true);
+        } else {
+          setShowModuleCompleteInModal(false);
+          setSectionChoices(withNext);
+          setSectionChoiceOpen(true);
+        }
+        return;
+      }
+    }
+
+    // Case 5: No modal needed — just navigate or show fallback modal
+    if (shouldPromptAuth) {
+      setShowAuthPrompt(true);
+      setHasPromptedAuth(true);
+    }
+
+    if (fromIndex < module.sections.length - 1) {
+      const nextIndex = fromIndex + 1;
+      if (viewMode === "continuous") {
+        handleStageClick(nextIndex);
+      } else {
+        setCurrentSectionIndex(nextIndex);
+      }
+    } else {
+      // Last section fallback: open modal with whatever we have
+      // (e.g. module complete but moduleCompletionResult still loading)
+      const choices = prependNextSection(skippedOptionalSections, module.sections, fromIndex);
+      setShowModuleCompleteInModal(isModuleComplete);
+      setSectionChoices(choices);
+      setSectionChoiceOpen(true);
+    }
+  }
+
+  const handleNext = useCallback(() => {
+    if (testModeActive) return; // Block during test mode
+    if (!module) return;
+
+    // If current section is completed, use tryShowChoicesOrNavigate
+    if (completedSections.has(currentSectionIndex)) {
+      tryShowChoicesOrNavigate(currentSectionIndex);
+      return;
+    }
+
+    // Not completed: just advance normally
+    const nextIndex = Math.min(
+      module.sections.length - 1,
+      currentSectionIndex + 1,
+    );
+    if (viewMode === "continuous") {
+      handleStageClick(nextIndex);
+    } else {
+      setCurrentSectionIndex(nextIndex);
+    }
+  }, [currentSectionIndex, module, viewMode, handleStageClick, testModeActive, completedSections, isModuleComplete]);
 
   const handleMarkComplete = useCallback(
     (sectionIndex: number, apiResponse?: MarkCompleteResponse) => {
@@ -1071,64 +1402,19 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         !hasPromptedAuth;
 
       // Check if module is now complete based on API response
-      // This handles the case where server says "completed" even if local state doesn't match
       if (apiResponse?.module_status === "completed") {
-        // Module is complete - mark as confirmed by API to show modal
         setApiConfirmedComplete(true);
-        // Still show auth prompt if needed (before completion modal)
-        if (shouldPromptAuth) {
-          setShowAuthPrompt(true);
-          setHasPromptedAuth(true);
-        }
-        // No need to navigate to next section
-        return;
       }
 
-      // Check if next sections include optional content worth choosing from
-      let hasSectionChoices = false;
-      if (module && sectionIndex < module.sections.length - 1) {
-        const choices = buildSectionChoices(module.sections, sectionIndex);
-        const hasOptionalAhead = choices.some((c) => c.optional);
+      const choiceTitle =
+        currentSec && "meta" in currentSec
+          ? (currentSec.meta?.title ?? undefined)
+          : undefined;
 
-        if (hasOptionalAhead && choices.length > 1) {
-          const choiceTitle =
-            currentSec && "meta" in currentSec
-              ? (currentSec.meta?.title ?? undefined)
-              : undefined;
-
-          if (shouldPromptAuth) {
-            // Auth prompt takes priority — stash choices for after dismissal
-            pendingSectionChoicesRef.current = {
-              choices,
-              title: choiceTitle,
-            };
-            setShowAuthPrompt(true);
-            setHasPromptedAuth(true);
-          } else {
-            // Show choice modal directly
-            setCompletedSectionTitle(choiceTitle);
-            setSectionChoices(choices);
-            setSectionChoiceOpen(true);
-          }
-          hasSectionChoices = true;
-        }
-      }
-
-      // Show auth prompt even without section choices
-      if (!hasSectionChoices && shouldPromptAuth) {
-        setShowAuthPrompt(true);
-        setHasPromptedAuth(true);
-      }
-
-      if (!hasSectionChoices && module && sectionIndex < module.sections.length - 1) {
-        // Normal auto-advance (no optional content ahead)
-        const nextIndex = sectionIndex + 1;
-        if (viewMode === "continuous") {
-          handleStageClick(nextIndex);
-        } else {
-          setCurrentSectionIndex(nextIndex);
-        }
-      }
+      tryShowChoicesOrNavigate(sectionIndex, choiceTitle, {
+        shouldPromptAuth,
+        isModuleJustCompleted: apiResponse?.module_status === "completed",
+      });
     },
     [
       completedSections.size,
@@ -1136,6 +1422,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       hasPromptedAuth,
       updateCompletedFromLenses,
       module,
+      isModuleComplete,
     ],
   );
 
@@ -1953,32 +2240,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         }
                       />
                     )}
-                    {/* Last section completed: show course navigation */}
-                    {sectionIndex === module.sections.length - 1 &&
-                      completedSections.has(sectionIndex) &&
-                      courseId && (
-                        <div className="flex justify-center pb-12">
-                          <a
-                            href={`/course/${courseId}`}
-                            className="flex items-center gap-2 px-5 py-2.5 text-stone-600 hover:text-stone-900 border border-stone-300 hover:border-stone-400 rounded-lg transition-colors font-medium"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 19l-7-7 7-7"
-                              />
-                            </svg>
-                            Back to Course Overview
-                          </a>
-                        </div>
-                      )}
                   </div>
                 );
               })}
@@ -2025,47 +2286,27 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           testModeActive={testModeActive}
         />
 
-        <ModuleCompleteModal
-          isOpen={
-            isModuleComplete &&
-            !completionModalDismissed &&
-            !wasCompleteOnLoad.current
-          }
-          moduleTitle={module.title}
-          courseId={courseContext?.courseId}
-          isInSignupsTable={isInSignupsTable}
-          isInActiveGroup={isInActiveGroup}
-          nextModule={
-            moduleCompletionResult?.type === "next_module"
-              ? {
-                  slug: moduleCompletionResult.slug,
-                  title: moduleCompletionResult.title,
-                }
-              : null
-          }
-          completedUnit={
-            moduleCompletionResult?.type === "unit_complete"
-              ? moduleCompletionResult.unitNumber
-              : null
-          }
-          onClose={() => setCompletionModalDismissed(true)}
-        />
-
         <SectionChoiceModal
           isOpen={sectionChoiceOpen}
-          completedTitle={completedSectionTitle}
+          completedTitle={showModuleCompleteInModal ? undefined : completedSectionTitle}
+          isModuleComplete={showModuleCompleteInModal}
+          isSubmodule={isSubmodule}
+          moduleTitle={module.title}
+          parentTitle={parentTitle}
           choices={sectionChoices}
           onChoose={(index) => {
             setSectionChoiceOpen(false);
             setCurrentSectionIndex(index);
           }}
+          nextModuleLink={showModuleCompleteInModal ? nextModuleLink : null}
+          enrollLink={showModuleCompleteInModal ? enrollLink : null}
+          courseLink={courseLinkForModal}
           onDismiss={() => {
             setSectionChoiceOpen(false);
-            // Skip to next required section, or advance by 1
-            const nextRequired = sectionChoices.find((c) => !c.optional);
-            setCurrentSectionIndex(
-              nextRequired ? nextRequired.index : currentSectionIndex + 1,
-            );
+            if (showModuleCompleteInModal) {
+              moduleCompleteDismissed.current = true;
+            }
+            // Just close — user stays on current section
           }}
         />
 
@@ -2078,6 +2319,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             const pending = pendingSectionChoicesRef.current;
             if (pending) {
               pendingSectionChoicesRef.current = null;
+              setShowModuleCompleteInModal(pending.showModuleComplete ?? false);
               setCompletedSectionTitle(pending.title);
               setSectionChoices(pending.choices);
               setSectionChoiceOpen(true);
