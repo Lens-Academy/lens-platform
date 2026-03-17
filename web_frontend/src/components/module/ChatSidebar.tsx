@@ -116,8 +116,13 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       scrollContainer.style.borderRight = isOpen
         ? "var(--sidebar-width) solid transparent"
         : "";
+      scrollContainer.style.setProperty(
+        "--sidebar-open-width",
+        isOpen ? "var(--sidebar-width)" : "0px",
+      );
       return () => {
         scrollContainer.style.borderRight = "";
+        scrollContainer.style.removeProperty("--sidebar-open-width");
       };
     }, [isOpen, scrollContainer, isMobile]);
 

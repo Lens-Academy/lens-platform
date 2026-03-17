@@ -404,6 +404,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     new Set(),
   );
 
+  // Theater mode: track how many videos are in theater mode (for scroll-snap)
+  const [theaterCount, setTheaterCount] = useState(0);
+  const handleTheaterChange = useCallback((active: boolean) => {
+    setTheaterCount((prev) => prev + (active ? 1 : -1));
+  }, []);
+
   const { isAuthenticated, isInSignupsTable, isInActiveGroup, login } =
     useAuth();
 
@@ -1175,6 +1181,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             excerptNumber={excerptNumber}
             title={section.meta.title}
             channel={section.meta.channel}
+            onTheaterChange={handleTheaterChange}
           />,
         );
       }
@@ -1364,6 +1371,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     <div
       ref={setScrollEl}
       className="h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[border-right-width] duration-300 ease-in-out box-border"
+      style={theaterCount > 0 ? { scrollSnapType: "y proximity" } : undefined}
     >
       <ScrollContainerContext.Provider value={scrollEl}>
         <ModuleHeader

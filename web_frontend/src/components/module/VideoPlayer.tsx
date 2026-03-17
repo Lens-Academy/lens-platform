@@ -11,6 +11,9 @@ type VideoPlayerProps = {
   onPlay?: () => void;
   onPause?: () => void;
   onTimeUpdate?: (currentTime: number) => void;
+  onComplete?: () => void;
+  /** Theater mode: allow video to shrink within flex container */
+  theater?: boolean;
 };
 
 // Extend JSX to include the youtube-video custom element (React 19 style)
@@ -39,6 +42,8 @@ export default function VideoPlayer({
   onPlay: onPlayCallback,
   onPause: onPauseCallback,
   onTimeUpdate: onTimeUpdateCallback,
+  onComplete: onCompleteCallback,
+  theater = false,
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -104,11 +109,16 @@ export default function VideoPlayer({
       }
     };
 
+    const handleEnded = () => {
+      onCompleteCallback?.();
+    };
+
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
     video.addEventListener("timeupdate", handleTimeUpdate);
     video.addEventListener("volumechange", handleVolumeChange);
+    video.addEventListener("ended", handleEnded);
 
     return () => {
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
@@ -116,8 +126,9 @@ export default function VideoPlayer({
       video.removeEventListener("pause", handlePause);
       video.removeEventListener("timeupdate", handleTimeUpdate);
       video.removeEventListener("volumechange", handleVolumeChange);
+      video.removeEventListener("ended", handleEnded);
     };
-  }, [start, onPlayCallback, onPauseCallback, onTimeUpdateCallback]);
+  }, [start, onPlayCallback, onPauseCallback, onTimeUpdateCallback, onCompleteCallback]);
 
   // High-frequency polling for smooth progress and fade timing
   useEffect(() => {
@@ -179,6 +190,7 @@ export default function VideoPlayer({
         setProgress(1);
         setFragmentEnded(true);
         setIsFading(false);
+        onCompleteCallback?.();
 
         if (document.fullscreenElement) {
           document.exitFullscreen();
@@ -192,7 +204,7 @@ export default function VideoPlayer({
         fadeIntervalRef.current = null;
       }
     };
-  }, [isFading, isFullVideo, fragmentEnded]);
+  }, [isFading, isFullVideo, fragmentEnded, onCompleteCallback]);
 
   const handleReplay = () => {
     const video = videoRef.current;
@@ -307,18 +319,52 @@ export default function VideoPlayer({
 
   const showControls = isHovering || isPaused || fragmentEnded;
 
+  // In theater mode, measure the hover wrapper and compute the largest 16:9
+  // rect that fits both its width and height (minus space for controls).
+  const hoverRef = useRef<HTMLDivElement>(null);
+  const [theaterSize, setTheaterSize] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    if (!theater || !hoverRef.current) {
+      setTheaterSize(null);
+      return;
+    }
+    const el = hoverRef.current;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width: aw, height: ah } = entry.contentRect;
+      // Reserve space for progress bar + clip info (~44px)
+      const videoH = ah - 44;
+      // Largest 16:9 rect fitting aw x videoH
+      let w = aw;
+      let h = w * 9 / 16;
+      if (h > videoH) {
+        h = videoH;
+        w = h * 16 / 9;
+      }
+      setTheaterSize({ w: Math.floor(w), h: Math.floor(h) });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [theater]);
+
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className={`flex flex-col items-center gap-3 ${theater ? "flex-1 min-h-0 justify-center" : ""}`}>
       {/* Video + progress bar container with hover detection */}
       <div
-        className="w-full"
+        ref={hoverRef}
+        className={`w-full ${theater ? "flex-1 min-h-0 flex flex-col items-center justify-center" : ""}`}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
       >
         {/* Video with native YouTube controls */}
         <div
           ref={containerRef}
-          className="w-full aspect-video relative rounded-xl overflow-hidden"
+          className={`relative rounded-xl overflow-hidden ${theater ? "" : "w-full aspect-video"}`}
+          style={
+            theater && theaterSize
+              ? { width: theaterSize.w, height: theaterSize.h }
+              : undefined
+          }
         >
           <youtube-video
             src={youtubeUrl}
@@ -350,7 +396,10 @@ export default function VideoPlayer({
         {isClip && !isFullVideo && (
           <div
             className="px-1 pt-3 transition-opacity duration-200"
-            style={{ opacity: showControls ? 1 : 0 }}
+            style={{
+              opacity: showControls ? 1 : 0,
+              width: theater && theaterSize ? theaterSize.w : undefined,
+            }}
           >
             <div className="flex items-center gap-3">
               <div
