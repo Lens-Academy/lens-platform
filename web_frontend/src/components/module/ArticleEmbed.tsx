@@ -894,7 +894,7 @@ export default function ArticleEmbed({
   const rehypePlugins = [rehypeRaw];
 
   return (
-    <div className="max-w-content-padded mx-auto rounded-lg overflow-clip">
+    <div className="max-w-content-padded mx-auto rounded-lg overflow-clip border border-gray-200/50 shadow-[0_1px_4px_0_rgba(0,0,0,0.1)]">
       {/* Header — always yellow */}
       {isConsecutiveExcerpt ? (
         // Consecutive excerpt: skip attribution, just show collapsed_before if present
