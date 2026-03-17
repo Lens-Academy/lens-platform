@@ -31,7 +31,10 @@ import { useTutorChat } from "@/hooks/useTutorChat";
 import { markComplete } from "@/api/progress";
 import type { MarkCompleteResponse } from "@/api/progress";
 import AuthoredText from "@/components/module/AuthoredText";
-import ArticleEmbed from "@/components/module/ArticleEmbed";
+import ArticleEmbed, {
+  collectFootnoteDefinitions,
+  countFootnoteReferences,
+} from "@/components/module/ArticleEmbed";
 import VideoEmbed from "@/components/module/VideoEmbed";
 import { ChatInlineShell } from "@/components/module/ChatInlineShell";
 import AnswerBox from "@/components/module/AnswerBox";
@@ -1112,6 +1115,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         );
 
       case "article-excerpt": {
+        // Collect footnote defs from ALL article-excerpt segments in this section
+        // so cross-excerpt references (e.g. ref in excerpt 1, def in excerpt 2) resolve
+        const sectionFootnoteDefs = new Map<string, string>();
+        for (const seg of section.segments) {
+          if (seg.type === "article-excerpt") {
+            for (const field of [
+              seg.collapsed_before,
+              seg.content,
+              seg.collapsed_after,
+            ]) {
+              if (field) {
+                for (const [id, text] of collectFootnoteDefinitions(field)) {
+                  sectionFootnoteDefs.set(id, text);
+                }
+              }
+            }
+          }
+        }
+
         // Content is now bundled directly in the segment
         // Get meta from article or lens-article sections
         const articleMeta =
@@ -1142,12 +1164,35 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         const prevSegment = section.segments[segmentIndex - 1];
         const isPrevAlsoExcerpt = prevSegment?.type === "article-excerpt";
 
+        // Compute footnote counter offset from preceding excerpts
+        let footnoteCounterStart = 0;
+        if (sectionFootnoteDefs.size > 0) {
+          for (const seg of section.segments.slice(0, segmentIndex)) {
+            if (seg.type === "article-excerpt") {
+              for (const field of [
+                seg.collapsed_before,
+                seg.content,
+                seg.collapsed_after,
+              ]) {
+                if (field) {
+                  footnoteCounterStart += countFootnoteReferences(
+                    field,
+                    sectionFootnoteDefs,
+                  );
+                }
+              }
+            }
+          }
+        }
+
         return wrapWithSentinel(
           <ArticleEmbed
             key={`article-${keyPrefix}`}
             article={excerptData}
             isFirstExcerpt={isFirstExcerpt}
             isConsecutiveExcerpt={!isFirstExcerpt && isPrevAlsoExcerpt}
+            externalFootnoteDefs={sectionFootnoteDefs}
+            footnoteCounterStart={footnoteCounterStart}
           />,
         );
       }

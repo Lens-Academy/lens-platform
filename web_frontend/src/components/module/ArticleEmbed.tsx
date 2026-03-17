@@ -96,10 +96,25 @@ function remarkLensDirectives() {
  * by the InlineFootnote component.
  */
 /**
+ * Counts how many [^id] references in a string have matching definitions.
+ */
+export function countFootnoteReferences(
+  markdown: string,
+  definitions: Map<string, string>,
+): number {
+  let count = 0;
+  markdown.replace(/\[\^([^\]]+)\]/g, (_m, id) => {
+    if (definitions.has(id)) count++;
+    return "";
+  });
+  return count;
+}
+
+/**
  * Extracts footnote definitions from a markdown string.
  * Returns a Map of id → text for all [^id]: ... definitions found.
  */
-function collectFootnoteDefinitions(markdown: string): Map<string, string> {
+export function collectFootnoteDefinitions(markdown: string): Map<string, string> {
   const lines = markdown.split("\n");
   const definitions = new Map<string, string>();
   let i = 0;
@@ -147,8 +162,9 @@ function collectFootnoteDefinitions(markdown: string): Map<string, string> {
 function applyFootnoteInlining(
   markdown: string,
   definitions: Map<string, string>,
-): string {
-  if (definitions.size === 0) return markdown;
+  counterStart: number = 0,
+): { result: string; counter: number } {
+  if (definitions.size === 0) return { result: markdown, counter: counterStart };
 
   // Remove definition blocks from this field
   const lines = markdown.split("\n");
@@ -187,7 +203,7 @@ function applyFootnoteInlining(
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
 
-  let counter = 0;
+  let counter = counterStart;
   result = result.replace(/\[\^([^\]]+)\]/g, (_match, id) => {
     const def = definitions.get(id);
     if (!def) return _match; // unknown ref, leave as-is
@@ -195,7 +211,7 @@ function applyFootnoteInlining(
     return `<footnote-inline data-source="author" data-label="${counter}">${escapeHtml(def).replace(/\n\n/g, "<br/><br/>")}</footnote-inline>`;
   });
 
-  return result;
+  return { result, counter };
 }
 
 /**
@@ -675,6 +691,10 @@ type ArticleEmbedProps = {
   isFirstExcerpt?: boolean;
   /** Whether this excerpt immediately follows another excerpt (no intervening segments) */
   isConsecutiveExcerpt?: boolean;
+  /** Footnote definitions collected from sibling excerpts in the same section */
+  externalFootnoteDefs?: Map<string, string>;
+  /** Starting counter for footnote numbering (for cross-excerpt continuity) */
+  footnoteCounterStart?: number;
 };
 
 /**
@@ -685,6 +705,8 @@ export default function ArticleEmbed({
   article,
   isFirstExcerpt,
   isConsecutiveExcerpt,
+  externalFootnoteDefs,
+  footnoteCounterStart,
 }: ArticleEmbedProps) {
   const isFirst = isFirstExcerpt ?? true;
   const {
@@ -867,6 +889,13 @@ export default function ArticleEmbed({
   // to each field. This handles the common case where references are in `content`
   // but definitions are in `collapsed_after`.
   const footnoteDefs = new Map<string, string>();
+  // Merge externally-provided definitions (from sibling excerpts in the same section)
+  if (externalFootnoteDefs) {
+    for (const [id, text] of externalFootnoteDefs) {
+      footnoteDefs.set(id, text);
+    }
+  }
+  // Local definitions override external ones
   for (const field of [collapsed_before, content, collapsed_after]) {
     if (field) {
       for (const [id, text] of collectFootnoteDefinitions(field)) {
@@ -874,13 +903,22 @@ export default function ArticleEmbed({
       }
     }
   }
-  const processedContent = applyFootnoteInlining(content, footnoteDefs);
-  const processedCollapsedBefore = collapsed_before
-    ? applyFootnoteInlining(collapsed_before, footnoteDefs)
-    : undefined;
-  const processedCollapsedAfter = collapsed_after
-    ? applyFootnoteInlining(collapsed_after, footnoteDefs)
-    : undefined;
+  // Process fields in visual order, chaining the counter for sequential numbering
+  let counter = footnoteCounterStart ?? 0;
+  let processedCollapsedBefore: string | undefined;
+  if (collapsed_before) {
+    const r = applyFootnoteInlining(collapsed_before, footnoteDefs, counter);
+    processedCollapsedBefore = r.result;
+    counter = r.counter;
+  }
+  const { result: processedContent, counter: contentCounter } =
+    applyFootnoteInlining(content, footnoteDefs, counter);
+  counter = contentCounter;
+  let processedCollapsedAfter: string | undefined;
+  if (collapsed_after) {
+    const r = applyFootnoteInlining(collapsed_after, footnoteDefs, counter);
+    processedCollapsedAfter = r.result;
+  }
 
   // Split content at top-level block notes for alternating backgrounds
   const segments = splitAtBlockNotes(processedContent);
