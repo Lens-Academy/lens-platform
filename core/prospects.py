@@ -5,7 +5,7 @@ import hmac
 import os
 import re
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from .database import get_connection
@@ -43,25 +43,43 @@ def is_valid_email(email: str) -> bool:
     return bool(EMAIL_RE.match(email)) and len(email) <= 254
 
 
-async def register_prospect(email: str, base_url: str) -> bool:
+async def register_prospect(
+    email: str,
+    base_url: str,
+    subscribe_courses: bool = True,
+    subscribe_substack: bool = False,
+) -> bool:
     """
     Register a prospect email. Idempotent — duplicate emails are ignored.
 
-    Sends a confirmation email for new signups.
+    Sends a confirmation email for new course signups.
     Returns True if a new prospect was inserted.
     """
     email = email.strip().lower()
 
     async with get_connection() as conn:
+        # Insert new row (ignore if email already exists)
         result = await conn.execute(
             insert(prospects)
             .values(email=email)
             .on_conflict_do_nothing(constraint="uq_prospects_email")
         )
-        await conn.commit()
         is_new = result.rowcount > 0
 
-    if is_new:
+        # Update subscription flags (works for both new and existing rows)
+        updates = {}
+        if subscribe_courses:
+            updates["subscribe_courses"] = True
+        if subscribe_substack:
+            updates["subscribe_substack"] = True
+        if updates:
+            await conn.execute(
+                update(prospects).where(prospects.c.email == email).values(**updates)
+            )
+
+        await conn.commit()
+
+    if is_new and subscribe_courses:
         _send_confirmation_email(email, base_url)
 
     return is_new
@@ -71,7 +89,7 @@ def _send_confirmation_email(email: str, base_url: str) -> None:
     """Send a welcome email to a new prospect."""
     token = make_unsubscribe_token(email)
     unsubscribe_url = (
-        f"{base_url}/api/prospects/unsubscribe?email={email}&token={token}"
+        f"{base_url}/api/subscribe/unsubscribe?email={email}&token={token}"
     )
     course_url = f"{base_url}/course/default"
 
@@ -88,18 +106,39 @@ def _send_confirmation_email(email: str, base_url: str) -> None:
 
 
 async def unsubscribe_prospect(email: str) -> bool:
-    """Mark a prospect as unsubscribed. Returns True if found."""
-    from sqlalchemy import func
-
+    """Unsubscribe a prospect from course notifications. Returns True if found."""
     async with get_connection() as conn:
         result = await conn.execute(
             update(prospects)
             .where(prospects.c.email == email.lower())
-            .where(prospects.c.unsubscribed_at.is_(None))
-            .values(unsubscribed_at=func.now())
+            .where(prospects.c.subscribe_courses.is_(True))
+            .values(subscribe_courses=False)
         )
         await conn.commit()
         return result.rowcount > 0
+
+
+async def get_pending_substack_emails() -> list[str]:
+    """Get emails that opted into Substack but haven't been synced yet."""
+    async with get_connection() as conn:
+        result = await conn.execute(
+            select(prospects.c.email).where(
+                prospects.c.subscribe_substack.is_(True),
+                prospects.c.substack_synced_at.is_(None),
+            )
+        )
+        return [row.email for row in result.fetchall()]
+
+
+async def mark_substack_synced(email: str) -> None:
+    """Mark an email as synced to Substack."""
+    async with get_connection() as conn:
+        await conn.execute(
+            update(prospects)
+            .where(prospects.c.email == email.lower())
+            .values(substack_synced_at=func.now())
+        )
+        await conn.commit()
 
 
 async def has_available_cohorts() -> bool:
