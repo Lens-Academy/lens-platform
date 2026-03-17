@@ -60,7 +60,6 @@ export default function VideoPlayer({
   const [isFading, setIsFading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const [isPaused, setIsPaused] = useState(true);
   // When end is null, we're in full video mode (no clipping)
   const [isFullVideo, setIsFullVideo] = useState(end === null);
 
@@ -93,11 +92,9 @@ export default function VideoPlayer({
     };
 
     const handlePlay = () => {
-      setIsPaused(false);
       onPlayCallback?.();
     };
     const handlePause = () => {
-      setIsPaused(true);
       onPauseCallback?.();
     };
     const handleTimeUpdate = () => {
@@ -115,12 +112,22 @@ export default function VideoPlayer({
       onCompleteCallback?.();
     };
 
+    // Auto-rotate to landscape on fullscreen (Android)
+    const handleFullscreenChange = () => {
+      if (document.fullscreenElement) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- lock() exists on Android but not in TS lib types
+        (screen.orientation as any)?.lock?.("landscape").catch(() => {});
+      }
+      // orientation lock auto-releases on fullscreen exit
+    };
+
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
     video.addEventListener("timeupdate", handleTimeUpdate);
     video.addEventListener("volumechange", handleVolumeChange);
     video.addEventListener("ended", handleEnded);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
 
     return () => {
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
@@ -129,6 +136,7 @@ export default function VideoPlayer({
       video.removeEventListener("timeupdate", handleTimeUpdate);
       video.removeEventListener("volumechange", handleVolumeChange);
       video.removeEventListener("ended", handleEnded);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, [start, onPlayCallback, onPauseCallback, onTimeUpdateCallback, onCompleteCallback]);
 
@@ -235,11 +243,17 @@ export default function VideoPlayer({
     setIsFullVideo(false);
     setFragmentEnded(false);
     setIsFading(false);
-    setProgress(0);
     const video = videoRef.current;
     if (video) {
       video.volume = originalVolumeRef.current;
-      video.currentTime = start;
+      const inRange = end !== null && video.currentTime >= start && video.currentTime < end;
+      if (inRange) {
+        const elapsed = video.currentTime - start;
+        setProgress(elapsed / duration);
+      } else {
+        setProgress(0);
+        video.currentTime = start;
+      }
       video.play();
     }
   };
@@ -404,32 +418,23 @@ export default function VideoPlayer({
               className="absolute left-1/2 -translate-x-1/2 z-20 transition-opacity duration-200"
               style={{ bottom: 88, opacity: showControls ? 1 : 0, pointerEvents: showControls ? "auto" : "none" }}
             >
-              <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-lg text-xs text-white/80 whitespace-nowrap">
-                {formatTime(progress * duration)} / {formatTime(duration)}
-                <span className="mx-1.5 text-white/40">·</span>
-                {!isFullVideo ? (
-                  <>
-                    Clip {formatTime(start)}–{formatTime(end as number)}
-                    <span className="mx-1.5 text-white/40">·</span>
-                    <button
-                      onClick={handleWatchFullVideo}
-                      className="text-white/60 hover:text-white underline"
-                    >
-                      Full video
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Full video
-                    <span className="mx-1.5 text-white/40">·</span>
-                    <button
-                      onClick={handleWatchClipOnly}
-                      className="text-white/60 hover:text-white underline"
-                    >
-                      Clip only
-                    </button>
-                  </>
-                )}
+              <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg text-sm text-white/80 whitespace-nowrap flex items-center gap-2">
+                <button
+                  onClick={() => isFullVideo ? handleWatchClipOnly() : handleWatchFullVideo()}
+                  className="inline-flex items-center gap-1.5 text-white/80 hover:text-white"
+                >
+                  <span className={!isFullVideo ? "text-white" : "text-white/40"}>Recommended Clip</span>
+                  <span className="relative inline-block w-8 h-4 rounded-full bg-white/20">
+                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200 ${isFullVideo ? "left-[18px]" : "left-0.5"}`} />
+                  </span>
+                  <span className={isFullVideo ? "text-white" : "text-white/40"}>Full Video</span>
+                </button>
+                <span className={`transition-opacity duration-200 flex items-center gap-2 ${isFullVideo ? "opacity-0 pointer-events-none" : ""}`}>
+                  <span className="text-white/40">·</span>
+                  {formatTime(progress * duration)} / {formatTime(duration)}
+                  <span className="text-white/40">·</span>
+                  Clip {formatTime(start)}–{formatTime(end as number)}
+                </span>
               </div>
             </div>
           )}
@@ -489,32 +494,23 @@ export default function VideoPlayer({
               </div>
             )}
             <div className="flex items-center justify-center">
-              <div className="text-xs text-white/60">
-                {formatTime(progress * duration)} / {formatTime(duration)}
-                <span className="mx-1.5 text-white/30">·</span>
-                {!isFullVideo ? (
-                  <>
-                    Clip {formatTime(start)}–{formatTime(end as number)}
-                    <span className="mx-1.5 text-white/30">·</span>
-                    <button
-                      onClick={handleWatchFullVideo}
-                      className="text-white/50 active:text-white underline"
-                    >
-                      Full video
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Full video
-                    <span className="mx-1.5 text-white/30">·</span>
-                    <button
-                      onClick={handleWatchClipOnly}
-                      className="text-white/50 active:text-white underline"
-                    >
-                      Clip only
-                    </button>
-                  </>
-                )}
+              <div className="text-sm text-white/60 flex items-center gap-2">
+                <button
+                  onClick={() => isFullVideo ? handleWatchClipOnly() : handleWatchFullVideo()}
+                  className="inline-flex items-center gap-1.5 text-white/60 active:text-white"
+                >
+                  <span className={!isFullVideo ? "text-white" : "text-white/40"}>Recommended Clip</span>
+                  <span className="relative inline-block w-8 h-4 rounded-full bg-white/20">
+                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200 ${isFullVideo ? "left-[18px]" : "left-0.5"}`} />
+                  </span>
+                  <span className={isFullVideo ? "text-white" : "text-white/40"}>Full Video</span>
+                </button>
+                <span className={`transition-opacity duration-200 flex items-center gap-2 ${isFullVideo ? "opacity-0 pointer-events-none" : ""}`}>
+                  <span className="text-white/30">·</span>
+                  {formatTime(progress * duration)} / {formatTime(duration)}
+                  <span className="text-white/30">·</span>
+                  Clip {formatTime(start)}–{formatTime(end as number)}
+                </span>
               </div>
             </div>
           </div>

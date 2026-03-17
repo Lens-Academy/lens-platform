@@ -49,24 +49,32 @@ export default function VideoEmbed({
     onTheaterChange?.(true);
   }, [onTheaterChange]);
 
+  const handlePlay = useCallback(() => {
+    if (!isTheaterMode) {
+      setIsTheaterMode(true);
+      onTheaterChange?.(true);
+    }
+    onPlay?.();
+  }, [isTheaterMode, onTheaterChange, onPlay]);
+
   const handleComplete = useCallback(() => {
     setIsTheaterMode(false);
     onTheaterChange?.(false);
   }, [onTheaterChange]);
 
-  // Scroll into view when video is activated
+  // Scroll into view when entering theater mode
   useEffect(() => {
-    if (isActivated && containerRef.current) {
+    if (isTheaterMode && containerRef.current) {
       containerRef.current.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
     }
-  }, [isActivated]);
+  }, [isTheaterMode]);
 
   // Video container classes
   const videoContainerClasses = isActivated
-    ? "w-[98%] max-w-[1600px] mx-auto scroll-mt-20 transition-all duration-300"
+    ? `${isTheaterMode ? "w-[98%]" : "w-[80%]"} max-w-[1600px] mx-auto scroll-mt-20 transition-all duration-300`
     : "w-full px-4 sm:px-0 sm:max-w-content mx-auto py-4 scroll-mt-20 transition-all duration-300";
 
   // Label: "Watch" for first clip, "Watch Part N" for subsequent
@@ -86,8 +94,8 @@ export default function VideoEmbed({
       <div
         ref={containerRef}
         style={{
-          marginLeft: fullBleedMargin,
-          width: fullBleedWidth,
+          marginLeft: isTheaterMode ? fullBleedMargin : undefined,
+          width: isTheaterMode ? fullBleedWidth : undefined,
           height: theaterHeight,
           display: isTheaterMode ? "flex" : undefined,
           flexDirection: isTheaterMode ? "column" : undefined,
@@ -115,7 +123,7 @@ export default function VideoEmbed({
             start={start}
             end={end}
             autoplay
-            onPlay={onPlay}
+            onPlay={handlePlay}
             onPause={onPause}
             onTimeUpdate={onTimeUpdate}
             onComplete={handleComplete}
