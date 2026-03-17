@@ -27,6 +27,7 @@ declare module "react" {
           autoplay?: boolean;
           muted?: boolean;
           controls?: boolean;
+          playsinline?: boolean;
         },
         HTMLElement
       >;
@@ -54,6 +55,7 @@ export default function VideoPlayer({
   const progressBarRef = useRef<HTMLDivElement | null>(null);
 
   const [progress, setProgress] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const [fragmentEnded, setFragmentEnded] = useState(false);
   const [isFading, setIsFading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -269,7 +271,7 @@ export default function VideoPlayer({
     }
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handlePointerDown = (e: React.PointerEvent) => {
     const pct = getPercentageFromX(e.clientX);
     if (pct === null) return;
     // Pause video for responsive scrubbing (like YouTube's native bar)
@@ -285,7 +287,7 @@ export default function VideoPlayer({
   useEffect(() => {
     if (!isDragging) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       const pct = getPercentageFromX(e.clientX);
       if (pct === null) return;
       setProgress(pct);
@@ -298,7 +300,7 @@ export default function VideoPlayer({
       }
     };
 
-    const handleMouseUp = (e: MouseEvent) => {
+    const handlePointerUp = (e: PointerEvent) => {
       const pct = getPercentageFromX(e.clientX);
       if (pct !== null) seekToPercentage(pct);
       isDraggingRef.current = false;
@@ -307,17 +309,22 @@ export default function VideoPlayer({
       if (wasPlayingRef.current) videoRef.current?.play();
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
 
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- uses refs and state that are stable
   }, [isDragging, start, duration]);
 
-  const showControls = isHovering || isPaused || fragmentEnded;
+  // Detect touch-primary device (mobile/tablet)
+  useEffect(() => {
+    setIsMobile(window.matchMedia("(pointer: coarse)").matches);
+  }, []);
+
+  const showControls = isMobile || isHovering || fragmentEnded;
 
   // In theater mode, measure the hover wrapper and compute the largest 16:9
   // rect that fits both its width and height (minus space for controls).
@@ -332,8 +339,7 @@ export default function VideoPlayer({
     const el = hoverRef.current;
     const observer = new ResizeObserver(([entry]) => {
       const { width: aw, height: ah } = entry.contentRect;
-      // Reserve space for progress bar + clip info (~44px)
-      const videoH = ah - 44;
+      const videoH = ah;
       // Largest 16:9 rect fitting aw x videoH
       let w = aw;
       let h = w * 9 / 16;
@@ -353,13 +359,13 @@ export default function VideoPlayer({
       <div
         ref={hoverRef}
         className={`w-full ${theater ? "flex-1 min-h-0 flex flex-col items-center justify-center" : ""}`}
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
       >
         {/* Video with native YouTube controls */}
         <div
           ref={containerRef}
           className={`relative rounded-xl overflow-hidden ${theater ? "" : "w-full aspect-video"}`}
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
           style={
             theater && theaterSize
               ? { width: theaterSize.w, height: theaterSize.h }
@@ -370,6 +376,7 @@ export default function VideoPlayer({
             src={youtubeUrl}
             controls
             autoplay={autoplay}
+            playsinline
             className="w-full h-full"
           />
 
@@ -390,69 +397,129 @@ export default function VideoPlayer({
               </button>
             </div>
           )}
+
+          {/* Desktop-only overlays (absolute positioned inside video) */}
+          {!isMobile && isClip && (
+            <div
+              className="absolute left-1/2 -translate-x-1/2 z-20 transition-opacity duration-200"
+              style={{ bottom: 88, opacity: showControls ? 1 : 0, pointerEvents: showControls ? "auto" : "none" }}
+            >
+              <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-lg text-xs text-white/80 whitespace-nowrap">
+                {formatTime(progress * duration)} / {formatTime(duration)}
+                <span className="mx-1.5 text-white/40">·</span>
+                {!isFullVideo ? (
+                  <>
+                    Clip {formatTime(start)}–{formatTime(end as number)}
+                    <span className="mx-1.5 text-white/40">·</span>
+                    <button
+                      onClick={handleWatchFullVideo}
+                      className="text-white/60 hover:text-white underline"
+                    >
+                      Full video
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Full video
+                    <span className="mx-1.5 text-white/40">·</span>
+                    <button
+                      onClick={handleWatchClipOnly}
+                      className="text-white/60 hover:text-white underline"
+                    >
+                      Clip only
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!isMobile && isClip && !isFullVideo && (
+            <div
+              className="absolute left-0 right-0 px-3 transition-opacity duration-200 z-20"
+              style={{ bottom: 64, opacity: showControls ? 1 : 0, pointerEvents: showControls ? "auto" : "none" }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  ref={progressBarRef}
+                  className="flex-1 rounded cursor-pointer relative select-none"
+                  style={{ height: "6px", backgroundColor: "rgba(255,255,255,0.3)", touchAction: "none" }}
+                  onPointerDown={handlePointerDown}
+                >
+                  <div
+                    className="h-full rounded pointer-events-none"
+                    style={{
+                      width: `${progress * 100}%`,
+                      backgroundColor: "var(--color-lens-gold-400)",
+                    }}
+                  />
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow pointer-events-none border-2 border-white"
+                    style={{ backgroundColor: "var(--color-lens-gold-500)", left: `calc(${progress * 100}% - 8px)` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Custom fragment progress bar below video (hidden when no clip or in full video mode) */}
-        {isClip && !isFullVideo && (
-          <div
-            className="px-1 pt-3 transition-opacity duration-200"
-            style={{
-              opacity: showControls ? 1 : 0,
-              width: theater && theaterSize ? theaterSize.w : undefined,
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                ref={progressBarRef}
-                className="flex-1 rounded cursor-pointer relative select-none"
-                style={{ height: "6px", backgroundColor: "#ddd" }}
-                onMouseDown={handleMouseDown}
-              >
+        {/* Mobile-only controls (below video, always visible) */}
+        {isMobile && isClip && (
+          <div className="flex flex-col gap-2 mt-2 w-full" style={theater && theaterSize ? { width: theaterSize.w } : undefined}>
+            {!isFullVideo && (
+              <div className="px-1">
                 <div
-                  className="h-full rounded pointer-events-none"
-                  style={{
-                    width: `${progress * 100}%`,
-                    backgroundColor: "#3b82f6",
-                  }}
-                />
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow pointer-events-none bg-blue-600 border-2 border-white"
-                  style={{ left: `calc(${progress * 100}% - 8px)` }}
-                />
+                  ref={progressBarRef}
+                  className="rounded cursor-pointer relative select-none"
+                  style={{ height: "8px", backgroundColor: "rgba(255,255,255,0.15)", touchAction: "none" }}
+                  onPointerDown={handlePointerDown}
+                >
+                  <div
+                    className="h-full rounded pointer-events-none"
+                    style={{
+                      width: `${progress * 100}%`,
+                      backgroundColor: "var(--color-lens-gold-400)",
+                    }}
+                  />
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full shadow pointer-events-none border-2 border-white"
+                    style={{ backgroundColor: "var(--color-lens-gold-500)", left: `calc(${progress * 100}% - 10px)` }}
+                  />
+                </div>
               </div>
-              <span className="text-sm text-gray-600 whitespace-nowrap">
+            )}
+            <div className="flex items-center justify-center">
+              <div className="text-xs text-white/60">
                 {formatTime(progress * duration)} / {formatTime(duration)}
-              </span>
+                <span className="mx-1.5 text-white/30">·</span>
+                {!isFullVideo ? (
+                  <>
+                    Clip {formatTime(start)}–{formatTime(end as number)}
+                    <span className="mx-1.5 text-white/30">·</span>
+                    <button
+                      onClick={handleWatchFullVideo}
+                      className="text-white/50 active:text-white underline"
+                    >
+                      Full video
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Full video
+                    <span className="mx-1.5 text-white/30">·</span>
+                    <button
+                      onClick={handleWatchClipOnly}
+                      className="text-white/50 active:text-white underline"
+                    >
+                      Clip only
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
       </div>
-
-      {/* Clip info and controls (only shown when there's a clip end time) */}
-      {isClip &&
-        (!isFullVideo ? (
-          <div className="text-center text-xs text-gray-400">
-            Clip from {formatTime(start)} to {formatTime(end as number)}
-            <span className="mx-1">·</span>
-            <button
-              onClick={handleWatchFullVideo}
-              className="text-gray-400 hover:text-gray-600 underline"
-            >
-              Watch full video
-            </button>
-          </div>
-        ) : (
-          <div className="text-center text-xs text-gray-400">
-            Watching full video
-            <span className="mx-1">·</span>
-            <button
-              onClick={handleWatchClipOnly}
-              className="text-gray-400 hover:text-gray-600 underline"
-            >
-              Watch clip only
-            </button>
-          </div>
-        ))}
     </div>
   );
 }
