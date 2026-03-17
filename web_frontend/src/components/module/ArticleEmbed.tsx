@@ -1,6 +1,7 @@
 // web_frontend/src/components/module/ArticleEmbed.tsx
 
 import { useRef, useState, isValidElement, type ReactNode } from "react";
+import { ImageLightbox } from "../ImageLightbox";
 import {
   useFloating,
   useHover,
@@ -719,16 +720,26 @@ export default function ArticleEmbed({
 
   // Shared markdown components for both main content and collapsed sections
   const markdownComponents = {
-    a: ({ children, href }: { children?: React.ReactNode; href?: string }) => (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600"
-      >
-        {children}
-      </a>
-    ),
+    a: ({ children, href }: { children?: React.ReactNode; href?: string }) => {
+      // If the link wraps an image, render just the image (lightbox handles expansion)
+      const child = Array.isArray(children) ? children[0] : children;
+      if (
+        isValidElement(child) &&
+        (child.type === "img" || (child.type as { name?: string })?.name === "MarkdownImage")
+      ) {
+        return <>{children}</>;
+      }
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600"
+        >
+          {children}
+        </a>
+      );
+    },
     h1: ({ children }: { children?: React.ReactNode }) => {
       const text = textOf(children);
       const id = getHeadingId(text);
@@ -822,13 +833,36 @@ export default function ArticleEmbed({
         {children}
       </pre>
     ),
-    img: ({ src, alt }: { src?: string; alt?: string }) => (
-      <img
-        src={src}
-        alt={alt || ""}
-        className="w-full max-w-full my-4 rounded-lg"
-      />
-    ),
+    img: function MarkdownImage({
+      src,
+      alt,
+    }: {
+      src?: string;
+      alt?: string;
+    }) {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <img
+            src={src}
+            alt={alt || ""}
+            className="w-full max-w-full my-4 rounded-lg cursor-pointer"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen(true);
+            }}
+          />
+          {open && (
+            <ImageLightbox
+              src={src!}
+              alt={alt || ""}
+              onClose={() => setOpen(false)}
+            />
+          )}
+        </>
+      );
+    },
     hr: () => (
       <hr className="my-8" style={{ borderColor: "var(--brand-border)" }} />
     ),
