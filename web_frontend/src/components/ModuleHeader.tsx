@@ -213,7 +213,7 @@ export function ModuleHeader({
     >
       <div
         ref={containerRef}
-        className="relative flex items-center justify-between px-4 py-3"
+        className="relative flex items-center justify-between px-4 py-2.5"
       >
         {/* Left: Hamburger + Logo + Brand + Title */}
         <div
@@ -242,7 +242,7 @@ export function ModuleHeader({
           >
             <a
               href="/"
-              className="text-base font-semibold text-gray-900 hover:text-gray-700 font-display"
+              className="text-xl font-semibold text-gray-900 hover:text-gray-700 font-display"
             >
               Lens Academy
             </a>
