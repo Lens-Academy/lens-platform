@@ -1138,13 +1138,19 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   const handlePrevious = useCallback(() => {
     if (testModeActive) return; // Block during test mode
-    const prevIndex = Math.max(0, currentSectionIndex - 1);
+    if (!module) return;
+    // At first section: show choice modal
+    if (currentSectionIndex === 0) {
+      tryShowChoicesOrNavigate(0);
+      return;
+    }
+    const prevIndex = currentSectionIndex - 1;
     if (viewMode === "continuous") {
       handleStageClick(prevIndex);
     } else {
       setCurrentSectionIndex(prevIndex);
     }
-  }, [currentSectionIndex, viewMode, handleStageClick, testModeActive]);
+  }, [currentSectionIndex, viewMode, handleStageClick, testModeActive, module, completedSections]);
 
   // Build choices for the section navigation modal
   // Collects upcoming sections (optional + first required) after a completed section
@@ -1398,17 +1404,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     if (testModeActive) return; // Block during test mode
     if (!module) return;
 
-    // If current section is completed, use tryShowChoicesOrNavigate
-    if (completedSections.has(currentSectionIndex)) {
+    // At last section: show choice modal
+    if (currentSectionIndex >= module.sections.length - 1) {
       tryShowChoicesOrNavigate(currentSectionIndex);
       return;
     }
 
-    // Not completed: just advance normally
-    const nextIndex = Math.min(
-      module.sections.length - 1,
-      currentSectionIndex + 1,
-    );
+    // Not at last section: just advance normally
+    const nextIndex = currentSectionIndex + 1;
     if (viewMode === "continuous") {
       handleStageClick(nextIndex);
     } else {
@@ -1802,10 +1805,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           stages={stages}
           completedStages={completedSections}
           currentSectionIndex={currentSectionIndex}
-          canGoPrevious={!testModeActive && currentSectionIndex > 0}
-          canGoNext={
-            !testModeActive && currentSectionIndex < module.sections.length - 1
-          }
+          canGoPrevious={!testModeActive}
+          canGoNext={!testModeActive}
           onStageClick={handleStageClick}
           onPrevious={handlePrevious}
           onNext={handleNext}
