@@ -60,6 +60,7 @@ export default function VideoPlayer({
   const [isFading, setIsFading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const hideTimeoutRef = useRef<number | null>(null);
   // When end is null, we're in full video mode (no clipping)
   const [isFullVideo, setIsFullVideo] = useState(end === null);
 
@@ -345,6 +346,13 @@ export default function VideoPlayer({
     setIsMobile(window.matchMedia("(pointer: coarse)").matches);
   }, []);
 
+  // Clean up idle timer on unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    };
+  }, []);
+
   const showControls = isMobile || isHovering || fragmentEnded;
 
   // In theater mode, measure the hover wrapper and compute the largest 16:9
@@ -390,13 +398,21 @@ export default function VideoPlayer({
         <div
           ref={containerRef}
           className={`relative rounded-xl overflow-hidden ${theater ? "" : "w-full aspect-video"}`}
-          onMouseEnter={() => setIsHovering(true)}
-          onMouseLeave={() => setIsHovering(false)}
-          style={
-            theater && theaterSize
+          onMouseMove={() => {
+            setIsHovering(true);
+            if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+            hideTimeoutRef.current = window.setTimeout(() => setIsHovering(false), 3000);
+          }}
+          onMouseLeave={() => {
+            if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+            setIsHovering(false);
+          }}
+          style={{
+            ...(theater && theaterSize
               ? { width: theaterSize.w, height: theaterSize.h }
-              : undefined
-          }
+              : {}),
+            cursor: showControls ? undefined : "none",
+          }}
         >
           <youtube-video
             src={youtubeUrl}
