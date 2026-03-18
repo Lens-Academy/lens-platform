@@ -58,7 +58,7 @@ export default function ProspectEmailForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: trimmedEmail,
-            subscribe_courses: true,
+            subscribe_courses_learners: true,
             subscribe_substack: subscribeSubstack,
           }),
         });

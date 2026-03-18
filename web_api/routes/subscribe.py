@@ -61,11 +61,25 @@ def _is_localhost(request: Request) -> bool:
     return host in ("127.0.0.1", "::1", "localhost")
 
 
+def _extract_course_fields(body: dict) -> dict:
+    """Extract learner/navigator fields from a JSON body with backward compat.
+
+    If the old ``subscribe_courses`` field is sent (and the new split fields are
+    absent), it maps to ``subscribe_courses_learners=True``.
+    """
+    legacy = body.get("subscribe_courses", False)
+    return {
+        "subscribe_courses_learners": body.get("subscribe_courses_learners", legacy),
+        "subscribe_courses_navigators": body.get("subscribe_courses_navigators", False),
+    }
+
+
 async def _extract_fields(request: Request) -> dict:
     """Extract email and subscription flags from request body.
 
-    Returns dict with keys: email, subscribe_courses, subscribe_substack.
-    For non-JSON content types (no-cors fallback), defaults to subscribe_courses=True.
+    Returns dict with keys: email, subscribe_courses_learners,
+    subscribe_courses_navigators, subscribe_substack.
+    For non-JSON content types (no-cors fallback), defaults to learners=True.
     """
     content_type = request.headers.get("content-type", "")
 
@@ -73,7 +87,7 @@ async def _extract_fields(request: Request) -> dict:
         body = await request.json()
         return {
             "email": body.get("email", ""),
-            "subscribe_courses": body.get("subscribe_courses", False),
+            **_extract_course_fields(body),
             "subscribe_substack": body.get("subscribe_substack", False),
         }
     elif "application/x-www-form-urlencoded" in content_type:
@@ -81,7 +95,8 @@ async def _extract_fields(request: Request) -> dict:
         parsed = parse_qs(raw.decode())
         return {
             "email": parsed.get("email", [""])[0],
-            "subscribe_courses": True,
+            "subscribe_courses_learners": True,
+            "subscribe_courses_navigators": False,
             "subscribe_substack": False,
         }
     elif "text/plain" in content_type:
@@ -95,18 +110,24 @@ async def _extract_fields(request: Request) -> dict:
                 body = json.loads(raw)
                 return {
                     "email": body.get("email", ""),
-                    "subscribe_courses": body.get("subscribe_courses", True),
+                    **_extract_course_fields(body),
                     "subscribe_substack": body.get("subscribe_substack", False),
                 }
             except json.JSONDecodeError:
                 pass
         return {
             "email": raw,
-            "subscribe_courses": True,
+            "subscribe_courses_learners": True,
+            "subscribe_courses_navigators": False,
             "subscribe_substack": False,
         }
 
-    return {"email": "", "subscribe_courses": False, "subscribe_substack": False}
+    return {
+        "email": "",
+        "subscribe_courses_learners": False,
+        "subscribe_courses_navigators": False,
+        "subscribe_substack": False,
+    }
 
 
 @router.options("")
@@ -128,10 +149,15 @@ async def subscribe(request: Request) -> Response:
 
     fields = await _extract_fields(request)
     email = fields["email"].strip()
-    subscribe_courses = fields["subscribe_courses"]
+    subscribe_courses_learners = fields["subscribe_courses_learners"]
+    subscribe_courses_navigators = fields["subscribe_courses_navigators"]
     subscribe_substack = fields["subscribe_substack"]
 
-    if not subscribe_courses and not subscribe_substack:
+    if (
+        not subscribe_courses_learners
+        and not subscribe_courses_navigators
+        and not subscribe_substack
+    ):
         return JSONResponse(
             {"detail": "Please select at least one option."},
             status_code=400,
@@ -149,7 +175,8 @@ async def subscribe(request: Request) -> Response:
     await register_prospect(
         email,
         base_url,
-        subscribe_courses=subscribe_courses,
+        subscribe_courses_learners=subscribe_courses_learners,
+        subscribe_courses_navigators=subscribe_courses_navigators,
         subscribe_substack=subscribe_substack,
     )
 

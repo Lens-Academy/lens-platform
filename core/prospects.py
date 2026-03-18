@@ -46,7 +46,8 @@ def is_valid_email(email: str) -> bool:
 async def register_prospect(
     email: str,
     base_url: str,
-    subscribe_courses: bool = True,
+    subscribe_courses_learners: bool = False,
+    subscribe_courses_navigators: bool = False,
     subscribe_substack: bool = False,
 ) -> bool:
     """
@@ -68,8 +69,10 @@ async def register_prospect(
 
         # Update subscription flags (works for both new and existing rows)
         updates = {}
-        if subscribe_courses:
-            updates["subscribe_courses"] = True
+        if subscribe_courses_learners:
+            updates["subscribe_courses_learners"] = True
+        if subscribe_courses_navigators:
+            updates["subscribe_courses_navigators"] = True
         if subscribe_substack:
             updates["subscribe_substack"] = True
         if updates:
@@ -79,7 +82,7 @@ async def register_prospect(
 
         await conn.commit()
 
-    if is_new and subscribe_courses:
+    if is_new and (subscribe_courses_learners or subscribe_courses_navigators):
         _send_confirmation_email(email, base_url)
 
     return is_new
@@ -108,11 +111,21 @@ def _send_confirmation_email(email: str, base_url: str) -> None:
 async def unsubscribe_prospect(email: str) -> bool:
     """Unsubscribe a prospect from course notifications. Returns True if found."""
     async with get_connection() as conn:
+        from sqlalchemy import or_
+
         result = await conn.execute(
             update(prospects)
             .where(prospects.c.email == email.lower())
-            .where(prospects.c.subscribe_courses.is_(True))
-            .values(subscribe_courses=False)
+            .where(
+                or_(
+                    prospects.c.subscribe_courses_learners.is_(True),
+                    prospects.c.subscribe_courses_navigators.is_(True),
+                )
+            )
+            .values(
+                subscribe_courses_learners=False,
+                subscribe_courses_navigators=False,
+            )
         )
         await conn.commit()
         return result.rowcount > 0
