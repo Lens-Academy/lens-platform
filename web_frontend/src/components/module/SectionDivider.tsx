@@ -24,7 +24,19 @@ type SectionDividerProps = {
   duration?: DurationBreakdown | null;
 };
 
-function Icon({ type }: { type: "video" | "article" | "page" }) {
+function Icon({ type }: { type: "video" | "article" | "page" | "test" }) {
+  if (type === "test") {
+    return (
+      <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fillRule="evenodd"
+          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+          clipRule="evenodd"
+        />
+      </svg>
+    );
+  }
+
   if (type === "page") {
     return <StickyNote className="w-8 h-8" strokeWidth={2} />;
   }
@@ -65,9 +77,11 @@ export default function SectionDivider({
   const iconType =
     type === "video" || type === "lens-video"
       ? "video"
-      : type === "page"
-        ? "page"
-        : "article";
+      : type === "test"
+        ? "test"
+        : type === "page"
+          ? "page"
+          : "article";
 
   return (
     <div className="flex flex-col items-center gap-2 px-4 sm:px-6 py-6">

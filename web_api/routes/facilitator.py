@@ -151,7 +151,7 @@ async def get_group_timeline(
 
     # Map content_id -> module_slug for aggregation
     content_to_slug: dict[str, str] = {}
-    module_cid_to_slug: dict[str, str] = {}  # module content_id -> slug
+    module_cid_to_slugs: dict[str, list[str]] = {}  # module content_id -> slugs
     timeline_items: list[dict[str, Any]] = []
     meeting_count = 0
     for item in course.progression:
@@ -162,7 +162,7 @@ async def get_group_timeline(
             except Exception:
                 continue
             if module.content_id:
-                module_cid_to_slug[str(module.content_id)] = slug
+                module_cid_to_slugs.setdefault(str(module.content_id), []).append(slug)
             for section in module.sections:
                 content_id = section.get("contentId")
                 if content_id:
@@ -238,11 +238,12 @@ async def get_group_timeline(
                 module_stats[slug]["time_seconds"] += user_time.get(cid, 0)
 
         # Add module-level chat counts (chats are keyed by module content_id)
-        for mod_cid, slug in module_cid_to_slug.items():
+        for mod_cid, slugs in module_cid_to_slugs.items():
             if mod_cid in user_chats:
-                if slug not in module_stats:
-                    module_stats[slug] = {"time_seconds": 0, "chat_count": 0}
-                module_stats[slug]["chat_count"] += user_chats[mod_cid]
+                for slug in slugs:
+                    if slug not in module_stats:
+                        module_stats[slug] = {"time_seconds": 0, "chat_count": 0}
+                    module_stats[slug]["chat_count"] += user_chats[mod_cid]
 
         # Per-section time data (time tracking is still section-level)
         section_times: dict[str, int] = {}
@@ -435,8 +436,8 @@ async def get_user_chats(
 
         sessions = await get_user_chat_sessions_for_facilitator(conn, target_user_id)
 
-    # Build content_id -> module info map from content cache
-    content_to_module: dict[str, dict[str, str]] = {}
+    # Build content_id -> list of module info map from content cache
+    content_to_modules: dict[str, list[dict[str, str]]] = {}
     for slug in get_available_modules():
         try:
             module = load_flattened_module(slug)
@@ -444,22 +445,23 @@ async def get_user_chats(
             continue
         # Map module-level content_id
         if module.content_id:
-            content_to_module[str(module.content_id)] = {
-                "slug": slug,
-                "title": module.title,
-            }
+            content_to_modules.setdefault(str(module.content_id), []).append(
+                {"slug": slug, "title": module.title}
+            )
         # Map section-level content_ids
         for section in module.sections:
             cid = section.get("contentId")
             if cid:
-                content_to_module[cid] = {"slug": slug, "title": module.title}
+                content_to_modules.setdefault(cid, []).append(
+                    {"slug": slug, "title": module.title}
+                )
 
     chats_out = []
     for session in sessions:
         content_id = session.get("module_id")
         content_id_str = str(content_id) if content_id else None
-        module_info = (
-            content_to_module.get(content_id_str or "") if content_id_str else None
+        module_infos = (
+            content_to_modules.get(content_id_str or "", []) if content_id_str else []
         )
 
         started_at = session.get("started_at")
@@ -470,8 +472,8 @@ async def get_user_chats(
             {
                 "session_id": session["session_id"],
                 "content_id": content_id_str,
-                "module_slug": module_info["slug"] if module_info else None,
-                "module_title": module_info["title"] if module_info else None,
+                "module_slugs": [m["slug"] for m in module_infos],
+                "module_title": module_infos[0]["title"] if module_infos else None,
                 "messages": json.loads(session["messages"])
                 if isinstance(session.get("messages"), str)
                 else session.get("messages", []),

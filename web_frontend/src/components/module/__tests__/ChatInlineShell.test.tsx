@@ -41,7 +41,7 @@ vi.mock("../ChatInputArea", () => ({
         }}
       >
         <textarea
-          placeholder={placeholder || "Type a message..."}
+          placeholder={placeholder || "Message AI Tutor..."}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -103,7 +103,7 @@ describe("ChatInlineShell minHeight on second message", () => {
     );
 
     // Type and send first message
-    const textarea = screen.getByPlaceholderText("Type a message...");
+    const textarea = screen.getByPlaceholderText("Message AI Tutor...");
     await user.type(textarea, "Hello");
     await user.keyboard("{Enter}");
 
@@ -136,7 +136,7 @@ describe("ChatInlineShell minHeight on second message", () => {
     );
 
     // Type and send second message
-    const textarea = screen.getByPlaceholderText("Type a message...");
+    const textarea = screen.getByPlaceholderText("Message AI Tutor...");
     await user.type(textarea, "Follow-up");
     await user.keyboard("{Enter}");
 

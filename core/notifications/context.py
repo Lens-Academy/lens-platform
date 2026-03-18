@@ -144,12 +144,9 @@ def build_reminder_context(meeting: dict, group: dict) -> dict:
                     due_slugs.append(m.slug)
 
             if due_slugs:
-                # Link to the last module due (the one they should be working on)
-                last_due_slug = due_slugs[-1]
-                module_url = build_module_url(course_slug, last_due_slug)
-
                 # Count total non-optional sections across due modules
                 section_titles = []
+                first_section_slug = None
                 for slug in due_slugs:
                     try:
                         mod = load_flattened_module(slug)
@@ -162,8 +159,13 @@ def build_reminder_context(meeting: dict, group: dict) -> dict:
                                     section_titles.append(f"- {title}")
                                     if not first_section_title:
                                         first_section_title = title
+                                        first_section_slug = slug
                     except Exception:
                         pass
+
+                # Link to the module containing the first section (matches CTA text)
+                cta_slug = first_section_slug or due_slugs[0]
+                module_url = build_module_url(course_slug, cta_slug)
 
                 if section_titles:
                     modules_remaining = str(len(section_titles))

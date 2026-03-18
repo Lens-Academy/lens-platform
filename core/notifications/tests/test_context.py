@@ -190,7 +190,8 @@ class TestBuildReminderContext:
 
         context = build_reminder_context(MEETING, GROUP)
 
-        assert context["module_url"] == build_module_url("default", "deep-dive")
+        # URL should match the first section's module (intro/Welcome), not the last
+        assert context["module_url"] == build_module_url("default", "intro")
 
     def test_collects_sections_across_modules_due_at_same_meeting(self):
         """module_list should include sections from all modules due AT this meeting."""

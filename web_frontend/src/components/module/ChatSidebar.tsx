@@ -29,10 +29,8 @@ import { ChatMessageList } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
 
 export type ChatSidebarHandle = {
-  open: () => void;
-  close: () => void;
-  setOpen: (open: boolean) => void;
   setAllowed: (allowed: boolean) => void;
+  setSystemOpenPref: (open: boolean) => void;
 };
 
 type ChatSidebarProps = {
@@ -60,7 +58,6 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     ref,
   ) {
     const isMobile = useMedia("(max-width: 700px)", false);
-    const prevMobileRef = useRef(isMobile);
     const scrollContainer = useScrollContainer();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const minHeightWrapperRef = useRef<HTMLDivElement>(null);
@@ -69,59 +66,42 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     const [wrapperStartIdx, setWrapperStartIdx] = useState<number | null>(null);
     const [scrollContainerHeight, setScrollContainerHeight] = useState(0);
 
-    // --- Own open/close state + allowed flag ---
-    // `isOpen` is the single source of truth for visibility — both user clicks
-    // and setAllowed() drive it, so they share the exact same render path.
-    // `isAllowed` only controls whether the toggle button is shown.
-    const [isOpen, setIsOpen] = useState(() => {
-      if (typeof window === "undefined") return false;
-      if (window.matchMedia("(max-width: 700px)").matches) return false;
-      const pref = localStorage.getItem("chat-sidebar-pref");
-      return pref === null ? true : pref === "open";
-    });
+    // --- Three independent states → derived isOpen ---
+    // isAllowed:      can the sidebar exist here? (section type + chat pill gating)
+    // systemOpenPref: does the system recommend it be open? (false on section load,
+    //                 true at excerpt scroll)
+    // userOpenPref:   does the user want it open? (persisted in localStorage)
     const [isAllowed, setIsAllowed] = useState(true);
+    const [systemOpenPref, setSystemOpenPref] = useState(false);
+    const [userOpenPref, setUserOpenPref] = useState<string | null>(() =>
+      typeof window !== "undefined"
+        ? localStorage.getItem("chat-sidebar-pref")
+        : null,
+    );
+
+    const isOpen = isMobile
+      ? userOpenPref === "open"
+      : isAllowed && systemOpenPref && userOpenPref !== "closed";
 
     // --- Imperative handle for parent ---
     useImperativeHandle(ref, () => ({
-      open: () => {
-        setIsOpen(true);
-        localStorage.setItem("chat-sidebar-pref", "open");
-        window.dispatchEvent(new Event("chat-sidebar-pref-change"));
-      },
-      close: () => {
-        setIsOpen(false);
-        localStorage.setItem("chat-sidebar-pref", "closed");
-        window.dispatchEvent(new Event("chat-sidebar-pref-change"));
-      },
-      setOpen: (open: boolean) => {
-        setIsOpen(open);
-      },
-      setAllowed: (allowed: boolean) => {
-        setIsAllowed(allowed);
-        if (!allowed) {
-          // Close via the same path as clicking the close button
-          setIsOpen(false);
-        } else if (!window.matchMedia("(max-width: 700px)").matches) {
-          // Restore from user preference (never auto-open on mobile)
-          const pref = localStorage.getItem("chat-sidebar-pref");
-          setIsOpen(pref === null ? true : pref === "open");
-        }
-      },
+      setAllowed: (allowed: boolean) => setIsAllowed(allowed),
+      setSystemOpenPref: (open: boolean) => setSystemOpenPref(open),
     }));
 
     // --- Preference-persisting open/close ---
     const handleClose = useCallback(() => {
-      setIsOpen(false);
+      setUserOpenPref("closed");
       localStorage.setItem("chat-sidebar-pref", "closed");
       window.dispatchEvent(new Event("chat-sidebar-pref-change"));
     }, []);
     const handleOpen = useCallback(() => {
-      setIsOpen(true);
+      setSystemOpenPref(true);
+      setUserOpenPref("open");
       localStorage.setItem("chat-sidebar-pref", "open");
       window.dispatchEvent(new Event("chat-sidebar-pref-change"));
     }, []);
 
-    // isAllowed only controls toggle button visibility, not the panel
     const toggleHidden = !isAllowed;
 
     // --- Manage scroll container spacing via transparent border ---
@@ -138,8 +118,13 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       scrollContainer.style.borderRight = isOpen
         ? "var(--sidebar-width) solid transparent"
         : "";
+      scrollContainer.style.setProperty(
+        "--sidebar-open-width",
+        isOpen ? "var(--sidebar-width)" : "0px",
+      );
       return () => {
         scrollContainer.style.borderRight = "";
+        scrollContainer.style.removeProperty("--sidebar-open-width");
       };
     }, [isOpen, scrollContainer, isMobile]);
 
@@ -153,16 +138,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       return () => window.removeEventListener("keydown", handleEscape);
     }, [isOpen, handleClose]);
 
-    // Auto-close when crossing into mobile, auto-restore when crossing back to desktop
-    useEffect(() => {
-      if (isMobile && !prevMobileRef.current) {
-        setIsOpen(false);
-      } else if (!isMobile && prevMobileRef.current) {
-        const pref = localStorage.getItem("chat-sidebar-pref");
-        setIsOpen(pref === null ? true : pref === "open");
-      }
-      prevMobileRef.current = isMobile;
-    }, [isMobile]);
+    // (Mobile ↔ desktop crossing handled by derived isOpen: isMobile gates it)
 
     // Lock scroll when sidebar is open on mobile
     useEffect(() => {
@@ -283,7 +259,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         </div>
         <button
           onMouseDown={handleClose}
-          className="p-2 min-h-[44px] min-w-[44px] hover:bg-black/5 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
+          className="p-2 min-h-[44px] min-w-[44px] hover:bg-stone-200 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
           aria-label="Close chat sidebar"
         >
           <svg
@@ -328,7 +304,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
               onSendMessage(content);
             }}
             isLoading={isLoading}
-            placeholder="Ask a question..."
+            placeholder="Message AI Tutor..."
           />
         </div>
       </>
@@ -341,7 +317,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           {/* Floating toggle button on right edge */}
           <button
             onMouseDown={handleOpen}
-            className={`fixed right-0 z-50 bg-white border border-r-0 rounded-l-lg shadow-sm px-1.5 py-2.5 hover:bg-black/5 transition-all active:scale-95 ${
+            className={`fixed right-0 z-50 bg-white border border-r-0 rounded-l-lg shadow-sm px-1.5 py-2.5 hover:bg-stone-200 transition-all active:scale-95 ${
               isOpen || toggleHidden ? "opacity-0 pointer-events-none" : ""
             }`}
             style={{
@@ -385,7 +361,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         {/* Floating toggle — visible when sidebar is closed */}
         <button
           onMouseDown={handleOpen}
-          className={`fixed right-3 z-30 flex items-center justify-center w-10 h-10 bg-white border rounded-lg shadow-sm hover:bg-black/5 transition-all active:scale-95 ${
+          className={`fixed right-3 z-30 flex items-center justify-center w-10 h-10 bg-white border rounded-lg shadow-sm hover:bg-stone-200 transition-all active:scale-95 ${
             isOpen || toggleHidden ? "opacity-0 pointer-events-none" : ""
           }`}
           style={{
@@ -403,10 +379,15 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           className={`fixed right-0 z-30 overflow-hidden transition-[width,border-color] duration-300 ease-in-out ${
             isOpen ? "w-80 xl:w-96 border-l" : "w-0 border-l border-transparent"
           }`}
-          style={isOpen ? { borderColor: "var(--brand-border)" } : undefined}
           style={{
             top: "var(--module-header-height)",
             height: "calc(100dvh - var(--module-header-height))",
+            ...(isOpen
+              ? {
+                  borderColor:
+                    "color-mix(in srgb, var(--brand-border) 60%, transparent)",
+                }
+              : undefined),
           }}
         >
           <div className="w-80 xl:w-96 h-full flex flex-col bg-white">

@@ -38,7 +38,7 @@ export function ChatInputArea({
   onSend,
   isLoading,
   disabled = false,
-  placeholder = "Type a message...",
+  placeholder = "Message AI Tutor...",
   pillId,
   pillHidden,
   pillTransition,

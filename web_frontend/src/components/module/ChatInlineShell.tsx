@@ -588,7 +588,7 @@ export function ChatInlineShell({
                         onSendMessage(content);
                       }}
                       isLoading={isLoading}
-                      placeholder="Type a message..."
+                      placeholder="Message AI Tutor..."
                     />
                   </div>
                 )}
@@ -611,7 +611,7 @@ export function ChatInlineShell({
                   onSendMessage(content);
                 }}
                 isLoading={isLoading}
-                placeholder="Type a message..."
+                placeholder="Message AI Tutor..."
               />
             )}
           </div>

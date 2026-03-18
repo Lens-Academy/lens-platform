@@ -54,7 +54,7 @@ export interface ChatMessage {
 export interface ChatSession {
   session_id: number;
   content_id: string | null;
-  module_slug: string | null;
+  module_slugs: string[];
   module_title: string | null;
   messages: ChatMessage[];
   started_at: string | null;

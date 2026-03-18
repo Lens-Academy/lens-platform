@@ -31,7 +31,10 @@ import { useTutorChat } from "@/hooks/useTutorChat";
 import { markComplete } from "@/api/progress";
 import type { MarkCompleteResponse } from "@/api/progress";
 import AuthoredText from "@/components/module/AuthoredText";
-import ArticleEmbed from "@/components/module/ArticleEmbed";
+import ArticleEmbed, {
+  collectFootnoteDefinitions,
+  countFootnoteReferences,
+} from "@/components/module/ArticleEmbed";
 import VideoEmbed from "@/components/module/VideoEmbed";
 import { ChatInlineShell } from "@/components/module/ChatInlineShell";
 import AnswerBox from "@/components/module/AnswerBox";
@@ -404,6 +407,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     new Set(),
   );
 
+  // Theater mode: track how many videos are in theater mode (for scroll-snap)
+  const [theaterCount, setTheaterCount] = useState(0);
+  const handleTheaterChange = useCallback((active: boolean) => {
+    setTheaterCount((prev) => prev + (active ? 1 : -1));
+  }, []);
+
   const { isAuthenticated, isInSignupsTable, isInActiveGroup, login } =
     useAuth();
 
@@ -630,7 +639,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     (currentSection.type === "lens-article" ||
       currentSection.type === "article" ||
       currentSection.type === "lens-video" ||
-      currentSection.type === "video");
+      currentSection.type === "video" ||
+      currentSection.type === "page");
 
   // --- Debug overlay: track current visible segment ---
   const isDebugMode =
@@ -716,13 +726,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     hasReachedExcerptRef.current = false;
 
     if (!sidebarAllowed) {
-      // sidebarAllowedRef starts at `sidebarAllowed` (false for non-allowed).
-      // No need to write — the hook reads the initial value on mount.
+      sidebarRef.current?.setAllowed(false);
       return;
     }
 
-    // Start sidebar closed on article sections — auto-opens at first excerpt
-    sidebarRef.current?.setOpen(false);
+    sidebarRef.current?.setAllowed(true);
+    sidebarRef.current?.setSystemOpenPref(false); // starts closed, opens at excerpt
 
     const segments =
       currentSection && "segments" in currentSection
@@ -734,6 +743,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       ) ?? -1;
 
     let rafId = 0;
+    let isInitialCheck = true;
     const onScroll = () => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
@@ -759,20 +769,19 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           currentSegmentIndexRef.current = best.index;
           segmentIndexListeners.current.forEach((fn) => fn());
 
-          // Auto-open sidebar when scrolling to first article excerpt (never on mobile)
+          // Auto-open sidebar when scrolling to first article excerpt (never on mobile).
+          // Skip the initial synchronous check — if the excerpt is already in view on
+          // load, we still want the sidebar to start closed and only open on real scroll.
           if (
+            !isInitialCheck &&
             !hasReachedExcerptRef.current &&
             firstExcerptIdx >= 0 &&
             best.index >= firstExcerptIdx
           ) {
             hasReachedExcerptRef.current = true;
-            if (!window.matchMedia("(max-width: 700px)").matches) {
-              const pref = localStorage.getItem("chat-sidebar-pref");
-              if (pref === null || pref === "open") {
-                sidebarRef.current?.setOpen(true);
-              }
-            }
+            sidebarRef.current?.setSystemOpenPref(true);
           }
+          isInitialCheck = false;
 
           // Sidebar disallowed when any chat input pill overlaps the 20%-80% viewport band
           const bandTop = window.innerHeight * 0.35;
@@ -798,7 +807,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             lastSidebarAllowed.current = allowed;
             sidebarAllowedRef.current = allowed;
             sidebarAllowedListeners.current.forEach((fn) => fn());
-            if (!allowed) sidebarAllowedLockUntil.current = Date.now() + 350;
+            if (!allowed) {
+              sidebarAllowedLockUntil.current = Date.now() + 350;
+            }
           }
         }
       });
@@ -1112,6 +1123,25 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         );
 
       case "article-excerpt": {
+        // Collect footnote defs from ALL article-excerpt segments in this section
+        // so cross-excerpt references (e.g. ref in excerpt 1, def in excerpt 2) resolve
+        const sectionFootnoteDefs = new Map<string, string>();
+        for (const seg of section.segments) {
+          if (seg.type === "article-excerpt") {
+            for (const field of [
+              seg.collapsed_before,
+              seg.content,
+              seg.collapsed_after,
+            ]) {
+              if (field) {
+                for (const [id, text] of collectFootnoteDefinitions(field)) {
+                  sectionFootnoteDefs.set(id, text);
+                }
+              }
+            }
+          }
+        }
+
         // Content is now bundled directly in the segment
         // Get meta from article or lens-article sections
         const articleMeta =
@@ -1142,12 +1172,35 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         const prevSegment = section.segments[segmentIndex - 1];
         const isPrevAlsoExcerpt = prevSegment?.type === "article-excerpt";
 
+        // Compute footnote counter offset from preceding excerpts
+        let footnoteCounterStart = 0;
+        if (sectionFootnoteDefs.size > 0) {
+          for (const seg of section.segments.slice(0, segmentIndex)) {
+            if (seg.type === "article-excerpt") {
+              for (const field of [
+                seg.collapsed_before,
+                seg.content,
+                seg.collapsed_after,
+              ]) {
+                if (field) {
+                  footnoteCounterStart += countFootnoteReferences(
+                    field,
+                    sectionFootnoteDefs,
+                  );
+                }
+              }
+            }
+          }
+        }
+
         return wrapWithSentinel(
           <ArticleEmbed
             key={`article-${keyPrefix}`}
             article={excerptData}
             isFirstExcerpt={isFirstExcerpt}
             isConsecutiveExcerpt={!isFirstExcerpt && isPrevAlsoExcerpt}
+            externalFootnoteDefs={sectionFootnoteDefs}
+            footnoteCounterStart={footnoteCounterStart}
           />,
         );
       }
@@ -1173,6 +1226,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             excerptNumber={excerptNumber}
             title={section.meta.title}
             channel={section.meta.channel}
+            onTheaterChange={handleTheaterChange}
           />,
         );
       }
@@ -1362,6 +1416,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     <div
       ref={setScrollEl}
       className="h-dvh bg-white overflow-y-auto overflow-x-clip scrollbar-thin transition-[border-right-width] duration-300 ease-in-out box-border"
+      style={theaterCount > 0 ? { scrollSnapType: "y proximity" } : undefined}
     >
       <ScrollContainerContext.Provider value={scrollEl}>
         <ModuleHeader

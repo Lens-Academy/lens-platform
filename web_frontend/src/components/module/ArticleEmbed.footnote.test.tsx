@@ -246,4 +246,49 @@ describe("Inline footnote directive", () => {
     render(<ArticleEmbed article={article} />);
     expect(screen.getByText("1")).toBeInTheDocument();
   });
+
+  it("GFM footnote resolves definition from externalFootnoteDefs", async () => {
+    const user = userEvent.setup();
+    const article: ArticleData = {
+      content: "Text[^1] here.",
+      title: "Test",
+      author: "Author",
+      sourceUrl: null,
+    };
+    const externalDefs = new Map([["1", "Definition from another excerpt."]]);
+    render(
+      <ArticleEmbed article={article} externalFootnoteDefs={externalDefs} />,
+    );
+    // Should render the footnote trigger, not literal [^1]
+    expect(screen.getByText("1")).toBeInTheDocument();
+    await user.hover(screen.getByText("1"));
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Definition from another excerpt.",
+    );
+  });
+
+  it("footnoteCounterStart offsets numbering for cross-excerpt continuity", () => {
+    const article: ArticleData = {
+      content: "Text[^a] and more[^b].",
+      title: "Test",
+      author: "Author",
+      sourceUrl: null,
+    };
+    const externalDefs = new Map([
+      ["a", "Def A."],
+      ["b", "Def B."],
+    ]);
+    render(
+      <ArticleEmbed
+        article={article}
+        externalFootnoteDefs={externalDefs}
+        footnoteCounterStart={3}
+      />,
+    );
+    // With counterStart=3, first footnote should be labeled "4", second "5"
+    expect(screen.getByText("4")).toBeInTheDocument();
+    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.queryByText("1")).not.toBeInTheDocument();
+    expect(screen.queryByText("2")).not.toBeInTheDocument();
+  });
 });

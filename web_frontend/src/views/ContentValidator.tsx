@@ -164,6 +164,16 @@ export default function ContentValidator() {
         >
           View repo on GitHub
         </a>
+        {" · "}
+        <a
+          href="https://github.com/Lens-Academy/lens-edu-relay/compare/staging"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:underline"
+        >
+          Create PR
+        </a>{" "}
+        <span className="text-gray-500 text-sm">(request access from Luc)</span>
       </p>
 
       {/* Pipeline status */}

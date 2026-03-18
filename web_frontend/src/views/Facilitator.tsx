@@ -206,8 +206,8 @@ export default function Facilitator() {
         if (!res.ok) throw new Error("Failed to fetch chats");
         const data = await res.json();
         if (cancelled) return;
-        const filtered = (data.chats as ChatSession[]).filter(
-          (s) => s.module_slug === selectedChat.moduleSlug,
+        const filtered = (data.chats as ChatSession[]).filter((s) =>
+          s.module_slugs.includes(selectedChat.moduleSlug),
         );
         setChatSessions(filtered);
       } catch {
@@ -350,16 +350,36 @@ export default function Facilitator() {
   // --- Render ---
 
   return (
-    <div className="py-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+    <div className="pt-2">
+      {/* Header + Group Tabs */}
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2.5">
-          <h1 className="text-xl font-bold text-slate-900">
+          <h1 className="text-lg font-bold text-slate-900">
             Facilitator Panel
           </h1>
           <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 uppercase tracking-wide">
             {isAdmin ? "Admin" : "Facilitator"}
           </span>
+          {groups.length > 0 && (
+            <div className="flex gap-1 overflow-x-auto scrollbar-hide ml-1">
+              {groups.map((g) => (
+                <button
+                  key={g.group_id}
+                  onClick={() => setSelectedGroupId(g.group_id)}
+                  className={`px-3 py-1 text-sm rounded-lg whitespace-nowrap transition-colors ${
+                    selectedGroupId === g.group_id
+                      ? "bg-slate-900 text-white font-medium"
+                      : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  }`}
+                >
+                  {g.group_name}
+                  <span className="ml-1.5 text-xs opacity-60">
+                    {g.cohort_name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {groupChannelUrl && (
           <a
@@ -372,26 +392,6 @@ export default function Facilitator() {
           </a>
         )}
       </div>
-
-      {/* Group Tabs */}
-      {groups.length > 0 && (
-        <div className="flex gap-1 mb-3 overflow-x-auto scrollbar-hide -mx-1 px-1">
-          {groups.map((g) => (
-            <button
-              key={g.group_id}
-              onClick={() => setSelectedGroupId(g.group_id)}
-              className={`px-3 py-1.5 text-sm rounded-lg whitespace-nowrap transition-colors ${
-                selectedGroupId === g.group_id
-                  ? "bg-slate-900 text-white font-medium"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
-            >
-              {g.group_name}
-              <span className="ml-1.5 text-xs opacity-60">{g.cohort_name}</span>
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Progress Timeline */}
       {membersLoading && (
@@ -575,7 +575,7 @@ function SectionTitlesColumn({
       }}
     >
       <div
-        className="h-12 border-b border-slate-200 flex items-center justify-center"
+        className="h-12 border-b border-slate-200 flex items-center justify-center sticky top-0 z-20 bg-white"
         style={{ width: BUTTON_W }}
       >
         <button
@@ -671,6 +671,20 @@ function VerticalTimeline({
     return starts;
   }, [segs]);
   const [sectionsExpanded, setSectionsExpanded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerTop, setContainerTop] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      if (containerRef.current) {
+        setContainerTop(
+          containerRef.current.getBoundingClientRect().top + window.scrollY,
+        );
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [timeline]);
 
   // Pixel constants — shared across label + member columns for alignment
   const DOT_H = 14; // height per dot row
@@ -697,359 +711,358 @@ function VerticalTimeline({
   const mtgH = 46 + V_PAD * 2; // meeting label + 2 date lines + symmetric padding
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg">
-      <div className="overflow-x-auto overflow-y-visible">
-        <div className="inline-flex min-w-full">
-          {/* Left labels column */}
-          <div className="shrink-0 sticky left-0 z-10 bg-white border-r border-slate-200">
-            <div className="h-12 border-b border-slate-200" />
-            {segs.map((seg, si) =>
-              seg.type === "meeting" ? (
-                <div
-                  key={si}
-                  className="px-2 flex flex-col justify-center"
-                  style={{ height: mtgH }}
-                >
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs font-semibold text-slate-600">
-                      Meeting {seg.meetingNumber}
-                    </span>
-                    {onPostpone &&
-                      seg.meetingId &&
-                      (!seg.scheduledAt ||
-                        Date.now() - new Date(seg.scheduledAt).getTime() <
-                          7 * 86_400_000) && (
-                        <button
-                          className="text-xs text-amber-600 hover:text-amber-700 transition-colors disabled:opacity-50"
-                          disabled={postponingMeetingId === seg.meetingId}
-                          onClick={() =>
-                            onPostpone(
-                              seg.meetingId!,
-                              seg.meetingNumber!,
-                              seg.scheduledAt,
-                            )
-                          }
-                        >
-                          postpone
-                        </button>
-                      )}
-                  </div>
-                  {seg.scheduledAt &&
-                    (() => {
-                      const { utc, local } = formatMeetingTime(seg.scheduledAt);
-                      return (
-                        <div className="text-[10px] text-slate-400 leading-tight mt-0.5 whitespace-nowrap">
-                          <div>{utc}</div>
-                          <div>{local}</div>
-                        </div>
-                      );
-                    })()}
-                </div>
-              ) : (
-                <div
-                  key={si}
-                  className="flex flex-col justify-center overflow-hidden"
-                  style={{
-                    height: moduleH(seg.items.length),
-                    ...stripeStyle(si, seg.items.length),
-                  }}
-                >
-                  {seg.items.map((_item, ii) => (
-                    <div
-                      key={ii}
-                      className="flex items-center px-2"
-                      style={{ height: DOT_H }}
-                    >
-                      {ii === 0 && (
-                        <span className="text-xs text-slate-500 truncate max-w-[120px] leading-tight">
-                          {seg.slug?.replace(/-/g, " ")}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ),
-            )}
-          </div>
-
-          {/* Section titles column — always present, animates between collapsed/expanded */}
-          <SectionTitlesColumn
-            segs={segs}
-            expanded={sectionsExpanded}
-            onToggle={() => setSectionsExpanded((v) => !v)}
-            moduleH={moduleH}
-            mtgH={mtgH}
-            dotH={DOT_H}
-            stripeStyle={stripeStyle}
-          />
-
-          {/* Member columns */}
-          {timeline.members.map((tm) => {
-            const completedSet = new Set(tm.completed_ids);
-            const sectionTimes = tm.section_times ?? {};
-            const moduleStats = tm.module_stats ?? {};
-            return (
-              <div key={tm.user_id} className="shrink-0">
-                {/* Name + last active + DM link */}
-                <div className="h-12 border-b border-slate-200 px-1.5 flex flex-col justify-end pb-1">
-                  <div className="flex items-center gap-0.5">
-                    {tm.role === "facilitator" && (
-                      <span
-                        className="shrink-0 w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold flex items-center justify-center"
-                        title="Facilitator"
-                      >
-                        F
-                      </span>
-                    )}
-                    <span
-                      className="text-xs font-medium text-slate-700 leading-tight line-clamp-1"
-                      title={tm.name}
-                    >
-                      {tm.name}
-                    </span>
-                    {memberDiscordIds[tm.user_id] && (
-                      <a
-                        href={`https://discord.com/users/${memberDiscordIds[tm.user_id]}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 text-slate-400 hover:text-indigo-500 transition-colors"
-                        title="DM on Discord"
-                      >
-                        <ExtLink className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
-                  {memberLastActive[tm.user_id] && (
-                    <span className="text-[10px] text-slate-400 leading-none">
-                      {formatLastActive(memberLastActive[tm.user_id]!)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Segments */}
-                {segs.map((seg, si) => {
-                  if (seg.type === "meeting") {
-                    const mNum = String(seg.meetingNumber);
-                    const status = tm.meetings[mNum];
-                    const rsvp = (tm.rsvps ?? {})[mNum];
-                    const isGuestElsewhere =
-                      tm.guest_elsewhere?.includes(mNum) ?? false;
-                    const isPast = seg.items[0]?.is_past ?? false;
-
-                    // Guest visiting another group overrides normal display
-                    const color = isGuestElsewhere
-                      ? isPast
-                        ? "bg-emerald-500"
-                        : "bg-slate-200"
-                      : status
-                        ? status === "attended"
-                          ? "bg-emerald-500"
-                          : "bg-red-400"
-                        : "bg-slate-200";
-                    const dotTitle = isGuestElsewhere
-                      ? `Meeting ${seg.meetingNumber}: ${isPast ? "joined another group" : "will join another group"}`
-                      : `Meeting ${seg.meetingNumber}: ${status || "upcoming"}`;
-
-                    const rsvpIcon = isGuestElsewhere ? null : rsvp ===
-                      "attending" ? (
-                      <Check size={8} className="text-emerald-500" />
-                    ) : rsvp === "not_attending" ? (
-                      <X size={8} className="text-red-400" />
-                    ) : rsvp === "tentative" ? (
-                      <Minus size={8} className="text-amber-400" />
-                    ) : null;
-                    return (
-                      <div
-                        key={si}
-                        className="flex items-center overflow-visible"
-                        style={{ height: mtgH }}
-                      >
-                        <span
-                          className="shrink-0 flex items-center justify-center"
-                          style={{ width: DOT_COL }}
-                        >
-                          <span
-                            className={`w-3.5 h-3.5 rounded-full ${color}`}
-                            title={dotTitle}
-                          />
-                        </span>
-                        {isGuestElsewhere ? (
-                          <span className="text-[10px] text-indigo-500 leading-none ml-1 whitespace-nowrap">
-                            {isPast
-                              ? "Joined another group"
-                              : "Will join another group"}
-                          </span>
-                        ) : (
-                          rsvpIcon && (
-                            <span
-                              className="inline-flex items-center gap-px shrink-0 ml-1"
-                              title={`RSVP: ${rsvp}`}
-                            >
-                              <span className="text-[10px] text-slate-400 leading-none">
-                                RSVP:
-                              </span>
-                              {rsvpIcon}
-                            </span>
+    <div
+      ref={containerRef}
+      className="bg-white border border-slate-200 rounded-lg overflow-auto"
+      style={{
+        maxHeight:
+          containerTop > 0 ? `calc(100vh - ${containerTop}px)` : undefined,
+      }}
+    >
+      <div className="inline-flex min-w-full">
+        {/* Left labels column */}
+        <div className="shrink-0 sticky left-0 z-10 bg-white border-r border-slate-200">
+          <div className="h-12 border-b border-slate-200 sticky top-0 z-30 bg-white" />
+          {segs.map((seg, si) =>
+            seg.type === "meeting" ? (
+              <div
+                key={si}
+                className="px-2 flex flex-col justify-center"
+                style={{ height: mtgH }}
+              >
+                <div className="flex items-center gap-1">
+                  <span className="text-xs font-semibold text-slate-600">
+                    Meeting {seg.meetingNumber}
+                  </span>
+                  {onPostpone &&
+                    seg.meetingId &&
+                    (!seg.scheduledAt ||
+                      Date.now() - new Date(seg.scheduledAt).getTime() <
+                        7 * 86_400_000) && (
+                      <button
+                        className="text-xs text-amber-600 hover:text-amber-700 transition-colors disabled:opacity-50"
+                        disabled={postponingMeetingId === seg.meetingId}
+                        onClick={() =>
+                          onPostpone(
+                            seg.meetingId!,
+                            seg.meetingNumber!,
+                            seg.scheduledAt,
                           )
-                        )}
+                        }
+                      >
+                        postpone
+                      </button>
+                    )}
+                </div>
+                {seg.scheduledAt &&
+                  (() => {
+                    const { utc, local } = formatMeetingTime(seg.scheduledAt);
+                    return (
+                      <div className="text-[10px] text-slate-400 leading-tight mt-0.5 whitespace-nowrap">
+                        <div>{utc}</div>
+                        <div>{local}</div>
                       </div>
                     );
-                  }
+                  })()}
+              </div>
+            ) : (
+              <div
+                key={si}
+                className="flex flex-col justify-center overflow-hidden"
+                style={{
+                  height: moduleH(seg.items.length),
+                  ...stripeStyle(si, seg.items.length),
+                }}
+              >
+                {seg.items.map((_item, ii) => (
+                  <div
+                    key={ii}
+                    className="flex items-center px-2"
+                    style={{ height: DOT_H }}
+                  >
+                    {ii === 0 && (
+                      <span className="text-xs text-slate-500 truncate max-w-[120px] leading-tight">
+                        {seg.slug?.replace(/-/g, " ")}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ),
+          )}
+        </div>
 
-                  const modChat = seg.slug
-                    ? (moduleStats[seg.slug]?.chat_count ?? 0)
-                    : 0;
-                  const isActiveChat =
-                    selectedChat &&
-                    selectedChat.userId === tm.user_id &&
-                    selectedChat.moduleSlug === seg.slug;
-                  const chatColor = isActiveChat
-                    ? "text-indigo-600"
-                    : "text-indigo-400";
-                  const bracketBorder = isActiveChat
-                    ? "border-indigo-500"
-                    : "border-indigo-300/60";
+        {/* Section titles column — always present, animates between collapsed/expanded */}
+        <SectionTitlesColumn
+          segs={segs}
+          expanded={sectionsExpanded}
+          onToggle={() => setSectionsExpanded((v) => !v)}
+          moduleH={moduleH}
+          mtgH={mtgH}
+          dotH={DOT_H}
+          stripeStyle={stripeStyle}
+        />
+
+        {/* Member columns */}
+        {timeline.members.map((tm) => {
+          const completedSet = new Set(tm.completed_ids);
+          const sectionTimes = tm.section_times ?? {};
+          const moduleStats = tm.module_stats ?? {};
+          return (
+            <div key={tm.user_id} className="shrink-0">
+              {/* Name + last active + DM link */}
+              <div className="h-12 border-b border-slate-200 px-1.5 flex flex-col justify-end pb-1 sticky top-0 z-20 bg-white">
+                <div className="flex items-center gap-0.5">
+                  {tm.role === "facilitator" && (
+                    <span
+                      className="shrink-0 w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold flex items-center justify-center"
+                      title="Facilitator"
+                    >
+                      F
+                    </span>
+                  )}
+                  <span
+                    className="text-xs font-medium text-slate-700 leading-tight line-clamp-1"
+                    title={tm.name}
+                  >
+                    {tm.name}
+                  </span>
+                  {memberDiscordIds[tm.user_id] && (
+                    <a
+                      href={`https://discord.com/users/${memberDiscordIds[tm.user_id]}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 text-slate-400 hover:text-indigo-500 transition-colors"
+                      title="DM on Discord"
+                    >
+                      <ExtLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+                {memberLastActive[tm.user_id] && (
+                  <span className="text-[10px] text-slate-400 leading-none">
+                    {formatLastActive(memberLastActive[tm.user_id]!)}
+                  </span>
+                )}
+              </div>
+
+              {/* Segments */}
+              {segs.map((seg, si) => {
+                if (seg.type === "meeting") {
+                  const mNum = String(seg.meetingNumber);
+                  const status = tm.meetings[mNum];
+                  const rsvp = (tm.rsvps ?? {})[mNum];
+                  const isGuestElsewhere =
+                    tm.guest_elsewhere?.includes(mNum) ?? false;
+                  const isPast = seg.items[0]?.is_past ?? false;
+
+                  // Guest visiting another group overrides normal display
+                  const color = isGuestElsewhere
+                    ? isPast
+                      ? "bg-emerald-500"
+                      : "bg-slate-200"
+                    : status
+                      ? status === "attended"
+                        ? "bg-emerald-500"
+                        : "bg-red-400"
+                      : "bg-slate-200";
+                  const dotTitle = isGuestElsewhere
+                    ? `Meeting ${seg.meetingNumber}: ${isPast ? "joined another group" : "will join another group"}`
+                    : `Meeting ${seg.meetingNumber}: ${status || "upcoming"}`;
+
+                  const rsvpIcon = isGuestElsewhere ? null : rsvp ===
+                    "attending" ? (
+                    <Check size={8} className="text-emerald-500" />
+                  ) : rsvp === "not_attending" ? (
+                    <X size={8} className="text-red-400" />
+                  ) : rsvp === "tentative" ? (
+                    <Minus size={8} className="text-amber-400" />
+                  ) : null;
                   return (
                     <div
                       key={si}
-                      className="overflow-visible flex items-stretch"
-                      style={{
-                        height: moduleH(seg.items.length),
-                        ...stripeStyle(si, seg.items.length),
-                      }}
+                      className="flex items-center overflow-visible"
+                      style={{ height: mtgH }}
                     >
-                      {/* Section rows */}
-                      <div className="flex flex-col justify-center">
-                        {seg.items.map((item, ii) => {
-                          const cid = item.content_id;
-                          const done = cid ? completedSet.has(cid) : false;
-                          const time = cid ? (sectionTimes[cid] ?? 0) : 0;
-                          const isOpt = item.optional;
-                          const dotClass = isOpt
-                            ? done
-                              ? "w-2.5 h-2.5 rounded-full border border-dashed border-emerald-500 bg-emerald-500"
-                              : "w-2.5 h-2.5 rounded-full border border-dashed border-slate-400 bg-slate-200"
-                            : `w-2.5 h-2.5 rounded-full ${done ? "bg-emerald-500" : "bg-slate-200"}`;
-                          return (
-                            <div
-                              key={ii}
-                              className="flex items-center"
-                              style={{ height: DOT_H }}
-                            >
-                              <span
-                                className="relative shrink-0 flex items-center justify-center group/dot"
-                                style={{ width: DOT_COL }}
-                              >
-                                <span className={dotClass} />
-                                {item.title && (
-                                  <span className="hidden group-hover/dot:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-slate-800 rounded whitespace-nowrap z-20 pointer-events-none">
-                                    {item.title}
-                                    {isOpt ? " (optional)" : ""}
-                                  </span>
-                                )}
-                              </span>
-                              <span
-                                className="relative inline-flex items-center justify-end gap-px shrink-0 group/time"
-                                style={{ width: 24 }}
-                              >
-                                {time > 0 && (
-                                  <>
-                                    <span className="text-[11px] text-slate-400 leading-none tabular-nums">
-                                      {Math.round(time / 60)}
-                                    </span>
-                                    <Clock
-                                      size={9}
-                                      className="text-slate-400"
-                                    />
-                                    <span className="hidden group-hover/time:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-slate-800 rounded whitespace-nowrap z-20 pointer-events-none">
-                                      Time spent: {Math.round(time / 60)} min
-                                    </span>
-                                  </>
-                                )}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {/* Module-level chat bracket — clickable */}
-                      <div
-                        className={`shrink-0 flex flex-col ${modChat > 0 ? "cursor-pointer" : ""}`}
-                        style={{
-                          width: 28,
-                          paddingTop: V_PAD,
-                          paddingBottom: V_PAD,
-                        }}
-                        onClick={
-                          modChat > 0 && seg.slug
-                            ? () => {
-                                const moduleTitle =
-                                  seg.items[0]?.module_slug?.replace(
-                                    /-/g,
-                                    " ",
-                                  ) ??
-                                  seg.slug ??
-                                  "";
-                                onChatClick(
-                                  tm.user_id,
-                                  tm.name,
-                                  seg.slug!,
-                                  moduleTitle,
-                                );
-                              }
-                            : undefined
-                        }
+                      <span
+                        className="shrink-0 flex items-center justify-center"
+                        style={{ width: DOT_COL }}
                       >
-                        {modChat > 0 && (
-                          <>
-                            <div
-                              className={`flex-1 border-r border-t ${bracketBorder} rounded-tr`}
-                              style={{ marginLeft: 1, width: 6, minHeight: 2 }}
-                            />
-                            <div
-                              className="relative flex items-center gap-px shrink-0 group/chat"
-                              style={{ marginLeft: 2 }}
-                            >
-                              <span
-                                className={`text-[11px] ${chatColor} leading-none tabular-nums`}
-                              >
-                                {modChat}
-                              </span>
-                              <MessageCircle size={9} className={chatColor} />
-                              <span className="hidden group-hover/chat:block absolute bottom-full left-0 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-slate-800 rounded whitespace-nowrap z-20 pointer-events-none">
-                                Messages to AI: {modChat}
-                              </span>
-                            </div>
-                            <div
-                              className={`flex-1 border-r border-b ${bracketBorder} rounded-br`}
-                              style={{ marginLeft: 1, width: 6, minHeight: 2 }}
-                            />
-                          </>
-                        )}
-                      </div>
+                        <span
+                          className={`w-3.5 h-3.5 rounded-full ${color}`}
+                          title={dotTitle}
+                        />
+                      </span>
+                      {isGuestElsewhere ? (
+                        <span className="text-[10px] text-indigo-500 leading-none ml-1 whitespace-nowrap">
+                          {isPast
+                            ? "Joined another group"
+                            : "Will join another group"}
+                        </span>
+                      ) : (
+                        rsvpIcon && (
+                          <span
+                            className="inline-flex items-center gap-px shrink-0 ml-1"
+                            title={`RSVP: ${rsvp}`}
+                          >
+                            <span className="text-[10px] text-slate-400 leading-none">
+                              RSVP:
+                            </span>
+                            {rsvpIcon}
+                          </span>
+                        )
+                      )}
                     </div>
                   );
-                })}
-              </div>
-            );
-          })}
+                }
 
-          {/* Filler column — extends stripes to the right edge */}
-          <div className="flex-1 min-w-[40px]">
-            <div className="h-12 border-b border-slate-200" />
-            {segs.map((seg, si) =>
-              seg.type === "meeting" ? (
-                <div key={si} style={{ height: mtgH }} />
-              ) : (
-                <div
-                  key={si}
-                  style={{
-                    height: moduleH(seg.items.length),
-                    ...stripeStyle(si, seg.items.length),
-                  }}
-                />
-              ),
-            )}
-          </div>
+                const modChat = seg.slug
+                  ? (moduleStats[seg.slug]?.chat_count ?? 0)
+                  : 0;
+                const isActiveChat =
+                  selectedChat &&
+                  selectedChat.userId === tm.user_id &&
+                  selectedChat.moduleSlug === seg.slug;
+                const chatColor = isActiveChat
+                  ? "text-indigo-600"
+                  : "text-indigo-400";
+                const bracketBorder = isActiveChat
+                  ? "border-indigo-500"
+                  : "border-indigo-300/60";
+                return (
+                  <div
+                    key={si}
+                    className="overflow-visible flex items-stretch"
+                    style={{
+                      height: moduleH(seg.items.length),
+                      ...stripeStyle(si, seg.items.length),
+                    }}
+                  >
+                    {/* Section rows */}
+                    <div className="flex flex-col justify-center">
+                      {seg.items.map((item, ii) => {
+                        const cid = item.content_id;
+                        const done = cid ? completedSet.has(cid) : false;
+                        const time = cid ? (sectionTimes[cid] ?? 0) : 0;
+                        const isOpt = item.optional;
+                        const dotClass = isOpt
+                          ? done
+                            ? "w-2.5 h-2.5 rounded-full border border-dashed border-emerald-500 bg-emerald-500"
+                            : "w-2.5 h-2.5 rounded-full border border-dashed border-slate-400 bg-slate-200"
+                          : `w-2.5 h-2.5 rounded-full ${done ? "bg-emerald-500" : "bg-slate-200"}`;
+                        return (
+                          <div
+                            key={ii}
+                            className="flex items-center"
+                            style={{ height: DOT_H }}
+                          >
+                            <span
+                              className="relative shrink-0 flex items-center justify-center group/dot"
+                              style={{ width: DOT_COL }}
+                            >
+                              <span className={dotClass} />
+                              {item.title && (
+                                <span className="hidden group-hover/dot:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-slate-800 rounded whitespace-nowrap z-20 pointer-events-none">
+                                  {item.title}
+                                  {isOpt ? " (optional)" : ""}
+                                </span>
+                              )}
+                            </span>
+                            <span
+                              className="relative inline-flex items-center justify-end gap-px shrink-0 group/time"
+                              style={{ width: 24 }}
+                            >
+                              {time > 0 && (
+                                <>
+                                  <span className="text-[11px] text-slate-400 leading-none tabular-nums">
+                                    {Math.round(time / 60)}
+                                  </span>
+                                  <Clock size={9} className="text-slate-400" />
+                                  <span className="hidden group-hover/time:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-slate-800 rounded whitespace-nowrap z-20 pointer-events-none">
+                                    Time spent: {Math.round(time / 60)} min
+                                  </span>
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Module-level chat bracket — clickable */}
+                    <div
+                      className={`shrink-0 flex flex-col ${modChat > 0 ? "cursor-pointer" : ""}`}
+                      style={{
+                        width: 28,
+                        paddingTop: V_PAD,
+                        paddingBottom: V_PAD,
+                      }}
+                      onClick={
+                        modChat > 0 && seg.slug
+                          ? () => {
+                              const moduleTitle =
+                                seg.items[0]?.module_slug?.replace(/-/g, " ") ??
+                                seg.slug ??
+                                "";
+                              onChatClick(
+                                tm.user_id,
+                                tm.name,
+                                seg.slug!,
+                                moduleTitle,
+                              );
+                            }
+                          : undefined
+                      }
+                    >
+                      {modChat > 0 && (
+                        <>
+                          <div
+                            className={`flex-1 border-r border-t ${bracketBorder} rounded-tr`}
+                            style={{ marginLeft: 1, width: 6, minHeight: 2 }}
+                          />
+                          <div
+                            className="relative flex items-center gap-px shrink-0 group/chat"
+                            style={{ marginLeft: 2 }}
+                          >
+                            <span
+                              className={`text-[11px] ${chatColor} leading-none tabular-nums`}
+                            >
+                              {modChat}
+                            </span>
+                            <MessageCircle size={9} className={chatColor} />
+                            <span className="hidden group-hover/chat:block absolute bottom-full left-0 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-slate-800 rounded whitespace-nowrap z-20 pointer-events-none">
+                              Messages to AI: {modChat}
+                            </span>
+                          </div>
+                          <div
+                            className={`flex-1 border-r border-b ${bracketBorder} rounded-br`}
+                            style={{ marginLeft: 1, width: 6, minHeight: 2 }}
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+
+        {/* Filler column — extends stripes to the right edge */}
+        <div className="flex-1 min-w-[40px]">
+          <div className="h-12 border-b border-slate-200 sticky top-0 z-20 bg-white" />
+          {segs.map((seg, si) =>
+            seg.type === "meeting" ? (
+              <div key={si} style={{ height: mtgH }} />
+            ) : (
+              <div
+                key={si}
+                style={{
+                  height: moduleH(seg.items.length),
+                  ...stripeStyle(si, seg.items.length),
+                }}
+              />
+            ),
+          )}
         </div>
       </div>
     </div>
