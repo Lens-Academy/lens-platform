@@ -71,7 +71,7 @@ export default function MarkCompleteButton({
   if (isCompleted) {
     if (isShort) {
       // Short sections: no "Section completed" sign, just a "Next" button
-      return hasNext && onNext ? (
+      return onNext ? (
         <div className="flex items-center justify-center py-6">
           <button
             onClick={onNext}
@@ -108,12 +108,12 @@ export default function MarkCompleteButton({
           </svg>
           <span className="font-medium">Section completed</span>
         </div>
-        {hasNext && onNext && (
+        {onNext && (
           <button
             onClick={onNext}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
           >
-            Next section
+            {hasNext ? "Next section" : "What's next?"}
             <svg
               className="w-4 h-4"
               fill="none"
