@@ -1,4 +1,4 @@
-import { forwardRef, useState, useRef, useCallback, useEffect, useMemo, type ReactElement } from "react";
+import { forwardRef, useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useMedia } from "react-use";
 import { ChevronRight, BotMessageSquare } from "lucide-react";
 import type { ModuleInfo, StageInfo } from "@/types/course";
@@ -8,7 +8,7 @@ import { getCircleFillClasses, getRingClasses } from "@/utils/stageProgress";
 import { buildBranchLayout } from "@/utils/branchLayout";
 import { generateHeadingId } from "@/utils/extractHeadings";
 import { buildBranchPaths, computeBranchStates, computeLayoutColors } from "@/utils/branchColors";
-import { Tooltip } from "../Tooltip";
+
 
 // CSS styles for hiding elements while keeping them measurable
 const hiddenStyle: React.CSSProperties = {
@@ -201,6 +201,8 @@ function SectionList({
   onSectionClick: (index: number) => void;
   onClose: () => void;
 }) {
+  const [expandedTldrs, setExpandedTldrs] = useState<Set<number>>(() => new Set());
+
   // Build completed set from the right source
   const completed = useMemo(() => {
     if (isCurrent) return completedSections;
@@ -235,64 +237,69 @@ function SectionList({
 
   if (stages.length === 0) return null;
 
-  /** Wrap an interactive element with a TLDR tooltip if available */
-  function wrapTooltip(stage: StageInfo, el: ReactElement) {
-    if (!stage.tldr) return el;
-    return (
-      <Tooltip
-        content={
-          <div className="max-w-xs">
-            <p className="font-medium text-slate-900">{stage.title}</p>
-            <p className="text-slate-600 mt-1 line-clamp-4">{stage.tldr}</p>
-          </div>
-        }
-        placement="right"
-        delay={200}
-      >
-        {el}
-      </Tooltip>
-    );
-  }
-
-  /** Render a single stage row (dot + title + duration) */
+  /** Render a single stage row (dot + title + duration + inline TLDR) */
   function renderRow(stage: StageInfo, index: number) {
     const isCompleted = completed.has(index);
     const isCurrentSection = index === curIdx;
 
     const dot = <StageDot stage={stage} isCompleted={isCompleted} isViewing={isCurrentSection} />;
     const content = (
-      <>
+      <div className="flex items-start gap-2.5 w-full min-w-0">
         {dot}
-        <span className="text-[13px] truncate">{stage.title}</span>
-        <StageDuration duration={stage.duration} />
-      </>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1">
+            <span className="text-base truncate">{stage.title}</span>
+            <StageDuration duration={stage.duration} />
+          </div>
+          {stage.tldr && (
+            <div className="flex items-end gap-0.5 mt-0.5">
+              <p className={`text-sm text-slate-500 ${expandedTldrs.has(index) ? "" : "line-clamp-2"}`}>
+                {stage.tldr}
+              </p>
+              <button
+                className="flex-shrink-0 text-gray-400 hover:text-gray-600 p-0"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setExpandedTldrs((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(index)) next.delete(index);
+                    else next.add(index);
+                    return next;
+                  });
+                }}
+              >
+                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedTldrs.has(index) ? "rotate-[-90deg]" : "rotate-90"}`} />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     );
 
     if (isCurrent) {
-      return wrapTooltip(
-        stage,
+      return (
         <button
           onClick={() => { onSectionClick(index); onClose(); }}
-          className={`flex items-center gap-2.5 px-2 py-1 rounded-md text-left w-full transition-colors ${
+          className={`block px-2 py-1 rounded-md text-left w-full transition-colors ${
             isCurrentSection
-              ? "text-gray-900 font-medium bg-[#fdf3e3]"
+              ? "text-gray-900 bg-[#fdf3e3]"
               : "text-gray-600 hover:text-gray-800 hover:bg-[#faf8f5]"
           }`}
         >
           {content}
-        </button>,
+        </button>
       );
     }
 
-    return wrapTooltip(
-      stage,
+    return (
       <a
         href={`/course/${courseId}/module/${moduleSlug}#${generateHeadingId(stage.title)}`}
         onClick={onClose}
-        className="flex items-center gap-2.5 px-2 py-1 rounded-md text-gray-600 hover:text-gray-800 hover:bg-[#faf8f5] transition-colors"
+        className="block px-2 py-1 rounded-md text-gray-600 hover:text-gray-800 hover:bg-[#faf8f5] transition-colors"
       >
         {content}
-      </a>,
+      </a>
     );
   }
 
