@@ -15,11 +15,10 @@ source:: ![[../Learning Outcomes/Unknown intro outcome 1]]
 # Learning Outcome:
 source:: ![[../Learning Outcomes/Objections L1 - Realize objections and rebuttals exist]]
 
-# Uncategorized:
-## Lens:
+# Lens:
 optional:: true
 source:: ![[../Lenses/Four Background Claims]]
 
-## Lens:
+# Lens:
 optional:: true
 source:: ![[../Lenses/Worst-Case Thinking]]

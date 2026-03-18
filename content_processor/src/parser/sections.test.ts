@@ -316,15 +316,15 @@ content:: Second paragraph that overwrites the first
   describe('special characters in titles', () => {
     it('handles ampersand in section title', () => {
       const content = `
-# Page: Safety & Alignment
-content:: This section covers both topics.
+# Lens: Safety & Alignment
+source:: [[../Lenses/safety.md]]
 `;
 
       const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
 
       expect(result.sections).toHaveLength(1);
       expect(result.sections[0].title).toBe('Safety & Alignment');
-      expect(result.sections[0].type).toBe('page');
+      expect(result.sections[0].type).toBe('lens');
       expect(result.errors).toHaveLength(0);
     });
 

@@ -10,23 +10,22 @@ id:: d1e2f3a4-b5c6-7890-d1e2-f3a4b5c67890
 content::
 We begin by examining the potential of AI and the risks and opportunities
 that the characteristics of this technology present to humanity.
-# Uncategorized:
-## Lens:
+# Lens:
 source::
 ![[../Lenses/Speculations concerning the first ultraintelligent machine]]
 
-## Lens:
+# Lens:
 source::
 ![[../Lenses/Cascades and Cycles]]
 
 
-## Lens:
+# Lens:
 source:: ![[../Lenses/Kurzgesagt software demo]]
 
-## Lens:
+# Lens:
 source:: ![[../Lenses/WP Software demo]]
 
-## Lens:
+# Lens:
 source:: ![[../Lenses/Four Background Claims]]
 # Page: short intermediate
 id:: 5ec4268f-757c-4ef7-89c1-a24b35cea850

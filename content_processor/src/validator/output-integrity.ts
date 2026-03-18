@@ -39,20 +39,20 @@ export function validateOutputIntegrity(
               });
             }
             break;
-          case 'article-excerpt':
+          case 'article':
             if (!segment.content?.trim()) {
               errors.push({
                 file,
-                message: `Empty article-excerpt segment in "${sectionLabel}" (segment ${i + 1})`,
+                message: `Empty article segment in "${sectionLabel}" (segment ${i + 1})`,
                 severity: 'error',
               });
             }
             break;
-          case 'video-excerpt':
+          case 'video':
             if (!segment.transcript?.trim()) {
               errors.push({
                 file,
-                message: `Empty video-excerpt transcript in "${sectionLabel}" (segment ${i + 1})`,
+                message: `Empty video transcript in "${sectionLabel}" (segment ${i + 1})`,
                 severity: 'error',
               });
             }

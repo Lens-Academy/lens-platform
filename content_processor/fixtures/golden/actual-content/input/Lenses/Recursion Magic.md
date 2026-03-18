@@ -1,14 +1,13 @@
 ---
 id: e79dd07a-e837-483f-8534-b53b86d509b4
 ---
-### Article: Recursion, Magic
-source:: [[../articles/recursion-magic]] 
 
 #### Text
 content::
 Getting to plug the outputs of a process back into the input does not necessarily lead to an explosion though. Consider the case of EURISKO:
 
-#### Article-excerpt
+#### Article
+source:: [[../articles/recursion-magic]] 
 from:: "We have historical records aplenty"
 to:: "recursive enough."
 

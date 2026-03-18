@@ -16,14 +16,13 @@ describe('validateOutputIntegrity', () => {
   it('returns no errors for module with valid sections and segments', () => {
     const module = makeModule({
       sections: [{
-        type: 'page',
+        type: 'lens',
         meta: { title: 'Intro' },
         segments: [{ type: 'text', content: 'Hello world.' }],
         contentId: null,
         learningOutcomeId: null,
         learningOutcomeName: null,
-        videoId: null,
-      }],
+              }],
     });
 
     const errors = validateOutputIntegrity([module]);
@@ -33,14 +32,13 @@ describe('validateOutputIntegrity', () => {
   it('errors on section with zero segments', () => {
     const module = makeModule({
       sections: [{
-        type: 'page',
+        type: 'lens',
         meta: { title: 'Empty Page' },
         segments: [],
         contentId: null,
         learningOutcomeId: null,
         learningOutcomeName: null,
-        videoId: null,
-      }],
+              }],
     });
 
     const errors = validateOutputIntegrity([module]);
@@ -53,14 +51,13 @@ describe('validateOutputIntegrity', () => {
   it('errors on text segment with empty content', () => {
     const module = makeModule({
       sections: [{
-        type: 'page',
+        type: 'lens',
         meta: { title: 'Page' },
         segments: [{ type: 'text', content: '' }],
         contentId: null,
         learningOutcomeId: null,
         learningOutcomeName: null,
-        videoId: null,
-      }],
+              }],
     });
 
     const errors = validateOutputIntegrity([module]);
@@ -73,14 +70,13 @@ describe('validateOutputIntegrity', () => {
   it('errors on text segment with whitespace-only content', () => {
     const module = makeModule({
       sections: [{
-        type: 'page',
+        type: 'lens',
         meta: { title: 'Page' },
         segments: [{ type: 'text', content: '   \n  ' }],
         contentId: null,
         learningOutcomeId: null,
         learningOutcomeName: null,
-        videoId: null,
-      }],
+              }],
     });
 
     const errors = validateOutputIntegrity([module]);
@@ -91,14 +87,13 @@ describe('validateOutputIntegrity', () => {
   it('errors on article-excerpt segment with empty content', () => {
     const module = makeModule({
       sections: [{
-        type: 'lens-article',
+        type: 'lens',
         meta: { title: 'Article' },
-        segments: [{ type: 'article-excerpt', content: '' }],
+        segments: [{ type: 'article', content: '' }],
         contentId: null,
         learningOutcomeId: null,
         learningOutcomeName: null,
-        videoId: null,
-      }],
+              }],
     });
 
     const errors = validateOutputIntegrity([module]);
@@ -109,14 +104,13 @@ describe('validateOutputIntegrity', () => {
   it('errors on video-excerpt segment with empty transcript', () => {
     const module = makeModule({
       sections: [{
-        type: 'lens-video',
+        type: 'lens',
         meta: { title: 'Video' },
-        segments: [{ type: 'video-excerpt', from: 0, to: 60, transcript: '' }],
+        segments: [{ type: 'video', from: 0, to: 60, transcript: '' }],
         contentId: null,
         learningOutcomeId: null,
         learningOutcomeName: null,
-        videoId: null,
-      }],
+              }],
     });
 
     const errors = validateOutputIntegrity([module]);
@@ -128,14 +122,13 @@ describe('validateOutputIntegrity', () => {
     const module = makeModule({
       slug: 'demo',
       sections: [{
-        type: 'page',
+        type: 'lens',
         meta: { title: 'Welcome' },
         segments: [],
         contentId: null,
         learningOutcomeId: null,
         learningOutcomeName: null,
-        videoId: null,
-      }],
+              }],
     });
 
     const slugToPath = new Map([['demo', 'modules/software-demo.md']]);
@@ -148,14 +141,13 @@ describe('validateOutputIntegrity', () => {
     const module = makeModule({
       slug: 'demo',
       sections: [{
-        type: 'page',
+        type: 'lens',
         meta: { title: 'Welcome' },
         segments: [],
         contentId: null,
         learningOutcomeId: null,
         learningOutcomeName: null,
-        videoId: null,
-      }],
+              }],
     });
 
     const errors = validateOutputIntegrity([module]);
@@ -167,26 +159,24 @@ describe('validateOutputIntegrity', () => {
     const module1 = makeModule({
       slug: 'mod-a',
       sections: [{
-        type: 'page',
+        type: 'lens',
         meta: { title: 'Empty Section' },
         segments: [],
         contentId: null,
         learningOutcomeId: null,
         learningOutcomeName: null,
-        videoId: null,
-      }],
+              }],
     });
     const module2 = makeModule({
       slug: 'mod-b',
       sections: [{
-        type: 'page',
+        type: 'lens',
         meta: { title: 'Page' },
         segments: [{ type: 'text', content: '' }],
         contentId: null,
         learningOutcomeId: null,
         learningOutcomeName: null,
-        videoId: null,
-      }],
+              }],
     });
 
     const errors = validateOutputIntegrity([module1, module2]);
@@ -198,14 +188,13 @@ describe('validateOutputIntegrity', () => {
   it('does not error on chat segment (no content field to check)', () => {
     const module = makeModule({
       sections: [{
-        type: 'page',
+        type: 'lens',
         meta: { title: 'Page' },
         segments: [{ type: 'chat' }],
         contentId: null,
         learningOutcomeId: null,
         learningOutcomeName: null,
-        videoId: null,
-      }],
+              }],
     });
 
     const errors = validateOutputIntegrity([module]);

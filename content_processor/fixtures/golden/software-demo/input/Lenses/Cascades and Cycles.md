@@ -1,14 +1,13 @@
 ---
 id: 3dd47fce-a0fe-4e03-916d-a160fe697dd0
 ---
-### Article: Cascades, Cycles, Insight...
-source:: [[../articles/cascades-cycles-insight]] 
 
 #### Text
 content::
 Cybernetics is the study of systems whose output is used as their input: Successful investment produces funds which can then be invested again. There are negative feedback systems which hold themselves in equilibrium and positive feedback systems which multiply their output at each step. Hold this idea in mind as you read the following article about types of feedback as they pertain to intelligence.
 
-#### Article-excerpt
+#### Article
+source:: [[../articles/cascades-cycles-insight]] 
 from:: "Cascades are when"
 to:: "neutron multiplication factor?_"
 

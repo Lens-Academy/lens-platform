@@ -10,8 +10,6 @@ describe('standalone file validation', () => {
         ['Lenses/orphan-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
-### Page: Missing Content
-
 #### Text
 `],  // Missing content:: field
       ]);
@@ -30,8 +28,6 @@ id: 550e8400-e29b-41d4-a716-446655440001
         ['Lenses/no-id-lens.md', `---
 title: Missing ID
 ---
-### Page: Intro
-
 #### Text
 content:: Hello world
 `],
@@ -50,10 +46,8 @@ content:: Hello world
         ['Lenses/bad-anchor-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
-### Article: Test
+#### Article
 source:: [[../articles/test.md]]
-
-#### Article-excerpt
 from:: This anchor does not exist in the article
 to:: Neither does this one
 `],
@@ -79,10 +73,8 @@ The actual article content is completely different.
         ['Lenses/bad-timestamp-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440003
 ---
-### Video: Test Video
+#### Video
 source:: [[../video_transcripts/test.md]]
-
-#### Video-excerpt
 from:: 5:00
 to:: 10:00
 `],
@@ -111,10 +103,8 @@ title: Test Video
         ['Lenses/missing-source-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440004
 ---
-### Article: Test
+#### Article
 source:: [[../articles/nonexistent.md]]
-
-#### Article-excerpt
 from:: start
 to:: end
 `],
@@ -136,10 +126,8 @@ id: 550e8400-e29b-41d4-a716-446655440099
 tags:
   - work-in-progress
 ---
-### Article: Test
+#### Article
 source:: [[../articles/prod-article.md]]
-
-#### Article-excerpt
 from:: nonexistent start anchor
 to:: nonexistent end anchor
 `],
@@ -437,7 +425,7 @@ slug: ignored-mod
 title: Ignored Module
 tags: [validator-ignore]
 ---
-# Page: Draft
+# Lens: Draft
 This is ignored.
 `],
         // Article tagged validator-ignore — missing required fields but should be skipped
@@ -452,7 +440,7 @@ Missing author and source_url.
 slug: real
 title: Real Module
 ---
-# Page: Intro
+# Lens: Intro
 Real content.
 `],
       ]);
@@ -527,7 +515,6 @@ source:: [[../Lenses/test.md]]
         ['Lenses/test.md', `---
 id: 550e8400-e29b-41d4-a716-446655440031
 ---
-### Page: Intro
 #### Text
 content:: Hello
 `],
@@ -562,7 +549,6 @@ source:: [[../Lenses/test2.md]]
         ['Lenses/test2.md', `---
 id: 550e8400-e29b-41d4-a716-446655440033
 ---
-### Page: Intro
 #### Text
 content:: Hello
 `],
@@ -598,7 +584,6 @@ source:: [[../Lenses/test3.md]]
         ['Lenses/test3.md', `---
 id: 550e8400-e29b-41d4-a716-446655440035
 ---
-### Page: Intro
 #### Text
 content:: Hello
 `],
@@ -633,7 +618,6 @@ source:: [[../Lenses/test4.md]]
         ['Lenses/test4.md', `---
 id: 550e8400-e29b-41d4-a716-446655440037
 ---
-### Page: Intro
 #### Text
 content:: Hello
 `],
@@ -666,7 +650,6 @@ source:: [[../Lenses/passthrough-lens.md]]
         ['Lenses/passthrough-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440061
 ---
-### Page: Intro
 #### Text
 content:: Hello from WIP content
 `],
@@ -712,7 +695,6 @@ source:: [[../Lenses/draft-lens-a.md]]
 id: 550e8400-e29b-41d4-a716-446655440041
 tags: [wip]
 ---
-### Page: Intro
 #### Text
 content:: Hello
 `],
@@ -740,7 +722,6 @@ source:: [[../Lenses/draft-lens-b.md]]
 id: 550e8400-e29b-41d4-a716-446655440043
 tags: [wip]
 ---
-### Page: Intro
 #### Text
 content:: Hello
 `],
@@ -769,7 +750,6 @@ source:: [[../Lenses/draft-lens-c.md]]
 id: 550e8400-e29b-41d4-a716-446655440045
 tags: [wip]
 ---
-### Page: Intro
 #### Text
 content:: Hello
 `],
@@ -803,10 +783,8 @@ source:: [[../Lenses/article-lens.md]]
         ['Lenses/article-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440051
 ---
-### Article: Test Article
+#### Article
 source:: [[../articles/draft-article.md]]
-
-#### Article-excerpt
 from:: Start
 to:: End
 `],
@@ -853,10 +831,8 @@ source:: [[../Lenses/video-lens.md]]
         ['Lenses/video-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440053
 ---
-### Video: Test Video
+#### Video
 source:: [[../video_transcripts/draft-video.md]]
-
-#### Video-excerpt
 from:: 0:00
 to:: 1:00
 `],
@@ -891,10 +867,8 @@ tags: [wip]
         ['Lenses/standalone-article-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440054
 ---
-### Article: Test Article
+#### Article
 source:: [[../articles/draft-article-b.md]]
-
-#### Article-excerpt
 from:: Start
 to:: End
 `],
@@ -929,10 +903,8 @@ End
 id: 550e8400-e29b-41d4-a716-446655440055
 tags: [wip]
 ---
-### Article: Test Article
+#### Article
 source:: [[../articles/draft-article-c.md]]
-
-#### Article-excerpt
 from:: Start
 to:: End
 `],
@@ -977,10 +949,8 @@ source:: [[../Lenses/lens-article-passthrough.md]]
         ['Lenses/lens-article-passthrough.md', `---
 id: 550e8400-e29b-41d4-a716-446655440071
 ---
-### Article: WIP Article
+#### Article
 source:: [[../articles/wip-article-passthrough.md]]
-
-#### Article-excerpt
 from:: anchor-start
 to:: anchor-end
 `],
@@ -1007,7 +977,7 @@ This is WIP article content between anchors.
       expect(mod).toBeDefined();
       expect(mod!.sections.length).toBeGreaterThan(0);
       expect(mod!.sections.some(s =>
-        s.segments.some(seg => seg.type === 'article-excerpt')
+        s.segments.some(seg => seg.type === 'article')
       )).toBe(true);
     });
 
@@ -1029,10 +999,8 @@ source:: [[../Lenses/lens-video-passthrough.md]]
         ['Lenses/lens-video-passthrough.md', `---
 id: 550e8400-e29b-41d4-a716-446655440081
 ---
-### Video: WIP Video
+#### Video
 source:: [[../video_transcripts/wip-video-passthrough.md]]
-
-#### Video-excerpt
 from:: 0:00
 to:: 0:10
 `],
@@ -1064,7 +1032,7 @@ tags: [wip]
       expect(mod).toBeDefined();
       expect(mod!.sections.length).toBeGreaterThan(0);
       expect(mod!.sections.some(s =>
-        s.segments.some(seg => seg.type === 'video-excerpt')
+        s.segments.some(seg => seg.type === 'video')
       )).toBe(true);
     });
   });
@@ -1083,7 +1051,7 @@ slug: draft-mod-x
 title: Draft Module X
 tags: [wip]
 ---
-# Page: Intro
+# Lens: Intro
 ## Text
 content:: Hello
 `],
@@ -1112,7 +1080,7 @@ slug: ignored-mod-x
 title: Ignored Module X
 tags: [validator-ignore]
 ---
-# Page: Intro
+# Lens: Intro
 ## Text
 content:: Hello
 `],
@@ -1141,7 +1109,7 @@ slug: different-slug
 title: WIP Module
 tags: [wip]
 ---
-# Page: Intro
+# Lens: Intro
 ## Text
 content:: Hello
 `],
@@ -1171,7 +1139,7 @@ slug: draft-mod-y
 title: Draft Module Y
 tags: [wip]
 ---
-# Page: Intro
+# Lens: Intro
 ## Text
 content:: Hello
 `],
@@ -1194,7 +1162,7 @@ content:: Hello
 slug: prod-uncat-mod
 title: Production Uncat Module
 ---
-# Uncategorized: Section A
+# Lens: Section A
 ## Lens: Draft Lens
 source:: [[../Lenses/draft-lens-d.md]]
 `],
@@ -1202,7 +1170,6 @@ source:: [[../Lenses/draft-lens-d.md]]
 id: 550e8400-e29b-41d4-a716-446655440060
 tags: [wip]
 ---
-### Page: Intro
 #### Text
 content:: Hello
 `],
@@ -1224,7 +1191,7 @@ content:: Hello
 slug: prod-uncat-mod-2
 title: Production Uncat Module 2
 ---
-# Uncategorized: Section B
+# Lens: Section B
 ## Lens: Ignored Lens
 source:: [[../Lenses/ignored-lens-e.md]]
 `],
@@ -1232,7 +1199,6 @@ source:: [[../Lenses/ignored-lens-e.md]]
 id: 550e8400-e29b-41d4-a716-446655440061
 tags: [validator-ignore]
 ---
-### Page: Intro
 #### Text
 content:: Hello
 `],
@@ -1255,7 +1221,7 @@ slug: draft-uncat-mod
 title: Draft Uncat Module
 tags: [wip]
 ---
-# Uncategorized: Section C
+# Lens: Section C
 ## Lens: Draft Lens
 source:: [[../Lenses/draft-lens-f.md]]
 `],
@@ -1263,7 +1229,6 @@ source:: [[../Lenses/draft-lens-f.md]]
 id: 550e8400-e29b-41d4-a716-446655440062
 tags: [wip]
 ---
-### Page: Intro
 #### Text
 content:: Hello
 `],
@@ -1285,8 +1250,6 @@ content:: Hello
         ['Lenses/valid-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440020
 ---
-### Page: Intro
-
 #### Text
 content:: This is valid content.
 
@@ -1312,8 +1275,6 @@ source:: [[../Lenses/intro.md]]
         ['Lenses/intro.md', `---
 id: 550e8400-e29b-41d4-a716-446655440022
 ---
-### Page: Intro
-
 #### Text
 content:: Hello
 `],
@@ -1333,7 +1294,7 @@ content:: Hello
 slug: intro
 title: Introduction
 ---
-# Page: Intro
+# Lens: Intro
 `],
       ]);
 
@@ -1368,7 +1329,6 @@ title: My Course
         ['Lens/my-lens.md', `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
-### Page: Intro
 #### Text
 content:: Hello
 `],
@@ -1388,7 +1348,7 @@ content:: Hello
 slug: valid
 title: Valid
 ---
-# Page: Test
+# Lens: Test
 ## Text
 content:: Hello
 `],
@@ -1408,8 +1368,6 @@ content:: Hello
         ['Lenses/Test Lens.md', `---
 id: 99999999-aaaa-bbbb-cccc-dddddddddddd
 ---
-### Page: Test Content
-
 #### Text
 content::
 Hello world
@@ -1420,9 +1378,9 @@ Hello world
 
       const lensModule = result.modules.find(m => m.slug === 'lens/test-lens');
       expect(lensModule).toBeDefined();
-      expect(lensModule!.title).toBe('Test Content');
+      expect(lensModule!.title).toBe('Test Lens');
       expect(lensModule!.sections).toHaveLength(1);
-      expect(lensModule!.sections[0].type).toBe('page');
+      expect(lensModule!.sections[0].type).toBe('lens');
     });
 
     it('excludes validator-ignore lenses from standalone modules', () => {
@@ -1431,8 +1389,6 @@ Hello world
 id: 88888888-aaaa-bbbb-cccc-dddddddddddd
 tags: [validator-ignore]
 ---
-### Page: Ignored
-
 #### Text
 content::
 Ignored content
@@ -1453,7 +1409,7 @@ title: Intro
 id: 11111111-1111-1111-1111-111111111111
 ---
 
-# Page: Welcome
+# Lens: Welcome
 id:: 22222222-2222-2222-2222-222222222222
 
 ## Text
@@ -1463,8 +1419,6 @@ Hello
         ['Lenses/Test Lens.md', `---
 id: 33333333-3333-3333-3333-333333333333
 ---
-### Page: Test
-
 #### Text
 content::
 World
@@ -1481,15 +1435,15 @@ World
     });
   });
 
-  describe('required id:: on Page sections', () => {
-    it('errors when Page section is missing id:: field', () => {
+  describe('required id:: on inline Lens sections', () => {
+    it('errors when inline Lens section is missing id:: field', () => {
       const files = new Map([
         ['modules/no-page-id.md', `---
 slug: no-page-id
 title: No Page ID
 ---
 
-# Page: Missing ID
+# Lens: Missing ID
 ## Text
 content:: Hello
 `],
@@ -1511,7 +1465,7 @@ slug: with-page-id
 title: With Page ID
 ---
 
-# Page: Has ID
+# Lens: Has ID
 id:: 550e8400-e29b-41d4-a716-446655440099
 
 ## Text

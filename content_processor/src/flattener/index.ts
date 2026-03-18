@@ -5,8 +5,8 @@ import type {
   Segment,
   TextSegment,
   ChatSegment,
-  ArticleExcerptSegment,
-  VideoExcerptSegment,
+  ArticleSegment,
+  VideoSegment,
   QuestionSegment,
   RoleplaySegment,
   ContentError,
@@ -14,9 +14,9 @@ import type {
 } from '../index.js';
 import type { ContentTier } from '../validator/tier.js';
 import { checkTierViolation } from '../validator/tier.js';
-import { parseModule, parsePageSegments } from '../parser/module.js';
+import { parseModule } from '../parser/module.js';
 import { parseLearningOutcome, type ParsedTestRef } from '../parser/learning-outcome.js';
-import { parseLens, type ParsedLens, type ParsedLensSegment, type ParsedLensSection } from '../parser/lens.js';
+import { parseLens, type ParsedLens, type ParsedLensSegment, type ParsedArticleSegment } from '../parser/lens.js';
 import { parseWikilink, resolveWikilinkPath, findFileWithExtension, findSimilarFiles, formatSuggestion } from '../parser/wikilink.js';
 import { parseFrontmatter } from '../parser/frontmatter.js';
 import { fileNameToSlug } from '../utils/slug.js';
@@ -32,9 +32,9 @@ function computeSectionStats(segments: Segment[]): { wordCount?: number; videoDu
   let words = 0;
   let videoSeconds = 0;
   for (const seg of segments) {
-    if (seg.type === 'text' || seg.type === 'article-excerpt') {
+    if (seg.type === 'text' || seg.type === 'article') {
       words += countWords(seg.content);
-    } else if (seg.type === 'video-excerpt') {
+    } else if (seg.type === 'video') {
       if (seg.to != null) videoSeconds += seg.to - seg.from;
     }
   }
@@ -46,14 +46,6 @@ function computeSectionStats(segments: Segment[]): { wordCount?: number; videoDu
 
 /**
  * Extract YouTube video ID from a YouTube URL.
- *
- * Supported formats:
- * - https://www.youtube.com/watch?v=VIDEO_ID
- * - https://youtube.com/watch?v=VIDEO_ID
- * - https://youtu.be/VIDEO_ID
- * - https://www.youtube.com/embed/VIDEO_ID
- *
- * @returns Video ID string, or null if URL format is not recognized
  */
 function extractVideoIdFromUrl(url: string): string | null {
   const match = url.match(
@@ -106,8 +98,6 @@ export function validateBoundaries(items: FlatItem[], file: string): ContentErro
       }
       // If this boundary has no sections before next boundary or end
       if (nextNonBoundary > i + 1 || nextNonBoundary >= items.length) {
-        // nextNonBoundary > i + 1 means consecutive boundaries
-        // nextNonBoundary >= items.length means trailing boundary with no content
         if (nextNonBoundary > i + 1) {
           errors.push({
             file,
@@ -185,19 +175,48 @@ export function splitAtBoundaries(
   return groups;
 }
 
+// ─── Shared helper: flatten a single ParsedLens into output segments ───
+
+interface FlattenSingleLensResult {
+  segments: Segment[];
+  errors: ContentError[];
+}
+
+/**
+ * Flatten a single ParsedLens into output Segments.
+ * This is the shared core used by all lens-processing functions.
+ *
+ * For each segment in the lens, calls convertSegment to resolve article/video content.
+ * Then applies collapsed content for article segments from the same source.
+ */
+function flattenSingleLens(
+  lens: ParsedLens,
+  lensPath: string,
+  files: Map<string, string>,
+  visitedPaths: Set<string>,
+  tierMap?: Map<string, ContentTier>
+): FlattenSingleLensResult {
+  const errors: ContentError[] = [];
+  const segments: Segment[] = [];
+
+  for (const parsedSegment of lens.segments) {
+    const segmentResult = convertSegment(parsedSegment, lensPath, files, visitedPaths, tierMap);
+    errors.push(...segmentResult.errors);
+    if (segmentResult.segment) {
+      segments.push(segmentResult.segment);
+    }
+  }
+
+  // Apply collapsed content for article segments
+  applyCollapsedContent(segments, lens.segments, lensPath, files);
+
+  return { segments, errors };
+}
+
+// ─── Module flattening ───
+
 /**
  * Flatten a module by resolving all references to Learning Outcomes, Lenses, and content.
- *
- * This function:
- * 1. Parses the module file
- * 2. For each Learning Outcome section, resolves the LO file
- * 3. For each Lens in the LO, resolves the lens file
- * 4. For each segment, extracts content from articles/videos as needed
- *
- * @param modulePath - Path to the module file within the files Map
- * @param files - Map of all file paths to their content
- * @param visitedPaths - Optional set of already-visited paths for cycle detection
- * @returns Flattened module with resolved sections and segments, plus any errors
  */
 export function flattenModule(
   modulePath: string,
@@ -243,10 +262,10 @@ export function flattenModule(
   const parsedModule = moduleResult.module;
   const flatItems: FlatItem[] = [];
 
-  // Helper: process a section (LO, Page, Uncategorized) and return Section[]
+  // Helper: process a section (LO or Lens) and return Section[]
   function processSection(
     section: { type: string; title: string; rawType: string; fields: Record<string, string>; body: string; line: number; level: number; children?: any[] },
-    subsectionLevel?: number
+    _subsectionLevel?: number
   ): Section[] {
     if (section.type === 'learning-outcome') {
       const sectionVisitedPaths = new Set(visitedPaths);
@@ -259,25 +278,10 @@ export function flattenModule(
       );
       errors.push(...result.errors);
       return result.sections;
-    } else if (section.type === 'page') {
-      const level = subsectionLevel ?? 2;
-      const textResult = parsePageSegments(section.body, modulePath, section.line, level);
-      errors.push(...textResult.errors);
-
-      return [{
-        type: 'page',
-        meta: { title: section.title },
-        segments: textResult.segments,
-        optional: section.fields.optional?.toLowerCase() === 'true',
-        contentId: section.fields.id ?? null,
-        learningOutcomeId: null,
-        learningOutcomeName: null,
-        videoId: null,
-        ...computeSectionStats(textResult.segments),
-      }];
-    } else if (section.type === 'uncategorized') {
+    } else if (section.type === 'lens') {
+      // Referenced lens (has source::) or inline lens
       const sectionVisitedPaths = new Set(visitedPaths);
-      const result = flattenUncategorizedSection(
+      const result = flattenLensSection(
         section,
         modulePath,
         files,
@@ -359,17 +363,10 @@ function buildTestSection(
   if (!testRef.segments.length) return null;
 
   const testSegments: Segment[] = [];
-  const stubLensSection: ParsedLensSection = {
-    type: 'page',
-    title: 'Test',
-    segments: [],
-    line: 0,
-  };
 
   for (const parsedSegment of testRef.segments) {
     const segmentResult = convertSegment(
       parsedSegment,
-      stubLensSection,
       loPath,
       files,
       new Set(visitedPaths),
@@ -395,7 +392,6 @@ function buildTestSection(
     contentId: null,
     learningOutcomeId: loId,
     learningOutcomeName: loName,
-    videoId: null,
   };
 }
 
@@ -483,75 +479,19 @@ function processLOWithSubmodules(
       if (!lensResult.lens) continue;
 
       const lens = lensResult.lens;
-      let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
-      const meta: SectionMeta = { title: section.title };
-      const segments: Segment[] = [];
-      let videoId: string | undefined;
-
-      for (const lensSection of lens.sections) {
-        if (lensSection.type === 'lens-article') {
-          sectionType = 'lens-article';
-          if (lensSection.source) {
-            const articleWikilink = parseWikilink(lensSection.source);
-            if (articleWikilink && !articleWikilink.error) {
-              const articlePathResolved = resolveWikilinkPath(articleWikilink.path, lensPath);
-              const articlePath = findFileWithExtension(articlePathResolved, files);
-              if (articlePath) {
-                const articleContent = files.get(articlePath)!;
-                const articleFrontmatter = parseFrontmatter(articleContent, articlePath);
-                if (articleFrontmatter.frontmatter.title) meta.title = articleFrontmatter.frontmatter.title as string;
-                if (articleFrontmatter.frontmatter.author) {
-                  const raw = articleFrontmatter.frontmatter.author;
-                  meta.author = Array.isArray(raw) ? raw.join(', ') : String(raw);
-                }
-                if (articleFrontmatter.frontmatter.source_url) meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
-              }
-            }
-          }
-        } else if (lensSection.type === 'page') {
-          sectionType = 'page';
-          if (lensSection.title) meta.title = lensSection.title;
-        } else if (lensSection.type === 'lens-video') {
-          sectionType = 'lens-video';
-          if (lensSection.source) {
-            const videoWikilink = parseWikilink(lensSection.source);
-            if (videoWikilink && !videoWikilink.error) {
-              const videoPathResolved = resolveWikilinkPath(videoWikilink.path, lensPath);
-              const videoPath = findFileWithExtension(videoPathResolved, files);
-              if (videoPath) {
-                const videoContent = files.get(videoPath)!;
-                const videoFrontmatter = parseFrontmatter(videoContent, videoPath);
-                if (videoFrontmatter.frontmatter.title) meta.title = videoFrontmatter.frontmatter.title as string;
-                if (videoFrontmatter.frontmatter.channel) meta.channel = videoFrontmatter.frontmatter.channel as string;
-                if (videoFrontmatter.frontmatter.url) {
-                  const extractedVideoId = extractVideoIdFromUrl(videoFrontmatter.frontmatter.url as string);
-                  if (extractedVideoId) videoId = extractedVideoId;
-                }
-              }
-            }
-          }
-        }
-
-        for (const parsedSegment of lensSection.segments) {
-          const segmentResult = convertSegment(parsedSegment, lensSection, lensPath, files, sectionVisitedPaths, tierMap);
-          errors.push(...segmentResult.errors);
-          if (segmentResult.segment) segments.push(segmentResult.segment);
-        }
-
-        applyCollapsedContent(segments, lensSection.segments, lensSection, lensPath, files);
-      }
+      const { segments, errors: flattenErrors } = flattenSingleLens(lens, lensPath, files, sectionVisitedPaths, tierMap);
+      errors.push(...flattenErrors);
 
       const lo = loResult.learningOutcome!;
       items.push({
-        type: sectionType,
-        meta,
+        type: 'lens',
+        meta: { title: section.title },
         segments,
         optional: section.fields.optional?.toLowerCase() === 'true' || lensRef.optional,
         learningOutcomeId: lo.id ?? null,
         learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
         contentId: lens.id ?? null,
         tldr: lens.tldr,
-        videoId: videoId ?? null,
         ...computeSectionStats(segments),
       } as Section);
     }
@@ -569,7 +509,7 @@ function processLOWithSubmodules(
     }
   }
 
-  // Also emit LO parse errors (we skipped earlier since we returned non-null)
+  // Also emit LO parse errors
   errors.push(...loResult.errors);
 
   return items;
@@ -636,7 +576,6 @@ function flattenLearningOutcomeSection(
 
   // Get the LO file content
   if (!loPath) {
-    // Find similar files to suggest
     const similarFiles = findSimilarFiles(loPathResolved, files, 'Learning Outcomes');
     const suggestion = formatSuggestion(similarFiles, modulePath) ?? 'Check the file path in the wiki-link';
 
@@ -650,7 +589,7 @@ function flattenLearningOutcomeSection(
     return { sections: [], errors };
   }
 
-  // Check tier violation (module → LO)
+  // Check tier violation (module -> LO)
   if (tierMap) {
     const parentTier = tierMap.get(modulePath) ?? 'production';
     const childTier = tierMap.get(loPath) ?? 'production';
@@ -658,7 +597,6 @@ function flattenLearningOutcomeSection(
     if (violation) {
       errors.push(violation);
     }
-    // Skip ignored children silently (they're not processed)
     if (childTier === 'ignored') {
       return { sections: [], errors };
     }
@@ -692,7 +630,6 @@ function flattenLearningOutcomeSection(
   for (const lensRef of lo.lenses) {
     const lensPath = findFileWithExtension(lensRef.resolvedPath, files);
     if (!lensPath) {
-      // Find similar files to suggest
       const similarFiles = findSimilarFiles(lensRef.resolvedPath, files, 'Lenses');
       const suggestion = formatSuggestion(similarFiles, loPath) ?? 'Check the file path in the wiki-link';
 
@@ -705,7 +642,7 @@ function flattenLearningOutcomeSection(
       continue;
     }
 
-    // Check tier violation (LO → Lens)
+    // Check tier violation (LO -> Lens)
     if (tierMap) {
       const parentTier = tierMap.get(loPath) ?? 'production';
       const childTier = tierMap.get(lensPath) ?? 'production';
@@ -741,118 +678,20 @@ function flattenLearningOutcomeSection(
 
     const lens = lensResult.lens;
 
-    // Each lens becomes its own section
-    let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
-    const meta: SectionMeta = { title: section.title };
-    const segments: Segment[] = [];
-    let videoId: string | undefined;
-
-    // Process each section in the lens
-    for (const lensSection of lens.sections) {
-      // Determine section type from lens section
-      if (lensSection.type === 'lens-article') {
-        sectionType = 'lens-article';
-
-        // Extract article metadata from the article file's frontmatter
-        if (lensSection.source) {
-          const articleWikilink = parseWikilink(lensSection.source);
-          if (articleWikilink && !articleWikilink.error) {
-            const articlePathResolved = resolveWikilinkPath(articleWikilink.path, lensPath);
-            const articlePath = findFileWithExtension(articlePathResolved, files);
-            if (articlePath) {
-              const articleContent = files.get(articlePath)!;
-              const articleFrontmatter = parseFrontmatter(articleContent, articlePath);
-
-              // Extract metadata fields
-              if (articleFrontmatter.frontmatter.title) {
-                meta.title = articleFrontmatter.frontmatter.title as string;
-              }
-              if (articleFrontmatter.frontmatter.author) {
-                const raw = articleFrontmatter.frontmatter.author;
-                meta.author = Array.isArray(raw) ? raw.join(', ') : String(raw);
-              }
-              if (articleFrontmatter.frontmatter.source_url) {
-                meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
-              }
-              if (articleFrontmatter.frontmatter.published) {
-                meta.published = String(articleFrontmatter.frontmatter.published);
-              }
-            }
-          }
-        }
-      } else if (lensSection.type === 'page') {
-        sectionType = 'page';
-        // For page sections, use the title from the ### Page: header
-        if (lensSection.title) {
-          meta.title = lensSection.title;
-        }
-      } else if (lensSection.type === 'lens-video') {
-        sectionType = 'lens-video';
-
-        // Extract video metadata from the video transcript file's frontmatter
-        if (lensSection.source) {
-          const videoWikilink = parseWikilink(lensSection.source);
-          if (videoWikilink && !videoWikilink.error) {
-            const videoPathResolved = resolveWikilinkPath(videoWikilink.path, lensPath);
-            const videoPath = findFileWithExtension(videoPathResolved, files);
-            if (videoPath) {
-              const videoContent = files.get(videoPath)!;
-              const videoFrontmatter = parseFrontmatter(videoContent, videoPath);
-
-              // Extract metadata fields
-              if (videoFrontmatter.frontmatter.title) {
-                meta.title = videoFrontmatter.frontmatter.title as string;
-              }
-              if (videoFrontmatter.frontmatter.channel) {
-                meta.channel = videoFrontmatter.frontmatter.channel as string;
-              }
-              // Extract video ID from YouTube URL
-              if (videoFrontmatter.frontmatter.url) {
-                const extractedVideoId = extractVideoIdFromUrl(videoFrontmatter.frontmatter.url as string);
-                if (extractedVideoId) {
-                  videoId = extractedVideoId;
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Process segments
-      for (const parsedSegment of lensSection.segments) {
-        const segmentResult = convertSegment(
-          parsedSegment,
-          lensSection,
-          lensPath,
-          files,
-          visitedPaths,
-          tierMap
-        );
-        errors.push(...segmentResult.errors);
-
-        if (segmentResult.segment) {
-          segments.push(segmentResult.segment);
-        }
-      }
-
-      // Apply collapsed content to article-excerpt segments
-      applyCollapsedContent(segments, lensSection.segments, lensSection, lensPath, files);
-    }
+    // Flatten lens segments using shared helper
+    const { segments, errors: flattenErrors } = flattenSingleLens(lens, lensPath, files, visitedPaths, tierMap);
+    errors.push(...flattenErrors);
 
     // Create a section for this lens
-    // Optional can come from either:
-    // 1. The LO reference in the module (section.fields.optional) - makes ALL lenses optional
-    // 2. The individual lens reference in the LO (lensRef.optional) - makes just this lens optional
     const resultSection: Section = {
-      type: sectionType,
-      meta,
+      type: 'lens',
+      meta: { title: section.title },
       segments,
       optional: section.fields.optional?.toLowerCase() === 'true' || lensRef.optional,
       learningOutcomeId: lo.id ?? null,
       learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
       contentId: lens.id ?? null,
       tldr: lens.tldr,
-      videoId: videoId ?? null,
       ...computeSectionStats(segments),
     };
 
@@ -874,10 +713,10 @@ function flattenLearningOutcomeSection(
 }
 
 /**
- * Flatten an Uncategorized section by parsing its ## Lens: references.
- * Each lens becomes its own section with the appropriate type (lens-video, lens-article, or page).
+ * Flatten a # Lens: section from a module file.
+ * This handles referenced lenses (with source:: wikilink).
  */
-function flattenUncategorizedSection(
+function flattenLensSection(
   section: { type: string; title: string; fields: Record<string, string>; body: string; line: number },
   modulePath: string,
   files: Map<string, string>,
@@ -886,381 +725,180 @@ function flattenUncategorizedSection(
 ): FlattenMultipleSectionsResult {
   const errors: ContentError[] = [];
   const sections: Section[] = [];
+  const source = section.fields.source;
 
-  // Parse the section body for ## Lens: subsections
-  const lensRefs = parseUncategorizedLensRefs(section.body, modulePath);
-
-  // If no lens refs found, warn and return empty array
-  if (lensRefs.length === 0) {
+  if (!source) {
+    // No source:: — this should be an inline lens but we don't support that yet in the module parser
+    // For now, just warn
     errors.push({
       file: modulePath,
       line: section.line,
-      message: 'Uncategorized section has no ## Lens: references — this section will produce no output',
-      suggestion: "Add '## Lens: [[../Lenses/lens-name.md|Display]]' references",
-      severity: 'warning',
+      message: 'Lens section missing source:: field',
+      suggestion: "Add 'source:: [[../Lenses/filename.md|Display]]' to the lens section",
+      severity: 'error',
     });
     return { sections: [], errors };
   }
 
-  // Process each lens reference as a separate section
-  for (const lensRef of lensRefs) {
-    const lensPath = findFileWithExtension(lensRef.resolvedPath, files);
-    if (!lensPath) {
-      // Find similar files to suggest
-      const similarFiles = findSimilarFiles(lensRef.resolvedPath, files, 'Lenses');
-      const suggestion = formatSuggestion(similarFiles, modulePath) ?? 'Check the file path in the wiki-link';
-
-      errors.push({
-        file: modulePath,
-        message: `Referenced lens file not found: ${lensRef.resolvedPath}`,
-        suggestion,
-        severity: 'error',
-      });
-      continue;
-    }
-
-    // Check tier violation (Uncategorized/Module → Lens)
-    if (tierMap) {
-      const parentTier = tierMap.get(modulePath) ?? 'production';
-      const childTier = tierMap.get(lensPath) ?? 'production';
-      const violation = checkTierViolation(modulePath, parentTier, lensPath, childTier, 'lens');
-      if (violation) {
-        errors.push(violation);
-      }
-      if (childTier === 'ignored') {
-        continue;
-      }
-    }
-
-    // Check for circular reference
-    if (visitedPaths.has(lensPath)) {
-      errors.push({
-        file: modulePath,
-        message: `Circular reference detected: ${lensPath}`,
-        severity: 'error',
-      });
-      continue;
-    }
-    visitedPaths.add(lensPath);
-
-    const lensContent = files.get(lensPath)!;
-
-    // Parse the lens
-    const lensResult = parseLens(lensContent, lensPath);
-    errors.push(...lensResult.errors);
-
-    if (!lensResult.lens) {
-      continue;
-    }
-
-    const lens = lensResult.lens;
-
-    // Each lens becomes its own section
-    let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
-    const meta: SectionMeta = { title: section.title };
-    const segments: Segment[] = [];
-    let videoId: string | undefined;
-
-    // Process each section in the lens
-    for (const lensSection of lens.sections) {
-      // Determine section type from lens section
-      if (lensSection.type === 'lens-article') {
-        sectionType = 'lens-article';
-
-        // Extract article metadata from the article file's frontmatter
-        if (lensSection.source) {
-          const articleWikilink = parseWikilink(lensSection.source);
-          if (articleWikilink && !articleWikilink.error) {
-            const articlePathResolved = resolveWikilinkPath(articleWikilink.path, lensPath);
-            const articlePath = findFileWithExtension(articlePathResolved, files);
-            if (articlePath) {
-              const articleContent = files.get(articlePath)!;
-              const articleFrontmatter = parseFrontmatter(articleContent, articlePath);
-
-              // Extract metadata fields
-              if (articleFrontmatter.frontmatter.title) {
-                meta.title = articleFrontmatter.frontmatter.title as string;
-              }
-              if (articleFrontmatter.frontmatter.author) {
-                const raw = articleFrontmatter.frontmatter.author;
-                meta.author = Array.isArray(raw) ? raw.join(', ') : String(raw);
-              }
-              if (articleFrontmatter.frontmatter.source_url) {
-                meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
-              }
-              if (articleFrontmatter.frontmatter.published) {
-                meta.published = String(articleFrontmatter.frontmatter.published);
-              }
-            }
-          }
-        }
-      } else if (lensSection.type === 'page') {
-        sectionType = 'page';
-        // For page sections, use the title from the ### Page: header
-        if (lensSection.title) {
-          meta.title = lensSection.title;
-        }
-      } else if (lensSection.type === 'lens-video') {
-        sectionType = 'lens-video';
-
-        // Extract video metadata from the video transcript file's frontmatter
-        if (lensSection.source) {
-          const videoWikilink = parseWikilink(lensSection.source);
-          if (videoWikilink && !videoWikilink.error) {
-            const videoPathResolved = resolveWikilinkPath(videoWikilink.path, lensPath);
-            const videoPath = findFileWithExtension(videoPathResolved, files);
-            if (videoPath) {
-              const videoContent = files.get(videoPath)!;
-              const videoFrontmatter = parseFrontmatter(videoContent, videoPath);
-
-              // Extract metadata fields
-              if (videoFrontmatter.frontmatter.title) {
-                meta.title = videoFrontmatter.frontmatter.title as string;
-              }
-              if (videoFrontmatter.frontmatter.channel) {
-                meta.channel = videoFrontmatter.frontmatter.channel as string;
-              }
-              // Extract video ID from YouTube URL
-              if (videoFrontmatter.frontmatter.url) {
-                const extractedVideoId = extractVideoIdFromUrl(videoFrontmatter.frontmatter.url as string);
-                if (extractedVideoId) {
-                  videoId = extractedVideoId;
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Process segments
-      for (const parsedSegment of lensSection.segments) {
-        const segmentResult = convertSegment(
-          parsedSegment,
-          lensSection,
-          lensPath,
-          files,
-          visitedPaths,
-          tierMap
-        );
-        errors.push(...segmentResult.errors);
-
-        if (segmentResult.segment) {
-          segments.push(segmentResult.segment);
-        }
-      }
-
-      // Apply collapsed content to article-excerpt segments
-      applyCollapsedContent(segments, lensSection.segments, lensSection, lensPath, files);
-    }
-
-    // Create a section for this lens
-    const resultSection: Section = {
-      type: sectionType,
-      meta,
-      segments,
-      optional: lensRef.optional,
-      learningOutcomeId: null,
-      learningOutcomeName: null,
-      contentId: lens.id ?? null,
-      tldr: lens.tldr,
-      videoId: videoId ?? null,
-      ...computeSectionStats(segments),
-    };
-
-    sections.push(resultSection);
+  // Parse and resolve the wikilink
+  const wikilink = parseWikilink(source);
+  if (!wikilink || wikilink.error) {
+    const suggestion = wikilink?.correctedPath
+      ? `Did you mean '[[${wikilink.correctedPath}]]'?`
+      : 'Use format [[../Lenses/filename.md|Display Text]]';
+    errors.push({
+      file: modulePath,
+      line: section.line,
+      message: wikilink?.error
+        ? `${wikilink.error}: ${source}`
+        : `Invalid wikilink format: ${source}`,
+      suggestion,
+      severity: 'error',
+    });
+    return { sections: [], errors };
   }
 
+  const lensPathResolved = resolveWikilinkPath(wikilink.path, modulePath);
+  const lensPath = findFileWithExtension(lensPathResolved, files);
+
+  if (!lensPath) {
+    const similarFiles = findSimilarFiles(lensPathResolved, files, 'Lenses');
+    const suggestion = formatSuggestion(similarFiles, modulePath) ?? 'Check the file path in the wiki-link';
+
+    errors.push({
+      file: modulePath,
+      message: `Referenced lens file not found: ${lensPathResolved}`,
+      suggestion,
+      severity: 'error',
+    });
+    return { sections: [], errors };
+  }
+
+  // Check tier violation
+  if (tierMap) {
+    const parentTier = tierMap.get(modulePath) ?? 'production';
+    const childTier = tierMap.get(lensPath) ?? 'production';
+    const violation = checkTierViolation(modulePath, parentTier, lensPath, childTier, 'lens');
+    if (violation) {
+      errors.push(violation);
+    }
+    if (childTier === 'ignored') {
+      return { sections: [], errors };
+    }
+  }
+
+  // Check for circular reference
+  if (visitedPaths.has(lensPath)) {
+    errors.push({
+      file: modulePath,
+      message: `Circular reference detected: ${lensPath}`,
+      severity: 'error',
+    });
+    return { sections: [], errors };
+  }
+  visitedPaths.add(lensPath);
+
+  const lensContent = files.get(lensPath)!;
+  const lensResult = parseLens(lensContent, lensPath);
+  errors.push(...lensResult.errors);
+
+  if (!lensResult.lens) {
+    return { sections: [], errors };
+  }
+
+  const lens = lensResult.lens;
+  const { segments, errors: flattenErrors } = flattenSingleLens(lens, lensPath, files, visitedPaths, tierMap);
+  errors.push(...flattenErrors);
+
+  const resultSection: Section = {
+    type: 'lens',
+    meta: { title: section.title },
+    segments,
+    optional: section.fields.optional?.toLowerCase() === 'true',
+    learningOutcomeId: null,
+    learningOutcomeName: null,
+    contentId: lens.id ?? null,
+    tldr: lens.tldr,
+    ...computeSectionStats(segments),
+  };
+
+  sections.push(resultSection);
   return { sections, errors };
 }
 
-/**
- * Parse ## Lens: subsections from an Uncategorized section's body.
- * Returns an array of lens references with resolved paths.
- */
-function parseUncategorizedLensRefs(
-  body: string,
-  parentPath: string
-): Array<{ source: string; resolvedPath: string; optional: boolean }> {
-  const lensRefs: Array<{ source: string; resolvedPath: string; optional: boolean }> = [];
-  const lines = body.split('\n');
-
-  let inLensSection = false;
-  let currentFields: Record<string, string> = {};
-  let currentField: string | null = null;
-  let currentValue: string[] = [];
-
-  const LENS_HEADER_PATTERN = /^##\s+Lens:\s*(.*)$/i;
-  const FIELD_PATTERN = /^(\w+)::\s*(.*)$/;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Check for ## Lens: header
-    const lensMatch = line.match(LENS_HEADER_PATTERN);
-    if (lensMatch) {
-      // Save previous lens if we were in one
-      if (inLensSection) {
-        // First, finalize current field if we were collecting one
-        // This must happen BEFORE checking currentFields.source
-        if (currentField) {
-          currentFields[currentField] = currentValue.join('\n').trim();
-        }
-
-        if (currentFields.source) {
-          const wikilink = parseWikilink(currentFields.source);
-          if (wikilink) {
-            const resolvedPath = resolveWikilinkPath(wikilink.path, parentPath);
-            lensRefs.push({
-              source: currentFields.source,
-              resolvedPath,
-              optional: currentFields.optional?.toLowerCase() === 'true',
-            });
-          }
-        }
-      }
-
-      inLensSection = true;
-      currentFields = {};
-      currentField = null;
-      currentValue = [];
-      continue;
-    }
-
-    // Check for another ## header (end of Lens section)
-    if (line.match(/^##\s+\S/) && inLensSection) {
-      // Save current lens
-      if (currentField) {
-        currentFields[currentField] = currentValue.join('\n').trim();
-      }
-
-      if (currentFields.source) {
-        const wikilink = parseWikilink(currentFields.source);
-        if (wikilink && !wikilink.error) {
-          const resolvedPath = resolveWikilinkPath(wikilink.path, parentPath);
-          lensRefs.push({
-            source: currentFields.source,
-            resolvedPath,
-            optional: currentFields.optional?.toLowerCase() === 'true',
-          });
-        }
-      }
-
-      inLensSection = false;
-      currentFields = {};
-      currentField = null;
-      currentValue = [];
-      continue;
-    }
-
-    if (inLensSection) {
-      // Parse fields
-      const fieldMatch = line.match(FIELD_PATTERN);
-      if (fieldMatch) {
-        // Save previous field
-        if (currentField) {
-          currentFields[currentField] = currentValue.join('\n').trim();
-        }
-        currentField = fieldMatch[1];
-        const inlineValue = fieldMatch[2].trim();
-        currentValue = inlineValue ? [inlineValue] : [];
-      } else if (currentField) {
-        // Check if line starts a new section header
-        if (line.match(/^#/)) {
-          currentFields[currentField] = currentValue.join('\n').trim();
-          currentField = null;
-          currentValue = [];
-        } else {
-          currentValue.push(line);
-        }
-      }
-    }
-  }
-
-  // Don't forget the last lens section
-  if (inLensSection) {
-    if (currentField) {
-      currentFields[currentField] = currentValue.join('\n').trim();
-    }
-
-    if (currentFields.source) {
-      const wikilink = parseWikilink(currentFields.source);
-      if (wikilink) {
-        const resolvedPath = resolveWikilinkPath(wikilink.path, parentPath);
-        lensRefs.push({
-          source: currentFields.source,
-          resolvedPath,
-          optional: currentFields.optional?.toLowerCase() === 'true',
-        });
-      }
-    }
-  }
-
-  return lensRefs;
-}
+// ─── Collapsed content and segment conversion ───
 
 /**
- * After converting segments, apply collapsed_before/collapsed_after to article-excerpt segments.
- * This resolves the article source once and calls bundleArticleWithCollapsed to compute
- * which parts of the article are outside the excerpted ranges.
+ * After converting segments, apply collapsed_before/collapsed_after to article segments.
+ * Groups article segments by their resolved source path, then calls bundleArticleWithCollapsed
+ * for each group.
  */
 function applyCollapsedContent(
   segments: Segment[],
   parsedSegments: ParsedLensSegment[],
-  lensSection: ParsedLensSection,
   lensPath: string,
   files: Map<string, string>,
 ): void {
-  // Only process lens-article sections with article-excerpt segments
-  if (lensSection.type !== 'lens-article' || !lensSection.source) return;
+  // Build groups of article segments by resolved source path
+  const sourceGroups = new Map<string, { segmentIndex: number; fromAnchor?: string; toAnchor?: string }[]>();
 
-  // Collect article-excerpt segment indices
-  const excerptIndices: number[] = [];
-  for (let i = 0; i < segments.length; i++) {
-    if (segments[i].type === 'article-excerpt') {
-      excerptIndices.push(i);
+  // Map output article segments back to parsed segments for source info
+  let articleOutputIdx = 0;
+  for (let i = 0; i < parsedSegments.length; i++) {
+    const ps = parsedSegments[i];
+    if (ps.type !== 'article') continue;
+
+    // Find corresponding output segment
+    while (articleOutputIdx < segments.length && segments[articleOutputIdx].type !== 'article') {
+      articleOutputIdx++;
     }
+    if (articleOutputIdx >= segments.length) break;
+
+    if (ps.source) {
+      const wikilink = parseWikilink(ps.source);
+      if (wikilink && !wikilink.error) {
+        const resolved = resolveWikilinkPath(wikilink.path, lensPath);
+        const actualPath = findFileWithExtension(resolved, files);
+        if (actualPath) {
+          if (!sourceGroups.has(actualPath)) {
+            sourceGroups.set(actualPath, []);
+          }
+          sourceGroups.get(actualPath)!.push({
+            segmentIndex: articleOutputIdx,
+            fromAnchor: ps.fromAnchor,
+            toAnchor: ps.toAnchor,
+          });
+        }
+      }
+    }
+    articleOutputIdx++;
   }
-  if (excerptIndices.length === 0) return;
 
-  // Map to parsed segments to get anchors (order-preserving)
-  const parsedExcerpts = parsedSegments.filter(ps => ps.type === 'article-excerpt');
-  const excerptInfos = excerptIndices.map((segIdx, i) => ({
-    index: segIdx,
-    from: parsedExcerpts[i]?.fromAnchor,
-    to: parsedExcerpts[i]?.toAnchor,
-  }));
+  // For each source group, apply collapsed content
+  for (const [articlePath, excerptInfos] of sourceGroups) {
+    // Only apply collapsed if at least one excerpt has anchors
+    const hasAnchors = excerptInfos.some(e => e.fromAnchor || e.toAnchor);
+    if (!hasAnchors) continue;
 
-  // Only apply collapsed if at least one excerpt has anchors
-  const hasAnchors = excerptInfos.some(e => e.from || e.to);
-  if (!hasAnchors) return;
+    const articleContent = files.get(articlePath);
+    if (!articleContent) continue;
 
-  // Resolve article path
-  const wikilink = parseWikilink(lensSection.source);
-  if (!wikilink || wikilink.error) return;
+    const collapsedResults = bundleArticleWithCollapsed(
+      articleContent,
+      excerptInfos.map(e => ({ from: e.fromAnchor, to: e.toAnchor })),
+      articlePath,
+    );
 
-  const articlePathResolved = resolveWikilinkPath(wikilink.path, lensPath);
-  const articlePath = findFileWithExtension(articlePathResolved, files);
-  if (!articlePath) return;
-
-  const articleContent = files.get(articlePath)!;
-
-  // Call bundleArticleWithCollapsed
-  const collapsedResults = bundleArticleWithCollapsed(
-    articleContent,
-    excerptInfos.map(e => ({ from: e.from, to: e.to })),
-    articlePath,
-  );
-
-  // Overlay collapsed_before/collapsed_after onto segments
-  for (let i = 0; i < excerptInfos.length && i < collapsedResults.length; i++) {
-    const segIdx = excerptInfos[i].index;
-    const collapsed = collapsedResults[i];
-    const segment = segments[segIdx] as ArticleExcerptSegment;
-    if (collapsed.collapsed_before) {
-      segment.collapsed_before = collapsed.collapsed_before;
-    }
-    if (collapsed.collapsed_after) {
-      segment.collapsed_after = collapsed.collapsed_after;
+    for (let i = 0; i < excerptInfos.length && i < collapsedResults.length; i++) {
+      const segIdx = excerptInfos[i].segmentIndex;
+      const collapsed = collapsedResults[i];
+      const segment = segments[segIdx] as ArticleSegment;
+      if (collapsed.collapsed_before) {
+        segment.collapsed_before = collapsed.collapsed_before;
+      }
+      if (collapsed.collapsed_after) {
+        segment.collapsed_after = collapsed.collapsed_after;
+      }
     }
   }
 }
@@ -1272,11 +910,11 @@ interface ConvertSegmentResult {
 
 /**
  * Convert a parsed lens segment into a final flattened segment.
- * For article-excerpt and video-excerpt, this involves extracting content from source files.
+ * For article and video, this involves extracting content from source files.
+ * Source comes from the parsed segment itself (set via inheritance in parseLens).
  */
 function convertSegment(
   parsedSegment: ParsedLensSegment,
-  lensSection: ParsedLensSection,
   lensPath: string,
   files: Map<string, string>,
   visitedPaths: Set<string>,
@@ -1315,25 +953,25 @@ function convertSegment(
       return { segment, errors };
     }
 
-    case 'article-excerpt': {
-      // Need to resolve the article path from the lens section's source field
-      if (!lensSection.source) {
+    case 'article': {
+      // Source comes from the parsed segment (set via inheritance in parseLens)
+      if (!parsedSegment.source) {
         errors.push({
           file: lensPath,
-          message: 'Article section missing source:: field for article-excerpt',
+          message: 'Article segment missing source (should have been set via inheritance)',
           severity: 'error',
         });
         return { segment: null, errors };
       }
 
-      const wikilink = parseWikilink(lensSection.source);
+      const wikilink = parseWikilink(parsedSegment.source);
       if (!wikilink || wikilink.error) {
         const suggestion = wikilink?.correctedPath
           ? `Did you mean '[[${wikilink.correctedPath}]]'?`
           : undefined;
         errors.push({
           file: lensPath,
-          message: `Invalid wikilink in article source: ${lensSection.source}`,
+          message: `Invalid wikilink in article source: ${parsedSegment.source}`,
           suggestion,
           severity: 'error',
         });
@@ -1344,7 +982,6 @@ function convertSegment(
       const articlePath = findFileWithExtension(articlePathResolved, files);
 
       if (!articlePath) {
-        // Find similar files to suggest
         const similarFiles = findSimilarFiles(articlePathResolved, files, 'articles');
         const suggestion = formatSuggestion(similarFiles, lensPath) ?? 'Check the file path in the wiki-link';
 
@@ -1357,7 +994,7 @@ function convertSegment(
         return { segment: null, errors };
       }
 
-      // Check tier violation (Lens → Article)
+      // Check tier violation (Lens -> Article)
       if (tierMap) {
         const parentTier = tierMap.get(lensPath) ?? 'production';
         const childTier = tierMap.get(articlePath) ?? 'production';
@@ -1370,10 +1007,6 @@ function convertSegment(
         }
       }
 
-      // Check if the article path points back to an already-visited structural file
-      // This would indicate a circular reference (e.g., a lens source pointing back to an LO)
-      // Note: We only check, we don't add article paths to visitedPaths since
-      // multiple segments can legitimately reference the same article
       if (visitedPaths.has(articlePath)) {
         errors.push({
           file: lensPath,
@@ -1384,6 +1017,10 @@ function convertSegment(
       }
 
       const articleContent = files.get(articlePath)!;
+
+      // Extract article metadata from frontmatter
+      const articleFrontmatter = parseFrontmatter(articleContent, articlePath);
+      const fm = articleFrontmatter.frontmatter;
 
       // Extract the excerpt
       const excerptResult = extractArticleExcerpt(
@@ -1398,35 +1035,45 @@ function convertSegment(
         return { segment: null, errors };
       }
 
-      const segment: ArticleExcerptSegment = {
-        type: 'article-excerpt',
+      const segment: ArticleSegment = {
+        type: 'article',
         content: excerptResult.content!,
       };
+
+      // Populate metadata from article frontmatter
+      if (fm.title) segment.title = fm.title as string;
+      if (fm.author) {
+        const raw = fm.author;
+        segment.author = Array.isArray(raw) ? raw.join(', ') : String(raw);
+      }
+      if (fm.source_url) segment.sourceUrl = fm.source_url as string;
+      if (fm.published) segment.published = String(fm.published);
+
       if (parsedSegment.optional) {
         segment.optional = true;
       }
       return { segment, errors };
     }
 
-    case 'video-excerpt': {
-      // Need to resolve the video/transcript path from the lens section's source field
-      if (!lensSection.source) {
+    case 'video': {
+      // Source comes from the parsed segment (set via inheritance in parseLens)
+      if (!parsedSegment.source) {
         errors.push({
           file: lensPath,
-          message: 'Video section missing source:: field for video-excerpt',
+          message: 'Video segment missing source (should have been set via inheritance)',
           severity: 'error',
         });
         return { segment: null, errors };
       }
 
-      const wikilink = parseWikilink(lensSection.source);
+      const wikilink = parseWikilink(parsedSegment.source);
       if (!wikilink || wikilink.error) {
         const suggestion = wikilink?.correctedPath
           ? `Did you mean '[[${wikilink.correctedPath}]]'?`
           : undefined;
         errors.push({
           file: lensPath,
-          message: `Invalid wikilink in video source: ${lensSection.source}`,
+          message: `Invalid wikilink in video source: ${parsedSegment.source}`,
           suggestion,
           severity: 'error',
         });
@@ -1437,7 +1084,6 @@ function convertSegment(
       const videoPath = findFileWithExtension(videoPathResolved, files);
 
       if (!videoPath) {
-        // Find similar files to suggest
         const similarFiles = findSimilarFiles(videoPathResolved, files, 'video_transcripts');
         const suggestion = formatSuggestion(similarFiles, lensPath) ?? 'Check the file path in the wiki-link';
 
@@ -1450,7 +1096,7 @@ function convertSegment(
         return { segment: null, errors };
       }
 
-      // Check tier violation (Lens → Video)
+      // Check tier violation (Lens -> Video)
       if (tierMap) {
         const parentTier = tierMap.get(lensPath) ?? 'production';
         const childTier = tierMap.get(videoPath) ?? 'production';
@@ -1463,10 +1109,6 @@ function convertSegment(
         }
       }
 
-      // Check if the video path points back to an already-visited structural file
-      // This would indicate a circular reference
-      // Note: We only check, we don't add video paths to visitedPaths since
-      // multiple segments can legitimately reference the same video
       if (visitedPaths.has(videoPath)) {
         errors.push({
           file: lensPath,
@@ -1478,18 +1120,16 @@ function convertSegment(
 
       const transcriptContent = files.get(videoPath)!;
 
+      // Extract video metadata from frontmatter
+      const videoFrontmatter = parseFrontmatter(transcriptContent, videoPath);
+      const vfm = videoFrontmatter.frontmatter;
+
       // Look for corresponding .timestamps.json file
-      // e.g., video_transcripts/foo.md -> video_transcripts/foo.timestamps.json
       const timestampsPath = videoPath.replace(/\.md$/, '.timestamps.json');
       let timestamps: TimestampEntry[] | undefined;
-      // Debug: Log path resolution (uncomment to debug)
-      // console.log('DEBUG videoPath:', videoPath);
-      // console.log('DEBUG timestampsPath:', timestampsPath);
-      // console.log('DEBUG files has timestamps:', files.has(timestampsPath));
       if (files.has(timestampsPath)) {
         try {
           timestamps = JSON.parse(files.get(timestampsPath)!) as TimestampEntry[];
-          // console.log('DEBUG loaded timestamps count:', timestamps.length);
         } catch {
           // JSON parse error - will fall back to inline timestamps
         }
@@ -1509,12 +1149,21 @@ function convertSegment(
         return { segment: null, errors };
       }
 
-      const segment: VideoExcerptSegment = {
-        type: 'video-excerpt',
+      const segment: VideoSegment = {
+        type: 'video',
         from: excerptResult.from!,
         to: excerptResult.to!,
         transcript: excerptResult.transcript!,
       };
+
+      // Populate metadata from video transcript frontmatter
+      if (vfm.title) segment.title = vfm.title as string;
+      if (vfm.channel) segment.channel = vfm.channel as string;
+      if (vfm.url) {
+        const extractedId = extractVideoIdFromUrl(vfm.url as string);
+        if (extractedId) segment.videoId = extractedId;
+      }
+
       if (parsedSegment.optional) {
         segment.optional = true;
       }
@@ -1556,20 +1205,6 @@ function convertSegment(
 
 /**
  * Flatten a single Lens file into a FlattenedModule.
- *
- * This wraps a standalone Lens as a single-section module so it can be
- * rendered by the frontend using the existing Module.tsx component.
- *
- * The resulting module has:
- * - slug: 'lens/' + fileNameToSlug(lensPath)
- * - title: extracted from source metadata or lens header
- * - sections: exactly one section (lens-article, lens-video, or page)
- *
- * @param lensPath - Path to the lens file within the files Map
- * @param files - Map of all file paths to their content
- * @param tierMap - Optional tier map for filtering ignored content
- * @param preParsedLens - Optional pre-parsed lens to avoid re-parsing
- * @returns Flattened module with a single section, plus any errors
  */
 export function flattenLens(
   lensPath: string,
@@ -1607,73 +1242,20 @@ export function flattenLens(
 
   const visitedPaths = new Set<string>([lensPath]);
 
-  // Process lens sections into a single flattened Section
-  let sectionType: 'page' | 'lens-video' | 'lens-article' = 'page';
+  // Flatten lens segments using shared helper
+  const { segments, errors: flattenErrors } = flattenSingleLens(lens, lensPath, files, visitedPaths, tierMap);
+  errors.push(...flattenErrors);
+
+  // Derive title from first article/video segment metadata, or fallback to filename
   const meta: SectionMeta = {};
-  const segments: Segment[] = [];
-  let videoId: string | undefined;
-
-  for (const lensSection of lens.sections) {
-    if (lensSection.type === 'lens-article') {
-      sectionType = 'lens-article';
-
-      // Extract article metadata from the article file's frontmatter
-      if (lensSection.source) {
-        const articleWikilink = parseWikilink(lensSection.source);
-        if (articleWikilink && !articleWikilink.error) {
-          const articlePathResolved = resolveWikilinkPath(articleWikilink.path, lensPath);
-          const articlePath = findFileWithExtension(articlePathResolved, files);
-          if (articlePath) {
-            const articleContent = files.get(articlePath)!;
-            const articleFrontmatter = parseFrontmatter(articleContent, articlePath);
-            if (articleFrontmatter.frontmatter.title)
-              meta.title = articleFrontmatter.frontmatter.title as string;
-            if (articleFrontmatter.frontmatter.author)
-              meta.author = articleFrontmatter.frontmatter.author as string;
-            if (articleFrontmatter.frontmatter.source_url)
-              meta.sourceUrl = articleFrontmatter.frontmatter.source_url as string;
-            if (articleFrontmatter.frontmatter.published)
-              meta.published = String(articleFrontmatter.frontmatter.published);
-          }
-        }
-      }
-    } else if (lensSection.type === 'page') {
-      sectionType = 'page';
-      if (lensSection.title) meta.title = lensSection.title;
-    } else if (lensSection.type === 'lens-video') {
-      sectionType = 'lens-video';
-
-      // Extract video metadata from the video transcript file's frontmatter
-      if (lensSection.source) {
-        const videoWikilink = parseWikilink(lensSection.source);
-        if (videoWikilink && !videoWikilink.error) {
-          const videoPathResolved = resolveWikilinkPath(videoWikilink.path, lensPath);
-          const videoPath = findFileWithExtension(videoPathResolved, files);
-          if (videoPath) {
-            const videoContent = files.get(videoPath)!;
-            const videoFrontmatter = parseFrontmatter(videoContent, videoPath);
-            if (videoFrontmatter.frontmatter.title)
-              meta.title = videoFrontmatter.frontmatter.title as string;
-            if (videoFrontmatter.frontmatter.channel)
-              meta.channel = videoFrontmatter.frontmatter.channel as string;
-            if (videoFrontmatter.frontmatter.url) {
-              const extractedId = extractVideoIdFromUrl(videoFrontmatter.frontmatter.url as string);
-              if (extractedId) videoId = extractedId;
-            }
-          }
-        }
-      }
+  for (const seg of segments) {
+    if (seg.type === 'article' && seg.title) {
+      meta.title = seg.title;
+      break;
+    } else if (seg.type === 'video' && seg.title) {
+      meta.title = seg.title;
+      break;
     }
-
-    // Process segments
-    for (const parsedSegment of lensSection.segments) {
-      const segmentResult = convertSegment(parsedSegment, lensSection, lensPath, files, visitedPaths, tierMap);
-      errors.push(...segmentResult.errors);
-      if (segmentResult.segment) segments.push(segmentResult.segment);
-    }
-
-    // Apply collapsed content to article-excerpt segments
-    applyCollapsedContent(segments, lensSection.segments, lensSection, lensPath, files);
   }
 
   // Fallback title from filename if not extracted from source metadata
@@ -1682,7 +1264,7 @@ export function flattenLens(
   }
 
   const section: Section = {
-    type: sectionType,
+    type: 'lens',
     meta,
     segments,
     optional: false,
@@ -1690,7 +1272,6 @@ export function flattenLens(
     learningOutcomeName: null,
     contentId: lens.id ?? null,
     tldr: lens.tldr,
-    videoId: videoId ?? null,
     ...computeSectionStats(segments),
   };
 

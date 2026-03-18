@@ -31,7 +31,7 @@ export interface Course {
 }
 
 export interface Section {
-  type: 'page' | 'lens-video' | 'lens-article' | 'test';
+  type: 'lens' | 'test';
   meta: SectionMeta;
   segments: Segment[];
   optional?: boolean;
@@ -39,18 +39,13 @@ export interface Section {
   contentId: string | null;
   learningOutcomeId: string | null;
   learningOutcomeName: string | null;
-  videoId: string | null;  // video sections only
-  wordCount?: number;              // word count of text + article-excerpt segments
-  videoDurationSeconds?: number;   // total seconds of video-excerpt segments
+  wordCount?: number;              // word count of text + article segments
+  videoDurationSeconds?: number;   // total seconds of video segments
   tldr?: string;
 }
 
 export interface SectionMeta {
   title?: string;
-  author?: string;      // article sections only
-  sourceUrl?: string;   // article sections only
-  published?: string;   // article sections only
-  channel?: string;     // video sections only
 }
 
 export interface ProgressionItem {
@@ -85,19 +80,26 @@ export interface ChatSegment {
   optional?: boolean;
 }
 
-export interface ArticleExcerptSegment {
-  type: 'article-excerpt';
+export interface ArticleSegment {
+  type: 'article';
   content: string;              // Extracted excerpt content
   collapsed_before?: string;    // Content between previous excerpt and this one (snake_case for Python compat)
   collapsed_after?: string;     // Content after this excerpt to end/next excerpt
+  title?: string;               // From article frontmatter
+  author?: string;              // From article frontmatter
+  sourceUrl?: string;           // From article frontmatter
+  published?: string;           // From article frontmatter
   optional?: boolean;
 }
 
-export interface VideoExcerptSegment {
-  type: 'video-excerpt';
+export interface VideoSegment {
+  type: 'video';
   from: number;                 // Start time in seconds
   to: number | null;            // End time in seconds (null = until end)
   transcript: string;           // Extracted transcript content
+  title?: string;               // From video transcript frontmatter
+  channel?: string;             // From video transcript frontmatter
+  videoId?: string;             // YouTube video ID from transcript URL
   optional?: boolean;
 }
 
@@ -123,7 +125,7 @@ export interface RoleplaySegment {
   feedback?: boolean;
 }
 
-export type Segment = TextSegment | ChatSegment | ArticleExcerptSegment | VideoExcerptSegment | QuestionSegment | RoleplaySegment;
+export type Segment = TextSegment | ChatSegment | ArticleSegment | VideoSegment | QuestionSegment | RoleplaySegment;
 
 import { flattenModule, flattenLens } from './flattener/index.js';
 import { parseModule } from './parser/module.js';
@@ -146,6 +148,7 @@ export { checkTierViolation } from './validator/tier.js';
 
 /**
  * Validate lens excerpts by checking if source files exist and anchors/timestamps are valid.
+ * Iterates flat segments, using each segment's source field (set via inheritance in parseLens).
  */
 function validateLensExcerpts(
   lens: ParsedLens,
@@ -155,93 +158,66 @@ function validateLensExcerpts(
 ): ContentError[] {
   const errors: ContentError[] = [];
 
-  for (const section of lens.sections) {
-    // Skip sections without source (e.g., Text sections)
-    if (!section.source) continue;
+  for (const segment of lens.segments) {
+    if (segment.type === 'article' && segment.source) {
+      const wikilink = parseWikilink(segment.source);
+      if (!wikilink || wikilink.error) continue;
 
-    // Resolve the source wikilink to get the actual file path
-    const wikilink = parseWikilink(section.source);
-    if (!wikilink || wikilink.error) continue;
+      const resolvedPath = resolveWikilinkPath(wikilink.path, lensPath);
+      const actualPath = findFileWithExtension(resolvedPath, files);
 
-    const resolvedPath = resolveWikilinkPath(wikilink.path, lensPath);
-    const actualPath = findFileWithExtension(resolvedPath, files);
-
-    if (!actualPath) {
-      // Find similar files to suggest
-      const expectedDir = section.type.includes('article') ? 'articles' : 'video_transcripts';
-      const similarFiles = findSimilarFiles(resolvedPath, files, expectedDir);
-      const suggestion = formatSuggestion(similarFiles, lensPath) ?? 'Check that the file exists and the path is correct';
-
-      errors.push({
-        file: lensPath,
-        line: section.line,
-        message: `Source file not found: ${resolvedPath}`,
-        suggestion,
-        severity: 'error',
-      });
-      continue;
-    }
-
-    // Check tier violation (Lens → Article/Video)
-    if (tierMap) {
-      const childLabel = section.type.includes('article') ? 'article' : 'video transcript';
-      const parentTier = tierMap.get(lensPath) ?? 'production';
-      const childTier = tierMap.get(actualPath) ?? 'production';
-      const violation = checkTierViolation(lensPath, parentTier, actualPath, childTier, childLabel, section.line);
-      if (violation) {
-        errors.push(violation);
+      if (!actualPath) {
+        const similarFiles = findSimilarFiles(resolvedPath, files, 'articles');
+        const suggestion = formatSuggestion(similarFiles, lensPath) ?? 'Check that the file exists and the path is correct';
+        errors.push({ file: lensPath, message: `Source file not found: ${resolvedPath}`, suggestion, severity: 'error' });
         continue;
       }
-      if (childTier === 'ignored') {
+
+      if (tierMap) {
+        const parentTier = tierMap.get(lensPath) ?? 'production';
+        const childTier = tierMap.get(actualPath) ?? 'production';
+        const violation = checkTierViolation(lensPath, parentTier, actualPath, childTier, 'article');
+        if (violation) { errors.push(violation); continue; }
+        if (childTier === 'ignored') continue;
+      }
+
+      const sourceContent = files.get(actualPath)!;
+      const result = extractArticleExcerpt(sourceContent, segment.fromAnchor, segment.toAnchor, actualPath);
+      if (result.error) {
+        errors.push({ ...result.error, file: lensPath });
+      }
+    } else if (segment.type === 'video' && segment.source) {
+      const wikilink = parseWikilink(segment.source);
+      if (!wikilink || wikilink.error) continue;
+
+      const resolvedPath = resolveWikilinkPath(wikilink.path, lensPath);
+      const actualPath = findFileWithExtension(resolvedPath, files);
+
+      if (!actualPath) {
+        const similarFiles = findSimilarFiles(resolvedPath, files, 'video_transcripts');
+        const suggestion = formatSuggestion(similarFiles, lensPath) ?? 'Check that the file exists and the path is correct';
+        errors.push({ file: lensPath, message: `Source file not found: ${resolvedPath}`, suggestion, severity: 'error' });
         continue;
       }
-    }
 
-    const sourceContent = files.get(actualPath)!;
-
-    // Validate article excerpts
-    if (section.type === 'article' || section.type === 'lens-article') {
-      for (const segment of section.segments) {
-        if (segment.type === 'article-excerpt') {
-          const result = extractArticleExcerpt(
-            sourceContent,
-            segment.fromAnchor,
-            segment.toAnchor,
-            actualPath
-          );
-          if (result.error) {
-            errors.push({ ...result.error, file: lensPath });
-          }
-        }
+      if (tierMap) {
+        const parentTier = tierMap.get(lensPath) ?? 'production';
+        const childTier = tierMap.get(actualPath) ?? 'production';
+        const violation = checkTierViolation(lensPath, parentTier, actualPath, childTier, 'video transcript');
+        if (violation) { errors.push(violation); continue; }
+        if (childTier === 'ignored') continue;
       }
-    }
 
-    // Validate video excerpts
-    if (section.type === 'video' || section.type === 'lens-video') {
-      // Look for corresponding .timestamps.json file
       const timestampsPath = actualPath.replace(/\.md$/, '.timestamps.json');
       let timestamps: TimestampEntry[] | undefined;
       if (files.has(timestampsPath)) {
-        try {
-          timestamps = JSON.parse(files.get(timestampsPath)!) as TimestampEntry[];
-        } catch {
-          // JSON parse error - will fall back to inline timestamps
-        }
+        try { timestamps = JSON.parse(files.get(timestampsPath)!) as TimestampEntry[]; } catch { /* fall back */ }
       }
 
-      for (const segment of section.segments) {
-        if (segment.type === 'video-excerpt') {
-          const result = extractVideoExcerpt(
-            sourceContent,
-            segment.fromTimeStr,
-            segment.toTimeStr,
-            actualPath,
-            timestamps
-          );
-          if (result.error) {
-            errors.push({ ...result.error, file: lensPath });
-          }
-        }
+      const sourceContent = files.get(actualPath)!;
+      const result = extractVideoExcerpt(sourceContent, segment.fromTimeStr, segment.toTimeStr, actualPath, timestamps);
+      if (result.error) {
+        errors.push({ ...result.error, file: lensPath });
       }
     }
   }
@@ -307,21 +283,22 @@ export function processContent(files: Map<string, string>): ProcessResult {
         filePathToSlug.set(path, result.modules[0].parentSlug);
       }
 
-      // Collect section-level id:: fields from raw # Page: sections.
+      // Collect section-level id:: fields from raw # Lens: sections (inline lenses).
+      // Referenced lenses (with source::) get their id from the lens file itself.
       if (result.modules.length > 0) {
         const rawParse = parseModule(content, path);
         if (rawParse.module) {
           for (const section of rawParse.module.sections) {
-            if (section.type === 'page' && !section.fields.id) {
+            if (section.type === 'lens' && !section.fields.source && !section.fields.id) {
               errors.push({
                 file: path,
                 line: section.line,
-                message: `Page section '${section.title}' is missing required id:: field`,
+                message: `Inline Lens section '${section.title}' is missing required id:: field`,
                 suggestion: 'Add an id:: field with a UUID (e.g., id:: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)',
                 severity: 'error',
               });
             }
-            if (section.type === 'page' && section.fields.id) {
+            if (section.type === 'lens' && section.fields.id) {
               uuidEntries.push({
                 uuid: section.fields.id,
                 file: path,

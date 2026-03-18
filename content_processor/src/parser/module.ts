@@ -288,7 +288,7 @@ export function parseModule(content: string, file: string): ModuleParseResult {
       file,
       line: bodyStartLine,
       message: 'Module has no sections',
-      suggestion: "Add sections like '# Page:', '# Learning Outcome:', or '# Uncategorized:'",
+      suggestion: "Add sections like '# Lens:', or '# Learning Outcome:'",
       severity: 'warning',
     });
   }

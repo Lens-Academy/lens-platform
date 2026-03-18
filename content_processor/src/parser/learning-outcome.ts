@@ -180,7 +180,7 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
 
     const testSegments: ParsedLensSegment[] = [];
     for (const rawSeg of rawSegments) {
-      const { segment, errors: conversionErrors } = convertSegment(rawSeg, 'page', file);
+      const { segment, errors: conversionErrors } = convertSegment(rawSeg, 'lens', file);
       for (const err of conversionErrors) {
         if (err.line) {
           err.line += bodyStartLine - 1;

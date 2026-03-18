@@ -20,18 +20,17 @@ export interface SectionsResult {
 }
 
 // Valid section types per file type (exported for use by other parsers)
-export const MODULE_SECTION_TYPES = new Set(['learning outcome', 'page', 'uncategorized']);
+export const MODULE_SECTION_TYPES = new Set(['learning outcome', 'lens']);
 export const LO_SECTION_TYPES = new Set(['lens', 'test']);
-// Lens sections: input headers are `### Article:`, `### Video:`, `### Page:`
-// Output types are `lens-article`, `lens-video`, `page` (v2 format)
+// Legacy: Lens H3 section types (no longer used — lenses are now flat H4 segments)
 export const LENS_SECTION_TYPES = new Set(['page', 'article', 'video']);
 
 // All known structural header types (sections + segments) for markdown heading detection
 const ALL_STRUCTURAL_TYPES = new Set([
   // Section types
-  'learning outcome', 'page', 'uncategorized', 'lens', 'test', 'module', 'meeting', 'article', 'video',
+  'learning outcome', 'lens', 'test', 'module', 'meeting', 'article', 'video',
   // Segment types
-  'text', 'chat', 'article-excerpt', 'video-excerpt', 'question', 'roleplay',
+  'text', 'chat', 'question', 'roleplay',
 ]);
 
 // Fields that commonly contain markdown with headings
