@@ -116,7 +116,7 @@ to:: 5:45
 id: test-id
 ---
 
-#### Chat: Discussion Time
+#### Chat
 instructions::
 First line of instructions.
 Second line of instructions.
@@ -128,7 +128,6 @@ Third line of instructions.
     const chatSeg = result.lens?.segments[0];
     expect(chatSeg?.type).toBe('chat');
     expect((chatSeg as any).instructions).toContain('First line of instructions.');
-    expect((chatSeg as any).title).toBe('Discussion Time');
   });
 
   it('parses article with only from:: (to end of article)', () => {
@@ -187,7 +186,7 @@ source:: [[../articles/deep-dive.md|Article]]
     expect((result.lens?.segments[1] as any).toAnchor).toBeUndefined();
   });
 
-  it('parses chat segment with title', () => {
+  it('errors when chat segment has a title', () => {
     const content = `---
 id: test-id
 ---
@@ -198,9 +197,27 @@ instructions:: Discuss what you learned.
 
     const result = parseLens(content, 'Lenses/lens1.md');
 
-    const chatSeg = result.lens?.segments[0];
-    expect(chatSeg?.type).toBe('chat');
-    expect((chatSeg as any).title).toBe('Final Discussion');
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.match(/titles are not supported/i)
+    )).toBe(true);
+  });
+
+  it('errors when text segment has a title', () => {
+    const content = `---
+id: test-id
+---
+
+#### Text: Some Title
+content:: Hello.
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.match(/titles are not supported/i)
+    )).toBe(true);
   });
 
   it('parses segment type case-insensitively', () => {
@@ -224,6 +241,7 @@ instructions:: Yet another.
     for (const seg of result.lens!.segments) {
       expect(seg.type).toBe('chat');
     }
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
   });
 
   it('warns about from:: field in text segment', () => {

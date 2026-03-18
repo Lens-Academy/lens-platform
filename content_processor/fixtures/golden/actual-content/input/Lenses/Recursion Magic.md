@@ -14,7 +14,7 @@ to:: "recursive enough."
 #### Text
 content::
 If the leftover grain only produced exactly the same amount of leftover grain on the next harvest, the agricultural revolution never would have happened. In order for positive feedback to occur, the new input needs to improve the output.
-#### Chat: A more recursive mouse
+#### Chat
 instructions::
 TLDR of what the user just read:
 An article that explains EURISKO, an optimising compiler, and examines why such a program, if plugged into itself recursively does not generate an infinite degree of program optimisation. The answers given are that the input-output behaviour is left unchanged. An optimised EURISKO might optimize a program faster than its predecessor, but it still outputs the same thing.  

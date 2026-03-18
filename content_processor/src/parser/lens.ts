@@ -19,7 +19,6 @@ export interface ParsedTextSegment {
 
 export interface ParsedChatSegment {
   type: 'chat';
-  title?: string;
   instructions?: string;
   hidePreviousContentFromUser?: boolean;
   hidePreviousContentFromTutor?: boolean;
@@ -233,6 +232,17 @@ export function convertSegment(
 
   switch (raw.type) {
     case 'text': {
+      if (raw.title) {
+        const capitalized = raw.type[0].toUpperCase() + raw.type.slice(1);
+        errors.push({
+          file,
+          line: raw.line,
+          message: `Titles are not supported for ${capitalized} segments — use just '#### ${capitalized}'`,
+          suggestion: `Remove the title after '${capitalized}:'`,
+          severity: 'error',
+        });
+      }
+
       const hasContentField = 'content' in raw.fields;
       const content = raw.fields.content;
 
@@ -279,6 +289,17 @@ export function convertSegment(
     }
 
     case 'chat': {
+      if (raw.title) {
+        const capitalized = raw.type[0].toUpperCase() + raw.type.slice(1);
+        errors.push({
+          file,
+          line: raw.line,
+          message: `Titles are not supported for ${capitalized} segments — use just '#### ${capitalized}'`,
+          suggestion: `Remove the title after '${capitalized}:'`,
+          severity: 'error',
+        });
+      }
+
       const hasInstructionsField = 'instructions' in raw.fields;
       const instructions = raw.fields.instructions;
 
@@ -308,7 +329,6 @@ export function convertSegment(
 
       const segment: ParsedChatSegment = {
         type: 'chat',
-        title: raw.title,
         instructions: instructions || '',
         hidePreviousContentFromUser: raw.fields.hidePreviousContentFromUser?.toLowerCase() === 'true' ? true : undefined,
         hidePreviousContentFromTutor: raw.fields.hidePreviousContentFromTutor?.toLowerCase() === 'true' ? true : undefined,

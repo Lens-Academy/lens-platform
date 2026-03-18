@@ -13,7 +13,7 @@ to:: "the "evasion of human control"."
 #### Text
 content::
 In your own words, what is instrumental convergence?
-#### Chat: Discussion on X-Risk
+#### Chat
 instructions::
 TLDR of what the user just read:
 AI x-risk is the hypothesis that AGI/superintelligence could cause human extinction

@@ -11,7 +11,7 @@ to:: 15:37
 #### Text
 content::
 Which objection stood out most to you?
-#### Chat: Discussion on Objections
+#### Chat
 instructions::
 TLDR of what the user just watched:
 The video presents 10 common objections to AI safety concerns and refutes each one. Key rebuttals include: instrumental convergence explains why "just don't add bad goals" fails; implicit goals make systems LESS safe; the "asteroid analogy" shows why early preparation matters; being "for AI safety" is not the same as being "against AI."

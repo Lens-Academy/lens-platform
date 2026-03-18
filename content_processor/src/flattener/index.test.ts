@@ -663,7 +663,7 @@ id: page-lens-id
 content::
 We refer you to an external interactive resource.
 
-#### Chat: Discussion
+#### Chat
 instructions:: Discuss what you learned from the external resource.
 `],
     ]);
