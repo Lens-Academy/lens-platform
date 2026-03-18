@@ -4,7 +4,9 @@ import { useScrollDirection } from "../hooks/useScrollDirection";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { UserMenu } from "./nav/UserMenu";
 import StageProgressBar from "./module/StageProgressBar";
+import BreadcrumbNav from "./module/BreadcrumbNav";
 import type { Stage } from "../types/module";
+import type { ModuleInfo, StageInfo } from "../types/course";
 
 // CSS styles for hiding elements while keeping them measurable
 const hiddenStyle: React.CSSProperties = {
@@ -25,6 +27,12 @@ interface ModuleHeaderProps {
   onNext: () => void;
   onMenuToggle: () => void;
   testModeActive?: boolean;
+  // Breadcrumb context (optional — falls back to plain title when absent)
+  unitName?: string;
+  unitModules?: ModuleInfo[];
+  currentModuleSlug?: string;
+  currentModuleSections?: StageInfo[];
+  courseId?: string;
 }
 
 // 0 = show everything, 1 = hide brand, 2 = hide brand+username, 3 = compact nav, 4 = hide title
@@ -42,8 +50,14 @@ export function ModuleHeader({
   onNext,
   onMenuToggle,
   testModeActive,
+  unitName,
+  unitModules,
+  currentModuleSlug,
+  currentModuleSections,
+  courseId,
 }: ModuleHeaderProps) {
   const scrollDirection = useScrollDirection(100);
+  const [breadcrumbOpen, setBreadcrumbOpen] = useState(false);
 
   // Refs for layout measurement
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,7 +65,7 @@ export function ModuleHeader({
   const rightRef = useRef<HTMLDivElement>(null);
   const centerRef = useRef<HTMLDivElement>(null);
   const brandRef = useRef<HTMLSpanElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
+  const titleRef = useRef<HTMLElement>(null);
   const compactNavRef = useRef<HTMLDivElement>(null);
 
   // Priority-based visibility: single number, strictly ordered
@@ -170,7 +184,7 @@ export function ModuleHeader({
     "(max-width: 767px), (max-height: 700px)",
     false,
   );
-  const shouldHideHeader = isCompactViewport && scrollDirection === "down";
+  const shouldHideHeader = isCompactViewport && scrollDirection === "down" && !breadcrumbOpen;
 
   // Pipe header visibility into CSS variable for sticky dependents
   useEffect(() => {
@@ -234,13 +248,29 @@ export function ModuleHeader({
             </a>
             <span style={{ color: "var(--brand-border)" }}>|</span>
           </span>
-          <h1
-            ref={titleRef}
-            className="text-base font-semibold text-gray-900 truncate max-w-[200px] font-display"
-            style={priority >= 4 ? hiddenStyle : undefined}
-          >
-            {moduleTitle}
-          </h1>
+          {unitName ? (
+            <BreadcrumbNav
+              ref={titleRef}
+              unitName={unitName}
+              currentModuleSlug={currentModuleSlug!}
+              currentSectionIndex={currentSectionIndex}
+              completedSections={completedStages}
+              unitModules={unitModules!}
+              currentModuleSections={currentModuleSections!}
+              courseId={courseId!}
+              onSectionClick={onStageClick}
+              priority={priority}
+              onOpenChange={setBreadcrumbOpen}
+            />
+          ) : (
+            <h1
+              ref={titleRef}
+              className="text-base font-semibold text-gray-900 truncate max-w-[200px] font-display"
+              style={priority >= 4 ? hiddenStyle : undefined}
+            >
+              {moduleTitle}
+            </h1>
+          )}
         </div>
 
         {/* Center: Compact nav — always in DOM for measurement, hidden when priority < 3 */}

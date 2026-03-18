@@ -9,7 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { ArticleData, Stage } from "@/types/module";
-import type { StageInfo } from "@/types/course";
+import type { StageInfo, ModuleInfo } from "@/types/course";
 import type { ViewMode } from "@/types/viewMode";
 import type {
   Module as ModuleType,
@@ -65,6 +65,7 @@ import {
   getCompletionButtonText,
   getSectionTextLength,
 } from "@/utils/completionButtonText";
+import { getUnitLabel } from "@/utils/unitLabel";
 
 interface ModuleProps {
   courseId: string;
@@ -676,6 +677,24 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     const isLastInParentGroup = !nextModuleSharesParent;
 
     return { parentTitle, isLastInParentGroup, nextModuleSharesParent };
+  }, [courseProgress, module]);
+
+  // Compute unit context for breadcrumb navigation
+  const unitContext = useMemo((): {
+    unitName: string;
+    unitModules: ModuleInfo[];
+  } | null => {
+    if (!courseProgress || !module) return null;
+    for (let i = 0; i < courseProgress.units.length; i++) {
+      const unit = courseProgress.units[i];
+      if (unit.modules.some((m) => m.slug === module.slug)) {
+        return {
+          unitName: getUnitLabel(unit, i),
+          unitModules: unit.modules,
+        };
+      }
+    }
+    return null;
   }, [courseProgress, module]);
 
   // Compute skipped optional sections (for module-complete modal)
@@ -1819,6 +1838,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           onNext={handleNext}
           onMenuToggle={() => drawerRef.current?.toggle()}
           testModeActive={testModeActive}
+          // Breadcrumb context
+          unitName={unitContext?.unitName}
+          unitModules={unitContext?.unitModules}
+          currentModuleSlug={module.slug}
+          currentModuleSections={stagesForDrawer}
+          courseId={courseId}
         />
 
         {/* Layout: content + optional chat sidebar (TOC uses absolute positioning via ArticleExcerptGroup) */}

@@ -9,6 +9,7 @@ import { ChevronRight, Users } from "lucide-react";
 import { OptionalBadge } from "../OptionalBadge";
 import { formatDurationMinutes } from "../../utils/duration";
 import { Tooltip } from "../Tooltip";
+import { getUnitLabel } from "../../utils/unitLabel";
 
 /**
  * Circular progress indicator:
@@ -273,11 +274,7 @@ export default function CourseTimeline({
         <div>
           {units.map((unit, unitIdx) => {
             const isExpanded = expandedUnits.has(unitIdx);
-            const weekLabel = unit.meetingName
-              ? `${unit.meetingNumber}. ${unit.meetingName}`
-              : unit.meetingNumber !== null
-                ? `Week ${unit.meetingNumber}`
-                : `Week ${unitIdx + 1}`;
+            const weekLabel = getUnitLabel(unit, unitIdx);
             const isUpcoming = unitIdx === upcomingIndex;
 
             // Due date for the upcoming unit (3 days before meeting)
