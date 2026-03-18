@@ -1842,8 +1842,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           unitName={unitContext?.unitName}
           unitModules={unitContext?.unitModules}
           currentModuleSlug={module.slug}
-          currentModuleSections={stagesForDrawer}
-          courseId={courseId}
         />
 
         {/* Layout: content + optional chat sidebar (TOC uses absolute positioning via ArticleExcerptGroup) */}
@@ -2357,14 +2355,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
         <ModuleDrawer
           ref={drawerRef}
-          moduleTitle={module.title}
-          stages={stagesForDrawer}
-          completedStages={completedSections}
+          unitName={unitContext?.unitName ?? module.title}
+          unitModules={unitContext?.unitModules ?? []}
+          currentModuleSlug={module.slug}
+          currentModuleSections={stagesForDrawer}
+          completedSections={completedSections}
           currentSectionIndex={currentSectionIndex}
-          onStageClick={handleStageClick}
+          onSectionClick={handleStageClick}
           courseId={courseId}
-          courseTitle={courseProgress?.course.title}
-          testModeActive={testModeActive}
         />
 
         <SectionChoiceModal

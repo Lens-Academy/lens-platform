@@ -1,5 +1,5 @@
 /**
- * Slide-out drawer for module overview.
+ * Slide-out drawer for unit navigation.
  * Owns its own open/close state; parent triggers via imperative toggle() ref.
  */
 
@@ -12,36 +12,36 @@ import {
 } from "react";
 import { useMedia } from "react-use";
 import { useScrollContainer } from "@/hooks/useScrollContainer";
-import { X, ChevronRight } from "lucide-react";
-import type { StageInfo } from "../../types/course";
-import ModuleOverview from "../course/ModuleOverview";
+import { X } from "lucide-react";
+import type { ModuleInfo, StageInfo } from "../../types/course";
+import UnitNavigationPanel from "./UnitNavigationPanel";
 
 export type ModuleDrawerHandle = {
   toggle: () => void;
 };
 
 type ModuleDrawerProps = {
-  moduleTitle: string;
-  stages: StageInfo[];
-  completedStages: Set<number>;
+  unitName: string;
+  unitModules: ModuleInfo[];
+  currentModuleSlug: string;
+  currentModuleSections: StageInfo[];
+  completedSections: Set<number>;
   currentSectionIndex: number;
-  onStageClick: (index: number) => void;
-  courseId?: string;
-  courseTitle?: string;
-  testModeActive?: boolean;
+  onSectionClick: (index: number) => void;
+  courseId: string;
 };
 
 const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
   function ModuleDrawer(
     {
-      moduleTitle,
-      stages,
-      completedStages,
+      unitName,
+      unitModules,
+      currentModuleSlug,
+      currentModuleSections,
+      completedSections,
       currentSectionIndex,
-      onStageClick,
+      onSectionClick,
       courseId,
-      courseTitle,
-      testModeActive,
     },
     ref,
   ) {
@@ -76,6 +76,9 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
       }
     }, [isMobile, isOpen, scrollContainer]);
 
+    const currentModule = unitModules.find((m) => m.slug === currentModuleSlug);
+    const moduleTitle = currentModule?.title ?? currentModuleSlug;
+
     return (
       <>
         {/* Backdrop to close drawer - dimmed on mobile */}
@@ -91,7 +94,7 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
         {/* Drawer panel - slides in from left */}
         <div
           className={`fixed top-0 left-0 h-full z-50 transition-transform duration-300 [transition-timing-function:var(--ease-spring)] ${
-            isMobile ? "w-[80%]" : "w-[40%] max-w-md"
+            isMobile ? "w-[90%]" : "w-[572px]"
           } ${
             isOpen
               ? "translate-x-0 shadow-[8px_0_30px_-5px_rgba(0,0,0,0.2)]"
@@ -103,30 +106,19 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
             backgroundColor: "var(--brand-bg)",
           }}
         >
-          {/* Header with breadcrumb */}
+          {/* Header */}
           <div
             className="flex items-center justify-between p-4 border-b"
             style={{ borderColor: "var(--brand-border)" }}
           >
             <div className="flex items-center gap-1.5 min-w-0 text-sm">
-              {courseId ? (
-                <>
-                  <a
-                    href={`/course/${courseId}`}
-                    className="text-slate-500 hover:text-slate-900 transition-colors truncate shrink-0 font-display"
-                  >
-                    {courseTitle || "Course"}
-                  </a>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="font-medium text-slate-900 truncate font-display">
-                    {moduleTitle}
-                  </span>
-                </>
-              ) : (
-                <span className="font-medium text-slate-900 truncate font-display">
-                  {moduleTitle}
-                </span>
-              )}
+              <span className="text-slate-600 truncate shrink-0 font-display">
+                {unitName}
+              </span>
+              <span className="text-slate-400 shrink-0">&rsaquo;</span>
+              <span className="font-medium text-slate-900 truncate font-display">
+                {moduleTitle}
+              </span>
             </div>
             <button
               onMouseDown={handleClose}
@@ -138,16 +130,17 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
           </div>
 
           {/* Content */}
-          <div className="p-4 h-[calc(100%-4rem)] overflow-y-auto overscroll-contain">
-            <ModuleOverview
-              moduleTitle={moduleTitle}
-              stages={stages}
-              status="in_progress"
-              completedStages={completedStages}
+          <div className="py-4 pl-2 pr-4 h-[calc(100%-4rem)] overflow-y-auto overscroll-contain">
+            <UnitNavigationPanel
+              unitName={unitName}
+              currentModuleSlug={currentModuleSlug}
               currentSectionIndex={currentSectionIndex}
-              onStageClick={onStageClick}
-              showActions={false}
-              testModeActive={testModeActive}
+              completedSections={completedSections}
+              unitModules={unitModules}
+              currentModuleSections={currentModuleSections}
+              courseId={courseId}
+              onSectionClick={onSectionClick}
+              onClose={handleClose}
             />
           </div>
         </div>

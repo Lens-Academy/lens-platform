@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useMedia } from "react-use";
 import { useScrollDirection } from "../hooks/useScrollDirection";
-import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { UserMenu } from "./nav/UserMenu";
 import StageProgressBar from "./module/StageProgressBar";
 import BreadcrumbNav from "./module/BreadcrumbNav";
 import type { Stage } from "../types/module";
-import type { ModuleInfo, StageInfo } from "../types/course";
+import type { ModuleInfo } from "../types/course";
 
 // CSS styles for hiding elements while keeping them measurable
 const hiddenStyle: React.CSSProperties = {
@@ -31,8 +31,6 @@ interface ModuleHeaderProps {
   unitName?: string;
   unitModules?: ModuleInfo[];
   currentModuleSlug?: string;
-  currentModuleSections?: StageInfo[];
-  courseId?: string;
 }
 
 // 0 = show everything, 1 = hide brand, 2 = hide brand+username, 3 = compact nav, 4 = hide title
@@ -53,11 +51,8 @@ export function ModuleHeader({
   unitName,
   unitModules,
   currentModuleSlug,
-  currentModuleSections,
-  courseId,
 }: ModuleHeaderProps) {
   const scrollDirection = useScrollDirection(100);
-  const [breadcrumbOpen, setBreadcrumbOpen] = useState(false);
 
   // Refs for layout measurement
   const containerRef = useRef<HTMLDivElement>(null);
@@ -184,7 +179,7 @@ export function ModuleHeader({
     "(max-width: 767px), (max-height: 700px)",
     false,
   );
-  const shouldHideHeader = isCompactViewport && scrollDirection === "down" && !breadcrumbOpen;
+  const shouldHideHeader = isCompactViewport && scrollDirection === "down";
 
   // Pipe header visibility into CSS variable for sticky dependents
   useEffect(() => {
@@ -220,47 +215,28 @@ export function ModuleHeader({
           ref={leftRef}
           className="flex items-center gap-2 min-w-0 flex-shrink-0"
         >
-          <button
-            onMouseDown={onMenuToggle}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-black/5 transition-all active:scale-95 shrink-0"
-            aria-label="Module overview"
-          >
-            <Menu className="w-5 h-5 text-gray-500" />
-          </button>
-          <a href="/" className="min-h-[44px] flex items-center gap-2 shrink-0">
+          <a href="/" className="min-h-[44px] flex items-center shrink-0">
             <img
               src="/assets/Logo_magnifying_glass.png"
               alt="Lens Academy"
               className="h-6"
             />
           </a>
-          {/* Brand: always in DOM, hidden via CSS when priority >= 1 */}
+          {/* Brand separator: always in DOM for measurement, hidden at priority >= 1 */}
           <span
             ref={brandRef}
-            className="flex items-center gap-2"
             style={priority >= 1 ? hiddenStyle : undefined}
           >
-            <a
-              href="/"
-              className="text-xl font-semibold text-gray-900 hover:text-gray-700 font-display"
-            >
-              Lens Academy
-            </a>
-            <span style={{ color: "var(--brand-border)" }}>|</span>
+            <span className="text-gray-300 mx-1">|</span>
           </span>
           {unitName ? (
             <BreadcrumbNav
               ref={titleRef}
               unitName={unitName}
               currentModuleSlug={currentModuleSlug!}
-              currentSectionIndex={currentSectionIndex}
-              completedSections={completedStages}
               unitModules={unitModules!}
-              currentModuleSections={currentModuleSections!}
-              courseId={courseId!}
-              onSectionClick={onStageClick}
               priority={priority}
-              onOpenChange={setBreadcrumbOpen}
+              onToggleSidebar={onMenuToggle}
             />
           ) : (
             <h1
