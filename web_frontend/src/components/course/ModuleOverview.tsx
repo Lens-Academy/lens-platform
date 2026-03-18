@@ -62,7 +62,7 @@ function TruncatedTldr({
     <div className="mt-1 max-w-xl">
       <p
         ref={textRef}
-        className={`text-sm text-slate-500 overflow-hidden transition-[max-height] duration-200 ease-in-out ${isTruncated ? "cursor-pointer" : ""}`}
+        className="text-sm text-slate-500 overflow-hidden transition-[max-height] duration-200 ease-in-out"
         style={{
           maxHeight: isTruncated
             ? isExpanded
@@ -70,14 +70,6 @@ function TruncatedTldr({
               : collapsedHeight
             : undefined,
         }}
-        onClick={
-          isTruncated
-            ? (e) => {
-                e.stopPropagation();
-                onToggle();
-              }
-            : undefined
-        }
       >
         {text}
       </p>
@@ -87,7 +79,7 @@ function TruncatedTldr({
             e.stopPropagation();
             onToggle();
           }}
-          className="text-xs text-slate-400 hover:text-slate-600 transition-colors mt-0.5 flex items-center gap-0.5"
+          className="text-xs text-slate-400 hover:text-slate-600 transition-colors mt-0.5 flex items-center gap-0.5 -ml-2 px-2 py-1"
         >
           <svg
             className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-180" : ""}`}
