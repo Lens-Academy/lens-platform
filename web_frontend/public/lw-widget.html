@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script>
+// ── CONFIG ─────────────────────────────────────────────
+var CONFIG = {
+  // Heading & description (set to "" to hide either)
+  heading: "Lens Academy",
+  description: "Free, tutor-guided courses on AI safety, with weekly group discussions and hands-on exercises.",
+
+  // Courses: "hide", "none", "learner", "navigator" (hide, or set none/learner/navigator as default)
+  courses: "learner",
+
+  // Posts: "hide", "false", "true" (hide, or set false/true as default)
+  posts: true,
+
+  // API endpoint
+  api: "https://lensacademy.org",
+};
+// ── END CONFIG ─────────────────────────────────────────
+</script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #faf8f3;
+    padding: 16px;
+    display: flex;
+    justify-content: center;
+  }
+  .card {
+    background: #ffffff;
+    border: 1px solid #e8e5df;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    padding: 28px 32px;
+    max-width: 600px;
+    width: 100%;
+  }
+  h2 {
+    font-family: 'Newsreader', serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .desc {
+    font-size: 16px;
+    color: #6b6b6b;
+    line-height: 1.55;
+    margin-bottom: 20px;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .option-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .option-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .option-label {
+    font-size: 15px;
+    color: #1a1a1a;
+    font-weight: 600;
+  }
+  .option-sub {
+    font-size: 13px;
+    color: #6b6b6b;
+    line-height: 1.4;
+  }
+  /* 3-segment pill */
+  .seg-pill {
+    display: inline-flex;
+    background: #e8e5df;
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .seg-pill button {
+    padding: 6px 14px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #6b6b6b;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .seg-pill button:hover {
+    color: #1a1a1a;
+    background: rgba(255,255,255,0.5);
+  }
+  .seg-pill button.active {
+    background: #fff;
+    color: #1a1a1a;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .seg-pill button.active-accent {
+    background: #b87018;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  /* Toggle switch */
+  .toggle {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+  .toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: #ccc;
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-track::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .toggle input:checked + .toggle-track {
+    background: #b87018;
+  }
+  .toggle input:checked + .toggle-track::after {
+    transform: translateX(18px);
+  }
+  .form-row {
+    display: flex;
+    gap: 8px;
+  }
+  input[type="email"] {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 14px;
+    font-family: inherit;
+    font-size: 16px;
+    border: 1px solid #e8e5df;
+    border-radius: 8px;
+    outline: none;
+    background: #fff;
+    color: #1a1a1a;
+  }
+  input[type="email"]:focus {
+    border-color: #b87018;
+    box-shadow: 0 0 0 2px rgba(184, 112, 24, 0.15);
+  }
+  input[type="email"]::placeholder {
+    color: #999;
+  }
+  .btn-submit {
+    padding: 10px 22px;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    background: #b87018;
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .btn-submit:hover { background: #9a5c10; }
+  .btn-submit:disabled { opacity: 0.6; cursor: default; }
+  .success {
+    font-size: 16px;
+    color: #b87018;
+    font-weight: 600;
+    padding: 8px 0;
+  }
+  .error {
+    font-size: 14px;
+    color: #c0392b;
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2 id="heading">Lens Academy</h2>
+  <p class="desc" id="desc">
+    Free, tutor-guided courses on AI safety, with weekly group discussions
+    and hands-on exercises.
+  </p>
+
+  <div id="form-container">
+    <div class="options">
+      <div class="option-row" id="courses-row">
+        <div class="option-info">
+          <span class="option-label">Courses</span>
+          <span class="option-sub">Get notified when courses open for enrollment</span>
+        </div>
+        <div class="seg-pill" id="course-pill">
+          <button type="button" data-val="none" onclick="setCourse('none')">None</button>
+          <button type="button" data-val="learner" class="active-accent" onclick="setCourse('learner')">Learner</button>
+          <button type="button" data-val="navigator" onclick="setCourse('navigator')">Navigator</button>
+        </div>
+      </div>
+      <div class="option-row" id="posts-row">
+        <div class="option-info">
+          <span class="option-label">Posts</span>
+          <span class="option-sub">Get notified when Luc or Lens Academy publishes a new post</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="cb-substack" checked />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </div>
+    <div class="form-row">
+      <input type="email" id="email" placeholder="you@example.com" />
+      <button class="btn-submit" id="btn" onclick="submit()">Notify Me</button>
+    </div>
+    <div id="error" class="error" style="display:none;"></div>
+  </div>
+  <div id="success" class="success" style="display:none;">
+    You're all set! We'll keep you in the loop.
+  </div>
+
+</div>
+
+<script>
+  var courseMode = CONFIG.courses || "none";
+
+  function setCourse(val) {
+    courseMode = val;
+    var btns = document.querySelectorAll("#course-pill button");
+    btns.forEach(function(b) {
+      b.className = b.getAttribute("data-val") === val
+        ? (val === "none" ? "active" : "active-accent")
+        : "";
+    });
+  }
+
+  async function submit() {
+    var email = document.getElementById("email").value.trim();
+    var btn = document.getElementById("btn");
+    var err = document.getElementById("error");
+    var subscribeSubstack = document.getElementById("cb-substack").checked;
+    err.style.display = "none";
+
+    if (courseMode === "none" && !subscribeSubstack) {
+      err.textContent = "Please select at least one option.";
+      err.style.display = "block";
+      return;
+    }
+
+    if (!email || !email.match(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)) {
+      err.textContent = "Please enter a valid email address.";
+      err.style.display = "block";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "...";
+
+    try {
+      var resp = await fetch(CONFIG.api + "/api/subscribe", {
+        method: "POST",
+        mode: "cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email,
+          subscribe_courses_learners: courseMode === "learner",
+          subscribe_courses_navigators: courseMode === "navigator",
+          subscribe_substack: subscribeSubstack
+        })
+      });
+      var data = await resp.json();
+      if (!resp.ok) {
+        err.textContent = data.detail || "Something went wrong.";
+        err.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Notify Me";
+        return;
+      }
+
+      document.getElementById("form-container").style.display = "none";
+      document.getElementById("success").style.display = "block";
+    } catch(e) {
+      err.textContent = "Connection error. Please try again.";
+      err.style.display = "block";
+    }
+    btn.disabled = false;
+    btn.textContent = "Notify Me";
+  }
+
+  document.getElementById("email").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") submit();
+  });
+
+  // Apply CONFIG
+  (function init() {
+    var heading = document.getElementById("heading");
+    var desc = document.getElementById("desc");
+    var coursesRow = document.getElementById("courses-row");
+    var postsRow = document.getElementById("posts-row");
+
+    if (!CONFIG.heading) heading.style.display = "none";
+    else heading.textContent = CONFIG.heading;
+
+    if (!CONFIG.description) desc.style.display = "none";
+    else desc.textContent = CONFIG.description;
+
+    if (CONFIG.courses === "hide") {
+      coursesRow.style.display = "none";
+      courseMode = "none";
+    } else {
+      setCourse(CONFIG.courses);
+    }
+
+    if (CONFIG.posts === "hide") {
+      postsRow.style.display = "none";
+      document.getElementById("cb-substack").checked = false;
+    } else {
+      document.getElementById("cb-substack").checked = !!CONFIG.posts;
+    }
+  })();
+</script>
+</body>
+</html>

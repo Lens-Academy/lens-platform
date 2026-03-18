@@ -173,9 +173,7 @@ export default function ContentValidator() {
         >
           Create PR
         </a>{" "}
-        <span className="text-gray-500 text-sm">
-          (request access from Luc)
-        </span>
+        <span className="text-gray-500 text-sm">(request access from Luc)</span>
       </p>
 
       {/* Pipeline status */}

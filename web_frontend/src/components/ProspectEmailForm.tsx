@@ -7,13 +7,28 @@ interface ProspectEmailFormProps {
   /** "inline" for compact (landing card), "standalone" for full-width (enroll page) */
   variant: "inline" | "standalone";
   className?: string;
+  /** Show Substack blog subscription checkbox. Default false. */
+  showSubstackOption?: boolean;
+  /** Default state for course notifications checkbox. Default true. */
+  defaultSubscribeCourses?: boolean;
+  /** Default state for Substack subscription checkbox. Default false. */
+  defaultSubscribeSubstack?: boolean;
 }
 
 export default function ProspectEmailForm({
   variant,
   className = "",
+  showSubstackOption = false,
+  defaultSubscribeCourses = true,
+  defaultSubscribeSubstack = false,
 }: ProspectEmailFormProps) {
   const [email, setEmail] = useState("");
+  const [subscribeCourses, setSubscribeCourses] = useState(
+    defaultSubscribeCourses,
+  );
+  const [subscribeSubstack, setSubscribeSubstack] = useState(
+    defaultSubscribeSubstack,
+  );
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
@@ -34,15 +49,36 @@ export default function ProspectEmailForm({
     setErrorMsg("");
 
     try {
-      const res = await fetch(`${API_URL}/api/prospects`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
+      const trimmedEmail = email.trim();
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || "Something went wrong.");
+      // Subscribe to course notifications via our API first (await response)
+      if (subscribeCourses) {
+        const res = await fetch(`${API_URL}/api/subscribe`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: trimmedEmail,
+            subscribe_courses: true,
+            subscribe_substack: subscribeSubstack,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || "Something went wrong.");
+        }
+      }
+
+      // Subscribe to Substack directly from the client (fire-and-forget,
+      // no-cors because Substack doesn't set CORS headers for us).
+      // Done AFTER our API call to avoid the 302 redirect interfering.
+      if (subscribeSubstack) {
+        fetch("https://lensacademy.substack.com/api/v1/free?nojs=true", {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `email=${encodeURIComponent(trimmedEmail)}&source=subscribe_page`,
+        });
       }
 
       localStorage.setItem(STORAGE_KEY, "1");
@@ -76,47 +112,71 @@ export default function ProspectEmailForm({
     );
   }
 
+  const checkboxes = showSubstackOption && (
+    <div className="flex flex-col gap-2 mb-3">
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={subscribeCourses}
+          onChange={(e) => setSubscribeCourses(e.target.checked)}
+          className="rounded"
+        />
+        <span>Notify me when new courses open</span>
+      </label>
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={subscribeSubstack}
+          onChange={(e) => setSubscribeSubstack(e.target.checked)}
+          className="rounded"
+        />
+        <span>Subscribe to our blog posts</span>
+      </label>
+    </div>
+  );
+
   if (variant === "inline") {
     return (
-      <form
-        onSubmit={handleSubmit}
-        className={`flex gap-2 items-center ${className}`}
-      >
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          required
-          className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg border outline-none focus:ring-2"
-          style={{
-            borderColor: "var(--landing-border)",
-            backgroundColor: "var(--landing-bg)",
-            color: "var(--landing-text)",
-          }}
-        />
-        <button
-          type="submit"
-          disabled={status === "loading"}
-          className="px-4 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 shrink-0"
-          style={{
-            backgroundColor: "var(--landing-accent)",
-            color: "var(--landing-accent-text)",
-            opacity: status === "loading" ? 0.7 : 1,
-          }}
-        >
-          {status === "loading" ? "..." : "Notify Me"}
-        </button>
-        {status === "error" && (
-          <span className="text-xs text-red-500">{errorMsg}</span>
-        )}
-      </form>
+      <div className={className}>
+        {checkboxes}
+        <form onSubmit={handleSubmit} className="flex gap-2 items-center">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+            className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg border outline-none focus:ring-2"
+            style={{
+              borderColor: "var(--landing-border)",
+              backgroundColor: "var(--landing-bg)",
+              color: "var(--landing-text)",
+            }}
+          />
+          <button
+            type="submit"
+            disabled={status === "loading"}
+            className="px-4 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 shrink-0"
+            style={{
+              backgroundColor: "var(--landing-accent)",
+              color: "var(--landing-accent-text)",
+              opacity: status === "loading" ? 0.7 : 1,
+            }}
+          >
+            {status === "loading" ? "..." : "Notify Me"}
+          </button>
+          {status === "error" && (
+            <span className="text-xs text-red-500">{errorMsg}</span>
+          )}
+        </form>
+      </div>
     );
   }
 
   // standalone variant
   return (
     <div className={className}>
+      {checkboxes}
       <form
         onSubmit={handleSubmit}
         className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
