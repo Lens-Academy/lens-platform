@@ -80,3 +80,4 @@ backups/
 
 # Prod data exports (PII-stripped but not for version control)
 data/
+.superpowers/

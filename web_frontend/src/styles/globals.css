@@ -222,6 +222,18 @@ body {
   }
 }
 
+/* Modal entrance animation */
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 /* Staggered reveal animation for list items */
 @keyframes stagger-in {
   from {

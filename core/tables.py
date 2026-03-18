@@ -541,7 +541,12 @@ prospects = Table(
     Column("prospect_id", Integer, primary_key=True, autoincrement=True),
     Column("email", Text, nullable=False),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
-    Column("subscribe_courses", Boolean, server_default="false", nullable=False),
+    Column(
+        "subscribe_courses_learners", Boolean, server_default="false", nullable=False
+    ),
+    Column(
+        "subscribe_courses_navigators", Boolean, server_default="false", nullable=False
+    ),
     Column("subscribe_substack", Boolean, server_default="false", nullable=False),
     Column("substack_synced_at", TIMESTAMP(timezone=True)),
     UniqueConstraint("email", name="uq_prospects_email"),

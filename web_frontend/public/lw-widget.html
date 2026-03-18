@@ -16,7 +16,7 @@ var CONFIG = {
   posts: true,
 
   // API endpoint
-  api: "https://lensacademy.org",
+  api: "http://dev.vps:8200",
 };
 // ── END CONFIG ─────────────────────────────────────────
 </script>
@@ -198,6 +198,12 @@ var CONFIG = {
     font-weight: 600;
     padding: 8px 0;
   }
+  .substack-note {
+    font-size: 14px;
+    font-weight: 400;
+    color: #6b6b6b;
+    margin-top: 6px;
+  }
   .error {
     font-size: 14px;
     color: #c0392b;
@@ -245,6 +251,9 @@ var CONFIG = {
   </div>
   <div id="success" class="success" style="display:none;">
     You're all set! We'll keep you in the loop.
+    <p id="substack-note" class="substack-note" style="display:none;">
+      You'll receive a confirmation email from Substack in 1–6 hours — please confirm it to start receiving posts. There's a delay in this, so there's no need to check your email right now.
+    </p>
   </div>
 
 </div>
@@ -307,6 +316,9 @@ var CONFIG = {
 
       document.getElementById("form-container").style.display = "none";
       document.getElementById("success").style.display = "block";
+      if (subscribeSubstack) {
+        document.getElementById("substack-note").style.display = "block";
+      }
     } catch(e) {
       err.textContent = "Connection error. Please try again.";
       err.style.display = "block";
