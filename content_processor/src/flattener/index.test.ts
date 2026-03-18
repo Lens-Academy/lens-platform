@@ -672,7 +672,7 @@ instructions:: Discuss what you learned from the external resource.
 
     expect(result.errors).toHaveLength(0);
     expect(result.module?.sections).toHaveLength(1);
-    // Key assertion: section type should be 'page'
+    // Key assertion: section type should be 'lens'
     expect(result.module?.sections[0].type).toBe('lens');
     // Title from     expect(result.module?.sections[0].meta.title).toBe('External Resource');
     // Should have 2 segments: text and chat
@@ -1529,17 +1529,15 @@ title: Big Module
 # Submodule: Welcome
 slug:: welcome
 
-## Page: Welcome Page
-id:: page-id-1
-
-### Text
-content:: Welcome content.
+## Lens: Welcome Page
+source:: [[../Lenses/welcome.md]]
 
 # Submodule: Research
 
 ## Learning Outcome:
 source:: [[../Learning Outcomes/lo1.md|LO1]]
 `,
+      'Lenses/welcome.md': pageLens('welcome-id', 'Welcome', 'Welcome content.'),
       'Learning Outcomes/lo1.md': simpleLO('lo-1-id', [
         { path: '../Lenses/lens1.md' },
       ]),

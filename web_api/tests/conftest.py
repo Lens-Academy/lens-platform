@@ -43,7 +43,7 @@ def api_test_cache():
                     "optional": False,
                 },
                 {
-                    "type": "page",
+                    "type": "lens",
                     "contentId": "00000000-0000-0000-0000-000000000103",
                     "title": "Discussion",
                     "segments": [
@@ -73,7 +73,7 @@ def api_test_cache():
                     "optional": False,
                 },
                 {
-                    "type": "page",
+                    "type": "lens",
                     "contentId": "00000000-0000-0000-0000-000000000203",
                     "title": "Discussion",
                     "segments": [
@@ -91,7 +91,7 @@ def api_test_cache():
             content_id=UUID("00000000-0000-0000-0000-000000000301"),
             sections=[
                 {
-                    "type": "page",
+                    "type": "lens",
                     "contentId": "00000000-0000-0000-0000-000000000302",
                     "title": "Deep Dive",
                     "segments": [
@@ -128,7 +128,7 @@ def api_test_cache():
             content_id=UUID("00000000-0000-0000-0000-000000000501"),
             sections=[
                 {
-                    "type": "page",
+                    "type": "lens",
                     "contentId": "00000000-0000-0000-0000-000000000502",
                     "title": "Synthesis",
                     "segments": [

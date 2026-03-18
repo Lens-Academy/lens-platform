@@ -30,7 +30,7 @@ class TestLoadNarrativeModuleFromCache:
             content_id=UUID("00000000-0000-0000-0000-000000000001"),
             sections=[
                 {
-                    "type": "page",
+                    "type": "lens",
                     "contentId": "00000000-0000-0000-0000-000000000002",
                     "title": "Test Page",
                     "segments": [
@@ -74,7 +74,7 @@ class TestLoadNarrativeModuleFromCache:
         assert module.slug == "test-module"
         assert module.title == "Test Module"
         assert len(module.sections) == 1
-        assert module.sections[0]["type"] == "page"
+        assert module.sections[0]["type"] == "lens"
 
     def test_load_module_not_found(self):
         """Should raise error for missing module."""

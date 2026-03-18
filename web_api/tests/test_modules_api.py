@@ -54,7 +54,7 @@ def test_get_module_omits_error_field_when_none(client):
         slug="working-module",
         title="Working Module",
         content_id=UUID("00000000-0000-0000-0000-000000000002"),
-        sections=[{"type": "page", "segments": []}],
+        sections=[{"type": "lens", "segments": []}],
         error=None,
     )
 
@@ -75,7 +75,7 @@ def test_list_modules_includes_errored_modules(client):
         slug="working",
         title="Working Module",
         content_id=UUID("00000000-0000-0000-0000-000000000001"),
-        sections=[{"type": "page", "segments": []}],
+        sections=[{"type": "lens", "segments": []}],
         error=None,
     )
     mock_broken = FlattenedModule(
@@ -162,7 +162,7 @@ def test_get_module_progress_omits_error_when_none(client):
         slug="working-module",
         title="Working Module",
         content_id=UUID("00000000-0000-0000-0000-000000000002"),
-        sections=[{"type": "page", "segments": []}],
+        sections=[{"type": "lens", "segments": []}],
         error=None,
     )
 
@@ -211,7 +211,7 @@ def test_get_lens_module_by_slash_slug(client):
         content_id=UUID("c3d4e5f6-a7b8-9012-cdef-345678901234"),
         sections=[
             {
-                "type": "lens-article",
+                "type": "lens",
                 "meta": {"title": "Four Background Claims", "author": "Nate Soares"},
                 "segments": [{"type": "text", "content": "Test content"}],
                 "optional": False,
@@ -378,9 +378,9 @@ def test_get_article_module_by_slug(client):
         "contentId": None,
         "sections": [
             {
-                "type": "lens-article",
+                "type": "lens",
                 "meta": {"title": "Some Article", "author": "Bob"},
-                "segments": [{"type": "article-excerpt", "content": "Body text"}],
+                "segments": [{"type": "article", "content": "Body text"}],
             }
         ],
     }
@@ -394,7 +394,7 @@ def test_get_article_module_by_slug(client):
     assert response.status_code == 200
     data = response.json()
     assert data["slug"] == "article/some-article"
-    assert data["sections"][0]["type"] == "lens-article"
+    assert data["sections"][0]["type"] == "lens"
 
 
 def test_get_article_module_not_found(client):

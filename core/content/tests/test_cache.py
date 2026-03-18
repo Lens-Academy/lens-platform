@@ -67,7 +67,7 @@ class TestContentCache:
             content_id=UUID("00000000-0000-0000-0000-000000000001"),
             sections=[
                 {
-                    "type": "page",
+                    "type": "lens",
                     "contentId": "00000000-0000-0000-0000-000000000002",
                     "title": "Welcome",
                     "segments": [{"type": "text", "content": "Hello"}],

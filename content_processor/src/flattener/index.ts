@@ -14,7 +14,7 @@ import type {
 } from '../index.js';
 import type { ContentTier } from '../validator/tier.js';
 import { checkTierViolation } from '../validator/tier.js';
-import { parseModule } from '../parser/module.js';
+import { parseModule, type ParsedModule, hasFieldBeforeSegmentHeaders } from '../parser/module.js';
 import { parseLearningOutcome, type ParsedTestRef } from '../parser/learning-outcome.js';
 import { parseLens, type ParsedLens, type ParsedLensSegment, type ParsedArticleSegment } from '../parser/lens.js';
 import { parseWikilink, resolveWikilinkPath, findFileWithExtension, findSimilarFiles, formatSuggestion } from '../parser/wikilink.js';
@@ -42,6 +42,20 @@ function computeSectionStats(segments: Segment[]): { wordCount?: number; videoDu
   if (words > 0) stats.wordCount = words;
   if (videoSeconds > 0) stats.videoDurationSeconds = videoSeconds;
   return stats;
+}
+
+/** Derive display type from segment content for UI icons/labels. */
+function computeDisplayType(segments: Segment[]): 'lens-article' | 'lens-video' | 'lens-mixed' | undefined {
+  let hasArticle = false;
+  let hasVideo = false;
+  for (const seg of segments) {
+    if (seg.type === 'article') hasArticle = true;
+    if (seg.type === 'video') hasVideo = true;
+  }
+  if (hasArticle && hasVideo) return 'lens-mixed';
+  if (hasArticle) return 'lens-article';
+  if (hasVideo) return 'lens-video';
+  return undefined;
 }
 
 /**
@@ -265,6 +279,7 @@ export function flattenModule(
   // Helper: process a section (LO or Lens) and return Section[]
   function processSection(
     section: { type: string; title: string; rawType: string; fields: Record<string, string>; body: string; line: number; level: number; children?: any[] },
+    sectionIndex: number,
     _subsectionLevel?: number
   ): Section[] {
     if (section.type === 'learning-outcome') {
@@ -281,12 +296,14 @@ export function flattenModule(
     } else if (section.type === 'lens') {
       // Referenced lens (has source::) or inline lens
       const sectionVisitedPaths = new Set(visitedPaths);
+      const inlineLens = parsedModule.inlineLenses?.get(sectionIndex);
       const result = flattenLensSection(
         section,
         modulePath,
         files,
         sectionVisitedPaths,
-        tierMap
+        tierMap,
+        inlineLens
       );
       errors.push(...result.errors);
       return result.sections;
@@ -295,7 +312,8 @@ export function flattenModule(
   }
 
   // Process each section in the module
-  for (const section of parsedModule.sections) {
+  for (let sIdx = 0; sIdx < parsedModule.sections.length; sIdx++) {
+    const section = parsedModule.sections[sIdx];
     if (section.type === 'submodule') {
       // Emit boundary marker
       flatItems.push({
@@ -307,7 +325,8 @@ export function flattenModule(
       // Process children at level+1
       if (section.children) {
         for (const child of section.children) {
-          const childSections = processSection(child, child.level + 1);
+          // Children don't have inline lenses (submodule children are at a different scope)
+          const childSections = processSection(child, -1, child.level + 1);
           flatItems.push(...childSections);
         }
       }
@@ -320,7 +339,7 @@ export function flattenModule(
           continue;
         }
       }
-      const sections = processSection(section);
+      const sections = processSection(section, sIdx);
       flatItems.push(...sections);
     }
   }
@@ -493,6 +512,7 @@ function processLOWithSubmodules(
         contentId: lens.id ?? null,
         tldr: lens.tldr,
         ...computeSectionStats(segments),
+        displayType: computeDisplayType(segments),
       } as Section);
     }
 
@@ -693,6 +713,7 @@ function flattenLearningOutcomeSection(
       contentId: lens.id ?? null,
       tldr: lens.tldr,
       ...computeSectionStats(segments),
+      displayType: computeDisplayType(segments),
     };
 
     sections.push(resultSection);
@@ -714,27 +735,50 @@ function flattenLearningOutcomeSection(
 
 /**
  * Flatten a # Lens: section from a module file.
- * This handles referenced lenses (with source:: wikilink).
+ * Handles both referenced lenses (with source:: wikilink) and inline lenses (with id:: + segments).
  */
 function flattenLensSection(
   section: { type: string; title: string; fields: Record<string, string>; body: string; line: number },
   modulePath: string,
   files: Map<string, string>,
   visitedPaths: Set<string>,
-  tierMap?: Map<string, ContentTier>
+  tierMap?: Map<string, ContentTier>,
+  inlineLens?: ParsedLens
 ): FlattenMultipleSectionsResult {
   const errors: ContentError[] = [];
   const sections: Section[] = [];
-  const source = section.fields.source;
 
+  // Inline lens: has id:: + segments (no source:: at section level)
+  if (inlineLens) {
+    const { segments, errors: flattenErrors } = flattenSingleLens(inlineLens, modulePath, files, visitedPaths, tierMap);
+    errors.push(...flattenErrors);
+
+    const resultSection: Section = {
+      type: 'lens',
+      meta: { title: section.title },
+      segments,
+      optional: section.fields.optional?.toLowerCase() === 'true',
+      learningOutcomeId: null,
+      learningOutcomeName: null,
+      contentId: inlineLens.id ?? null,
+      tldr: inlineLens.tldr,
+      ...computeSectionStats(segments),
+      displayType: computeDisplayType(segments),
+    };
+
+    sections.push(resultSection);
+    return { sections, errors };
+  }
+
+  // Referenced lens: has source:: at section level (not from segment fields)
+  const hasSectionSource = hasFieldBeforeSegmentHeaders(section.body, 'source');
+  const source = hasSectionSource ? section.fields.source : undefined;
   if (!source) {
-    // No source:: — this should be an inline lens but we don't support that yet in the module parser
-    // For now, just warn
     errors.push({
       file: modulePath,
       line: section.line,
-      message: 'Lens section missing source:: field',
-      suggestion: "Add 'source:: [[../Lenses/filename.md|Display]]' to the lens section",
+      message: 'Lens section missing source:: field (or id:: for inline lens)',
+      suggestion: "Add 'source:: [[../Lenses/filename.md|Display]]' or 'id:: <uuid>' with #### segments",
       severity: 'error',
     });
     return { sections: [], errors };
@@ -820,6 +864,7 @@ function flattenLensSection(
     contentId: lens.id ?? null,
     tldr: lens.tldr,
     ...computeSectionStats(segments),
+    displayType: computeDisplayType(segments),
   };
 
   sections.push(resultSection);
@@ -1273,6 +1318,7 @@ export function flattenLens(
     contentId: lens.id ?? null,
     tldr: lens.tldr,
     ...computeSectionStats(segments),
+    displayType: computeDisplayType(segments),
   };
 
   const flattenedModule: FlattenedModule = {

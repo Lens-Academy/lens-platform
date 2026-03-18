@@ -23,7 +23,7 @@ def mock_flattened_cache():
                 content_id=UUID("00000000-0000-0000-0000-000000000001"),
                 sections=[
                     {
-                        "type": "page",
+                        "type": "lens",
                         "contentId": "00000000-0000-0000-0000-000000000002",
                         "meta": {"title": "Welcome"},
                         "segments": [{"type": "text", "content": "Hello"}],
@@ -79,7 +79,7 @@ def test_get_module_returns_flattened_sections(mock_flattened_cache):
 
     # First section is a page
     page_section = data["sections"][0]
-    assert page_section["type"] == "page"
+    assert page_section["type"] == "lens"
     assert page_section["contentId"] == "00000000-0000-0000-0000-000000000002"
     assert page_section["meta"]["title"] == "Welcome"
     assert page_section["segments"] == [{"type": "text", "content": "Hello"}]

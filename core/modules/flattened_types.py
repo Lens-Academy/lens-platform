@@ -6,11 +6,10 @@ Learning Outcomes and Uncategorized sections are expanded into their
 constituent video and article sections.
 
 Section types in the sections list (all dicts):
-- type: "page" - Page with text/chat segments
-- type: "video" - Video section with transcript excerpts
-- type: "article" - Article section with collapsed content support
+- type: "lens" - Lens section with text/article/video/chat segments
+- type: "test" - Test section with question segments
 
-Video and article sections from lenses include:
+Lens sections include:
 - contentId: Lens UUID
 - learningOutcomeId: Learning Outcome UUID (or null if uncategorized)
 """

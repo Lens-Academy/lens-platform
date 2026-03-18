@@ -4,9 +4,10 @@ slug: feedback-loops
 title: Feedback Loops
 discussion:
 ---
-# Page: Welcome
+# Lens: Welcome
 id:: e0f8913a-66a2-4fc9-bbe8-bf72a95b003e
-## Text
+
+#### Text
 content::
 Much of the world is dominated by positive feedback loops. The first bit of grain that was left over and got re-planted sparked the agricultural revolution. Might the development of intelligence also contain such self-amplifying spirals?
 # Learning Outcome:

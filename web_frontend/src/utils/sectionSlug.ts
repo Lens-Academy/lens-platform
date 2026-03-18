@@ -7,31 +7,7 @@ import { generateHeadingId } from "./extractHeadings";
  * Uses the section title if available, falls back to "section-N".
  */
 export function getSectionSlug(section: ModuleSection, index: number): string {
-  let title: string | null = null;
-
-  switch (section.type) {
-    case "lens-article":
-    case "lens-video":
-      title = section.meta?.title ?? null;
-      break;
-    case "page":
-      title = section.meta?.title ?? null;
-      break;
-    case "article":
-    case "video":
-      title = section.meta?.title ?? null;
-      break;
-    case "chat":
-      title = section.meta?.title ?? null;
-      break;
-    case "test":
-      title = section.meta?.title ?? null;
-      break;
-    case "text":
-      // Text sections don't have titles
-      title = null;
-      break;
-  }
+  const title = section.meta?.title ?? null;
 
   if (title && title.trim()) {
     return generateHeadingId(title);

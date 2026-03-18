@@ -596,6 +596,50 @@ export function stripAuthoringMarkup(content: string): string {
 }
 
 /**
+ * Apply source inheritance for article and video segments.
+ * Each article/video segment inherits source:: from the previous segment of the same type.
+ * Errors if the first segment of a type has no source.
+ *
+ * Mutates segments in place. Returns any errors.
+ */
+export function applySourceInheritance(
+  segments: ParsedLensSegment[],
+  file: string
+): ContentError[] {
+  const errors: ContentError[] = [];
+  let lastArticleSource: string | undefined;
+  let lastVideoSource: string | undefined;
+  for (const seg of segments) {
+    if (seg.type === 'article') {
+      if (seg.source) {
+        lastArticleSource = seg.source;
+      } else if (lastArticleSource) {
+        seg.source = lastArticleSource;
+      } else {
+        errors.push({
+          file,
+          message: 'First article segment must have a source:: field',
+          severity: 'error',
+        });
+      }
+    } else if (seg.type === 'video') {
+      if (seg.source) {
+        lastVideoSource = seg.source;
+      } else if (lastVideoSource) {
+        seg.source = lastVideoSource;
+      } else {
+        errors.push({
+          file,
+          message: 'First video segment must have a source:: field',
+          severity: 'error',
+        });
+      }
+    }
+  }
+  return errors;
+}
+
+/**
  * Parse a lens file into structured lens data.
  *
  * Lens files are flat: frontmatter + H4 segments directly.
@@ -686,35 +730,8 @@ export function parseLens(content: string, file: string): LensParseResult {
   }
 
   // Step 4: Source inheritance for article and video segments
-  let lastArticleSource: string | undefined;
-  let lastVideoSource: string | undefined;
-  for (const seg of parsedSegments) {
-    if (seg.type === 'article') {
-      if (seg.source) {
-        lastArticleSource = seg.source;
-      } else if (lastArticleSource) {
-        seg.source = lastArticleSource;
-      } else {
-        errors.push({
-          file,
-          message: 'First article segment must have a source:: field',
-          severity: 'error',
-        });
-      }
-    } else if (seg.type === 'video') {
-      if (seg.source) {
-        lastVideoSource = seg.source;
-      } else if (lastVideoSource) {
-        seg.source = lastVideoSource;
-      } else {
-        errors.push({
-          file,
-          message: 'First video segment must have a source:: field',
-          severity: 'error',
-        });
-      }
-    }
-  }
+  const inheritanceErrors = applySourceInheritance(parsedSegments, file);
+  errors.push(...inheritanceErrors);
 
   // Warn if lens has no segments
   if (parsedSegments.length === 0) {

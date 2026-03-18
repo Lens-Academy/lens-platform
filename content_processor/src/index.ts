@@ -32,6 +32,7 @@ export interface Course {
 
 export interface Section {
   type: 'lens' | 'test';
+  displayType?: 'lens-article' | 'lens-video' | 'lens-mixed';
   meta: SectionMeta;
   segments: Segment[];
   optional?: boolean;
@@ -128,7 +129,7 @@ export interface RoleplaySegment {
 export type Segment = TextSegment | ChatSegment | ArticleSegment | VideoSegment | QuestionSegment | RoleplaySegment;
 
 import { flattenModule, flattenLens } from './flattener/index.js';
-import { parseModule } from './parser/module.js';
+import { parseModule, hasFieldBeforeSegmentHeaders } from './parser/module.js';
 import { parseCourse } from './parser/course.js';
 import { parseLearningOutcome } from './parser/learning-outcome.js';
 import { parseLens, type ParsedLens } from './parser/lens.js';
@@ -285,11 +286,26 @@ export function processContent(files: Map<string, string>): ProcessResult {
 
       // Collect section-level id:: fields from raw # Lens: sections (inline lenses).
       // Referenced lenses (with source::) get their id from the lens file itself.
+      // Use inlineLenses map from parseModule to identify inline lenses correctly.
       if (result.modules.length > 0) {
         const rawParse = parseModule(content, path);
         if (rawParse.module) {
-          for (const section of rawParse.module.sections) {
-            if (section.type === 'lens' && !section.fields.source && !section.fields.id) {
+          for (let sIdx = 0; sIdx < rawParse.module.sections.length; sIdx++) {
+            const section = rawParse.module.sections[sIdx];
+            if (section.type !== 'lens') continue;
+
+            const isInline = rawParse.module.inlineLenses?.has(sIdx);
+            const hasSourceBeforeSegments = hasFieldBeforeSegmentHeaders(section.body, 'source');
+
+            if (isInline) {
+              // Inline lens — id already validated in parseInlineLens
+              uuidEntries.push({
+                uuid: section.fields.id,
+                file: path,
+                field: 'section id',
+              });
+            } else if (!hasSourceBeforeSegments && !section.fields.id) {
+              // No section-level source:: and no id:: → missing required id
               errors.push({
                 file: path,
                 line: section.line,
@@ -297,8 +313,8 @@ export function processContent(files: Map<string, string>): ProcessResult {
                 suggestion: 'Add an id:: field with a UUID (e.g., id:: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)',
                 severity: 'error',
               });
-            }
-            if (section.type === 'lens' && section.fields.id) {
+            } else if (section.fields.id) {
+              // Has id:: — collect UUID
               uuidEntries.push({
                 uuid: section.fields.id,
                 file: path,

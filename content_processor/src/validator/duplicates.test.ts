@@ -98,14 +98,16 @@ slug: duplicate-slug
 title: Module One
 ---
 
-# Page: Welcome
+# Lens: Welcome
+source:: [[../Lenses/welcome.md]]
 `],
       ['modules/module2.md', `---
 slug: duplicate-slug
 title: Module Two
 ---
 
-# Page: Hello
+# Lens: Hello
+source:: [[../Lenses/hello.md]]
 `],
     ]);
 
@@ -127,14 +129,16 @@ slug: unique-slug-1
 title: Module One
 ---
 
-# Page: Welcome
+# Lens: Welcome
+source:: [[../Lenses/welcome.md]]
 `],
       ['modules/module2.md', `---
 slug: unique-slug-2
 title: Module Two
 ---
 
-# Page: Hello
+# Lens: Hello
+source:: [[../Lenses/hello.md]]
 `],
     ]);
 

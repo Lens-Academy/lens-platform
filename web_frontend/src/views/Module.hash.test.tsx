@@ -7,36 +7,59 @@ import type { ModuleSection } from "@/types/module";
 describe("URL Hash Navigation Integration", () => {
   const mockSections: ModuleSection[] = [
     {
-      type: "page",
+      type: "lens",
+      contentId: null,
+      learningOutcomeId: null,
+      learningOutcomeName: null,
       meta: { title: "Learning Outcomes" },
       segments: [],
+      optional: false,
     },
     {
-      type: "lens-article",
+      type: "lens",
       contentId: "abc",
       learningOutcomeId: null,
       learningOutcomeName: null,
       meta: {
         title: "Worst-Case Thinking (Optional)",
-        author: "Nick Bostrom",
-        sourceUrl: null,
       },
-      segments: [],
+      segments: [
+        {
+          type: "article",
+          content: "...",
+          title: "Worst-Case Thinking",
+          author: "Nick Bostrom",
+        },
+      ],
       optional: true,
     },
     {
-      type: "lens-video",
+      type: "lens",
       contentId: "def",
       learningOutcomeId: null,
       learningOutcomeName: null,
-      videoId: "xyz123",
-      meta: { title: "AI Alignment Introduction", channel: "AI Safety" },
-      segments: [],
+      meta: { title: "AI Alignment Introduction" },
+      segments: [
+        {
+          type: "video",
+          from: 0,
+          to: 60,
+          transcript: "...",
+          title: "AI Alignment Introduction",
+          channel: "AI Safety",
+          videoId: "xyz123",
+        },
+      ],
       optional: false,
     },
     {
-      type: "text",
-      content: "Some standalone text content",
+      type: "test",
+      contentId: null,
+      learningOutcomeId: null,
+      learningOutcomeName: null,
+      meta: {},
+      segments: [],
+      optional: false,
     },
   ];
 
@@ -50,7 +73,7 @@ describe("URL Hash Navigation Integration", () => {
         "learning-outcomes",
         "worst-case-thinking-optional",
         "ai-alignment-introduction",
-        "section-4", // text section falls back to index
+        "section-4", // test section with no title falls back to index
       ]);
     });
 
@@ -66,14 +89,12 @@ describe("URL Hash Navigation Integration", () => {
   describe("hash format", () => {
     it("generates URL-safe slugs with no special characters", () => {
       const section: ModuleSection = {
-        type: "lens-article",
+        type: "lens",
         contentId: "abc",
         learningOutcomeId: null,
         learningOutcomeName: null,
         meta: {
           title: "What's the Deal? (A Question!)",
-          author: null,
-          sourceUrl: null,
         },
         segments: [],
         optional: false,

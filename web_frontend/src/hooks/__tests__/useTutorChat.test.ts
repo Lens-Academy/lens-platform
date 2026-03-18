@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import type { LensArticleSection, Module } from "@/types/module";
+import type { LensSection, Module } from "@/types/module";
 
 // Mock API layer
 vi.mock("@/api/modules", () => ({
@@ -20,18 +20,18 @@ import { getChatHistory } from "@/api/modules";
 // Test data
 // ---------------------------------------------------------------------------
 
-const testArticleSection: LensArticleSection = {
-  type: "lens-article",
+const testArticleSection: LensSection = {
+  type: "lens",
   contentId: null,
   learningOutcomeId: null,
   learningOutcomeName: null,
-  meta: { title: "Test Article", author: null, sourceUrl: null },
+  meta: { title: "Test Article" },
   segments: [
     {
-      type: "article-excerpt",
+      type: "article",
       content: "excerpt",
-      collapsed_before: null,
-      collapsed_after: null,
+      title: "Test Article",
+      author: "Author",
     },
     { type: "text", content: "Opening question text" },
     {
@@ -48,7 +48,7 @@ const baseOptions = {
   moduleId: "test-module",
   module: null as Module | null,
   currentSectionIndex: 0,
-  currentSection: undefined as LensArticleSection | undefined,
+  currentSection: undefined as LensSection | undefined,
   isArticleSection: false,
   triggerChatActivity: vi.fn(),
 };
@@ -119,7 +119,7 @@ describe("useTutorChat", () => {
 
     expect(withChat.current.sectionHasChatSegment).toBe(true);
 
-    const sectionWithoutChat: LensArticleSection = {
+    const sectionWithoutChat: LensSection = {
       ...testArticleSection,
       segments: [{ type: "text", content: "Just text" }],
     };

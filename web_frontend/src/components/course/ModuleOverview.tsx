@@ -150,15 +150,14 @@ export default function ModuleOverview({
             {stage.type === "chat"
               ? "Discuss with AI tutor"
               : (() => {
-                  const isVideo =
-                    stage.type === "video" || stage.type === "lens-video";
+                  const isVideo = stage.type === "video";
                   if (!stage.duration) {
                     return isVideo
                       ? "Video"
                       : stage.type === "test"
                         ? "Test"
-                        : stage.type === "page"
-                          ? "Page"
+                        : stage.type === "lens"
+                          ? "Lens"
                           : "Article";
                   }
                   const contentTime = Math.round(stage.duration / 1.5);

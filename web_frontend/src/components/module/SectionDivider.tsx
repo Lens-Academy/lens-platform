@@ -1,5 +1,5 @@
 // web_frontend/src/components/module/SectionDivider.tsx
-import { StickyNote, BotMessageSquare } from "lucide-react";
+import { BotMessageSquare } from "lucide-react";
 import { formatDurationMinutes } from "../../utils/duration";
 import { OptionalBadge } from "../OptionalBadge";
 
@@ -11,20 +11,14 @@ type DurationBreakdown = {
 };
 
 type SectionDividerProps = {
-  type:
-    | "video"
-    | "article"
-    | "chat"
-    | "lens-video"
-    | "lens-article"
-    | "page"
-    | "test";
+  type: "video" | "article" | "chat" | "lens" | "test";
+  displayType?: "lens-article" | "lens-video" | "lens-mixed";
   optional?: boolean;
   title?: string;
   duration?: DurationBreakdown | null;
 };
 
-function Icon({ type }: { type: "video" | "article" | "page" | "test" }) {
+function Icon({ type }: { type: "video" | "article" | "lens" | "test" }) {
   if (type === "test") {
     return (
       <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
@@ -35,10 +29,6 @@ function Icon({ type }: { type: "video" | "article" | "page" | "test" }) {
         />
       </svg>
     );
-  }
-
-  if (type === "page") {
-    return <StickyNote className="w-8 h-8" strokeWidth={2} />;
   }
 
   if (type === "article") {
@@ -53,12 +43,24 @@ function Icon({ type }: { type: "video" | "article" | "page" | "test" }) {
     );
   }
 
-  // Video
+  if (type === "video") {
+    return (
+      <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fillRule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+          clipRule="evenodd"
+        />
+      </svg>
+    );
+  }
+
+  // Lens (default) - same as article icon
   return (
     <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
       <path
         fillRule="evenodd"
-        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+        d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
         clipRule="evenodd"
       />
     </svg>
@@ -67,21 +69,24 @@ function Icon({ type }: { type: "video" | "article" | "page" | "test" }) {
 
 export default function SectionDivider({
   type,
+  displayType,
   optional,
   title,
   duration,
 }: SectionDividerProps) {
-  // Map section types to icon types
-  // lens-video and video use the video icon
-  // lens-article, article, chat, and page use the article icon
+  // Map section/display types to icon types
   const iconType =
-    type === "video" || type === "lens-video"
-      ? "video"
-      : type === "test"
-        ? "test"
-        : type === "page"
-          ? "page"
-          : "article";
+    type === "test"
+      ? "test"
+      : displayType === "lens-video"
+        ? "video"
+        : displayType === "lens-article"
+          ? "article"
+          : displayType === "lens-mixed"
+            ? "video" // mixed defaults to video icon
+            : type === "video"
+              ? "video"
+              : "lens";
 
   return (
     <div className="flex flex-col items-center gap-2 px-4 sm:px-6 py-6">

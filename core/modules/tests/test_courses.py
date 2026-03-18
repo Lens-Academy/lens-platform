@@ -38,7 +38,7 @@ def test_cache():
             content_id=UUID("00000000-0000-0000-0000-000000000001"),
             sections=[
                 {
-                    "type": "page",
+                    "type": "lens",
                     "contentId": "00000000-0000-0000-0000-000000000011",
                     "title": "Module A Page",
                     "segments": [
@@ -53,7 +53,7 @@ def test_cache():
             content_id=UUID("00000000-0000-0000-0000-000000000002"),
             sections=[
                 {
-                    "type": "page",
+                    "type": "lens",
                     "contentId": "00000000-0000-0000-0000-000000000021",
                     "title": "Module B Page",
                     "segments": [
@@ -68,7 +68,7 @@ def test_cache():
             content_id=UUID("00000000-0000-0000-0000-000000000003"),
             sections=[
                 {
-                    "type": "page",
+                    "type": "lens",
                     "contentId": "00000000-0000-0000-0000-000000000031",
                     "title": "Module C Page",
                     "segments": [
@@ -83,7 +83,7 @@ def test_cache():
             content_id=UUID("00000000-0000-0000-0000-000000000004"),
             sections=[
                 {
-                    "type": "page",
+                    "type": "lens",
                     "contentId": "00000000-0000-0000-0000-000000000041",
                     "title": "Module D Page",
                     "segments": [

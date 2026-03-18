@@ -3,14 +3,7 @@
  */
 
 export type StageInfo = {
-  type:
-    | "article"
-    | "video"
-    | "chat"
-    | "lens-video"
-    | "lens-article"
-    | "page"
-    | "test";
+  type: "article" | "video" | "chat" | "lens" | "test";
   title: string;
   duration: number | null;
   optional: boolean;

@@ -28,7 +28,8 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "a1b2c3d4-0000-0000-0000-000000000020",
-          "wordCount": 6
+          "wordCount": 6,
+          "displayType": "lens-article"
         }
       ]
     },
@@ -62,7 +63,8 @@
           "learningOutcomeName": null,
           "contentId": "a1b2c3d4-0000-0000-0000-000000000010",
           "wordCount": 4,
-          "videoDurationSeconds": 60
+          "videoDurationSeconds": 60,
+          "displayType": "lens-video"
         }
       ]
     },
@@ -96,7 +98,8 @@
           "learningOutcomeName": null,
           "contentId": "a1b2c3d4-0000-0000-0000-000000000010",
           "wordCount": 4,
-          "videoDurationSeconds": 60
+          "videoDurationSeconds": 60,
+          "displayType": "lens-video"
         },
         {
           "type": "lens",
@@ -121,7 +124,8 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "a1b2c3d4-0000-0000-0000-000000000020",
-          "wordCount": 6
+          "wordCount": 6,
+          "displayType": "lens-article"
         }
       ]
     }

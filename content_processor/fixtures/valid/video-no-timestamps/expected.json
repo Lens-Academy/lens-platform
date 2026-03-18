@@ -33,7 +33,8 @@
           "learningOutcomeName": null,
           "contentId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
           "wordCount": 13,
-          "videoDurationSeconds": 300
+          "videoDurationSeconds": 300,
+          "displayType": "lens-video"
         }
       ]
     },
@@ -70,7 +71,8 @@
           "learningOutcomeName": "video-lo",
           "contentId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
           "wordCount": 13,
-          "videoDurationSeconds": 300
+          "videoDurationSeconds": 300,
+          "displayType": "lens-video"
         }
       ]
     }

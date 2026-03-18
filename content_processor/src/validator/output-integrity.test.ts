@@ -84,7 +84,7 @@ describe('validateOutputIntegrity', () => {
     expect(errors[0].severity).toBe('error');
   });
 
-  it('errors on article-excerpt segment with empty content', () => {
+  it('errors on article segment with empty content', () => {
     const module = makeModule({
       sections: [{
         type: 'lens',
@@ -101,7 +101,7 @@ describe('validateOutputIntegrity', () => {
     expect(errors[0].message.toLowerCase()).toContain('empty');
   });
 
-  it('errors on video-excerpt segment with empty transcript', () => {
+  it('errors on video segment with empty transcript', () => {
     const module = makeModule({
       sections: [{
         type: 'lens',

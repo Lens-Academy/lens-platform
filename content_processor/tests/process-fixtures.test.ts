@@ -184,8 +184,7 @@ slug: test
 title: Test
 ---
 
-# Uncategorized:
-## Lens:
+# Lens:
 source:: [[../Lenses/lens1.md|Lens 1]]
 `],
       ['Lenses/lens1.md', `---

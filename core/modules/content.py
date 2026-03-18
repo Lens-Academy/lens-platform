@@ -645,24 +645,24 @@ def build_article_module(slug: str) -> dict:
         "contentId": None,
         "sections": [
             {
-                "type": "lens-article",
+                "type": "lens",
                 "meta": {
                     "title": metadata.title or slug,
-                    "author": metadata.author,
-                    "sourceUrl": metadata.source_url,
-                    "published": metadata.published,
                 },
                 "segments": [
                     {
-                        "type": "article-excerpt",
+                        "type": "article",
                         "content": content.strip(),
+                        "title": metadata.title or slug,
+                        "author": metadata.author,
+                        "sourceUrl": metadata.source_url,
+                        "published": metadata.published,
                     }
                 ],
                 "optional": False,
                 "contentId": None,
                 "learningOutcomeId": None,
                 "learningOutcomeName": None,
-                "videoId": None,
             }
         ],
     }

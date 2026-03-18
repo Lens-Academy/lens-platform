@@ -88,7 +88,7 @@ class TestGatherSectionContext:
             "type": "video",
             "segments": [
                 {
-                    "type": "video-excerpt",
+                    "type": "video",
                     "from": 0,
                     "to": 120,
                     "transcript": "This is the video transcript content",
@@ -114,7 +114,7 @@ class TestGatherSectionContext:
             "type": "video",
             "segments": [
                 {
-                    "type": "video-excerpt",
+                    "type": "video",
                     "from": 0,
                     "to": 120,
                     "transcript": "",  # Empty!
@@ -220,7 +220,7 @@ class TestEndToEndTranscriptFlow:
             "videoId": "test_video_id",
             "segments": [
                 {
-                    "type": "video-excerpt",
+                    "type": "video",
                     "from": 0,
                     "to": 5,
                     "transcript": transcript,

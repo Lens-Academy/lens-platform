@@ -8,10 +8,8 @@ describe('parseSections', () => {
 # Learning Outcome: First Section
 source:: [[../Learning Outcomes/lo1.md|LO1]]
 
-# Page: Second Section
-id:: 123
-
-Some content here.
+# Lens: Second Section
+source:: [[../Lenses/lens1.md|Lens]]
 `;
 
     const result = parseSections(content, 1, MODULE_SECTION_TYPES);
@@ -19,7 +17,7 @@ Some content here.
     expect(result.sections).toHaveLength(2);
     expect(result.sections[0].type).toBe('learning-outcome');
     expect(result.sections[0].title).toBe('First Section');
-    expect(result.sections[1].type).toBe('page');
+    expect(result.sections[1].type).toBe('lens');
     expect(result.sections[1].title).toBe('Second Section');
   });
 
@@ -135,7 +133,7 @@ Line three.
 
     it('handles field with empty value followed by content on next line', () => {
       const content = `
-# Page: Welcome
+# Lens: Welcome
 id:: abc-123
 content::
 Welcome to the course.
@@ -184,7 +182,7 @@ source:: [[../Lenses/test.md|Test]]
   describe('duplicate field warnings', () => {
     it('warns about duplicate field definitions', () => {
       const content = `
-# Page: Test
+# Lens: Test
 content:: First value
 content:: Second value
 `;
@@ -199,7 +197,7 @@ content:: Second value
 
     it('uses the last value when field is duplicated', () => {
       const content = `
-# Page: Test
+# Lens: Test
 id:: first-id
 id:: second-id
 `;
@@ -212,7 +210,7 @@ id:: second-id
 
     it('does not warn when different fields are defined', () => {
       const content = `
-# Page: Test
+# Lens: Test
 id:: some-id
 content:: Some content
 `;
@@ -330,7 +328,7 @@ source:: [[../Lenses/safety.md]]
 
     it('handles apostrophe in section title', () => {
       const content = `
-# Page: What's Next
+# Lens: What's Next
 content:: Looking ahead.
 `;
 
@@ -342,7 +340,7 @@ content:: Looking ahead.
 
     it('handles colon in section title', () => {
       const content = `
-# Page: Part 1: Introduction
+# Lens: Part 1: Introduction
 content:: The beginning.
 `;
 
@@ -357,8 +355,8 @@ content:: The beginning.
 This text is before any section header.
 It should trigger a warning.
 
-# Page: First Section
-content:: Hello.
+# Lens: First Section
+source:: [[../Lenses/test.md]]
 `;
 
       const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
@@ -405,8 +403,8 @@ source:: [[../Learning Outcomes/lo1.md|LO1]]
     it('does not warn for blank lines before first section header', () => {
       const content = `
 
-# Page: First Section
-content:: Hello.
+# Lens: First Section
+source:: [[../Lenses/test.md]]
 `;
 
       const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
@@ -416,8 +414,8 @@ content:: Hello.
 
     it('handles multiple special characters in section title', () => {
       const content = `
-# Page: AI Safety & Alignment: What's at Stake?
-content:: Important questions.
+# Lens: AI Safety & Alignment: What's at Stake?
+source:: [[../Lenses/safety.md]]
 `;
 
       const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
@@ -644,7 +642,7 @@ source:: [[../Learning Outcomes/lo1.md|LO 1]]
 
     it('does not warn for text that is part of a multiline field value', () => {
       const content = `
-# Page: Test Page
+# Lens: Test Lens
 id:: 550e8400-e29b-41d4-a716-446655440000
 Here is continued text that is part of the id field.
 `;
@@ -679,9 +677,8 @@ source:: [[../Learning Outcomes/lo1.md|LO 1]]
 # Submodule: Welcome
 slug:: welcome
 
-## Page: Welcome to AI Safety
-### Text
-content:: We begin by examining...
+## Lens: Welcome Lens
+source:: [[../Lenses/welcome.md]]
 
 ## Learning Outcome:
 source:: [[../Learning Outcomes/trial for Testing]]
@@ -725,7 +722,7 @@ source:: [[../Lenses/lens-2]]
       const content = `
 # Submodule: Welcome
 
-## Page: Welcome to AI Safety
+## Lens: Welcome Lens
 id:: abc-123
 
 ## Learning Outcome:
@@ -739,8 +736,8 @@ source:: [[../Learning Outcomes/lo1.md|LO1]]
       expect(result.sections[0].type).toBe('submodule');
       expect(result.sections[0].children).toBeDefined();
       expect(result.sections[0].children).toHaveLength(2);
-      expect(result.sections[0].children![0].type).toBe('page');
-      expect(result.sections[0].children![0].title).toBe('Welcome to AI Safety');
+      expect(result.sections[0].children![0].type).toBe('lens');
+      expect(result.sections[0].children![0].title).toBe('Welcome Lens');
       expect(result.sections[0].children![0].level).toBe(2);
       expect(result.sections[0].children![1].type).toBe('learning-outcome');
       expect(result.sections[0].children![1].level).toBe(2);
@@ -760,8 +757,8 @@ slug:: research
 
     it('reports level on each ParsedSection', () => {
       const content = `
-# Page: First
-content:: hello
+# Lens: First
+source:: [[../Lenses/first.md]]
 
 # Learning Outcome: Second
 source:: [[../Learning Outcomes/lo1.md|LO1]]

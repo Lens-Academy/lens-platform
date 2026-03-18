@@ -167,7 +167,7 @@ def test_list_article_summaries_slug_derived_from_path(article_cache):
 
 
 def test_build_article_module_returns_flattened_format(article_cache):
-    """Should return dict matching FlattenedModule shape with lens-article section."""
+    """Should return dict matching FlattenedModule shape with lens section."""
     result = build_article_module("test-article-one")
 
     assert result["slug"] == "article/test-article-one"
@@ -175,16 +175,17 @@ def test_build_article_module_returns_flattened_format(article_cache):
     assert len(result["sections"]) == 1
 
     section = result["sections"][0]
-    assert section["type"] == "lens-article"
+    assert section["type"] == "lens"
     assert section["meta"]["title"] == "Test Article One"
-    assert section["meta"]["author"] == "Alice Author"
-    assert section["meta"]["sourceUrl"] == "https://example.com/article-one"
-    assert section["meta"]["published"] == "2024-01-15"
 
     assert len(section["segments"]) == 1
     segment = section["segments"][0]
-    assert segment["type"] == "article-excerpt"
+    assert segment["type"] == "article"
     assert "This is the body of article one." in segment["content"]
+    assert segment["title"] == "Test Article One"
+    assert segment["author"] == "Alice Author"
+    assert segment["sourceUrl"] == "https://example.com/article-one"
+    assert segment["published"] == "2024-01-15"
 
 
 def test_build_article_module_not_found(article_cache):
