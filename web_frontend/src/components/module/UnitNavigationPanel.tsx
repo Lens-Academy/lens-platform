@@ -258,7 +258,7 @@ function SectionList({
     if (isCurrent) {
       return (
         <button
-          onClick={() => { onSectionClick(index); onClose(); }}
+          onClick={() => { onSectionClick(index); }}
           className={`block px-2 py-1 rounded-[16px] text-left w-full transition-colors ${
             isCurrentSection
               ? "text-gray-900 bg-[#f0ece4]"
@@ -558,8 +558,8 @@ export default function UnitNavigationPanel({
   const toggleSummaries = useCallback(() => setAllTldrsExpanded((prev) => !prev), []);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2 px-1">
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between px-2 py-2 shrink-0">
         <a
           href={`/course/${courseId}`}
           onClick={onClose}
@@ -584,7 +584,7 @@ export default function UnitNavigationPanel({
           </button>
         </div>
       </div>
-      <div>
+      <div className="overflow-y-auto overscroll-contain min-h-0">
         {groupModules(unitModules).map((group) => {
           if (group.kind === "parent") {
             const completedCount = group.children.filter((c) => c.status === "completed").length;

@@ -111,7 +111,7 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
           }}
         >
           {/* Content */}
-          <div className="p-2 h-full overflow-y-auto overscroll-contain">
+          <div className="p-1 h-full">
             <UnitNavigationPanel
               unitName={unitName}
               currentModuleSlug={currentModuleSlug}
