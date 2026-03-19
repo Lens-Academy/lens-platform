@@ -12,7 +12,6 @@ import {
 } from "react";
 import { useMedia } from "react-use";
 import { useScrollContainer } from "@/hooks/useScrollContainer";
-import { X } from "lucide-react";
 import type { ModuleInfo, StageInfo } from "../../types/course";
 import UnitNavigationPanel from "./UnitNavigationPanel";
 
@@ -29,6 +28,7 @@ type ModuleDrawerProps = {
   currentSectionIndex: number;
   onSectionClick: (index: number) => void;
   courseId: string;
+  onOpenChange?: (open: boolean) => void;
 };
 
 const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
@@ -42,10 +42,16 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
       currentSectionIndex,
       onSectionClick,
       courseId,
+      onOpenChange,
     },
     ref,
   ) {
     const [isOpen, setIsOpen] = useState(false);
+
+    // Notify parent of open state changes
+    useEffect(() => {
+      onOpenChange?.(isOpen);
+    }, [isOpen, onOpenChange]);
     const isMobile = useMedia("(max-width: 767px)", false);
     const scrollContainer = useScrollContainer();
 
@@ -76,61 +82,36 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
       }
     }, [isMobile, isOpen, scrollContainer]);
 
-    const currentModule = unitModules.find((m) => m.slug === currentModuleSlug);
-    const moduleTitle = currentModule?.title ?? currentModuleSlug;
-
     return (
       <>
         {/* Backdrop to close drawer - dimmed on mobile */}
         {isOpen && (
           <div
-            className={`fixed inset-0 z-40 transition-opacity duration-300 ${
+            className={`fixed inset-0 z-30 transition-opacity duration-300 ${
               isMobile ? "bg-black/50" : ""
             }`}
             onMouseDown={handleClose}
           />
         )}
 
-        {/* Drawer panel - slides in from left */}
+        {/* Drawer panel - below header, slides down from top */}
         <div
-          className={`fixed top-0 left-0 h-full z-50 transition-transform duration-300 [transition-timing-function:var(--ease-spring)] ${
+          className={`fixed left-0 z-[35] transition-transform duration-300 [transition-timing-function:var(--ease-spring)] ${
             isMobile ? "w-[90%]" : "w-[572px]"
           } ${
             isOpen
-              ? "translate-x-0 shadow-[8px_0_30px_-5px_rgba(0,0,0,0.2)]"
-              : "-translate-x-full"
+              ? "translate-y-0 shadow-[8px_0_30px_-5px_rgba(0,0,0,0.2)]"
+              : "-translate-y-[calc(100%+2rem)]"
           }`}
           style={{
-            paddingTop: "var(--safe-top)",
+            top: "var(--module-header-height)",
+            height: "calc(100dvh - var(--module-header-height))",
             paddingBottom: "var(--safe-bottom)",
             backgroundColor: "var(--brand-bg)",
           }}
         >
-          {/* Header */}
-          <div
-            className="flex items-center justify-between p-4 border-b"
-            style={{ borderColor: "var(--brand-border)" }}
-          >
-            <div className="flex items-center gap-1.5 min-w-0 text-sm">
-              <span className="text-slate-600 truncate shrink-0 font-display">
-                {unitName}
-              </span>
-              <span className="text-slate-400 shrink-0">&rsaquo;</span>
-              <span className="font-medium text-slate-900 truncate font-display">
-                {moduleTitle}
-              </span>
-            </div>
-            <button
-              onMouseDown={handleClose}
-              className="p-3 min-h-[44px] min-w-[44px] hover:bg-black/5 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
-              title="Close sidebar"
-            >
-              <X className="w-5 h-5 text-slate-500" />
-            </button>
-          </div>
-
           {/* Content */}
-          <div className="py-4 pl-2 pr-4 h-[calc(100%-4rem)] overflow-y-auto overscroll-contain">
+          <div className="p-2 h-full overflow-y-auto overscroll-contain">
             <UnitNavigationPanel
               unitName={unitName}
               currentModuleSlug={currentModuleSlug}

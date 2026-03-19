@@ -487,6 +487,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Drawer ref for imperative toggle (state lives in ModuleDrawer to avoid re-rendering Module)
   const drawerRef = useRef<ModuleDrawerHandle>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Track which question's feedback chat is currently visible (only one at a time)
   const [activeFeedbackKey, setActiveFeedbackKey] = useState<string | null>(
@@ -1842,6 +1843,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           unitName={unitContext?.unitName}
           unitModules={unitContext?.unitModules}
           currentModuleSlug={module.slug}
+          sidebarOpen={sidebarOpen}
         />
 
         {/* Layout: content + optional chat sidebar (TOC uses absolute positioning via ArticleExcerptGroup) */}
@@ -2363,6 +2365,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           currentSectionIndex={currentSectionIndex}
           onSectionClick={handleStageClick}
           courseId={courseId}
+          onOpenChange={setSidebarOpen}
         />
 
         <SectionChoiceModal

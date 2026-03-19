@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useMemo } from "react";
-import { ChevronRight, BotMessageSquare } from "lucide-react";
+import { ChevronRight, BotMessageSquare, X } from "lucide-react";
 import type { ModuleInfo, StageInfo } from "@/types/course";
 import { formatDurationMinutes } from "@/utils/duration";
 import { StageIcon } from "./StageProgressBar";
@@ -132,7 +132,7 @@ function StageDot({
   const isLargeIcon = stage.type === "video" || stage.type === "lens-video" || stage.type === "chat";
   return (
     <div
-      className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isLargeIcon ? "[&_svg]:w-[18px] [&_svg]:h-[18px]" : "[&_svg]:w-3.5 [&_svg]:h-3.5"} ${fillClasses} ${ringClasses}`}
+      className={`relative z-10 w-6 h-6 rounded-[16px] flex items-center justify-center flex-shrink-0 ${isLargeIcon ? "[&_svg]:w-[18px] [&_svg]:h-[18px]" : "[&_svg]:w-3.5 [&_svg]:h-3.5"} ${fillClasses} ${ringClasses}`}
     >
       <StageIcon type={stage.type} small />
     </div>
@@ -259,7 +259,7 @@ function SectionList({
       return (
         <button
           onClick={() => { onSectionClick(index); onClose(); }}
-          className={`block px-2 py-1 rounded-md text-left w-full transition-colors ${
+          className={`block px-2 py-1 rounded-[16px] text-left w-full transition-colors ${
             isCurrentSection
               ? "text-gray-900 bg-[#f0ece4]"
               : "text-gray-800 hover:text-gray-900 hover:bg-[#f5f1ea]"
@@ -274,7 +274,7 @@ function SectionList({
       <a
         href={`/course/${courseId}/module/${moduleSlug}#${generateHeadingId(stage.title)}`}
         onClick={onClose}
-        className="block px-2 py-1 rounded-md text-gray-800 hover:text-gray-900 hover:bg-[#f5f1ea] transition-colors"
+        className="block px-2 py-1 rounded-[16px] text-gray-800 hover:text-gray-900 hover:bg-[#f5f1ea] transition-colors"
       >
         {content}
       </a>
@@ -445,10 +445,10 @@ function ModuleRow({
     <div>
       <button
         onClick={hasStages ? onToggleExpand : undefined}
-        className={`flex items-center gap-2 px-2 py-1 rounded-md w-full text-left transition-colors ${
-          hasStages
-            ? "hover:bg-[#f5f1ea]"
-            : ""
+        className={`flex items-center gap-2 px-2 py-1 rounded-[16px] w-full text-left transition-colors ${
+          isCurrent
+            ? "bg-[#f0ece4]"
+            : hasStages ? "hover:bg-[#f5f1ea]" : ""
         }`}
       >
         <ProgressCircle
@@ -568,12 +568,21 @@ export default function UnitNavigationPanel({
           <ChevronRight className="w-3 h-3 rotate-180" />
           Back to course overview
         </a>
-        <button
-          onClick={toggleSummaries}
-          className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
-        >
-          {allTldrsExpanded ? "Hide descriptions" : "Show descriptions"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleSummaries}
+            className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            {allTldrsExpanded ? "Hide descriptions" : "Show descriptions"}
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-black/5 rounded-lg transition-colors"
+            title="Close sidebar"
+          >
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
       </div>
       <div>
         {groupModules(unitModules).map((group) => {

@@ -31,6 +31,7 @@ interface ModuleHeaderProps {
   unitName?: string;
   unitModules?: ModuleInfo[];
   currentModuleSlug?: string;
+  sidebarOpen?: boolean;
 }
 
 // 0 = show everything, 1 = hide brand, 2 = hide brand+username, 3 = compact nav, 4 = hide title
@@ -51,8 +52,12 @@ export function ModuleHeader({
   unitName,
   unitModules,
   currentModuleSlug,
+  sidebarOpen,
 }: ModuleHeaderProps) {
   const scrollDirection = useScrollDirection(100);
+
+  // Ref for the header element — used to dynamically set --module-header-height
+  const headerRef = useRef<HTMLElement>(null);
 
   // Refs for layout measurement
   const containerRef = useRef<HTMLDivElement>(null);
@@ -174,6 +179,20 @@ export function ModuleHeader({
     return () => ro.disconnect();
   }, []); // stable — no dependencies
 
+  // Keep --module-header-height in sync with actual header size
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const ro = new ResizeObserver(() => {
+      document.documentElement.style.setProperty(
+        "--module-header-height",
+        `${header.offsetHeight}px`,
+      );
+    });
+    ro.observe(header);
+    return () => ro.disconnect();
+  }, []);
+
   // Hide header on scroll down only when viewport is compact (mobile or short)
   const isCompactViewport = useMedia(
     "(max-width: 767px), (max-height: 700px)",
@@ -195,6 +214,7 @@ export function ModuleHeader({
 
   return (
     <header
+      ref={headerRef}
       className={`
         fixed top-0 left-0 right-0 z-40
         border-b bg-[var(--brand-bg)]
@@ -237,6 +257,7 @@ export function ModuleHeader({
               unitModules={unitModules!}
               priority={priority}
               onToggleSidebar={onMenuToggle}
+              sidebarOpen={sidebarOpen}
             />
           ) : (
             <h1

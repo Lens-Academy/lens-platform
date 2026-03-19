@@ -14,11 +14,12 @@ interface BreadcrumbNavProps {
   unitModules: ModuleInfo[];
   priority: number;
   onToggleSidebar: () => void;
+  sidebarOpen?: boolean;
 }
 
 const BreadcrumbNav = forwardRef<HTMLElement, BreadcrumbNavProps>(
   function BreadcrumbNav(
-    { unitName, currentModuleSlug, unitModules, priority, onToggleSidebar },
+    { unitName, currentModuleSlug, unitModules, priority, onToggleSidebar, sidebarOpen },
     ref,
   ) {
     const hasMultipleModules = unitModules.length > 1;
@@ -28,18 +29,23 @@ const BreadcrumbNav = forwardRef<HTMLElement, BreadcrumbNavProps>(
     return (
       <button
         ref={ref as React.Ref<HTMLButtonElement>}
-        onClick={onToggleSidebar}
-        className="text-sm font-display cursor-pointer hover:bg-black/5 rounded-md px-1.5 py-1 -mx-1.5 transition-colors truncate max-w-full"
+        type="button"
+        className="flex! items-center min-w-0 shrink-0 whitespace-nowrap font-display text-[15px] text-gray-900 hover:text-gray-600 transition-colors cursor-pointer"
         style={priority >= 4 ? hiddenStyle : undefined}
+        onClick={onToggleSidebar}
       >
         {hasMultipleModules && (
           <>
-            <span className="text-[#9a5c10]">{unitName}</span>
-            <span className="text-gray-300 mx-1">&rsaquo;</span>
+            <span className="whitespace-nowrap shrink-0">{unitName}</span>
+            <span className="shrink-0 mx-1.5">&rsaquo;</span>
           </>
         )}
-        <span className="font-semibold text-gray-900">{moduleName}</span>
-        <ChevronDown className="w-3.5 h-3.5 text-gray-400 ml-1 inline align-middle" />
+        <span className="truncate">{moduleName}</span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 shrink-0 ml-1.5 transition-transform duration-200 ${
+            sidebarOpen ? "rotate-180" : ""
+          }`}
+        />
       </button>
     );
   },
