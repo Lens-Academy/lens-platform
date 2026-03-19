@@ -920,6 +920,25 @@ What did you think?
     expect(result.module!.sections[0].segments.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('uses frontmatter title for standalone lens when present', () => {
+    const files = new Map([
+      ['Lenses/Simple Page.md', `---
+id: 55555555-6666-7777-8888-999999999999
+title: My Custom Title
+---
+#### Text
+content::
+Some page content here.
+`],
+    ]);
+
+    const result = flattenLens('Lenses/Simple Page.md', files);
+
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    expect(result.module!.title).toBe('My Custom Title');
+    expect(result.module!.sections[0].meta.title).toBe('My Custom Title');
+  });
+
   it('returns null for ignored lenses', () => {
     const files = new Map([
       ['Lenses/Ignored.md', `---

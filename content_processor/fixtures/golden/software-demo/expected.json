@@ -201,7 +201,7 @@
           "segments": [
             {
               "type": "text",
-              "content": "# Understanding Existential Risk from AI\n\nNow let's read an overview of the main concepts regarding AI as a source\nof existential threat: what capabilities of this technology are considered\nmost concerning, and why the task of eliminating AI risks differs from\nsimilar tasks for other technologies."
+              "content": ""
             },
             {
               "type": "article",
@@ -255,7 +255,7 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
-          "wordCount": 7685,
+          "wordCount": 7638,
           "displayType": "lens-article"
         }
       ]
@@ -343,7 +343,7 @@
           "segments": [
             {
               "type": "text",
-              "content": "# Understanding Existential Risk from AI\n\nNow let's read an overview of the main concepts regarding AI as a source\nof existential threat: what capabilities of this technology are considered\nmost concerning, and why the task of eliminating AI risks differs from\nsimilar tasks for other technologies."
+              "content": ""
             },
             {
               "type": "article",
@@ -397,7 +397,7 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
-          "wordCount": 7685,
+          "wordCount": 7638,
           "displayType": "lens-article"
         },
         {
@@ -466,6 +466,30 @@
   "courses": [],
   "errors": [
     {
+      "file": "Lenses/WP Software demo.md",
+      "line": 4,
+      "message": "'# Understanding Existential Risk from AI' looks like a Markdown heading inside content:: field",
+      "suggestion": "Escape it as '!# Understanding Existential Risk from AI' so it's treated as content, not a section boundary",
+      "severity": "warning",
+      "category": "production"
+    },
+    {
+      "file": "Lenses/WP Software demo.md",
+      "line": 6,
+      "message": "Text outside of a field:: definition will be ignored: \"Now let's read an overview of the main concepts regarding AI...\"",
+      "suggestion": "Place this text inside a field (e.g., content:: your text), or remove it",
+      "severity": "error",
+      "category": "production"
+    },
+    {
+      "file": "Lenses/WP Software demo.md",
+      "line": 2,
+      "message": "Text segment has empty content:: field",
+      "suggestion": "Add text content after content::",
+      "severity": "warning",
+      "category": "production"
+    },
+    {
       "file": "modules/software-demo.md",
       "line": 14,
       "message": "Inline Lens section '' is missing required id:: field",
@@ -494,6 +518,42 @@
       "line": 18,
       "message": "Lens section missing source:: field (or id:: for inline lens)",
       "suggestion": "Add 'source:: [[../Lenses/filename.md|Display]]' or 'id:: <uuid>' with #### segments",
+      "severity": "error",
+      "category": "production"
+    },
+    {
+      "file": "Lenses/WP Software demo.md",
+      "line": 4,
+      "message": "'# Understanding Existential Risk from AI' looks like a Markdown heading inside content:: field",
+      "suggestion": "Escape it as '!# Understanding Existential Risk from AI' so it's treated as content, not a section boundary",
+      "severity": "warning",
+      "category": "production"
+    },
+    {
+      "file": "Lenses/WP Software demo.md",
+      "line": 6,
+      "message": "Text outside of a field:: definition will be ignored: \"Now let's read an overview of the main concepts regarding AI...\"",
+      "suggestion": "Place this text inside a field (e.g., content:: your text), or remove it",
+      "severity": "error",
+      "category": "production"
+    },
+    {
+      "file": "Lenses/WP Software demo.md",
+      "line": 2,
+      "message": "Text segment has empty content:: field",
+      "suggestion": "Add text content after content::",
+      "severity": "warning",
+      "category": "production"
+    },
+    {
+      "file": "Lenses/WP Software demo.md",
+      "message": "Empty text segment in \"Existential risk from artificial intelligence\" (segment 1)",
+      "severity": "error",
+      "category": "production"
+    },
+    {
+      "file": "modules/software-demo.md",
+      "message": "Empty text segment in \"\" (segment 1)",
       "severity": "error",
       "category": "production"
     }

@@ -24,7 +24,7 @@ describe('CONTENT_SCHEMAS', () => {
   it('lens schema has correct required and optional fields', () => {
     const schema = CONTENT_SCHEMAS['lens'];
     expect(schema.requiredFields).toEqual(['id']);
-    expect(schema.optionalFields).toEqual(['tldr', 'tags']);
+    expect(schema.optionalFields).toEqual(['title', 'tldr', 'tags']);
   });
 
   it('learning-outcome schema has correct required and optional fields', () => {

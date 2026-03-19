@@ -1162,8 +1162,7 @@ content:: Hello
 slug: prod-uncat-mod
 title: Production Uncat Module
 ---
-# Lens: Section A
-## Lens: Draft Lens
+# Lens: Draft Lens
 source:: [[../Lenses/draft-lens-d.md]]
 `],
         ['Lenses/draft-lens-d.md', `---
@@ -1191,8 +1190,7 @@ content:: Hello
 slug: prod-uncat-mod-2
 title: Production Uncat Module 2
 ---
-# Lens: Section B
-## Lens: Ignored Lens
+# Lens: Ignored Lens
 source:: [[../Lenses/ignored-lens-e.md]]
 `],
         ['Lenses/ignored-lens-e.md', `---

@@ -4,7 +4,7 @@ import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, MODULE_SECTION_TYPES, type ParsedSection } from './sections.js';
 import { validateSlugFormat } from '../validator/field-values.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
-import { stripAuthoringMarkup, parseSegments, convertSegment, applySourceInheritance, type ParsedLens, type ParsedLensSegment } from './lens.js';
+import { stripAuthoringMarkup, convertSegment, applySourceInheritance, LENS_SEGMENT_TYPES, type ParsedLens, type ParsedLensSegment } from './lens.js';
 import { validateSegmentFields } from '../validator/segment-fields.js';
 import { validateFieldValues } from '../validator/field-values.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
@@ -14,8 +14,6 @@ export interface ParsedModule {
   title: string;
   contentId: string | null;
   sections: ParsedSection[];
-  /** Inline lenses keyed by section index — only for `# Lens:` sections with `id::` */
-  inlineLenses?: Map<number, ParsedLens>;
 }
 
 export interface ModuleParseResult {
@@ -56,7 +54,7 @@ export function parseModule(content: string, file: string): ModuleParseResult {
 
   // Parse sections (H1 headers for module files, including submodule support)
   const moduleSectionTypes = new Set([...MODULE_SECTION_TYPES, 'submodule']);
-  const sectionsResult = parseSections(body, 1, moduleSectionTypes, file);
+  const sectionsResult = parseSections(body, 0, moduleSectionTypes, file);
 
   // Adjust line numbers to account for frontmatter
   for (const error of sectionsResult.errors) {
@@ -81,23 +79,9 @@ export function parseModule(content: string, file: string): ModuleParseResult {
     });
   }
 
-  // Parse inline lenses from # Lens: sections that have id::
+  // Parse inline lenses recursively from all Lens sections with id::
   // (id:: indicates inline, source:: at section level indicates referenced)
-  // Note: section.fields may contain source:: from #### Article segments inside the body,
-  // so we detect inline vs referenced by presence of id:: field.
-  // We also need to check if source:: appears before any #### header (section-level source).
-  const inlineLenses = new Map<number, ParsedLens>();
-  for (let i = 0; i < sectionsResult.sections.length; i++) {
-    const section = sectionsResult.sections[i];
-    const hasSectionLevelSource = hasFieldBeforeSegmentHeaders(section.body, 'source');
-    if (section.type === 'lens' && !hasSectionLevelSource && section.fields.id) {
-      const inlineLens = parseInlineLens(section, file);
-      errors.push(...inlineLens.errors);
-      if (inlineLens.lens) {
-        inlineLenses.set(i, inlineLens.lens);
-      }
-    }
-  }
+  attachInlineLenses(sectionsResult.sections, file, errors);
 
   const module: ParsedModule = {
     slug: frontmatter.slug as string,
@@ -105,7 +89,6 @@ export function parseModule(content: string, file: string): ModuleParseResult {
     // Accept both 'contentId' and 'id' from frontmatter (prefer contentId)
     contentId: (frontmatter.contentId as string) ?? (frontmatter.id as string) ?? null,
     sections: sectionsResult.sections,
-    ...(inlineLenses.size > 0 ? { inlineLenses } : {}),
   };
 
   return { module, errors };
@@ -115,20 +98,43 @@ export function parseModule(content: string, file: string): ModuleParseResult {
  * Check if a field:: definition appears in the section body before any #### segment header.
  * Used to distinguish section-level fields from segment-level fields.
  */
-export function hasFieldBeforeSegmentHeaders(body: string, fieldName: string): boolean {
+export function hasFieldBeforeSegmentHeaders(body: string, fieldName: string, sectionLevel: number = 0): boolean {
   const lines = body.split('\n');
   const fieldPattern = new RegExp(`^${fieldName}::\\s`);
+  const minLevel = sectionLevel + 1;
+  const segmentPattern = new RegExp(`^#{${minLevel},6}\\s`);
   for (const line of lines) {
-    // If we hit a #### header, stop checking
-    if (/^####\s/.test(line)) return false;
+    // If we hit a segment header (any level deeper than section), stop checking
+    if (segmentPattern.test(line)) return false;
     if (fieldPattern.test(line)) return true;
   }
   return false;
 }
 
 /**
- * Parse an inline lens from a # Lens: section body.
- * The section has id:: and #### segments (like a lens file body, but without frontmatter).
+ * Recursively detect and attach inline lenses to all Lens sections.
+ * An inline lens has id:: but no section-level source::.
+ * Works for both top-level sections and submodule children.
+ */
+function attachInlineLenses(sections: ParsedSection[], file: string, errors: ContentError[]): void {
+  for (const section of sections) {
+    if (section.type === 'lens' && section.fields.id
+        && !hasFieldBeforeSegmentHeaders(section.body, 'source', section.level)) {
+      const result = parseInlineLens(section, file);
+      errors.push(...result.errors);
+      if (result.lens) {
+        section.inlineLens = result.lens;
+      }
+    }
+    if (section.children) {
+      attachInlineLenses(section.children, file, errors);
+    }
+  }
+}
+
+/**
+ * Parse an inline lens from a Lens section body.
+ * The section has id:: and segments (like a lens file body, but without frontmatter).
  */
 function parseInlineLens(
   section: ParsedSection,
@@ -148,13 +154,16 @@ function parseInlineLens(
     return { lens: null, errors };
   }
 
+  const title = section.fields.title || undefined;
   const tldr = section.fields.tldr || undefined;
 
-  // Parse H4 segments from the section body
-  const { segments: rawSegments, errors: segmentErrors } = parseSegments(
+  // Parse segments from section body using unified parser (flat mode)
+  const { sections: rawSegments, errors: segmentErrors } = parseSections(
     section.body,
-    section.line + 1,
-    file
+    section.level,  // parent level = this section's level
+    LENS_SEGMENT_TYPES,
+    file,
+    true  // flat=true — segments are always siblings
   );
   errors.push(...segmentErrors);
 
@@ -196,6 +205,7 @@ function parseInlineLens(
 
   const lens: ParsedLens = {
     id,
+    title,
     tldr,
     segments: parsedSegments,
   };

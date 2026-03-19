@@ -278,8 +278,7 @@ export function flattenModule(
 
   // Helper: process a section (LO or Lens) and return Section[]
   function processSection(
-    section: { type: string; title: string; rawType: string; fields: Record<string, string>; body: string; line: number; level: number; children?: any[] },
-    sectionIndex: number,
+    section: { type: string; title: string; rawType: string; fields: Record<string, string>; body: string; line: number; level: number; children?: any[]; inlineLens?: ParsedLens },
     _subsectionLevel?: number
   ): Section[] {
     if (section.type === 'learning-outcome') {
@@ -296,14 +295,13 @@ export function flattenModule(
     } else if (section.type === 'lens') {
       // Referenced lens (has source::) or inline lens
       const sectionVisitedPaths = new Set(visitedPaths);
-      const inlineLens = parsedModule.inlineLenses?.get(sectionIndex);
       const result = flattenLensSection(
         section,
         modulePath,
         files,
         sectionVisitedPaths,
         tierMap,
-        inlineLens
+        section.inlineLens
       );
       errors.push(...result.errors);
       return result.sections;
@@ -312,8 +310,7 @@ export function flattenModule(
   }
 
   // Process each section in the module
-  for (let sIdx = 0; sIdx < parsedModule.sections.length; sIdx++) {
-    const section = parsedModule.sections[sIdx];
+  for (const section of parsedModule.sections) {
     if (section.type === 'submodule') {
       // Emit boundary marker
       flatItems.push({
@@ -322,11 +319,10 @@ export function flattenModule(
         customSlug: section.fields.slug,
       });
 
-      // Process children at level+1
+      // Process children
       if (section.children) {
         for (const child of section.children) {
-          // Children don't have inline lenses (submodule children are at a different scope)
-          const childSections = processSection(child, -1, child.level + 1);
+          const childSections = processSection(child, child.level + 1);
           flatItems.push(...childSections);
         }
       }
@@ -339,7 +335,7 @@ export function flattenModule(
           continue;
         }
       }
-      const sections = processSection(section, sIdx);
+      const sections = processSection(section);
       flatItems.push(...sections);
     }
   }
@@ -738,7 +734,7 @@ function flattenLearningOutcomeSection(
  * Handles both referenced lenses (with source:: wikilink) and inline lenses (with id:: + segments).
  */
 function flattenLensSection(
-  section: { type: string; title: string; fields: Record<string, string>; body: string; line: number },
+  section: { type: string; title: string; fields: Record<string, string>; body: string; line: number; level: number },
   modulePath: string,
   files: Map<string, string>,
   visitedPaths: Set<string>,
@@ -771,7 +767,7 @@ function flattenLensSection(
   }
 
   // Referenced lens: has source:: at section level (not from segment fields)
-  const hasSectionSource = hasFieldBeforeSegmentHeaders(section.body, 'source');
+  const hasSectionSource = hasFieldBeforeSegmentHeaders(section.body, 'source', section.level);
   const source = hasSectionSource ? section.fields.source : undefined;
   if (!source) {
     errors.push({
@@ -1291,21 +1287,23 @@ export function flattenLens(
   const { segments, errors: flattenErrors } = flattenSingleLens(lens, lensPath, files, visitedPaths, tierMap);
   errors.push(...flattenErrors);
 
-  // Derive title from first article/video segment metadata, or fallback to filename
+  // Derive title: frontmatter > first article/video segment > filename
   const meta: SectionMeta = {};
-  for (const seg of segments) {
-    if (seg.type === 'article' && seg.title) {
-      meta.title = seg.title;
-      break;
-    } else if (seg.type === 'video' && seg.title) {
-      meta.title = seg.title;
-      break;
+  if (lens.title) {
+    meta.title = lens.title;
+  } else {
+    for (const seg of segments) {
+      if (seg.type === 'article' && seg.title) {
+        meta.title = seg.title;
+        break;
+      } else if (seg.type === 'video' && seg.title) {
+        meta.title = seg.title;
+        break;
+      }
     }
-  }
-
-  // Fallback title from filename if not extracted from source metadata
-  if (!meta.title) {
-    meta.title = fileNameToSlug(lensPath).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    if (!meta.title) {
+      meta.title = fileNameToSlug(lensPath).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
   }
 
   const section: Section = {

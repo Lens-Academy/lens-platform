@@ -295,7 +295,7 @@ optional:: true
     expect(result.module?.sections[0].fields.source).toBe('[[../Lenses/external.md|External]]');
     expect(result.module?.sections[0].fields.optional).toBe('true');
     // No inline lens for referenced sections
-    expect(result.module?.inlineLenses).toBeUndefined();
+    expect(result.module?.sections[0].inlineLens).toBeUndefined();
   });
 
   it('parses inline Lens section with id:: and #### segments', () => {
@@ -322,14 +322,52 @@ instructions:: Ask the student what they know.
     expect(result.module?.sections[0].type).toBe('lens');
     expect(result.module?.sections[0].title).toBe('Welcome');
     expect(result.module?.sections[0].fields.id).toBe('d1e2f3a4-5678-90ab-cdef-1234567890ab');
-    // Should have an inline lens
-    expect(result.module?.inlineLenses).toBeDefined();
-    expect(result.module?.inlineLenses?.size).toBe(1);
-    const inlineLens = result.module?.inlineLenses?.get(0);
+    // Should have an inline lens on the section
+    const inlineLens = result.module?.sections[0].inlineLens;
+    expect(inlineLens).toBeDefined();
     expect(inlineLens?.id).toBe('d1e2f3a4-5678-90ab-cdef-1234567890ab');
     expect(inlineLens?.segments).toHaveLength(2);
     expect(inlineLens?.segments[0].type).toBe('text');
     expect(inlineLens?.segments[1].type).toBe('chat');
+  });
+
+  it('parses title:: field from inline Lens section', () => {
+    const content = `---
+slug: test
+title: Test Module
+---
+
+# Lens: Welcome
+id:: d1e2f3a4-5678-90ab-cdef-1234567890ab
+title:: My Inline Title
+
+#### Text
+content:: Hello.
+`;
+
+    const result = parseModule(content, 'modules/test.md');
+
+    const inlineLens = result.module?.sections[0].inlineLens;
+    expect(inlineLens?.title).toBe('My Inline Title');
+  });
+
+  it('inline Lens without title:: has undefined title', () => {
+    const content = `---
+slug: test
+title: Test Module
+---
+
+# Lens: Welcome
+id:: d1e2f3a4-5678-90ab-cdef-1234567890ab
+
+#### Text
+content:: Hello.
+`;
+
+    const result = parseModule(content, 'modules/test.md');
+
+    const inlineLens = result.module?.sections[0].inlineLens;
+    expect(inlineLens?.title).toBeUndefined();
   });
 
   it('parses inline Lens with article segments and source inheritance', () => {
@@ -353,8 +391,8 @@ to:: "section end"
 
     const result = parseModule(content, 'modules/test.md');
 
-    expect(result.module?.inlineLenses?.size).toBe(1);
-    const inlineLens = result.module?.inlineLenses?.get(0);
+    expect(result.module?.sections[0].inlineLens).toBeDefined();
+    const inlineLens = result.module?.sections[0].inlineLens;
     expect(inlineLens?.segments).toHaveLength(2);
     // Both should have source (second inherits from first)
     const seg0 = inlineLens?.segments[0] as any;
@@ -402,5 +440,55 @@ id:: d1e2f3a4-5678-90ab-cdef-1234567890ab
       e.message.includes('Unknown section type') &&
       e.message.includes('Page')
     )).toBe(true);
+  });
+
+  it('parses inline lens inside submodule', () => {
+    const content = `---
+slug: existing-approaches
+title: Existing approaches
+---
+
+# Submodule: Welcome
+## Lens: Welcome
+id:: dc56fe14-2c41-4057-b112-a84c0b2ef303
+
+### Text
+content::
+Welcome to the module.
+
+# Learning Outcome:
+source:: [[../Learning Outcomes/lo1.md]]
+`;
+
+    const result = parseModule(content, 'modules/existing.md');
+
+    expect(result.module?.sections).toHaveLength(2);
+    expect(result.module?.sections[0].type).toBe('submodule');
+    expect(result.module?.sections[0].children?.[0].type).toBe('lens');
+    expect(result.module?.sections[0].children?.[0].inlineLens).toBeDefined();
+    expect(result.module?.sections[0].children?.[0].inlineLens?.segments).toHaveLength(1);
+    expect(result.module?.sections[0].children?.[0].inlineLens?.segments[0].type).toBe('text');
+  });
+
+  it('stores inlineLens on section instead of module-level map', () => {
+    const content = `---
+slug: test
+title: Test Module
+---
+
+# Lens: Welcome
+id:: d1e2f3a4-5678-90ab-cdef-1234567890ab
+
+#### Text
+content:: Hello.
+`;
+
+    const result = parseModule(content, 'modules/test.md');
+
+    // Should be on the section, not on a module-level map
+    expect(result.module?.sections[0].inlineLens).toBeDefined();
+    expect(result.module?.sections[0].inlineLens?.id).toBe('d1e2f3a4-5678-90ab-cdef-1234567890ab');
+    expect(result.module?.sections[0].inlineLens?.segments).toHaveLength(1);
+    expect(result.module?.sections[0].inlineLens?.segments[0].type).toBe('text');
   });
 });

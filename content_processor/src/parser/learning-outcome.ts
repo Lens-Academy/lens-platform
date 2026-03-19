@@ -5,7 +5,7 @@ import { parseSections, LO_SECTION_TYPES, type ParsedSection } from './sections.
 import { parseWikilink, resolveWikilinkPath, hasRelativePath } from './wikilink.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
-import { parseSegments, convertSegment, stripAuthoringMarkup, type ParsedLensSegment } from './lens.js';
+import { convertSegment, stripAuthoringMarkup, LENS_SEGMENT_TYPES, type ParsedLensSegment } from './lens.js';
 
 export interface ParsedLensRef {
   source: string;       // Raw wikilink
@@ -75,7 +75,7 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
 
   // Step 2: Parse sections with H2 level and LO_SECTION_TYPES + 'submodule'
   const loSectionTypes = new Set([...LO_SECTION_TYPES, 'submodule']);
-  const sectionsResult = parseSections(body, 2, loSectionTypes, file);
+  const sectionsResult = parseSections(body, 0, loSectionTypes, file);
 
   // Adjust line numbers to account for frontmatter
   for (const error of sectionsResult.errors) {
@@ -166,10 +166,12 @@ export function parseLearningOutcome(content: string, file: string): LearningOut
       resolvedPath = resolveWikilinkPath(wikilink.path, file);
     }
 
-    const { segments: rawSegments, errors: segmentErrors } = parseSegments(
+    const { sections: rawSegments, errors: segmentErrors } = parseSections(
       section.body,
-      section.line + 1,
-      file
+      section.level,
+      LENS_SEGMENT_TYPES,
+      file,
+      true  // flat=true for segments
     );
     for (const err of segmentErrors) {
       if (err.line) {

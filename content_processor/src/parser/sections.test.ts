@@ -12,7 +12,7 @@ source:: [[../Learning Outcomes/lo1.md|LO1]]
 source:: [[../Lenses/lens1.md|Lens]]
 `;
 
-    const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+    const result = parseSections(content, 0, MODULE_SECTION_TYPES);
 
     expect(result.sections).toHaveLength(2);
     expect(result.sections[0].type).toBe('learning-outcome');
@@ -32,7 +32,7 @@ content:: Hello world.
 source:: [[../articles/deep.md|Article]]
 `;
 
-    const result = parseSections(content, 3, LENS_SECTION_TYPES);
+    const result = parseSections(content, 2, LENS_SECTION_TYPES);
 
     expect(result.sections).toHaveLength(2);
     expect(result.sections[0].type).toBe('page');
@@ -46,7 +46,7 @@ source:: [[../Learning Outcomes/lo1.md|LO1]]
 optional:: true
 `;
 
-    const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+    const result = parseSections(content, 0, MODULE_SECTION_TYPES);
 
     expect(result.sections[0].fields.source).toBe('[[../Learning Outcomes/lo1.md|LO1]]');
     expect(result.sections[0].fields.optional).toBe('true');
@@ -58,7 +58,7 @@ optional:: true
 content:: here
 `;
 
-    const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+    const result = parseSections(content, 0, MODULE_SECTION_TYPES);
 
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].message).toContain('Unknown section type');
@@ -79,7 +79,7 @@ This is line three.
 instructions:: Next segment
 `;
 
-      const result = parseSections(content, 3, LENS_SECTION_TYPES);
+      const result = parseSections(content, 2, LENS_SECTION_TYPES);
 
       // The section body should contain the multiline content
       expect(result.sections[0].body).toContain('content::\nThis is line one.');
@@ -92,7 +92,7 @@ source::
 ![[../Lenses/test]]
 `;
 
-      const result = parseSections(content, 2, LO_SECTION_TYPES);
+      const result = parseSections(content, 1, LO_SECTION_TYPES);
 
       expect(result.sections[0].fields.source).toBe('![[../Lenses/test]]');
     });
@@ -107,7 +107,7 @@ Third line.
 source:: [[test.md|Test]]
 `;
 
-      const result = parseSections(content, 2, LO_SECTION_TYPES);
+      const result = parseSections(content, 1, LO_SECTION_TYPES);
 
       expect(result.sections[0].fields.instructions).toBe('First line.\nSecond line.\nThird line.');
       expect(result.sections[0].fields.source).toBe('[[test.md|Test]]');
@@ -124,7 +124,7 @@ Line two.
 Line three.
 `;
 
-      const result = parseSections(content, 3, LENS_SECTION_TYPES);
+      const result = parseSections(content, 2, LENS_SECTION_TYPES);
 
       // The parseFields function should extract multiline content
       // Note: body contains subsections too, we need to test fields parsing
@@ -140,7 +140,7 @@ Welcome to the course.
 This is the intro text.
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES);
 
       expect(result.sections[0].fields.id).toBe('abc-123');
       expect(result.sections[0].fields.content).toBe('Welcome to the course.\nThis is the intro text.');
@@ -157,7 +157,7 @@ source:: [[../Lenses/test.md|Test]]
 source:: [[../Lenses/other.md|Other]]
 `;
 
-      const result = parseSections(content, 2, LO_SECTION_TYPES);
+      const result = parseSections(content, 1, LO_SECTION_TYPES);
 
       expect(result.sections).toHaveLength(2);
       expect(result.sections[0].title).toBe('');
@@ -171,7 +171,7 @@ source:: [[../Lenses/other.md|Other]]
 source:: [[../Lenses/test.md|Test]]
 `;
 
-      const result = parseSections(content, 2, LO_SECTION_TYPES);
+      const result = parseSections(content, 1, LO_SECTION_TYPES);
 
       expect(result.sections).toHaveLength(1);
       expect(result.sections[0].title).toBe('');
@@ -187,7 +187,7 @@ content:: First value
 content:: Second value
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES, 'test.md');
 
       expect(result.errors.some(e =>
         e.severity === 'error' &&
@@ -202,7 +202,7 @@ id:: first-id
 id:: second-id
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES, 'test.md');
 
       // The last value should win
       expect(result.sections[0].fields.id).toBe('second-id');
@@ -215,7 +215,7 @@ id:: some-id
 content:: Some content
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES, 'test.md');
 
       // No errors about duplicates
       expect(result.errors.filter(e =>
@@ -268,7 +268,7 @@ instructions::
 Discuss what the user learned from the video.
 `;
 
-      const result = parseSections(content, 3, LENS_SECTION_TYPES, 'test-lens.md');
+      const result = parseSections(content, 2, LENS_SECTION_TYPES, 'test-lens.md');
 
       // Should have 2 sections (Article and Video)
       expect(result.sections).toHaveLength(2);
@@ -299,7 +299,7 @@ content:: First paragraph
 content:: Second paragraph that overwrites the first
 `;
 
-      const result = parseSections(content, 3, LENS_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 2, LENS_SECTION_TYPES, 'test.md');
 
       // This IS a real duplicate - same field twice within the same #### Text segment
       const duplicateWarnings = result.errors.filter(e =>
@@ -318,7 +318,7 @@ content:: Second paragraph that overwrites the first
 source:: [[../Lenses/safety.md]]
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES, 'test.md');
 
       expect(result.sections).toHaveLength(1);
       expect(result.sections[0].title).toBe('Safety & Alignment');
@@ -332,7 +332,7 @@ source:: [[../Lenses/safety.md]]
 content:: Looking ahead.
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES, 'test.md');
 
       expect(result.sections).toHaveLength(1);
       expect(result.sections[0].title).toBe("What's Next");
@@ -344,7 +344,7 @@ content:: Looking ahead.
 content:: The beginning.
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES, 'test.md');
 
       expect(result.sections).toHaveLength(1);
       expect(result.sections[0].title).toBe('Part 1: Introduction');
@@ -359,7 +359,7 @@ It should trigger a warning.
 source:: [[../Lenses/test.md]]
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES, 'test.md');
 
       expect(result.sections).toHaveLength(1);
       expect(result.errors.some(e =>
@@ -368,36 +368,25 @@ source:: [[../Lenses/test.md]]
       )).toBe(true);
     });
 
-    it('warns when section header uses wrong heading level', () => {
-      // Lens files use ### (level 3), but user writes ## (level 2)
+    it('matches section headers at any level deeper than parentLevel', () => {
+      // With flexible levels, ## Page is valid when parentLevel=1
       const content = `
 ## Page: Introduction
 content:: Hello world.
 `;
-
-      const result = parseSections(content, 3, LENS_SECTION_TYPES, 'Lenses/test.md');
-
-      expect(result.sections).toHaveLength(0); // not parsed as a section
-      expect(result.errors.some(e =>
-        e.message.includes('heading level') &&
-        e.message.includes('Page') &&
-        e.severity === 'warning'
-      )).toBe(true);
+      const result = parseSections(content, 1, LENS_SECTION_TYPES, 'Lenses/test.md');
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].type).toBe('page');
     });
 
-    it('warns when module section header uses H2 instead of H1', () => {
+    it('matches module sections at H2 when parentLevel=0', () => {
       const content = `
 ## Learning Outcome: First Topic
 source:: [[../Learning Outcomes/lo1.md|LO1]]
 `;
-
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'modules/test.md');
-
-      expect(result.sections).toHaveLength(0);
-      expect(result.errors.some(e =>
-        e.message.includes('heading level') &&
-        e.severity === 'warning'
-      )).toBe(true);
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES, 'modules/test.md');
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].type).toBe('learning-outcome');
     });
 
     it('does not warn for blank lines before first section header', () => {
@@ -407,7 +396,7 @@ source:: [[../Learning Outcomes/lo1.md|LO1]]
 source:: [[../Lenses/test.md]]
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES, 'test.md');
 
       expect(result.errors.filter(e => e.message.includes('before'))).toHaveLength(0);
     });
@@ -418,7 +407,7 @@ source:: [[../Lenses/test.md]]
 source:: [[../Lenses/safety.md]]
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES, 'test.md');
 
       expect(result.sections).toHaveLength(1);
       expect(result.sections[0].title).toBe("AI Safety & Alignment: What's at Stake?");
@@ -429,7 +418,7 @@ source:: [[../Lenses/safety.md]]
     it('errors when known field uses single colon instead of double colon', () => {
       const content = `## Lens: Test\nsource: [[../Lenses/lens1.md|Lens]]`;
 
-      const result = parseSections(content, 2, LO_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 1, LO_SECTION_TYPES, 'test.md');
 
       expect(result.errors.some(e =>
         e.severity === 'error' &&
@@ -442,7 +431,7 @@ source:: [[../Lenses/safety.md]]
       // "Summary" is not a known field name, so "Summary: text" is just prose
       const content = `## Lens: Test\nSummary: This is a summary of the topic.`;
 
-      const result = parseSections(content, 2, LO_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 1, LO_SECTION_TYPES, 'test.md');
 
       const singleColonWarnings = result.errors.filter(e =>
         e.severity === 'error' &&
@@ -466,7 +455,7 @@ Some intro text about security.
 Summary: The key points about security mindset are important.
 `;
 
-      const result = parseSections(content, 3, LENS_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 2, LENS_SECTION_TYPES, 'test.md');
 
       const summaryWarnings = result.errors.filter(e =>
         e.severity === 'error' &&
@@ -488,7 +477,7 @@ Some text here.
 source: [[../Lenses/lens1.md|Lens]]
 `;
 
-      const result = parseSections(content, 3, LENS_SECTION_TYPES, 'test.md');
+      const result = parseSections(content, 2, LENS_SECTION_TYPES, 'test.md');
 
       expect(result.errors.some(e =>
         e.severity === 'error' &&
@@ -513,7 +502,7 @@ content::
 # Understanding Existential Risk
 This text gets orphaned.
 `;
-      const result = parseSections(body, 3, LENS_SECTION_TYPES, 'test.md');
+      const result = parseSections(body, 2, LENS_SECTION_TYPES, 'test.md');
       const warning = result.errors.find(e =>
         e.message.includes('looks like a Markdown heading')
       );
@@ -531,7 +520,7 @@ instructions::
 ## Discussion Topic
 Talk about this.
 `;
-      const result = parseSections(body, 3, LENS_SECTION_TYPES, 'test.md');
+      const result = parseSections(body, 2, LENS_SECTION_TYPES, 'test.md');
       const warning = result.errors.find(e =>
         e.message.includes('looks like a Markdown heading')
       );
@@ -549,7 +538,7 @@ content:: Some text.
 #### Chat
 instructions:: Do something.
 `;
-      const result = parseSections(body, 3, LENS_SECTION_TYPES, 'test.md');
+      const result = parseSections(body, 2, LENS_SECTION_TYPES, 'test.md');
       const warning = result.errors.find(e =>
         e.message.includes('looks like a Markdown heading')
       );
@@ -566,7 +555,7 @@ source:: [[../foo.md]]
 # Some Heading
 orphan text
 `;
-      const result = parseSections(body, 3, LENS_SECTION_TYPES, 'test.md');
+      const result = parseSections(body, 2, LENS_SECTION_TYPES, 'test.md');
       const warning = result.errors.find(e =>
         e.message.includes('looks like a Markdown heading')
       );
@@ -584,7 +573,7 @@ Some intro text.
 #### CHTA
 instructions:: Do something.
 `;
-      const result = parseSections(body, 3, LENS_SECTION_TYPES, 'test.md');
+      const result = parseSections(body, 2, LENS_SECTION_TYPES, 'test.md');
       const warning = result.errors.find(e =>
         e.message.includes('looks like a Markdown heading')
       );
@@ -599,7 +588,7 @@ instructions:: Do something.
 content::
 ## Why AI Safety Matters
 `;
-      const result = parseSections(body, 3, LENS_SECTION_TYPES, 'test.md');
+      const result = parseSections(body, 2, LENS_SECTION_TYPES, 'test.md');
       const warning = result.errors.find(e =>
         e.message.includes('looks like a Markdown heading')
       );
@@ -617,7 +606,7 @@ Here is a description of this learning outcome.
 source:: [[../Learning Outcomes/lo1.md|LO 1]]
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES);
 
       expect(result.sections).toHaveLength(1);
       expect(result.errors.some(e =>
@@ -633,7 +622,7 @@ source:: [[../Learning Outcomes/lo1.md|LO 1]]
 source:: [[../Learning Outcomes/lo1.md|LO 1]]
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES);
 
       expect(result.errors.filter(e =>
         e.message.includes('ignored')
@@ -646,7 +635,7 @@ source:: [[../Learning Outcomes/lo1.md|LO 1]]
 id:: 550e8400-e29b-41d4-a716-446655440000
 Here is continued text that is part of the id field.
 `;
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES);
 
       expect(result.errors.filter(e =>
         e.message.includes('ignored')
@@ -662,7 +651,7 @@ Line three of free text.
 source:: [[../Learning Outcomes/lo1.md|LO 1]]
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES);
 
       const freeTextWarnings = result.errors.filter(e =>
         e.message.includes('ignored')
@@ -685,7 +674,7 @@ source:: [[../Learning Outcomes/trial for Testing]]
 `;
 
       const validTypes = new Set([...MODULE_SECTION_TYPES, 'submodule']);
-      const result = parseSections(content, 1, validTypes);
+      const result = parseSections(content, 0, validTypes);
 
       expect(result.sections).toHaveLength(1);
       expect(result.sections[0].type).toBe('submodule');
@@ -707,7 +696,7 @@ source:: [[../Lenses/lens-2]]
 `;
 
       const validTypes = new Set([...LO_SECTION_TYPES, 'submodule']);
-      const result = parseSections(content, 2, validTypes);
+      const result = parseSections(content, 1, validTypes);
 
       expect(result.sections).toHaveLength(2);
       expect(result.sections[0].type).toBe('submodule');
@@ -730,7 +719,7 @@ source:: [[../Learning Outcomes/lo1.md|LO1]]
 `;
 
       const validTypes = new Set([...MODULE_SECTION_TYPES, 'submodule']);
-      const result = parseSections(content, 1, validTypes);
+      const result = parseSections(content, 0, validTypes);
 
       expect(result.sections).toHaveLength(1);
       expect(result.sections[0].type).toBe('submodule');
@@ -750,7 +739,7 @@ slug:: research
 `;
 
       const validTypes = new Set([...MODULE_SECTION_TYPES, 'submodule']);
-      const result = parseSections(content, 1, validTypes);
+      const result = parseSections(content, 0, validTypes);
 
       expect(result.sections[0].fields.slug).toBe('research');
     });
@@ -764,14 +753,14 @@ source:: [[../Lenses/first.md]]
 source:: [[../Learning Outcomes/lo1.md|LO1]]
 `;
 
-      const result = parseSections(content, 1, MODULE_SECTION_TYPES);
+      const result = parseSections(content, 0, MODULE_SECTION_TYPES);
 
       expect(result.sections[0].level).toBe(1);
       expect(result.sections[1].level).toBe(1);
     });
 
-    it('detects parent-level submodule at headerLevel - 1', () => {
-      // Scanning at h2, find `# Submodule:` at h1, verify children parsed at h2
+    it('finds submodules at any level via flexible matching', () => {
+      // With parentLevel=0, # Submodule: at H1 is found directly
       const content = `
 # Submodule: Basics
 
@@ -785,7 +774,7 @@ source:: [[../Lenses/lens-2]]
 `;
 
       const validTypes = new Set([...LO_SECTION_TYPES, 'submodule']);
-      const result = parseSections(content, 2, validTypes);
+      const result = parseSections(content, 0, validTypes);
 
       expect(result.sections).toHaveLength(2);
       expect(result.sections[0].type).toBe('submodule');
@@ -800,7 +789,7 @@ source:: [[../Lenses/lens-2]]
       expect(result.sections[1].children).toHaveLength(1);
     });
 
-    it('parent-level submodule does not fire wrong-level warning', () => {
+    it('submodule children are parsed from body via hierarchy', () => {
       const content = `
 # Submodule: Group A
 
@@ -809,31 +798,26 @@ source:: [[../Lenses/lens-1]]
 `;
 
       const validTypes = new Set([...LO_SECTION_TYPES, 'submodule']);
-      const result = parseSections(content, 2, validTypes);
+      const result = parseSections(content, 0, validTypes);
 
-      const wrongLevelWarnings = result.errors.filter(e =>
-        e.message.includes('heading level')
-      );
-      expect(wrongLevelWarnings).toHaveLength(0);
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].type).toBe('submodule');
+      expect(result.sections[0].children).toHaveLength(1);
+      expect(result.sections[0].children![0].type).toBe('lens');
     });
 
-    it('does not detect parent-level for non-submodule types', () => {
-      // `# Lens:` at h1 when scanning at h2 → wrong-level warning, not a section
+    it('non-submodule types at shallower levels are still sections', () => {
+      // # Lens: at H1 when parentLevel=0 → valid section
       const content = `
 # Lens: Stray
 source:: [[../Lenses/lens-1]]
 `;
 
       const validTypes = new Set([...LO_SECTION_TYPES, 'submodule']);
-      const result = parseSections(content, 2, validTypes);
+      const result = parseSections(content, 0, validTypes);
 
-      // Should NOT be parsed as a section
-      expect(result.sections).toHaveLength(0);
-      // Should produce wrong-level warning
-      expect(result.errors.some(e =>
-        e.message.includes('heading level') &&
-        e.message.includes('Lens')
-      )).toBe(true);
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].type).toBe('lens');
     });
 
     it('rejects ## Submodule inside # Submodule (no nesting)', () => {
@@ -844,7 +828,7 @@ source:: [[../Lenses/lens-1]]
 `;
 
       const validTypes = new Set([...MODULE_SECTION_TYPES, 'submodule']);
-      const result = parseSections(content, 1, validTypes);
+      const result = parseSections(content, 0, validTypes);
 
       // The inner ## Submodule should be rejected as an unknown type
       // because children exclude 'submodule' from valid types
@@ -857,6 +841,201 @@ source:: [[../Lenses/lens-1]]
         e.message.includes('Submodule')
       );
       expect(innerErrors.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('flexible header levels (parentLevel)', () => {
+    it('finds ### Lens: as a child when parentLevel=1', () => {
+      const content = `
+### Lens:
+source:: [[../Lenses/lens1.md]]
+`;
+      const result = parseSections(content, 1, LO_SECTION_TYPES);
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].type).toBe('lens');
+      expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    });
+
+    it('parses children at mixed header levels the same as uniform levels', () => {
+      const mixedContent = `
+### Test: Quiz
+source:: [[../Tests/quiz1.md]]
+
+### Lens:
+source:: [[../Lenses/lens1.md]]
+
+## Lens:
+source:: [[../Lenses/lens2.md]]
+
+## Lens:
+source:: [[../Lenses/lens3.md]]
+`;
+      const uniformContent = `
+## Test: Quiz
+source:: [[../Tests/quiz1.md]]
+
+## Lens:
+source:: [[../Lenses/lens1.md]]
+
+## Lens:
+source:: [[../Lenses/lens2.md]]
+
+## Lens:
+source:: [[../Lenses/lens3.md]]
+`;
+
+      const mixedResult = parseSections(mixedContent, 1, LO_SECTION_TYPES);
+      const uniformResult = parseSections(uniformContent, 1, LO_SECTION_TYPES);
+
+      expect(mixedResult.sections.length).toBe(4);
+      expect(uniformResult.sections.length).toBe(4);
+      expect(mixedResult.sections.map(s => s.type)).toEqual(uniformResult.sections.map(s => s.type));
+      expect(mixedResult.sections.map(s => s.title)).toEqual(uniformResult.sections.map(s => s.title));
+      expect(mixedResult.sections.map(s => s.fields.source))
+        .toEqual(uniformResult.sections.map(s => s.fields.source));
+      expect(mixedResult.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+      expect(uniformResult.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    });
+
+    it('treats deeper header as body of preceding sibling in hierarchical mode', () => {
+      const content = `
+## Lens: First
+source:: [[../Lenses/first.md]]
+
+### Lens: Nested
+source:: [[../Lenses/nested.md]]
+
+## Lens: Third
+source:: [[../Lenses/third.md]]
+`;
+
+      const result = parseSections(content, 1, LO_SECTION_TYPES);
+
+      expect(result.sections).toHaveLength(2);
+      expect(result.sections[0].title).toBe('First');
+      expect(result.sections[1].title).toBe('Third');
+      expect(result.sections.every(s => s.title !== 'Nested')).toBe(true);
+    });
+
+    it('records actual header level on each section', () => {
+      const content = `
+### Lens: Deep
+source:: [[../Lenses/deep.md]]
+
+## Lens: Shallow
+source:: [[../Lenses/shallow.md]]
+`;
+      const result = parseSections(content, 1, LO_SECTION_TYPES);
+
+      expect(result.sections).toHaveLength(2);
+      expect(result.sections[0].level).toBe(3);
+      expect(result.sections[1].level).toBe(2);
+    });
+
+    it('does not match headers at or above parentLevel', () => {
+      const content = `
+# Lens: Too Shallow
+source:: [[../Lenses/shallow.md]]
+
+## Lens: Just Right
+source:: [[../Lenses/right.md]]
+`;
+      const result = parseSections(content, 1, LO_SECTION_TYPES);
+
+      // # Lens is at level 1 = parentLevel, should NOT be matched
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].title).toBe('Just Right');
+    });
+  });
+
+  describe('flat mode for segments', () => {
+    const SEGMENT_TYPES = new Set(['text', 'chat', 'article', 'video', 'question', 'roleplay']);
+
+    it('parses segments at ### the same as ####', () => {
+      const h3Content = `
+### Text
+content:: Welcome.
+### Chat
+instructions:: Ask something.
+`;
+      const h4Content = `
+#### Text
+content:: Welcome.
+#### Chat
+instructions:: Ask something.
+`;
+
+      const h3Result = parseSections(h3Content, 2, SEGMENT_TYPES, '', true);
+      const h4Result = parseSections(h4Content, 3, SEGMENT_TYPES, '', true);
+
+      expect(h3Result.sections.map(s => s.type)).toEqual(['text', 'chat']);
+      expect(h4Result.sections.map(s => s.type)).toEqual(['text', 'chat']);
+      expect(h3Result.sections[0].fields.content).toBe('Welcome.');
+      expect(h4Result.sections[0].fields.content).toBe('Welcome.');
+      expect(h3Result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+      expect(h4Result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    });
+
+    it('treats all valid-type headers as siblings regardless of level in flat mode', () => {
+      const content = `
+### Text
+content:: Hello.
+#### Chat
+instructions:: Ask.
+`;
+      const result = parseSections(content, 2, SEGMENT_TYPES, '', true);
+
+      // Both should be siblings in flat mode
+      expect(result.sections).toHaveLength(2);
+      expect(result.sections[0].type).toBe('text');
+      expect(result.sections[1].type).toBe('chat');
+    });
+
+    it('finds segments at any level deeper than parent', () => {
+      const content = `
+#### Text
+content:: Hello from H4.
+#### Chat
+instructions:: Ask something.
+`;
+      const result = parseSections(content, 1, SEGMENT_TYPES, '', true);
+
+      expect(result.sections.map(s => s.type)).toEqual(['text', 'chat']);
+      expect(result.sections[0].fields.content).toBe('Hello from H4.');
+      expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    });
+
+    it('preserves multiline content:: through unified parsing', () => {
+      const content = `
+### Text
+content::
+Line one.
+Line two.
+Line three.
+### Chat
+instructions:: Next.
+`;
+      const result = parseSections(content, 2, SEGMENT_TYPES, '', true);
+
+      expect(result.sections[0].fields.content).toBe('Line one.\nLine two.\nLine three.');
+      expect(result.sections[1].fields.instructions).toBe('Next.');
+      expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    });
+
+    it('does not warn about field:: lines before first child header', () => {
+      const content = `
+id:: abc-123
+title:: My Title
+### Text
+content:: Welcome.
+`;
+      const result = parseSections(content, 2, SEGMENT_TYPES, '', true);
+
+      const preHeaderErrors = result.errors.filter(e =>
+        e.message.includes('before first section header')
+      );
+      expect(preHeaderErrors).toHaveLength(0);
+      expect(result.sections).toHaveLength(1);
     });
   });
 });

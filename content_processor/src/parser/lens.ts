@@ -1,6 +1,5 @@
 // src/parser/lens.ts
 import type { ContentError } from '../index.js';
-import { ALL_KNOWN_FIELDS } from '../content-schema.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { validateSegmentFields } from '../validator/segment-fields.js';
 import { validateFieldValues } from '../validator/field-values.js';
@@ -8,6 +7,7 @@ import { detectFieldTypos } from '../validator/field-typos.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
 import { detectDirectivesInNonArticle } from '../validator/directives.js';
 import { parseWikilink, hasRelativePath } from './wikilink.js';
+import { parseSections } from './sections.js';
 import { parseTimestamp } from '../bundler/video.js';
 
 // Segment types for parsed lens content (before bundling/flattening)
@@ -75,6 +75,7 @@ export type ParsedLensSegment =
 
 export interface ParsedLens {
   id: string;
+  title?: string;
   tldr?: string;
   segments: ParsedLensSegment[];
 }
@@ -85,139 +86,14 @@ export interface LensParseResult {
 }
 
 // Valid segment types for lens H4 headers
-const LENS_SEGMENT_TYPES = new Set(['text', 'chat', 'article', 'video', 'question', 'roleplay']);
+export const LENS_SEGMENT_TYPES = new Set(['text', 'chat', 'article', 'video', 'question', 'roleplay']);
 
-// H4 segment header pattern: #### <type> or #### <type>: <title>
-const SEGMENT_HEADER_PATTERN = /^####\s+([^:\s]+)(?::\s*(.*?))?\s*$/i;
-
-// Field pattern: fieldname:: value
-const FIELD_PATTERN = /^([\w-]+)::\s*(.*)$/;
-
-interface RawSegment {
+/** Common interface for raw segments — compatible with ParsedSection */
+export interface RawSegment {
   type: string;
   title?: string;
   fields: Record<string, string>;
   line: number;
-}
-
-/**
- * Parse H4 segments from a section body.
- * Segments are defined by `#### <type>` headers within a section.
- */
-export function parseSegments(
-  sectionBody: string,
-  bodyStartLine: number,
-  file: string
-): { segments: RawSegment[]; errors: ContentError[] } {
-  const lines = sectionBody.split('\n');
-  const segments: RawSegment[] = [];
-  const errors: ContentError[] = [];
-
-  let currentSegment: RawSegment | null = null;
-  let currentFieldLines: string[] = [];
-  let preSegmentWarned = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const lineNum = bodyStartLine + i;
-
-    const headerMatch = line.match(SEGMENT_HEADER_PATTERN);
-
-    if (headerMatch) {
-      // Save previous segment
-      if (currentSegment) {
-        parseFieldsIntoSegment(currentSegment, currentFieldLines);
-        segments.push(currentSegment);
-      }
-
-      const rawType = headerMatch[1].trim();
-      const normalizedType = rawType.toLowerCase();
-      const title = headerMatch[2]?.trim() || undefined;
-
-      if (!LENS_SEGMENT_TYPES.has(normalizedType)) {
-        errors.push({
-          file,
-          line: lineNum,
-          message: `Unknown segment type: ${rawType}`,
-          suggestion: `Valid types: ${[...LENS_SEGMENT_TYPES].join(', ')}`,
-          severity: 'error',
-        });
-      }
-
-      currentSegment = {
-        type: normalizedType,
-        title,
-        fields: {},
-        line: lineNum,
-      };
-      currentFieldLines = [];
-    } else if (currentSegment) {
-      // Check for single-colon field that should be double-colon
-      const singleColonMatch = line.match(/^([\w-]+):\s+(.*)$/);
-      if (singleColonMatch && !line.match(/^https?:/) && !FIELD_PATTERN.test(line) && ALL_KNOWN_FIELDS.includes(singleColonMatch[1])) {
-        errors.push({
-          file,
-          line: lineNum,
-          message: `Found '${singleColonMatch[1]}:' with single colon — did you mean '${singleColonMatch[1]}::'?`,
-          suggestion: `Change '${singleColonMatch[1]}:' to '${singleColonMatch[1]}::' (double colon)`,
-          severity: 'error',
-        });
-      }
-      currentFieldLines.push(line);
-    } else {
-      // No segment started yet — check for free text (not fields, not blank)
-      if (line.trim() && !FIELD_PATTERN.test(line) && !preSegmentWarned) {
-        preSegmentWarned = true;
-        errors.push({
-          file,
-          line: lineNum,
-          message: 'Text before first segment header (####) will be ignored',
-          suggestion: 'Move this text into a segment (e.g., #### Text with content:: field), or remove it',
-          severity: 'warning',
-        });
-      }
-    }
-  }
-
-  // Don't forget last segment
-  if (currentSegment) {
-    parseFieldsIntoSegment(currentSegment, currentFieldLines);
-    segments.push(currentSegment);
-  }
-
-  return { segments, errors };
-}
-
-/**
- * Parse fields from lines into a segment, handling multiline values.
- * A field continues until the next field or the end of the lines.
- */
-function parseFieldsIntoSegment(segment: RawSegment, lines: string[]): void {
-  let currentField: string | null = null;
-  let currentValue: string[] = [];
-
-  for (const line of lines) {
-    const match = line.match(FIELD_PATTERN);
-
-    if (match) {
-      // Save previous field if any
-      if (currentField) {
-        segment.fields[currentField] = currentValue.join('\n').trim();
-      }
-
-      currentField = match[1];
-      const inlineValue = match[2].trim();
-      currentValue = inlineValue ? [inlineValue] : [];
-    } else if (currentField) {
-      // Continue multiline value
-      currentValue.push(line);
-    }
-  }
-
-  // Save final field
-  if (currentField) {
-    segment.fields[currentField] = currentValue.join('\n').trim();
-  }
 }
 
 /**
@@ -338,6 +214,17 @@ export function convertSegment(
     }
 
     case 'article': {
+      if (raw.title) {
+        const capitalized = raw.type[0].toUpperCase() + raw.type.slice(1);
+        errors.push({
+          file,
+          line: raw.line,
+          message: `Titles are not supported for ${capitalized} segments — use just '#### ${capitalized}'. Set the lens title in frontmatter instead (title: ...)`,
+          suggestion: `Remove the title after '${capitalized}:'`,
+          severity: 'error',
+        });
+      }
+
       const fromField = raw.fields.from;
       const toField = raw.fields.to;
       const sourceField = raw.fields.source;
@@ -387,6 +274,17 @@ export function convertSegment(
     }
 
     case 'video': {
+      if (raw.title) {
+        const capitalized = raw.type[0].toUpperCase() + raw.type.slice(1);
+        errors.push({
+          file,
+          line: raw.line,
+          message: `Titles are not supported for ${capitalized} segments — use just '#### ${capitalized}'. Set the lens title in frontmatter instead (title: ...)`,
+          suggestion: `Remove the title after '${capitalized}:'`,
+          severity: 'error',
+        });
+      }
+
       const fromField = raw.fields.from;
       const toField = raw.fields.to;
       const sourceField = raw.fields.source;
@@ -537,7 +435,7 @@ export function convertSegment(
     }
 
     default:
-      // Unknown segment type - error already reported during parseSegments
+      // Unknown segment type - error already reported during parseSections
       return { segment: null, errors };
   }
 }
@@ -699,6 +597,7 @@ export function parseLens(content: string, file: string): LensParseResult {
     return { lens: null, errors };
   }
 
+  const title = typeof frontmatter.title === 'string' ? frontmatter.title : undefined;
   const tldr = typeof frontmatter.tldr === 'string' ? frontmatter.tldr : undefined;
   if (tldr) {
     const wordCount = tldr.trim().split(/\s+/).filter(Boolean).length;
@@ -713,11 +612,13 @@ export function parseLens(content: string, file: string): LensParseResult {
     }
   }
 
-  // Step 2: Parse H4 segments directly from body (flat, no H3 sections)
-  const { segments: rawSegments, errors: segmentErrors } = parseSegments(
+  // Step 2: Parse segments from body (flat mode — all segment headers are siblings)
+  const { sections: rawSegments, errors: segmentErrors } = parseSections(
     body,
-    bodyStartLine,
-    file
+    3,  // parentLevel=3 for standalone lens files → matches H4+ (backward compat)
+    LENS_SEGMENT_TYPES,
+    file,
+    true  // flat=true — segments are always siblings
   );
   errors.push(...segmentErrors);
 
@@ -766,6 +667,7 @@ export function parseLens(content: string, file: string): LensParseResult {
 
   const lens: ParsedLens = {
     id: frontmatter.id as string,
+    title,
     tldr,
     segments: parsedSegments,
   };

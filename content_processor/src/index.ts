@@ -147,6 +147,42 @@ import { buildTierMap, checkTierViolation, type ContentTier } from './validator/
 export type { ContentTier } from './validator/tier.js';
 export { checkTierViolation } from './validator/tier.js';
 
+import type { ParsedSection } from './parser/sections.js';
+
+/**
+ * Recursively collect UUIDs from inline lens sections (including submodule children).
+ */
+function collectInlineLensUUIDs(
+  sections: ParsedSection[],
+  path: string,
+  uuidEntries: UuidEntry[],
+  errors: ContentError[]
+): void {
+  for (const section of sections) {
+    if (section.type === 'lens') {
+      if (section.inlineLens) {
+        // Inline lens — id already validated in parseInlineLens
+        uuidEntries.push({ uuid: section.fields.id, file: path, field: 'section id' });
+      } else if (!hasFieldBeforeSegmentHeaders(section.body, 'source', section.level) && !section.fields.id) {
+        // No section-level source:: and no id:: → missing required id
+        errors.push({
+          file: path,
+          line: section.line,
+          message: `Inline Lens section '${section.title}' is missing required id:: field`,
+          suggestion: 'Add an id:: field with a UUID (e.g., id:: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)',
+          severity: 'error',
+        });
+      } else if (section.fields.id) {
+        // Has id:: — collect UUID
+        uuidEntries.push({ uuid: section.fields.id, file: path, field: 'section id' });
+      }
+    }
+    if (section.children) {
+      collectInlineLensUUIDs(section.children, path, uuidEntries, errors);
+    }
+  }
+}
+
 /**
  * Validate lens excerpts by checking if source files exist and anchors/timestamps are valid.
  * Iterates flat segments, using each segment's source field (set via inheritance in parseLens).
@@ -284,44 +320,12 @@ export function processContent(files: Map<string, string>): ProcessResult {
         filePathToSlug.set(path, result.modules[0].parentSlug);
       }
 
-      // Collect section-level id:: fields from raw # Lens: sections (inline lenses).
+      // Collect section-level id:: fields from Lens sections (inline lenses).
       // Referenced lenses (with source::) get their id from the lens file itself.
-      // Use inlineLenses map from parseModule to identify inline lenses correctly.
       if (result.modules.length > 0) {
         const rawParse = parseModule(content, path);
         if (rawParse.module) {
-          for (let sIdx = 0; sIdx < rawParse.module.sections.length; sIdx++) {
-            const section = rawParse.module.sections[sIdx];
-            if (section.type !== 'lens') continue;
-
-            const isInline = rawParse.module.inlineLenses?.has(sIdx);
-            const hasSourceBeforeSegments = hasFieldBeforeSegmentHeaders(section.body, 'source');
-
-            if (isInline) {
-              // Inline lens — id already validated in parseInlineLens
-              uuidEntries.push({
-                uuid: section.fields.id,
-                file: path,
-                field: 'section id',
-              });
-            } else if (!hasSourceBeforeSegments && !section.fields.id) {
-              // No section-level source:: and no id:: → missing required id
-              errors.push({
-                file: path,
-                line: section.line,
-                message: `Inline Lens section '${section.title}' is missing required id:: field`,
-                suggestion: 'Add an id:: field with a UUID (e.g., id:: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)',
-                severity: 'error',
-              });
-            } else if (section.fields.id) {
-              // Has id:: — collect UUID
-              uuidEntries.push({
-                uuid: section.fields.id,
-                file: path,
-                field: 'section id',
-              });
-            }
-          }
+          collectInlineLensUUIDs(rawParse.module.sections, path, uuidEntries, errors);
         }
       }
 

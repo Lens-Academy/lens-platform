@@ -20,6 +20,36 @@ content:: This is introductory content.
     expect((result.lens?.segments[0] as any).content).toBe('This is introductory content.');
   });
 
+  it('parses title from lens frontmatter', () => {
+    const content = `---
+id: test-id
+title: My Custom Lens Title
+---
+
+#### Text
+content:: Hello.
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    expect(result.lens?.title).toBe('My Custom Lens Title');
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+  });
+
+  it('returns undefined title when not in frontmatter', () => {
+    const content = `---
+id: test-id
+---
+
+#### Text
+content:: Hello.
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    expect(result.lens?.title).toBeUndefined();
+  });
+
   it('parses article segment with source and anchors', () => {
     const content = `---
 id: 550e8400-e29b-41d4-a716-446655440002
@@ -218,6 +248,47 @@ content:: Hello.
       e.severity === 'error' &&
       e.message.match(/titles are not supported/i)
     )).toBe(true);
+  });
+
+  it('errors when article segment has a title', () => {
+    const content = `---
+id: test-id
+---
+
+#### Article: Some Article Title
+source:: [[../articles/test.md|Test]]
+to:: "end"
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.match(/titles are not supported/i)
+    )).toBe(true);
+    // Segment should still be parsed (just with an error)
+    expect(result.lens?.segments.some(s => s.type === 'article')).toBe(true);
+  });
+
+  it('errors when video segment has a title', () => {
+    const content = `---
+id: test-id
+---
+
+#### Video: Some Video Title
+source:: [[../video_transcripts/test.md|Test]]
+from:: 0:00
+to:: 5:00
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.match(/titles are not supported/i)
+    )).toBe(true);
+    // Segment should still be parsed (just with an error)
+    expect(result.lens?.segments.some(s => s.type === 'video')).toBe(true);
   });
 
   it('parses segment type case-insensitively', () => {
@@ -527,7 +598,7 @@ content:: What is AI Safety?
       const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'error' && e.message.includes('Unknown segment type: Quiz')
+        e.severity === 'error' && e.message.includes('Unknown section type: Quiz')
       )).toBe(true);
     });
 
@@ -543,7 +614,7 @@ content:: What is AI Safety?
       const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'error' && e.message.includes('Unknown segment type')
+        e.severity === 'error' && e.message.includes('Unknown section type')
       )).toBe(true);
     });
 
@@ -559,7 +630,7 @@ content:: Some content.
       const result = parseLens(content, 'Lenses/lens1.md');
 
       const unknownErrors = result.errors.filter(e =>
-        e.message.includes('Unknown segment type')
+        e.message.includes('Unknown section type')
       );
       expect(unknownErrors).toHaveLength(0);
     });
@@ -576,7 +647,7 @@ instructions:: Some instructions.
       const result = parseLens(content, 'Lenses/lens1.md');
 
       const unknownErrors = result.errors.filter(e =>
-        e.message.includes('Unknown segment type')
+        e.message.includes('Unknown section type')
       );
       expect(unknownErrors).toHaveLength(0);
     });
@@ -595,7 +666,7 @@ to:: "End"
       const result = parseLens(content, 'Lenses/lens1.md');
 
       const unknownErrors = result.errors.filter(e =>
-        e.message.includes('Unknown segment type')
+        e.message.includes('Unknown section type')
       );
       expect(unknownErrors).toHaveLength(0);
     });
@@ -614,7 +685,7 @@ to:: 5:45
       const result = parseLens(content, 'Lenses/lens1.md');
 
       const unknownErrors = result.errors.filter(e =>
-        e.message.includes('Unknown segment type')
+        e.message.includes('Unknown section type')
       );
       expect(unknownErrors).toHaveLength(0);
     });
@@ -631,7 +702,7 @@ content:: Some content.
       const result = parseLens(content, 'Lenses/lens1.md');
 
       const unknownErrors = result.errors.filter(e =>
-        e.message.includes('Unknown segment type')
+        e.message.includes('Unknown section type')
       );
       expect(unknownErrors).toHaveLength(0);
     });
@@ -910,8 +981,8 @@ content:: Actual segment content here.
     const result = parseLens(content, 'Lenses/lens1.md');
 
     expect(result.errors.some(e =>
-      e.severity === 'warning' &&
-      e.message.includes('before first segment')
+      (e.severity === 'warning' || e.severity === 'error') &&
+      e.message.includes('before first section header')
     )).toBe(true);
     expect(result.lens?.segments).toHaveLength(1);
   });
