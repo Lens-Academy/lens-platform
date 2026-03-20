@@ -315,8 +315,8 @@ export default function CourseTimeline({
                     <span
                       className={`shrink-0 whitespace-nowrap transition-all duration-300 ${
                         isExpanded
-                          ? "text-sm text-slate-900"
-                          : "text-base text-slate-900"
+                          ? "text-sm text-[var(--brand-text)]"
+                          : "text-base text-[var(--brand-text)]"
                       }`}
                     >
                       {weekLabel}
@@ -333,7 +333,7 @@ export default function CourseTimeline({
                                 ? "text-amber-600 font-medium"
                                 : dueLabel === "Due Tomorrow"
                                   ? "text-amber-500"
-                                  : "text-slate-500"
+                                  : "text-[var(--brand-text-muted)]"
                             }`}
                           >
                             {dueLabel}
@@ -348,7 +348,7 @@ export default function CourseTimeline({
                     />
                     {/* Chevron */}
                     <ChevronRight
-                      className={`shrink-0 w-3.5 h-3.5 text-slate-400 ml-1 transition-transform duration-300 ${
+                      className={`shrink-0 w-3.5 h-3.5 text-[var(--brand-border)] ml-1 transition-transform duration-300 ${
                         isExpanded ? "rotate-90" : ""
                       }`}
                     />
@@ -389,12 +389,12 @@ export default function CourseTimeline({
                           }
                         >
                           <div className="flex items-center py-1.5 px-2 gap-2 cursor-default">
-                            <Users className="w-4 h-4 text-slate-700" />
-                            <span className="text-base text-slate-700">
+                            <Users className="w-4 h-4 text-[var(--brand-text-muted)]" />
+                            <span className="text-base text-[var(--brand-text-muted)]">
                               #{unit.meetingNumber}
                             </span>
                             {unit.meetingDate && (
-                              <span className="text-xs text-slate-500">
+                              <span className="text-xs text-[var(--brand-text-muted)]">
                                 {formatMeetingDate(unit.meetingDate)}
                               </span>
                             )}
@@ -473,7 +473,7 @@ function renderUnitModules(
                   selected={anyChildSelected && !isParentExpanded}
                 />
                 <div className="flex-1 min-w-0">
-                  <span className="text-base font-medium truncate block leading-snug text-slate-900">
+                  <span className="text-base font-medium truncate block leading-snug text-[var(--brand-text)]">
                     {parentTitle}
                   </span>
                   {dueDateIso &&
@@ -487,7 +487,7 @@ function renderUnitModules(
                               ? "text-amber-600 font-medium"
                               : dueLabel === "Due Tomorrow"
                                 ? "text-amber-500"
-                                : "text-slate-500"
+                                : "text-[var(--brand-text-muted)]"
                           }`}
                         >
                           {dueLabel}
@@ -496,12 +496,12 @@ function renderUnitModules(
                     })()}
                 </div>
                 {!isParentExpanded && parentDuration > 0 && (
-                  <span className="text-xs text-slate-500 flex-shrink-0 tabular-nums">
+                  <span className="text-xs text-[var(--brand-text-muted)] flex-shrink-0 tabular-nums">
                     {formatDuration(parentDuration)}
                   </span>
                 )}
                 <ChevronRight
-                  className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform duration-200 ${
+                  className={`w-3.5 h-3.5 text-[var(--brand-border)] flex-shrink-0 transition-transform duration-200 ${
                     isParentExpanded ? "rotate-90" : ""
                   }`}
                 />
@@ -524,8 +524,8 @@ function renderUnitModules(
                     onClick={() => onModuleSelect(child)}
                     className={`relative w-full flex items-center py-1 text-left transition-colors px-2 rounded-lg ${
                       isSelected
-                        ? "bg-[#f0ece4] text-slate-900"
-                        : "hover:bg-[var(--brand-border)]/30 text-slate-600"
+                        ? "bg-[#f0ece4] text-[var(--brand-text)]"
+                        : "hover:bg-[var(--brand-border)]/30 text-[var(--brand-text-muted)]"
                     }`}
                   >
                     <div className="ml-4 flex-1 min-w-0 flex items-center gap-2">
@@ -536,11 +536,11 @@ function renderUnitModules(
                         size={14}
                         selected={isSelected}
                       />
-                      <span className="text-base truncate text-slate-700">
+                      <span className="text-base truncate text-[var(--brand-text-muted)]">
                         {child.title}
                       </span>
                       {childEstimate && (
-                        <span className="text-xs text-slate-500 ml-auto flex-shrink-0 tabular-nums">
+                        <span className="text-xs text-[var(--brand-text-muted)] ml-auto flex-shrink-0 tabular-nums">
                           {formatDuration(childEstimate)}
                         </span>
                       )}
@@ -578,7 +578,7 @@ function renderUnitModules(
               )}
               <span
                 className={`text-base truncate ${
-                  mod.optional ? "text-slate-500" : "text-slate-700"
+                  mod.optional ? "text-[var(--brand-text-muted)]" : "text-[var(--brand-text-muted)]"
                 }`}
               >
                 {mod.title}
@@ -592,18 +592,18 @@ function renderUnitModules(
                       ? "text-amber-600 font-medium"
                       : dueLabel === "Due Tomorrow"
                         ? "text-amber-500"
-                        : "text-slate-500"
+                        : "text-[var(--brand-text-muted)]"
                   }`}
                 >
                   {dueLabel}
                   {estimate ? (
-                    <span className="text-slate-500 font-normal tabular-nums">
+                    <span className="text-[var(--brand-text-muted)] font-normal tabular-nums">
                       · {formatDuration(estimate)}
                     </span>
                   ) : null}
                 </span>
               ) : estimate ? (
-                <span className="text-xs text-slate-500 ml-auto flex-shrink-0 tabular-nums">
+                <span className="text-xs text-[var(--brand-text-muted)] ml-auto flex-shrink-0 tabular-nums">
                   {formatDuration(estimate)}
                 </span>
               ) : null}

@@ -1736,7 +1736,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Loading state - skeleton layout mirrors actual content structure
   if (loadingModule) {
     return (
-      <div className="min-h-dvh bg-stone-50 p-4 sm:p-6">
+      <div className="min-h-dvh bg-[var(--brand-bg)] p-4 sm:p-6">
         {/* Module header skeleton */}
         <div className="mb-6">
           <Skeleton className="h-8 w-48 mb-2" />
@@ -1758,10 +1758,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Error states
   if (loadError || !module) {
     return (
-      <div className="min-h-dvh flex items-center justify-center bg-stone-50">
+      <div className="min-h-dvh flex items-center justify-center bg-[var(--brand-bg)]">
         <div className="text-center">
           <p className="text-red-600 mb-4">{loadError ?? "Module not found"}</p>
-          <a href="/" className="text-emerald-600 hover:underline">
+          <a href="/" className="text-lens-gold-600 hover:underline">
             Go home
           </a>
         </div>
@@ -1772,10 +1772,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Module loaded but has flattening error
   if (module.error) {
     return (
-      <div className="min-h-dvh bg-stone-50">
-        <div className="sticky top-0 z-50 bg-white border-b border-stone-200">
+      <div className="min-h-dvh bg-[var(--brand-bg)]">
+        <div className="sticky top-0 z-50 bg-white border-b border-[var(--brand-border)]">
           <div className="max-w-3xl mx-auto px-4 py-4">
-            <h1 className="text-xl font-semibold text-stone-900">
+            <h1 className="text-xl font-semibold text-[var(--brand-text)]">
               {module.title}
             </h1>
           </div>
@@ -2214,7 +2214,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                                             handleMarkComplete(sectionIndex),
                                           );
                                       }}
-                                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
+                                      className="flex items-center gap-2 px-4 py-2 bg-lens-gold-500 text-white rounded-lg hover:bg-lens-gold-600 transition-all active:scale-95 font-medium"
                                     >
                                       Continue
                                       <svg

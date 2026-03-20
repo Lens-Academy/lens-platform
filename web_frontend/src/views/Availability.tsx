@@ -80,10 +80,10 @@ export default function Availability() {
   if (!isAuthenticated) {
     return (
       <div className="py-8 max-w-md mx-auto text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">
+        <h1 className="text-2xl font-bold text-[var(--brand-text)] mb-4">
           Edit Your Availability
         </h1>
-        <p className="text-gray-600 mb-6">
+        <p className="text-[var(--brand-text-muted)] mb-6">
           Please sign in with Discord to view and edit your availability.
         </p>
         <button
@@ -99,10 +99,10 @@ export default function Availability() {
   return (
     <div className="py-8">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl font-bold text-[var(--brand-text)] mb-2">
           Your Availability
         </h1>
-        <p className="text-gray-600 mb-6">
+        <p className="text-[var(--brand-text-muted)] mb-6">
           Update the times when you're available to participate in course
           sessions.
         </p>
@@ -110,7 +110,7 @@ export default function Availability() {
         <div className="mb-6">
           <label
             htmlFor="timezone"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-[var(--brand-text-muted)] mb-2"
           >
             Your Timezone
           </label>
@@ -121,7 +121,7 @@ export default function Availability() {
               setTimezone(e.target.value);
               setSaveStatus("idle");
             }}
-            className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full max-w-xs px-3 py-2 border border-[var(--brand-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-lens-gold-500 focus:border-lens-gold-500"
           >
             {/* Include current timezone if not in common list */}
             {!COMMON_TIMEZONES.includes(
@@ -156,8 +156,8 @@ export default function Availability() {
             disabled={isSaving || totalSlots === 0}
             className={`px-6 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
               isSaving || totalSlots === 0
-                ? "bg-gray-300 text-gray-500"
-                : "bg-blue-500 hover:bg-blue-600 text-white"
+                ? "bg-[var(--brand-border)] text-[var(--brand-text-muted)]"
+                : "bg-lens-gold-500 hover:bg-lens-gold-600 text-white"
             }`}
           >
             {isSaving

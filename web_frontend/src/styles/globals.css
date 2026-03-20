@@ -24,8 +24,8 @@
 }
 
 :root {
-  --background: #fafaf9; /* stone-50 */
-  --foreground: #0f172a; /* slate-900 */
+  --background: #faf8f3; /* brand-bg */
+  --foreground: #1a1a1a; /* brand-text */
   --sidebar-width: 320px;
 
   /* Safe area insets for notched devices */

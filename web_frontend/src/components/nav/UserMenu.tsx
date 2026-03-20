@@ -45,7 +45,7 @@ export function UserMenu({ signInRedirect, compact }: UserMenuProps = {}) {
     return (
       <button
         onClick={handleLogin}
-        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200"
+        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--brand-text-muted)] font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200"
         aria-label="Sign in"
       >
         {compact ? <User className="w-5 h-5" /> : "Sign in"}
@@ -60,14 +60,14 @@ export function UserMenu({ signInRedirect, compact }: UserMenuProps = {}) {
         <div className="flex flex-col gap-2">
           <a
             href="/availability"
-            className="text-sm text-gray-700 hover:text-gray-900"
+            className="text-sm text-[var(--brand-text-muted)] hover:text-[var(--brand-text)]"
             onClick={close}
           >
             Edit Availability
           </a>
           <a
             href="/meetings"
-            className="text-sm text-gray-700 hover:text-gray-900"
+            className="text-sm text-[var(--brand-text-muted)] hover:text-[var(--brand-text)]"
             onClick={close}
           >
             Meetings
@@ -77,14 +77,14 @@ export function UserMenu({ signInRedirect, compact }: UserMenuProps = {}) {
               logout();
               close();
             }}
-            className="w-full text-left text-sm text-gray-700 hover:text-gray-900"
+            className="w-full text-left text-sm text-[var(--brand-text-muted)] hover:text-[var(--brand-text)]"
           >
             Sign out
           </button>
         </div>
       )}
     >
-      <button className="min-h-[44px] min-w-[44px] flex items-center justify-center gap-2 text-sm text-slate-700 hover:text-slate-900 transition-colors duration-200">
+      <button className="min-h-[44px] min-w-[44px] flex items-center justify-center gap-2 text-sm text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] transition-colors duration-200">
         {discordAvatarUrl ? (
           <img
             src={discordAvatarUrl}
@@ -92,7 +92,7 @@ export function UserMenu({ signInRedirect, compact }: UserMenuProps = {}) {
             className="w-6 h-6 rounded-full"
           />
         ) : (
-          <div className="w-6 h-6 rounded-full bg-slate-300" />
+          <div className="w-6 h-6 rounded-full bg-[var(--brand-border)]" />
         )}
         {!compact && (
           <>
