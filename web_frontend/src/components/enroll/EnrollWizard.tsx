@@ -226,7 +226,7 @@ export default function EnrollWizard() {
   };
 
   // Show email capture if no cohorts are available (checked before auth)
-  if (hasAvailableCohorts === false && !isAuthenticated) {
+  if (hasAvailableCohorts === false) {
     return (
       <div className="max-w-md mx-auto text-center py-12">
         <h2 className="text-2xl font-bold text-gray-900 mb-3">

@@ -244,7 +244,7 @@ export function ModuleHeader({
         </div>
 
         {/* Center: Compact nav — always in DOM for measurement, hidden when priority < 3 */}
-        {stages.length > 1 && (
+        {stages.length >= 1 && (
           <div
             ref={compactNavRef}
             className="flex items-center gap-1 shrink-0 mx-2"
@@ -277,7 +277,7 @@ export function ModuleHeader({
         )}
 
         {/* Center: StageProgressBar — always in DOM for measurement, hidden when priority >= 3 */}
-        {stages.length > 1 && (
+        {stages.length >= 1 && (
           <div
             ref={centerRef}
             className="absolute -translate-x-1/2"

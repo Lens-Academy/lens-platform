@@ -6,7 +6,7 @@
  * to subtly disincentivize defaulting to optional content.
  */
 
-import { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import { useMemo } from "react";
 import type { StageInfo, ModuleStatus } from "../../types/course";
 import { OptionalBadge } from "../OptionalBadge";
 import { StageIcon } from "../module/StageProgressBar";
@@ -22,92 +22,6 @@ import {
 import { buildBranchLayout } from "../../utils/branchLayout";
 import { formatDurationMinutes } from "../../utils/duration";
 import { BotMessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
-
-function TruncatedTldr({
-  text,
-  isExpanded,
-  onToggle,
-}: {
-  text: string;
-  isExpanded: boolean;
-  onToggle: () => void;
-}) {
-  const textRef = useRef<HTMLParagraphElement>(null);
-  const [isTruncated, setIsTruncated] = useState(false);
-  const [collapsedHeight, setCollapsedHeight] = useState(0);
-  const [fullHeight, setFullHeight] = useState(0);
-
-  useEffect(() => {
-    const el = textRef.current;
-    if (!el) return;
-    // Measure collapsed height (with line-clamp-2 via max-height trick):
-    // The collapsed height is 2 lines of text-sm (14px * 1.5 line-height ≈ 42px)
-    // But we measure precisely: temporarily clamp, measure, restore.
-    el.style.webkitLineClamp = "2";
-    el.style.display = "-webkit-box";
-    el.style.webkitBoxOrient = "vertical";
-    el.style.overflow = "hidden";
-    const clamped = el.clientHeight;
-    el.style.webkitLineClamp = "";
-    el.style.display = "";
-    el.style.webkitBoxOrient = "";
-    el.style.overflow = "";
-    const full = el.scrollHeight;
-    setCollapsedHeight(clamped);
-    setFullHeight(full);
-    setIsTruncated(full > clamped + 1);
-  }, [text]);
-
-  return (
-    <div className="mt-1 max-w-xl">
-      <p
-        ref={textRef}
-        className={`text-sm text-slate-500 overflow-hidden transition-[max-height] duration-200 ease-in-out ${isTruncated ? "cursor-pointer" : ""}`}
-        style={{
-          maxHeight: isTruncated
-            ? isExpanded
-              ? fullHeight
-              : collapsedHeight
-            : undefined,
-        }}
-        onClick={
-          isTruncated
-            ? (e) => {
-                e.stopPropagation();
-                onToggle();
-              }
-            : undefined
-        }
-      >
-        {text}
-      </p>
-      {isTruncated && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle();
-          }}
-          className="text-xs text-slate-400 hover:text-slate-600 transition-colors mt-0.5 flex items-center gap-0.5"
-        >
-          <svg
-            className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-          {isExpanded ? "Less" : "More"}
-        </button>
-      )}
-    </div>
-  );
-}
 
 type ModuleOverviewProps = {
   moduleTitle: string;
@@ -150,36 +64,6 @@ export default function ModuleOverview({
   parentTitle,
   isMobile,
 }: ModuleOverviewProps) {
-  const [expandedTldrs, setExpandedTldrs] = useState<Set<number>>(new Set());
-
-  const toggleTldr = useCallback((index: number) => {
-    setExpandedTldrs((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  }, []);
-
-  const tldrIndices = useMemo(
-    () =>
-      stages.reduce<number[]>((acc, s, i) => (s.tldr ? [...acc, i] : acc), []),
-    [stages],
-  );
-  const allTldrsExpanded =
-    tldrIndices.length > 0 && tldrIndices.every((i) => expandedTldrs.has(i));
-
-  const toggleAllTldrs = useCallback(() => {
-    setExpandedTldrs((prev) => {
-      if (tldrIndices.every((i) => prev.has(i))) {
-        // Collapse all
-        return new Set();
-      }
-      // Expand all
-      return new Set(tldrIndices);
-    });
-  }, [tldrIndices]);
-
   const layout = useMemo(() => buildBranchLayout(stages), [stages]);
 
   // Branch subscription color model
@@ -319,11 +203,7 @@ export default function ModuleOverview({
                 })()}
           </div>
           {stage.tldr && (
-            <TruncatedTldr
-              text={stage.tldr}
-              isExpanded={expandedTldrs.has(index)}
-              onToggle={() => toggleTldr(index)}
-            />
+            <p className="mt-1 max-w-xl text-sm text-slate-500">{stage.tldr}</p>
           )}
         </div>
       </div>
@@ -434,31 +314,6 @@ export default function ModuleOverview({
           ) : (
             <div />
           )}
-        </div>
-      )}
-
-      {/* Expand/collapse all TLDRs */}
-      {tldrIndices.length > 1 && (
-        <div className="flex justify-end px-1 mb-1">
-          <button
-            onClick={toggleAllTldrs}
-            className="text-xs text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1"
-          >
-            <svg
-              className={`w-3 h-3 transition-transform ${allTldrsExpanded ? "rotate-180" : ""}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-            {allTldrsExpanded ? "Collapse all" : "Expand all"}
-          </button>
         </div>
       )}
 
