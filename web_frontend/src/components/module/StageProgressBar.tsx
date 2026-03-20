@@ -186,9 +186,7 @@ function getTooltipContent(
           <OptionalBadge />
         </div>
       )}
-      {hasTldr && (
-        <p className="text-slate-600 mt-1 line-clamp-3">{stage.tldr}</p>
-      )}
+      {hasTldr && <p className="text-slate-600 mt-1">{stage.tldr}</p>}
     </div>
   );
 }

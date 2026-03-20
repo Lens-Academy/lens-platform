@@ -1150,7 +1150,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     } else {
       setCurrentSectionIndex(prevIndex);
     }
-  }, [currentSectionIndex, viewMode, handleStageClick, testModeActive, module, completedSections]);
+  }, [
+    currentSectionIndex,
+    viewMode,
+    handleStageClick,
+    testModeActive,
+    module,
+    completedSections,
+  ]);
 
   // Build choices for the section navigation modal
   // Collects upcoming sections (optional + first required) after a completed section

@@ -401,7 +401,10 @@ export default function VideoPlayer({
           onMouseMove={() => {
             setIsHovering(true);
             if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-            hideTimeoutRef.current = window.setTimeout(() => setIsHovering(false), 3000);
+            hideTimeoutRef.current = window.setTimeout(
+              () => setIsHovering(false),
+              3000,
+            );
           }}
           onMouseLeave={() => {
             if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
