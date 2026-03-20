@@ -1,17 +1,22 @@
 /**
  * Slide-out drawer for unit navigation.
  * Owns its own open/close state; parent triggers via imperative toggle() ref.
+ *
+ * Desktop: slides down from below the header (translate-y).
+ * Mobile:  slides in from the left edge (translate-x) with swipe support.
  */
 
 import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   forwardRef,
   useImperativeHandle,
 } from "react";
 import { useMedia } from "react-use";
 import { useScrollContainer } from "@/hooks/useScrollContainer";
+import { useSwipePanel } from "@/hooks/useSwipePanel";
 import type { ModuleInfo, StageInfo } from "../../types/course";
 import UnitNavigationPanel from "./UnitNavigationPanel";
 
@@ -29,6 +34,8 @@ type ModuleDrawerProps = {
   onSectionClick: (index: number) => void;
   courseId: string;
   onOpenChange?: (open: boolean) => void;
+  /** When true, disables swipe-to-open (e.g. chat sidebar is open). */
+  chatOpen?: boolean;
 };
 
 const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
@@ -43,6 +50,7 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
       onSectionClick,
       courseId,
       onOpenChange,
+      chatOpen = false,
     },
     ref,
   ) {
@@ -60,6 +68,7 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
     }));
 
     const handleClose = useCallback(() => setIsOpen(false), []);
+    const handleOpen = useCallback(() => setIsOpen(true), []);
 
     // Close on escape
     useEffect(() => {
@@ -82,27 +91,57 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
       }
     }, [isMobile, isOpen, scrollContainer]);
 
+    // --- Swipe gesture support (mobile only) ---
+    const panelRef = useRef<HTMLDivElement>(null);
+    const backdropRef = useRef<HTMLDivElement>(null);
+    useSwipePanel({
+      isOpen,
+      onOpen: handleOpen,
+      onClose: handleClose,
+      enabled: isMobile && !chatOpen,
+      panelRef,
+      backdropRef,
+      side: "left",
+    });
+
     return (
       <>
-        {/* Backdrop to close drawer - dimmed on mobile */}
-        {isOpen && (
+        {/* Backdrop — always rendered on mobile so swipe gestures work */}
+        {isMobile ? (
           <div
-            className={`fixed inset-0 z-30 transition-opacity duration-300 ${
-              isMobile ? "bg-black/50" : ""
+            ref={backdropRef}
+            className={`fixed inset-0 z-30 bg-black/50 transition-opacity duration-300 ${
+              isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
             onMouseDown={handleClose}
           />
+        ) : (
+          isOpen && (
+            <div
+              className="fixed inset-0 z-30 transition-opacity duration-300"
+              onMouseDown={handleClose}
+            />
+          )
         )}
 
-        {/* Drawer panel - below header, slides down from top */}
+        {/* Drawer panel */}
         <div
-          className={`fixed left-0 z-[35] transition-transform duration-300 [transition-timing-function:var(--ease-spring)] ${
-            isMobile ? "w-[90%]" : "w-[572px]"
-          } ${
-            isOpen
-              ? "translate-y-0 shadow-[8px_0_30px_-5px_rgba(0,0,0,0.2)]"
-              : "-translate-y-[calc(100%+2rem)]"
-          }`}
+          ref={isMobile ? panelRef : undefined}
+          className={
+            isMobile
+              ? // Mobile: slide from left
+                `fixed left-0 z-[35] w-[90%] transition-transform duration-300 ease-in-out ${
+                  isOpen
+                    ? "translate-x-0 shadow-[8px_0_30px_-5px_rgba(0,0,0,0.2)]"
+                    : "-translate-x-full"
+                }`
+              : // Desktop: slide from top (unchanged)
+                `fixed left-0 z-[35] w-[572px] transition-transform duration-300 [transition-timing-function:var(--ease-spring)] ${
+                  isOpen
+                    ? "translate-y-0 shadow-[8px_0_30px_-5px_rgba(0,0,0,0.2)]"
+                    : "-translate-y-[calc(100%+2rem)]"
+                }`
+          }
           style={{
             top: "var(--module-header-height)",
             height: "calc(100dvh - var(--module-header-height))",

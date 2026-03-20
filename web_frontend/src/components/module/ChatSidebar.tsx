@@ -44,6 +44,8 @@ type ChatSidebarProps = {
   isLoading: boolean;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
+  /** When true, disables swipe-to-open and hides the FAB (e.g. module drawer is open). */
+  drawerOpen?: boolean;
 };
 
 export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
@@ -56,6 +58,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       isLoading,
       onSendMessage,
       onRetryMessage: _onRetryMessage,
+      drawerOpen = false,
     },
     ref,
   ) {
@@ -113,7 +116,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       isOpen,
       onOpen: handleOpen,
       onClose: handleClose,
-      enabled: isMobile,
+      enabled: isMobile && !drawerOpen,
       panelRef,
       backdropRef,
     });
@@ -325,8 +328,8 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
             {/* FAB — sticks out from panel's left edge, slides with it */}
             <button
               onMouseDown={handleOpen}
-              className={`absolute -left-14 z-10 flex items-center justify-center w-12 h-12 bg-white border rounded-full shadow-lg hover:bg-stone-100 active:scale-95 ${
-                toggleHidden ? "opacity-0 pointer-events-none" : ""
+              className={`absolute -left-14 z-10 flex items-center justify-center w-12 h-12 bg-white border rounded-full shadow-lg hover:bg-stone-100 active:scale-95 transition-opacity duration-200 ${
+                toggleHidden || drawerOpen ? "opacity-0 pointer-events-none" : ""
               }`}
               style={{
                 bottom: "calc(1rem + var(--safe-bottom, 0px))",

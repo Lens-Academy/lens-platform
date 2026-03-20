@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { useMedia } from "react-use";
 import { ChevronRight, BotMessageSquare, X } from "lucide-react";
 import type { ModuleInfo, StageInfo } from "@/types/course";
 import { formatDurationMinutes } from "@/utils/duration";
@@ -557,7 +558,15 @@ export default function UnitNavigationPanel({
     );
   }, []);
 
-  const [allTldrsExpanded, setAllTldrsExpanded] = useState(true);
+  const isMobile = useMedia("(max-width: 767px)", false);
+  const [allTldrsExpanded, setAllTldrsExpanded] = useState(!isMobile);
+  const initialSyncDone = useRef(false);
+  useEffect(() => {
+    if (!initialSyncDone.current) {
+      initialSyncDone.current = true;
+      setAllTldrsExpanded(!isMobile);
+    }
+  }, [isMobile]);
   const toggleSummaries = useCallback(() => setAllTldrsExpanded((prev) => !prev), []);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);

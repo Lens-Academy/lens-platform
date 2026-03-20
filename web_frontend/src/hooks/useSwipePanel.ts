@@ -7,6 +7,8 @@ interface UseSwipePanelOptions {
   enabled: boolean;
   panelRef: RefObject<HTMLDivElement | null>;
   backdropRef: RefObject<HTMLDivElement | null>;
+  /** Which edge the panel slides from. Default: "right". */
+  side?: "left" | "right";
 }
 
 const DISTANCE_THRESHOLD = 80;
@@ -20,6 +22,7 @@ export function useSwipePanel({
   enabled,
   panelRef,
   backdropRef,
+  side = "right",
 }: UseSwipePanelOptions) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -50,6 +53,8 @@ export function useSwipePanel({
   useEffect(() => {
     if (!enabled) return;
 
+    const isLeft = side === "left";
+
     const onTouchStart = (e: TouchEvent) => {
       const touch = e.touches[0];
       touchStartX.current = touch.clientX;
@@ -72,6 +77,20 @@ export function useSwipePanel({
         directionLocked.current =
           Math.abs(deltaY) > Math.abs(deltaX) ? "vertical" : "horizontal";
         if (directionLocked.current === "vertical") return;
+
+        // Direction-based disambiguation: only activate if swipe direction
+        // matches this panel's side. This prevents two hooks (left + right
+        // panels) from fighting over the same gesture.
+        if (isLeft) {
+          // Left panel: open on swipe-right (deltaX > 0), close on swipe-left
+          if (isOpenRef.current && deltaX > 0) return; // wrong direction
+          if (!isOpenRef.current && deltaX < 0) return; // wrong direction
+        } else {
+          // Right panel: open on swipe-left (deltaX < 0), close on swipe-right
+          if (isOpenRef.current && deltaX < 0) return; // wrong direction
+          if (!isOpenRef.current && deltaX > 0) return; // wrong direction
+        }
+
         // Horizontal lock — activate gesture
         gestureActive.current = true;
         setIsDragging(true);
@@ -82,6 +101,7 @@ export function useSwipePanel({
       }
 
       if (directionLocked.current === "vertical") return;
+      if (!gestureActive.current) return;
       e.preventDefault();
 
       const panel = panelRef.current;
@@ -91,19 +111,34 @@ export function useSwipePanel({
       const w = panelWidth.current;
       let translateX: number;
 
-      if (isOpenRef.current) {
-        // Closing: panel at 0, dragging right → translateX [0, w]
-        translateX = Math.max(0, Math.min(deltaX, w));
+      if (isLeft) {
+        if (isOpenRef.current) {
+          // Closing: panel at 0, dragging left → translateX [-w, 0]
+          translateX = Math.max(-w, Math.min(deltaX, 0));
+        } else {
+          // Opening: panel at -w, dragging right → translateX [-w, 0]
+          translateX = Math.max(-w, Math.min(-w + deltaX, 0));
+        }
+        panel.style.translate = `${translateX}px 0`;
+        const progress = 1 - Math.abs(translateX) / w;
+        backdrop.style.opacity = String(progress * 0.5);
+        if (progress > 0) {
+          backdrop.style.pointerEvents = "auto";
+        }
       } else {
-        // Opening: panel at w, dragging left → translateX [0, w]
-        translateX = Math.max(0, Math.min(w + deltaX, w));
-      }
-
-      panel.style.translate = `${translateX}px 0`;
-      const progress = 1 - translateX / w;
-      backdrop.style.opacity = String(progress * 0.5);
-      if (progress > 0) {
-        backdrop.style.pointerEvents = "auto";
+        if (isOpenRef.current) {
+          // Closing: panel at 0, dragging right → translateX [0, w]
+          translateX = Math.max(0, Math.min(deltaX, w));
+        } else {
+          // Opening: panel at w, dragging left → translateX [0, w]
+          translateX = Math.max(0, Math.min(w + deltaX, w));
+        }
+        panel.style.translate = `${translateX}px 0`;
+        const progress = 1 - translateX / w;
+        backdrop.style.opacity = String(progress * 0.5);
+        if (progress > 0) {
+          backdrop.style.pointerEvents = "auto";
+        }
       }
 
       // Track velocity (keep last 3)
@@ -140,24 +175,38 @@ export function useSwipePanel({
         absDelta > DISTANCE_THRESHOLD || velocity > VELOCITY_THRESHOLD;
 
       let willOpen: boolean;
-      if (isOpenRef.current) {
-        // Was open — complete close if swiped right enough
-        willOpen = !(shouldComplete && deltaX > 0);
+      if (isLeft) {
+        if (isOpenRef.current) {
+          // Was open — complete close if swiped left enough
+          willOpen = !(shouldComplete && deltaX < 0);
+        } else {
+          // Was closed — complete open if swiped right enough
+          willOpen = shouldComplete && deltaX > 0;
+        }
       } else {
-        // Was closed — complete open if swiped left enough
-        willOpen = shouldComplete && deltaX < 0;
+        if (isOpenRef.current) {
+          // Was open — complete close if swiped right enough
+          willOpen = !(shouldComplete && deltaX > 0);
+        } else {
+          // Was closed — complete open if swiped left enough
+          willOpen = shouldComplete && deltaX < 0;
+        }
       }
 
       // Animate to final position
       panel.style.transition = "translate 300ms ease-in-out";
       backdrop.style.transition = "opacity 300ms ease-in-out";
 
+      const closedTranslate = isLeft
+        ? `${-panelWidth.current}px 0`
+        : `${panelWidth.current}px 0`;
+
       if (willOpen) {
         panel.style.translate = "0 0";
         backdrop.style.opacity = "0.5";
         backdrop.style.pointerEvents = "auto";
       } else {
-        panel.style.translate = `${panelWidth.current}px 0`;
+        panel.style.translate = closedTranslate;
         backdrop.style.opacity = "0";
         backdrop.style.pointerEvents = "none";
       }
@@ -186,7 +235,7 @@ export function useSwipePanel({
       document.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("touchend", onTouchEnd);
     };
-  }, [enabled, onOpen, onClose, panelRef, backdropRef, cleanupInlineStyles]);
+  }, [enabled, side, onOpen, onClose, panelRef, backdropRef, cleanupInlineStyles]);
 
   return { isDragging };
 }
