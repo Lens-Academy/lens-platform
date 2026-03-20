@@ -39,7 +39,7 @@ export interface ParsedVideoSegment {
   source?: string;         // Raw wikilink (from source:: field or inherited)
   resolvedPath?: string;   // Resolved source path
   fromTimeStr: string;     // Timestamp string like "1:30"
-  toTimeStr: string;       // Timestamp string like "5:45"
+  toTimeStr?: string;      // Timestamp string like "5:45" (undefined = full video)
   optional?: boolean;
 }
 
@@ -289,18 +289,6 @@ export function convertSegment(
       const toField = raw.fields.to;
       const sourceField = raw.fields.source;
 
-      // to:: is required, from:: defaults to "0:00"
-      if (!toField) {
-        errors.push({
-          file,
-          line: raw.line,
-          message: 'Video segment missing to:: field',
-          suggestion: "Add 'to:: M:SS' or 'to:: H:MM:SS' to the segment",
-          severity: 'error',
-        });
-        return { segment: null, errors };
-      }
-
       // Validate timestamp formats at parse time for better error reporting
       const fromStr = fromField || '0:00';
       if (parseTimestamp(fromStr) === null) {
@@ -312,7 +300,7 @@ export function convertSegment(
           severity: 'warning',
         });
       }
-      if (parseTimestamp(toField) === null) {
+      if (toField && parseTimestamp(toField) === null) {
         errors.push({
           file,
           line: raw.line,
@@ -351,7 +339,7 @@ export function convertSegment(
         type: 'video',
         source: sourceField,
         fromTimeStr: fromField || '0:00',  // Default to start of video
-        toTimeStr: toField,
+        toTimeStr: toField || undefined,
         optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
       };
       return { segment, errors };

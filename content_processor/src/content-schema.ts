@@ -45,7 +45,7 @@ export const SEGMENT_SCHEMAS: Record<string, SegmentTypeSchema> = {
     ['optional', 'hidePreviousContentFromUser', 'hidePreviousContentFromTutor'],
   ),
   'article': segmentSchema([], ['source', 'from', 'to', 'optional'], ['optional']),
-  'video': segmentSchema(['to'], ['source', 'from', 'optional'], ['optional']),
+  'video': segmentSchema([], ['source', 'from', 'to', 'optional'], ['optional']),
   'question': segmentSchema(
     ['content'],
     ['assessment-instructions', 'max-time', 'max-chars', 'enforce-voice', 'optional', 'feedback'],

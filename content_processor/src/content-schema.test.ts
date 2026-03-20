@@ -81,8 +81,8 @@ describe('SEGMENT_SCHEMAS', () => {
 
   it('video segment has correct fields', () => {
     const schema = SEGMENT_SCHEMAS['video'];
-    expect(schema.requiredFields).toEqual(['to']);
-    expect(schema.optionalFields).toEqual(expect.arrayContaining(['source', 'from', 'optional']));
+    expect(schema.requiredFields).toEqual([]);
+    expect(schema.optionalFields).toEqual(expect.arrayContaining(['source', 'from', 'to', 'optional']));
   });
 
   it('roleplay segment has correct fields', () => {
