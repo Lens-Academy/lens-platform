@@ -11,6 +11,7 @@ import { formatDurationMinutes } from "@/utils/duration";
 import { StageIcon } from "./StageProgressBar";
 import { getCircleFillClasses, getRingClasses } from "@/utils/stageProgress";
 import { buildBranchLayout } from "@/utils/branchLayout";
+import { linkProps } from "@/utils/navigateLink";
 import { generateHeadingId } from "@/utils/extractHeadings";
 import { buildBranchPaths, computeBranchStates, computeLayoutColors } from "@/utils/branchColors";
 
@@ -255,10 +256,12 @@ function SectionList({
       </div>
     );
 
+    const sectionHref = `/course/${courseId}/module/${moduleSlug}#${generateHeadingId(stage.title)}`;
+
     if (isCurrent) {
       return (
         <button
-          onClick={() => { onSectionClick(index); }}
+          {...linkProps(sectionHref, () => { onSectionClick(index); })}
           data-section-current={isCurrentSection || undefined}
           className={`block px-2 py-1 rounded-[16px] text-left w-full transition-colors ${
             isCurrentSection
@@ -272,13 +275,12 @@ function SectionList({
     }
 
     return (
-      <a
-        href={`/course/${courseId}/module/${moduleSlug}#${generateHeadingId(stage.title)}`}
-        onClick={onClose}
-        className="block px-2 py-1 rounded-[16px] text-gray-800 hover:text-gray-900 hover:bg-[#f5f1ea] transition-colors"
+      <button
+        {...linkProps(sectionHref, () => { window.location.href = sectionHref; onClose(); })}
+        className="block px-2 py-1 rounded-[16px] text-left w-full text-gray-800 hover:text-gray-900 hover:bg-[#f5f1ea] transition-colors"
       >
         {content}
-      </a>
+      </button>
     );
   }
 
