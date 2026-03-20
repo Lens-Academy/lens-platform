@@ -27,6 +27,8 @@ import { useScrollContainer } from "@/hooks/useScrollContainer";
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { ChatMessageList } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
+import { BotMessageSquare } from "lucide-react";
+import { useSwipePanel } from "@/hooks/useSwipePanel";
 
 export type ChatSidebarHandle = {
   setAllowed: (allowed: boolean) => void;
@@ -103,6 +105,18 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     }, []);
 
     const toggleHidden = !isAllowed;
+
+    // --- Swipe gesture support (mobile only) ---
+    const panelRef = useRef<HTMLDivElement>(null);
+    const backdropRef = useRef<HTMLDivElement>(null);
+    useSwipePanel({
+      isOpen,
+      onOpen: handleOpen,
+      onClose: handleClose,
+      enabled: isMobile,
+      panelRef,
+      backdropRef,
+    });
 
     // --- Manage scroll container spacing via transparent border ---
     // DO NOT replace this with margin-right or padding-right!
@@ -208,21 +222,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       }
     }, [messages, streamingContent, isLoading, isOpen]);
 
-    const chatIcon = (
-      <svg
-        className="w-[18px] h-[18px] text-slate-500"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-        />
-      </svg>
-    );
+    const chatIcon = <BotMessageSquare className="w-5 h-5 text-slate-500" strokeWidth={1.5} />;
 
     const header = (
       <div
@@ -230,19 +230,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         style={{ borderColor: "var(--brand-border)" }}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <svg
-            className="w-4 h-4 text-blue-600 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            />
-          </svg>
+          <BotMessageSquare className="w-4 h-4 text-slate-500 shrink-0" strokeWidth={1.5} />
           <div className="min-w-0">
             <div className="font-medium text-gray-900 text-sm">AI Tutor</div>
             {sectionTitle ? (
@@ -314,33 +302,35 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     if (isMobile) {
       return (
         <>
-          {/* Floating toggle button on right edge */}
+          {/* Floating action button — bottom-right */}
           <button
             onMouseDown={handleOpen}
-            className={`fixed right-0 z-50 bg-white border border-r-0 rounded-l-lg shadow-sm px-1.5 py-2.5 hover:bg-stone-200 transition-all active:scale-95 ${
+            className={`fixed right-4 z-50 flex items-center justify-center w-12 h-12 bg-white border rounded-full shadow-lg hover:bg-stone-100 transition-all active:scale-95 ${
               isOpen || toggleHidden ? "opacity-0 pointer-events-none" : ""
             }`}
             style={{
-              top: "calc(4rem + var(--safe-top, 0px))",
+              bottom: "calc(1rem + var(--safe-bottom, 0px))",
               borderColor: "var(--brand-border)",
             }}
             title="Ask the AI Tutor"
             aria-label="Open chat sidebar"
           >
-            {chatIcon}
+            <BotMessageSquare className="w-6 h-6 text-slate-600" strokeWidth={1.5} />
           </button>
 
-          {/* Backdrop */}
-          {isOpen && (
-            <div
-              className="fixed inset-0 z-40 bg-black/50 transition-opacity duration-300"
-              onMouseDown={handleClose}
-            />
-          )}
+          {/* Backdrop — always rendered so swipe hook can control opacity */}
+          <div
+            ref={backdropRef}
+            className={`fixed inset-0 z-40 bg-black transition-opacity duration-300 ${
+              isOpen ? "opacity-50" : "opacity-0 pointer-events-none"
+            }`}
+            onMouseDown={handleClose}
+          />
 
           {/* Fullscreen panel — slides in from right */}
           <div
-            className={`fixed inset-0 z-50 bg-white flex flex-col transition-transform duration-300 ease-in-out ${
+            ref={panelRef}
+            className={`fixed inset-0 z-50 bg-white flex flex-col transition-[translate] duration-300 ease-in-out ${
               isOpen ? "translate-x-0" : "translate-x-full"
             }`}
             style={{
@@ -348,6 +338,8 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
               paddingBottom: "var(--safe-bottom)",
             }}
           >
+            {/* Drag handle — visual swipe affordance */}
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-1 h-8 rounded-full bg-gray-300" />
             {header}
             {chatBody}
           </div>
