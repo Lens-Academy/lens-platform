@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMedia } from "react-use";
 import { useScrollDirection } from "../hooks/useScrollDirection";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { UserMenu } from "./nav/UserMenu";
 import StageProgressBar from "./module/StageProgressBar";
 import BreadcrumbNav from "./module/BreadcrumbNav";
@@ -74,6 +74,8 @@ export function ModuleHeader({
 
   // Cached username width (from when it was visible)
   const usernameWRef = useRef(0);
+  // Cached unit name width (from when breadcrumb shows full unit › module)
+  const unitNameWRef = useRef(0);
   // Cached title width (from when it was visible)
   const titleWRef = useRef(0);
 
@@ -113,12 +115,20 @@ export function ModuleHeader({
       }
       const usernameW = usernameWRef.current;
 
+      // Cache unit name width when breadcrumb shows full form (priority < 3)
+      if (curP < 3) {
+        const unitEl = container.querySelector("[data-breadcrumb-unit]") as HTMLElement | null;
+        if (unitEl) unitNameWRef.current = unitEl.offsetWidth;
+      }
+      const unitNameW = unitNameWRef.current;
+
       // Reconstruct "full" layout widths by adding back hidden element widths.
       // When priority >= 1, brand is position:absolute so left doesn't include it.
       // When priority >= 2, username is conditionally hidden so right is smaller.
+      // When priority >= 3, unit name in breadcrumb is position:absolute.
       // When priority >= 4, title is position:absolute so left doesn't include it.
       const fullLeft =
-        left.offsetWidth + (curP >= 1 ? brandW : 0) + (curP >= 4 ? titleW : 0);
+        left.offsetWidth + (curP >= 1 ? brandW : 0) + (curP >= 3 ? unitNameW : 0) + (curP >= 4 ? titleW : 0);
       const fullRight = rightWidth + (curP >= 2 ? usernameW : 0);
       // Subtract container padding (px-4 = 16px each side) since clientWidth
       // includes padding but flex children are laid out inside the content box.
@@ -138,14 +148,14 @@ export function ModuleHeader({
       }
       if (available < barWidth + 2 * gap) {
         p = 3;
+        available += unitNameW;
       }
 
-      // At priority 3, compact nav replaces progress bar.
+      // At priority 3, compact nav replaces progress bar and breadcrumb hides unit name.
       // Check if left + compact nav + right still overflows.
       if (p >= 3) {
         const compactW = compactNav ? compactNav.offsetWidth : 0;
-        // At p3, brand is hidden. Remove brandW from fullLeft to get actual left width.
-        const leftAtP3 = fullLeft - brandW;
+        const leftAtP3 = fullLeft - brandW - unitNameW;
         const rightAtP3 = fullRight - usernameW;
         const totalNeeded = leftAtP3 + compactW + rightAtP3 + padding;
         if (totalNeeded + 2 * gap > containerWidth) {
@@ -235,6 +245,16 @@ export function ModuleHeader({
           ref={leftRef}
           className="flex items-center gap-2 min-w-0 flex-shrink-0"
         >
+          {priority >= 4 && (
+            <button
+              type="button"
+              className="p-2 text-gray-700 hover:text-gray-500 transition-colors cursor-pointer"
+              onClick={onMenuToggle}
+              title="Open navigation"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
           <a href="/" className="min-h-[44px] flex items-center shrink-0">
             <img
               src="/assets/Logo_magnifying_glass.png"
@@ -250,15 +270,17 @@ export function ModuleHeader({
             <span className="text-gray-300 mx-1">|</span>
           </span>
           {unitName ? (
-            <BreadcrumbNav
-              ref={titleRef}
-              unitName={unitName}
-              currentModuleSlug={currentModuleSlug!}
-              unitModules={unitModules!}
-              priority={priority}
-              onToggleSidebar={onMenuToggle}
-              sidebarOpen={sidebarOpen}
-            />
+            <>
+              <BreadcrumbNav
+                ref={titleRef}
+                unitName={unitName}
+                currentModuleSlug={currentModuleSlug!}
+                unitModules={unitModules!}
+                priority={priority}
+                onToggleSidebar={onMenuToggle}
+                sidebarOpen={sidebarOpen}
+              />
+            </>
           ) : (
             <h1
               ref={titleRef}

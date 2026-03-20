@@ -35,10 +35,14 @@ const BreadcrumbNav = forwardRef<HTMLElement, BreadcrumbNavProps>(
         onClick={onToggleSidebar}
       >
         {hasMultipleModules && (
-          <>
+          <span
+            className="inline-flex items-center shrink-0"
+            data-breadcrumb-unit
+            style={priority >= 3 ? hiddenStyle : undefined}
+          >
             <span className="whitespace-nowrap shrink-0">{unitName}</span>
             <span className="shrink-0 mx-1.5">&rsaquo;</span>
-          </>
+          </span>
         )}
         <span className="truncate">{moduleName}</span>
         <ChevronDown

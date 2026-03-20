@@ -516,7 +516,7 @@ interface UnitNavigationPanelProps {
 }
 
 export default function UnitNavigationPanel({
-  unitName: _unitName,
+  unitName,
   currentModuleSlug,
   currentSectionIndex,
   completedSections,
@@ -614,6 +614,11 @@ export default function UnitNavigationPanel({
           </button>
         </div>
       </div>
+      {unitName && (
+        <div className="px-2 pb-1 text-sm text-slate-500 font-display shrink-0">
+          {unitName}
+        </div>
+      )}
       <div className="overflow-y-auto overscroll-contain min-h-0">
         {groupModules(unitModules).map((group) => {
           if (group.kind === "parent") {
