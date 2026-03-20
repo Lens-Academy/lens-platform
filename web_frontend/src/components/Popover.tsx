@@ -21,12 +21,18 @@ type PopoverProps = {
   content: ReactNode | ((close: () => void) => ReactNode);
   children: ReactElement;
   placement?: Placement;
+  /** Override the default panel className */
+  className?: string;
+  /** Additional inline styles for the panel (merged with positioning styles) */
+  panelStyle?: React.CSSProperties;
 };
 
 export function Popover({
   content,
   children,
   placement = "top",
+  className = "bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50 max-w-xs",
+  panelStyle,
 }: PopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -65,9 +71,9 @@ export function Popover({
         <FloatingPortal>
           <div
             ref={refs.setFloating}
-            style={floatingStyles}
+            style={{ ...floatingStyles, ...panelStyle }}
             {...getFloatingProps()}
-            className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50 max-w-xs"
+            className={className}
           >
             {typeof content === "function" ? content(close) : content}
           </div>

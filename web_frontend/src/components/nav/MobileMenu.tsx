@@ -83,7 +83,7 @@ export function MobileMenu({
           </div>
 
           <div className="border-t border-slate-200 pt-6">
-            <UserMenu signInRedirect={signInRedirect} />
+            <UserMenu signInRedirect={signInRedirect} inline />
           </div>
         </nav>
       </div>
