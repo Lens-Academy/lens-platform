@@ -4,7 +4,7 @@
  * Used inside ModuleDrawer (sidebar).
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { ChevronRight, BotMessageSquare, X } from "lucide-react";
 import type { ModuleInfo, StageInfo } from "@/types/course";
 import { formatDurationMinutes } from "@/utils/duration";
@@ -259,6 +259,7 @@ function SectionList({
       return (
         <button
           onClick={() => { onSectionClick(index); }}
+          data-section-current={isCurrentSection || undefined}
           className={`block px-2 py-1 rounded-[16px] text-left w-full transition-colors ${
             isCurrentSection
               ? "text-gray-900 bg-[#f0ece4]"
@@ -442,7 +443,7 @@ function ModuleRow({
 
 
   return (
-    <div>
+    <div data-module-current={isCurrent || undefined}>
       <button
         onClick={hasStages ? onToggleExpand : undefined}
         className={`flex items-center gap-2 px-2 py-1 rounded-[16px] w-full text-left transition-colors ${
@@ -557,6 +558,27 @@ export default function UnitNavigationPanel({
   const [allTldrsExpanded, setAllTldrsExpanded] = useState(true);
   const toggleSummaries = useCallback(() => setAllTldrsExpanded((prev) => !prev), []);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to current section when sidebar opens (after grid-collapse transitions finish)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const currentEl = container.querySelector("[data-section-current]") as HTMLElement | null;
+      if (!currentEl) return;
+      // Walk offsetParent chain to get cumulative offset from scroll container
+      let top = 0;
+      let el: HTMLElement | null = currentEl;
+      while (el && el !== container) {
+        top += el.offsetTop;
+        el = el.offsetParent as HTMLElement | null;
+      }
+      container.scrollTop = Math.max(0, top - container.clientHeight / 3);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between pl-2 py-2 shrink-0">
@@ -615,12 +637,14 @@ export default function UnitNavigationPanel({
         </div>
       </div>
       {unitName && (
-        <div className="px-2 pb-1 text-sm text-slate-500 font-display shrink-0">
+        <div className="px-2 pb-1 text-base text-gray-900 font-display shrink-0">
           {unitName}
         </div>
       )}
-      <div className="overflow-y-auto overscroll-contain min-h-0">
-        {groupModules(unitModules).map((group) => {
+      {(() => {
+        const groups = groupModules(unitModules);
+
+        const renderGroup = (group: ModuleGroup) => {
           if (group.kind === "parent") {
             const completedCount = group.children.filter((c) => c.status === "completed").length;
             const isParentExpanded = expandedParents.has(group.parentSlug);
@@ -677,7 +701,6 @@ export default function UnitNavigationPanel({
                           onSectionClick={onSectionClick}
                           onClose={onClose}
                           allTldrsExpanded={allTldrsExpanded}
-
                         />
                       ))}
                     </div>
@@ -700,12 +723,31 @@ export default function UnitNavigationPanel({
                 onSectionClick={onSectionClick}
                 onClose={onClose}
                 allTldrsExpanded={allTldrsExpanded}
-
               />
             </div>
           );
-        })}
-      </div>
+        };
+
+        return (
+          <div className="relative min-h-0 flex-1">
+            <div
+              ref={scrollContainerRef}
+              className="overflow-y-auto overscroll-contain h-full"
+            >
+              {groups.map(renderGroup)}
+              <div className="h-12 shrink-0" />
+            </div>
+            {/* Fade overlay — covers content but not scrollbar */}
+            <div
+              className="absolute bottom-0 left-0 right-4 pointer-events-none"
+              style={{
+                height: "3.5rem",
+                background: "linear-gradient(to bottom, transparent, var(--brand-bg) calc(100% - 0.5rem), var(--brand-bg))",
+              }}
+            />
+          </div>
+        );
+      })()}
     </div>
   );
 }
