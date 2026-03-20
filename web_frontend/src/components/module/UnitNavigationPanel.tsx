@@ -559,28 +559,58 @@ export default function UnitNavigationPanel({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-2 py-2 shrink-0">
+      <div className="flex items-center justify-between pl-2 py-2 shrink-0">
         <a
           href={`/course/${courseId}`}
           onClick={onClose}
-          className="flex items-center gap-1 text-xs text-[#9a5c10] hover:text-[#7a470c]"
+          className="flex items-center gap-1 text-sm text-[#9a5c10] hover:text-[#7a470c]"
         >
           <ChevronRight className="w-3 h-3 rotate-180" />
           Back to course overview
         </a>
         <div className="flex items-center gap-2">
-          <button
+          <div
             onClick={toggleSummaries}
-            className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
+            className="relative inline-grid grid-cols-2 bg-[#e8e4dc] rounded-full p-[3px] cursor-pointer"
+            title={allTldrsExpanded ? "Hide descriptions" : "Show descriptions"}
+            role="button"
+            tabIndex={0}
           >
-            {allTldrsExpanded ? "Hide descriptions" : "Show descriptions"}
-          </button>
+            {/* Sliding pill — same size as each icon cell */}
+            <span
+              className={`absolute top-[3px] bottom-[3px] w-[calc(50%-3px)] rounded-full bg-white shadow-sm transition-[left] duration-200 ease-in-out ${
+                allTldrsExpanded ? "left-[calc(50%)]" : "left-[3px]"
+              }`}
+            />
+            {/* Compact icon — 3 bullet items, single line each */}
+            <span className={`relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200 ${!allTldrsExpanded ? "text-gray-700" : "text-gray-400"}`}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 5h.01" />
+                <path d="M8 5h13" />
+                <path d="M3 12h.01" />
+                <path d="M8 12h13" />
+                <path d="M3 19h.01" />
+                <path d="M8 19h13" />
+              </svg>
+            </span>
+            {/* Expanded icon — 2 bullet items, each with a sub-line */}
+            <span className={`relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200 ${allTldrsExpanded ? "text-gray-700" : "text-gray-400"}`}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 5h.01" />
+                <path d="M8 5h13" />
+                <path d="M8 9h10" />
+                <path d="M3 16h.01" />
+                <path d="M8 16h13" />
+                <path d="M8 20h10" />
+              </svg>
+            </span>
+          </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-black/5 rounded-lg transition-colors"
             title="Close sidebar"
           >
-            <X className="w-5 h-5 text-slate-500" />
+            <X className="w-6 h-6 text-slate-500" />
           </button>
         </div>
       </div>
