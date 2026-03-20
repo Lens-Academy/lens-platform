@@ -500,7 +500,7 @@ function processLOWithSubmodules(
       const lo = loResult.learningOutcome!;
       items.push({
         type: 'lens',
-        meta: { title: section.title },
+        meta: { title: lens.title || section.title },
         segments,
         optional: section.fields.optional?.toLowerCase() === 'true' || lensRef.optional,
         learningOutcomeId: lo.id ?? null,
@@ -701,7 +701,7 @@ function flattenLearningOutcomeSection(
     // Create a section for this lens
     const resultSection: Section = {
       type: 'lens',
-      meta: { title: section.title },
+      meta: { title: lens.title || section.title },
       segments,
       optional: section.fields.optional?.toLowerCase() === 'true' || lensRef.optional,
       learningOutcomeId: lo.id ?? null,
@@ -751,7 +751,7 @@ function flattenLensSection(
 
     const resultSection: Section = {
       type: 'lens',
-      meta: { title: section.title },
+      meta: { title: inlineLens.title || section.title },
       segments,
       optional: section.fields.optional?.toLowerCase() === 'true',
       learningOutcomeId: null,
@@ -852,7 +852,7 @@ function flattenLensSection(
 
   const resultSection: Section = {
     type: 'lens',
-    meta: { title: section.title },
+    meta: { title: lens.title || section.title },
     segments,
     optional: section.fields.optional?.toLowerCase() === 'true',
     learningOutcomeId: null,

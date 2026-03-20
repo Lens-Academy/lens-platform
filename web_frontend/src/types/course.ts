@@ -4,6 +4,7 @@
 
 export type StageInfo = {
   type: "article" | "video" | "chat" | "lens" | "test";
+  displayType?: "lens-article" | "lens-video" | "lens-mixed";
   title: string;
   duration: number | null;
   optional: boolean;

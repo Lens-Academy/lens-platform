@@ -229,6 +229,7 @@ async def get_course_progress(
                 stages.append(
                     {
                         "type": section_type,
+                        "displayType": section.get("displayType"),
                         "title": title,
                         "duration": section_dur or None,
                         "optional": section.get("optional", False),

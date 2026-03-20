@@ -130,7 +130,7 @@ export default function ModuleOverview({
         <div
           className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${fillClasses} ${ringClasses}`}
         >
-          <StageIcon type={stage.type} small />
+          <StageIcon type={stage.type} displayType={stage.displayType} small />
         </div>
 
         {/* Content */}
@@ -150,15 +150,17 @@ export default function ModuleOverview({
             {stage.type === "chat"
               ? "Discuss with AI tutor"
               : (() => {
-                  const isVideo = stage.type === "video";
+                  const isVideo = stage.type === "video" || stage.displayType === "lens-video" || stage.displayType === "lens-mixed";
                   if (!stage.duration) {
                     return isVideo
                       ? "Video"
                       : stage.type === "test"
                         ? "Test"
-                        : stage.type === "lens"
-                          ? "Lens"
-                          : "Article";
+                        : stage.displayType === "lens-article"
+                          ? "Article"
+                          : stage.type === "lens"
+                            ? "Lens"
+                            : "Article";
                   }
                   const contentTime = Math.round(stage.duration / 1.5);
                   const aiTime = stage.duration - contentTime;

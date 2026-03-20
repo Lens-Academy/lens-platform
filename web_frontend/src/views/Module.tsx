@@ -556,6 +556,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       const dur = computeSectionDuration(section);
       return {
         type: section.type as StageInfo["type"],
+        displayType: section.displayType,
         title: section.meta?.title || `Section ${index + 1}`,
         duration: dur || null,
         optional: section.optional === true,

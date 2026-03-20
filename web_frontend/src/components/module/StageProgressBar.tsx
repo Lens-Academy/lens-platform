@@ -33,9 +33,11 @@ type StageProgressBarProps = {
 
 export function StageIcon({
   type,
+  displayType,
   small = false,
 }: {
   type: string;
+  displayType?: string;
   small?: boolean;
 }) {
   // Test icon: checkmark
@@ -52,7 +54,21 @@ export function StageIcon({
     );
   }
 
-  // Lens icon: same as article
+  // Lens with displayType — use specific icon
+  if (type === "lens" && (displayType === "lens-video" || displayType === "lens-mixed")) {
+    const size = small ? "w-5 h-5" : "w-6 h-6";
+    return (
+      <svg className={size} fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fillRule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+          clipRule="evenodd"
+        />
+      </svg>
+    );
+  }
+
+  // Lens icon: same as article (default for lens, or lens-article)
   if (type === "lens") {
     const size = small ? "w-4 h-4" : "w-5 h-5";
     return (
