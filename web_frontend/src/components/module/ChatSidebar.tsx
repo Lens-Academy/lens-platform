@@ -302,22 +302,6 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
     if (isMobile) {
       return (
         <>
-          {/* Floating action button — bottom-right */}
-          <button
-            onMouseDown={handleOpen}
-            className={`fixed right-4 z-50 flex items-center justify-center w-12 h-12 bg-white border rounded-full shadow-lg hover:bg-stone-100 transition-all active:scale-95 ${
-              isOpen || toggleHidden ? "opacity-0 pointer-events-none" : ""
-            }`}
-            style={{
-              bottom: "calc(1rem + var(--safe-bottom, 0px))",
-              borderColor: "var(--brand-border)",
-            }}
-            title="Ask the AI Tutor"
-            aria-label="Open chat sidebar"
-          >
-            <BotMessageSquare className="w-6 h-6 text-slate-600" strokeWidth={1.5} />
-          </button>
-
           {/* Backdrop — always rendered so swipe hook can control opacity */}
           <div
             ref={backdropRef}
@@ -338,8 +322,21 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
               paddingBottom: "var(--safe-bottom)",
             }}
           >
-            {/* Drag handle — visual swipe affordance */}
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-1 h-8 rounded-full bg-gray-300" />
+            {/* FAB — sticks out from panel's left edge, slides with it */}
+            <button
+              onMouseDown={handleOpen}
+              className={`absolute -left-14 z-10 flex items-center justify-center w-12 h-12 bg-white border rounded-full shadow-lg hover:bg-stone-100 active:scale-95 ${
+                toggleHidden ? "opacity-0 pointer-events-none" : ""
+              }`}
+              style={{
+                bottom: "calc(1rem + var(--safe-bottom, 0px))",
+                borderColor: "var(--brand-border)",
+              }}
+              title="Ask the AI Tutor"
+              aria-label="Open chat sidebar"
+            >
+              <BotMessageSquare className="w-6 h-6 text-slate-600" strokeWidth={1.5} />
+            </button>
             {header}
             {chatBody}
           </div>
