@@ -32,7 +32,7 @@ const BreadcrumbNav = forwardRef<HTMLElement, BreadcrumbNavProps>(
         type="button"
         className="flex! items-center min-w-0 shrink-0 whitespace-nowrap font-display text-[15px] text-gray-900 hover:text-gray-600 transition-colors cursor-pointer"
         style={priority >= 4 ? hiddenStyle : undefined}
-        onClick={onToggleSidebar}
+        onMouseDown={onToggleSidebar}
       >
         {hasMultipleModules && (
           <span

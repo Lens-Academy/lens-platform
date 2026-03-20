@@ -447,7 +447,7 @@ function ModuleRow({
   return (
     <div data-module-current={isCurrent || undefined}>
       <button
-        onClick={hasStages ? onToggleExpand : undefined}
+        onMouseDown={hasStages ? onToggleExpand : undefined}
         className={`flex items-center gap-2 px-2 py-1 rounded-[16px] w-full text-left transition-colors ${
           isCurrent
             ? "bg-[#f0ece4]"
@@ -594,7 +594,7 @@ export default function UnitNavigationPanel({
         </a>
         <div className="flex items-center gap-2">
           <div
-            onClick={toggleSummaries}
+            onMouseDown={toggleSummaries}
             className="relative inline-grid grid-cols-2 bg-[#e8e4dc] rounded-full p-[3px] cursor-pointer"
             title={allTldrsExpanded ? "Hide descriptions" : "Show descriptions"}
             role="button"
@@ -630,7 +630,7 @@ export default function UnitNavigationPanel({
             </span>
           </div>
           <button
-            onClick={onClose}
+            onMouseDown={onClose}
             className="p-2 hover:bg-black/5 rounded-lg transition-colors"
             title="Close sidebar"
           >
@@ -659,7 +659,7 @@ export default function UnitNavigationPanel({
             return (
               <div key={group.parentSlug} className="mb-1">
                 <button
-                  onClick={() => toggleParent(group.parentSlug)}
+                  onMouseDown={() => toggleParent(group.parentSlug)}
                   className="flex items-center gap-2 px-2 py-1 w-full text-left rounded-md hover:bg-[#f5f1ea] transition-colors"
                 >
                   <ProgressCircle

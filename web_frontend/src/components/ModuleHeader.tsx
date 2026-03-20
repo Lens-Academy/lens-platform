@@ -249,7 +249,7 @@ export function ModuleHeader({
             <button
               type="button"
               className="p-2 text-gray-700 hover:text-gray-500 transition-colors cursor-pointer"
-              onClick={onMenuToggle}
+              onMouseDown={onMenuToggle}
               title="Open navigation"
             >
               <Menu className="w-5 h-5" />
