@@ -12,6 +12,7 @@ export type StageInfo = {
   contentId?: string | null;
   completed?: boolean;
   tldr?: string;
+  attribution?: string;
 };
 
 export type ModuleStatus = "completed" | "in_progress" | "not_started";

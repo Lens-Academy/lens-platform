@@ -152,7 +152,7 @@ export default function ModuleOverview({
               : (() => {
                   const isVideo = stage.type === "video" || stage.displayType === "lens-video" || stage.displayType === "lens-mixed";
                   if (!stage.duration) {
-                    return isVideo
+                    const label = isVideo
                       ? "Video"
                       : stage.type === "test"
                         ? "Test"
@@ -161,6 +161,9 @@ export default function ModuleOverview({
                           : stage.type === "lens"
                             ? "Lens"
                             : "Article";
+                    return stage.attribution ? (
+                      <span>{label} · {stage.attribution}</span>
+                    ) : label;
                   }
                   const contentTime = Math.round(stage.duration / 1.5);
                   const aiTime = stage.duration - contentTime;
@@ -198,6 +201,9 @@ export default function ModuleOverview({
                           <BotMessageSquare className="w-3 h-3 inline ml-0.5" />
                           <span>{formatDurationMinutes(aiTime)}</span>
                         </>
+                      )}
+                      {stage.attribution && (
+                        <span className="ml-0.5"> · {stage.attribution}</span>
                       )}
                     </span>
                   );
