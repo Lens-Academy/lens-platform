@@ -288,7 +288,7 @@ export default function CourseOverview({
             )}
             {/* Drawer */}
             <div
-              className={`fixed top-0 left-0 h-full w-[80%] max-w-sm z-50 transition-transform duration-300 ${
+              className={`fixed top-0 left-0 h-full w-[85%] max-w-sm z-50 transition-transform duration-300 ${
                 sidebarOpen ? "translate-x-0" : "-translate-x-full"
               }`}
               style={{
@@ -309,7 +309,7 @@ export default function CourseOverview({
                   className="font-semibold"
                   style={{ color: "var(--brand-text)" }}
                 >
-                  Course Menu
+                  Course Overview
                 </span>
                 <button
                   onClick={() => setSidebarOpen(false)}

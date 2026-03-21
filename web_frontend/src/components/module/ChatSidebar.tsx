@@ -231,24 +231,26 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
 
     const header = (
       <div
-        className="flex items-center justify-between px-4 py-3 border-b shrink-0"
+        className="flex items-center justify-between px-4 py-3 border-b shrink-0 bg-[var(--brand-bg)]"
         style={{ borderColor: "var(--brand-border)" }}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <BotMessageSquare
-            className="w-4 h-4 text-slate-500 shrink-0"
-            strokeWidth={1.5}
-          />
           <div className="min-w-0">
-            <div className="font-medium text-gray-900 text-sm">AI Tutor</div>
+            <div className="font-medium text-gray-900 text-sm flex items-center gap-1.5">
+              <span className="font-display">AI Tutor</span>
+              <BotMessageSquare
+                className="w-4 h-4 text-gray-900 shrink-0"
+                strokeWidth={1.5}
+              />
+            </div>
             {sectionTitle ? (
               <div className="text-xs text-gray-500 line-clamp-3">
-                Optional — ask questions about{" "}
+                Optional – ask questions about{" "}
                 <span className="font-medium">{sectionTitle}</span>
               </div>
             ) : (
               <div className="text-xs text-gray-500">
-                Optional — ask questions as you read
+                Optional – ask questions as you read
               </div>
             )}
           </div>
