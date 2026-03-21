@@ -131,19 +131,20 @@ function StageDot({
   );
   const ringClasses = getRingClasses(isViewing, isCompleted);
 
-  const isLargeIcon = stage.type === "video" || stage.type === "lens-video" || stage.type === "chat";
+  const isLargeIcon = stage.type === "video" || stage.type === "chat" ||
+    (stage.type === "lens" && (stage.displayType === "lens-video" || stage.displayType === "lens-mixed"));
   return (
     <div
       className={`relative z-10 w-6 h-6 rounded-[16px] flex items-center justify-center flex-shrink-0 ${isLargeIcon ? "[&_svg]:w-[18px] [&_svg]:h-[18px]" : "[&_svg]:w-3.5 [&_svg]:h-3.5"} ${fillClasses} ${ringClasses}`}
     >
-      <StageIcon type={stage.type} small />
+      <StageIcon type={stage.type} displayType={stage.displayType} small />
     </div>
   );
 }
 
-function StageDuration({ duration, type }: { duration: number | null; type: string }) {
+function StageDuration({ duration, type, displayType }: { duration: number | null; type: string; displayType?: string }) {
   if (!duration || duration <= 0) return null;
-  const isVideo = type === "video" || type === "lens-video";
+  const isVideo = type === "video" || displayType === "lens-video" || displayType === "lens-mixed";
   const contentTime = Math.round(duration / 1.5);
   const aiTime = duration - contentTime;
   return (
@@ -243,7 +244,7 @@ function SectionList({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
             <span className={`text-[17px] font-display truncate text-slate-900 ${allTldrsExpanded ? "font-medium" : ""}`}>{stage.title}</span>
-            <StageDuration duration={stage.duration} type={stage.type} />
+            <StageDuration duration={stage.duration} type={stage.type} displayType={stage.displayType} />
           </div>
           {stage.tldr && (
               <p
