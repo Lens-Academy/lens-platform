@@ -19,7 +19,14 @@ interface BreadcrumbNavProps {
 
 const BreadcrumbNav = forwardRef<HTMLElement, BreadcrumbNavProps>(
   function BreadcrumbNav(
-    { unitName, currentModuleSlug, unitModules, priority, onToggleSidebar, sidebarOpen },
+    {
+      unitName,
+      currentModuleSlug,
+      unitModules,
+      priority,
+      onToggleSidebar,
+      sidebarOpen,
+    },
     ref,
   ) {
     const hasMultipleModules = unitModules.length > 1;

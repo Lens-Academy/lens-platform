@@ -138,7 +138,9 @@ export default function ModuleOverview({
           <div className="flex items-center gap-2 max-w-xl">
             <span
               className={`font-medium ${
-                isCompleted || isViewing ? "text-[var(--brand-text)]" : "text-[var(--brand-text-muted)]"
+                isCompleted || isViewing
+                  ? "text-[var(--brand-text)]"
+                  : "text-[var(--brand-text-muted)]"
               }`}
               style={{ fontFamily: "var(--brand-font-display)" }}
             >
@@ -150,7 +152,10 @@ export default function ModuleOverview({
             {stage.type === "chat"
               ? "Discuss with AI tutor"
               : (() => {
-                  const isVideo = stage.type === "video" || stage.displayType === "lens-video" || stage.displayType === "lens-mixed";
+                  const isVideo =
+                    stage.type === "video" ||
+                    stage.displayType === "lens-video" ||
+                    stage.displayType === "lens-mixed";
                   if (!stage.duration) {
                     const label = isVideo
                       ? "Video"
@@ -162,8 +167,12 @@ export default function ModuleOverview({
                             ? "Lens"
                             : "Article";
                     return stage.attribution ? (
-                      <span>{label} · {stage.attribution}</span>
-                    ) : label;
+                      <span>
+                        {label} · {stage.attribution}
+                      </span>
+                    ) : (
+                      label
+                    );
                   }
                   const contentTime = Math.round(stage.duration / 1.5);
                   const aiTime = stage.duration - contentTime;
@@ -210,7 +219,9 @@ export default function ModuleOverview({
                 })()}
           </div>
           {stage.tldr && (
-            <p className="mt-1 max-w-xl text-sm text-[var(--brand-text-muted)]">{stage.tldr}</p>
+            <p className="mt-1 max-w-xl text-sm text-[var(--brand-text-muted)]">
+              {stage.tldr}
+            </p>
           )}
         </div>
       </div>
@@ -228,7 +239,9 @@ export default function ModuleOverview({
       {/* Module title and progress badge */}
       <div className="mb-6">
         {isMobile && parentTitle && (
-          <p className="text-sm text-[var(--brand-text-muted)] mb-1">{parentTitle} ›</p>
+          <p className="text-sm text-[var(--brand-text-muted)] mb-1">
+            {parentTitle} ›
+          </p>
         )}
         <div className="flex items-start justify-between gap-4">
           <h2

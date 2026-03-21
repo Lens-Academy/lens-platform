@@ -477,10 +477,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
   // Track chat sidebar open state (driven by localStorage events from ChatSidebar)
   const [chatOpen, setChatOpen] = useState(
-    () => typeof window !== "undefined" && localStorage.getItem("chat-sidebar-pref") === "open",
+    () =>
+      typeof window !== "undefined" &&
+      localStorage.getItem("chat-sidebar-pref") === "open",
   );
   useEffect(() => {
-    const sync = () => setChatOpen(localStorage.getItem("chat-sidebar-pref") === "open");
+    const sync = () =>
+      setChatOpen(localStorage.getItem("chat-sidebar-pref") === "open");
     window.addEventListener("chat-sidebar-pref-change", sync);
     return () => window.removeEventListener("chat-sidebar-pref-change", sync);
   }, []);
@@ -518,12 +521,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       // Use displayType for stage type derivation
       const dt = section.displayType;
       if (dt === "lens-video" || dt === "lens-mixed") {
-        const firstVideo = section.segments?.find(
-          (s) => s.type === "video",
-        );
+        const firstVideo = section.segments?.find((s) => s.type === "video");
         const videoId =
           firstVideo && "videoId" in firstVideo
-            ? (firstVideo.videoId as string) ?? ""
+            ? ((firstVideo.videoId as string) ?? "")
             : "";
         return {
           type: "video",
@@ -566,6 +567,21 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     if (!module) return [];
     return module.sections.map((section, index) => {
       const dur = computeSectionDuration(section);
+      // Collect authors/channels from segments for attribution
+      const seen = new Set<string>();
+      const attributions: string[] = [];
+      for (const seg of section.segments) {
+        const name =
+          seg.type === "article"
+            ? seg.author
+            : seg.type === "video"
+              ? seg.channel
+              : null;
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          attributions.push(name);
+        }
+      }
       return {
         type: section.type as StageInfo["type"],
         displayType: section.displayType,
@@ -573,6 +589,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         duration: dur || null,
         optional: section.optional === true,
         tldr: section.tldr,
+        attribution:
+          attributions.length > 0 ? attributions.join(" & ") : undefined,
       };
     });
   }, [module]);
@@ -806,9 +824,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         ? currentSection.segments
         : undefined;
     const firstExcerptIdx =
-      segments?.findIndex(
-        (s) => s.type === "article" || s.type === "video",
-      ) ?? -1;
+      segments?.findIndex((s) => s.type === "article" || s.type === "video") ??
+      -1;
 
     let rafId = 0;
     let isInitialCheck = true;
@@ -1123,8 +1140,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       // Only v2 section types have optional field directly
       if (!("optional" in section)) continue;
       const sectionType = section.type as SectionChoice["type"];
-      if (!["lens", "test"].includes(sectionType))
-        continue;
+      if (!["lens", "test"].includes(sectionType)) continue;
 
       choices.push({
         index: i,
@@ -1154,8 +1170,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       const section = sections[i];
       if (!("optional" in section)) continue;
       const sectionType = section.type as SectionChoice["type"];
-      if (!["lens", "test"].includes(sectionType))
-        continue;
+      if (!["lens", "test"].includes(sectionType)) continue;
       choices.push({
         index: i,
         type: sectionType,
@@ -1180,8 +1195,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     const section = sections[i];
     if (!("optional" in section)) return null;
     const sectionType = section.type as SectionChoice["type"];
-    if (!["lens", "test"].includes(sectionType))
-      return null;
+    if (!["lens", "test"].includes(sectionType)) return null;
     return {
       index: i,
       type: sectionType,
@@ -2033,8 +2047,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         contentId={section.contentId ?? undefined}
                         contentType="lens"
                         contentTitle={
-                          section.meta?.title ||
-                          `Section ${sectionIndex + 1}`
+                          section.meta?.title || `Section ${sectionIndex + 1}`
                         }
                         moduleSlug={moduleId}
                         buttonText={getCompletionButtonText(

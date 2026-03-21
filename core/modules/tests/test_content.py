@@ -38,6 +38,26 @@ def test_parse_frontmatter_strips_metadata():
     assert len(content) > 50
 
 
+def test_parse_frontmatter_yaml_list_authors():
+    """Should join YAML list authors with comma and space."""
+    text = '---\ntitle: "AI Is Grown"\nauthor:\n  - "Eliezer Yudkowsky"\n  - "Nate Soares"\nsource_url: https://example.com\npublished: 2024-01-01\n---\n\nBody content.\n'
+
+    metadata, content = parse_frontmatter(text)
+
+    assert metadata.author == "Eliezer Yudkowsky, Nate Soares"
+    assert metadata.title == "AI Is Grown"
+    assert "Body content." in content
+
+
+def test_parse_frontmatter_comma_separated_authors():
+    """Should preserve comma-separated authors as-is."""
+    text = '---\ntitle: Test\nauthor: "Alice, Bob"\nsource_url: https://example.com\npublished: 2024-01-01\n---\n\nBody.\n'
+
+    metadata, _ = parse_frontmatter(text)
+
+    assert metadata.author == "Alice, Bob"
+
+
 def test_extract_section_with_anchors():
     """Should extract text between from/to anchors."""
     full_text = """

@@ -55,7 +55,10 @@ export function StageIcon({
   }
 
   // Lens with displayType — use specific icon
-  if (type === "lens" && (displayType === "lens-video" || displayType === "lens-mixed")) {
+  if (
+    type === "lens" &&
+    (displayType === "lens-video" || displayType === "lens-mixed")
+  ) {
     const size = small ? "w-5 h-5" : "w-6 h-6";
     return (
       <svg className={size} fill="currentColor" viewBox="0 0 20 20">

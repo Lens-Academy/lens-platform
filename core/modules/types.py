@@ -110,11 +110,7 @@ class RoleplaySegment:
 
 
 NarrativeSegment = (
-    TextSegment
-    | ArticleSegment
-    | VideoSegment
-    | ChatSegment
-    | RoleplaySegment
+    TextSegment | ArticleSegment | VideoSegment | ChatSegment | RoleplaySegment
 )
 
 

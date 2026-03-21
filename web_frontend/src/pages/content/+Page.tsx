@@ -35,7 +35,9 @@ export default function ContentIndexPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
-      <h1 className="text-2xl font-semibold text-[var(--brand-text)] mb-8">Content</h1>
+      <h1 className="text-2xl font-semibold text-[var(--brand-text)] mb-8">
+        Content
+      </h1>
 
       <section className="mb-10">
         <h2 className="text-lg font-medium text-[var(--brand-text-muted)] mb-4">
@@ -62,7 +64,10 @@ export default function ContentIndexPage() {
         <ul className="space-y-2">
           {lenses.map((l) => (
             <li key={l.slug}>
-              <a href={`/${l.slug}`} className="text-lens-gold-600 hover:text-lens-gold-700 hover:underline">
+              <a
+                href={`/${l.slug}`}
+                className="text-lens-gold-600 hover:text-lens-gold-700 hover:underline"
+              >
                 {l.title}
               </a>
             </li>

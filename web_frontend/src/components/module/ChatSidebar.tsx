@@ -225,7 +225,9 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       }
     }, [messages, streamingContent, isLoading, isOpen]);
 
-    const chatIcon = <BotMessageSquare className="w-5 h-5 text-slate-500" strokeWidth={1.5} />;
+    const chatIcon = (
+      <BotMessageSquare className="w-5 h-5 text-slate-500" strokeWidth={1.5} />
+    );
 
     const header = (
       <div
@@ -233,7 +235,10 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         style={{ borderColor: "var(--brand-border)" }}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <BotMessageSquare className="w-4 h-4 text-slate-500 shrink-0" strokeWidth={1.5} />
+          <BotMessageSquare
+            className="w-4 h-4 text-slate-500 shrink-0"
+            strokeWidth={1.5}
+          />
           <div className="min-w-0">
             <div className="font-medium text-gray-900 text-sm">AI Tutor</div>
             {sectionTitle ? (
@@ -329,7 +334,9 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
             <button
               onMouseDown={handleOpen}
               className={`absolute -left-14 z-10 flex items-center justify-center w-12 h-12 bg-white border rounded-full shadow-lg hover:bg-stone-100 active:scale-95 transition-opacity duration-200 ${
-                toggleHidden || drawerOpen ? "opacity-0 pointer-events-none" : ""
+                toggleHidden || drawerOpen
+                  ? "opacity-0 pointer-events-none"
+                  : ""
               }`}
               style={{
                 bottom: "calc(1rem + var(--safe-bottom, 0px))",
@@ -338,7 +345,10 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
               title="Ask the AI Tutor"
               aria-label="Open chat sidebar"
             >
-              <BotMessageSquare className="w-6 h-6 text-slate-600" strokeWidth={1.5} />
+              <BotMessageSquare
+                className="w-6 h-6 text-slate-600"
+                strokeWidth={1.5}
+              />
             </button>
             {header}
             {chatBody}

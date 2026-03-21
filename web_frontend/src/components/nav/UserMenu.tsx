@@ -13,7 +13,11 @@ interface UserMenuProps {
   inline?: boolean;
 }
 
-export function UserMenu({ signInRedirect, compact, inline }: UserMenuProps = {}) {
+export function UserMenu({
+  signInRedirect,
+  compact,
+  inline,
+}: UserMenuProps = {}) {
   const {
     isAuthenticated,
     isLoading,

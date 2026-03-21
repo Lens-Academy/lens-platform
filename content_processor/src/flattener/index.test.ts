@@ -848,6 +848,36 @@ Second section content.
     expect(result.module!.sections[0].contentId).toBe('c3d4e5f6-a7b8-9012-cdef-345678901234');
   });
 
+  it('joins YAML list authors with comma and space', () => {
+    const files = new Map([
+      ['Lenses/multi-author.md', `---
+id: d4e5f6a7-b8c9-0123-def4-567890123456
+---
+
+#### Article
+source:: [[../articles/multi-author]]
+`],
+      ['articles/multi-author.md', `---
+title: "AI Is Grown, Not Built"
+author:
+  - "Eliezer Yudkowsky"
+  - "Nate Soares"
+source_url: "https://example.com/article"
+published: 2024-01-01
+---
+
+Article body here.
+`],
+    ]);
+
+    const result = flattenLens('Lenses/multi-author.md', files);
+
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+    expect(result.module).toBeDefined();
+    const articleSeg = result.module!.sections[0].segments[0] as ArticleSegment;
+    expect(articleSeg.author).toBe('Eliezer Yudkowsky, Nate Soares');
+  });
+
   it('wraps a video lens as a single-section FlattenedModule', () => {
     const files = new Map([
       ['Lenses/Kurzgesagt software demo.md', `---

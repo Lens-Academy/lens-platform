@@ -4,7 +4,9 @@ export default function Terms() {
       <h1 className="text-3xl font-bold text-[var(--brand-text)] mb-2">
         Terms of Service
       </h1>
-      <p className="text-[var(--brand-text-muted)] mb-8">Last updated: January 2025</p>
+      <p className="text-[var(--brand-text-muted)] mb-8">
+        Last updated: January 2025
+      </p>
 
       <div className="prose prose-neutral max-w-none">
         <p className="text-lg text-[var(--brand-text-muted)] mb-8">
@@ -61,7 +63,9 @@ export default function Terms() {
           <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             4. User Conduct
           </h2>
-          <p className="text-[var(--brand-text-muted)] mb-4">You agree not to:</p>
+          <p className="text-[var(--brand-text-muted)] mb-4">
+            You agree not to:
+          </p>
           <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-2">
             <li>Harass, abuse, or threaten other users</li>
             <li>Share discriminatory, hateful, or offensive content</li>

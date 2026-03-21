@@ -14,12 +14,21 @@ import { getCircleFillClasses, getRingClasses } from "@/utils/stageProgress";
 import { buildBranchLayout } from "@/utils/branchLayout";
 import { linkProps } from "@/utils/navigateLink";
 import { generateHeadingId } from "@/utils/extractHeadings";
-import { buildBranchPaths, computeBranchStates, computeLayoutColors } from "@/utils/branchColors";
+import {
+  buildBranchPaths,
+  computeBranchStates,
+  computeLayoutColors,
+} from "@/utils/branchColors";
 
 // --- Helper types and functions ---
 
 type ModuleGroup =
-  | { kind: "parent"; parentSlug: string; parentTitle: string; children: ModuleInfo[] }
+  | {
+      kind: "parent";
+      parentSlug: string;
+      parentTitle: string;
+      children: ModuleInfo[];
+    }
   | { kind: "standalone"; module: ModuleInfo };
 
 function groupModules(modules: ModuleInfo[]): ModuleGroup[] {
@@ -59,7 +68,13 @@ function ProgressCircle({
 }) {
   if (status === "completed") {
     return (
-      <svg className="flex-shrink-0" width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <svg
+        className="flex-shrink-0"
+        width={size}
+        height={size}
+        viewBox="0 0 20 20"
+        fill="none"
+      >
         <circle cx="10" cy="10" r="9" fill="#b87018" />
         <path
           d="M6 10.5l2.5 2.5 5-5"
@@ -91,7 +106,14 @@ function ProgressCircle({
         fill="none"
         style={fraction > 0 ? { transform: "rotate(-90deg)" } : undefined}
       >
-        <circle cx={cx} cy={cy} r={r} stroke={fraction > 0 ? "#cbd5e1" : "#d08838"} strokeWidth="2" fill={fraction > 0 ? "none" : "#fde8c8"} />
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          stroke={fraction > 0 ? "#cbd5e1" : "#d08838"}
+          strokeWidth="2"
+          fill={fraction > 0 ? "none" : "#fde8c8"}
+        />
         {fraction > 0 && (
           <circle
             cx={cx}
@@ -109,8 +131,21 @@ function ProgressCircle({
     );
   }
   return (
-    <svg className="flex-shrink-0" width={size} height={size} viewBox="0 0 20 20" fill="none">
-      <circle cx="10" cy="10" r="8" stroke="#ccc" strokeWidth="2" fill="white" />
+    <svg
+      className="flex-shrink-0"
+      width={size}
+      height={size}
+      viewBox="0 0 20 20"
+      fill="none"
+    >
+      <circle
+        cx="10"
+        cy="10"
+        r="8"
+        stroke="#ccc"
+        strokeWidth="2"
+        fill="white"
+      />
     </svg>
   );
 }
@@ -131,30 +166,54 @@ function StageDot({
   );
   const ringClasses = getRingClasses(isViewing, isCompleted);
 
-  const isLargeIcon = stage.type === "video" || stage.type === "lens-video" || stage.type === "chat";
+  const isLargeIcon =
+    stage.type === "video" ||
+    stage.type === "chat" ||
+    (stage.type === "lens" &&
+      (stage.displayType === "lens-video" ||
+        stage.displayType === "lens-mixed"));
   return (
     <div
       className={`relative z-10 w-6 h-6 rounded-[16px] flex items-center justify-center flex-shrink-0 ${isLargeIcon ? "[&_svg]:w-[18px] [&_svg]:h-[18px]" : "[&_svg]:w-3.5 [&_svg]:h-3.5"} ${fillClasses} ${ringClasses}`}
     >
-      <StageIcon type={stage.type} small />
+      <StageIcon type={stage.type} displayType={stage.displayType} small />
     </div>
   );
 }
 
-function StageDuration({ duration, type }: { duration: number | null; type: string }) {
+function StageDuration({
+  duration,
+  type,
+  displayType,
+}: {
+  duration: number | null;
+  type: string;
+  displayType?: string;
+}) {
   if (!duration || duration <= 0) return null;
-  const isVideo = type === "video" || type === "lens-video";
+  const isVideo =
+    type === "video" ||
+    displayType === "lens-video" ||
+    displayType === "lens-mixed";
   const contentTime = Math.round(duration / 1.5);
   const aiTime = duration - contentTime;
   return (
     <span className="inline-flex items-center gap-0.5 text-xs text-slate-500 whitespace-nowrap ml-auto flex-shrink-0 tabular-nums">
       {isVideo ? (
         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+          <path
+            fillRule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+            clipRule="evenodd"
+          />
         </svg>
       ) : (
         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+          <path
+            fillRule="evenodd"
+            d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+            clipRule="evenodd"
+          />
         </svg>
       )}
       <span>{formatDurationMinutes(contentTime)}</span>
@@ -199,11 +258,12 @@ function SectionList({
   onClose: () => void;
   allTldrsExpanded: boolean;
 }) {
-
   const completed = useMemo(() => {
     if (isCurrent) return completedSections;
     const s = new Set<number>();
-    stages.forEach((st, i) => { if (st.completed) s.add(i); });
+    stages.forEach((st, i) => {
+      if (st.completed) s.add(i);
+    });
     return s;
   }, [isCurrent, completedSections, stages]);
 
@@ -236,22 +296,41 @@ function SectionList({
     const isCompleted = completed.has(index);
     const isCurrentSection = index === curIdx;
 
-    const dot = <StageDot stage={stage} isCompleted={isCompleted} isViewing={isCurrentSection} />;
+    const dot = (
+      <StageDot
+        stage={stage}
+        isCompleted={isCompleted}
+        isViewing={isCurrentSection}
+      />
+    );
     const content = (
       <div className="flex items-start gap-2.5 w-full min-w-0">
         {dot}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
-            <span className={`text-[17px] font-display truncate text-slate-900 ${allTldrsExpanded ? "font-medium" : ""}`}>{stage.title}</span>
-            <StageDuration duration={stage.duration} type={stage.type} />
+            <span
+              className={`text-[17px] leading-snug font-display truncate text-slate-900 ${allTldrsExpanded ? "font-medium" : ""}`}
+            >
+              {stage.title}
+            </span>
+            <StageDuration
+              duration={stage.duration}
+              type={stage.type}
+              displayType={stage.displayType}
+            />
           </div>
+          {stage.attribution && (
+            <span className="text-sm text-slate-600 italic truncate block">
+              {stage.attribution}
+            </span>
+          )}
           {stage.tldr && (
-              <p
-                className={`text-sm text-slate-600 overflow-hidden transition-[max-height] duration-500 ease-in-out mt-0.5`}
-                style={{ maxHeight: allTldrsExpanded ? "20em" : 0 }}
-              >
-                {stage.tldr}
-              </p>
+            <p
+              className={`text-sm text-slate-600 overflow-hidden transition-[max-height] duration-500 ease-in-out mt-0.5`}
+              style={{ maxHeight: allTldrsExpanded ? "20em" : 0 }}
+            >
+              {stage.tldr}
+            </p>
           )}
         </div>
       </div>
@@ -262,9 +341,11 @@ function SectionList({
     if (isCurrent) {
       return (
         <button
-          {...linkProps(sectionHref, () => { onSectionClick(index); })}
+          {...linkProps(sectionHref, () => {
+            onSectionClick(index);
+          })}
           data-section-current={isCurrentSection || undefined}
-          className={`block px-2 py-1 rounded-[16px] text-left w-full transition-colors ${
+          className={`block p-2 rounded-[16px] text-left w-full transition-colors ${
             isCurrentSection
               ? "text-gray-900 bg-[#f0ece4]"
               : "text-gray-800 hover:text-gray-900 hover:bg-[#f5f1ea]"
@@ -277,8 +358,11 @@ function SectionList({
 
     return (
       <button
-        {...linkProps(sectionHref, () => { window.location.href = sectionHref; onClose(); })}
-        className="block px-2 py-1 rounded-[16px] text-left w-full text-gray-800 hover:text-gray-900 hover:bg-[#f5f1ea] transition-colors"
+        {...linkProps(sectionHref, () => {
+          window.location.href = sectionHref;
+          onClose();
+        })}
+        className="block p-2 rounded-[16px] text-left w-full text-gray-800 hover:text-gray-900 hover:bg-[#f5f1ea] transition-colors"
       >
         {content}
       </button>
@@ -306,8 +390,8 @@ function SectionList({
                   className={`absolute left-[20px] top-0 h-[20px] w-0.5 -translate-x-1/2 z-[1] ${colors.connectorColor}`}
                 />
               )}
-              {!isLast && (
-                trailsIntoBranchOnly ? (
+              {!isLast &&
+                (trailsIntoBranchOnly ? (
                   <div
                     className={`absolute left-[20px] top-[20px] bottom-0 -translate-x-1/2 z-[1] dotted-round-v ${textColorMap[colors.outgoingColor] ?? "text-gray-200"}`}
                   />
@@ -315,8 +399,7 @@ function SectionList({
                   <div
                     className={`absolute left-[20px] top-[20px] bottom-0 w-0.5 -translate-x-1/2 z-[1] ${colors.outgoingColor}`}
                   />
-                )
-              )}
+                ))}
               {renderRow(item.stage, item.index)}
             </div>
           );
@@ -332,7 +415,9 @@ function SectionList({
             "bg-gray-400": { text: "text-gray-400" },
             "bg-gray-200": { text: "text-gray-300" },
           };
-          const arcForkText = (forkColors[segmentColors[0]] ?? forkColors["bg-gray-200"]).text;
+          const arcForkText = (
+            forkColors[segmentColors[0]] ?? forkColors["bg-gray-200"]
+          ).text;
           const forkDotColor = (i: number) =>
             (forkColors[segmentColors[i]] ?? forkColors["bg-gray-200"]).text;
 
@@ -341,7 +426,9 @@ function SectionList({
             "bg-gray-400": 1,
             "bg-lens-gold-400": 2,
           };
-          const arcDarker = (colorRank[segmentColors[0]] ?? 0) > (colorRank[colors.passColor] ?? 0);
+          const arcDarker =
+            (colorRank[segmentColors[0]] ?? 0) >
+            (colorRank[colors.passColor] ?? 0);
           const arcZ = arcDarker ? "z-[2]" : "z-[1]";
           const passZ = arcDarker ? "z-[1]" : "z-[2]";
           const branchConnZ = arcDarker ? "z-[3]" : "z-[2]";
@@ -444,15 +531,12 @@ function ModuleRow({
   const stages = isCurrent ? currentModuleSections : mod.stages;
   const hasStages = stages.length > 0;
 
-
   return (
     <div data-module-current={isCurrent || undefined}>
       <button
         onMouseDown={hasStages ? onToggleExpand : undefined}
         className={`flex items-center gap-2 px-2 py-1 rounded-[16px] w-full text-left transition-colors ${
-          isCurrent
-            ? "bg-[#f0ece4]"
-            : hasStages ? "hover:bg-[#f5f1ea]" : ""
+          isCurrent ? "bg-[#f0ece4]" : hasStages ? "hover:bg-[#f5f1ea]" : ""
         }`}
       >
         <ProgressCircle
@@ -461,9 +545,7 @@ function ModuleRow({
           totalLenses={mod.totalLenses}
           size={14}
         />
-        <span
-          className="text-base font-display truncate text-gray-900"
-        >
+        <span className="text-base font-display truncate text-gray-900">
           {mod.title}
         </span>
         <span className="flex items-center gap-1.5 ml-auto flex-shrink-0">
@@ -567,7 +649,10 @@ export default function UnitNavigationPanel({
       setAllTldrsExpanded(!isMobile);
     }
   }, [isMobile]);
-  const toggleSummaries = useCallback(() => setAllTldrsExpanded((prev) => !prev), []);
+  const toggleSummaries = useCallback(
+    () => setAllTldrsExpanded((prev) => !prev),
+    [],
+  );
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -576,7 +661,9 @@ export default function UnitNavigationPanel({
     const timer = setTimeout(() => {
       const container = scrollContainerRef.current;
       if (!container) return;
-      const currentEl = container.querySelector("[data-section-current]") as HTMLElement | null;
+      const currentEl = container.querySelector(
+        "[data-section-current]",
+      ) as HTMLElement | null;
       if (!currentEl) return;
       // Walk offsetParent chain to get cumulative offset from scroll container
       let top = 0;
@@ -616,8 +703,19 @@ export default function UnitNavigationPanel({
               }`}
             />
             {/* Compact icon — 3 bullet items, single line each */}
-            <span className={`relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200 ${!allTldrsExpanded ? "text-gray-700" : "text-gray-400"}`}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <span
+              className={`relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200 ${!allTldrsExpanded ? "text-gray-700" : "text-gray-400"}`}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M3 5h.01" />
                 <path d="M8 5h13" />
                 <path d="M3 12h.01" />
@@ -627,8 +725,19 @@ export default function UnitNavigationPanel({
               </svg>
             </span>
             {/* Expanded icon — 2 bullet items, each with a sub-line */}
-            <span className={`relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200 ${allTldrsExpanded ? "text-gray-700" : "text-gray-400"}`}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <span
+              className={`relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200 ${allTldrsExpanded ? "text-gray-700" : "text-gray-400"}`}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M3 5h.01" />
                 <path d="M8 5h13" />
                 <path d="M8 9h10" />
@@ -657,7 +766,9 @@ export default function UnitNavigationPanel({
 
         const renderGroup = (group: ModuleGroup) => {
           if (group.kind === "parent") {
-            const completedCount = group.children.filter((c) => c.status === "completed").length;
+            const completedCount = group.children.filter(
+              (c) => c.status === "completed",
+            ).length;
             const isParentExpanded = expandedParents.has(group.parentSlug);
             const parentFraction =
               group.children.reduce((sum, c) => {
@@ -683,7 +794,9 @@ export default function UnitNavigationPanel({
                     totalLenses={100}
                     size={14}
                   />
-                  <span className="text-base font-display text-gray-900">{group.parentTitle}</span>
+                  <span className="text-base font-display text-gray-900">
+                    {group.parentTitle}
+                  </span>
                   <ChevronRight
                     className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 ml-auto transition-transform duration-200 ${
                       isParentExpanded ? "rotate-90" : ""
@@ -753,7 +866,8 @@ export default function UnitNavigationPanel({
               className="absolute bottom-0 left-0 right-4 pointer-events-none"
               style={{
                 height: "3.5rem",
-                background: "linear-gradient(to bottom, transparent, var(--brand-bg) calc(100% - 0.5rem), var(--brand-bg))",
+                background:
+                  "linear-gradient(to bottom, transparent, var(--brand-bg) calc(100% - 0.5rem), var(--brand-bg))",
               }}
             />
           </div>

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 
 interface UseSwipePanelOptions {
   isOpen: boolean;
@@ -235,7 +241,15 @@ export function useSwipePanel({
       document.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("touchend", onTouchEnd);
     };
-  }, [enabled, side, onOpen, onClose, panelRef, backdropRef, cleanupInlineStyles]);
+  }, [
+    enabled,
+    side,
+    onOpen,
+    onClose,
+    panelRef,
+    backdropRef,
+    cleanupInlineStyles,
+  ]);
 
   return { isDragging };
 }

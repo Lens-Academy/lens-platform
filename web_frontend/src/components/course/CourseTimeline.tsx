@@ -575,7 +575,9 @@ function renderUnitModules(
               )}
               <span
                 className={`text-base truncate ${
-                  mod.optional ? "text-[var(--brand-text-muted)]" : "text-[var(--brand-text-muted)]"
+                  mod.optional
+                    ? "text-[var(--brand-text-muted)]"
+                    : "text-[var(--brand-text-muted)]"
                 }`}
               >
                 {mod.title}

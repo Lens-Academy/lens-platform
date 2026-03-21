@@ -117,7 +117,9 @@ export function ModuleHeader({
 
       // Cache unit name width when breadcrumb shows full form (priority < 3)
       if (curP < 3) {
-        const unitEl = container.querySelector("[data-breadcrumb-unit]") as HTMLElement | null;
+        const unitEl = container.querySelector(
+          "[data-breadcrumb-unit]",
+        ) as HTMLElement | null;
         if (unitEl) unitNameWRef.current = unitEl.offsetWidth;
       }
       const unitNameW = unitNameWRef.current;
@@ -128,7 +130,10 @@ export function ModuleHeader({
       // When priority >= 3, unit name in breadcrumb is position:absolute.
       // When priority >= 4, title is position:absolute so left doesn't include it.
       const fullLeft =
-        left.offsetWidth + (curP >= 1 ? brandW : 0) + (curP >= 3 ? unitNameW : 0) + (curP >= 4 ? titleW : 0);
+        left.offsetWidth +
+        (curP >= 1 ? brandW : 0) +
+        (curP >= 3 ? unitNameW : 0) +
+        (curP >= 4 ? titleW : 0);
       const fullRight = rightWidth + (curP >= 2 ? usernameW : 0);
       // Subtract container padding (px-4 = 16px each side) since clientWidth
       // includes padding but flex children are laid out inside the content box.
@@ -263,10 +268,7 @@ export function ModuleHeader({
             />
           </a>
           {/* Brand separator: always in DOM for measurement, hidden at priority >= 1 */}
-          <span
-            ref={brandRef}
-            style={priority >= 1 ? hiddenStyle : undefined}
-          >
+          <span ref={brandRef} style={priority >= 1 ? hiddenStyle : undefined}>
             <span className="text-gray-300 mx-1">|</span>
           </span>
           {unitName ? (

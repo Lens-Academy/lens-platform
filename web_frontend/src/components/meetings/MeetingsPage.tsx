@@ -249,7 +249,10 @@ export default function MeetingsPage() {
             <p className="text-[var(--brand-text-muted)] mb-4">
               Please sign in to manage your meetings.
             </p>
-            <button onClick={login} className="text-lens-gold-600 hover:underline">
+            <button
+              onClick={login}
+              className="text-lens-gold-600 hover:underline"
+            >
               Sign in
             </button>
           </div>
@@ -420,7 +423,9 @@ export default function MeetingsPage() {
               Upcoming Meetings
             </h2>
             {upcomingMeetings.length === 0 ? (
-              <p className="text-[var(--brand-text-muted)]">No upcoming meetings found.</p>
+              <p className="text-[var(--brand-text-muted)]">
+                No upcoming meetings found.
+              </p>
             ) : (
               <div className="space-y-3">
                 {upcomingMeetings.map((meeting) => (

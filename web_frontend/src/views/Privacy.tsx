@@ -1,8 +1,12 @@
 export default function Privacy() {
   return (
     <div className="py-12 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold text-[var(--brand-text)] mb-2">Privacy Policy</h1>
-      <p className="text-[var(--brand-text-muted)] mb-8">Last updated: January 2025</p>
+      <h1 className="text-3xl font-bold text-[var(--brand-text)] mb-2">
+        Privacy Policy
+      </h1>
+      <p className="text-[var(--brand-text-muted)] mb-8">
+        Last updated: January 2025
+      </p>
 
       <div className="prose prose-neutral max-w-none">
         <p className="text-lg text-[var(--brand-text-muted)] mb-8">
@@ -42,7 +46,9 @@ export default function Privacy() {
           <h3 className="text-lg font-medium text-[var(--brand-text)] mt-4 mb-2">
             2.2 Profile Information
           </h3>
-          <p className="text-[var(--brand-text-muted)] mb-2">Information you provide:</p>
+          <p className="text-[var(--brand-text-muted)] mb-2">
+            Information you provide:
+          </p>
           <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-1">
             <li>Display name/nickname</li>
             <li>Timezone</li>
@@ -225,7 +231,9 @@ export default function Privacy() {
           <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             7. Your Rights (GDPR)
           </h2>
-          <p className="text-[var(--brand-text-muted)] mb-4">You have the right to:</p>
+          <p className="text-[var(--brand-text-muted)] mb-4">
+            You have the right to:
+          </p>
           <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-2">
             <li>
               <strong>Access:</strong> Request a copy of your personal data
@@ -261,7 +269,9 @@ export default function Privacy() {
           <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             8. Cookies
           </h2>
-          <p className="text-[var(--brand-text-muted)] mb-4">We use the following cookies:</p>
+          <p className="text-[var(--brand-text-muted)] mb-4">
+            We use the following cookies:
+          </p>
           <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-2">
             <li>
               <strong>Essential:</strong> Authentication tokens, consent

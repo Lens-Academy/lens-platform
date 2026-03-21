@@ -5,6 +5,8 @@ import logging
 import re
 from dataclasses import dataclass
 
+import yaml
+
 logger = logging.getLogger(__name__)
 
 
@@ -106,15 +108,18 @@ def _parse_frontmatter_generic(
     frontmatter_text = match.group(1)
     content = text[match.end() :]
 
+    parsed = yaml.safe_load(frontmatter_text)
+    if not isinstance(parsed, dict):
+        return {}, content
+
     metadata = {}
-    for line in frontmatter_text.split("\n"):
-        line = line.strip()
-        if ":" in line:
-            key, value = line.split(":", 1)
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            if key in field_mapping:
-                metadata[field_mapping[key]] = value
+    for yaml_key, output_key in field_mapping.items():
+        if yaml_key in parsed:
+            value = parsed[yaml_key]
+            if isinstance(value, list):
+                metadata[output_key] = ", ".join(str(v) for v in value)
+            else:
+                metadata[output_key] = str(value)
 
     return metadata, content
 

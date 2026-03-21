@@ -102,15 +102,13 @@ describe("getCompletionButtonText", () => {
   });
 
   it("returns 'Continue' for short lens text at index > 0", () => {
-    expect(getCompletionButtonText(lensSection(["short"]), 1)).toBe(
-      "Continue",
-    );
+    expect(getCompletionButtonText(lensSection(["short"]), 1)).toBe("Continue");
   });
 
   it("returns 'Mark section complete' for long lens text", () => {
-    expect(
-      getCompletionButtonText(lensSection(["x".repeat(1750)]), 0),
-    ).toBe("Mark section complete");
+    expect(getCompletionButtonText(lensSection(["x".repeat(1750)]), 0)).toBe(
+      "Mark section complete",
+    );
   });
 
   it("returns 'Mark section complete' for video lens sections", () => {
@@ -147,11 +145,11 @@ describe("getCompletionButtonText", () => {
   });
 
   it("threshold is exclusive (1749 = short, 1750 = long)", () => {
-    expect(
-      getCompletionButtonText(lensSection(["x".repeat(1749)]), 0),
-    ).toBe("Get started");
-    expect(
-      getCompletionButtonText(lensSection(["x".repeat(1750)]), 0),
-    ).toBe("Mark section complete");
+    expect(getCompletionButtonText(lensSection(["x".repeat(1749)]), 0)).toBe(
+      "Get started",
+    );
+    expect(getCompletionButtonText(lensSection(["x".repeat(1750)]), 0)).toBe(
+      "Mark section complete",
+    );
   });
 });

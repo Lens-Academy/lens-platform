@@ -12,13 +12,14 @@ export function getSectionTextLength(section: ModuleSection): number {
   // Lens sections: count text + article content
   const segments = section.segments ?? [];
   const textLength = segments
-    .filter(
-      (s): s is { type: "text"; content: string } => s.type === "text",
-    )
+    .filter((s): s is { type: "text"; content: string } => s.type === "text")
     .reduce((acc, s) => acc + s.content.length, 0);
   const articleLength = segments
     .filter((s) => s.type === "article")
-    .reduce((acc, s) => acc + ("content" in s ? (s.content as string).length : 0), 0);
+    .reduce(
+      (acc, s) => acc + ("content" in s ? (s.content as string).length : 0),
+      0,
+    );
   const videoLength = segments.some((s) => s.type === "video") ? Infinity : 0;
   return textLength + articleLength + videoLength;
 }

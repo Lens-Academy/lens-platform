@@ -19,7 +19,9 @@
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000102",
               "completed": false,
-              "tldr": null
+              "tldr": null,
+              "displayType": null,
+              "attribution": null
             },
             {
               "type": "lens",
@@ -28,7 +30,9 @@
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000103",
               "completed": false,
-              "tldr": null
+              "tldr": null,
+              "displayType": null,
+              "attribution": null
             }
           ],
           "status": "not_started",
@@ -47,7 +51,9 @@
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000202",
               "completed": false,
-              "tldr": null
+              "tldr": null,
+              "displayType": null,
+              "attribution": null
             },
             {
               "type": "lens",
@@ -56,7 +62,9 @@
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000203",
               "completed": false,
-              "tldr": null
+              "tldr": null,
+              "displayType": null,
+              "attribution": null
             }
           ],
           "status": "not_started",
@@ -80,7 +88,9 @@
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000302",
               "completed": false,
-              "tldr": null
+              "tldr": null,
+              "displayType": null,
+              "attribution": null
             }
           ],
           "status": "not_started",
@@ -99,7 +109,9 @@
               "optional": true,
               "contentId": "00000000-0000-0000-0000-000000000402",
               "completed": false,
-              "tldr": null
+              "tldr": null,
+              "displayType": null,
+              "attribution": null
             }
           ],
           "status": "not_started",
@@ -123,7 +135,9 @@
               "optional": false,
               "contentId": "00000000-0000-0000-0000-000000000502",
               "completed": false,
-              "tldr": null
+              "tldr": null,
+              "displayType": null,
+              "attribution": null
             }
           ],
           "status": "not_started",

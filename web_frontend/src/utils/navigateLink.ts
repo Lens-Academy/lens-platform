@@ -9,7 +9,9 @@
 export function linkProps(
   href: string,
   onClick: (e: React.MouseEvent) => void,
-): React.ButtonHTMLAttributes<HTMLButtonElement> & { onAuxClick?: (e: React.MouseEvent) => void } {
+): React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  onAuxClick?: (e: React.MouseEvent) => void;
+} {
   return {
     onClick: (e: React.MouseEvent) => {
       if (e.ctrlKey || e.metaKey) {

@@ -227,9 +227,7 @@ export default function LandingPage() {
       <RevealSection className="py-20 sm:py-28 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-8 md:gap-12 items-center">
-            <div
-              className="rounded-xl overflow-hidden"
-            >
+            <div className="rounded-xl overflow-hidden">
               <ProductScreenshot />
             </div>
             <div>
