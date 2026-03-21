@@ -566,6 +566,16 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     if (!module) return [];
     return module.sections.map((section, index) => {
       const dur = computeSectionDuration(section);
+      // Collect authors/channels from segments for attribution
+      const seen = new Set<string>();
+      const attributions: string[] = [];
+      for (const seg of section.segments) {
+        const name = seg.type === "article" ? seg.author : seg.type === "video" ? seg.channel : null;
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          attributions.push(name);
+        }
+      }
       return {
         type: section.type as StageInfo["type"],
         displayType: section.displayType,
@@ -573,6 +583,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         duration: dur || null,
         optional: section.optional === true,
         tldr: section.tldr,
+        attribution: attributions.length > 0 ? attributions.join(" & ") : undefined,
       };
     });
   }, [module]);

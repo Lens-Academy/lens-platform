@@ -243,9 +243,12 @@ function SectionList({
         {dot}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
-            <span className={`text-[17px] font-display truncate text-slate-900 ${allTldrsExpanded ? "font-medium" : ""}`}>{stage.title}</span>
+            <span className={`text-[17px] leading-snug font-display truncate text-slate-900 ${allTldrsExpanded ? "font-medium" : ""}`}>{stage.title}</span>
             <StageDuration duration={stage.duration} type={stage.type} displayType={stage.displayType} />
           </div>
+          {stage.attribution && (
+            <span className="text-sm text-slate-600 italic truncate block">{stage.attribution}</span>
+          )}
           {stage.tldr && (
               <p
                 className={`text-sm text-slate-600 overflow-hidden transition-[max-height] duration-500 ease-in-out mt-0.5`}
@@ -265,7 +268,7 @@ function SectionList({
         <button
           {...linkProps(sectionHref, () => { onSectionClick(index); })}
           data-section-current={isCurrentSection || undefined}
-          className={`block px-2 py-1 rounded-[16px] text-left w-full transition-colors ${
+          className={`block p-2 rounded-[16px] text-left w-full transition-colors ${
             isCurrentSection
               ? "text-gray-900 bg-[#f0ece4]"
               : "text-gray-800 hover:text-gray-900 hover:bg-[#f5f1ea]"
@@ -279,7 +282,7 @@ function SectionList({
     return (
       <button
         {...linkProps(sectionHref, () => { window.location.href = sectionHref; onClose(); })}
-        className="block px-2 py-1 rounded-[16px] text-left w-full text-gray-800 hover:text-gray-900 hover:bg-[#f5f1ea] transition-colors"
+        className="block p-2 rounded-[16px] text-left w-full text-gray-800 hover:text-gray-900 hover:bg-[#f5f1ea] transition-colors"
       >
         {content}
       </button>
