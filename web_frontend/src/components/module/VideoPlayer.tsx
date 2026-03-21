@@ -478,14 +478,14 @@ export default function VideoPlayer({
           {/* Desktop-only overlays (absolute positioned inside video) */}
           {!isMobile && isClip && (
             <div
-              className="absolute left-1/2 -translate-x-1/2 z-20 transition-opacity duration-200"
+              className="absolute right-3 z-20 transition-opacity duration-200"
               style={{
                 bottom: 152,
                 opacity: showControls ? 1 : 0,
                 pointerEvents: showControls ? "auto" : "none",
               }}
             >
-              <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg text-sm text-white/80 whitespace-nowrap flex items-center gap-2">
+              <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg text-sm text-white/80 whitespace-nowrap flex flex-col items-center gap-1">
                 <button
                   onClick={() =>
                     isFullVideo ? handleWatchClipOnly() : handleWatchFullVideo()
@@ -509,12 +509,11 @@ export default function VideoPlayer({
                   </span>
                 </button>
                 <span
-                  className={`transition-opacity duration-200 flex items-center gap-2 ${isFullVideo ? "opacity-0 pointer-events-none" : ""}`}
+                  className={`transition-opacity duration-200 flex items-center gap-2 text-xs ${isFullVideo ? "opacity-0 pointer-events-none" : ""}`}
                 >
-                  <span className="text-white/40">·</span>
-                  {formatTime(progress * duration)} / {formatTime(duration)}
-                  <span className="text-white/40">·</span>
                   Clip {formatTime(start)}–{formatTime(end as number)}
+                  <span className="text-white/30">·</span>
+                  {formatTime(progress * duration)} / {formatTime(duration)}
                 </span>
               </div>
             </div>
