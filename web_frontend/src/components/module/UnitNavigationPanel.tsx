@@ -556,7 +556,7 @@ function ModuleRow({
           ) : null}
           {hasStages && (
             <ChevronRight
-              className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform duration-200 ${
+              className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform duration-400 ${
                 isExpanded ? "rotate-90" : ""
               }`}
             />
@@ -565,7 +565,7 @@ function ModuleRow({
       </button>
 
       <div
-        className={`grid transition-[grid-template-rows] duration-200 ${
+        className={`grid transition-[grid-template-rows] duration-400 ${
           isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
@@ -655,6 +655,8 @@ export default function UnitNavigationPanel({
   );
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isScrolledFromTop, setIsScrolledFromTop] = useState(false);
+  const [isScrolledToBottom, setIsScrolledToBottom] = useState(false);
 
   // Scroll to current section when sidebar opens (after grid-collapse transitions finish)
   useEffect(() => {
@@ -698,13 +700,13 @@ export default function UnitNavigationPanel({
           >
             {/* Sliding pill — same size as each icon cell */}
             <span
-              className={`absolute top-[3px] bottom-[3px] w-[calc(50%-3px)] rounded-full bg-white shadow-sm transition-[left] duration-200 ease-in-out ${
+              className={`absolute top-[3px] bottom-[3px] w-[calc(50%-3px)] rounded-full bg-white shadow-sm transition-[left] duration-400 ease-in-out ${
                 allTldrsExpanded ? "left-[calc(50%)]" : "left-[3px]"
               }`}
             />
             {/* Compact icon — 3 bullet items, single line each */}
             <span
-              className={`relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200 ${!allTldrsExpanded ? "text-gray-700" : "text-gray-400"}`}
+              className={`relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-400 ${!allTldrsExpanded ? "text-gray-700" : "text-gray-400"}`}
             >
               <svg
                 width="18"
@@ -726,7 +728,7 @@ export default function UnitNavigationPanel({
             </span>
             {/* Expanded icon — 2 bullet items, each with a sub-line */}
             <span
-              className={`relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200 ${allTldrsExpanded ? "text-gray-700" : "text-gray-400"}`}
+              className={`relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-400 ${allTldrsExpanded ? "text-gray-700" : "text-gray-400"}`}
             >
               <svg
                 width="18"
@@ -798,13 +800,13 @@ export default function UnitNavigationPanel({
                     {group.parentTitle}
                   </span>
                   <ChevronRight
-                    className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 ml-auto transition-transform duration-200 ${
+                    className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 ml-auto transition-transform duration-400 ${
                       isParentExpanded ? "rotate-90" : ""
                     }`}
                   />
                 </button>
                 <div
-                  className={`grid transition-[grid-template-rows] duration-200 ${
+                  className={`grid transition-[grid-template-rows] duration-400 ${
                     isParentExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                   }`}
                 >
@@ -853,21 +855,36 @@ export default function UnitNavigationPanel({
         };
 
         return (
-          <div className="relative min-h-0 flex-1">
+          <div className="relative min-h-0 flex-1 overflow-hidden">
             <div
               ref={scrollContainerRef}
               className="overflow-y-auto overscroll-contain h-full"
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                setIsScrolledFromTop(el.scrollTop > 6);
+                setIsScrolledToBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 15);
+              }}
             >
               {groups.map(renderGroup)}
-              <div className="h-12 shrink-0" />
             </div>
-            {/* Fade overlay — covers content but not scrollbar */}
+            {/* Top fade overlay — slides up when at scroll top */}
             <div
-              className="absolute bottom-0 left-0 right-4 pointer-events-none"
+              className="absolute top-0 left-0 right-4 pointer-events-none z-10 transition-transform duration-400"
+              style={{
+                height: "1.5rem",
+                transform: isScrolledFromTop ? "translateY(0)" : "translateY(-100%)",
+                background:
+                  "linear-gradient(to top, transparent, var(--brand-bg))",
+              }}
+            />
+            {/* Bottom fade overlay — fades out when scrolled to bottom */}
+            <div
+              className="absolute bottom-0 left-0 right-4 pointer-events-none transition-opacity duration-400"
               style={{
                 height: "3.5rem",
+                opacity: isScrolledToBottom ? 0 : 1,
                 background:
-                  "linear-gradient(to bottom, transparent, var(--brand-bg) calc(100% - 0.5rem), var(--brand-bg))",
+                  "linear-gradient(to bottom, transparent, var(--brand-bg))",
               }}
             />
           </div>
