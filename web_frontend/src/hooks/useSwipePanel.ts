@@ -41,6 +41,7 @@ export function useSwipePanel({
   const gestureActive = useRef(false);
   const panelWidth = useRef(0);
   const velocityTracker = useRef<{ x: number; t: number }[]>([]);
+  const snapAnim = useRef<Animation | null>(null);
 
   const cleanupInlineStyles = useCallback(() => {
     const panel = panelRef.current;
@@ -100,6 +101,8 @@ export function useSwipePanel({
         // Horizontal lock — activate gesture
         gestureActive.current = true;
         setIsDragging(true);
+        snapAnim.current?.cancel();
+        snapAnim.current = null;
         const panel = panelRef.current;
         const backdrop = backdropRef.current;
         if (panel) panel.style.transition = "none";
@@ -199,30 +202,43 @@ export function useSwipePanel({
         }
       }
 
-      // Animate to final position
-      panel.style.transition = "translate 300ms ease-in-out";
-      backdrop.style.transition = "opacity 300ms ease-in-out";
+      // Snapshot current drag position, then clear inline styles immediately.
+      // The WAAPI animation runs on its own layer, so removing inline styles
+      // lets React's CSS classes be the "resting state" — no stale styles.
+      const currentTranslate = panel.style.translate || "0 0";
+      const currentOpacity = backdrop.style.opacity || "0";
+      cleanupInlineStyles();
 
       const closedTranslate = isLeft
         ? `${-panelWidth.current}px 0`
         : `${panelWidth.current}px 0`;
 
-      if (willOpen) {
-        panel.style.translate = "0 0";
-        backdrop.style.opacity = "0.5";
-        backdrop.style.pointerEvents = "auto";
-      } else {
-        panel.style.translate = closedTranslate;
-        backdrop.style.opacity = "0";
-        backdrop.style.pointerEvents = "none";
-      }
+      const targetTranslate = willOpen ? "0 0" : closedTranslate;
+      const targetOpacity = willOpen ? "0.5" : "0";
 
-      // Clean up inline styles after animation
-      const onTransitionEnd = () => {
-        panel.removeEventListener("transitionend", onTransitionEnd);
-        cleanupInlineStyles();
-      };
-      panel.addEventListener("transitionend", onTransitionEnd);
+      // Set pointer-events immediately (not animated)
+      backdrop.style.pointerEvents = willOpen ? "auto" : "none";
+
+      // Animate via Web Animations API — returns a Promise, no transitionend.
+      const anim = panel.animate(
+        [{ translate: currentTranslate }, { translate: targetTranslate }],
+        { duration: 300, easing: "ease-in-out" },
+      );
+      backdrop.animate(
+        [{ opacity: currentOpacity }, { opacity: targetOpacity }],
+        { duration: 300, easing: "ease-in-out" },
+      );
+      snapAnim.current = anim;
+
+      anim.finished
+        .then(() => {
+          // Animation complete — inline styles already clean, CSS classes rule.
+          // Just clear the stale pointer-events we set above.
+          backdrop.style.removeProperty("pointer-events");
+        })
+        .catch(() => {
+          // Cancelled (new gesture started mid-animation) — fine.
+        });
 
       // Update React state
       if (willOpen && !isOpenRef.current) {
