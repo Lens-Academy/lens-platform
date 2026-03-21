@@ -1,227 +1,13 @@
 // src/parser/module.ts
-import type { ContentError, TextSegment, ChatSegment } from '../index.js';
+import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { parseSections, MODULE_SECTION_TYPES, type ParsedSection } from './sections.js';
 import { validateSlugFormat } from '../validator/field-values.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
-import { stripAuthoringMarkup } from './lens.js';
-
-export interface PageSegmentResult {
-  segments: (TextSegment | ChatSegment)[];
-  errors: ContentError[];
-}
-
-const VALID_PAGE_SUBSECTION_TYPES = new Set(['text', 'chat']);
-
-interface RawSubsection {
-  type: string;
-  fields: Record<string, string>;
-  line: number;
-}
-
-/**
- * Collect raw subsections from a Page section body.
- * Each ## header starts a new subsection whose fields are collected generically.
- */
-function collectRawSubsections(
-  body: string,
-  baseLineNum: number,
-  level: number = 2
-): { subsections: RawSubsection[]; unknownHeaders: { rawType: string; line: number }[]; warnings: ContentError[] } {
-  const subsections: RawSubsection[] = [];
-  const unknownHeaders: { rawType: string; line: number }[] = [];
-  const warnings: ContentError[] = [];
-  const lines = body.split('\n');
-
-  let current: RawSubsection | null = null;
-  let freeTextWarned = false;
-  let currentFieldName: string | null = null;
-  let currentFieldLines: string[] = [];
-
-  function finalizeField() {
-    if (current && currentFieldName) {
-      current.fields[currentFieldName] = currentFieldLines.join('\n').trim();
-    }
-    currentFieldName = null;
-    currentFieldLines = [];
-  }
-
-  function finalizeSubsection() {
-    finalizeField();
-    if (current) {
-      subsections.push(current);
-    }
-    current = null;
-  }
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const lineNum = baseLineNum + i + 1;
-
-    // Check for header at the specified level
-    const headerPattern = new RegExp(`^${'#'.repeat(level)}\\s+(\\S.*?)\\s*$`);
-    const headerMatch = line.match(headerPattern);
-    if (headerMatch) {
-      finalizeSubsection();
-      freeTextWarned = false;
-
-      const rawType = headerMatch[1].trim();
-      const normalizedType = rawType.toLowerCase();
-
-      if (VALID_PAGE_SUBSECTION_TYPES.has(normalizedType)) {
-        current = { type: normalizedType, fields: {}, line: lineNum };
-      } else {
-        unknownHeaders.push({ rawType, line: lineNum });
-      }
-      continue;
-    }
-
-    if (!current) continue;
-
-    // Check for field:: value
-    const fieldMatch = line.match(/^(\w+)::\s*(.*)$/);
-    if (fieldMatch) {
-      finalizeField();
-      currentFieldName = fieldMatch[1];
-      const inlineValue = fieldMatch[2].trim();
-      currentFieldLines = inlineValue ? [inlineValue] : [];
-    } else if (currentFieldName) {
-      // Continue multiline field value
-      currentFieldLines.push(line);
-    } else if (line.trim() && !freeTextWarned) {
-      freeTextWarned = true;
-      const preview = line.trim().length > 60 ? line.trim().slice(0, 60) + '...' : line.trim();
-      warnings.push({
-        file: '',
-        line: lineNum,
-        message: `Text outside of a field:: definition will be ignored: "${preview}"`,
-        suggestion: 'Place this text inside a field (e.g., content:: your text), or remove it',
-        severity: 'error' as const,
-      });
-    }
-  }
-
-  finalizeSubsection();
-  return { subsections, unknownHeaders, warnings };
-}
-
-/**
- * Convert raw subsections into typed segments, validating required fields.
- */
-function convertSubsections(
-  subsections: RawSubsection[],
-  file: string
-): { segments: (TextSegment | ChatSegment)[]; errors: ContentError[] } {
-  const segments: (TextSegment | ChatSegment)[] = [];
-  const errors: ContentError[] = [];
-
-  for (const sub of subsections) {
-    switch (sub.type) {
-      case 'text': {
-        const hasContentField = 'content' in sub.fields;
-        const content = sub.fields.content;
-
-        if (!hasContentField) {
-          errors.push({
-            file,
-            line: sub.line,
-            message: 'Text section missing content:: field',
-            suggestion: "Add 'content::' followed by your text content",
-            severity: 'error',
-          });
-          break;
-        }
-
-        if (content.trim()) {
-          segments.push({ type: 'text', content: content.trim() });
-        }
-        break;
-      }
-
-      case 'chat': {
-        const hasInstructionsField = 'instructions' in sub.fields;
-        const instructions = sub.fields.instructions;
-
-        if (!hasInstructionsField) {
-          errors.push({
-            file,
-            line: sub.line,
-            message: 'Chat segment missing instructions:: field',
-            suggestion: "Add 'instructions:: Your instructions here' to the chat segment",
-            severity: 'error',
-          });
-          break;
-        }
-
-        if (!instructions || instructions.trim() === '') {
-          errors.push({
-            file,
-            line: sub.line,
-            message: 'Chat segment has empty instructions:: field',
-            suggestion: 'Add instructions text after instructions::',
-            severity: 'warning',
-          });
-        }
-
-        const segment: ChatSegment = {
-          type: 'chat',
-          instructions: instructions || '',
-          hidePreviousContentFromUser: sub.fields.hidePreviousContentFromUser?.toLowerCase() === 'true' ? true : undefined,
-          hidePreviousContentFromTutor: sub.fields.hidePreviousContentFromTutor?.toLowerCase() === 'true' ? true : undefined,
-        };
-        segments.push(segment);
-        break;
-      }
-    }
-  }
-
-  return { segments, errors };
-}
-
-/**
- * Parse ## Text and ## Chat subsections from within a Page section body.
- * Reports errors for unknown ## headers and missing required fields.
- *
- * @param body - The body text of a # Page: section
- * @param file - File path for error reporting
- * @param baseLineNum - Line number offset (body's position within the file)
- * @returns Segment objects (TextSegment | ChatSegment) and any errors
- */
-export function parsePageSegments(
-  body: string,
-  file: string = '',
-  baseLineNum: number = 0,
-  subsectionLevel: number = 2
-): PageSegmentResult {
-  const errors: ContentError[] = [];
-
-  const { subsections, unknownHeaders, warnings } = collectRawSubsections(body, baseLineNum, subsectionLevel);
-
-  // Forward free-text warnings with file path
-  for (const w of warnings) {
-    errors.push({ ...w, file });
-  }
-
-  // Report unknown headers
-  for (const unk of unknownHeaders) {
-    const capitalized = [...VALID_PAGE_SUBSECTION_TYPES].map(
-      t => t[0].toUpperCase() + t.slice(1)
-    );
-    errors.push({
-      file,
-      line: unk.line,
-      message: `Unknown section type: ${unk.rawType}`,
-      suggestion: `Valid types: ${capitalized.join(', ')}`,
-      severity: 'error',
-    });
-  }
-
-  const result = convertSubsections(subsections, file);
-  errors.push(...result.errors);
-
-  return { segments: result.segments, errors };
-}
-
+import { stripAuthoringMarkup, convertSegment, applySourceInheritance, LENS_SEGMENT_TYPES, type ParsedLens, type ParsedLensSegment } from './lens.js';
+import { validateSegmentFields } from '../validator/segment-fields.js';
+import { validateFieldValues } from '../validator/field-values.js';
+import { detectFieldTypos } from '../validator/field-typos.js';
 
 export interface ParsedModule {
   slug: string;
@@ -268,7 +54,7 @@ export function parseModule(content: string, file: string): ModuleParseResult {
 
   // Parse sections (H1 headers for module files, including submodule support)
   const moduleSectionTypes = new Set([...MODULE_SECTION_TYPES, 'submodule']);
-  const sectionsResult = parseSections(body, 1, moduleSectionTypes, file);
+  const sectionsResult = parseSections(body, 0, moduleSectionTypes, file);
 
   // Adjust line numbers to account for frontmatter
   for (const error of sectionsResult.errors) {
@@ -288,10 +74,15 @@ export function parseModule(content: string, file: string): ModuleParseResult {
       file,
       line: bodyStartLine,
       message: 'Module has no sections',
-      suggestion: "Add sections like '# Page:', '# Learning Outcome:', or '# Uncategorized:'",
+      suggestion: "Add sections like '# Lens:', or '# Learning Outcome:'",
       severity: 'warning',
     });
   }
+
+  // Parse inline lenses recursively from all Lens sections with id::
+  // (id:: indicates inline, source:: at section level indicates referenced)
+  attachInlineLenses(sectionsResult.sections, file, errors);
+
   const module: ParsedModule = {
     slug: frontmatter.slug as string,
     title: frontmatter.title as string,
@@ -301,4 +92,123 @@ export function parseModule(content: string, file: string): ModuleParseResult {
   };
 
   return { module, errors };
+}
+
+/**
+ * Check if a field:: definition appears in the section body before any #### segment header.
+ * Used to distinguish section-level fields from segment-level fields.
+ */
+export function hasFieldBeforeSegmentHeaders(body: string, fieldName: string, sectionLevel: number = 0): boolean {
+  const lines = body.split('\n');
+  const fieldPattern = new RegExp(`^${fieldName}::\\s`);
+  const minLevel = sectionLevel + 1;
+  const segmentPattern = new RegExp(`^#{${minLevel},6}\\s`);
+  for (const line of lines) {
+    // If we hit a segment header (any level deeper than section), stop checking
+    if (segmentPattern.test(line)) return false;
+    if (fieldPattern.test(line)) return true;
+  }
+  return false;
+}
+
+/**
+ * Recursively detect and attach inline lenses to all Lens sections.
+ * An inline lens has id:: but no section-level source::.
+ * Works for both top-level sections and submodule children.
+ */
+function attachInlineLenses(sections: ParsedSection[], file: string, errors: ContentError[]): void {
+  for (const section of sections) {
+    if (section.type === 'lens' && section.fields.id
+        && !hasFieldBeforeSegmentHeaders(section.body, 'source', section.level)) {
+      const result = parseInlineLens(section, file);
+      errors.push(...result.errors);
+      if (result.lens) {
+        section.inlineLens = result.lens;
+      }
+    }
+    if (section.children) {
+      attachInlineLenses(section.children, file, errors);
+    }
+  }
+}
+
+/**
+ * Parse an inline lens from a Lens section body.
+ * The section has id:: and segments (like a lens file body, but without frontmatter).
+ */
+function parseInlineLens(
+  section: ParsedSection,
+  file: string
+): { lens: ParsedLens | null; errors: ContentError[] } {
+  const errors: ContentError[] = [];
+
+  const id = section.fields.id;
+  if (!id || id.trim() === '') {
+    errors.push({
+      file,
+      line: section.line,
+      message: 'Inline Lens section missing id:: field',
+      suggestion: 'Add an id:: field with a UUID',
+      severity: 'error',
+    });
+    return { lens: null, errors };
+  }
+
+  const title = section.fields.title || undefined;
+  const tldr = section.fields.tldr || undefined;
+
+  // Parse segments from section body using unified parser (flat mode)
+  const { sections: rawSegments, errors: segmentErrors } = parseSections(
+    section.body,
+    section.level,  // parent level = this section's level
+    LENS_SEGMENT_TYPES,
+    file,
+    true  // flat=true — segments are always siblings
+  );
+  errors.push(...segmentErrors);
+
+  // Convert raw segments to typed segments + validate
+  const parsedSegments: ParsedLensSegment[] = [];
+  for (const rawSeg of rawSegments) {
+    // Validate that fields are appropriate for this segment type
+    const fieldWarnings = validateSegmentFields(rawSeg.type, rawSeg.fields, file, rawSeg.line);
+    errors.push(...fieldWarnings);
+
+    // Validate field values
+    const valueWarnings = validateFieldValues(rawSeg.fields, file, rawSeg.line);
+    errors.push(...valueWarnings);
+
+    // Detect likely typos in field names
+    const typoWarnings = detectFieldTypos(rawSeg.fields, file, rawSeg.line);
+    errors.push(...typoWarnings);
+
+    const { segment, errors: conversionErrors } = convertSegment(rawSeg, 'lens', file);
+    errors.push(...conversionErrors);
+    if (segment) {
+      parsedSegments.push(segment);
+    }
+  }
+
+  // Apply source inheritance for article and video segments
+  const inheritanceErrors = applySourceInheritance(parsedSegments, file);
+  errors.push(...inheritanceErrors);
+
+  if (parsedSegments.length === 0) {
+    errors.push({
+      file,
+      line: section.line,
+      message: 'Inline lens has no segments',
+      suggestion: 'Add at least one segment (#### Text, #### Chat, etc.)',
+      severity: 'warning',
+    });
+  }
+
+  const lens: ParsedLens = {
+    id,
+    title,
+    tldr,
+    segments: parsedSegments,
+  };
+
+  return { lens, errors };
 }

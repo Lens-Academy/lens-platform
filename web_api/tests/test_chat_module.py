@@ -33,7 +33,7 @@ def mock_chat_module_cache():
                         "videoId": "test123",
                         "segments": [
                             {
-                                "type": "video-excerpt",
+                                "type": "video",
                                 "transcript": "Video content here",
                             },
                             {

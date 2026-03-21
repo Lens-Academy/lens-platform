@@ -62,21 +62,28 @@ class TextSegment:
 
 
 @dataclass
-class ArticleExcerptSegment:
-    """Extract from parent article."""
+class ArticleSegment:
+    """Article content segment."""
 
-    type: Literal["article-excerpt"]
+    type: Literal["article"]
     from_text: str
     to_text: str
+    title: str | None = None
+    author: str | None = None
+    sourceUrl: str | None = None
+    published: str | None = None
 
 
 @dataclass
-class VideoExcerptSegment:
-    """Extract from parent video."""
+class VideoSegment:
+    """Video content segment."""
 
-    type: Literal["video-excerpt"]
+    type: Literal["video"]
     from_seconds: int
     to_seconds: int
+    title: str | None = None
+    channel: str | None = None
+    videoId: str | None = None
 
 
 @dataclass
@@ -104,40 +111,22 @@ class RoleplaySegment:
 
 NarrativeSegment = (
     TextSegment
-    | ArticleExcerptSegment
-    | VideoExcerptSegment
+    | ArticleSegment
+    | VideoSegment
     | ChatSegment
     | RoleplaySegment
 )
 
 
 @dataclass
-class TextSection:
-    """Standalone text section (no child segments)."""
+class LensSection:
+    """Lens section with segments."""
 
-    type: Literal["text"]
-    content: str
-
-
-@dataclass
-class ArticleSection:
-    """Article section with segments."""
-
-    type: Literal["article"]
-    source: str
+    type: Literal["lens"]
     segments: list[NarrativeSegment]
 
 
-@dataclass
-class VideoSection:
-    """Video section with segments."""
-
-    type: Literal["video"]
-    source: str
-    segments: list[NarrativeSegment]
-
-
-NarrativeSection = TextSection | ArticleSection | VideoSection
+NarrativeSection = LensSection
 
 
 @dataclass

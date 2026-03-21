@@ -110,7 +110,7 @@ export function parseCourse(content: string, file: string): CourseParseResult {
   }
 
   // Parse sections (H1 headers for course files)
-  const sectionsResult = parseSections(body, 1, COURSE_SECTION_TYPES, file);
+  const sectionsResult = parseSections(body, 0, COURSE_SECTION_TYPES, file);
 
   // Adjust line numbers to account for frontmatter
   for (const error of sectionsResult.errors) {

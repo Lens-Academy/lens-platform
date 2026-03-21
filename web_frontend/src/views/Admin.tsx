@@ -317,7 +317,7 @@ export default function Admin() {
         <p className="mb-4">Please sign in to access the admin panel.</p>
         <button
           onClick={login}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="bg-lens-gold-500 text-white px-4 py-2 rounded hover:bg-lens-gold-600"
         >
           Sign in with Discord
         </button>

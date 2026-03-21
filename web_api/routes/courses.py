@@ -226,15 +226,31 @@ async def get_course_progress(
                 section_video = section.get("videoDurationSeconds", 0)
                 section_dur = round((section_words / 200 + section_video / 60) * 1.5)
 
+                # Collect authors/channels from segments
+                attributions = []
+                seen = set()
+                for seg in section.get("segments", []):
+                    name = None
+                    if seg.get("type") == "article":
+                        name = seg.get("author")
+                    elif seg.get("type") == "video":
+                        name = seg.get("channel")
+                    if name and name not in seen:
+                        attributions.append(name)
+                        seen.add(name)
+                attribution = " & ".join(attributions) if attributions else None
+
                 stages.append(
                     {
                         "type": section_type,
+                        "displayType": section.get("displayType"),
                         "title": title,
                         "duration": section_dur or None,
                         "optional": section.get("optional", False),
                         "contentId": content_id_str,
                         "completed": lens_completed,
                         "tldr": section.get("tldr"),
+                        "attribution": attribution,
                     }
                 )
 

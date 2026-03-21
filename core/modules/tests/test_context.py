@@ -12,7 +12,7 @@ class TestGatherSectionContext:
         section = {
             "type": "video",
             "segments": [
-                {"type": "video-excerpt", "transcript": "Hello world from video"},
+                {"type": "video", "transcript": "Hello world from video"},
                 {
                     "type": "chat",
                     "instructions": "Discuss",
@@ -33,7 +33,7 @@ class TestGatherSectionContext:
         section = {
             "type": "article",
             "segments": [
-                {"type": "article-excerpt", "content": "Article content here"},
+                {"type": "article", "content": "Article content here"},
                 {
                     "type": "chat",
                     "instructions": "Discuss",
@@ -73,7 +73,7 @@ class TestGatherSectionContext:
         section = {
             "type": "video",
             "segments": [
-                {"type": "video-excerpt", "transcript": "Secret content"},
+                {"type": "video", "transcript": "Secret content"},
                 {
                     "type": "chat",
                     "instructions": "Discuss",
@@ -92,7 +92,7 @@ class TestGatherSectionContext:
             "type": "article",
             "segments": [
                 {"type": "text", "content": "First text"},
-                {"type": "article-excerpt", "content": "Article bit"},
+                {"type": "article", "content": "Article bit"},
                 {"type": "text", "content": "Second text"},
                 {
                     "type": "chat",
@@ -137,7 +137,7 @@ class TestGatherSectionContext:
     def test_only_chat_segment_returns_context(self):
         """A single chat segment should still return context (with the label)."""
         section = {
-            "type": "page",
+            "type": "lens",
             "segments": [
                 {
                     "type": "chat",
@@ -171,7 +171,7 @@ class TestGatherSectionContext:
             "type": "article",
             "segments": [
                 {"type": "text", "content": "Intro text"},
-                {"type": "article-excerpt", "content": "The actual article"},
+                {"type": "article", "content": "The actual article"},
                 {"type": "chat", "instructions": "Discuss"},
             ],
         }
@@ -187,8 +187,8 @@ class TestGatherSectionContext:
         section = {
             "type": "video",
             "segments": [
-                {"type": "video-excerpt", "transcript": ""},
-                {"type": "video-excerpt", "transcript": "Actual content"},
+                {"type": "video", "transcript": ""},
+                {"type": "video", "transcript": "Actual content"},
                 {
                     "type": "chat",
                     "instructions": "Discuss",
@@ -211,7 +211,7 @@ class TestGatherSectionContext:
             "type": "article",
             "segments": [
                 {"type": "text", "content": "Already read this"},
-                {"type": "article-excerpt", "content": "Reading this now"},
+                {"type": "article", "content": "Reading this now"},
             ],
         }
 
@@ -222,16 +222,20 @@ class TestGatherSectionContext:
         assert indices == [0, 1]
 
     def test_article_excerpt_includes_title_and_author(self):
-        """Article excerpts should be prefixed with title and author from section meta."""
+        """Article excerpts should be prefixed with title and author from segment."""
         section = {
-            "type": "lens-article",
+            "type": "lens",
             "meta": {
                 "title": "AI for AI safety",
-                "author": "Joe Carlsmith",
             },
             "segments": [
                 {"type": "text", "content": "Lens intro"},
-                {"type": "article-excerpt", "content": "The actual article text"},
+                {
+                    "type": "article",
+                    "content": "The actual article text",
+                    "title": "AI for AI safety",
+                    "author": "Joe Carlsmith",
+                },
                 {"type": "chat", "instructions": "Discuss"},
             ],
         }
@@ -249,7 +253,7 @@ class TestGatherSectionContext:
         section = {
             "type": "article",
             "segments": [
-                {"type": "article-excerpt", "content": "Some text"},
+                {"type": "article", "content": "Some text"},
                 {"type": "chat", "instructions": "Discuss"},
             ],
         }

@@ -28,17 +28,17 @@ export default function ContentIndexPage() {
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
-        <p className="text-stone-500">Loading...</p>
+        <p className="text-[var(--brand-text-muted)]">Loading...</p>
       </div>
     );
   }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
-      <h1 className="text-2xl font-semibold text-stone-900 mb-8">Content</h1>
+      <h1 className="text-2xl font-semibold text-[var(--brand-text)] mb-8">Content</h1>
 
       <section className="mb-10">
-        <h2 className="text-lg font-medium text-stone-700 mb-4">
+        <h2 className="text-lg font-medium text-[var(--brand-text-muted)] mb-4">
           Modules ({modules.length})
         </h2>
         <ul className="space-y-2">
@@ -46,7 +46,7 @@ export default function ContentIndexPage() {
             <li key={m.slug}>
               <a
                 href={`/module/${m.slug}`}
-                className="text-blue-700 hover:underline"
+                className="text-lens-gold-600 hover:text-lens-gold-700 hover:underline"
               >
                 {m.title}
               </a>
@@ -56,13 +56,13 @@ export default function ContentIndexPage() {
       </section>
 
       <section className="mb-10">
-        <h2 className="text-lg font-medium text-stone-700 mb-4">
+        <h2 className="text-lg font-medium text-[var(--brand-text-muted)] mb-4">
           Lenses ({lenses.length})
         </h2>
         <ul className="space-y-2">
           {lenses.map((l) => (
             <li key={l.slug}>
-              <a href={`/${l.slug}`} className="text-blue-700 hover:underline">
+              <a href={`/${l.slug}`} className="text-lens-gold-600 hover:text-lens-gold-700 hover:underline">
                 {l.title}
               </a>
             </li>
@@ -72,7 +72,7 @@ export default function ContentIndexPage() {
 
       {articles.length > 0 && (
         <section>
-          <h2 className="text-lg font-medium text-stone-700 mb-4">
+          <h2 className="text-lg font-medium text-[var(--brand-text-muted)] mb-4">
             Articles ({articles.length})
           </h2>
           <ul className="space-y-2">
@@ -80,7 +80,7 @@ export default function ContentIndexPage() {
               <li key={a.slug}>
                 <a
                   href={`/${a.slug}`}
-                  className="text-blue-700 hover:underline"
+                  className="text-lens-gold-600 hover:text-lens-gold-700 hover:underline"
                 >
                   {a.title}
                 </a>

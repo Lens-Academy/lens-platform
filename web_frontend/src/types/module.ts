@@ -15,18 +15,27 @@ export type TextSegment = {
   content: string; // Markdown content (authored)
 };
 
-export type ArticleExcerptSegment = {
-  type: "article-excerpt";
+export type ArticleSegment = {
+  type: "article";
   content: string; // Pre-extracted content from API
-  collapsed_before: string | null; // Omitted content before this excerpt
-  collapsed_after: string | null; // Omitted content after this excerpt (last excerpt only)
+  collapsed_before?: string | null; // Omitted content before this excerpt
+  collapsed_after?: string | null; // Omitted content after this excerpt (last excerpt only)
+  title?: string; // From article frontmatter
+  author?: string; // From article frontmatter
+  sourceUrl?: string; // From article frontmatter
+  published?: string; // From article frontmatter
+  optional?: boolean;
 };
 
-export type VideoExcerptSegment = {
-  type: "video-excerpt";
+export type VideoSegment = {
+  type: "video";
   from: number; // seconds
   to: number | null; // seconds (null = play to end)
   transcript: string; // Transcript text from API
+  title?: string; // From video transcript frontmatter
+  channel?: string; // From video transcript frontmatter
+  videoId?: string; // YouTube video ID from transcript URL
+  optional?: boolean;
 };
 
 export type ChatSegment = {
@@ -60,110 +69,30 @@ export type RoleplaySegment = {
 
 export type ModuleSegment =
   | TextSegment
-  | ArticleExcerptSegment
-  | VideoExcerptSegment
+  | ArticleSegment
+  | VideoSegment
   | ChatSegment
   | QuestionSegment
   | RoleplaySegment;
 
-// Metadata for article sections
-export type ArticleMeta = {
-  title: string;
-  author: string | null;
-  sourceUrl: string | null;
-  published: string | null;
-};
-
-// Metadata for video sections
-export type VideoMeta = {
-  title: string;
-  channel: string | null;
-};
-
-// Section types (one progress marker each)
-export type TextSection = {
-  type: "text";
-  content: string;
-  contentId?: string | null;
-};
-
-export type ArticleSection = {
-  type: "article";
-  meta: ArticleMeta;
-  segments: ModuleSegment[];
-  optional?: boolean;
-  contentId?: string | null;
-};
-
-export type VideoSection = {
-  type: "video";
-  videoId: string;
-  meta: VideoMeta;
-  segments: ModuleSegment[];
-  optional?: boolean;
-  contentId?: string | null;
-};
-
-export type ChatSection = {
-  type: "chat";
-  meta: { title: string };
-  instructions: string;
-  hidePreviousContentFromUser: boolean;
-  hidePreviousContentFromTutor: boolean;
-  contentId?: string | null;
-};
-
 // v2 section types (flattened format - backend resolves all references)
 
 /**
- * A page section with text/chat segments.
- * These are standalone sections not associated with a Learning Outcome.
+ * A lens section with text/chat/article/video segments.
+ * Metadata (title, author, channel, videoId) is on individual segments.
  */
-export type PageSection = {
-  type: "page";
+export type LensSection = {
+  type: "lens";
+  displayType?: "lens-article" | "lens-video" | "lens-mixed";
   contentId: string | null;
   learningOutcomeId: string | null;
   learningOutcomeName: string | null;
-  meta: { title: string | null };
+  meta: { title?: string | null };
   segments: ModuleSegment[];
   optional: boolean;
   tldr?: string;
-};
-
-/**
- * A lens section containing video content.
- * The learningOutcomeId links this to its parent LO (null if uncategorized).
- */
-export type LensVideoSection = {
-  type: "lens-video";
-  contentId: string | null;
-  learningOutcomeId: string | null;
-  learningOutcomeName: string | null;
-  videoId: string | null;
-  meta: { title: string; channel: string | null };
-  segments: ModuleSegment[];
-  optional: boolean;
-  tldr?: string;
-};
-
-/**
- * A lens section containing article content.
- * The learningOutcomeId links this to its parent LO (null if uncategorized).
- */
-export type LensArticleSection = {
-  type: "lens-article";
-  contentId: string | null;
-  learningOutcomeId: string | null;
-  learningOutcomeName: string | null;
-  meta: {
-    title: string;
-    author: string | null;
-    sourceUrl: string | null;
-    published: string | null;
-  };
-  segments: ModuleSegment[];
-  optional: boolean;
-  tldr?: string;
+  wordCount?: number;
+  videoDurationSeconds?: number;
 };
 
 /**
@@ -175,24 +104,14 @@ export type TestSection = {
   contentId: string | null;
   learningOutcomeId: string | null;
   learningOutcomeName: string | null;
-  meta: { title: string | null };
+  meta: { title?: string | null };
   segments: ModuleSegment[];
   optional: boolean;
   feedback?: boolean;
 };
 
 // Union of all section types
-// v2 types: page, lens-video, lens-article, test (flattened, ready to render)
-// v1 types: text, article, video, chat (legacy, still used for v1 content)
-export type ModuleSection =
-  | PageSection
-  | LensVideoSection
-  | LensArticleSection
-  | TestSection
-  | TextSection
-  | ArticleSection
-  | VideoSection
-  | ChatSection;
+export type ModuleSection = LensSection | TestSection;
 
 // Full module definition
 export type Module = {
@@ -260,8 +179,8 @@ export type ChatStage = {
   duration?: number | null;
 };
 
-export type PageStage = {
-  type: "page";
+export type LensStage = {
+  type: "lens";
   source: string;
   from: number | null;
   to: number | null;
@@ -271,4 +190,4 @@ export type PageStage = {
   duration?: number | null;
 };
 
-export type Stage = ArticleStage | VideoStage | ChatStage | PageStage;
+export type Stage = ArticleStage | VideoStage | ChatStage | LensStage;

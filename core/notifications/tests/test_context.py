@@ -67,7 +67,7 @@ def _make_module(slug, section_titles, optional_titles=None):
     for title in section_titles:
         sections.append(
             {
-                "type": "lens-article",
+                "type": "lens",
                 "contentId": str(uuid4()),
                 "meta": {
                     "title": title,
@@ -81,7 +81,7 @@ def _make_module(slug, section_titles, optional_titles=None):
     for title in optional_titles or []:
         sections.append(
             {
-                "type": "lens-article",
+                "type": "lens",
                 "contentId": str(uuid4()),
                 "meta": {
                     "title": title,

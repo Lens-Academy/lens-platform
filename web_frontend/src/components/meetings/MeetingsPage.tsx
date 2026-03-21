@@ -234,7 +234,7 @@ export default function MeetingsPage() {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lens-gold-500"></div>
         </div>
       </Layout>
     );
@@ -246,10 +246,10 @@ export default function MeetingsPage() {
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Sign In Required</h1>
-            <p className="text-gray-600 mb-4">
+            <p className="text-[var(--brand-text-muted)] mb-4">
               Please sign in to manage your meetings.
             </p>
-            <button onClick={login} className="text-blue-600 hover:underline">
+            <button onClick={login} className="text-lens-gold-600 hover:underline">
               Sign in
             </button>
           </div>
@@ -264,10 +264,10 @@ export default function MeetingsPage() {
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Not Enrolled</h1>
-            <p className="text-gray-600 mb-4">
+            <p className="text-[var(--brand-text-muted)] mb-4">
               You need to enroll in a cohort first.
             </p>
-            <a href="/enroll" className="text-blue-600 hover:underline">
+            <a href="/enroll" className="text-lens-gold-600 hover:underline">
               Enroll now
             </a>
           </div>
@@ -282,10 +282,10 @@ export default function MeetingsPage() {
       <Layout>
         <div className="min-h-screen py-12 px-4">
           <div className="max-w-md mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-[var(--brand-text)] mb-2">
               Select Your Group
             </h1>
-            <p className="text-gray-600 mb-6">
+            <p className="text-[var(--brand-text-muted)] mb-6">
               {userInfo.cohort_start_date && userInfo.cohort_end_date ? (
                 <>
                   For the cohort running{" "}
@@ -352,10 +352,10 @@ export default function MeetingsPage() {
     <Layout>
       <div className="min-h-screen py-12 px-4">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-[var(--brand-text)] mb-2">
             Your Meetings
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-[var(--brand-text-muted)] mb-6">
             View your schedule, reschedule meetings, or change your group.
           </p>
 
@@ -380,20 +380,20 @@ export default function MeetingsPage() {
           {/* Active Guest Visits */}
           {activeVisits.length > 0 && (
             <section className="mb-8">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              <h2 className="text-lg font-semibold text-[var(--brand-text)] mb-3">
                 Your Guest Visits
               </h2>
               <div className="space-y-3">
                 {activeVisits.map((visit) => (
                   <div
                     key={visit.attendance_id}
-                    className="border border-blue-200 bg-blue-50 rounded-lg p-4 flex items-center justify-between"
+                    className="border border-lens-gold-300 bg-lens-gold-50 rounded-lg p-4 flex items-center justify-between"
                   >
                     <div>
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-[var(--brand-text)]">
                         Meeting {visit.meeting_number} with {visit.group_name}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-[var(--brand-text-muted)]">
                         {formatDateTime(visit.scheduled_at)}
                       </p>
                     </div>
@@ -416,11 +416,11 @@ export default function MeetingsPage() {
 
           {/* Upcoming Meetings */}
           <section className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">
+            <h2 className="text-lg font-semibold text-[var(--brand-text)] mb-3">
               Upcoming Meetings
             </h2>
             {upcomingMeetings.length === 0 ? (
-              <p className="text-gray-500">No upcoming meetings found.</p>
+              <p className="text-[var(--brand-text-muted)]">No upcoming meetings found.</p>
             ) : (
               <div className="space-y-3">
                 {upcomingMeetings.map((meeting) => (
@@ -450,7 +450,7 @@ export default function MeetingsPage() {
           {/* Recent Meetings */}
           {pastMeetings.length > 0 && (
             <section className="mb-8">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              <h2 className="text-lg font-semibold text-[var(--brand-text)] mb-3">
                 Recent Meetings
               </h2>
               <div className="space-y-3">
@@ -481,19 +481,19 @@ export default function MeetingsPage() {
           {/* Past Guest Visits */}
           {pastVisits.length > 0 && (
             <section className="mb-8">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              <h2 className="text-lg font-semibold text-[var(--brand-text)] mb-3">
                 Past Guest Visits
               </h2>
               <div className="space-y-2">
                 {pastVisits.map((visit) => (
                   <div
                     key={visit.attendance_id}
-                    className="border border-gray-200 rounded-lg p-4 opacity-60"
+                    className="border border-[var(--brand-border)] rounded-lg p-4 opacity-60"
                   >
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-[var(--brand-text)]">
                       Meeting {visit.meeting_number} with {visit.group_name}
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-[var(--brand-text-muted)]">
                       {formatDateTime(visit.scheduled_at)}
                     </p>
                   </div>

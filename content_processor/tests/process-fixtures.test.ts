@@ -19,8 +19,6 @@ source:: [[../Lenses/How can LLMs be understood as simulatrs|Lens]]
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-### Text: Content
-
 #### Text
 content:: Some content.
 `],
@@ -44,10 +42,8 @@ content:: Some content.
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
 
-### Article: Test
+#### Article
 source:: [[../articles/my-artcile|Article]]
-
-#### Article-excerpt
 from:: "Start"
 to:: "End"
 `],
@@ -78,10 +74,8 @@ Start of content. End of excerpt.
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
 
-### Article: Test
+#### Article
 source:: [[../articles/nonexistent|Article]]
-
-#### Article-excerpt
 from:: "Start"
 to:: "End"
 `],
@@ -89,8 +83,6 @@ to:: "End"
       ['Lenses/nonexistent.md', `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
-
-### Text: Content
 
 #### Text
 content:: Some content.
@@ -144,8 +136,6 @@ source:: [[../Lenses/lens1.md|Lens 1]]
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-### Text: Content
-
 #### Text
 content:: Some content.
 `],
@@ -167,10 +157,8 @@ content:: Some content.
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
 
-### Article: Test Article
+#### Article
 source:: [[article.md|Article]]
-
-#### Article-excerpt
 from:: "Start"
 to:: "End"
 `],
@@ -196,15 +184,12 @@ slug: test
 title: Test
 ---
 
-# Uncategorized:
-## Lens:
+# Lens:
 source:: [[../Lenses/lens1.md|Lens 1]]
 `],
       ['Lenses/lens1.md', `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
-
-### Text: Content
 
 #### Text
 contnet:: This has a typo in the field name.

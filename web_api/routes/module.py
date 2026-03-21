@@ -42,9 +42,12 @@ def _segment_context_label(segment_type: str) -> str | None:
         "chat": "Moved to chat segment",
         "question": "Working on a question",
         "roleplay": "Started roleplay exercise",
+        "article": "Reading article excerpt",
+        "video": "Watching video",
+        "text": "Reading text",
+        # Backward compat for historical chat sessions
         "article-excerpt": "Reading article excerpt",
         "video-excerpt": "Watching video",
-        "text": "Reading text",
     }.get(segment_type)
 
 

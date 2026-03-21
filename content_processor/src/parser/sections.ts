@@ -12,6 +12,7 @@ export interface ParsedSection {
   line: number;
   level: number;
   children?: ParsedSection[];
+  inlineLens?: import('./lens.js').ParsedLens;
 }
 
 export interface SectionsResult {
@@ -20,18 +21,17 @@ export interface SectionsResult {
 }
 
 // Valid section types per file type (exported for use by other parsers)
-export const MODULE_SECTION_TYPES = new Set(['learning outcome', 'page', 'uncategorized']);
+export const MODULE_SECTION_TYPES = new Set(['learning outcome', 'lens']);
 export const LO_SECTION_TYPES = new Set(['lens', 'test']);
-// Lens sections: input headers are `### Article:`, `### Video:`, `### Page:`
-// Output types are `lens-article`, `lens-video`, `page` (v2 format)
+// Legacy: Lens H3 section types (no longer used — lenses are now flat H4 segments)
 export const LENS_SECTION_TYPES = new Set(['page', 'article', 'video']);
 
 // All known structural header types (sections + segments) for markdown heading detection
 const ALL_STRUCTURAL_TYPES = new Set([
   // Section types
-  'learning outcome', 'page', 'uncategorized', 'lens', 'test', 'module', 'meeting', 'article', 'video',
+  'learning outcome', 'lens', 'test', 'module', 'meeting', 'article', 'video',
   // Segment types
-  'text', 'chat', 'article-excerpt', 'video-excerpt', 'question', 'roleplay',
+  'text', 'chat', 'question', 'roleplay',
 ]);
 
 // Fields that commonly contain markdown with headings
@@ -44,36 +44,28 @@ export const LENS_OUTPUT_TYPE: Record<string, string> = {
   'video': 'lens-video',
 };
 
-// Header pattern is parameterized by level (1-4)
-function makeSectionPattern(level: number): RegExp {
-  const hashes = '#'.repeat(level);
-  // Match: ^#{level} <type>  OR  ^#{level} <type>: <optional title>
-  // Captures: group 1 = type, group 2 = title (may be undefined)
-  return new RegExp(`^${hashes}\\s+([^:]+?)(?::\\s*(.*?))?\\s*$`, 'i');
-}
-
-// Note: unrecognized headers are now caught by makeSectionPattern matching all
-// ### headers, with unknown types reported as "Unknown section type" errors.
-
+/**
+ * Parse sections from markdown content based on header hierarchy.
+ *
+ * @param content - The markdown body to parse
+ * @param parentLevel - Headers deeper than this level are candidates (0 = match any header)
+ * @param validTypes - Set of valid section/segment type names
+ * @param file - Source file path for error reporting
+ * @param flat - When true, all matching headers are siblings (for segments).
+ *               When false, deeper headers nest inside preceding siblings (for sections).
+ */
 export function parseSections(
   content: string,
-  headerLevel: 1 | 2 | 3 | 4,
+  parentLevel: number,
   validTypes: Set<string>,
-  file: string = ''
+  file: string = '',
+  flat: boolean = false
 ): SectionsResult {
-  const SECTION_HEADER_PATTERN = makeSectionPattern(headerLevel);
-  // Build patterns for adjacent levels to detect wrong heading level
-  const wrongLevelPatterns: { pattern: RegExp; level: number }[] = [];
-  for (const adjLevel of [headerLevel - 1, headerLevel + 1]) {
-    if (adjLevel >= 1 && adjLevel <= 4) {
-      wrongLevelPatterns.push({ pattern: makeSectionPattern(adjLevel as 1|2|3|4), level: adjLevel });
-    }
-  }
-  const parentSubmodulePattern =
-    validTypes.has('submodule') && headerLevel > 1
-      ? makeSectionPattern((headerLevel - 1) as 1 | 2 | 3 | 4)
-      : null;
-  let insideParentSubmodule = false;
+  const minLevel = parentLevel + 1;
+  // Match any header from minLevel to 6 with named capture groups
+  const HEADER_PATTERN = new RegExp(
+    `^(?<hashes>#{${minLevel},6})\\s+(?<type>[^:]+?)(?:\\:\\s*(?<title>.*?))?\\s*$`, 'i'
+  );
 
   const lines = content.split('\n');
   const sections: ParsedSection[] = [];
@@ -82,6 +74,7 @@ export function parseSections(
   let currentSection: ParsedSection | null = null;
   let currentBody: string[] = [];
   let preHeaderWarned = false;
+  let currentSiblingLevel = 0; // Track sibling level for hierarchical mode
 
   function finalizeSection() {
     if (!currentSection) return;
@@ -90,11 +83,10 @@ export function parseSections(
     errors.push(...warnings);
 
     // Submodule sections get recursive children parsing
-    if (currentSection.type === 'submodule' && currentSection.level < 4) {
+    if (currentSection.type === 'submodule') {
       const childValidTypes = new Set([...validTypes]);
       childValidTypes.delete('submodule'); // No nesting
-      const childLevel = (currentSection.level + 1) as 1 | 2 | 3 | 4;
-      const childResult = parseSections(currentSection.body, childLevel, childValidTypes, file);
+      const childResult = parseSections(currentSection.body, currentSection.level, childValidTypes, file);
       currentSection.children = childResult.sections;
       errors.push(...childResult.errors);
     }
@@ -106,49 +98,46 @@ export function parseSections(
     const line = lines[i];
     const lineNum = i + 1;
 
-    // Check for parent-level submodule FIRST
-    if (parentSubmodulePattern) {
-      const parentMatch = line.match(parentSubmodulePattern);
-      if (parentMatch && parentMatch[1].trim().toLowerCase() === 'submodule') {
-        finalizeSection();
-        currentSection = {
-          type: 'submodule',
-          title: (parentMatch[2] ?? '').trim(),
-          rawType: parentMatch[1].trim(),
-          fields: {}, body: '', line: lineNum,
-          level: (headerLevel - 1) as number,
-        };
-        currentBody = [];
-        insideParentSubmodule = true;
-        continue;
-      }
-    }
-    // Inside parent submodule: accumulate body, skip normal header detection
-    if (insideParentSubmodule && currentSection) {
-      currentBody.push(line);
-      continue;
-    }
-
-    const headerMatch = line.match(SECTION_HEADER_PATTERN);
+    const headerMatch = line.match(HEADER_PATTERN);
 
     if (headerMatch) {
-      // Save previous section
-      finalizeSection();
-
-      const rawType = headerMatch[1].trim();
+      const hashes = headerMatch.groups!.hashes;
+      const headerLevel = hashes.length;
+      const rawType = headerMatch.groups!.type.trim();
       const normalizedType = rawType.toLowerCase();
-      const title = (headerMatch[2] ?? '').trim();
+      const title = (headerMatch.groups!.title ?? '').trim();
 
+      // Check if this type is valid for the current context
       if (!validTypes.has(normalizedType)) {
-        const capitalized = [...validTypes].map(t => t.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' '));
-        errors.push({
-          file,
-          line: lineNum,
-          message: `Unknown section type: ${rawType}`,
-          suggestion: `Valid types: ${capitalized.join(', ')}`,
-          severity: 'error',
-        });
+        // Only error for unknown types at sibling level (not deeper body content)
+        const wouldBeSibling = flat || currentSiblingLevel === 0 || headerLevel <= currentSiblingLevel;
+        if (wouldBeSibling) {
+          const capitalized = [...validTypes].map(t => t.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' '));
+          errors.push({
+            file,
+            line: lineNum,
+            message: `Unknown section type: ${rawType}`,
+            suggestion: `Valid types: ${capitalized.join(', ')}`,
+            severity: 'error',
+          });
+        }
+        // Treat as body content of current section
+        if (currentSection) {
+          currentBody.push(line);
+        }
+        continue;
       }
+
+      // Sibling boundary rule (hierarchical mode only):
+      // Deeper headers go into the preceding sibling's body
+      if (!flat && currentSiblingLevel > 0 && headerLevel > currentSiblingLevel) {
+        currentBody.push(line);
+        continue;
+      }
+
+      // New sibling — finalize previous section
+      finalizeSection();
+      currentSiblingLevel = headerLevel;
 
       currentSection = {
         type: normalizedType.replaceAll(' ', '-'),
@@ -160,40 +149,23 @@ export function parseSections(
         level: headerLevel,
       };
       currentBody = [];
+      preHeaderWarned = false;
     } else {
       if (currentSection) {
         currentBody.push(line);
-      } else if (!currentSection) {
-        // Check for headers at wrong level that match known section types
-        for (const { pattern, level } of wrongLevelPatterns) {
-          const wrongMatch = line.match(pattern);
-          if (wrongMatch) {
-            const rawType = wrongMatch[1].trim();
-            if (validTypes.has(rawType.toLowerCase())) {
-              const expected = '#'.repeat(headerLevel);
-              const actual = '#'.repeat(level);
-              errors.push({
-                file,
-                line: lineNum,
-                message: `Found '${actual} ${rawType}:' (heading level ${level}) but expected heading level ${headerLevel} (${expected} ${rawType}:)`,
-                suggestion: `Change '${actual}' to '${expected}'`,
-                severity: 'warning',
-              });
-            }
-            break;
-          }
+      } else {
+        // Before first section header — suppress warnings for field:: lines and blank lines
+        const isFieldLine = /^[\w-]+::\s/.test(line);
+        if (line.trim() && !isFieldLine && !preHeaderWarned) {
+          preHeaderWarned = true;
+          errors.push({
+            file,
+            line: lineNum,
+            message: 'Content found before first section header — this text will be ignored',
+            suggestion: 'Move this text into a section, or remove it',
+            severity: 'error',
+          });
         }
-      }
-      if (!currentSection && line.trim() && !preHeaderWarned) {
-        // Non-blank content before any section header — will be silently lost
-        preHeaderWarned = true;
-        errors.push({
-          file,
-          line: lineNum,
-          message: 'Content found before first section header — this text will be ignored',
-          suggestion: 'Move this text into a section, or remove it',
-          severity: 'error',
-        });
       }
     }
   }

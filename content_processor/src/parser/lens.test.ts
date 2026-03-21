@@ -3,12 +3,10 @@ import { describe, it, expect } from 'vitest';
 import { parseLens, stripCriticMarkup, stripAuthoringMarkup, stripObsidianComments } from './lens.js';
 
 describe('parseLens', () => {
-  it('parses lens with page section (H3 section, H4 segment)', () => {
+  it('parses lens with text segment (flat format)', () => {
     const content = `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
-
-### Page: Introduction
 
 #### Text
 content:: This is introductory content.
@@ -17,66 +15,85 @@ content:: This is introductory content.
     const result = parseLens(content, 'Lenses/lens1.md');
 
     expect(result.lens?.id).toBe('550e8400-e29b-41d4-a716-446655440002');
-    expect(result.lens?.sections).toHaveLength(1);
-    expect(result.lens?.sections[0].type).toBe('page');
-    expect(result.lens?.sections[0].segments[0].type).toBe('text');
-    expect(result.lens?.sections[0].segments[0].content).toBe('This is introductory content.');
+    expect(result.lens?.segments).toHaveLength(1);
+    expect(result.lens?.segments[0].type).toBe('text');
+    expect((result.lens?.segments[0] as any).content).toBe('This is introductory content.');
   });
 
-  it('parses article section with excerpt', () => {
+  it('parses title from lens frontmatter', () => {
+    const content = `---
+id: test-id
+title: My Custom Lens Title
+---
+
+#### Text
+content:: Hello.
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    expect(result.lens?.title).toBe('My Custom Lens Title');
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+  });
+
+  it('returns undefined title when not in frontmatter', () => {
+    const content = `---
+id: test-id
+---
+
+#### Text
+content:: Hello.
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    expect(result.lens?.title).toBeUndefined();
+  });
+
+  it('parses article segment with source and anchors', () => {
     const content = `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-### Article: Deep Dive
+#### Article
 source:: [[../articles/deep-dive.md|Article]]
-
-#### Article-excerpt
 from:: "The key insight is"
 to:: "understanding this concept."
 `;
 
     const result = parseLens(content, 'Lenses/lens1.md');
 
-    expect(result.lens?.sections[0].type).toBe('lens-article');
-    expect(result.lens?.sections[0].source).toBe('[[../articles/deep-dive.md|Article]]');
-    expect(result.lens?.sections[0].segments[0].type).toBe('article-excerpt');
-    // Note: from/to are parsed as strings here, converted to anchors during bundling
-    expect(result.lens?.sections[0].segments[0].fromAnchor).toBe('The key insight is');
-    expect(result.lens?.sections[0].segments[0].toAnchor).toBe('understanding this concept.');
+    expect(result.lens?.segments[0].type).toBe('article');
+    expect((result.lens?.segments[0] as any).source).toBe('[[../articles/deep-dive.md|Article]]');
+    expect((result.lens?.segments[0] as any).fromAnchor).toBe('The key insight is');
+    expect((result.lens?.segments[0] as any).toAnchor).toBe('understanding this concept.');
   });
 
-  it('parses video section with timestamp excerpt', () => {
+  it('parses video segment with timestamps', () => {
     const content = `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-### Video: Expert Interview
+#### Video
 source:: [[../video_transcripts/interview.md|Video]]
-
-#### Video-excerpt
 from:: 1:30
 to:: 5:45
 `;
 
     const result = parseLens(content, 'Lenses/lens1.md');
 
-    expect(result.lens?.sections[0].type).toBe('lens-video');
-    expect(result.lens?.sections[0].source).toBe('[[../video_transcripts/interview.md|Video]]');
-    expect(result.lens?.sections[0].segments[0].type).toBe('video-excerpt');
-    // Parsed as strings, converted to seconds during bundling
-    expect(result.lens?.sections[0].segments[0].fromTimeStr).toBe('1:30');
-    expect(result.lens?.sections[0].segments[0].toTimeStr).toBe('5:45');
+    expect(result.lens?.segments[0].type).toBe('video');
+    expect((result.lens?.segments[0] as any).source).toBe('[[../video_transcripts/interview.md|Video]]');
+    expect((result.lens?.segments[0] as any).fromTimeStr).toBe('1:30');
+    expect((result.lens?.segments[0] as any).toTimeStr).toBe('5:45');
   });
 
-  it('requires source field in article/video sections', () => {
+  it('errors when first article segment has no source', () => {
     const content = `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-### Article: No Source
-
-#### Article-excerpt
+#### Article
 from:: "Start"
 to:: "End"
 `;
@@ -91,43 +108,37 @@ to:: "End"
 id: test-id
 ---
 
-### Page: Introduction
-
 #### Text
 content::
 Line one of content.
 Line two of content.
 Line three of content.
-
-#### Chat
-instructions:: Do something
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
-    expect(result.lens?.sections[0].segments[0].type).toBe('text');
-    expect(result.lens?.sections[0].segments[0].content).toContain('Line one');
-    expect(result.lens?.sections[0].segments[0].content).toContain('Line two');
-    expect(result.lens?.sections[0].segments[0].content).toContain('Line three');
+    const textSeg = result.lens?.segments[0];
+    expect(textSeg?.type).toBe('text');
+    expect((textSeg as any).content).toContain('Line one of content.');
+    expect((textSeg as any).content).toContain('Line three of content.');
   });
 
-  it('parses video-excerpt with only to:: (from defaults to 0:00)', () => {
+  it('parses video with only to:: (from defaults to 0:00)', () => {
     const content = `---
 id: test-id
 ---
 
-### Video: Test Video
-source:: [[../video_transcripts/test.md|Video]]
-
-#### Video-excerpt
-to:: 14:49
+#### Video
+source:: [[../video_transcripts/interview.md|Video]]
+to:: 5:45
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
-    expect(result.lens?.sections[0].segments[0].type).toBe('video-excerpt');
-    expect(result.lens?.sections[0].segments[0].fromTimeStr).toBe('0:00');
-    expect(result.lens?.sections[0].segments[0].toTimeStr).toBe('14:49');
+    const seg = result.lens?.segments[0];
+    expect(seg?.type).toBe('video');
+    expect((seg as any).fromTimeStr).toBe('0:00');
+    expect((seg as any).toTimeStr).toBe('5:45');
   });
 
   it('parses chat segment with multiline instructions', () => {
@@ -135,158 +146,189 @@ to:: 14:49
 id: test-id
 ---
 
-### Page: Discussion
-
 #### Chat
 instructions::
 First line of instructions.
-Second line with more details.
-
-Topics to cover:
-- Topic one
-- Topic two
-
-hidePreviousContentFromUser:: false
+Second line of instructions.
+Third line of instructions.
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
-    const chatSegment = result.lens?.sections[0].segments[0];
-    expect(chatSegment?.type).toBe('chat');
-    expect(chatSegment?.instructions).toContain('First line');
-    expect(chatSegment?.instructions).toContain('Topic one');
-    expect(chatSegment?.instructions).toContain('Topic two');
+    const chatSeg = result.lens?.segments[0];
+    expect(chatSeg?.type).toBe('chat');
+    expect((chatSeg as any).instructions).toContain('First line of instructions.');
   });
 
-  it('parses article-excerpt with only from:: (to end of article)', () => {
+  it('parses article with only from:: (to end of article)', () => {
     const content = `---
 id: test-id
 ---
 
-### Article: Test Article
-source:: [[../articles/test.md|Article]]
-
-#### Article-excerpt
+#### Article
+source:: [[../articles/deep-dive.md|Article]]
 from:: "Start here"
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
-    expect(result.errors).toHaveLength(0);
-    expect(result.lens?.sections[0].segments[0].type).toBe('article-excerpt');
-    expect(result.lens?.sections[0].segments[0].fromAnchor).toBe('Start here');
-    expect(result.lens?.sections[0].segments[0].toAnchor).toBeUndefined();
+    const seg = result.lens?.segments[0];
+    expect(seg?.type).toBe('article');
+    expect((seg as any).fromAnchor).toBe('Start here');
+    expect((seg as any).toAnchor).toBeUndefined();
   });
 
-  it('parses article-excerpt with only to:: (from start of article)', () => {
+  it('parses article with only to:: (from start of article)', () => {
     const content = `---
 id: test-id
 ---
 
-### Article: Test Article
-source:: [[../articles/test.md|Article]]
-
-#### Article-excerpt
+#### Article
+source:: [[../articles/deep-dive.md|Article]]
 to:: "End here"
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
-    expect(result.errors).toHaveLength(0);
-    expect(result.lens?.sections[0].segments[0].type).toBe('article-excerpt');
-    expect(result.lens?.sections[0].segments[0].fromAnchor).toBeUndefined();
-    expect(result.lens?.sections[0].segments[0].toAnchor).toBe('End here');
+    const seg = result.lens?.segments[0];
+    expect(seg?.type).toBe('article');
+    expect((seg as any).fromAnchor).toBeUndefined();
+    expect((seg as any).toAnchor).toBe('End here');
   });
 
-  it('parses empty article-excerpt (entire article)', () => {
+  it('parses empty article (entire article via source inheritance)', () => {
     const content = `---
 id: test-id
 ---
 
-### Article: Test Article
-source:: [[../articles/test.md|Article]]
+#### Article
+source:: [[../articles/deep-dive.md|Article]]
 
-#### Article-excerpt
+#### Article
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
-    expect(result.errors).toHaveLength(0);
-    expect(result.lens?.sections[0].segments[0].type).toBe('article-excerpt');
-    expect(result.lens?.sections[0].segments[0].fromAnchor).toBeUndefined();
-    expect(result.lens?.sections[0].segments[0].toAnchor).toBeUndefined();
+    expect(result.lens?.segments).toHaveLength(2);
+    // Second article inherits source from first
+    expect((result.lens?.segments[1] as any).source).toBe('[[../articles/deep-dive.md|Article]]');
+    expect((result.lens?.segments[1] as any).fromAnchor).toBeUndefined();
+    expect((result.lens?.segments[1] as any).toAnchor).toBeUndefined();
   });
 
-  it('parses chat segment with title', () => {
+  it('errors when chat segment has a title', () => {
     const content = `---
 id: test-id
 ---
 
-### Page: Discussion
-
-#### Chat: Discussion on AI Basics
-instructions:: Talk about AI basics.
+#### Chat: Final Discussion
+instructions:: Discuss what you learned.
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
-    const chatSegment = result.lens?.sections[0].segments[0];
-    expect(chatSegment?.type).toBe('chat');
-    expect(chatSegment?.title).toBe('Discussion on AI Basics');
-    expect(chatSegment?.instructions).toBe('Talk about AI basics.');
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.match(/titles are not supported/i)
+    )).toBe(true);
   });
 
-  it('parses segment type case-insensitively (#### Chat, #### CHAT, #### chat all work)', () => {
+  it('errors when text segment has a title', () => {
     const content = `---
 id: test-id
 ---
 
-### Page: Mixed Case
-
-#### Text
-content:: intro
-#### Chat
-instructions:: lowercase implicit
-#### Text
-content:: transition
-#### Chat:
-instructions:: with trailing colon
-#### Text
-content:: another transition
-#### CHAT: Uppercase
-instructions:: uppercase variant
-`;
-
-    const result = parseLens(content, 'Lenses/test.md');
-
-    const segments = result.lens?.sections[0].segments ?? [];
-    const chatSegments = segments.filter(s => s.type === 'chat');
-    expect(chatSegments).toHaveLength(3);
-    expect(chatSegments[0].type).toBe('chat');
-    expect(chatSegments[1].type).toBe('chat');
-    expect(chatSegments[2].type).toBe('chat');
-    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
-  });
-
-  // Task 7.2: Field in wrong segment type
-  it('warns about from:: field in text segment', () => {
-    const content = `---
-id: test-id
----
-
-### Page: Wrong Field
-
-#### Text
-content:: Some text.
-from:: "This is wrong"
+#### Text: Some Title
+content:: Hello.
 `;
 
     const result = parseLens(content, 'Lenses/test.md');
 
     expect(result.errors.some(e =>
-      e.severity === 'warning' &&
-      e.message.includes('from') &&
-      e.message.includes('text')
+      e.severity === 'error' &&
+      e.message.match(/titles are not supported/i)
+    )).toBe(true);
+  });
+
+  it('errors when article segment has a title', () => {
+    const content = `---
+id: test-id
+---
+
+#### Article: Some Article Title
+source:: [[../articles/test.md|Test]]
+to:: "end"
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.match(/titles are not supported/i)
+    )).toBe(true);
+    // Segment should still be parsed (just with an error)
+    expect(result.lens?.segments.some(s => s.type === 'article')).toBe(true);
+  });
+
+  it('errors when video segment has a title', () => {
+    const content = `---
+id: test-id
+---
+
+#### Video: Some Video Title
+source:: [[../video_transcripts/test.md|Test]]
+from:: 0:00
+to:: 5:00
+`;
+
+    const result = parseLens(content, 'Lenses/test.md');
+
+    expect(result.errors.some(e =>
+      e.severity === 'error' &&
+      e.message.match(/titles are not supported/i)
+    )).toBe(true);
+    // Segment should still be parsed (just with an error)
+    expect(result.lens?.segments.some(s => s.type === 'video')).toBe(true);
+  });
+
+  it('parses segment type case-insensitively', () => {
+    const content = `---
+id: test-id
+---
+
+#### Chat
+instructions:: Discussion.
+
+#### CHAT
+instructions:: Another discussion.
+
+#### chat
+instructions:: Yet another.
+`;
+
+    const result = parseLens(content, 'Lenses/lens1.md');
+
+    expect(result.lens?.segments).toHaveLength(3);
+    for (const seg of result.lens!.segments) {
+      expect(seg.type).toBe('chat');
+    }
+    expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
+  });
+
+  it('warns about from:: field in text segment', () => {
+    const content = `---
+id: test-id
+---
+
+#### Text
+content:: Some text.
+from:: "This should not be here"
+`;
+
+    const result = parseLens(content, 'Lenses/lens1.md');
+
+    expect(result.errors.some(e =>
+      e.message.includes('from') && e.message.toLowerCase().includes('text')
     )).toBe(true);
   });
 
@@ -295,61 +337,50 @@ from:: "This is wrong"
 id: test-id
 ---
 
-### Page: Wrong Field
-
 #### Chat
-instructions:: Do something.
-to:: "This is wrong"
+instructions:: Some instructions.
+to:: "This should not be here"
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
     expect(result.errors.some(e =>
-      e.severity === 'warning' &&
-      e.message.includes('to') &&
-      e.message.includes('chat')
+      e.message.includes('to') && e.message.toLowerCase().includes('chat')
     )).toBe(true);
   });
 
-  it('does not warn about from/to in article-excerpt', () => {
+  it('does not warn about from/to in article', () => {
     const content = `---
 id: test-id
 ---
 
-### Article: Test Article
-source:: [[../articles/test.md|Article]]
-
-#### Article-excerpt
-from:: "Start"
-to:: "End"
+#### Article
+source:: [[../articles/deep-dive.md|Article]]
+from:: "The key insight"
+to:: "End of section"
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
-    // No warnings about from/to in article-excerpt
-    expect(result.errors.filter(e =>
-      e.severity === 'warning' &&
-      (e.message.includes('from') || e.message.includes('to'))
-    )).toHaveLength(0);
+    const fieldWarnings = result.errors.filter(e =>
+      e.message.includes('from') && e.message.toLowerCase().includes('article')
+    );
+    expect(fieldWarnings).toHaveLength(0);
   });
 
-  // Task 7.3: Empty content field warning
   it('warns about empty content:: field in text segment', () => {
     const content = `---
 id: test-id
 ---
 
-### Page: Empty Content
-
 #### Text
 content::
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
     expect(result.errors.some(e =>
-      e.severity === 'warning' &&
-      e.message.toLowerCase().includes('empty')
+      e.message.includes('empty content::')
     )).toBe(true);
   });
 
@@ -358,17 +389,14 @@ content::
 id: test-id
 ---
 
-### Page: Whitespace Only
-
 #### Text
 content::
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
     expect(result.errors.some(e =>
-      e.severity === 'warning' &&
-      e.message.toLowerCase().includes('empty')
+      e.message.includes('empty content::')
     )).toBe(true);
   });
 
@@ -377,65 +405,31 @@ content::
 id: test-id
 ---
 
-### Page: Has Content
-
 #### Text
-content:: This is real content.
+content:: Actual content here.
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
-    // No empty content warnings
-    expect(result.errors.filter(e =>
-      e.severity === 'warning' &&
-      e.message.toLowerCase().includes('empty')
-    )).toHaveLength(0);
+    const contentWarnings = result.errors.filter(e =>
+      e.message.includes('empty content::')
+    );
+    expect(contentWarnings).toHaveLength(0);
   });
 
-  // Task 7.5: Empty segment warning
   describe('empty segment warnings', () => {
     it('warns about empty segment with no fields', () => {
       const content = `---
 id: test-id
 ---
 
-### Page: Has Empty
-
 #### Chat
-
-#### Text
-content:: Real content here.
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.toLowerCase().includes('empty') &&
-        e.message.toLowerCase().includes('chat')
-      )).toBe(true);
-    });
-
-    it('warns about segment with only whitespace', () => {
-      const content = `---
-id: test-id
----
-
-### Page: Has Empty
-
-#### Text
-
-
-
-#### Chat
-instructions:: Do something.
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.toLowerCase().includes('empty')
+        e.message.includes('Empty') || e.message.includes('missing instructions::')
       )).toBe(true);
     });
 
@@ -444,104 +438,49 @@ instructions:: Do something.
 id: test-id
 ---
 
-### Page: Has Content
-
-#### Text
-content:: Some content.
-
 #### Chat
-instructions:: Do something.
+instructions:: Discuss the topic.
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
-      // No empty segment warnings
-      expect(result.errors.filter(e =>
-        e.severity === 'warning' &&
-        e.message.toLowerCase().includes('empty') &&
-        e.message.toLowerCase().includes('segment')
-      )).toHaveLength(0);
+      const emptyWarnings = result.errors.filter(e =>
+        e.message.includes('Empty')
+      );
+      expect(emptyWarnings).toHaveLength(0);
     });
   });
 
-  // Task 7.6: Section with no segments warning
-  describe('section with no segments warnings', () => {
-    it('warns about section with no segments', () => {
+  describe('lens with no segments', () => {
+    it('warns about lens with no segments', () => {
       const content = `---
 id: test-id
 ---
-
-### Article: Empty Section
-source:: [[../articles/test.md|Article]]
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.toLowerCase().includes('no segments')
+        e.message.includes('no segments')
       )).toBe(true);
-    });
-
-    it('warns about text section with no segments', () => {
-      const content = `---
-id: test-id
----
-
-### Page: Empty Text Section
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.toLowerCase().includes('no segments')
-      )).toBe(true);
-    });
-
-    it('does not warn about section with segments', () => {
-      const content = `---
-id: test-id
----
-
-### Article: Has Content
-source:: [[../articles/test.md|Article]]
-
-#### Article-excerpt
-from:: "Start"
-to:: "End"
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      // No warnings about no segments
-      expect(result.errors.filter(e =>
-        e.severity === 'warning' &&
-        e.message.toLowerCase().includes('no segments')
-      )).toHaveLength(0);
     });
   });
 
-  // Task 7.7: Boolean field with non-boolean value
-  describe('boolean field value validation', () => {
+  describe('field value validation', () => {
     it('warns about optional:: field with non-boolean value', () => {
       const content = `---
 id: test-id
 ---
 
-### Page: Test
-
 #### Text
-content:: Some content.
+content:: Some text.
 optional:: yes
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.includes("'optional'") &&
-        e.message.includes('non-boolean')
+        e.message.includes('optional') && e.message.includes('boolean')
       )).toBe(true);
     });
 
@@ -550,19 +489,16 @@ optional:: yes
 id: test-id
 ---
 
-### Page: Test
-
 #### Chat
-instructions:: Do something.
-hidePreviousContentFromUser:: 1
+instructions:: Discuss.
+hidePreviousContentFromUser:: yes
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.includes("'hidePreviousContentFromUser'") &&
-        e.message.includes('non-boolean')
+        e.message.includes('hidePreviousContentFromUser') &&
+        e.message.includes('boolean')
       )).toBe(true);
     });
 
@@ -571,43 +507,35 @@ hidePreviousContentFromUser:: 1
 id: test-id
 ---
 
-### Page: Test
-
 #### Chat
-instructions:: Do something.
-hidePreviousContentFromUser:: true
-hidePreviousContentFromTutor:: false
+instructions:: Discuss.
 optional:: true
+hidePreviousContentFromUser:: false
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
-      // No warnings about boolean values
-      expect(result.errors.filter(e =>
-        e.severity === 'warning' &&
-        e.message.includes('non-boolean')
-      )).toHaveLength(0);
+      const booleanWarnings = result.errors.filter(e =>
+        e.message.includes('boolean')
+      );
+      expect(booleanWarnings).toHaveLength(0);
     });
   });
 
-  // Task 6: Empty segment validation - required fields per segment type
-  describe('empty segment validation - required fields', () => {
+  describe('missing required fields', () => {
     it('errors on text segment without content:: field', () => {
       const content = `---
 id: test-id
 ---
 
-### Page: Missing Content
 #### Text
 optional:: true
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('content') &&
-        e.message.includes('missing')
+        e.severity === 'error' && e.message.includes('content::')
       )).toBe(true);
     });
 
@@ -616,55 +544,14 @@ optional:: true
 id: test-id
 ---
 
-### Page: Missing Instructions
 #### Chat
 optional:: true
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('instructions') &&
-        e.message.includes('missing')
-      )).toBe(true);
-    });
-
-    it('errors on article-excerpt segment in section without source:: field', () => {
-      const content = `---
-id: test-id
----
-
-### Article: Missing Source
-#### Article-excerpt
-from:: "Start"
-to:: "End"
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('source')
-      )).toBe(true);
-    });
-
-    it('errors on video-excerpt segment in section without source:: field', () => {
-      const content = `---
-id: test-id
----
-
-### Video: Missing Source
-#### Video-excerpt
-from:: 0:00
-to:: 1:00
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('source')
+        e.severity === 'error' && e.message.includes('instructions::')
       )).toBe(true);
     });
 
@@ -673,62 +560,45 @@ to:: 1:00
 id: test-id
 ---
 
-### Page: Valid Page
 #### Text
-content:: Some content here.
+content:: Some text here.
 
 #### Chat
-instructions:: Do something here.
+instructions:: Some instructions here.
 
-### Article: Valid Article
-source:: [[../articles/test.md|Article]]
-#### Article-excerpt
+#### Article
+source:: [[../articles/deep-dive.md|Article]]
 from:: "Start"
 to:: "End"
 
-### Video: Valid Video
-source:: [[../video_transcripts/test.md|Video]]
-#### Video-excerpt
-from:: 0:00
-to:: 1:00
+#### Video
+source:: [[../video_transcripts/video.md|Video]]
+from:: 1:30
+to:: 5:45
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
-      // No errors about missing required fields
-      const missingFieldErrors = result.errors.filter(e =>
-        e.severity === 'error' &&
-        e.message.toLowerCase().includes('missing')
-      );
-      expect(missingFieldErrors).toHaveLength(0);
+      const errors = result.errors.filter(e => e.severity === 'error');
+      expect(errors).toHaveLength(0);
+      expect(result.lens?.segments).toHaveLength(4);
     });
   });
 
-  // Task 7: Unknown segment type detection (H4 segments)
-  describe('unknown H4 segment type detection', () => {
+  describe('unknown segment types', () => {
     it('errors on #### Quiz (unknown segment type)', () => {
       const content = `---
 id: test-id
 ---
 
-### Page: Test Page
 #### Quiz
-question:: What is AI?
+content:: What is AI Safety?
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('Unknown segment type') &&
-        e.message.includes('Quiz')
-      )).toBe(true);
-      // Should include suggestion with valid types
-      expect(result.errors.some(e =>
-        e.suggestion?.includes('text') &&
-        e.suggestion?.includes('chat') &&
-        e.suggestion?.includes('article-excerpt') &&
-        e.suggestion?.includes('video-excerpt')
+        e.severity === 'error' && e.message.includes('Unknown section type: Quiz')
       )).toBe(true);
     });
 
@@ -737,36 +607,14 @@ question:: What is AI?
 id: test-id
 ---
 
-### Page: Test Page
 #### Unknown
-content:: This uses an invalid segment type.
+content:: What is AI Safety?
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('Unknown segment type') &&
-        e.message.includes('Unknown')
-      )).toBe(true);
-    });
-
-    it('errors on #### Summary (unknown segment type)', () => {
-      const content = `---
-id: test-id
----
-
-### Page: Test Page
-#### Summary
-content:: This segment type does not exist.
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('Unknown segment type') &&
-        e.message.includes('Summary')
+        e.severity === 'error' && e.message.includes('Unknown section type')
       )).toBe(true);
     });
 
@@ -775,16 +623,16 @@ content:: This segment type does not exist.
 id: test-id
 ---
 
-### Page: Test Page
 #### Text
-content:: Valid text segment.
+content:: Some content.
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
-      expect(result.errors.filter(e =>
-        e.message.includes('Unknown segment type')
-      )).toHaveLength(0);
+      const unknownErrors = result.errors.filter(e =>
+        e.message.includes('Unknown section type')
+      );
+      expect(unknownErrors).toHaveLength(0);
     });
 
     it('accepts valid segment type #### Chat', () => {
@@ -792,54 +640,54 @@ content:: Valid text segment.
 id: test-id
 ---
 
-### Page: Test Page
 #### Chat
-instructions:: Valid chat segment.
+instructions:: Some instructions.
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
-      expect(result.errors.filter(e =>
-        e.message.includes('Unknown segment type')
-      )).toHaveLength(0);
+      const unknownErrors = result.errors.filter(e =>
+        e.message.includes('Unknown section type')
+      );
+      expect(unknownErrors).toHaveLength(0);
     });
 
-    it('accepts valid segment type #### Article-excerpt', () => {
+    it('accepts valid segment type #### Article', () => {
       const content = `---
 id: test-id
 ---
 
-### Article: Test Article
-source:: [[../articles/test.md|Article]]
-#### Article-excerpt
+#### Article
+source:: [[../articles/deep-dive.md|Article]]
 from:: "Start"
 to:: "End"
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
-      expect(result.errors.filter(e =>
-        e.message.includes('Unknown segment type')
-      )).toHaveLength(0);
+      const unknownErrors = result.errors.filter(e =>
+        e.message.includes('Unknown section type')
+      );
+      expect(unknownErrors).toHaveLength(0);
     });
 
-    it('accepts valid segment type #### Video-excerpt', () => {
+    it('accepts valid segment type #### Video', () => {
       const content = `---
 id: test-id
 ---
 
-### Video: Test Video
-source:: [[../video_transcripts/test.md|Video]]
-#### Video-excerpt
-from:: 0:00
-to:: 1:00
+#### Video
+source:: [[../video_transcripts/video.md|Video]]
+from:: 1:30
+to:: 5:45
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
-      expect(result.errors.filter(e =>
-        e.message.includes('Unknown segment type')
-      )).toHaveLength(0);
+      const unknownErrors = result.errors.filter(e =>
+        e.message.includes('Unknown section type')
+      );
+      expect(unknownErrors).toHaveLength(0);
     });
 
     it('handles case-insensitive matching (#### TEXT is valid)', () => {
@@ -847,228 +695,33 @@ to:: 1:00
 id: test-id
 ---
 
-### Page: Test Page
 #### TEXT
-content:: Case insensitive text segment.
+content:: Some content.
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
-      expect(result.errors.filter(e =>
-        e.message.includes('Unknown segment type')
-      )).toHaveLength(0);
-      expect(result.lens?.sections[0].segments[0].type).toBe('text');
-    });
-
-    it('handles case-insensitive matching (#### CHAT is valid)', () => {
-      const content = `---
-id: test-id
----
-
-### Page: Test Page
-#### CHAT
-instructions:: Case insensitive chat segment.
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.filter(e =>
-        e.message.includes('Unknown segment type')
-      )).toHaveLength(0);
-      expect(result.lens?.sections[0].segments[0].type).toBe('chat');
+      const unknownErrors = result.errors.filter(e =>
+        e.message.includes('Unknown section type')
+      );
+      expect(unknownErrors).toHaveLength(0);
     });
   });
 
-  describe('invalid H3 section types', () => {
-    it('returns error for ### Text (unknown section type)', () => {
-      const content = `---
-id: test-id
----
-
-### Text
-#### Text
-content:: Text is not a valid H3 section type.
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('Unknown section type')
-      )).toBe(true);
-    });
-
-    it('returns error for any unknown H3 section type', () => {
-      const content = `---
-id: test-id
----
-
-### Something Random Here
-#### Text
-content:: Whatever.
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('Unknown section type')
-      )).toBe(true);
-    });
-
-    it('returns error for ### Text: (renamed to ### Page:)', () => {
-      const content = `---
-id: test-id
----
-
-### Text: Old Syntax
-#### Text
-content:: This uses the old ### Text syntax.
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('Unknown section type') &&
-        e.message.includes('Text')
-      )).toBe(true);
-    });
-
-    it('returns error for ### Chat: (Chat is only valid at H4 segment level)', () => {
-      const content = `---
-id: test-id
----
-
-### Chat: Invalid Section
-instructions:: This incorrectly uses Chat as a section type.
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('Unknown section type') &&
-        e.message.includes('Chat')
-      )).toBe(true);
-    });
-
-    it('accepts valid section types: Page, Article, Video', () => {
-      const content = `---
-id: test-id
----
-
-### Page: Valid Page
-#### Text
-content:: Page content.
-
-### Article: Valid Article
-source:: [[../articles/test.md|Article]]
-#### Article-excerpt
-
-### Video: Valid Video
-source:: [[../video_transcripts/test.md|Video]]
-#### Video-excerpt
-from:: 0:00
-to:: 1:00
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      // No errors about unknown section types
-      expect(result.errors.filter(e =>
-        e.message.includes('Unknown section type')
-      )).toHaveLength(0);
-    });
-  });
-
-  describe('mixed section type detection', () => {
-    it('warns when lens has both Article and Video sections', () => {
-      const content = `---
-id: test-id
----
-
-### Article: Reading
-source:: [[../articles/test.md|Article]]
-
-#### Article-excerpt
-
-### Video: Watching
-source:: [[../video_transcripts/test.md|Video]]
-
-#### Video-excerpt
-from:: 0:00
-to:: 5:00
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.includes('mixed') || e.message.includes('conflicting')
-      )).toBe(true);
-    });
-
-    it('does not warn when lens has only Page sections', () => {
-      const content = `---
-id: test-id
----
-
-### Page: Intro
-#### Text
-content:: Hello.
-
-### Page: Discussion
-#### Chat
-instructions:: Discuss.
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.filter(e =>
-        e.message.includes('mixed') || e.message.includes('conflicting')
-      )).toHaveLength(0);
-    });
-
-    it('does not warn when lens has Page + Article (Page is neutral)', () => {
-      const content = `---
-id: test-id
----
-
-### Page: Intro
-#### Text
-content:: Hello.
-
-### Article: Reading
-source:: [[../articles/test.md|Article]]
-#### Article-excerpt
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.filter(e =>
-        e.message.includes('mixed') || e.message.includes('conflicting')
-      )).toHaveLength(0);
-    });
-  });
-
-  describe('non-string id validation', () => {
+  describe('frontmatter id validation', () => {
     it('errors when id is a number', () => {
       const content = `---
 id: 12345
 ---
 
-### Page: Test
 #### Text
-content:: Hello.
+content:: Some content.
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('id') &&
-        e.message.includes('string')
+        e.message.includes("'id' must be a string")
       )).toBe(true);
     });
 
@@ -1077,170 +730,168 @@ content:: Hello.
 id: true
 ---
 
-### Page: Test
 #### Text
-content:: Hello.
+content:: Some content.
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('id') &&
-        e.message.includes('string')
+        e.message.includes("'id' must be a string")
       )).toBe(true);
     });
   });
 
-  describe('single-colon field detection in segments', () => {
-    it('warns when known field uses single colon instead of :: in segment', () => {
-      const content = `---
+  it('warns when known field uses single colon instead of :: in segment', () => {
+    const content = `---
 id: test-id
 ---
 
-### Page: Test
-
 #### Text
-content: This uses single colon.
+content: Some text here
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
-      expect(result.errors.some(e =>
-        e.severity === 'error' &&
-        e.message.includes('content') &&
-        e.message.includes('::')
-      )).toBe(true);
-    });
-
-    it('does NOT warn for unknown words with single colon in segment (just markdown text)', () => {
-      const content = `---
-id: test-id
----
-
-### Page: Test
-
-#### Text
-content::
-Summary: This is a summary of the topic.
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      const summaryWarnings = result.errors.filter(e =>
-        e.severity === 'warning' &&
-        e.message.includes("'Summary:'")
-      );
-      expect(summaryWarnings).toHaveLength(0);
-    });
+    expect(result.errors.some(e =>
+      e.message.includes("'content:'") && e.message.includes('single colon')
+    )).toBe(true);
   });
 
-  describe('segment/section type mismatch', () => {
-    it('warns about article-excerpt in a Page section', () => {
+  it('does NOT warn for unknown words with single colon in segment', () => {
+    const content = `---
+id: test-id
+---
+
+#### Text
+content:: Some text mentioning Note: this is important
+`;
+
+    const result = parseLens(content, 'Lenses/lens1.md');
+
+    const singleColonWarnings = result.errors.filter(e =>
+      e.message.includes('single colon')
+    );
+    expect(singleColonWarnings).toHaveLength(0);
+  });
+
+  describe('source inheritance', () => {
+    it('inherits source from previous article segment', () => {
       const content = `---
 id: test-id
 ---
 
-### Page: Introduction
+#### Article
+source:: [[../articles/deep-dive.md|Article]]
+from:: "Start"
+to:: "End"
 
-#### Article-excerpt
+#### Article
+from:: "Later"
+to:: "End of section"
+`;
+
+      const result = parseLens(content, 'Lenses/lens1.md');
+
+      expect(result.lens?.segments).toHaveLength(2);
+      expect((result.lens?.segments[1] as any).source).toBe('[[../articles/deep-dive.md|Article]]');
+    });
+
+    it('inherits source from previous video segment', () => {
+      const content = `---
+id: test-id
+---
+
+#### Video
+source:: [[../video_transcripts/video.md|Video]]
+from:: 1:30
+to:: 5:45
+
+#### Video
+from:: 10:00
+to:: 15:00
+`;
+
+      const result = parseLens(content, 'Lenses/lens1.md');
+
+      expect(result.lens?.segments).toHaveLength(2);
+      expect((result.lens?.segments[1] as any).source).toBe('[[../video_transcripts/video.md|Video]]');
+    });
+
+    it('errors when first article segment has no source', () => {
+      const content = `---
+id: test-id
+---
+
+#### Article
 from:: "Start"
 to:: "End"
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.includes('article-excerpt') &&
-        e.message.includes('Page')
+        e.message.includes('First article segment must have a source')
       )).toBe(true);
     });
 
-    it('warns about video-excerpt in a Page section', () => {
+    it('errors when first video segment has no source', () => {
       const content = `---
 id: test-id
 ---
 
-### Page: Introduction
-
-#### Video-excerpt
-from:: 0:00
-to:: 5:00
+#### Video
+from:: 1:30
+to:: 5:45
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.includes('video-excerpt') &&
-        e.message.includes('Page')
+        e.message.includes('First video segment must have a source')
       )).toBe(true);
     });
 
-    it('warns about video-excerpt in an Article section', () => {
+    it('new source overrides inherited source', () => {
       const content = `---
 id: test-id
 ---
 
-### Article: Test
-source:: [[../articles/test.md|Article]]
-
-#### Video-excerpt
-from:: 0:00
-to:: 5:00
-`;
-
-      const result = parseLens(content, 'Lenses/test.md');
-
-      expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.includes('video-excerpt') &&
-        e.message.includes('Article')
-      )).toBe(true);
-    });
-
-    it('does not warn about article-excerpt in Article section', () => {
-      const content = `---
-id: test-id
----
-
-### Article: Test
-source:: [[../articles/test.md|Article]]
-
-#### Article-excerpt
+#### Article
+source:: [[../articles/first.md|First]]
 from:: "Start"
+to:: "End"
+
+#### Article
+source:: [[../articles/second.md|Second]]
+from:: "Other"
 to:: "End"
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
-      expect(result.errors.filter(e =>
-        e.message.includes('not valid in')
-      )).toHaveLength(0);
+      expect(result.lens?.segments).toHaveLength(2);
+      expect((result.lens?.segments[0] as any).source).toBe('[[../articles/first.md|First]]');
+      expect((result.lens?.segments[1] as any).source).toBe('[[../articles/second.md|Second]]');
     });
   });
 
-  describe('timestamp format validation', () => {
+  describe('timestamp validation', () => {
     it('warns about invalid from:: timestamp format', () => {
       const content = `---
 id: test-id
 ---
 
-### Video: Test
-source:: [[../video_transcripts/test.md|Video]]
-
-#### Video-excerpt
-from:: 1 hour 30 min
+#### Video
+source:: [[../video_transcripts/video.md|Video]]
+from:: abc
 to:: 5:45
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.includes('from') &&
-        e.message.includes('timestamp')
+        e.message.includes('Invalid timestamp') && e.message.includes('from::')
       )).toBe(true);
     });
 
@@ -1249,20 +900,16 @@ to:: 5:45
 id: test-id
 ---
 
-### Video: Test
-source:: [[../video_transcripts/test.md|Video]]
-
-#### Video-excerpt
-from:: 0:00
-to:: five minutes
+#### Video
+source:: [[../video_transcripts/video.md|Video]]
+from:: 1:30
+to:: not-a-time
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.some(e =>
-        e.severity === 'warning' &&
-        e.message.includes('to') &&
-        e.message.includes('timestamp')
+        e.message.includes('Invalid timestamp') && e.message.includes('to::')
       )).toBe(true);
     });
 
@@ -1271,19 +918,18 @@ to:: five minutes
 id: test-id
 ---
 
-### Video: Test
-source:: [[../video_transcripts/test.md|Video]]
-
-#### Video-excerpt
+#### Video
+source:: [[../video_transcripts/video.md|Video]]
 from:: 1:30
-to:: 5:45
+to:: 1:30:00
 `;
 
-      const result = parseLens(content, 'Lenses/test.md');
+      const result = parseLens(content, 'Lenses/lens1.md');
 
-      expect(result.errors.filter(e =>
-        e.message.includes('timestamp')
-      )).toHaveLength(0);
+      const timestampErrors = result.errors.filter(e =>
+        e.message.includes('Invalid timestamp')
+      );
+      expect(timestampErrors).toHaveLength(0);
     });
   });
 
@@ -1292,8 +938,6 @@ to:: 5:45
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-### Page: Introduction
-
 #### Chat
 instructions:: Discuss the key concepts.
 hidePreviousContentFromUser:: True
@@ -1301,7 +945,7 @@ hidePreviousContentFromUser:: True
 
     const result = parseLens(content, 'Lenses/lens1.md');
 
-    const chatSeg = result.lens?.sections[0].segments[0];
+    const chatSeg = result.lens?.segments[0];
     expect(chatSeg?.type).toBe('chat');
     expect((chatSeg as any).hidePreviousContentFromUser).toBe(true);
   });
@@ -1311,8 +955,6 @@ hidePreviousContentFromUser:: True
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-### Page: Introduction
-
 #### Text
 content:: Some content here.
 optional:: TRUE
@@ -1320,17 +962,15 @@ optional:: TRUE
 
     const result = parseLens(content, 'Lenses/lens1.md');
 
-    const textSeg = result.lens?.sections[0].segments[0];
+    const textSeg = result.lens?.segments[0];
     expect(textSeg?.type).toBe('text');
     expect((textSeg as any).optional).toBe(true);
   });
 
-  it('warns about free text between section header and first segment', () => {
+  it('warns about free text before first segment', () => {
     const content = `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
-
-### Page: Introduction
 This text appears before any #### segment header.
 It should not be silently ignored.
 
@@ -1341,18 +981,16 @@ content:: Actual segment content here.
     const result = parseLens(content, 'Lenses/lens1.md');
 
     expect(result.errors.some(e =>
-      e.severity === 'warning' &&
-      e.message.includes('before first segment')
+      (e.severity === 'warning' || e.severity === 'error') &&
+      e.message.includes('before first section header')
     )).toBe(true);
-    expect(result.lens?.sections[0].segments).toHaveLength(1);
+    expect(result.lens?.segments).toHaveLength(1);
   });
 
-  it('does not warn about blank lines between section header and first segment', () => {
+  it('does not warn about blank lines before first segment', () => {
     const content = `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
-
-### Page: Introduction
 
 #### Text
 content:: Actual segment content here.
@@ -1360,29 +998,6 @@ content:: Actual segment content here.
 
     const result = parseLens(content, 'Lenses/lens1.md');
 
-    // Filter to only "ignored" warnings from parseSegments (not from sections.ts parseFields)
-    const segmentIgnoredWarnings = result.errors.filter(e =>
-      e.message.includes('before first segment')
-    );
-    expect(segmentIgnoredWarnings).toHaveLength(0);
-  });
-
-  it('does not warn about field:: lines before first segment (they belong to section-level parsing)', () => {
-    const content = `---
-id: 550e8400-e29b-41d4-a716-446655440002
----
-
-### Article: Deep Dive
-source:: [[../articles/deep-dive.md|Article]]
-
-#### Article-excerpt
-from:: "The key insight is"
-to:: "understanding this concept."
-`;
-
-    const result = parseLens(content, 'Lenses/lens1.md');
-
-    // source:: is a section-level field, not free text — should NOT warn about it
     const segmentIgnoredWarnings = result.errors.filter(e =>
       e.message.includes('before first segment')
     );
@@ -1395,25 +1010,22 @@ to:: "understanding this concept."
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-### Page: Scenario
-
 #### Roleplay
 id:: a1b2c3d4-e5f6-7890-abcd-ef1234567890
 content:: You are meeting a tech CEO who is skeptical about AI safety regulations.
-ai-instructions:: You are a tech CEO who believes AI regulation is unnecessary. Be dismissive but not hostile. Challenge the student's arguments with business-focused counterpoints.
+ai-instructions:: You are a tech CEO who believes AI regulation is unnecessary. Be dismissive but not hostile.
 `;
 
       const result = parseLens(content, 'Lenses/lens1.md');
 
       expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
-      expect(result.lens?.sections[0].segments).toHaveLength(1);
-      const seg = result.lens?.sections[0].segments[0];
-      expect(seg?.type).toBe('roleplay');
-      if (seg?.type === 'roleplay') {
-        expect(seg.id).toBe('a1b2c3d4-e5f6-7890-abcd-ef1234567890');
-        expect(seg.content).toContain('tech CEO');
-        expect(seg.aiInstructions).toContain('dismissive but not hostile');
-      }
+      expect(result.lens?.segments).toHaveLength(1);
+
+      const rp = result.lens?.segments[0] as any;
+      expect(rp.type).toBe('roleplay');
+      expect(rp.id).toBe('a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+      expect(rp.content).toContain('tech CEO');
+      expect(rp.aiInstructions).toContain('dismissive');
     });
 
     it('parses roleplay segment with optional fields', () => {
@@ -1421,269 +1033,225 @@ ai-instructions:: You are a tech CEO who believes AI regulation is unnecessary. 
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-### Page: Scenario
-
 #### Roleplay
 id:: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-content:: Elevator pitch scenario.
-ai-instructions:: You are a venture capitalist.
-opening-message:: Good morning! I have 5 minutes before my next meeting. What's your pitch?
-assessment-instructions:: Evaluate whether the student clearly articulated the value proposition.
+content:: Scenario briefing.
+ai-instructions:: Character instructions.
+opening-message:: Hello! I hear you wanted to discuss AI safety?
+assessment-instructions:: Check if the student addresses safety concerns.
+optional:: true
+feedback:: true
 `;
 
       const result = parseLens(content, 'Lenses/lens1.md');
 
-      expect(result.errors.filter(e => e.severity === 'error')).toHaveLength(0);
-      const seg = result.lens?.sections[0].segments[0];
-      if (seg?.type === 'roleplay') {
-        expect(seg.openingMessage).toContain('5 minutes');
-        expect(seg.assessmentInstructions).toContain('value proposition');
-      }
+      const rp = result.lens?.segments[0] as any;
+      expect(rp.openingMessage).toContain('Hello!');
+      expect(rp.assessmentInstructions).toContain('safety concerns');
+      expect(rp.optional).toBe(true);
+      expect(rp.feedback).toBe(true);
     });
 
     it('reports error when roleplay segment is missing content:: field', () => {
       const content = `---
-id: 550e8400-e29b-41d4-a716-446655440002
+id: test-id
 ---
-
-### Page: Scenario
 
 #### Roleplay
 id:: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-ai-instructions:: You are a character.
+ai-instructions:: Some instructions.
 `;
 
       const result = parseLens(content, 'Lenses/lens1.md');
 
-      const errors = result.errors.filter(e => e.severity === 'error');
-      expect(errors.some(e => e.message.includes('content::'))).toBe(true);
+      expect(result.errors.some(e =>
+        e.message.includes('content::')
+      )).toBe(true);
     });
 
     it('reports error when roleplay segment is missing ai-instructions:: field', () => {
       const content = `---
-id: 550e8400-e29b-41d4-a716-446655440002
+id: test-id
 ---
-
-### Page: Scenario
 
 #### Roleplay
 id:: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-content:: You are in a meeting.
+content:: Scenario briefing.
 `;
 
       const result = parseLens(content, 'Lenses/lens1.md');
 
-      const errors = result.errors.filter(e => e.severity === 'error');
-      expect(errors.some(e => e.message.includes('ai-instructions::'))).toBe(true);
+      expect(result.errors.some(e =>
+        e.message.includes('ai-instructions::')
+      )).toBe(true);
     });
 
     it('reports error when roleplay segment is missing id:: field', () => {
       const content = `---
-id: 550e8400-e29b-41d4-a716-446655440002
+id: test-id
 ---
 
-### Page: Scenario
-
 #### Roleplay
-content:: You are in a meeting.
-ai-instructions:: You are a character.
+content:: Scenario briefing.
+ai-instructions:: Character instructions.
 `;
 
       const result = parseLens(content, 'Lenses/lens1.md');
 
-      const errors = result.errors.filter(e => e.severity === 'error');
-      expect(errors.some(e => e.message.includes('id::'))).toBe(true);
+      expect(result.errors.some(e =>
+        e.message.includes('id::')
+      )).toBe(true);
     });
   });
 
   it('parses tldr from frontmatter', () => {
     const content = `---
-id: 550e8400-e29b-41d4-a716-446655440002
-tldr: How cognitive biases affect our ability to evaluate AI risk
+id: test-id
+tldr: This is a brief summary of the lens content.
 ---
-
-### Page: Introduction
 
 #### Text
 content:: Some content.
 `;
+
     const result = parseLens(content, 'Lenses/lens1.md');
-    expect(result.lens?.tldr).toBe('How cognitive biases affect our ability to evaluate AI risk');
-    expect(result.errors).toHaveLength(0);
+
+    expect(result.lens?.tldr).toBe('This is a brief summary of the lens content.');
   });
 
   it('sets tldr to undefined when not present', () => {
     const content = `---
-id: 550e8400-e29b-41d4-a716-446655440002
+id: test-id
 ---
-
-### Page: Introduction
 
 #### Text
 content:: Some content.
 `;
+
     const result = parseLens(content, 'Lenses/lens1.md');
+
     expect(result.lens?.tldr).toBeUndefined();
   });
 
   it('emits error when tldr exceeds 80 words', () => {
     const longTldr = Array(81).fill('word').join(' ');
     const content = `---
-id: 550e8400-e29b-41d4-a716-446655440002
+id: test-id
 tldr: ${longTldr}
 ---
-
-### Page: Introduction
 
 #### Text
 content:: Some content.
 `;
+
     const result = parseLens(content, 'Lenses/lens1.md');
-    expect(result.errors).toContainEqual(
-      expect.objectContaining({
-        message: expect.stringContaining('tldr'),
-        severity: 'error',
-      })
-    );
+
+    expect(result.errors.some(e =>
+      e.message.includes('tldr exceeds 80 words')
+    )).toBe(true);
   });
 
   it('accepts tldr at exactly 80 words', () => {
     const exactTldr = Array(80).fill('word').join(' ');
     const content = `---
-id: 550e8400-e29b-41d4-a716-446655440002
+id: test-id
 tldr: ${exactTldr}
 ---
-
-### Page: Introduction
 
 #### Text
 content:: Some content.
 `;
-    const result = parseLens(content, 'Lenses/lens1.md');
-    expect(result.errors.filter(e => e.message.includes('tldr'))).toHaveLength(0);
-  });
-});
 
-describe('CriticMarkup integration with parseLens', () => {
+    const result = parseLens(content, 'Lenses/lens1.md');
+
+    const tldrErrors = result.errors.filter(e =>
+      e.message.includes('tldr exceeds')
+    );
+    expect(tldrErrors).toHaveLength(0);
+  });
+
   it('strips CriticMarkup from parsed content', () => {
     const content = `---
 id: test-id
 ---
 
-### Page: Introduction
-
 #### Text
-content:: This has {++added text++} and {--removed text--} in it.
+content:: This is {++added++} text with {--deleted--} and {>>comment<<}.
 `;
 
-    const result = parseLens(content, 'Lenses/test.md');
+    const result = parseLens(content, 'Lenses/lens1.md');
 
-    const textContent = result.lens?.sections[0].segments[0].content ?? '';
-    expect(textContent).not.toContain('{++');
-    expect(textContent).not.toContain('{--');
-    expect(textContent).toContain('removed text');
-    expect(textContent).not.toContain('added text');
+    const textSeg = result.lens?.segments[0] as any;
+    // Additions removed, deletions kept, comments removed
+    expect(textSeg.content).toBe('This is  text with deleted and .');
   });
 });
 
 describe('stripCriticMarkup', () => {
   it('removes comments {>>...<<}', () => {
-    expect(stripCriticMarkup('Hello {>>this is a comment<<} world')).toBe('Hello  world');
+    expect(stripCriticMarkup('text {>>comment<<} more')).toBe('text  more');
   });
-
   it('removes additions {++...++}', () => {
-    expect(stripCriticMarkup('Hello {++added text++} world')).toBe('Hello  world');
+    expect(stripCriticMarkup('text {++added++} more')).toBe('text  more');
   });
-
   it('keeps inner content for deletions {--...--}', () => {
-    expect(stripCriticMarkup('Hello {--deleted text--} world')).toBe('Hello deleted text world');
+    expect(stripCriticMarkup('text {--deleted--} more')).toBe('text deleted more');
   });
-
   it('keeps old text for substitutions {~~old~>new~~}', () => {
-    expect(stripCriticMarkup('Hello {~~old~>new~~} world')).toBe('Hello old world');
+    expect(stripCriticMarkup('text {~~old~>new~~} more')).toBe('text old more');
   });
-
   it('keeps inner content for highlights {==...==}', () => {
-    expect(stripCriticMarkup('Hello {==highlighted==} world')).toBe('Hello highlighted world');
+    expect(stripCriticMarkup('text {==highlight==} more')).toBe('text highlight more');
   });
-
   it('handles all patterns combined', () => {
-    const input = 'Keep {--this--} and {==this==} but remove {++added++} and {>>comment<<} and use {~~old~>new~~}';
-    const expected = 'Keep this and this but remove  and  and use old';
-    expect(stripCriticMarkup(input)).toBe(expected);
+    const input = 'a {>>c<<} {++d++} {--e--} {~~f~>g~~} {==h==}';
+    expect(stripCriticMarkup(input)).toBe('a   e f h');
   });
-
   it('handles multiline patterns', () => {
-    const input = 'Before {++line1\nline2++} after';
-    expect(stripCriticMarkup(input)).toBe('Before  after');
+    expect(stripCriticMarkup('{>>line1\nline2<<}')).toBe('');
   });
-
   it('passes through clean content unchanged', () => {
-    const input = 'No critic markup here at all.';
-    expect(stripCriticMarkup(input)).toBe(input);
+    expect(stripCriticMarkup('clean text')).toBe('clean text');
   });
-
   describe('with metadata annotations', () => {
     it('removes comment with metadata', () => {
-      expect(stripCriticMarkup(
-        '{>>{"author":"Luc","timestamp":1772447450754}@@ToDo: check this<<}'
-      )).toBe('');
+      expect(stripCriticMarkup('text {>>{@user 2024-01-01}@@comment<<} more')).toBe('text  more');
     });
-
     it('strips metadata from deletion, keeps inner content', () => {
-      expect(stripCriticMarkup(
-        '{--{"author":"Luc","timestamp":1772447531551}@@Make no mistake: --}'
-      )).toBe('Make no mistake: ');
+      expect(stripCriticMarkup('{--{@user 2024-01-01}@@deleted--}')).toBe('deleted');
     });
-
     it('removes addition with metadata', () => {
-      expect(stripCriticMarkup(
-        '{++{"author":"Luc","timestamp":1772447531551}@@new text++}'
-      )).toBe('');
+      expect(stripCriticMarkup('{++{@user 2024-01-01}@@added++}')).toBe('');
     });
-
     it('strips metadata from substitution, keeps old text', () => {
-      expect(stripCriticMarkup(
-        '{~~{"author":"Luc","timestamp":1772447531551}@@old text~>new text~~}'
-      )).toBe('old text');
+      expect(stripCriticMarkup('{~~{@user}@@old~>new~~}')).toBe('old');
     });
-
     it('strips metadata from highlight, keeps inner content', () => {
-      expect(stripCriticMarkup(
-        '{=={"author":"Luc","timestamp":1772447531551}@@important==}'
-      )).toBe('important');
+      expect(stripCriticMarkup('{=={@user}@@highlight==}')).toBe('highlight');
     });
   });
 });
 
 describe('stripAuthoringMarkup', () => {
   it('trims trailing whitespace left by inline markup removal', () => {
-    const input = '#### Article-excerpt  {>>comment<<}';
-    expect(stripAuthoringMarkup(input)).toBe('#### Article-excerpt');
+    expect(stripAuthoringMarkup('text {++added++}\n')).toBe('text\n');
   });
-
   it('trims trailing whitespace on each line independently', () => {
-    const input = 'line one  {>>x<<}\nline two  {++y++}';
-    expect(stripAuthoringMarkup(input)).toBe('line one\nline two');
+    expect(stripAuthoringMarkup('line1 {++a++}  \nline2 {++b++}  ')).toBe('line1\nline2');
   });
 });
 
 describe('stripObsidianComments', () => {
   it('removes inline comments', () => {
-    expect(stripObsidianComments('Hello %% inline comment %% world')).toBe('Hello  world');
+    expect(stripObsidianComments('text %%comment%% more')).toBe('text  more');
   });
-
   it('removes block (multiline) comments', () => {
-    const input = 'Before %%\nmultiline\ncomment\n%% after';
-    expect(stripObsidianComments(input)).toBe('Before  after');
+    expect(stripObsidianComments('text %%\nline1\nline2\n%% more')).toBe('text  more');
   });
-
   it('removes multiple comments in one string', () => {
-    expect(stripObsidianComments('A %% first %% B %% second %% C')).toBe('A  B  C');
+    expect(stripObsidianComments('%%a%% text %%b%%')).toBe(' text ');
   });
-
   it('passes through clean content unchanged', () => {
-    const input = 'No obsidian comments here.';
-    expect(stripObsidianComments(input)).toBe(input);
+    expect(stripObsidianComments('clean text')).toBe('clean text');
   });
 });

@@ -1,20 +1,19 @@
 ---
 id: 01f6df31-099f-48ed-adef-773cc4f947e4
 ---
-### Article: Existential Risk from AI
-source:: [[../articles/wikipedia-existential-risk-from-ai]]
 
 #### Text
 content::
 We continue with an overview of the main concepts regarding AI as a source of existential threat: what capabilities of this technology are considered first and foremost, and why the task of eliminating AI risks differs from similar tasks for other impressive technologies created by humanity.
 
-#### Article-excerpt
+#### Article
+source:: [[../articles/wikipedia-existential-risk-from-ai]]
 to:: "the "evasion of human control"."
 
 #### Text
 content::
 In your own words, what is instrumental convergence?
-#### Chat: Discussion on X-Risk
+#### Chat
 instructions::
 TLDR of what the user just read:
 AI x-risk is the hypothesis that AGI/superintelligence could cause human extinction

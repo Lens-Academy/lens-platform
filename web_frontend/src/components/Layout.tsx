@@ -32,11 +32,11 @@ export default function Layout({
   }, [shouldHideHeader]);
 
   return (
-    <div className="min-h-dvh bg-stone-50 text-slate-900 antialiased flex flex-col">
+    <div className="min-h-dvh bg-[var(--brand-bg)] text-[var(--brand-text)] antialiased flex flex-col">
       <nav
         className={`
           fixed top-0 left-0 right-0 z-50
-          backdrop-blur-md bg-stone-50/70 border-b border-slate-200/50
+          backdrop-blur-md bg-[var(--brand-bg)]/70 border-b border-[var(--brand-border)]/50
           transition-transform duration-300
           ${shouldHideHeader ? "-translate-y-full" : "translate-y-0"}
         `}
@@ -45,11 +45,17 @@ export default function Layout({
           <div className="flex items-center justify-between h-16">
             <a href="/" className="flex items-center gap-2">
               <img
-                src="/assets/Logo only.png"
+                src="/assets/Logo_magnifying_glass.png"
                 alt="Lens Academy"
                 className="h-8"
               />
-              <span className="text-xl font-semibold text-slate-800">
+              <span
+                className="text-xl font-medium"
+                style={{
+                  color: "var(--brand-text)",
+                  fontFamily: "var(--brand-font-display)",
+                }}
+              >
                 Lens Academy
               </span>
             </a>
@@ -58,7 +64,7 @@ export default function Layout({
               /* Mobile: hamburger menu button */
               <button
                 onClick={() => setMenuOpen(true)}
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600 hover:text-slate-900"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--brand-text-muted)] hover:text-[var(--brand-text)]"
                 aria-label="Open menu"
               >
                 <Menu className="w-6 h-6" />
@@ -68,7 +74,7 @@ export default function Layout({
               <div className="flex items-center gap-4">
                 <a
                   href="/course"
-                  className="text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors duration-200"
+                  className="text-[var(--brand-text-muted)] font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200"
                 >
                   Course
                 </a>
@@ -87,20 +93,20 @@ export default function Layout({
       </main>
 
       {!hideFooter && (
-        <footer className="border-t border-slate-200 py-6 mt-auto">
+        <footer className="border-t border-[var(--brand-border)] py-6 mt-auto">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-center gap-4 text-sm text-slate-500">
-              <a href="/privacy" className="hover:text-slate-700">
+            <div className="flex items-center justify-center gap-4 text-sm text-[var(--brand-text-muted)]">
+              <a href="/privacy" className="hover:text-[var(--brand-text)]">
                 Privacy Policy
               </a>
               <span>·</span>
-              <a href="/terms" className="hover:text-slate-700">
+              <a href="/terms" className="hover:text-[var(--brand-text)]">
                 Terms of Service
               </a>
               <span>·</span>
               <button
                 onClick={() => setShowCookieSettings(true)}
-                className="hover:text-slate-700"
+                className="hover:text-[var(--brand-text)]"
               >
                 Cookie Settings
               </button>

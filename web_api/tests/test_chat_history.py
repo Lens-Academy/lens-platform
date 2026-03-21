@@ -27,7 +27,7 @@ def mock_chat_history_cache():
                 content_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
                 sections=[
                     {
-                        "type": "page",
+                        "type": "lens",
                         "contentId": "00000000-0000-0000-0000-000000000002",
                         "title": "Discussion",
                         "segments": [

@@ -85,11 +85,11 @@ describe('validateSegmentFields', () => {
     });
   });
 
-  describe('article-excerpt segment', () => {
-    it('allows from, to, and optional fields', () => {
+  describe('article segment', () => {
+    it('allows source, from, to, and optional fields', () => {
       const warnings = validateSegmentFields(
-        'article-excerpt',
-        { from: 'Start', to: 'End', optional: 'true' },
+        'article',
+        { source: '[[../articles/test.md]]', from: 'Start', to: 'End', optional: 'true' },
         'test.md',
         10
       );
@@ -97,9 +97,9 @@ describe('validateSegmentFields', () => {
       expect(warnings).toHaveLength(0);
     });
 
-    it('does not warn about from/to in excerpt segment', () => {
+    it('does not warn about from/to in article segment', () => {
       const warnings = validateSegmentFields(
-        'article-excerpt',
+        'article',
         { from: 'Start', to: 'End' },
         'test.md',
         10
@@ -109,11 +109,11 @@ describe('validateSegmentFields', () => {
     });
   });
 
-  describe('video-excerpt segment', () => {
-    it('allows from, to, and optional fields', () => {
+  describe('video segment', () => {
+    it('allows source, from, to, and optional fields', () => {
       const warnings = validateSegmentFields(
-        'video-excerpt',
-        { from: '1:00', to: '5:00', optional: 'false' },
+        'video',
+        { source: '[[../video_transcripts/test.md]]', from: '1:00', to: '5:00', optional: 'false' },
         'test.md',
         10
       );

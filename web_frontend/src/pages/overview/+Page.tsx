@@ -52,8 +52,7 @@ function getNodeColor(node: GraphNode): string {
   if (node.type === "module")
     return node.orphan ? COLORS.orphan : COLORS.module;
   if (node.type === "lens") {
-    if (node.sectionType === "video" || node.sectionType === "lens-video")
-      return COLORS.lensVideo;
+    if (node.sectionType === "video") return COLORS.lensVideo;
     return COLORS.lensArticle;
   }
   return COLORS.lensArticle;

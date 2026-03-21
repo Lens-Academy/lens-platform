@@ -115,9 +115,9 @@ function DebugOverlay({
   const seg = segments[currentSegmentIndex] as ModuleSegment | undefined;
   const segLabel = (s: ModuleSegment) => {
     switch (s.type) {
-      case "article-excerpt":
+      case "article":
         return `from: ${(s.content ?? "").slice(0, 40)}…`;
-      case "video-excerpt":
+      case "video":
         return `${s.from}s–${s.to ?? "end"}s`;
       case "text":
         return (s.content ?? "").slice(0, 40) + "…";
@@ -374,21 +374,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
     // Get section title
     let sectionTitle: string | null = null;
-    switch (currentSection.type) {
-      case "lens-article":
-      case "lens-video":
-        sectionTitle = currentSection.meta?.title ?? null;
-        break;
-      case "page":
-      case "test":
-        sectionTitle = currentSection.meta?.title ?? null;
-        break;
-      case "article":
-      case "video":
-      case "chat":
-        sectionTitle = currentSection.meta?.title ?? null;
-        break;
-    }
+    sectionTitle = currentSection.meta?.title ?? null;
 
     if (sectionTitle) {
       document.title = `${sectionTitle} | ${module.title}`;
@@ -511,80 +497,34 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     if (!module) return [];
     return module.sections.map((section, index): Stage => {
       // Map section types to stage types
-      // v2 types: page, lens-video, lens-article, test
-      // v1 types: text, article, video, chat
+      const isOptional = section.optional === true;
+      const title = section.meta?.title || `Section ${index + 1}`;
+      const tldr = section.tldr;
+      const duration = computeSectionDuration(section) || null;
 
-      // Test sections get their own stage type (StageIcon handles "test")
+      // Test sections use lens stage type
       if (section.type === "test") {
-        const title = section.meta?.title || "Test";
         return {
-          type: "page",
+          type: "lens",
           source: "",
           from: null,
           to: null,
-          title,
-          tldr: section.tldr,
-          duration: computeSectionDuration(section) || null,
+          title: section.meta?.title || "Test",
+          tldr,
+          duration,
         } as unknown as Stage;
       }
 
-      let stageType: "article" | "video" | "chat" | "page";
-      if (section.type === "video" || section.type === "lens-video") {
-        stageType = "video";
-      } else if (section.type === "page") {
-        stageType = "page";
-      } else if (
-        section.type === "article" ||
-        section.type === "lens-article" ||
-        section.type === "text"
-      ) {
-        stageType = "article";
-      } else {
-        stageType = "chat";
-      }
-
-      const isOptional = "optional" in section && section.optional === true;
-      const title =
-        section.type === "text"
-          ? `Section ${index + 1}`
-          : section.type === "page"
-            ? section.meta?.title || `Page ${index + 1}`
-            : section.meta?.title ||
-              `${section.type || "Section"} ${index + 1}`;
-      const tldr =
-        "tldr" in section ? (section.tldr as string | undefined) : undefined;
-      const duration = computeSectionDuration(section) || null;
-
-      if (stageType === "page") {
-        return {
-          type: "page",
-          source: "",
-          from: null,
-          to: null,
-          optional: isOptional,
-          title,
-          tldr,
-          duration,
-        };
-      } else if (stageType === "article") {
-        return {
-          type: "article",
-          source: "",
-          from: null,
-          to: null,
-          optional: isOptional,
-          title,
-          tldr,
-          duration,
-        };
-      } else if (stageType === "video") {
-        // Get videoId from video or lens-video sections
+      // Use displayType for stage type derivation
+      const dt = section.displayType;
+      if (dt === "lens-video" || dt === "lens-mixed") {
+        const firstVideo = section.segments?.find(
+          (s) => s.type === "video",
+        );
         const videoId =
-          section.type === "video"
-            ? section.videoId
-            : section.type === "lens-video"
-              ? section.videoId
-              : "";
+          firstVideo && "videoId" in firstVideo
+            ? (firstVideo.videoId as string) ?? ""
+            : "";
         return {
           type: "video",
           videoId,
@@ -595,12 +535,24 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           tldr,
           duration,
         };
+      } else if (dt === "lens-article") {
+        return {
+          type: "article",
+          source: "",
+          from: null,
+          to: null,
+          optional: isOptional,
+          title,
+          tldr,
+          duration,
+        };
       } else {
         return {
-          type: "chat",
-          instructions: "",
-          hidePreviousContentFromUser: false,
-          hidePreviousContentFromTutor: false,
+          type: "lens",
+          source: "",
+          from: null,
+          to: null,
+          optional: isOptional,
           title,
           tldr,
           duration,
@@ -613,37 +565,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const stagesForDrawer: StageInfo[] = useMemo(() => {
     if (!module) return [];
     return module.sections.map((section, index) => {
-      // Map section types to drawer display types
-      // v2 types get their own display, v1 types map as before
-      let displayType: StageInfo["type"];
-      if (section.type === "lens-video") {
-        displayType = "lens-video";
-      } else if (section.type === "lens-article") {
-        displayType = "lens-article";
-      } else if (section.type === "page") {
-        displayType = "page";
-      } else if (section.type === "test") {
-        displayType = "test";
-      } else if (section.type === "text") {
-        displayType = "article";
-      } else {
-        displayType = section.type;
-      }
-
       const dur = computeSectionDuration(section);
       return {
-        type: displayType,
-        title:
-          section.type === "text"
-            ? `Section ${index + 1}`
-            : section.type === "page"
-              ? section.meta?.title || `Page ${index + 1}`
-              : section.meta?.title ||
-                `${section.type || "Section"} ${index + 1}`,
+        type: section.type as StageInfo["type"],
+        displayType: section.displayType,
+        title: section.meta?.title || `Section ${index + 1}`,
         duration: dur || null,
-        optional: "optional" in section && section.optional === true,
-        tldr:
-          "tldr" in section ? (section.tldr as string | undefined) : undefined,
+        optional: section.optional === true,
+        tldr: section.tldr,
       };
     });
   }, [module]);
@@ -721,9 +650,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       )
       .filter(({ section }) => {
         const sectionType = section.type as SectionChoice["type"];
-        return ["lens-video", "lens-article", "page", "test"].includes(
-          sectionType,
-        );
+        return ["lens", "test"].includes(sectionType);
       })
       .map(({ section, index }) => ({
         index,
@@ -778,15 +705,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Activity tracking for current section
   const currentSection = module?.sections[currentSectionIndex];
   const isArticleSection =
-    currentSection?.type === "lens-article" ||
-    currentSection?.type === "article";
+    currentSection?.type === "lens" &&
+    currentSection.segments?.some((s) => s.type === "article");
   const sidebarAllowed =
-    currentSection != null &&
-    (currentSection.type === "lens-article" ||
-      currentSection.type === "article" ||
-      currentSection.type === "lens-video" ||
-      currentSection.type === "video" ||
-      currentSection.type === "page");
+    currentSection != null && currentSection.type === "lens";
 
   // --- Debug overlay: track current visible segment ---
   const isDebugMode =
@@ -885,7 +807,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         : undefined;
     const firstExcerptIdx =
       segments?.findIndex(
-        (s) => s.type === "article-excerpt" || s.type === "video-excerpt",
+        (s) => s.type === "article" || s.type === "video",
       ) ?? -1;
 
     let rafId = 0;
@@ -1201,7 +1123,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       // Only v2 section types have optional field directly
       if (!("optional" in section)) continue;
       const sectionType = section.type as SectionChoice["type"];
-      if (!["lens-video", "lens-article", "page", "test"].includes(sectionType))
+      if (!["lens", "test"].includes(sectionType))
         continue;
 
       choices.push({
@@ -1232,7 +1154,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       const section = sections[i];
       if (!("optional" in section)) continue;
       const sectionType = section.type as SectionChoice["type"];
-      if (!["lens-video", "lens-article", "page", "test"].includes(sectionType))
+      if (!["lens", "test"].includes(sectionType))
         continue;
       choices.push({
         index: i,
@@ -1258,7 +1180,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     const section = sections[i];
     if (!("optional" in section)) return null;
     const sectionType = section.type as SectionChoice["type"];
-    if (!["lens-video", "lens-article", "page", "test"].includes(sectionType))
+    if (!["lens", "test"].includes(sectionType))
       return null;
     return {
       index: i,
@@ -1479,13 +1401,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       }
 
       // Determine if auth prompt should show:
-      // Skip if completing a "page" section as the very first completion
-      // (the welcome/intro page shouldn't trigger auth prompt)
+      // Skip if completing the first lens section as the very first completion
+      // (the welcome/intro section shouldn't trigger auth prompt)
       const completionCount = completedSections.size; // before adding new one
       const currentSec = module?.sections[sectionIndex];
-      const isPageType = currentSec?.type === "page";
+      const isFirstLens = sectionIndex === 0 && currentSec?.type === "lens";
       const shouldPromptAuth =
-        (completionCount >= 1 || !isPageType) &&
+        (completionCount >= 1 || !isFirstLens) &&
         !isAuthenticated &&
         !hasPromptedAuth;
 
@@ -1540,12 +1462,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           <AuthoredText key={`text-${keyPrefix}`} content={segment.content} />,
         );
 
-      case "article-excerpt": {
-        // Collect footnote defs from ALL article-excerpt segments in this section
+      case "article": {
+        // Collect footnote defs from ALL article segments in this section
         // so cross-excerpt references (e.g. ref in excerpt 1, def in excerpt 2) resolve
         const sectionFootnoteDefs = new Map<string, string>();
         for (const seg of section.segments) {
-          if (seg.type === "article-excerpt") {
+          if (seg.type === "article") {
             for (const field of [
               seg.collapsed_before,
               seg.content,
@@ -1561,40 +1483,33 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         }
 
         // Content is now bundled directly in the segment
-        // Get meta from article or lens-article sections
-        const articleMeta =
-          section.type === "article" || section.type === "lens-article"
-            ? section.meta
-            : null;
+        // Metadata is on the segment itself
         const excerptData: ArticleData = {
           content: segment.content,
-          title: articleMeta?.title ?? null,
-          author: articleMeta?.author ?? null,
-          sourceUrl: articleMeta?.sourceUrl ?? null,
-          published: articleMeta?.published ?? null,
+          title: segment.title ?? null,
+          author: segment.author ?? null,
+          sourceUrl: segment.sourceUrl ?? null,
+          published: segment.published ?? null,
           isExcerpt: true,
           collapsed_before: segment.collapsed_before,
           collapsed_after: segment.collapsed_after,
         };
 
-        // Count how many article-excerpt segments came before this one
-        const excerptsBefore =
-          section.type === "article" || section.type === "lens-article"
-            ? section.segments
-                .slice(0, segmentIndex)
-                .filter((s) => s.type === "article-excerpt").length
-            : 0;
+        // Count how many article segments came before this one
+        const excerptsBefore = section.segments
+          .slice(0, segmentIndex)
+          .filter((s) => s.type === "article").length;
         const isFirstExcerpt = excerptsBefore === 0;
 
-        // Check if previous segment is also an article-excerpt (consecutive)
+        // Check if previous segment is also an article (consecutive)
         const prevSegment = section.segments[segmentIndex - 1];
-        const isPrevAlsoExcerpt = prevSegment?.type === "article-excerpt";
+        const isPrevAlsoExcerpt = prevSegment?.type === "article";
 
         // Compute footnote counter offset from preceding excerpts
         let footnoteCounterStart = 0;
         if (sectionFootnoteDefs.size > 0) {
           for (const seg of section.segments.slice(0, segmentIndex)) {
-            if (seg.type === "article-excerpt") {
+            if (seg.type === "article") {
               for (const field of [
                 seg.collapsed_before,
                 seg.content,
@@ -1623,27 +1538,22 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         );
       }
 
-      case "video-excerpt": {
-        // Video excerpts can be in video or lens-video sections
-        if (section.type !== "video" && section.type !== "lens-video")
-          return null;
-
-        // Count video excerpts to number them (Part 1, Part 2, etc.)
-        // All video-excerpts in a video/lens-video section share the same videoId.
+      case "video": {
+        // Count video segments to number them (Part 1, Part 2, etc.)
         const videoExcerptsBefore = section.segments
           .slice(0, segmentIndex)
-          .filter((s) => s.type === "video-excerpt").length;
+          .filter((s) => s.type === "video").length;
         const excerptNumber = videoExcerptsBefore + 1; // 1-indexed
 
         return wrapWithSentinel(
           <VideoEmbed
             key={`video-${keyPrefix}`}
-            videoId={section.videoId}
+            videoId={segment.videoId ?? null}
             start={segment.from}
             end={segment.to}
             excerptNumber={excerptNumber}
-            title={section.meta.title}
-            channel={section.meta.channel}
+            title={segment.title ?? null}
+            channel={segment.channel ?? null}
             onTheaterChange={handleTheaterChange}
           />,
         );
@@ -1766,7 +1676,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Loading state - skeleton layout mirrors actual content structure
   if (loadingModule) {
     return (
-      <div className="min-h-dvh bg-stone-50 p-4 sm:p-6">
+      <div className="min-h-dvh bg-[var(--brand-bg)] p-4 sm:p-6">
         {/* Module header skeleton */}
         <div className="mb-6">
           <Skeleton className="h-8 w-48 mb-2" />
@@ -1788,10 +1698,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Error states
   if (loadError || !module) {
     return (
-      <div className="min-h-dvh flex items-center justify-center bg-stone-50">
+      <div className="min-h-dvh flex items-center justify-center bg-[var(--brand-bg)]">
         <div className="text-center">
           <p className="text-red-600 mb-4">{loadError ?? "Module not found"}</p>
-          <a href="/" className="text-emerald-600 hover:underline">
+          <a href="/" className="text-lens-gold-600 hover:underline">
             Go home
           </a>
         </div>
@@ -1802,10 +1712,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Module loaded but has flattening error
   if (module.error) {
     return (
-      <div className="min-h-dvh bg-stone-50">
-        <div className="sticky top-0 z-50 bg-white border-b border-stone-200">
+      <div className="min-h-dvh bg-[var(--brand-bg)]">
+        <div className="sticky top-0 z-50 bg-white border-b border-[var(--brand-border)]">
           <div className="max-w-3xl mx-auto px-4 py-4">
-            <h1 className="text-xl font-semibold text-stone-900">
+            <h1 className="text-xl font-semibold text-[var(--brand-text)]">
               {module.title}
             </h1>
           </div>
@@ -1883,291 +1793,107 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                     data-section-index={sectionIndex}
                     className="py-8"
                   >
-                    {section.type === "text" ? (
+                    {section.type === "lens" ? (
+                      // Lens section: may contain text, article, video, chat segments
                       <>
                         <SectionDivider
-                          type="article"
-                          title={`Section ${sectionIndex + 1}`}
-                          duration={sectionDur}
-                        />
-                        <AuthoredText content={section.content} />
-                      </>
-                    ) : section.type === "page" ? (
-                      // v2 Page section: text/chat segments only, no embedded content
-                      <>
-                        <SectionDivider
-                          type="page"
+                          type="lens"
+                          displayType={section.displayType}
+                          optional={section.optional}
                           title={
-                            section.meta?.title || `Page ${sectionIndex + 1}`
+                            section.meta?.title || `Section ${sectionIndex + 1}`
                           }
                           duration={sectionDur}
                         />
                         {(() => {
-                          const segs = section.segments ?? [];
-                          const firstChatIdx = segs.findIndex(
-                            (s) => s.type === "chat",
-                          );
-                          if (firstChatIdx === -1) {
-                            return (
-                              <>
-                                {segs.map((seg, i) =>
-                                  renderSegment(seg, section, sectionIndex, i),
-                                )}
-                              </>
+                          const segments = section.segments ?? [];
+                          const hasArticle =
+                            section.displayType === "lens-article" ||
+                            section.displayType === "lens-mixed";
+
+                          if (hasArticle) {
+                            // Article lens: wrap article segments in ArticleExcerptGroup for TOC
+                            const firstExcerptIdx = segments.findIndex(
+                              (s) => s.type === "article",
                             );
-                          }
-                          const beforeChat = segs.slice(0, firstChatIdx);
-                          const fromChat = segs.slice(firstChatIdx);
-                          return (
-                            <>
-                              {beforeChat.map((seg, i) =>
-                                renderSegment(seg, section, sectionIndex, i),
-                              )}
-                              {fromChat.map((seg, i) =>
+                            const lastExcerptIdx = segments.reduceRight(
+                              (found, s, i) =>
+                                found === -1 && s.type === "article"
+                                  ? i
+                                  : found,
+                              -1,
+                            );
+
+                            if (firstExcerptIdx === -1) {
+                              return segments.map((segment, segmentIndex) =>
                                 renderSegment(
-                                  seg,
+                                  segment,
                                   section,
                                   sectionIndex,
-                                  firstChatIdx + i,
+                                  segmentIndex,
                                 ),
-                              )}
-                            </>
+                              );
+                            }
+
+                            const preExcerpt = segments.slice(
+                              0,
+                              firstExcerptIdx,
+                            );
+                            const excerpts = segments.slice(
+                              firstExcerptIdx,
+                              lastExcerptIdx + 1,
+                            );
+                            const postExcerpt = segments.slice(
+                              lastExcerptIdx + 1,
+                            );
+
+                            return (
+                              <ArticleSectionWrapper
+                                tocPortalContainer={null}
+                                hideToc={false}
+                              >
+                                <div>
+                                  {preExcerpt.map((segment, i) =>
+                                    renderSegment(
+                                      segment,
+                                      section,
+                                      sectionIndex,
+                                      i,
+                                    ),
+                                  )}
+                                  <ArticleExcerptGroup section={section}>
+                                    {excerpts.map((segment, i) =>
+                                      renderSegment(
+                                        segment,
+                                        section,
+                                        sectionIndex,
+                                        firstExcerptIdx + i,
+                                      ),
+                                    )}
+                                  </ArticleExcerptGroup>
+                                  {postExcerpt.map((segment, i) =>
+                                    renderSegment(
+                                      segment,
+                                      section,
+                                      sectionIndex,
+                                      lastExcerptIdx + 1 + i,
+                                    ),
+                                  )}
+                                </div>
+                              </ArticleSectionWrapper>
+                            );
+                          }
+
+                          // Non-article lens (video, text/chat only): render segments directly
+                          return segments.map((segment, segmentIndex) =>
+                            renderSegment(
+                              segment,
+                              section,
+                              sectionIndex,
+                              segmentIndex,
+                            ),
                           );
                         })()}
-                      </>
-                    ) : section.type === "chat" ? (
-                      <>
-                        <SectionDivider
-                          type="chat"
-                          title={section.meta?.title}
-                          duration={sectionDur}
-                        />
-                        <ChatInlineShell
-                          messages={messages}
-                          pendingMessage={pendingMessage}
-                          streamingContent={streamingContent}
-                          isLoading={isLoading}
-                          sendSource={sendSource}
-                          onSendMessage={(content) =>
-                            handleSendMessage(content, sectionIndex, 0)
-                          }
-                          onRetryMessage={handleRetryMessage}
-                          pillId="inline"
-                          sidebarAllowedRef={sidebarAllowedRef}
-                          sidebarAllowedListeners={sidebarAllowedListeners}
-                          sidebarRef={sidebarRef}
-                          hasActiveInput={
-                            activeSurface.type === "inline" &&
-                            activeSurface.sectionIndex === sectionIndex &&
-                            activeSurface.segmentIndex === 0
-                          }
-                          shellRef={(el) =>
-                            registerInlineRef(sectionIndex, 0, el)
-                          }
-                        />
-                      </>
-                    ) : section.type === "lens-video" ? (
-                      // v2 Lens Video section: video content with optional text/chat segments
-                      <>
-                        <SectionDivider
-                          type="lens-video"
-                          optional={section.optional}
-                          title={section.meta?.title}
-                          duration={sectionDur}
-                        />
-                        {/* Render segments (text, video-excerpt, chat) */}
-                        {section.segments?.map((segment, segmentIndex) =>
-                          renderSegment(
-                            segment,
-                            section,
-                            sectionIndex,
-                            segmentIndex,
-                          ),
-                        )}
-                      </>
-                    ) : section.type === "lens-article" ? (
-                      // v2 Lens Article section: article content with optional text/chat segments
-                      <>
-                        <SectionDivider
-                          type="lens-article"
-                          optional={section.optional}
-                          title={section.meta?.title}
-                          duration={sectionDur}
-                        />
-                        <ArticleSectionWrapper
-                          tocPortalContainer={null}
-                          hideToc={false}
-                        >
-                          {(() => {
-                            // Split segments into pre-excerpt, excerpt, post-excerpt groups
-                            const segments = section.segments ?? [];
-                            const firstExcerptIdx = segments.findIndex(
-                              (s) => s.type === "article-excerpt",
-                            );
-                            const lastExcerptIdx = segments.reduceRight(
-                              (found, s, i) =>
-                                found === -1 && s.type === "article-excerpt"
-                                  ? i
-                                  : found,
-                              -1,
-                            );
-
-                            // If no excerpts, render all segments then button
-                            if (firstExcerptIdx === -1) {
-                              return (
-                                <>
-                                  {segments.map((segment, segmentIndex) =>
-                                    renderSegment(
-                                      segment,
-                                      section,
-                                      sectionIndex,
-                                      segmentIndex,
-                                    ),
-                                  )}
-                                </>
-                              );
-                            }
-
-                            const preExcerpt = segments.slice(
-                              0,
-                              firstExcerptIdx,
-                            );
-                            const excerpts = segments.slice(
-                              firstExcerptIdx,
-                              lastExcerptIdx + 1,
-                            );
-                            const postExcerpt = segments.slice(
-                              lastExcerptIdx + 1,
-                            );
-                            return (
-                              <div>
-                                {/* Pre-excerpt content (intro, setup) */}
-                                {preExcerpt.map((segment, i) =>
-                                  renderSegment(
-                                    segment,
-                                    section,
-                                    sectionIndex,
-                                    i,
-                                  ),
-                                )}
-
-                                {/* Excerpt group with sticky TOC */}
-                                <ArticleExcerptGroup section={section}>
-                                  {excerpts.map((segment, i) =>
-                                    renderSegment(
-                                      segment,
-                                      section,
-                                      sectionIndex,
-                                      firstExcerptIdx + i,
-                                    ),
-                                  )}
-                                </ArticleExcerptGroup>
-
-                                {/* Post-excerpt content (reflection, chat) */}
-                                {postExcerpt.map((segment, i) =>
-                                  renderSegment(
-                                    segment,
-                                    section,
-                                    sectionIndex,
-                                    lastExcerptIdx + 1 + i,
-                                  ),
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </ArticleSectionWrapper>
-                      </>
-                    ) : section.type === "article" ? (
-                      // v1 Article section
-                      <>
-                        <SectionDivider
-                          type="article"
-                          optional={section.optional}
-                          title={section.meta?.title}
-                          duration={sectionDur}
-                        />
-                        <ArticleSectionWrapper
-                          tocPortalContainer={null}
-                          hideToc={false}
-                        >
-                          {(() => {
-                            // Split segments into pre-excerpt, excerpt, post-excerpt groups
-                            const segments = section.segments ?? [];
-                            const firstExcerptIdx = segments.findIndex(
-                              (s) => s.type === "article-excerpt",
-                            );
-                            const lastExcerptIdx = segments.reduceRight(
-                              (found, s, i) =>
-                                found === -1 && s.type === "article-excerpt"
-                                  ? i
-                                  : found,
-                              -1,
-                            );
-
-                            // If no excerpts, render all segments then button
-                            if (firstExcerptIdx === -1) {
-                              return (
-                                <>
-                                  {segments.map((segment, segmentIndex) =>
-                                    renderSegment(
-                                      segment,
-                                      section,
-                                      sectionIndex,
-                                      segmentIndex,
-                                    ),
-                                  )}
-                                </>
-                              );
-                            }
-
-                            const preExcerpt = segments.slice(
-                              0,
-                              firstExcerptIdx,
-                            );
-                            const excerpts = segments.slice(
-                              firstExcerptIdx,
-                              lastExcerptIdx + 1,
-                            );
-                            const postExcerpt = segments.slice(
-                              lastExcerptIdx + 1,
-                            );
-                            return (
-                              <div>
-                                {/* Pre-excerpt content (intro, setup) */}
-                                {preExcerpt.map((segment, i) =>
-                                  renderSegment(
-                                    segment,
-                                    section,
-                                    sectionIndex,
-                                    i,
-                                  ),
-                                )}
-
-                                {/* Excerpt group with sticky TOC */}
-                                <ArticleExcerptGroup section={section}>
-                                  {excerpts.map((segment, i) =>
-                                    renderSegment(
-                                      segment,
-                                      section,
-                                      sectionIndex,
-                                      firstExcerptIdx + i,
-                                    ),
-                                  )}
-                                </ArticleExcerptGroup>
-
-                                {/* Post-excerpt content (reflection, chat) */}
-                                {postExcerpt.map((segment, i) =>
-                                  renderSegment(
-                                    segment,
-                                    section,
-                                    sectionIndex,
-                                    lastExcerptIdx + 1 + i,
-                                  ),
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </ArticleSectionWrapper>
                       </>
                     ) : section.type === "test" ? (
                       // v2 Test section: grouped assessment questions
@@ -2249,7 +1975,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                                             handleMarkComplete(sectionIndex),
                                           );
                                       }}
-                                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 font-medium"
+                                      className="flex items-center gap-2 px-4 py-2 bg-lens-gold-500 text-white rounded-lg hover:bg-lens-gold-600 transition-all active:scale-95 font-medium"
                                     >
                                       Continue
                                       <svg
@@ -2307,15 +2033,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         contentId={section.contentId ?? undefined}
                         contentType="lens"
                         contentTitle={
-                          section.type === "text"
-                            ? `Section ${sectionIndex + 1}`
-                            : section.type === "page"
-                              ? section.meta?.title ||
-                                `Page ${sectionIndex + 1}`
-                              : "meta" in section
-                                ? section.meta?.title ||
-                                  `${section.type || "Section"} ${sectionIndex + 1}`
-                                : `${section.type || "Section"} ${sectionIndex + 1}`
+                          section.meta?.title ||
+                          `Section ${sectionIndex + 1}`
                         }
                         moduleSlug={moduleId}
                         buttonText={getCompletionButtonText(

@@ -2,17 +2,13 @@
 
 import { useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import type {
-  ArticleSection,
-  LensArticleSection,
-  ArticleExcerptSegment,
-} from "@/types/module";
+import type { LensSection, ArticleSegment } from "@/types/module";
 import { extractAllHeadings } from "@/utils/extractHeadings";
 import ArticleTOC from "./ArticleTOC";
 import { useArticleSectionContext } from "./ArticleSectionContext";
 
 type ArticleExcerptGroupProps = {
-  section: ArticleSection | LensArticleSection;
+  section: LensSection;
   children: React.ReactNode;
 };
 
@@ -30,10 +26,15 @@ export default function ArticleExcerptGroup({
   const context = useArticleSectionContext();
   const lastRegisteredRef = useRef<string | null>(null);
 
-  // Extract headings from all article-excerpt segments with shared counter
+  // Get metadata from the first article segment
+  const firstArticle = section.segments.find(
+    (s): s is ArticleSegment => s.type === "article",
+  );
+
+  // Extract headings from all article segments with shared counter
   const allHeadings = useMemo(() => {
     const excerptContents = section.segments
-      .filter((s): s is ArticleExcerptSegment => s.type === "article-excerpt")
+      .filter((s): s is ArticleSegment => s.type === "article")
       .map((s) => s.content);
     return extractAllHeadings(excerptContents);
   }, [section.segments]);
@@ -51,8 +52,8 @@ export default function ArticleExcerptGroup({
 
   const tocElement = (
     <ArticleTOC
-      title={section.meta.title}
-      author={section.meta.author}
+      title={firstArticle?.title ?? section.meta?.title ?? undefined}
+      author={firstArticle?.author ?? null}
       headings={allHeadings}
       registerTocItem={context?.registerTocItem ?? (() => {})}
       onHeadingClick={context?.onHeadingClick ?? (() => {})}

@@ -189,7 +189,7 @@ export function LandingNav() {
             className="border-t pt-6"
             style={{ borderColor: "var(--landing-border)" }}
           >
-            <UserMenu signInRedirect="/course" />
+            <UserMenu signInRedirect="/course" inline />
           </div>
         </nav>
       </div>

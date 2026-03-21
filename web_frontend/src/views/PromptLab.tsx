@@ -253,7 +253,7 @@ export default function PromptLab() {
     return (
       <div className="py-4">
         <div className="mb-4">
-          <h1 className="text-xl font-bold text-slate-900">Prompt Lab</h1>
+          <h1 className="text-xl font-bold text-[var(--brand-text)]">Prompt Lab</h1>
           <p className="text-sm text-slate-500 mt-1">
             Test system prompt variations against saved conversation fixtures.
           </p>

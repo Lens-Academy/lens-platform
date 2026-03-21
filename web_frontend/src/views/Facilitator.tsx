@@ -322,7 +322,7 @@ export default function Facilitator() {
         <p className="mb-4">Please sign in to access the facilitator panel.</p>
         <button
           onClick={login}
-          className="bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors"
+          className="bg-lens-gold-500 text-white px-4 py-2 rounded-lg hover:bg-lens-gold-600 transition-colors"
         >
           Sign in with Discord
         </button>
@@ -354,10 +354,10 @@ export default function Facilitator() {
       {/* Header + Group Tabs */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2.5">
-          <h1 className="text-lg font-bold text-slate-900">
+          <h1 className="text-lg font-bold text-[var(--brand-text)]">
             Facilitator Panel
           </h1>
-          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 uppercase tracking-wide">
+          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-lens-gold-100 text-lens-gold-700 uppercase tracking-wide">
             {isAdmin ? "Admin" : "Facilitator"}
           </span>
           {groups.length > 0 && (
@@ -368,8 +368,8 @@ export default function Facilitator() {
                   onClick={() => setSelectedGroupId(g.group_id)}
                   className={`px-3 py-1 text-sm rounded-lg whitespace-nowrap transition-colors ${
                     selectedGroupId === g.group_id
-                      ? "bg-slate-900 text-white font-medium"
-                      : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                      ? "bg-lens-gold-500 text-white font-medium"
+                      : "bg-white text-[var(--brand-text-muted)] hover:bg-lens-gold-50 border border-[var(--brand-border)]"
                   }`}
                 >
                   {g.group_name}
