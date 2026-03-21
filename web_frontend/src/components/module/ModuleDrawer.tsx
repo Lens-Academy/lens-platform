@@ -130,7 +130,7 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
           className={
             isMobile
               ? // Mobile: slide from left
-                `fixed left-0 z-[35] w-[90%] transition-transform duration-300 ease-in-out ${
+                `fixed left-0 z-[35] w-full transition-transform duration-300 ease-in-out ${
                   isOpen
                     ? "translate-x-0 shadow-[8px_0_30px_-5px_rgba(0,0,0,0.2)]"
                     : "-translate-x-full"
