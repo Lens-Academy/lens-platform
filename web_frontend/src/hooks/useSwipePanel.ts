@@ -166,39 +166,46 @@ export function useSwipePanel({
       const backdrop = backdropRef.current;
       if (!panel || !backdrop) return;
 
-      // Compute velocity
+      // Compute signed velocity (positive = rightward, negative = leftward)
       const tracker = velocityTracker.current;
-      let velocity = 0;
+      let signedVelocity = 0;
       if (tracker.length >= 2) {
         const last = tracker[tracker.length - 1];
         const prev = tracker[tracker.length - 2];
         const dt = last.t - prev.t;
-        if (dt > 0) velocity = Math.abs(last.x - prev.x) / dt;
+        if (dt > 0) signedVelocity = (last.x - prev.x) / dt;
       }
 
       const deltaX =
         (tracker[tracker.length - 1]?.x ?? touchStartX.current) -
         touchStartX.current;
-      const absDelta = Math.abs(deltaX);
-      const shouldComplete =
-        absDelta > DISTANCE_THRESHOLD || velocity > VELOCITY_THRESHOLD;
+
+      // Fast flick: velocity direction determines outcome (handles reversals).
+      // Slow release: net displacement with distance threshold determines it.
+      const fastFlick = Math.abs(signedVelocity) > VELOCITY_THRESHOLD;
 
       let willOpen: boolean;
       if (isLeft) {
         if (isOpenRef.current) {
-          // Was open — complete close if swiped left enough
-          willOpen = !(shouldComplete && deltaX < 0);
+          const wantsClose = fastFlick
+            ? signedVelocity < 0
+            : deltaX < -DISTANCE_THRESHOLD;
+          willOpen = !wantsClose;
         } else {
-          // Was closed — complete open if swiped right enough
-          willOpen = shouldComplete && deltaX > 0;
+          willOpen = fastFlick
+            ? signedVelocity > 0
+            : deltaX > DISTANCE_THRESHOLD;
         }
       } else {
         if (isOpenRef.current) {
-          // Was open — complete close if swiped right enough
-          willOpen = !(shouldComplete && deltaX > 0);
+          const wantsClose = fastFlick
+            ? signedVelocity > 0
+            : deltaX > DISTANCE_THRESHOLD;
+          willOpen = !wantsClose;
         } else {
-          // Was closed — complete open if swiped left enough
-          willOpen = shouldComplete && deltaX < 0;
+          willOpen = fastFlick
+            ? signedVelocity < 0
+            : deltaX < -DISTANCE_THRESHOLD;
         }
       }
 
