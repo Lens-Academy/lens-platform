@@ -238,3 +238,22 @@ async def claim_progress_records(
     )
     # No explicit commit - let the caller's transaction context handle it
     return result.rowcount
+
+
+async def get_completed_content_ids(
+    conn: AsyncConnection,
+    user_id: int,
+) -> set[str]:
+    """Get all content IDs the user has completed (across all modules).
+
+    Returns set of stringified UUIDs for easy comparison with section contentId fields.
+    """
+    result = await conn.execute(
+        select(user_content_progress.c.content_id).where(
+            and_(
+                user_content_progress.c.user_id == user_id,
+                user_content_progress.c.completed_at.isnot(None),
+            )
+        )
+    )
+    return {str(row.content_id) for row in result.fetchall()}
