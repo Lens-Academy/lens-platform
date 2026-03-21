@@ -13,7 +13,7 @@ from pathlib import Path
 from uuid import UUID
 
 import sentry_sdk
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -74,6 +74,7 @@ async def event_generator(
     section_index: int,
     segment_index: int,
     user_message: str,
+    app=None,
 ):
     """Generate SSE events from chat interaction."""
     # Get or create chat session
@@ -263,11 +264,42 @@ async def event_generator(
         instructions=instructions,
     )
 
+    # Build course overview for system prompt
+    from core.modules.prompts import build_course_overview
+    from core.modules.course_loader import load_course
+    from core.content import get_cache
+
+    course_overview = None
+    try:
+        cache = get_cache()
+        if cache.courses:
+            course_slug = next(iter(cache.courses))
+            course = load_course(course_slug)
+
+            # Get user's completed content IDs
+            completed_ids = set()
+            if user_id:
+                from core.modules.progress import get_completed_content_ids
+
+                async with get_connection() as conn:
+                    completed_ids = await get_completed_content_ids(conn, user_id)
+
+            course_overview = build_course_overview(
+                course, module.slug, section_index, completed_ids
+            )
+    except Exception as e:
+        logger.warning("Failed to build course overview: %s", e)
+
+    # Get MCP manager from app state
+    mcp_manager = getattr(app.state, "mcp_manager", None) if app else None
+
     # Stream response
     assistant_content = ""
     try:
         async for chunk in send_module_message(
-            llm_messages, stage, None, section_context
+            llm_messages, stage, None, section_context,
+            mcp_manager=mcp_manager,
+            course_overview=course_overview,
         ):
             if chunk.get("type") == "text":
                 assistant_content += chunk.get("content", "")
@@ -292,7 +324,8 @@ async def event_generator(
 
 @router.post("/module")
 async def chat_module(
-    request: ModuleChatRequest,
+    body: ModuleChatRequest,
+    request: Request,
     auth: tuple[int | None, UUID | None] = Depends(get_user_or_anonymous),
 ) -> StreamingResponse:
     """
@@ -316,7 +349,7 @@ async def chat_module(
 
     # Load module
     try:
-        module = load_flattened_module(request.slug)
+        module = load_flattened_module(body.slug)
     except ModuleNotFoundError:
         raise HTTPException(status_code=404, detail="Module not found")
 
@@ -325,9 +358,10 @@ async def chat_module(
             user_id=user_id,
             anonymous_token=anonymous_token,
             module=module,
-            section_index=request.sectionIndex,
-            segment_index=request.segmentIndex,
-            user_message=request.message,
+            section_index=body.sectionIndex,
+            segment_index=body.segmentIndex,
+            user_message=body.message,
+            app=request.app,
         ),
         media_type="text/event-stream",
         headers={

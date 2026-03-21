@@ -220,6 +220,17 @@ async def lifespan(app: FastAPI):
             e,
         )
 
+    # Initialize MCP client for alignment research search
+    from core.modules.tools.mcp_client import MCPClientManager
+
+    stampy_url = os.getenv("STAMPY_MCP_URL", "").strip() or None
+    mcp_manager = MCPClientManager(url=stampy_url)
+    app.state.mcp_manager = mcp_manager
+    if stampy_url:
+        print(f"✓ MCP client configured for {stampy_url} (connects lazily)")
+    else:
+        print("Note: STAMPY_MCP_URL not set, alignment search tool disabled")
+
     # Check database connection (runs in uvicorn's event loop - no issues)
     if not skip_db:
         print("Checking database connection...")
@@ -295,6 +306,10 @@ async def lifespan(app: FastAPI):
     print("Shutting down peer services...")
     shutdown_scheduler()
     await stop_bot()
+
+    # Close MCP client
+    if hasattr(app.state, "mcp_manager"):
+        await app.state.mcp_manager.close()
 
     await close_engine()  # Close database connections
     if _bot_task:
