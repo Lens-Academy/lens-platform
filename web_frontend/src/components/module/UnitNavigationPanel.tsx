@@ -862,7 +862,9 @@ export default function UnitNavigationPanel({
               onScroll={(e) => {
                 const el = e.currentTarget;
                 setIsScrolledFromTop(el.scrollTop > 6);
-                setIsScrolledToBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 15);
+                setIsScrolledToBottom(
+                  el.scrollHeight - el.scrollTop - el.clientHeight < 15,
+                );
               }}
             >
               {groups.map(renderGroup)}
@@ -872,7 +874,9 @@ export default function UnitNavigationPanel({
               className="absolute top-0 left-0 right-4 pointer-events-none z-10 transition-transform duration-400"
               style={{
                 height: "1.5rem",
-                transform: isScrolledFromTop ? "translateY(0)" : "translateY(-100%)",
+                transform: isScrolledFromTop
+                  ? "translateY(0)"
+                  : "translateY(-100%)",
                 background:
                   "linear-gradient(to top, transparent, var(--brand-bg))",
               }}

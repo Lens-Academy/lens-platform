@@ -41,6 +41,7 @@ export function useSwipePanel({
   const gestureActive = useRef(false);
   const panelWidth = useRef(0);
   const velocityTracker = useRef<{ x: number; t: number }[]>([]);
+  const snapAnim = useRef<Animation | null>(null);
 
   const cleanupInlineStyles = useCallback(() => {
     const panel = panelRef.current;
@@ -100,6 +101,8 @@ export function useSwipePanel({
         // Horizontal lock — activate gesture
         gestureActive.current = true;
         setIsDragging(true);
+        snapAnim.current?.cancel();
+        snapAnim.current = null;
         const panel = panelRef.current;
         const backdrop = backdropRef.current;
         if (panel) panel.style.transition = "none";
@@ -163,66 +166,86 @@ export function useSwipePanel({
       const backdrop = backdropRef.current;
       if (!panel || !backdrop) return;
 
-      // Compute velocity
+      // Compute signed velocity (positive = rightward, negative = leftward)
       const tracker = velocityTracker.current;
-      let velocity = 0;
+      let signedVelocity = 0;
       if (tracker.length >= 2) {
         const last = tracker[tracker.length - 1];
         const prev = tracker[tracker.length - 2];
         const dt = last.t - prev.t;
-        if (dt > 0) velocity = Math.abs(last.x - prev.x) / dt;
+        if (dt > 0) signedVelocity = (last.x - prev.x) / dt;
       }
 
       const deltaX =
         (tracker[tracker.length - 1]?.x ?? touchStartX.current) -
         touchStartX.current;
-      const absDelta = Math.abs(deltaX);
-      const shouldComplete =
-        absDelta > DISTANCE_THRESHOLD || velocity > VELOCITY_THRESHOLD;
+
+      // Fast flick: velocity direction determines outcome (handles reversals).
+      // Slow release: net displacement with distance threshold determines it.
+      const fastFlick = Math.abs(signedVelocity) > VELOCITY_THRESHOLD;
 
       let willOpen: boolean;
       if (isLeft) {
         if (isOpenRef.current) {
-          // Was open — complete close if swiped left enough
-          willOpen = !(shouldComplete && deltaX < 0);
+          const wantsClose = fastFlick
+            ? signedVelocity < 0
+            : deltaX < -DISTANCE_THRESHOLD;
+          willOpen = !wantsClose;
         } else {
-          // Was closed — complete open if swiped right enough
-          willOpen = shouldComplete && deltaX > 0;
+          willOpen = fastFlick
+            ? signedVelocity > 0
+            : deltaX > DISTANCE_THRESHOLD;
         }
       } else {
         if (isOpenRef.current) {
-          // Was open — complete close if swiped right enough
-          willOpen = !(shouldComplete && deltaX > 0);
+          const wantsClose = fastFlick
+            ? signedVelocity > 0
+            : deltaX > DISTANCE_THRESHOLD;
+          willOpen = !wantsClose;
         } else {
-          // Was closed — complete open if swiped left enough
-          willOpen = shouldComplete && deltaX < 0;
+          willOpen = fastFlick
+            ? signedVelocity < 0
+            : deltaX < -DISTANCE_THRESHOLD;
         }
       }
 
-      // Animate to final position
-      panel.style.transition = "translate 300ms ease-in-out";
-      backdrop.style.transition = "opacity 300ms ease-in-out";
+      // Snapshot current drag position, then clear inline styles immediately.
+      // The WAAPI animation runs on its own layer, so removing inline styles
+      // lets React's CSS classes be the "resting state" — no stale styles.
+      const currentTranslate = panel.style.translate || "0 0";
+      const currentOpacity = backdrop.style.opacity || "0";
+      cleanupInlineStyles();
 
       const closedTranslate = isLeft
         ? `${-panelWidth.current}px 0`
         : `${panelWidth.current}px 0`;
 
-      if (willOpen) {
-        panel.style.translate = "0 0";
-        backdrop.style.opacity = "0.5";
-        backdrop.style.pointerEvents = "auto";
-      } else {
-        panel.style.translate = closedTranslate;
-        backdrop.style.opacity = "0";
-        backdrop.style.pointerEvents = "none";
-      }
+      const targetTranslate = willOpen ? "0 0" : closedTranslate;
+      const targetOpacity = willOpen ? "0.5" : "0";
 
-      // Clean up inline styles after animation
-      const onTransitionEnd = () => {
-        panel.removeEventListener("transitionend", onTransitionEnd);
-        cleanupInlineStyles();
-      };
-      panel.addEventListener("transitionend", onTransitionEnd);
+      // Set pointer-events immediately (not animated)
+      backdrop.style.pointerEvents = willOpen ? "auto" : "none";
+
+      // Animate via Web Animations API — returns a Promise, no transitionend.
+      const anim = panel.animate(
+        [{ translate: currentTranslate }, { translate: targetTranslate }],
+        { duration: 300, easing: "ease-in-out" },
+      );
+      backdrop.animate(
+        [{ opacity: currentOpacity }, { opacity: targetOpacity }],
+        { duration: 300, easing: "ease-in-out" },
+      );
+      snapAnim.current = anim;
+
+      anim.finished
+        .then(() => {
+          // Animation complete — inline styles already clean, CSS classes rule.
+          // Just clear the stale pointer-events we set above.
+          backdrop.style.removeProperty("pointer-events");
+        })
+        .catch(() => {
+          // Cancelled (new gesture started mid-animation) — fine.
+        });
 
       // Update React state
       if (willOpen && !isOpenRef.current) {
