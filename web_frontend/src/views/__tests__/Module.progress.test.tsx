@@ -48,17 +48,32 @@ const mockModule = {
   content_id: "uuid-1",
   sections: [
     {
-      type: "lens-article",
+      type: "lens",
       contentId: "lens-1",
+      learningOutcomeId: null,
+      learningOutcomeName: null,
       meta: { title: "Section 1" },
-      segments: [],
+      segments: [
+        {
+          type: "text",
+          content: "x".repeat(2000),
+        },
+      ],
+      optional: false,
     },
     {
-      type: "lens-video",
+      type: "lens",
       contentId: "lens-2",
-      videoId: "abc123",
-      meta: { title: "Section 2", channel: "Test Channel" },
-      segments: [],
+      learningOutcomeId: null,
+      learningOutcomeName: null,
+      meta: { title: "Section 2" },
+      segments: [
+        {
+          type: "text",
+          content: "x".repeat(2000),
+        },
+      ],
+      optional: false,
     },
   ],
 };
@@ -71,7 +86,7 @@ const mockProgress = {
     {
       id: "lens-1",
       title: "Section 1",
-      type: "lens-article",
+      type: "lens",
       optional: false,
       completed: true,
       completedAt: "2026-01-29T12:00:00Z",
@@ -80,7 +95,7 @@ const mockProgress = {
     {
       id: "lens-2",
       title: "Section 2",
-      type: "lens-video",
+      type: "lens",
       optional: false,
       completed: false,
       completedAt: null,
@@ -139,10 +154,10 @@ describe("Module progress loading", () => {
       expect(getModuleProgress).toHaveBeenCalled();
     });
 
-    // Should show "Section completed" because API says section 0 is complete
-    // (even though localStorage says nothing is complete)
+    // Component auto-advances to the first uncompleted section (section 1)
+    // Section 1 should show "Mark section complete" (not yet completed)
     await waitFor(() => {
-      expect(screen.getByText("Section completed")).toBeInTheDocument();
+      expect(screen.getByText("Mark section complete")).toBeInTheDocument();
     });
   });
 
@@ -161,10 +176,10 @@ describe("Module progress loading", () => {
     });
 
     // The API says section 0 is completed, not section 1
-    // If Module.tsx correctly ignores localStorage and uses API,
-    // section 0 should show as completed
+    // Component auto-advances to first uncompleted section (section 1)
+    // Section 1 should show "Mark section complete"
     await waitFor(() => {
-      expect(screen.getByText("Section completed")).toBeInTheDocument();
+      expect(screen.getByText("Mark section complete")).toBeInTheDocument();
     });
   });
 });
@@ -209,7 +224,7 @@ describe("Module progress updates from completion response", () => {
         {
           id: "lens-1",
           title: "Section 1",
-          type: "lens-article",
+          type: "lens",
           optional: false,
           completed: true,
           completedAt: "2026-01-29T13:00:00Z",
@@ -218,7 +233,7 @@ describe("Module progress updates from completion response", () => {
         {
           id: "lens-2",
           title: "Section 2",
-          type: "lens-video",
+          type: "lens",
           optional: false,
           completed: false,
           completedAt: null,

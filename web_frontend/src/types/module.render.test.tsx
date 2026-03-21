@@ -46,54 +46,25 @@ function TestSectionRenderer({
 
 function renderSectionMeta(section: ModuleSection, index: number) {
   switch (section.type) {
-    case "page":
+    case "lens":
       return (
         <div data-testid={`section-${index}-meta`}>
           <span data-testid={`section-${index}-title`}>
-            {section.meta.title ?? "Untitled"}
-          </span>
-        </div>
-      );
-    case "lens-video":
-      return (
-        <div data-testid={`section-${index}-meta`}>
-          <span data-testid={`section-${index}-title`}>
-            {section.meta.title}
-          </span>
-          <span data-testid={`section-${index}-channel`}>
-            {section.meta.channel ?? "Unknown"}
-          </span>
-          <span data-testid={`section-${index}-videoId`}>
-            {section.videoId ?? "No video ID"}
+            {section.meta?.title ?? "Untitled"}
           </span>
           <span data-testid={`section-${index}-optional`}>
             {section.optional ? "optional" : "required"}
           </span>
         </div>
       );
-    case "lens-article":
+    case "test":
       return (
         <div data-testid={`section-${index}-meta`}>
           <span data-testid={`section-${index}-title`}>
-            {section.meta.title}
-          </span>
-          <span data-testid={`section-${index}-author`}>
-            {section.meta.author ?? "Unknown"}
-          </span>
-          <span data-testid={`section-${index}-optional`}>
-            {section.optional ? "optional" : "required"}
+            {section.meta?.title ?? "Untitled"}
           </span>
         </div>
       );
-    case "text":
-      return (
-        <div data-testid={`section-${index}-content`}>{section.content}</div>
-      );
-    case "article":
-    case "video":
-    case "chat":
-      // Legacy section types - just render type info
-      return <div data-testid={`section-${index}-legacy`}>Legacy section</div>;
     default:
       return null;
   }
@@ -134,10 +105,16 @@ function TestSegmentRenderer({
           {segment.content}
         </div>
       );
-    case "article-excerpt":
+    case "article":
       return (
-        <div data-testid={testId} data-segment-type="article-excerpt">
+        <div data-testid={testId} data-segment-type="article">
           <span>{segment.content}</span>
+          {segment.title && (
+            <span data-testid={`${testId}-title`}>{segment.title}</span>
+          )}
+          {segment.author && (
+            <span data-testid={`${testId}-author`}>{segment.author}</span>
+          )}
           {segment.collapsed_before && (
             <span data-testid={`${testId}-collapsed-before`}>
               {segment.collapsed_before}
@@ -150,12 +127,18 @@ function TestSegmentRenderer({
           )}
         </div>
       );
-    case "video-excerpt":
+    case "video":
       return (
-        <div data-testid={testId} data-segment-type="video-excerpt">
+        <div data-testid={testId} data-segment-type="video">
           <span data-testid={`${testId}-from`}>{segment.from}</span>
           <span data-testid={`${testId}-to`}>{segment.to ?? "end"}</span>
           <span data-testid={`${testId}-transcript`}>{segment.transcript}</span>
+          {segment.title && (
+            <span data-testid={`${testId}-title`}>{segment.title}</span>
+          )}
+          {segment.videoId && (
+            <span data-testid={`${testId}-videoId`}>{segment.videoId}</span>
+          )}
         </div>
       );
     case "chat":
@@ -255,47 +238,34 @@ describe("Module rendering tests for all fixtures", () => {
 });
 
 describe("Section type-specific rendering", () => {
-  it("lens-video section renders videoId correctly (nullable)", () => {
-    // video-no-timestamps fixture has lens-video without videoId
-    const module = videoNoTimestampsFixture.modules[0];
-    render(<TestModuleRenderer module={module} />);
-
-    // The section should render even without videoId
-    expect(screen.getByTestId("section-0")).toBeInTheDocument();
-    expect(screen.getByTestId("section-0-videoId")).toHaveTextContent(
-      "No video ID",
-    );
-  });
-
-  it("lens-video section renders videoId when present", () => {
-    // uncategorized-multiple-lenses has lens-video with videoId
-    const module = uncategorizedMultipleLensesFixture.modules[0];
-    render(<TestModuleRenderer module={module} />);
-
-    expect(screen.getByTestId("section-0")).toBeInTheDocument();
-    expect(screen.getByTestId("section-0-videoId")).toHaveTextContent(
-      "dQw4w9WgXcQ",
-    );
-  });
-
-  it("lens-article section renders author correctly", () => {
-    const module = uncategorizedMultipleLensesFixture.modules[0];
-    render(<TestModuleRenderer module={module} />);
-
-    // Section 1 is lens-article
-    expect(screen.getByTestId("section-1")).toBeInTheDocument();
-    expect(screen.getByTestId("section-1-author")).toHaveTextContent(
-      "Jane Doe",
-    );
-  });
-
-  it("page section renders title correctly", () => {
+  it("lens section renders title correctly", () => {
     const module = minimalModuleFixture.modules[0];
     render(<TestModuleRenderer module={module} />);
 
     expect(screen.getByTestId("section-0")).toBeInTheDocument();
-    expect(screen.getByTestId("section-0-title")).toHaveTextContent(
-      "What is AI Safety?",
+    expect(screen.getByTestId("section-0-title")).toHaveTextContent("Lens1");
+  });
+
+  it("lens section with video renders video segment data", () => {
+    const module = videoNoTimestampsFixture.modules[0];
+    render(<TestModuleRenderer module={module} />);
+
+    expect(screen.getByTestId("section-0")).toBeInTheDocument();
+    // Video segment at index 1
+    const videoSeg = screen.getByTestId("section-0-segment-1");
+    expect(videoSeg).toHaveAttribute("data-segment-type", "video");
+  });
+
+  it("lens section with article renders author from segment", () => {
+    const module = uncategorizedMultipleLensesFixture.modules[0];
+    render(<TestModuleRenderer module={module} />);
+
+    // Section 0 has article segment
+    expect(screen.getByTestId("section-0")).toBeInTheDocument();
+    const articleSeg = screen.getByTestId("section-0-segment-1");
+    expect(articleSeg).toHaveAttribute("data-segment-type", "article");
+    expect(screen.getByTestId("section-0-segment-1-author")).toHaveTextContent(
+      "Jane Doe",
     );
   });
 });
@@ -312,31 +282,22 @@ describe("Segment type-specific rendering", () => {
     );
   });
 
-  it("video-excerpt segment renders from/to/transcript", () => {
-    const module = uncategorizedMultipleLensesFixture.modules[0];
+  it("video segment renders from/to/transcript", () => {
+    const module = videoNoTimestampsFixture.modules[0];
     render(<TestModuleRenderer module={module} />);
 
-    // Section 0, segment 1 is video-excerpt
+    // Section 0, segment 1 is video
     const segment = screen.getByTestId("section-0-segment-1");
-    expect(segment).toHaveAttribute("data-segment-type", "video-excerpt");
-    expect(screen.getByTestId("section-0-segment-1-from")).toHaveTextContent(
-      "0",
-    );
-    expect(screen.getByTestId("section-0-segment-1-to")).toHaveTextContent(
-      "60",
-    );
-    expect(
-      screen.getByTestId("section-0-segment-1-transcript"),
-    ).toHaveTextContent("0:00 - Welcome to AI safety.");
+    expect(segment).toHaveAttribute("data-segment-type", "video");
   });
 
-  it("article-excerpt segment renders content", () => {
+  it("article segment renders content", () => {
     const module = uncategorizedMultipleLensesFixture.modules[0];
     render(<TestModuleRenderer module={module} />);
 
-    // Section 1, segment 1 is article-excerpt
-    const segment = screen.getByTestId("section-1-segment-1");
-    expect(segment).toHaveAttribute("data-segment-type", "article-excerpt");
+    // Section 0, segment 1 is article
+    const segment = screen.getByTestId("section-0-segment-1");
+    expect(segment).toHaveAttribute("data-segment-type", "article");
     expect(segment).toHaveTextContent("The key insight.");
   });
 });

@@ -149,7 +149,7 @@ class TestResolveQuestionDetails:
         mock_load.return_value = _make_module(
             [
                 {
-                    "type": "page",
+                    "type": "lens",
                     "learningOutcomeName": "Page LO",
                     "segments": [
                         {
@@ -182,7 +182,7 @@ class TestResolveQuestionDetails:
         mock_load.return_value = _make_module(
             [
                 {
-                    "type": "page",
+                    "type": "lens",
                     "segments": [{"type": "question", "content": "Q1"}],
                 }
             ]
@@ -198,7 +198,7 @@ class TestResolveQuestionDetails:
         mock_load.return_value = _make_module(
             [
                 {
-                    "type": "page",
+                    "type": "lens",
                     "segments": [{"type": "question", "content": "Q1"}],
                 }
             ]
@@ -214,7 +214,7 @@ class TestResolveQuestionDetails:
         mock_load.return_value = _make_module(
             [
                 {
-                    "type": "page",
+                    "type": "lens",
                     "segments": [{"type": "text", "content": "Hello world"}],
                 }
             ]

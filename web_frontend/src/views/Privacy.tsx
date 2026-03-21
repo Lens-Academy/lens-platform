@@ -1,21 +1,25 @@
 export default function Privacy() {
   return (
     <div className="py-12 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold text-slate-900 mb-2">Privacy Policy</h1>
-      <p className="text-slate-500 mb-8">Last updated: January 2025</p>
+      <h1 className="text-3xl font-bold text-[var(--brand-text)] mb-2">
+        Privacy Policy
+      </h1>
+      <p className="text-[var(--brand-text-muted)] mb-8">
+        Last updated: January 2025
+      </p>
 
-      <div className="prose prose-slate max-w-none">
-        <p className="text-lg text-slate-600 mb-8">
+      <div className="prose prose-neutral max-w-none">
+        <p className="text-lg text-[var(--brand-text-muted)] mb-8">
           Lens Academy ("we", "us", "our") is committed to protecting your
           privacy. This policy explains how we collect, use, and protect your
           personal data when you use our AI safety education platform.
         </p>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             1. Data Controller
           </h2>
-          <p className="text-slate-600">
+          <p className="text-[var(--brand-text-muted)]">
             Lens Academy operates as the data controller for personal data
             collected through this platform. All data is stored and processed
             within the European Union.
@@ -23,75 +27,77 @@ export default function Privacy() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             2. Data We Collect
           </h2>
 
-          <h3 className="text-lg font-medium text-slate-800 mt-4 mb-2">
+          <h3 className="text-lg font-medium text-[var(--brand-text)] mt-4 mb-2">
             2.1 Account Information
           </h3>
-          <p className="text-slate-600 mb-2">
+          <p className="text-[var(--brand-text-muted)] mb-2">
             When you sign up via Discord, we receive:
           </p>
-          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+          <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-1">
             <li>Discord user ID and username</li>
             <li>Discord avatar (if set)</li>
             <li>Email address (if you grant permission)</li>
           </ul>
 
-          <h3 className="text-lg font-medium text-slate-800 mt-4 mb-2">
+          <h3 className="text-lg font-medium text-[var(--brand-text)] mt-4 mb-2">
             2.2 Profile Information
           </h3>
-          <p className="text-slate-600 mb-2">Information you provide:</p>
-          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+          <p className="text-[var(--brand-text-muted)] mb-2">
+            Information you provide:
+          </p>
+          <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-1">
             <li>Display name/nickname</li>
             <li>Timezone</li>
             <li>Availability preferences for group scheduling</li>
             <li>Notification preferences</li>
           </ul>
 
-          <h3 className="text-lg font-medium text-slate-800 mt-4 mb-2">
+          <h3 className="text-lg font-medium text-[var(--brand-text)] mt-4 mb-2">
             2.3 Learning Progress
           </h3>
-          <p className="text-slate-600 mb-2">
+          <p className="text-[var(--brand-text-muted)] mb-2">
             To provide the educational service:
           </p>
-          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+          <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-1">
             <li>Course enrollment and completion status</li>
             <li>Lesson progress (started, completed)</li>
             <li>Group meeting attendance</li>
             <li>Chat interactions within lessons</li>
           </ul>
 
-          <h3 className="text-lg font-medium text-slate-800 mt-4 mb-2">
+          <h3 className="text-lg font-medium text-[var(--brand-text)] mt-4 mb-2">
             2.4 Analytics Data (With Consent)
           </h3>
-          <p className="text-slate-600 mb-2">
+          <p className="text-[var(--brand-text-muted)] mb-2">
             If you consent to analytics cookies, we collect:
           </p>
-          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+          <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-1">
             <li>Page views and navigation patterns</li>
             <li>Feature usage statistics</li>
             <li>Session duration and engagement metrics</li>
           </ul>
-          <p className="text-slate-600 mt-2">
+          <p className="text-[var(--brand-text-muted)] mt-2">
             You can withdraw consent at any time via the "Cookie Settings" link
             in the footer.
           </p>
 
-          <h3 className="text-lg font-medium text-slate-800 mt-4 mb-2">
+          <h3 className="text-lg font-medium text-[var(--brand-text)] mt-4 mb-2">
             2.5 Error Tracking (With Consent)
           </h3>
-          <p className="text-slate-600">
+          <p className="text-[var(--brand-text-muted)]">
             If you consent, we collect error reports to improve the platform.
             This may include session replays when errors occur, with sensitive
             content masked.
           </p>
 
-          <h3 className="text-lg font-medium text-slate-800 mt-4 mb-2">
+          <h3 className="text-lg font-medium text-[var(--brand-text)] mt-4 mb-2">
             2.6 Geolocation
           </h3>
-          <p className="text-slate-600">
+          <p className="text-[var(--brand-text-muted)]">
             We use a third-party service to detect your country to determine if
             GDPR cookie consent is required. This country code is not stored in
             our database.
@@ -99,10 +105,10 @@ export default function Privacy() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             3. How We Use Your Data
           </h2>
-          <ul className="list-disc pl-6 text-slate-600 space-y-2">
+          <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-2">
             <li>
               <strong>Provide the service:</strong> Authenticate you, track
               course progress, schedule group sessions, send reminders
@@ -123,10 +129,10 @@ export default function Privacy() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             4. Legal Basis for Processing (GDPR)
           </h2>
-          <ul className="list-disc pl-6 text-slate-600 space-y-2">
+          <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-2">
             <li>
               <strong>Contract:</strong> Processing account and learning data to
               provide the educational service you signed up for
@@ -143,29 +149,29 @@ export default function Privacy() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             5. Third-Party Services
           </h2>
-          <p className="text-slate-600 mb-4">
+          <p className="text-[var(--brand-text-muted)] mb-4">
             We use the following third-party services:
           </p>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm text-slate-600">
+            <table className="min-w-full text-sm text-[var(--brand-text-muted)]">
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-2 pr-4 font-medium text-slate-800">
+                <tr className="border-b border-[var(--brand-border)]">
+                  <th className="text-left py-2 pr-4 font-medium text-[var(--brand-text)]">
                     Service
                   </th>
-                  <th className="text-left py-2 pr-4 font-medium text-slate-800">
+                  <th className="text-left py-2 pr-4 font-medium text-[var(--brand-text)]">
                     Purpose
                   </th>
-                  <th className="text-left py-2 font-medium text-slate-800">
+                  <th className="text-left py-2 font-medium text-[var(--brand-text)]">
                     Data Location
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[var(--brand-border)]">
                 <tr>
                   <td className="py-2 pr-4">Discord</td>
                   <td className="py-2 pr-4">Authentication, community</td>
@@ -199,10 +205,10 @@ export default function Privacy() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             6. Data Retention
           </h2>
-          <ul className="list-disc pl-6 text-slate-600 space-y-2">
+          <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-2">
             <li>
               <strong>Account data:</strong> Retained while your account is
               active. Deleted upon account deletion request.
@@ -222,11 +228,13 @@ export default function Privacy() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             7. Your Rights (GDPR)
           </h2>
-          <p className="text-slate-600 mb-4">You have the right to:</p>
-          <ul className="list-disc pl-6 text-slate-600 space-y-2">
+          <p className="text-[var(--brand-text-muted)] mb-4">
+            You have the right to:
+          </p>
+          <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-2">
             <li>
               <strong>Access:</strong> Request a copy of your personal data
             </li>
@@ -252,17 +260,19 @@ export default function Privacy() {
               consent at any time
             </li>
           </ul>
-          <p className="text-slate-600 mt-4">
+          <p className="text-[var(--brand-text-muted)] mt-4">
             To exercise these rights, contact us at the address below.
           </p>
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             8. Cookies
           </h2>
-          <p className="text-slate-600 mb-4">We use the following cookies:</p>
-          <ul className="list-disc pl-6 text-slate-600 space-y-2">
+          <p className="text-[var(--brand-text-muted)] mb-4">
+            We use the following cookies:
+          </p>
+          <ul className="list-disc pl-6 text-[var(--brand-text-muted)] space-y-2">
             <li>
               <strong>Essential:</strong> Authentication tokens, consent
               preferences (always active)
@@ -275,16 +285,16 @@ export default function Privacy() {
               consent)
             </li>
           </ul>
-          <p className="text-slate-600 mt-4">
+          <p className="text-[var(--brand-text-muted)] mt-4">
             Manage your preferences via "Cookie Settings" in the footer.
           </p>
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             9. Data Security
           </h2>
-          <p className="text-slate-600">
+          <p className="text-[var(--brand-text-muted)]">
             We implement appropriate technical and organizational measures to
             protect your data, including encryption in transit (HTTPS), secure
             authentication via Discord OAuth, and access controls for our team.
@@ -292,20 +302,20 @@ export default function Privacy() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             10. Children's Privacy
           </h2>
-          <p className="text-slate-600">
+          <p className="text-[var(--brand-text-muted)]">
             This platform is not intended for users under 18 years of age. We do
             not knowingly collect personal data from children.
           </p>
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             11. Changes to This Policy
           </h2>
-          <p className="text-slate-600">
+          <p className="text-[var(--brand-text-muted)]">
             We may update this policy periodically. Significant changes will be
             communicated via email or platform notification. The "Last updated"
             date at the top indicates when the policy was last revised.
@@ -313,14 +323,14 @@ export default function Privacy() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-xl font-semibold text-[var(--brand-text)] mb-4">
             12. Contact
           </h2>
-          <p className="text-slate-600">
+          <p className="text-[var(--brand-text-muted)]">
             For privacy inquiries or to exercise your data rights, contact us
             at:
           </p>
-          <p className="text-slate-600 mt-2 p-4 bg-slate-50 rounded-lg">
+          <p className="text-[var(--brand-text-muted)] mt-2 p-4 bg-lens-gold-50 rounded-lg">
             <strong>Lens Academy</strong>
             <br />
             Email: [Contact email to be added]
@@ -329,11 +339,11 @@ export default function Privacy() {
           </p>
         </section>
 
-        <section className="mb-8 p-4 bg-violet-50 rounded-lg">
-          <h2 className="text-lg font-semibold text-violet-900 mb-2">
+        <section className="mb-8 p-4 bg-lens-gold-50 rounded-lg">
+          <h2 className="text-lg font-semibold text-lens-gold-700 mb-2">
             Supervisory Authority
           </h2>
-          <p className="text-violet-700 text-sm">
+          <p className="text-lens-gold-600 text-sm">
             If you are in the EU/EEA and believe we have not adequately
             addressed your data protection concerns, you have the right to lodge
             a complaint with your local data protection authority.

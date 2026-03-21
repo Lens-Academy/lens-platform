@@ -130,7 +130,7 @@ export default function ModuleOverview({
         <div
           className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${fillClasses} ${ringClasses}`}
         >
-          <StageIcon type={stage.type} small />
+          <StageIcon type={stage.type} displayType={stage.displayType} small />
         </div>
 
         {/* Content */}
@@ -138,33 +138,46 @@ export default function ModuleOverview({
           <div className="flex items-center gap-2 max-w-xl">
             <span
               className={`font-medium ${
-                isCompleted || isViewing ? "text-slate-900" : "text-slate-500"
+                isCompleted || isViewing
+                  ? "text-[var(--brand-text)]"
+                  : "text-[var(--brand-text-muted)]"
               }`}
               style={{ fontFamily: "var(--brand-font-display)" }}
             >
               {stage.title}
             </span>
           </div>
-          <div className="text-sm text-slate-500 flex items-center gap-1.5">
+          <div className="text-sm text-[var(--brand-text-muted)] flex items-center gap-1.5">
             {stage.optional && <OptionalBadge />}
             {stage.type === "chat"
               ? "Discuss with AI tutor"
               : (() => {
                   const isVideo =
-                    stage.type === "video" || stage.type === "lens-video";
+                    stage.type === "video" ||
+                    stage.displayType === "lens-video" ||
+                    stage.displayType === "lens-mixed";
                   if (!stage.duration) {
-                    return isVideo
+                    const label = isVideo
                       ? "Video"
                       : stage.type === "test"
                         ? "Test"
-                        : stage.type === "page"
-                          ? "Page"
-                          : "Article";
+                        : stage.displayType === "lens-article"
+                          ? "Article"
+                          : stage.type === "lens"
+                            ? "Lens"
+                            : "Article";
+                    return stage.attribution ? (
+                      <span>
+                        {label} · {stage.attribution}
+                      </span>
+                    ) : (
+                      label
+                    );
                   }
                   const contentTime = Math.round(stage.duration / 1.5);
                   const aiTime = stage.duration - contentTime;
                   return (
-                    <span className="inline-flex items-center gap-0.5 text-slate-500">
+                    <span className="inline-flex items-center gap-0.5 text-[var(--brand-text-muted)]">
                       {isVideo ? (
                         <svg
                           className="w-3 h-3 inline translate-y-px"
@@ -198,12 +211,17 @@ export default function ModuleOverview({
                           <span>{formatDurationMinutes(aiTime)}</span>
                         </>
                       )}
+                      {stage.attribution && (
+                        <span className="ml-0.5"> · {stage.attribution}</span>
+                      )}
                     </span>
                   );
                 })()}
           </div>
           {stage.tldr && (
-            <p className="mt-1 max-w-xl text-sm text-slate-500">{stage.tldr}</p>
+            <p className="mt-1 max-w-xl text-sm text-[var(--brand-text-muted)]">
+              {stage.tldr}
+            </p>
           )}
         </div>
       </div>
@@ -221,7 +239,9 @@ export default function ModuleOverview({
       {/* Module title and progress badge */}
       <div className="mb-6">
         {isMobile && parentTitle && (
-          <p className="text-sm text-slate-500 mb-1">{parentTitle} ›</p>
+          <p className="text-sm text-[var(--brand-text-muted)] mb-1">
+            {parentTitle} ›
+          </p>
         )}
         <div className="flex items-start justify-between gap-4">
           <h2
@@ -270,7 +290,7 @@ export default function ModuleOverview({
                   }}
                 />
               </div>
-              <span className="text-sm text-slate-600 font-medium">
+              <span className="text-sm text-[var(--brand-text-muted)] font-medium">
                 {completedLenses}/{totalLenses}
               </span>
             </div>
@@ -295,7 +315,7 @@ export default function ModuleOverview({
           {prevModule ? (
             <button
               onClick={() => onNavigate?.("prev")}
-              className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors min-w-0 max-w-[45%]"
+              className="flex items-center gap-1 text-sm text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] transition-colors min-w-0 max-w-[45%]"
             >
               <ChevronLeft className="w-4 h-4 flex-shrink-0" />
               <span className="truncate">{prevModule.title}</span>
@@ -306,7 +326,7 @@ export default function ModuleOverview({
           {nextModule ? (
             <button
               onClick={() => onNavigate?.("next")}
-              className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors min-w-0 max-w-[45%]"
+              className="flex items-center gap-1 text-sm text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] transition-colors min-w-0 max-w-[45%]"
             >
               <span className="truncate">{nextModule.title}</span>
               <ChevronRight className="w-4 h-4 flex-shrink-0" />

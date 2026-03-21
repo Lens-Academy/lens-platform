@@ -147,7 +147,9 @@ describe("ModuleOverview content hiding", () => {
     // Each stage row has a text title inside it
     const lesson1Row = screen.getByText("Lesson 1").closest('[class*="group"]');
     const lesson2Row = screen.getByText("Lesson 2").closest('[class*="group"]');
-    const testRow = screen.getByText("Test").closest('[class*="group"]');
+    // Use getAllByText for "Test" since both the title and type label show "Test"
+    const testRows = screen.getAllByText("Test");
+    const testRow = testRows[0].closest('[class*="group"]');
 
     // Lesson rows should be dimmed
     expect(lesson1Row?.className).toContain("opacity-30");
@@ -162,7 +164,8 @@ describe("ModuleOverview content hiding", () => {
 
     const lesson1Row = screen.getByText("Lesson 1").closest('[class*="group"]');
     const lesson2Row = screen.getByText("Lesson 2").closest('[class*="group"]');
-    const testRow = screen.getByText("Test").closest('[class*="group"]');
+    const testRows = screen.getAllByText("Test");
+    const testRow = testRows[0].closest('[class*="group"]');
 
     // No rows should be dimmed
     expect(lesson1Row?.className).not.toContain("opacity-30");

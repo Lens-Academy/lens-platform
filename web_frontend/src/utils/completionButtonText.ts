@@ -9,20 +9,19 @@ export function getSectionTextLength(section: ModuleSection): number {
   if (section.type === "test") {
     return 0;
   }
-  if (section.type === "text") {
-    return section.content.length;
-  }
-  if (section.type === "page") {
-    return (
-      section.segments
-        ?.filter(
-          (s): s is { type: "text"; content: string } => s.type === "text",
-        )
-        .reduce((acc, s) => acc + s.content.length, 0) ?? 0
+  // Lens sections: count text + article content
+  const segments = section.segments ?? [];
+  const textLength = segments
+    .filter((s): s is { type: "text"; content: string } => s.type === "text")
+    .reduce((acc, s) => acc + s.content.length, 0);
+  const articleLength = segments
+    .filter((s) => s.type === "article")
+    .reduce(
+      (acc, s) => acc + ("content" in s ? (s.content as string).length : 0),
+      0,
     );
-  }
-  // Video/article sections have embedded content - not considered "short"
-  return Infinity;
+  const videoLength = segments.some((s) => s.type === "video") ? Infinity : 0;
+  return textLength + articleLength + videoLength;
 }
 
 /**
@@ -34,8 +33,12 @@ export function getCompletionButtonText(
   sectionIndex: number,
 ): string {
   if (section.type === "test") return "";
-  const isTextOrPage = section.type === "text" || section.type === "page";
-  if (!isTextOrPage) return "Mark section complete";
+
+  // If section has article or video segments, it's substantial content
+  const hasArticleOrVideo = section.segments?.some(
+    (s) => s.type === "article" || s.type === "video",
+  );
+  if (hasArticleOrVideo) return "Mark section complete";
 
   const isShort = getSectionTextLength(section) < 1750;
   if (!isShort) return "Mark section complete";
@@ -45,7 +48,7 @@ export function getCompletionButtonText(
 }
 
 function hasChatSegment(section: ModuleSection): boolean {
-  if (section.type === "page") {
+  if (section.type === "lens") {
     return section.segments?.some((s) => s.type === "chat") ?? false;
   }
   return false;

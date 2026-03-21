@@ -2,13 +2,13 @@
   "modules": [
     {
       "slug": "lens/lens1",
-      "title": "Core Concepts",
+      "title": "Lens1",
       "contentId": "550e8400-e29b-41d4-a716-446655440002",
       "sections": [
         {
-          "type": "page",
+          "type": "lens",
           "meta": {
-            "title": "Core Concepts"
+            "title": "Lens1"
           },
           "segments": [
             {
@@ -20,7 +20,6 @@
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "550e8400-e29b-41d4-a716-446655440002",
-          "videoId": null,
           "wordCount": 8
         }
       ]
@@ -31,9 +30,9 @@
       "contentId": null,
       "sections": [
         {
-          "type": "page",
+          "type": "lens",
           "meta": {
-            "title": "Core Concepts"
+            "title": "What is AI Safety?"
           },
           "segments": [
             {
@@ -45,7 +44,6 @@
           "learningOutcomeId": "550e8400-e29b-41d4-a716-446655440001",
           "learningOutcomeName": "lo1",
           "contentId": "550e8400-e29b-41d4-a716-446655440002",
-          "videoId": null,
           "wordCount": 8
         }
       ]

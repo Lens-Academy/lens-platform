@@ -24,7 +24,7 @@ describe('CONTENT_SCHEMAS', () => {
   it('lens schema has correct required and optional fields', () => {
     const schema = CONTENT_SCHEMAS['lens'];
     expect(schema.requiredFields).toEqual(['id']);
-    expect(schema.optionalFields).toEqual(['tldr', 'tags']);
+    expect(schema.optionalFields).toEqual(['title', 'tldr', 'tags']);
   });
 
   it('learning-outcome schema has correct required and optional fields', () => {
@@ -54,7 +54,7 @@ describe('CONTENT_SCHEMAS', () => {
 describe('SEGMENT_SCHEMAS', () => {
   it('defines schemas for all 6 segment types', () => {
     expect(Object.keys(SEGMENT_SCHEMAS)).toEqual(
-      expect.arrayContaining(['text', 'chat', 'article-excerpt', 'video-excerpt', 'question', 'roleplay'])
+      expect.arrayContaining(['text', 'chat', 'article', 'video', 'question', 'roleplay'])
     );
     expect(Object.keys(SEGMENT_SCHEMAS)).toHaveLength(6);
   });
@@ -73,16 +73,16 @@ describe('SEGMENT_SCHEMAS', () => {
     );
   });
 
-  it('article-excerpt segment has correct fields', () => {
-    const schema = SEGMENT_SCHEMAS['article-excerpt'];
+  it('article segment has correct fields', () => {
+    const schema = SEGMENT_SCHEMAS['article'];
     expect(schema.requiredFields).toEqual([]);
-    expect(schema.optionalFields).toEqual(expect.arrayContaining(['from', 'to', 'optional']));
+    expect(schema.optionalFields).toEqual(expect.arrayContaining(['source', 'from', 'to', 'optional']));
   });
 
-  it('video-excerpt segment has correct fields', () => {
-    const schema = SEGMENT_SCHEMAS['video-excerpt'];
-    expect(schema.requiredFields).toEqual(['to']);
-    expect(schema.optionalFields).toEqual(expect.arrayContaining(['from', 'optional']));
+  it('video segment has correct fields', () => {
+    const schema = SEGMENT_SCHEMAS['video'];
+    expect(schema.requiredFields).toEqual([]);
+    expect(schema.optionalFields).toEqual(expect.arrayContaining(['source', 'from', 'to', 'optional']));
   });
 
   it('roleplay segment has correct fields', () => {
@@ -153,11 +153,11 @@ describe('VALID_FIELDS_BY_SEGMENT_TYPE (derived)', () => {
     ]));
   });
 
-  it('article-excerpt allows from, to, optional', () => {
-    expect(VALID_FIELDS_BY_SEGMENT_TYPE['article-excerpt']).toEqual(new Set(['from', 'to', 'optional']));
+  it('article allows source, from, to, optional', () => {
+    expect(VALID_FIELDS_BY_SEGMENT_TYPE['article']).toEqual(new Set(['source', 'from', 'to', 'optional']));
   });
 
-  it('video-excerpt allows from, to, optional', () => {
-    expect(VALID_FIELDS_BY_SEGMENT_TYPE['video-excerpt']).toEqual(new Set(['from', 'to', 'optional']));
+  it('video allows source, from, to, optional', () => {
+    expect(VALID_FIELDS_BY_SEGMENT_TYPE['video']).toEqual(new Set(['source', 'from', 'to', 'optional']));
   });
 });

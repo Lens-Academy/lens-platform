@@ -13,7 +13,7 @@ title: Test Module
 contentId: 550e8400-e29b-41d4-a716-446655440000
 ---
 
-# Page: Welcome
+# Lens: Welcome
 `],
       ]);
 
@@ -34,7 +34,7 @@ title: Test Module
 contentId: not-a-valid-uuid
 ---
 
-# Page: Welcome
+# Lens: Welcome
 `],
       ]);
 
@@ -54,7 +54,7 @@ title: Test Module
 contentId: 550e8400-e29b-41d4-a716
 ---
 
-# Page: Welcome
+# Lens: Welcome
 `],
       ]);
 
@@ -74,7 +74,7 @@ title: Test Module
 contentId: 550e8400-e29b-41d4-a716-44665544ZZZZ
 ---
 
-# Page: Welcome
+# Lens: Welcome
 `],
       ]);
 
@@ -98,7 +98,7 @@ source:: [[../Lenses/lens1.md]]
         ['Lenses/lens1.md', `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
-### Page: Intro
+### Lens: Intro
 
 #### Text
 content:: Hello
@@ -118,7 +118,7 @@ content:: Hello
         ['Lenses/lens1.md', `---
 id: this-is-not-a-uuid
 ---
-### Page: Intro
+### Lens: Intro
 
 #### Text
 content:: Hello
@@ -143,7 +143,7 @@ title: Module One
 contentId: 550e8400-e29b-41d4-a716-446655440000
 ---
 
-# Page: Welcome
+# Lens: Welcome
 `],
         ['modules/module2.md', `---
 slug: module2
@@ -151,7 +151,7 @@ title: Module Two
 contentId: 550e8400-e29b-41d4-a716-446655440000
 ---
 
-# Page: Hello
+# Lens: Hello
 `],
       ]);
 
@@ -182,7 +182,7 @@ source:: [[../Lenses/lens1.md]]
         ['Lenses/lens1.md', `---
 id: 550e8400-e29b-41d4-a716-446655440002
 ---
-### Page: Intro
+### Lens: Intro
 
 #### Text
 content:: Hello
@@ -202,7 +202,7 @@ content:: Hello
         ['Lenses/lens1.md', `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
-### Page: Intro
+### Lens: Intro
 
 #### Text
 content:: Hello
@@ -210,7 +210,7 @@ content:: Hello
         ['Lenses/lens2.md', `---
 id: 550e8400-e29b-41d4-a716-446655440001
 ---
-### Page: Intro
+### Lens: Intro
 
 #### Text
 content:: World
@@ -233,12 +233,12 @@ title: Test Module
 contentId: 550e8400-e29b-41d4-a716-446655440000
 ---
 
-# Page: Welcome
+# Lens: Welcome
 `],
         ['Lenses/lens1.md', `---
 id: 550e8400-e29b-41d4-a716-446655440000
 ---
-### Page: Intro
+### Lens: Intro
 
 #### Text
 content:: Hello
@@ -261,7 +261,7 @@ title: Module One
 contentId: 550e8400-e29b-41d4-a716-446655440001
 ---
 
-# Page: Welcome
+# Lens: Welcome
 `],
         ['modules/module2.md', `---
 slug: module2
@@ -269,7 +269,7 @@ title: Module Two
 contentId: 550e8400-e29b-41d4-a716-446655440002
 ---
 
-# Page: Hello
+# Lens: Hello
 `],
       ]);
 
@@ -290,7 +290,7 @@ slug: test
 title: Test Module
 ---
 
-# Page: Welcome
+# Lens: Welcome
 id:: d1e2f3a4-b5c6-7890-d1e2-f3a4b5c67890-aaaa
 
 ## Text
@@ -313,7 +313,7 @@ slug: test
 title: Test Module
 ---
 
-# Page: Welcome
+# Lens: Welcome
 id:: 550e8400-e29b-41d4-a716-446655440000
 
 ## Text
@@ -338,7 +338,7 @@ title: Module One
 contentId: 550e8400-e29b-41d4-a716-446655440000
 ---
 
-# Page: Welcome
+# Lens: Welcome
 id:: 550e8400-e29b-41d4-a716-446655440099
 
 ## Text
@@ -349,7 +349,7 @@ slug: module2
 title: Module Two
 ---
 
-# Page: Hello
+# Lens: Hello
 id:: 550e8400-e29b-41d4-a716-446655440000
 
 ## Text

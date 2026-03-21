@@ -1,51 +1,65 @@
 /**
- * Slide-out drawer for module overview.
+ * Slide-out drawer for unit navigation.
  * Owns its own open/close state; parent triggers via imperative toggle() ref.
+ *
+ * Desktop: slides down from below the header (translate-y).
+ * Mobile:  slides in from the left edge (translate-x) with swipe support.
  */
 
 import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   forwardRef,
   useImperativeHandle,
 } from "react";
 import { useMedia } from "react-use";
 import { useScrollContainer } from "@/hooks/useScrollContainer";
-import { X, ChevronRight } from "lucide-react";
-import type { StageInfo } from "../../types/course";
-import ModuleOverview from "../course/ModuleOverview";
+import { useSwipePanel } from "@/hooks/useSwipePanel";
+import type { ModuleInfo, StageInfo } from "../../types/course";
+import UnitNavigationPanel from "./UnitNavigationPanel";
 
 export type ModuleDrawerHandle = {
   toggle: () => void;
 };
 
 type ModuleDrawerProps = {
-  moduleTitle: string;
-  stages: StageInfo[];
-  completedStages: Set<number>;
+  unitName: string;
+  unitModules: ModuleInfo[];
+  currentModuleSlug: string;
+  currentModuleSections: StageInfo[];
+  completedSections: Set<number>;
   currentSectionIndex: number;
-  onStageClick: (index: number) => void;
-  courseId?: string;
-  courseTitle?: string;
-  testModeActive?: boolean;
+  onSectionClick: (index: number) => void;
+  courseId: string;
+  onOpenChange?: (open: boolean) => void;
+  /** When true, disables swipe-to-open (e.g. chat sidebar is open). */
+  chatOpen?: boolean;
 };
 
 const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
   function ModuleDrawer(
     {
-      moduleTitle,
-      stages,
-      completedStages,
+      unitName,
+      unitModules,
+      currentModuleSlug,
+      currentModuleSections,
+      completedSections,
       currentSectionIndex,
-      onStageClick,
+      onSectionClick,
       courseId,
-      courseTitle,
-      testModeActive,
+      onOpenChange,
+      chatOpen = false,
     },
     ref,
   ) {
     const [isOpen, setIsOpen] = useState(false);
+
+    // Notify parent of open state changes
+    useEffect(() => {
+      onOpenChange?.(isOpen);
+    }, [isOpen, onOpenChange]);
     const isMobile = useMedia("(max-width: 767px)", false);
     const scrollContainer = useScrollContainer();
 
@@ -54,6 +68,7 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
     }));
 
     const handleClose = useCallback(() => setIsOpen(false), []);
+    const handleOpen = useCallback(() => setIsOpen(true), []);
 
     // Close on escape
     useEffect(() => {
@@ -76,78 +91,76 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
       }
     }, [isMobile, isOpen, scrollContainer]);
 
+    // --- Swipe gesture support (mobile only) ---
+    const panelRef = useRef<HTMLDivElement>(null);
+    const backdropRef = useRef<HTMLDivElement>(null);
+    useSwipePanel({
+      isOpen,
+      onOpen: handleOpen,
+      onClose: handleClose,
+      enabled: isMobile && !chatOpen,
+      panelRef,
+      backdropRef,
+      side: "left",
+    });
+
     return (
       <>
-        {/* Backdrop to close drawer - dimmed on mobile */}
-        {isOpen && (
+        {/* Backdrop — always rendered on mobile so swipe gestures work */}
+        {isMobile ? (
           <div
-            className={`fixed inset-0 z-40 transition-opacity duration-300 ${
-              isMobile ? "bg-black/50" : ""
+            ref={backdropRef}
+            className={`fixed inset-0 z-30 bg-black/50 transition-opacity duration-300 ${
+              isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
             onMouseDown={handleClose}
           />
+        ) : (
+          isOpen && (
+            <div
+              className="fixed inset-0 z-30 transition-opacity duration-300"
+              onMouseDown={handleClose}
+            />
+          )
         )}
 
-        {/* Drawer panel - slides in from left */}
+        {/* Drawer panel */}
         <div
-          className={`fixed top-0 left-0 h-full z-50 transition-transform duration-300 [transition-timing-function:var(--ease-spring)] ${
-            isMobile ? "w-[80%]" : "w-[40%] max-w-md"
-          } ${
-            isOpen
-              ? "translate-x-0 shadow-[8px_0_30px_-5px_rgba(0,0,0,0.2)]"
-              : "-translate-x-full"
-          }`}
+          ref={isMobile ? panelRef : undefined}
+          className={
+            isMobile
+              ? // Mobile: slide from left
+                `fixed left-0 z-[35] w-[90%] transition-transform duration-300 ease-in-out ${
+                  isOpen
+                    ? "translate-x-0 shadow-[8px_0_30px_-5px_rgba(0,0,0,0.2)]"
+                    : "-translate-x-full"
+                }`
+              : // Desktop: slide from top (unchanged)
+                `fixed left-0 z-[35] w-[572px] transition-transform duration-300 [transition-timing-function:var(--ease-spring)] ${
+                  isOpen
+                    ? "translate-y-0 shadow-[8px_0_30px_-5px_rgba(0,0,0,0.2)]"
+                    : "-translate-y-[calc(100%+2rem)]"
+                }`
+          }
           style={{
-            paddingTop: "var(--safe-top)",
+            top: "var(--module-header-height)",
+            height: "calc(100dvh - var(--module-header-height))",
             paddingBottom: "var(--safe-bottom)",
             backgroundColor: "var(--brand-bg)",
           }}
         >
-          {/* Header with breadcrumb */}
-          <div
-            className="flex items-center justify-between p-4 border-b"
-            style={{ borderColor: "var(--brand-border)" }}
-          >
-            <div className="flex items-center gap-1.5 min-w-0 text-sm">
-              {courseId ? (
-                <>
-                  <a
-                    href={`/course/${courseId}`}
-                    className="text-slate-500 hover:text-slate-900 transition-colors truncate shrink-0 font-display"
-                  >
-                    {courseTitle || "Course"}
-                  </a>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="font-medium text-slate-900 truncate font-display">
-                    {moduleTitle}
-                  </span>
-                </>
-              ) : (
-                <span className="font-medium text-slate-900 truncate font-display">
-                  {moduleTitle}
-                </span>
-              )}
-            </div>
-            <button
-              onMouseDown={handleClose}
-              className="p-3 min-h-[44px] min-w-[44px] hover:bg-black/5 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
-              title="Close sidebar"
-            >
-              <X className="w-5 h-5 text-slate-500" />
-            </button>
-          </div>
-
           {/* Content */}
-          <div className="p-4 h-[calc(100%-4rem)] overflow-y-auto overscroll-contain">
-            <ModuleOverview
-              moduleTitle={moduleTitle}
-              stages={stages}
-              status="in_progress"
-              completedStages={completedStages}
+          <div className="p-1 h-full">
+            <UnitNavigationPanel
+              unitName={unitName}
+              currentModuleSlug={currentModuleSlug}
               currentSectionIndex={currentSectionIndex}
-              onStageClick={onStageClick}
-              showActions={false}
-              testModeActive={testModeActive}
+              completedSections={completedSections}
+              unitModules={unitModules}
+              currentModuleSections={currentModuleSections}
+              courseId={courseId}
+              onSectionClick={onSectionClick}
+              onClose={handleClose}
             />
           </div>
         </div>

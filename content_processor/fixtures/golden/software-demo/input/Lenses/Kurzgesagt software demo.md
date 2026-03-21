@@ -1,15 +1,14 @@
 ---
 id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ---
-### Video: A.I. - Humanity's Final Invention
-source:: [[../video_transcripts/kurzgesagt-ai-humanitys-final-invention]]
 
 #### Text
 content::
 Watch the first part of this video from Kurzgesagt to understand why artificial intelligence
 might be humanity's most important invention.
 
-#### Video-excerpt
+#### Video
+source:: [[../video_transcripts/kurzgesagt-ai-humanitys-final-invention]]
 from:: 0:00
 to:: 5:00
 
@@ -33,7 +32,8 @@ Discussion topics to explore:
 Start by asking what stood out or surprised them. Use Socratic questioning to
 check their understanding of these concepts. Don't lecture—help them articulate their own thinking.
 
-#### Video-excerpt
+#### Video
+source:: [[../video_transcripts/kurzgesagt-ai-humanitys-final-invention]]
 from:: 5:00
 to:: 10:00
 

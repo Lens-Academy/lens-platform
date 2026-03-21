@@ -325,7 +325,7 @@ async def get_user_progress(
                 or section.get("title")
                 or "Untitled"
             )
-            section_type = section.get("type", "page")
+            section_type = section.get("type", "lens")
             is_optional = section.get("optional", False)
 
             completed = False

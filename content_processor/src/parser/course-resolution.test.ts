@@ -12,10 +12,11 @@ title: My Cool Module
 id: 00000000-0000-0000-0000-000000000001
 ---
 
-# Page: Welcome
+# Lens: Welcome
+id:: 00000000-0000-0000-0000-000000000002
 
-## Text:
-Hello
+#### Text
+content:: Hello
 `);
 
     // Course references the module by filename

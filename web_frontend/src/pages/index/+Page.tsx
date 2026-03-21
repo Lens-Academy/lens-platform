@@ -80,7 +80,7 @@ const fontBody: React.CSSProperties = {
 // ---------------------------------------------------------------------------
 // Product screenshot — swap placeholder for real image when asset is ready
 // ---------------------------------------------------------------------------
-const SCREENSHOT_SRC = "/assets/screenshots/course-interface.png";
+const SCREENSHOT_SRC = "/assets/screenshots/course-interface.webp";
 
 function ProductScreenshot() {
   if (!SCREENSHOT_SRC) {
@@ -227,14 +227,7 @@ export default function LandingPage() {
       <RevealSection className="py-20 sm:py-28 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-8 md:gap-12 items-center">
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{
-                border: "1px solid var(--landing-border)",
-                boxShadow:
-                  "0 4px 6px -1px rgba(0,0,0,0.04), 0 20px 50px -12px rgba(0,0,0,0.08)",
-              }}
-            >
+            <div className="rounded-xl overflow-hidden">
               <ProductScreenshot />
             </div>
             <div>

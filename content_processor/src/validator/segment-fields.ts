@@ -11,7 +11,7 @@ const EXCERPT_ONLY_FIELDS = new Set(['from', 'to']);
  * Validate that fields are appropriate for the segment type.
  * Warns about fields that belong to different segment types.
  *
- * @param segmentType - The type of segment (text, chat, article-excerpt, video-excerpt)
+ * @param segmentType - The type of segment (text, chat, article, video, question, roleplay)
  * @param fields - Object mapping field names to their values
  * @param file - File path for error reporting
  * @param line - Line number for error reporting
@@ -39,7 +39,7 @@ export function validateSegmentFields(
           file,
           line,
           message: `Field '${fieldName}' is not valid in ${segmentType} segment`,
-          suggestion: `'${fieldName}' is only valid in article-excerpt or video-excerpt segments`,
+          suggestion: `'${fieldName}' is only valid in article or video segments`,
           severity: 'warning',
         });
       }

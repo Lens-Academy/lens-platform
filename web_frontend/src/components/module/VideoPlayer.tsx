@@ -60,6 +60,7 @@ export default function VideoPlayer({
   const [isFading, setIsFading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [isPaused, setIsPaused] = useState(true);
   const hideTimeoutRef = useRef<number | null>(null);
   // When end is null, we're in full video mode (no clipping)
   const [isFullVideo, setIsFullVideo] = useState(end === null);
@@ -93,9 +94,11 @@ export default function VideoPlayer({
     };
 
     const handlePlay = () => {
+      setIsPaused(false);
       onPlayCallback?.();
     };
     const handlePause = () => {
+      setIsPaused(true);
       onPauseCallback?.();
     };
     const handleTimeUpdate = () => {
@@ -353,7 +356,7 @@ export default function VideoPlayer({
     };
   }, []);
 
-  const showControls = isMobile || isHovering || fragmentEnded;
+  const showControls = isMobile || isHovering || fragmentEnded || isPaused;
 
   // In theater mode, measure the hover wrapper and compute the largest 16:9
   // rect that fits both its width and height (minus space for controls).
@@ -398,12 +401,20 @@ export default function VideoPlayer({
         <div
           ref={containerRef}
           className={`relative rounded-xl overflow-hidden ${theater ? "" : "w-full aspect-video"}`}
-          onMouseMove={() => {
+          onMouseEnter={() => {
             setIsHovering(true);
             if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
             hideTimeoutRef.current = window.setTimeout(
               () => setIsHovering(false),
-              3000,
+              2000,
+            );
+          }}
+          onMouseMove={() => {
+            if (!isHovering) setIsHovering(true);
+            if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+            hideTimeoutRef.current = window.setTimeout(
+              () => setIsHovering(false),
+              2000,
             );
           }}
           onMouseLeave={() => {
@@ -418,11 +429,32 @@ export default function VideoPlayer({
           }}
         >
           <youtube-video
+            ref={(el: HTMLElement | null) => {
+              if (el) {
+                // Null out deprecated YouTube embed params that the library still sets.
+                // These are ignored by YouTube since the 2025 player redesign.
+                // Setting config before the first microtask ensures it's used when
+                // the iframe URL is built (load() awaits a resolved promise first).
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- config is a JS property on the custom element, not typed
+                (el as any).config = {
+                  modestbranding: null,
+                  showinfo: null,
+                  iv_load_policy: null,
+                  rel: null,
+                };
+              }
+            }}
             src={youtubeUrl}
             controls
             autoplay={autoplay}
             playsinline
             className="w-full h-full"
+            style={{
+              // When controls are hidden, disable iframe pointer events so the
+              // container receives mousemove and can re-show controls.
+              // When visible, restore so user can interact with YouTube controls.
+              pointerEvents: showControls ? "auto" : "none",
+            }}
           />
 
           {/* End-of-clip overlay (only in clip mode) */}
@@ -446,14 +478,14 @@ export default function VideoPlayer({
           {/* Desktop-only overlays (absolute positioned inside video) */}
           {!isMobile && isClip && (
             <div
-              className="absolute left-1/2 -translate-x-1/2 z-20 transition-opacity duration-200"
+              className="absolute right-3 z-20 transition-opacity duration-200"
               style={{
-                bottom: 88,
+                bottom: 152,
                 opacity: showControls ? 1 : 0,
                 pointerEvents: showControls ? "auto" : "none",
               }}
             >
-              <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg text-sm text-white/80 whitespace-nowrap flex items-center gap-2">
+              <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg text-sm text-white/80 whitespace-nowrap flex flex-col items-center gap-1">
                 <button
                   onClick={() =>
                     isFullVideo ? handleWatchClipOnly() : handleWatchFullVideo()
@@ -477,12 +509,11 @@ export default function VideoPlayer({
                   </span>
                 </button>
                 <span
-                  className={`transition-opacity duration-200 flex items-center gap-2 ${isFullVideo ? "opacity-0 pointer-events-none" : ""}`}
+                  className={`transition-opacity duration-200 flex items-center gap-2 text-xs ${isFullVideo ? "opacity-0 pointer-events-none" : ""}`}
                 >
-                  <span className="text-white/40">·</span>
-                  {formatTime(progress * duration)} / {formatTime(duration)}
-                  <span className="text-white/40">·</span>
                   Clip {formatTime(start)}–{formatTime(end as number)}
+                  <span className="text-white/30">·</span>
+                  {formatTime(progress * duration)} / {formatTime(duration)}
                 </span>
               </div>
             </div>
@@ -492,7 +523,7 @@ export default function VideoPlayer({
             <div
               className="absolute left-0 right-0 px-3 transition-opacity duration-200 z-20"
               style={{
-                bottom: 64,
+                bottom: 128,
                 opacity: showControls ? 1 : 0,
                 pointerEvents: showControls ? "auto" : "none",
               }}

@@ -4,19 +4,13 @@
 // Module types
 export type {
   TextSegment,
-  ArticleExcerptSegment,
-  VideoExcerptSegment,
+  ArticleSegment,
+  VideoSegment,
   ChatSegment,
   ModuleSegment,
-  ArticleMeta,
-  VideoMeta,
-  TextSection,
-  ArticleSection,
-  VideoSection,
   // v2 section types
-  PageSection,
-  LensVideoSection,
-  LensArticleSection,
+  LensSection,
+  TestSection,
   // Union type
   ModuleSection,
   Module,
@@ -26,6 +20,7 @@ export type {
   ArticleStage,
   VideoStage,
   ChatStage,
+  LensStage,
   Stage,
 } from "./module";
 

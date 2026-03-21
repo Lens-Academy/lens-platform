@@ -31,7 +31,7 @@ function segmentSchema(required: string[], optional: string[], booleanFields: st
 export const CONTENT_SCHEMAS: Record<string, ContentTypeSchema> = {
   'module': contentSchema(['slug', 'title'], ['contentId', 'id', 'discussion', 'tags']),
   'course': contentSchema(['slug', 'title'], ['id', 'tags']),
-  'lens': contentSchema(['id'], ['tldr', 'tags']),
+  'lens': contentSchema(['id'], ['title', 'tldr', 'tags']),
   'learning-outcome': contentSchema(['id'], ['discussion', 'learning-outcome', 'tags']),
   'article': contentSchema(['title', 'author', 'source_url', 'published'], ['created', 'description', 'tags', 'url']),
   'video-transcript': contentSchema(['title', 'channel', 'url'], ['tags']),
@@ -44,8 +44,8 @@ export const SEGMENT_SCHEMAS: Record<string, SegmentTypeSchema> = {
     ['optional', 'hidePreviousContentFromUser', 'hidePreviousContentFromTutor'],
     ['optional', 'hidePreviousContentFromUser', 'hidePreviousContentFromTutor'],
   ),
-  'article-excerpt': segmentSchema([], ['from', 'to', 'optional'], ['optional']),
-  'video-excerpt': segmentSchema(['to'], ['from', 'optional'], ['optional']),
+  'article': segmentSchema([], ['source', 'from', 'to', 'optional'], ['optional']),
+  'video': segmentSchema([], ['source', 'from', 'to', 'optional'], ['optional']),
   'question': segmentSchema(
     ['content'],
     ['assessment-instructions', 'max-time', 'max-chars', 'enforce-voice', 'optional', 'feedback'],

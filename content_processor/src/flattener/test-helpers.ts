@@ -2,14 +2,12 @@
 // Shared test fixture builders for flattener tests
 
 /**
- * Minimal lens file that produces a page-type section with text content.
+ * Minimal lens file that produces a lens-type section with text content.
  */
 export function pageLens(id: string, title: string, content: string): string {
   return `---
 id: ${id}
 ---
-
-### Page: ${title}
 
 #### Text
 content:: ${content}

@@ -1,8 +1,6 @@
 ---
 id: b2c3d4e5-f6a7-8901-bcde-f23456789012
 ---
-### Article: Understanding Existential Risk from AI
-source:: [[../articles/wikipedia-existential-risk-from-ai]]
 
 #### Text
 content::
@@ -13,7 +11,8 @@ of existential threat: what capabilities of this technology are considered
 most concerning, and why the task of eliminating AI risks differs from
 similar tasks for other technologies.
 
-#### Article-excerpt
+#### Article
+source:: [[../articles/wikipedia-existential-risk-from-ai]]
 from:: "**Existential risk from artificial intelligence**"
 to:: "improve their fundamental architecture."
 
@@ -46,7 +45,8 @@ Discussion topics:
 Ask what they found surprising or new. Check if they can explain the gorilla
 analogy in their own words—it's a key concept.
 
-#### Article-excerpt
+#### Article
+source:: [[../articles/wikipedia-existential-risk-from-ai]]
 from:: "One of the earliest authors"
 to:: "strong public buy-in."
 
@@ -55,7 +55,8 @@ content::
 This history shows that concerns about AI risk aren't new - thinkers from
 Alan Turing to Stephen Hawking have considered these questions.
 
-#### Article-excerpt
+#### Article
+source:: [[../articles/wikipedia-existential-risk-from-ai]]
 from:: "### General Intelligence"
 to:: "evasion of human control"
 

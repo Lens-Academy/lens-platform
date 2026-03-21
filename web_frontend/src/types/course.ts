@@ -3,14 +3,8 @@
  */
 
 export type StageInfo = {
-  type:
-    | "article"
-    | "video"
-    | "chat"
-    | "lens-video"
-    | "lens-article"
-    | "page"
-    | "test";
+  type: "article" | "video" | "chat" | "lens" | "test";
+  displayType?: "lens-article" | "lens-video" | "lens-mixed";
   title: string;
   duration: number | null;
   optional: boolean;
@@ -18,6 +12,7 @@ export type StageInfo = {
   contentId?: string | null;
   completed?: boolean;
   tldr?: string;
+  attribution?: string;
 };
 
 export type ModuleStatus = "completed" | "in_progress" | "not_started";

@@ -1,6 +1,6 @@
 // web_frontend/src/components/unified-lesson/StageProgressBar.tsx
 import { useMemo, type ReactNode } from "react";
-import { BotMessageSquare, StickyNote } from "lucide-react";
+import { BotMessageSquare } from "lucide-react";
 import type { Stage } from "../../types/module";
 import type { StageInfo } from "../../types/course";
 import { buildBranchLayout } from "../../utils/branchLayout";
@@ -33,9 +33,11 @@ type StageProgressBarProps = {
 
 export function StageIcon({
   type,
+  displayType,
   small = false,
 }: {
   type: string;
+  displayType?: string;
   small?: boolean;
 }) {
   // Test icon: checkmark
@@ -52,14 +54,25 @@ export function StageIcon({
     );
   }
 
-  // Page icon: StickyNote (slightly smaller than other icons)
-  if (type === "page") {
-    const size = small ? "w-4 h-4" : "w-5 h-5";
-    return <StickyNote className={size} strokeWidth={2.5} />;
+  // Lens with displayType — use specific icon
+  if (
+    type === "lens" &&
+    (displayType === "lens-video" || displayType === "lens-mixed")
+  ) {
+    const size = small ? "w-5 h-5" : "w-6 h-6";
+    return (
+      <svg className={size} fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fillRule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+          clipRule="evenodd"
+        />
+      </svg>
+    );
   }
 
-  // Article icon: article, lens-article
-  if (type === "article" || type === "lens-article") {
+  // Lens icon: same as article (default for lens, or lens-article)
+  if (type === "lens") {
     const size = small ? "w-4 h-4" : "w-5 h-5";
     return (
       <svg className={size} fill="currentColor" viewBox="0 0 20 20">
@@ -72,8 +85,22 @@ export function StageIcon({
     );
   }
 
-  // Video icon: video, lens-video
-  if (type === "video" || type === "lens-video") {
+  // Article icon
+  if (type === "article") {
+    const size = small ? "w-4 h-4" : "w-5 h-5";
+    return (
+      <svg className={size} fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fillRule="evenodd"
+          d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+          clipRule="evenodd"
+        />
+      </svg>
+    );
+  }
+
+  // Video icon
+  if (type === "video") {
     const size = small ? "w-5 h-5" : "w-6 h-6";
     return (
       <svg className={size} fill="currentColor" viewBox="0 0 20 20">
@@ -104,9 +131,7 @@ function getStageTitle(stage: Stage): string {
   // Fallback based on type
   if (stage.type === "video") return "Video";
   if (stage.type === "article") return "Article";
-  if (stage.type === "page") return "Page";
-  // Note: lens-video and lens-article always have titles from meta,
-  // so these fallbacks won't typically be used, but we include them for safety
+  if (stage.type === "lens") return "Lens";
   return "Discussion";
 }
 

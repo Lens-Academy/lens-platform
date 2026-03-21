@@ -1,14 +1,13 @@
 // src/parser/lens.ts
 import type { ContentError } from '../index.js';
-import { ALL_KNOWN_FIELDS } from '../content-schema.js';
 import { parseFrontmatter } from './frontmatter.js';
-import { parseSections, LENS_SECTION_TYPES, LENS_OUTPUT_TYPE } from './sections.js';
 import { validateSegmentFields } from '../validator/segment-fields.js';
 import { validateFieldValues } from '../validator/field-values.js';
 import { detectFieldTypos } from '../validator/field-typos.js';
 import { validateFrontmatter } from '../validator/validate-frontmatter.js';
 import { detectDirectivesInNonArticle } from '../validator/directives.js';
 import { parseWikilink, hasRelativePath } from './wikilink.js';
+import { parseSections } from './sections.js';
 import { parseTimestamp } from '../bundler/video.js';
 
 // Segment types for parsed lens content (before bundling/flattening)
@@ -20,24 +19,27 @@ export interface ParsedTextSegment {
 
 export interface ParsedChatSegment {
   type: 'chat';
-  title?: string;
   instructions?: string;
   hidePreviousContentFromUser?: boolean;
   hidePreviousContentFromTutor?: boolean;
   optional?: boolean;
 }
 
-export interface ParsedArticleExcerptSegment {
-  type: 'article-excerpt';
-  fromAnchor?: string;   // Text anchor (start) - undefined means start of article
-  toAnchor?: string;     // Text anchor (end) - undefined means end of article
+export interface ParsedArticleSegment {
+  type: 'article';
+  source?: string;         // Raw wikilink (from source:: field or inherited)
+  resolvedPath?: string;   // Resolved source path
+  fromAnchor?: string;     // Text anchor (start) - undefined means start of article
+  toAnchor?: string;       // Text anchor (end) - undefined means end of article
   optional?: boolean;
 }
 
-export interface ParsedVideoExcerptSegment {
-  type: 'video-excerpt';
-  fromTimeStr: string;  // Timestamp string like "1:30"
-  toTimeStr: string;    // Timestamp string like "5:45"
+export interface ParsedVideoSegment {
+  type: 'video';
+  source?: string;         // Raw wikilink (from source:: field or inherited)
+  resolvedPath?: string;   // Resolved source path
+  fromTimeStr: string;     // Timestamp string like "1:30"
+  toTimeStr?: string;      // Timestamp string like "5:45" (undefined = full video)
   optional?: boolean;
 }
 
@@ -66,24 +68,16 @@ export interface ParsedRoleplaySegment {
 export type ParsedLensSegment =
   | ParsedTextSegment
   | ParsedChatSegment
-  | ParsedArticleExcerptSegment
-  | ParsedVideoExcerptSegment
+  | ParsedArticleSegment
+  | ParsedVideoSegment
   | ParsedQuestionSegment
   | ParsedRoleplaySegment;
 
-export interface ParsedLensSection {
-  type: string;         // 'text', 'lens-article', 'lens-video'
-  title: string;
-  source?: string;      // Required for article/video, raw wikilink
-  resolvedPath?: string; // Resolved source path for article/video
-  segments: ParsedLensSegment[];
-  line: number;
-}
-
 export interface ParsedLens {
   id: string;
+  title?: string;
   tldr?: string;
-  sections: ParsedLensSection[];
+  segments: ParsedLensSegment[];
 }
 
 export interface LensParseResult {
@@ -92,146 +86,14 @@ export interface LensParseResult {
 }
 
 // Valid segment types for lens H4 headers
-const LENS_SEGMENT_TYPES = new Set(['text', 'chat', 'article-excerpt', 'video-excerpt', 'question', 'roleplay']);
+export const LENS_SEGMENT_TYPES = new Set(['text', 'chat', 'article', 'video', 'question', 'roleplay']);
 
-
-// Valid segment types per section output type
-const VALID_SEGMENTS_PER_SECTION: Record<string, Set<string>> = {
-  'page': new Set(['text', 'chat', 'question', 'roleplay']),
-  'lens-article': new Set(['text', 'chat', 'article-excerpt', 'question', 'roleplay']),
-  'lens-video': new Set(['text', 'chat', 'video-excerpt', 'question', 'roleplay']),
-};
-// H4 segment header pattern: #### <type> or #### <type>: <title>
-const SEGMENT_HEADER_PATTERN = /^####\s+([^:\s]+)(?::\s*(.*?))?\s*$/i;
-
-// Field pattern: fieldname:: value
-const FIELD_PATTERN = /^([\w-]+)::\s*(.*)$/;
-
-interface RawSegment {
+/** Common interface for raw segments — compatible with ParsedSection */
+export interface RawSegment {
   type: string;
   title?: string;
   fields: Record<string, string>;
   line: number;
-}
-
-/**
- * Parse H4 segments from a section body.
- * Segments are defined by `#### <type>` headers within a section.
- */
-export function parseSegments(
-  sectionBody: string,
-  bodyStartLine: number,
-  file: string
-): { segments: RawSegment[]; errors: ContentError[] } {
-  const lines = sectionBody.split('\n');
-  const segments: RawSegment[] = [];
-  const errors: ContentError[] = [];
-
-  let currentSegment: RawSegment | null = null;
-  let currentFieldLines: string[] = [];
-  let preSegmentWarned = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const lineNum = bodyStartLine + i;
-
-    const headerMatch = line.match(SEGMENT_HEADER_PATTERN);
-
-    if (headerMatch) {
-      // Save previous segment
-      if (currentSegment) {
-        parseFieldsIntoSegment(currentSegment, currentFieldLines);
-        segments.push(currentSegment);
-      }
-
-      const rawType = headerMatch[1].trim();
-      const normalizedType = rawType.toLowerCase();
-      const title = headerMatch[2]?.trim() || undefined;
-
-      if (!LENS_SEGMENT_TYPES.has(normalizedType)) {
-        errors.push({
-          file,
-          line: lineNum,
-          message: `Unknown segment type: ${rawType}`,
-          suggestion: `Valid types: ${[...LENS_SEGMENT_TYPES].join(', ')}`,
-          severity: 'error',
-        });
-      }
-
-      currentSegment = {
-        type: normalizedType,
-        title,
-        fields: {},
-        line: lineNum,
-      };
-      currentFieldLines = [];
-    } else if (currentSegment) {
-      // Check for single-colon field that should be double-colon
-      const singleColonMatch = line.match(/^([\w-]+):\s+(.*)$/);
-      if (singleColonMatch && !line.match(/^https?:/) && !FIELD_PATTERN.test(line) && ALL_KNOWN_FIELDS.includes(singleColonMatch[1])) {
-        errors.push({
-          file,
-          line: lineNum,
-          message: `Found '${singleColonMatch[1]}:' with single colon — did you mean '${singleColonMatch[1]}::'?`,
-          suggestion: `Change '${singleColonMatch[1]}:' to '${singleColonMatch[1]}::' (double colon)`,
-          severity: 'error',
-        });
-      }
-      currentFieldLines.push(line);
-    } else {
-      // No segment started yet — check for free text (not fields, not blank)
-      if (line.trim() && !FIELD_PATTERN.test(line) && !preSegmentWarned) {
-        preSegmentWarned = true;
-        errors.push({
-          file,
-          line: lineNum,
-          message: 'Text before first segment header (####) will be ignored',
-          suggestion: 'Move this text into a segment (e.g., #### Text with content:: field), or remove it',
-          severity: 'warning',
-        });
-      }
-    }
-  }
-
-  // Don't forget last segment
-  if (currentSegment) {
-    parseFieldsIntoSegment(currentSegment, currentFieldLines);
-    segments.push(currentSegment);
-  }
-
-  return { segments, errors };
-}
-
-/**
- * Parse fields from lines into a segment, handling multiline values.
- * A field continues until the next field or the end of the lines.
- */
-function parseFieldsIntoSegment(segment: RawSegment, lines: string[]): void {
-  let currentField: string | null = null;
-  let currentValue: string[] = [];
-
-  for (const line of lines) {
-    const match = line.match(FIELD_PATTERN);
-
-    if (match) {
-      // Save previous field if any
-      if (currentField) {
-        segment.fields[currentField] = currentValue.join('\n').trim();
-      }
-
-      currentField = match[1];
-      const inlineValue = match[2].trim();
-      currentValue = inlineValue ? [inlineValue] : [];
-    } else if (currentField) {
-      // Continue multiline value
-      currentValue.push(line);
-    }
-  }
-
-  // Save final field
-  if (currentField) {
-    segment.fields[currentField] = currentValue.join('\n').trim();
-  }
 }
 
 /**
@@ -246,6 +108,17 @@ export function convertSegment(
 
   switch (raw.type) {
     case 'text': {
+      if (raw.title) {
+        const capitalized = raw.type[0].toUpperCase() + raw.type.slice(1);
+        errors.push({
+          file,
+          line: raw.line,
+          message: `Titles are not supported for ${capitalized} segments — use just '#### ${capitalized}'`,
+          suggestion: `Remove the title after '${capitalized}:'`,
+          severity: 'error',
+        });
+      }
+
       const hasContentField = 'content' in raw.fields;
       const content = raw.fields.content;
 
@@ -292,6 +165,17 @@ export function convertSegment(
     }
 
     case 'chat': {
+      if (raw.title) {
+        const capitalized = raw.type[0].toUpperCase() + raw.type.slice(1);
+        errors.push({
+          file,
+          line: raw.line,
+          message: `Titles are not supported for ${capitalized} segments — use just '#### ${capitalized}'`,
+          suggestion: `Remove the title after '${capitalized}:'`,
+          severity: 'error',
+        });
+      }
+
       const hasInstructionsField = 'instructions' in raw.fields;
       const instructions = raw.fields.instructions;
 
@@ -321,7 +205,6 @@ export function convertSegment(
 
       const segment: ParsedChatSegment = {
         type: 'chat',
-        title: raw.title,
         instructions: instructions || '',
         hidePreviousContentFromUser: raw.fields.hidePreviousContentFromUser?.toLowerCase() === 'true' ? true : undefined,
         hidePreviousContentFromTutor: raw.fields.hidePreviousContentFromTutor?.toLowerCase() === 'true' ? true : undefined,
@@ -330,21 +213,59 @@ export function convertSegment(
       return { segment, errors };
     }
 
-    case 'article-excerpt': {
+    case 'article': {
+      if (raw.title) {
+        const capitalized = raw.type[0].toUpperCase() + raw.type.slice(1);
+        errors.push({
+          file,
+          line: raw.line,
+          message: `Titles are not supported for ${capitalized} segments — use just '#### ${capitalized}'. Set the lens title in frontmatter instead (title: ...)`,
+          suggestion: `Remove the title after '${capitalized}:'`,
+          severity: 'error',
+        });
+      }
+
       const fromField = raw.fields.from;
       const toField = raw.fields.to;
+      const sourceField = raw.fields.source;
 
-      // Both from:: and to:: are optional for article-excerpt:
-      // - Only from:: → extract from anchor to end of article
-      // - Only to:: → extract from start to anchor
-      // - Neither → extract entire article
+      // Both from:: and to:: are optional for article:
+      // - Only from:: -> extract from anchor to end of article
+      // - Only to:: -> extract from start to anchor
+      // - Neither -> extract entire article
 
       // Strip quotes from anchor text if present
       const fromAnchor = fromField ? stripQuotes(fromField) : undefined;
       const toAnchor = toField ? stripQuotes(toField) : undefined;
 
-      const segment: ParsedArticleExcerptSegment = {
-        type: 'article-excerpt',
+      // Validate source:: wikilink if present
+      if (sourceField) {
+        const wikilink = parseWikilink(sourceField);
+        if (wikilink && wikilink.error) {
+          const suggestion = wikilink.correctedPath
+            ? `Did you mean '[[${wikilink.correctedPath}]]'?`
+            : 'Check the path in the wikilink';
+          errors.push({
+            file,
+            line: raw.line,
+            message: `Invalid wikilink in source:: field: ${sourceField}`,
+            suggestion,
+            severity: 'error',
+          });
+        } else if (wikilink && !hasRelativePath(wikilink.path)) {
+          errors.push({
+            file,
+            line: raw.line,
+            message: `source:: path must be relative (contain /): ${wikilink.path}`,
+            suggestion: 'Use format [[../path/to/file.md|Display]] with relative path',
+            severity: 'error',
+          });
+        }
+      }
+
+      const segment: ParsedArticleSegment = {
+        type: 'article',
+        source: sourceField,
         fromAnchor,
         toAnchor,
         optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
@@ -352,22 +273,21 @@ export function convertSegment(
       return { segment, errors };
     }
 
-    case 'video-excerpt': {
-      const fromField = raw.fields.from;
-      const toField = raw.fields.to;
-
-      // to:: is required, from:: defaults to "0:00"
-      if (!toField) {
+    case 'video': {
+      if (raw.title) {
+        const capitalized = raw.type[0].toUpperCase() + raw.type.slice(1);
         errors.push({
           file,
           line: raw.line,
-          message: 'Video-excerpt segment missing to:: field',
-          suggestion: "Add 'to:: M:SS' or 'to:: H:MM:SS' to the segment",
+          message: `Titles are not supported for ${capitalized} segments — use just '#### ${capitalized}'. Set the lens title in frontmatter instead (title: ...)`,
+          suggestion: `Remove the title after '${capitalized}:'`,
           severity: 'error',
         });
-        return { segment: null, errors };
       }
 
+      const fromField = raw.fields.from;
+      const toField = raw.fields.to;
+      const sourceField = raw.fields.source;
 
       // Validate timestamp formats at parse time for better error reporting
       const fromStr = fromField || '0:00';
@@ -380,7 +300,7 @@ export function convertSegment(
           severity: 'warning',
         });
       }
-      if (parseTimestamp(toField) === null) {
+      if (toField && parseTimestamp(toField) === null) {
         errors.push({
           file,
           line: raw.line,
@@ -389,10 +309,37 @@ export function convertSegment(
           severity: 'warning',
         });
       }
-      const segment: ParsedVideoExcerptSegment = {
-        type: 'video-excerpt',
+
+      // Validate source:: wikilink if present
+      if (sourceField) {
+        const wikilink = parseWikilink(sourceField);
+        if (wikilink && wikilink.error) {
+          const suggestion = wikilink.correctedPath
+            ? `Did you mean '[[${wikilink.correctedPath}]]'?`
+            : 'Check the path in the wikilink';
+          errors.push({
+            file,
+            line: raw.line,
+            message: `Invalid wikilink in source:: field: ${sourceField}`,
+            suggestion,
+            severity: 'error',
+          });
+        } else if (wikilink && !hasRelativePath(wikilink.path)) {
+          errors.push({
+            file,
+            line: raw.line,
+            message: `source:: path must be relative (contain /): ${wikilink.path}`,
+            suggestion: 'Use format [[../path/to/file.md|Display]] with relative path',
+            severity: 'error',
+          });
+        }
+      }
+
+      const segment: ParsedVideoSegment = {
+        type: 'video',
+        source: sourceField,
         fromTimeStr: fromField || '0:00',  // Default to start of video
-        toTimeStr: toField,
+        toTimeStr: toField || undefined,
         optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
       };
       return { segment, errors };
@@ -476,7 +423,7 @@ export function convertSegment(
     }
 
     default:
-      // Unknown segment type - error already reported during parseSegments
+      // Unknown segment type - error already reported during parseSections
       return { segment: null, errors };
   }
 }
@@ -495,14 +442,14 @@ function stripQuotes(s: string): string {
  * Check if a segment is empty (has no meaningful fields).
  * Returns a warning if the segment is empty.
  *
- * Note: article-excerpt with no fields is valid (means entire article).
+ * Note: article with no fields is valid (means entire article, source inherited).
  */
 function checkEmptySegment(raw: RawSegment, file: string): ContentError | null {
   // A segment is empty if it has no fields at all
   const fieldCount = Object.keys(raw.fields).length;
 
-  // article-excerpt with no fields is valid - means "include entire article"
-  if (raw.type === 'article-excerpt' && fieldCount === 0) {
+  // article with no fields is valid - means "include entire article" (source inherited)
+  if (raw.type === 'article' && fieldCount === 0) {
     return null;
   }
 
@@ -529,19 +476,19 @@ export function stripObsidianComments(content: string): string {
 
 /**
  * Strip CriticMarkup from content using reject-all-changes behavior:
- * - {>>comments<<} → removed
- * - {++additions++} → removed
- * - {--deletions--} → inner content kept (original preserved)
- * - {~~old~>new~~} → old text kept
- * - {==highlights==} → inner content kept, markers removed
+ * - {>>comments<<} -> removed
+ * - {++additions++} -> removed
+ * - {--deletions--} -> inner content kept (original preserved)
+ * - {~~old~>new~~} -> old text kept
+ * - {==highlights==} -> inner content kept, markers removed
  */
 export function stripCriticMarkup(content: string): string {
   return content
-    .replace(/\{>>.*?<<\}/gs, '')                          // Comments → remove
-    .replace(/\{\+\+.*?\+\+\}/gs, '')                      // Additions → remove
-    .replace(/\{--(?:\{[^}]*\}@@)?(.*?)--\}/gs, '$1')      // Deletions → keep inner (skip metadata)
-    .replace(/\{~~(?:\{[^}]*\}@@)?(.*?)~>.*?~~\}/gs, '$1') // Substitutions → keep old (skip metadata)
-    .replace(/\{==(?:\{[^}]*\}@@)?(.*?)==\}/gs, '$1');      // Highlights → keep inner (skip metadata)
+    .replace(/\{>>.*?<<\}/gs, '')                          // Comments -> remove
+    .replace(/\{\+\+.*?\+\+\}/gs, '')                      // Additions -> remove
+    .replace(/\{--(?:\{[^}]*\}@@)?(.*?)--\}/gs, '$1')      // Deletions -> keep inner (skip metadata)
+    .replace(/\{~~(?:\{[^}]*\}@@)?(.*?)~>.*?~~\}/gs, '$1') // Substitutions -> keep old (skip metadata)
+    .replace(/\{==(?:\{[^}]*\}@@)?(.*?)==\}/gs, '$1');      // Highlights -> keep inner (skip metadata)
 }
 
 /**
@@ -555,11 +502,54 @@ export function stripAuthoringMarkup(content: string): string {
 }
 
 /**
+ * Apply source inheritance for article and video segments.
+ * Each article/video segment inherits source:: from the previous segment of the same type.
+ * Errors if the first segment of a type has no source.
+ *
+ * Mutates segments in place. Returns any errors.
+ */
+export function applySourceInheritance(
+  segments: ParsedLensSegment[],
+  file: string
+): ContentError[] {
+  const errors: ContentError[] = [];
+  let lastArticleSource: string | undefined;
+  let lastVideoSource: string | undefined;
+  for (const seg of segments) {
+    if (seg.type === 'article') {
+      if (seg.source) {
+        lastArticleSource = seg.source;
+      } else if (lastArticleSource) {
+        seg.source = lastArticleSource;
+      } else {
+        errors.push({
+          file,
+          message: 'First article segment must have a source:: field',
+          severity: 'error',
+        });
+      }
+    } else if (seg.type === 'video') {
+      if (seg.source) {
+        lastVideoSource = seg.source;
+      } else if (lastVideoSource) {
+        seg.source = lastVideoSource;
+      } else {
+        errors.push({
+          file,
+          message: 'First video segment must have a source:: field',
+          severity: 'error',
+        });
+      }
+    }
+  }
+  return errors;
+}
+
+/**
  * Parse a lens file into structured lens data.
  *
- * Lens files use:
- * - H3 (`###`) for sections: Text, Article, Video
- * - H4 (`####`) for segments: Text, Chat, Article-excerpt, Video-excerpt
+ * Lens files are flat: frontmatter + H4 segments directly.
+ * No H3 section headers. Source is on segments with inheritance.
  */
 export function parseLens(content: string, file: string): LensParseResult {
   const errors: ContentError[] = [];
@@ -595,6 +585,7 @@ export function parseLens(content: string, file: string): LensParseResult {
     return { lens: null, errors };
   }
 
+  const title = typeof frontmatter.title === 'string' ? frontmatter.title : undefined;
   const tldr = typeof frontmatter.tldr === 'string' ? frontmatter.tldr : undefined;
   if (tldr) {
     const wordCount = tldr.trim().split(/\s+/).filter(Boolean).length;
@@ -609,156 +600,64 @@ export function parseLens(content: string, file: string): LensParseResult {
     }
   }
 
-  // Step 2: Parse H3 sections (Text, Article, Video)
-  const sectionsResult = parseSections(body, 3, LENS_SECTION_TYPES, file);
-
-  // Adjust line numbers to account for frontmatter
-  for (const error of sectionsResult.errors) {
-    if (error.line) {
-      error.line += bodyStartLine - 1;
-    }
-  }
-  errors.push(...sectionsResult.errors);
-
-  for (const section of sectionsResult.sections) {
-    section.line += bodyStartLine - 1;
-  }
-
-  // Step 3: Convert raw sections to ParsedLensSections with segments
-  const parsedSections: ParsedLensSection[] = [];
-
-  for (const rawSection of sectionsResult.sections) {
-    // Map section type: 'article' -> 'lens-article', 'video' -> 'lens-video'
-    const outputType = LENS_OUTPUT_TYPE[rawSection.type] ?? rawSection.type;
-
-    // For article/video sections, source field is required
-    const needsSource = outputType === 'lens-article' || outputType === 'lens-video';
-    const source = rawSection.fields.source;
-
-    if (needsSource && !source) {
-      errors.push({
-        file,
-        line: rawSection.line,
-        message: `${rawSection.rawType} section missing source:: field`,
-        suggestion: `Add 'source:: [[../path/to/file.md|Display]]' to the ${rawSection.rawType.toLowerCase()} section`,
-        severity: 'error',
-      });
-    }
-
-    // Validate source:: path is relative (contains /)
-    if (source) {
-      const wikilink = parseWikilink(source);
-      if (wikilink && wikilink.error) {
-        const suggestion = wikilink.correctedPath
-          ? `Did you mean '[[${wikilink.correctedPath}]]'?`
-          : 'Check the path in the wikilink';
-        errors.push({
-          file,
-          line: rawSection.line,
-          message: `Invalid wikilink in source:: field: ${source}`,
-          suggestion,
-          severity: 'error',
-        });
-      } else if (wikilink && !hasRelativePath(wikilink.path)) {
-        errors.push({
-          file,
-          line: rawSection.line,
-          message: `source:: path must be relative (contain /): ${wikilink.path}`,
-          suggestion: 'Use format [[../path/to/file.md|Display]] with relative path',
-          severity: 'error',
-        });
-      }
-    }
-
-    // Parse H4 segments within this section
-    const { segments: rawSegments, errors: segmentErrors } = parseSegments(
-      rawSection.body,
-      rawSection.line + 1, // Segments start after the section header
-      file
-    );
-    errors.push(...segmentErrors);
-
-    // Convert raw segments to typed segments
-    const segments: ParsedLensSegment[] = [];
-    for (const rawSeg of rawSegments) {
-      // Check for empty segments
-      const emptyWarning = checkEmptySegment(rawSeg, file);
-      if (emptyWarning) {
-        errors.push(emptyWarning);
-      }
-
-      // Validate that fields are appropriate for this segment type
-      const fieldWarnings = validateSegmentFields(rawSeg.type, rawSeg.fields, file, rawSeg.line);
-      errors.push(...fieldWarnings);
-
-      // Validate field values (e.g., boolean fields should have 'true' or 'false')
-      const valueWarnings = validateFieldValues(rawSeg.fields, file, rawSeg.line);
-      errors.push(...valueWarnings);
-
-      // Detect likely typos in field names
-      const typoWarnings = detectFieldTypos(rawSeg.fields, file, rawSeg.line);
-      errors.push(...typoWarnings);
-
-
-      // Check segment/section type compatibility
-      const validSegs = VALID_SEGMENTS_PER_SECTION[outputType];
-      if (validSegs && !validSegs.has(rawSeg.type)) {
-        errors.push({
-          file,
-          line: rawSeg.line,
-          message: `Segment type '${rawSeg.type}' is not valid in a ${rawSection.rawType} section`,
-          suggestion: `Valid segment types for ${rawSection.rawType}: ${[...(validSegs)].join(', ')}`,
-          severity: 'warning',
-        });
-      }
-      const { segment, errors: conversionErrors } = convertSegment(rawSeg, outputType, file);
-      errors.push(...conversionErrors);
-      if (segment) {
-        segments.push(segment);
-      }
-    }
-
-    // Warn if section has no segments
-    if (segments.length === 0) {
-      errors.push({
-        file,
-        line: rawSection.line,
-        message: `${rawSection.rawType} section has no segments`,
-        suggestion: `Add at least one segment (#### Text, #### Chat, etc.) to the ${rawSection.rawType.toLowerCase()} section`,
-        severity: 'warning',
-      });
-    }
-
-    const parsedSection: ParsedLensSection = {
-      type: outputType,
-      title: rawSection.title,
-      source: source,
-      segments,
-      line: rawSection.line,
-    };
-
-    parsedSections.push(parsedSection);
-  }
-
-  // Check for conflicting section types (Article + Video is nonsensical)
-  const sourceTypes = new Set(
-    parsedSections.map(s => s.type).filter(t => t !== 'page')
+  // Step 2: Parse segments from body (flat mode — all segment headers are siblings)
+  const { sections: rawSegments, errors: segmentErrors } = parseSections(
+    body,
+    3,  // parentLevel=3 for standalone lens files → matches H4+ (backward compat)
+    LENS_SEGMENT_TYPES,
+    file,
+    true  // flat=true — segments are always siblings
   );
-  if (sourceTypes.size > 1) {
-    const typeList = [...sourceTypes].join(', ');
+  errors.push(...segmentErrors);
+
+  // Step 3: Convert raw segments to typed segments + validate
+  const parsedSegments: ParsedLensSegment[] = [];
+  for (const rawSeg of rawSegments) {
+    // Check for empty segments
+    const emptyWarning = checkEmptySegment(rawSeg, file);
+    if (emptyWarning) {
+      errors.push(emptyWarning);
+    }
+
+    // Validate that fields are appropriate for this segment type
+    const fieldWarnings = validateSegmentFields(rawSeg.type, rawSeg.fields, file, rawSeg.line);
+    errors.push(...fieldWarnings);
+
+    // Validate field values (e.g., boolean fields should have 'true' or 'false')
+    const valueWarnings = validateFieldValues(rawSeg.fields, file, rawSeg.line);
+    errors.push(...valueWarnings);
+
+    // Detect likely typos in field names
+    const typoWarnings = detectFieldTypos(rawSeg.fields, file, rawSeg.line);
+    errors.push(...typoWarnings);
+
+    const { segment, errors: conversionErrors } = convertSegment(rawSeg, 'lens', file);
+    errors.push(...conversionErrors);
+    if (segment) {
+      parsedSegments.push(segment);
+    }
+  }
+
+  // Step 4: Source inheritance for article and video segments
+  const inheritanceErrors = applySourceInheritance(parsedSegments, file);
+  errors.push(...inheritanceErrors);
+
+  // Warn if lens has no segments
+  if (parsedSegments.length === 0) {
     errors.push({
       file,
-      line: parsedSections[0]?.line ?? bodyStartLine,
-      message: `Lens has conflicting section types: ${typeList}. Each lens should use a single source type.`,
-      suggestion: 'Split into separate lens files, one per source type',
+      line: bodyStartLine,
+      message: 'Lens has no segments',
+      suggestion: 'Add at least one segment (#### Text, #### Chat, etc.)',
       severity: 'warning',
     });
   }
 
   const lens: ParsedLens = {
     id: frontmatter.id as string,
+    title,
     tldr,
-    sections: parsedSections,
+    segments: parsedSegments,
   };
 
   return { lens, errors };

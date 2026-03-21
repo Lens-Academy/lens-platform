@@ -6,13 +6,9 @@ import {
 } from "../completionButtonText";
 import type { ModuleSection } from "@/types/module";
 
-function textSection(content: string): ModuleSection {
-  return { type: "text", content };
-}
-
-function pageSection(texts: string[]): ModuleSection {
+function lensSection(texts: string[]): ModuleSection {
   return {
-    type: "page",
+    type: "lens",
     contentId: null,
     learningOutcomeId: null,
     learningOutcomeName: null,
@@ -22,43 +18,55 @@ function pageSection(texts: string[]): ModuleSection {
   };
 }
 
-function videoSection(): ModuleSection {
+function videoLensSection(): ModuleSection {
   return {
-    type: "lens-video",
+    type: "lens",
     contentId: null,
     learningOutcomeId: null,
     learningOutcomeName: null,
-    videoId: null,
-    meta: { title: "Video", channel: null },
-    segments: [],
+    meta: { title: "Video" },
+    segments: [
+      {
+        type: "video",
+        from: 0,
+        to: 60,
+        transcript: "...",
+        title: "Video",
+        channel: "Channel",
+        videoId: "abc",
+      },
+    ],
     optional: false,
   };
 }
 
-function articleSection(): ModuleSection {
+function articleLensSection(): ModuleSection {
   return {
-    type: "lens-article",
+    type: "lens",
     contentId: null,
     learningOutcomeId: null,
     learningOutcomeName: null,
-    meta: { title: "Article", author: null, sourceUrl: null },
-    segments: [],
+    meta: { title: "Article" },
+    segments: [
+      {
+        type: "article",
+        content: "Some article content",
+        title: "Article",
+        author: "Author",
+      },
+    ],
     optional: false,
   };
 }
 
 describe("getSectionTextLength", () => {
-  it("returns content length for text sections", () => {
-    expect(getSectionTextLength(textSection("hello"))).toBe(5);
+  it("returns sum of text segment lengths for lens sections", () => {
+    expect(getSectionTextLength(lensSection(["abc", "de"]))).toBe(5);
   });
 
-  it("returns sum of text segment lengths for page sections", () => {
-    expect(getSectionTextLength(pageSection(["abc", "de"]))).toBe(5);
-  });
-
-  it("returns 0 for page sections with no text segments", () => {
+  it("returns 0 for lens sections with no text segments", () => {
     const section: ModuleSection = {
-      type: "page",
+      type: "lens",
       contentId: null,
       learningOutcomeId: null,
       learningOutcomeName: null,
@@ -76,47 +84,48 @@ describe("getSectionTextLength", () => {
     expect(getSectionTextLength(section)).toBe(0);
   });
 
-  it("returns Infinity for video sections", () => {
-    expect(getSectionTextLength(videoSection())).toBe(Infinity);
+  it("returns Infinity for video lens sections", () => {
+    expect(getSectionTextLength(videoLensSection())).toBe(Infinity);
   });
 
-  it("returns Infinity for article sections", () => {
-    expect(getSectionTextLength(articleSection())).toBe(Infinity);
+  it("includes article content length for article lens sections", () => {
+    const len = getSectionTextLength(articleLensSection());
+    expect(len).toBe("Some article content".length);
   });
 });
 
 describe("getCompletionButtonText", () => {
-  it("returns 'Get started' for short text at index 0", () => {
-    expect(getCompletionButtonText(textSection("short"), 0)).toBe(
+  it("returns 'Get started' for short lens text at index 0", () => {
+    expect(getCompletionButtonText(lensSection(["short"]), 0)).toBe(
       "Get started",
     );
   });
 
-  it("returns 'Continue' for short text at index > 0", () => {
-    expect(getCompletionButtonText(textSection("short"), 1)).toBe("Continue");
+  it("returns 'Continue' for short lens text at index > 0", () => {
+    expect(getCompletionButtonText(lensSection(["short"]), 1)).toBe("Continue");
   });
 
-  it("returns 'Mark section complete' for long text", () => {
-    expect(getCompletionButtonText(textSection("x".repeat(1750)), 0)).toBe(
+  it("returns 'Mark section complete' for long lens text", () => {
+    expect(getCompletionButtonText(lensSection(["x".repeat(1750)]), 0)).toBe(
       "Mark section complete",
     );
   });
 
-  it("returns 'Mark section complete' for video sections", () => {
-    expect(getCompletionButtonText(videoSection(), 0)).toBe(
+  it("returns 'Mark section complete' for video lens sections", () => {
+    expect(getCompletionButtonText(videoLensSection(), 0)).toBe(
       "Mark section complete",
     );
   });
 
-  it("returns 'Mark section complete' for article sections", () => {
-    expect(getCompletionButtonText(articleSection(), 0)).toBe(
+  it("returns 'Mark section complete' for article lens sections", () => {
+    expect(getCompletionButtonText(articleLensSection(), 0)).toBe(
       "Mark section complete",
     );
   });
 
-  it("returns 'Continue' for short page with chat segment at index 0", () => {
+  it("returns 'Continue' for short lens with chat segment at index 0", () => {
     const section: ModuleSection = {
-      type: "page",
+      type: "lens",
       contentId: null,
       learningOutcomeId: null,
       learningOutcomeName: null,
@@ -136,10 +145,10 @@ describe("getCompletionButtonText", () => {
   });
 
   it("threshold is exclusive (1749 = short, 1750 = long)", () => {
-    expect(getCompletionButtonText(textSection("x".repeat(1749)), 0)).toBe(
+    expect(getCompletionButtonText(lensSection(["x".repeat(1749)]), 0)).toBe(
       "Get started",
     );
-    expect(getCompletionButtonText(textSection("x".repeat(1750)), 0)).toBe(
+    expect(getCompletionButtonText(lensSection(["x".repeat(1750)]), 0)).toBe(
       "Mark section complete",
     );
   });

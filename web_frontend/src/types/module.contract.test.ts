@@ -16,42 +16,32 @@ describe("Frontend types match TypeScript processor output", () => {
     // No type assertion needed - the fixture should match the Module type directly.
     const module: Module = contract;
 
-    expect(module.slug).toBe("test-uncategorized");
-    expect(module.title).toBe("Test Uncategorized Lenses");
-    expect(module.sections.length).toBe(2);
+    expect(module.slug).toBe("lens/article-lens");
+    expect(module.title).toBe("Deep Dive Article");
+    expect(module.sections.length).toBe(1);
   });
 
-  it("lens-video section matches LensVideoSection type", () => {
+  it("lens section matches LensSection type", () => {
     const section = contract.sections[0] as ModuleSection;
-    expect(section.type).toBe("lens-video");
+    expect(section.type).toBe("lens");
 
-    if (section.type === "lens-video") {
-      expect(section.meta.title).toBe("AI Safety Introduction");
-      expect(section.meta.channel).toBe("Safety Channel");
-      expect(section.optional).toBe(false);
-    }
-  });
-
-  it("lens-article section matches LensArticleSection type", () => {
-    const section = contract.sections[1] as ModuleSection;
-    expect(section.type).toBe("lens-article");
-
-    if (section.type === "lens-article") {
+    if (section.type === "lens") {
       expect(section.meta.title).toBe("Deep Dive Article");
-      expect(section.meta.author).toBe("Jane Doe");
       expect(section.optional).toBe(false);
     }
   });
 
   it("segments have correct types", () => {
-    // Video section segments
-    const videoSection = contract.sections[0];
-    expect(videoSection.segments[0].type).toBe("text");
-    expect(videoSection.segments[1].type).toBe("video-excerpt");
+    // Lens section segments
+    const lensSection = contract.sections[0];
+    expect(lensSection.segments[0].type).toBe("text");
+    expect(lensSection.segments[1].type).toBe("article");
 
-    // Article section segments
-    const articleSection = contract.sections[1];
-    expect(articleSection.segments[0].type).toBe("text");
-    expect(articleSection.segments[1].type).toBe("article-excerpt");
+    // Article segment has metadata
+    const articleSeg = lensSection.segments[1];
+    if (articleSeg.type === "article") {
+      expect(articleSeg.title).toBe("Deep Dive Article");
+      expect(articleSeg.author).toBe("Jane Doe");
+    }
   });
 });

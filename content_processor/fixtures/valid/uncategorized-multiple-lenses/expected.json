@@ -6,12 +6,9 @@
       "contentId": "a1b2c3d4-0000-0000-0000-000000000020",
       "sections": [
         {
-          "type": "lens-article",
+          "type": "lens",
           "meta": {
-            "title": "Deep Dive Article",
-            "author": "Jane Doe",
-            "sourceUrl": "https://example.com/deep-dive",
-            "published": "2024-01-01"
+            "title": "Deep Dive Article"
           },
           "segments": [
             {
@@ -19,16 +16,20 @@
               "content": "Read this article."
             },
             {
-              "type": "article-excerpt",
-              "content": "The key insight."
+              "type": "article",
+              "content": "The key insight.",
+              "title": "Deep Dive Article",
+              "author": "Jane Doe",
+              "sourceUrl": "https://example.com/deep-dive",
+              "published": "2024-01-01"
             }
           ],
           "optional": false,
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "a1b2c3d4-0000-0000-0000-000000000020",
-          "videoId": null,
-          "wordCount": 6
+          "wordCount": 6,
+          "displayType": "lens-article"
         }
       ]
     },
@@ -38,10 +39,9 @@
       "contentId": "a1b2c3d4-0000-0000-0000-000000000010",
       "sections": [
         {
-          "type": "lens-video",
+          "type": "lens",
           "meta": {
-            "title": "AI Safety Introduction",
-            "channel": "Safety Channel"
+            "title": "AI Safety Introduction"
           },
           "segments": [
             {
@@ -49,19 +49,22 @@
               "content": "Watch this video introduction."
             },
             {
-              "type": "video-excerpt",
+              "type": "video",
               "from": 0,
               "to": 60,
-              "transcript": "Welcome to AI safety. End of intro."
+              "transcript": "Welcome to AI safety. End of intro.",
+              "title": "AI Safety Introduction",
+              "channel": "Safety Channel",
+              "videoId": "dQw4w9WgXcQ"
             }
           ],
           "optional": false,
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "a1b2c3d4-0000-0000-0000-000000000010",
-          "videoId": "dQw4w9WgXcQ",
           "wordCount": 4,
-          "videoDurationSeconds": 60
+          "videoDurationSeconds": 60,
+          "displayType": "lens-video"
         }
       ]
     },
@@ -71,10 +74,9 @@
       "contentId": "a1b2c3d4-0000-0000-0000-000000000001",
       "sections": [
         {
-          "type": "lens-video",
+          "type": "lens",
           "meta": {
-            "title": "AI Safety Introduction",
-            "channel": "Safety Channel"
+            "title": ""
           },
           "segments": [
             {
@@ -82,27 +84,27 @@
               "content": "Watch this video introduction."
             },
             {
-              "type": "video-excerpt",
+              "type": "video",
               "from": 0,
               "to": 60,
-              "transcript": "Welcome to AI safety. End of intro."
+              "transcript": "Welcome to AI safety. End of intro.",
+              "title": "AI Safety Introduction",
+              "channel": "Safety Channel",
+              "videoId": "dQw4w9WgXcQ"
             }
           ],
           "optional": false,
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "a1b2c3d4-0000-0000-0000-000000000010",
-          "videoId": "dQw4w9WgXcQ",
           "wordCount": 4,
-          "videoDurationSeconds": 60
+          "videoDurationSeconds": 60,
+          "displayType": "lens-video"
         },
         {
-          "type": "lens-article",
+          "type": "lens",
           "meta": {
-            "title": "Deep Dive Article",
-            "author": "Jane Doe",
-            "sourceUrl": "https://example.com/deep-dive",
-            "published": "2024-01-01"
+            "title": ""
           },
           "segments": [
             {
@@ -110,16 +112,20 @@
               "content": "Read this article."
             },
             {
-              "type": "article-excerpt",
-              "content": "The key insight."
+              "type": "article",
+              "content": "The key insight.",
+              "title": "Deep Dive Article",
+              "author": "Jane Doe",
+              "sourceUrl": "https://example.com/deep-dive",
+              "published": "2024-01-01"
             }
           ],
           "optional": false,
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "a1b2c3d4-0000-0000-0000-000000000020",
-          "videoId": null,
-          "wordCount": 6
+          "wordCount": 6,
+          "displayType": "lens-article"
         }
       ]
     }

@@ -14,7 +14,7 @@ def test_flattened_module_with_dict_sections():
         content_id=UUID("00000000-0000-0000-0000-000000000001"),
         sections=[
             {
-                "type": "page",
+                "type": "lens",
                 "contentId": "00000000-0000-0000-0000-000000000002",
                 "title": "Welcome",
                 "segments": [],
@@ -44,7 +44,7 @@ def test_flattened_module_with_dict_sections():
     )
     assert module.slug == "introduction"
     assert len(module.sections) == 3
-    assert module.sections[0]["type"] == "page"
+    assert module.sections[0]["type"] == "lens"
     assert module.sections[1]["type"] == "video"
     assert module.sections[2]["type"] == "article"
     assert module.sections[2]["optional"] is True
@@ -90,6 +90,6 @@ def test_flattened_module_error_defaults_to_none():
         slug="working",
         title="Working Module",
         content_id=None,
-        sections=[{"type": "page", "segments": []}],
+        sections=[{"type": "lens", "segments": []}],
     )
     assert module.error is None

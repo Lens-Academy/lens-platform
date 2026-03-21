@@ -61,7 +61,7 @@ export function MobileMenu({
         <div className="flex justify-end p-4">
           <button
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600 hover:text-slate-900 transition-transform active:scale-95"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] transition-transform active:scale-95"
             aria-label="Close menu"
           >
             <X className="w-6 h-6" />
@@ -73,7 +73,7 @@ export function MobileMenu({
           <a
             href="/course"
             onClick={onClose}
-            className="text-lg font-medium text-slate-900 py-3 transition-transform active:scale-[0.97]"
+            className="text-lg font-medium text-[var(--brand-text)] py-3 transition-transform active:scale-[0.97]"
           >
             Course
           </a>
@@ -82,8 +82,8 @@ export function MobileMenu({
             <DiscordInviteButton />
           </div>
 
-          <div className="border-t border-slate-200 pt-6">
-            <UserMenu signInRedirect={signInRedirect} />
+          <div className="border-t border-[var(--brand-border)] pt-6">
+            <UserMenu signInRedirect={signInRedirect} inline />
           </div>
         </nav>
       </div>

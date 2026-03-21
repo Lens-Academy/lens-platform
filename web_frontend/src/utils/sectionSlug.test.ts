@@ -4,16 +4,14 @@ import { getSectionSlug, findSectionBySlug } from "./sectionSlug";
 import type { ModuleSection } from "@/types/module";
 
 describe("getSectionSlug", () => {
-  it("returns slug from lens-article title", () => {
+  it("returns slug from lens section title", () => {
     const section: ModuleSection = {
-      type: "lens-article",
+      type: "lens",
       contentId: "abc",
       learningOutcomeId: null,
       learningOutcomeName: null,
       meta: {
         title: "Worst-Case Thinking (Optional)",
-        author: null,
-        sourceUrl: null,
       },
       segments: [],
       optional: true,
@@ -21,51 +19,64 @@ describe("getSectionSlug", () => {
     expect(getSectionSlug(section, 0)).toBe("worst-case-thinking-optional");
   });
 
-  it("returns slug from lens-video title", () => {
+  it("returns slug from lens section with video segments", () => {
     const section: ModuleSection = {
-      type: "lens-video",
+      type: "lens",
       contentId: "def",
       learningOutcomeId: null,
       learningOutcomeName: null,
-      videoId: "xyz",
-      meta: { title: "Introduction to AI Safety", channel: null },
-      segments: [],
+      meta: { title: "Introduction to AI Safety" },
+      segments: [
+        {
+          type: "video",
+          from: 0,
+          to: 60,
+          transcript: "...",
+          title: "Introduction to AI Safety",
+          channel: "AI Channel",
+          videoId: "xyz",
+        },
+      ],
       optional: false,
     };
     expect(getSectionSlug(section, 1)).toBe("introduction-to-ai-safety");
   });
 
-  it("returns slug from page title", () => {
+  it("returns slug from lens title", () => {
     const section: ModuleSection = {
-      type: "page",
+      type: "lens",
+      contentId: null,
+      learningOutcomeId: null,
+      learningOutcomeName: null,
       meta: { title: "Learning Outcomes" },
       segments: [],
+      optional: false,
     };
     expect(getSectionSlug(section, 2)).toBe("learning-outcomes");
   });
 
-  it("returns fallback for page with null title", () => {
+  it("returns fallback for lens with null title", () => {
     const section: ModuleSection = {
-      type: "page",
+      type: "lens",
+      contentId: null,
+      learningOutcomeId: null,
+      learningOutcomeName: null,
       meta: { title: null },
       segments: [],
+      optional: false,
     };
     expect(getSectionSlug(section, 3)).toBe("section-4");
   });
 
-  it("returns fallback for text section", () => {
-    const section: ModuleSection = {
-      type: "text",
-      content: "Some content here",
-    };
-    expect(getSectionSlug(section, 0)).toBe("section-1");
-  });
-
   it("returns fallback for whitespace-only title", () => {
     const section: ModuleSection = {
-      type: "page",
+      type: "lens",
+      contentId: null,
+      learningOutcomeId: null,
+      learningOutcomeName: null,
       meta: { title: "   " },
       segments: [],
+      optional: false,
     };
     expect(getSectionSlug(section, 5)).toBe("section-6");
   });
@@ -73,7 +84,7 @@ describe("getSectionSlug", () => {
   it("returns fallback when meta is undefined (runtime edge case)", () => {
     // Runtime data may not match TypeScript types
     const section = {
-      type: "page",
+      type: "lens",
       segments: [],
     } as unknown as ModuleSection;
     expect(getSectionSlug(section, 7)).toBe("section-8");
@@ -81,15 +92,13 @@ describe("getSectionSlug", () => {
 
   it("truncates long titles to 50 chars", () => {
     const section: ModuleSection = {
-      type: "lens-article",
+      type: "lens",
       contentId: "abc",
       learningOutcomeId: null,
       learningOutcomeName: null,
       meta: {
         title:
           "This Is A Very Long Title That Should Be Truncated To Fifty Characters Maximum",
-        author: null,
-        sourceUrl: null,
       },
       segments: [],
       optional: false,
@@ -102,31 +111,42 @@ describe("getSectionSlug", () => {
 describe("findSectionBySlug", () => {
   const sections: ModuleSection[] = [
     {
-      type: "page",
+      type: "lens",
+      contentId: null,
+      learningOutcomeId: null,
+      learningOutcomeName: null,
       meta: { title: "Learning Outcomes" },
       segments: [],
+      optional: false,
     },
     {
-      type: "lens-article",
+      type: "lens",
       contentId: "abc",
       learningOutcomeId: null,
       learningOutcomeName: null,
       meta: {
         title: "Worst-Case Thinking (Optional)",
-        author: null,
-        sourceUrl: null,
       },
       segments: [],
       optional: true,
     },
     {
-      type: "lens-video",
+      type: "lens",
       contentId: "def",
       learningOutcomeId: null,
       learningOutcomeName: null,
-      videoId: "xyz",
-      meta: { title: "Introduction Video", channel: null },
-      segments: [],
+      meta: { title: "Introduction Video" },
+      segments: [
+        {
+          type: "video",
+          from: 0,
+          to: 60,
+          transcript: "...",
+          title: "Introduction Video",
+          channel: "AI Safety",
+          videoId: "xyz123",
+        },
+      ],
       optional: false,
     },
   ];

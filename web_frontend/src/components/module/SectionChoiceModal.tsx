@@ -3,7 +3,7 @@ import { formatDurationMinutes } from "../../utils/duration";
 
 export interface SectionChoice {
   index: number;
-  type: "lens-video" | "lens-article" | "page" | "test";
+  type: "lens" | "test";
   title: string;
   tldr?: string;
   optional: boolean;
@@ -37,14 +37,7 @@ function SectionTypeLabel({
   type: SectionChoice["type"];
   duration?: number | null;
 }) {
-  const label =
-    type === "lens-video"
-      ? "Video"
-      : type === "lens-article"
-        ? "Article"
-        : type === "test"
-          ? "Test"
-          : "Page";
+  const label = type === "test" ? "Test" : "Lens";
   return (
     <>
       {label}

@@ -37,11 +37,16 @@ export default function VideoEmbed({
 }: VideoEmbedProps) {
   const [isActivated, setIsActivated] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+  const [hasPlayed, setHasPlayed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const isFirst = excerptNumber === 1;
 
-  // YouTube thumbnail URL (hqdefault is always available)
-  const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  // YouTube thumbnail: try maxresdefault (1280px), fall back to hqdefault (480px)
+  const [thumbRes, setThumbRes] = useState<"maxresdefault" | "hqdefault">(
+    "maxresdefault",
+  );
+  const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/${thumbRes}.jpg`;
 
   const handleActivate = useCallback(() => {
     setIsActivated(true);
@@ -49,7 +54,27 @@ export default function VideoEmbed({
     onTheaterChange?.(true);
   }, [onTheaterChange]);
 
+  // Warm up YouTube connections on hover (same technique as lite-youtube-embed)
+  const preconnected = useRef(false);
+  const warmConnections = useCallback(() => {
+    if (preconnected.current) return;
+    preconnected.current = true;
+    const origins = [
+      "https://www.youtube-nocookie.com",
+      "https://www.youtube.com",
+      "https://www.google.com",
+    ];
+    for (const origin of origins) {
+      const link = document.createElement("link");
+      link.rel = "preconnect";
+      link.href = origin;
+      document.head.append(link);
+    }
+  }, []);
+
   const handlePlay = useCallback(() => {
+    setHasPlayed(true);
+    setShowLoading(false);
     if (!isTheaterMode) {
       setIsTheaterMode(true);
       onTheaterChange?.(true);
@@ -61,6 +86,13 @@ export default function VideoEmbed({
     setIsTheaterMode(false);
     onTheaterChange?.(false);
   }, [onTheaterChange]);
+
+  // Show loading indicator if video hasn't played after 1 second
+  useEffect(() => {
+    if (!isActivated || hasPlayed) return;
+    const timer = setTimeout(() => setShowLoading(true), 1000);
+    return () => clearTimeout(timer);
+  }, [isActivated, hasPlayed]);
 
   // Scroll into view when entering theater mode
   useEffect(() => {
@@ -112,7 +144,7 @@ export default function VideoEmbed({
       >
         {/* Video container — flex:1 fills remaining space, contents shrink to fit */}
         <div
-          className={videoContainerClasses}
+          className={`${videoContainerClasses} relative`}
           style={{
             flex: isTheaterMode ? "1 1 0" : undefined,
             minHeight: isTheaterMode ? 0 : undefined,
@@ -122,6 +154,33 @@ export default function VideoEmbed({
             justifyContent: isTheaterMode ? "center" : undefined,
           }}
         >
+          {/* Loading indicator while YouTube iframe initializes */}
+          {showLoading && !hasPlayed && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+              <div className="text-white/70 text-sm flex items-center gap-2">
+                <svg
+                  className="animate-spin h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                Loading video…
+              </div>
+            </div>
+          )}
           <VideoPlayer
             videoId={videoId}
             start={start}
@@ -140,9 +199,11 @@ export default function VideoEmbed({
 
   return (
     <div ref={containerRef} className={videoContainerClasses}>
-      <div className="bg-stone-100 rounded-lg overflow-hidden shadow-sm">
+      <div className="rounded-lg overflow-hidden shadow-sm bg-black">
         <button
           onClick={handleActivate}
+          onPointerOver={warmConnections}
+          onFocus={warmConnections}
           className="relative block w-full aspect-video group cursor-pointer"
           aria-label={label}
         >
@@ -151,16 +212,44 @@ export default function VideoEmbed({
             src={thumbnailUrl}
             alt="Video thumbnail"
             className="w-full h-full object-cover"
+            onError={() => {
+              if (thumbRes === "maxresdefault") setThumbRes("hqdefault");
+            }}
           />
 
-          {/* Dark overlay */}
-          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
-
-          {/* Label text */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-white text-lg font-medium bg-black/60 px-4 py-2 rounded-lg group-hover:scale-105 transition-transform">
-              {label}
+          {/* Top gradient + title (YouTube's exact gradient) */}
+          {title && (
+            <div
+              className="absolute top-0 left-0 right-0 px-4 pt-3 pb-8 text-left"
+              style={{
+                backgroundImage:
+                  "linear-gradient(180deg, rgb(0 0 0 / 67%) 0%, rgb(0 0 0 / 54%) 14%, rgb(0 0 0 / 15%) 54%, rgb(0 0 0 / 5%) 72%, rgb(0 0 0 / 0%) 94%)",
+              }}
+            >
+              <div className="text-white text-lg font-medium text-shadow-sm">
+                {title}
+              </div>
+              {channel && (
+                <div className="text-white text-base mt-0.5 text-shadow-sm">
+                  {channel}
+                </div>
+              )}
             </div>
+          )}
+
+          {/* YouTube red play button */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <svg
+              className="w-[68px] h-[48px]"
+              viewBox="0 0 68 48"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55c-2.93.78-4.63 3.26-5.42 6.19C.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z"
+                fill="red"
+              />
+              <path d="M45 24 27 14v20" fill="white" />
+            </svg>
           </div>
 
           {/* Duration badge (only show when end time is specified) */}
@@ -170,20 +259,6 @@ export default function VideoEmbed({
             </div>
           )}
         </button>
-
-        {/* Title and channel below thumbnail (YouTube style) */}
-        {(title || channel) && (
-          <div className="px-3 py-2">
-            {title && (
-              <div className="text-sm font-medium text-stone-800 line-clamp-2">
-                {title}
-              </div>
-            )}
-            {channel && (
-              <div className="text-xs text-stone-500 mt-0.5">{channel}</div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

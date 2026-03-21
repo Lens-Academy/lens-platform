@@ -34,19 +34,23 @@ def _extract_segment_content(
         content = seg.get("content", "")
         return f"[Written by Lens Academy]\n{content}" if content else None
 
-    if seg_type == "video-excerpt":
+    if seg_type in ("video", "video-excerpt"):
         transcript = seg.get("transcript", "")
         return f"[Video transcript]\n{transcript}" if transcript else None
 
-    if seg_type == "article-excerpt":
+    if seg_type in ("article", "article-excerpt"):
         content = seg.get("content", "")
         if not content:
             return None
+        # Read title/author from segment itself (new format) or fall back to
+        # section-level meta passed as arguments (old format / backward compat)
+        title = seg.get("title") or article_title
+        author = seg.get("author") or article_author
         parts = []
-        if article_title:
-            parts.append(f'"{article_title}"')
-        if article_author:
-            parts.append(f"by {article_author}")
+        if title:
+            parts.append(f'"{title}"')
+        if author:
+            parts.append(f"by {author}")
         if parts:
             return f"[From {', '.join(parts)}]\n{content}"
         return content

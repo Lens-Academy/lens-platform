@@ -4,7 +4,9 @@ import { useScrollDirection } from "../hooks/useScrollDirection";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { UserMenu } from "./nav/UserMenu";
 import StageProgressBar from "./module/StageProgressBar";
+import BreadcrumbNav from "./module/BreadcrumbNav";
 import type { Stage } from "../types/module";
+import type { ModuleInfo } from "../types/course";
 
 // CSS styles for hiding elements while keeping them measurable
 const hiddenStyle: React.CSSProperties = {
@@ -25,6 +27,11 @@ interface ModuleHeaderProps {
   onNext: () => void;
   onMenuToggle: () => void;
   testModeActive?: boolean;
+  // Breadcrumb context (optional — falls back to plain title when absent)
+  unitName?: string;
+  unitModules?: ModuleInfo[];
+  currentModuleSlug?: string;
+  sidebarOpen?: boolean;
 }
 
 // 0 = show everything, 1 = hide brand, 2 = hide brand+username, 3 = compact nav, 4 = hide title
@@ -42,8 +49,15 @@ export function ModuleHeader({
   onNext,
   onMenuToggle,
   testModeActive,
+  unitName,
+  unitModules,
+  currentModuleSlug,
+  sidebarOpen,
 }: ModuleHeaderProps) {
   const scrollDirection = useScrollDirection(100);
+
+  // Ref for the header element — used to dynamically set --module-header-height
+  const headerRef = useRef<HTMLElement>(null);
 
   // Refs for layout measurement
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,7 +65,7 @@ export function ModuleHeader({
   const rightRef = useRef<HTMLDivElement>(null);
   const centerRef = useRef<HTMLDivElement>(null);
   const brandRef = useRef<HTMLSpanElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
+  const titleRef = useRef<HTMLElement>(null);
   const compactNavRef = useRef<HTMLDivElement>(null);
 
   // Priority-based visibility: single number, strictly ordered
@@ -60,6 +74,8 @@ export function ModuleHeader({
 
   // Cached username width (from when it was visible)
   const usernameWRef = useRef(0);
+  // Cached unit name width (from when breadcrumb shows full unit › module)
+  const unitNameWRef = useRef(0);
   // Cached title width (from when it was visible)
   const titleWRef = useRef(0);
 
@@ -99,12 +115,25 @@ export function ModuleHeader({
       }
       const usernameW = usernameWRef.current;
 
+      // Cache unit name width when breadcrumb shows full form (priority < 3)
+      if (curP < 3) {
+        const unitEl = container.querySelector(
+          "[data-breadcrumb-unit]",
+        ) as HTMLElement | null;
+        if (unitEl) unitNameWRef.current = unitEl.offsetWidth;
+      }
+      const unitNameW = unitNameWRef.current;
+
       // Reconstruct "full" layout widths by adding back hidden element widths.
       // When priority >= 1, brand is position:absolute so left doesn't include it.
       // When priority >= 2, username is conditionally hidden so right is smaller.
+      // When priority >= 3, unit name in breadcrumb is position:absolute.
       // When priority >= 4, title is position:absolute so left doesn't include it.
       const fullLeft =
-        left.offsetWidth + (curP >= 1 ? brandW : 0) + (curP >= 4 ? titleW : 0);
+        left.offsetWidth +
+        (curP >= 1 ? brandW : 0) +
+        (curP >= 3 ? unitNameW : 0) +
+        (curP >= 4 ? titleW : 0);
       const fullRight = rightWidth + (curP >= 2 ? usernameW : 0);
       // Subtract container padding (px-4 = 16px each side) since clientWidth
       // includes padding but flex children are laid out inside the content box.
@@ -124,14 +153,14 @@ export function ModuleHeader({
       }
       if (available < barWidth + 2 * gap) {
         p = 3;
+        available += unitNameW;
       }
 
-      // At priority 3, compact nav replaces progress bar.
+      // At priority 3, compact nav replaces progress bar and breadcrumb hides unit name.
       // Check if left + compact nav + right still overflows.
       if (p >= 3) {
         const compactW = compactNav ? compactNav.offsetWidth : 0;
-        // At p3, brand is hidden. Remove brandW from fullLeft to get actual left width.
-        const leftAtP3 = fullLeft - brandW;
+        const leftAtP3 = fullLeft - brandW - unitNameW;
         const rightAtP3 = fullRight - usernameW;
         const totalNeeded = leftAtP3 + compactW + rightAtP3 + padding;
         if (totalNeeded + 2 * gap > containerWidth) {
@@ -165,6 +194,20 @@ export function ModuleHeader({
     return () => ro.disconnect();
   }, []); // stable — no dependencies
 
+  // Keep --module-header-height in sync with actual header size
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const ro = new ResizeObserver(() => {
+      document.documentElement.style.setProperty(
+        "--module-header-height",
+        `${header.offsetHeight}px`,
+      );
+    });
+    ro.observe(header);
+    return () => ro.disconnect();
+  }, []);
+
   // Hide header on scroll down only when viewport is compact (mobile or short)
   const isCompactViewport = useMedia(
     "(max-width: 767px), (max-height: 700px)",
@@ -186,6 +229,7 @@ export function ModuleHeader({
 
   return (
     <header
+      ref={headerRef}
       className={`
         fixed top-0 left-0 right-0 z-40
         border-b bg-[var(--brand-bg)]
@@ -199,48 +243,55 @@ export function ModuleHeader({
     >
       <div
         ref={containerRef}
-        className="relative flex items-center justify-between px-4 py-3"
+        className="relative flex items-center justify-between px-4 py-2.5"
       >
         {/* Left: Hamburger + Logo + Brand + Title */}
         <div
           ref={leftRef}
           className="flex items-center gap-2 min-w-0 flex-shrink-0"
         >
-          <button
-            onMouseDown={onMenuToggle}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-black/5 transition-all active:scale-95 shrink-0"
-            aria-label="Module overview"
-          >
-            <Menu className="w-5 h-5 text-gray-500" />
-          </button>
-          <a href="/" className="min-h-[44px] flex items-center gap-2 shrink-0">
+          {priority >= 4 && (
+            <button
+              type="button"
+              className="p-2 text-gray-700 hover:text-gray-500 transition-colors cursor-pointer"
+              onMouseDown={onMenuToggle}
+              title="Open navigation"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
+          <a href="/" className="min-h-[44px] flex items-center shrink-0">
             <img
               src="/assets/Logo_magnifying_glass.png"
               alt="Lens Academy"
               className="h-6"
             />
           </a>
-          {/* Brand: always in DOM, hidden via CSS when priority >= 1 */}
-          <span
-            ref={brandRef}
-            className="flex items-center gap-2"
-            style={priority >= 1 ? hiddenStyle : undefined}
-          >
-            <a
-              href="/"
-              className="text-base font-semibold text-gray-900 hover:text-gray-700 font-display"
-            >
-              Lens Academy
-            </a>
-            <span style={{ color: "var(--brand-border)" }}>|</span>
+          {/* Brand separator: always in DOM for measurement, hidden at priority >= 1 */}
+          <span ref={brandRef} style={priority >= 1 ? hiddenStyle : undefined}>
+            <span className="text-gray-300 mx-1">|</span>
           </span>
-          <h1
-            ref={titleRef}
-            className="text-base font-semibold text-gray-900 truncate max-w-[200px] font-display"
-            style={priority >= 4 ? hiddenStyle : undefined}
-          >
-            {moduleTitle}
-          </h1>
+          {unitName ? (
+            <>
+              <BreadcrumbNav
+                ref={titleRef}
+                unitName={unitName}
+                currentModuleSlug={currentModuleSlug!}
+                unitModules={unitModules!}
+                priority={priority}
+                onToggleSidebar={onMenuToggle}
+                sidebarOpen={sidebarOpen}
+              />
+            </>
+          ) : (
+            <h1
+              ref={titleRef}
+              className="text-base font-semibold text-gray-900 truncate max-w-[200px] font-display"
+              style={priority >= 4 ? hiddenStyle : undefined}
+            >
+              {moduleTitle}
+            </h1>
+          )}
         </div>
 
         {/* Center: Compact nav — always in DOM for measurement, hidden when priority < 3 */}

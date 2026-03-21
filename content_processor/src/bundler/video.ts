@@ -125,7 +125,7 @@ export function extractFromTimestamps(
 export function extractVideoExcerpt(
   transcript: string,
   fromTime: string,
-  toTime: string,
+  toTime: string | undefined,
   file: string,
   timestamps?: TimestampEntry[]
 ): VideoExcerptResult {
@@ -142,8 +142,9 @@ export function extractVideoExcerpt(
     };
   }
 
-  const toSeconds = parseTimestamp(toTime);
-  if (toSeconds === null) {
+  // toTime is optional — undefined means "full video from fromSeconds"
+  const toSeconds = toTime !== undefined ? parseTimestamp(toTime) : null;
+  if (toTime !== undefined && toSeconds === null) {
     return {
       error: {
         file,
@@ -154,8 +155,8 @@ export function extractVideoExcerpt(
     };
   }
 
-  // Validate that from is not after to
-  if (fromSeconds > toSeconds) {
+  // Validate that from is not after to (only when to is specified)
+  if (toSeconds !== null && fromSeconds > toSeconds) {
     return {
       error: {
         file,
@@ -168,7 +169,8 @@ export function extractVideoExcerpt(
 
   // If timestamps data is provided, use word-level extraction
   if (timestamps && timestamps.length > 0) {
-    const extractedText = extractFromTimestamps(timestamps, fromSeconds, toSeconds);
+    const effectiveTo = toSeconds ?? Infinity;
+    const extractedText = extractFromTimestamps(timestamps, fromSeconds, effectiveTo);
     return {
       from: fromSeconds,
       to: toSeconds,
@@ -210,22 +212,23 @@ export function extractVideoExcerpt(
     };
   }
 
-  // A line is included if its timestamp >= fromSeconds and < toSeconds
+  // A line is included if its timestamp >= fromSeconds and < toSeconds (or all remaining if no to)
   // Special case: fromSeconds === 0 means "start of video" - no need to find exact 0:00 marker
+  const effectiveTo = toSeconds ?? Infinity;
   let foundFrom = fromSeconds === 0;
-  let foundTo = false;
+  let foundTo = toSeconds === null; // no to:: means we want everything — no need to find marker
   const excerptLines: string[] = [];
 
   for (const { timestamp, line } of timestampedLines) {
     if (timestamp === fromSeconds) {
       foundFrom = true;
     }
-    if (timestamp === toSeconds) {
+    if (toSeconds !== null && timestamp === toSeconds) {
       foundTo = true;
     }
 
     // Include lines from fromSeconds up to (but not including) toSeconds
-    if (timestamp >= fromSeconds && timestamp < toSeconds) {
+    if (timestamp >= fromSeconds && timestamp < effectiveTo) {
       excerptLines.push(line);
     }
   }

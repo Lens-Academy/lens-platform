@@ -19,7 +19,7 @@ def test_cache_stores_flattened_modules():
                 content_id=UUID("00000000-0000-0000-0000-000000000001"),
                 sections=[
                     {
-                        "type": "page",
+                        "type": "lens",
                         "contentId": "00000000-0000-0000-0000-000000000002",
                         "title": "Welcome",
                         "segments": [],
@@ -35,4 +35,4 @@ def test_cache_stores_flattened_modules():
     )
 
     assert "intro" in cache.flattened_modules
-    assert cache.flattened_modules["intro"].sections[0]["type"] == "page"
+    assert cache.flattened_modules["intro"].sections[0]["type"] == "lens"
