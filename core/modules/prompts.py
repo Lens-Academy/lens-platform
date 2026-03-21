@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .flattened_types import ParsedCourse, ModuleRef, MeetingMarker
+
 if TYPE_CHECKING:
     from .context import SectionContext
 
@@ -77,3 +79,71 @@ def assemble_chat_prompt(
                 else:
                     prompt += f"\n\nThe user is currently at segment {pos} (the last segment)."
     return prompt
+
+
+def build_course_overview(
+    course: ParsedCourse,
+    current_module_slug: str,
+    current_section_index: int,
+    completed_content_ids: set[str],
+) -> str:
+    """Build a structured course overview for the system prompt.
+
+    Args:
+        course: The parsed course definition
+        current_module_slug: Slug of the module the student is currently in
+        current_section_index: Index of the current section within the module
+        completed_content_ids: Set of content IDs the student has completed
+
+    Returns:
+        Formatted overview string for injection into system prompt
+    """
+    from .loader import load_flattened_module
+    from . import ModuleNotFoundError
+
+    lines = [f"Course Overview: {course.title}", ""]
+
+    for item in course.progression:
+        if isinstance(item, MeetingMarker):
+            lines.append(f"--- {item.name} ---")
+            lines.append("")
+            continue
+
+        if not isinstance(item, ModuleRef):
+            continue
+
+        is_current_module = item.slug == current_module_slug
+
+        try:
+            module = load_flattened_module(item.slug)
+        except (ModuleNotFoundError, Exception):
+            lines.append(f"  {'→' if is_current_module else '•'} {item.slug} (unavailable)")
+            continue
+
+        marker = "→ CURRENT:" if is_current_module else "•"
+        optional = " (optional)" if item.optional else ""
+        lines.append(f"  {marker} {module.title}{optional}")
+
+        for i, section in enumerate(module.sections):
+            title = section.get("meta", {}).get("title", "Untitled")
+            tldr = section.get("tldr", "")
+            content_id = section.get("contentId")
+
+            # Status marker
+            if is_current_module and i == current_section_index:
+                status = "← you are here"
+            elif content_id and str(content_id) in completed_content_ids:
+                status = "✓"
+            else:
+                status = ""
+
+            line = f"    - {title}"
+            if status:
+                line += f" [{status}]"
+            if tldr:
+                line += f" — {tldr}"
+            lines.append(line)
+
+        lines.append("")
+
+    return "\n".join(lines)
