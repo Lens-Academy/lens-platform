@@ -14,6 +14,14 @@ DEFAULT_BASE_PROMPT = (
     "and learning objectives."
 )
 
+TOOL_USAGE_GUIDANCE = """
+You have access to tools for looking up information. Use them when:
+- The student asks about alignment research topics beyond the current material
+- You need to verify or expand on a specific claim
+- The student asks about something not covered in the course
+
+When you use a tool, briefly mention what you're looking up. Cite sources when providing information from tools."""
+
 
 def _format_location(context: "SectionContext") -> str | None:
     """Build a 'Module > Learning Outcome > Section' breadcrumb string."""

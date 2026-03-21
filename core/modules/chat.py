@@ -1,15 +1,17 @@
 # core/modules/chat.py
 """
-Module chat - Claude SDK integration with stage-aware prompting.
+Module chat - LLM integration with stage-aware prompting and tool execution loop.
 """
 
 import logging
 import os
 from typing import AsyncIterator
 
-from .llm import stream_chat
+from litellm import acompletion, stream_chunk_builder
+
+from .llm import iter_chunk_events, DEFAULT_PROVIDER
 from .context import SectionContext
-from .prompts import assemble_chat_prompt, DEFAULT_BASE_PROMPT
+from .prompts import assemble_chat_prompt, DEFAULT_BASE_PROMPT, TOOL_USAGE_GUIDANCE
 from .types import Stage, ArticleStage, VideoStage, ChatStage
 from .content import (
     load_article_with_metadata,
@@ -17,34 +19,19 @@ from .content import (
     ArticleContent,
     ArticleMetadata,
 )
+from .tools import get_tools, execute_tool
 from ..transcripts.tools import get_text_at_time
 
 logger = logging.getLogger(__name__)
 
-
-# Tool for transitioning to next stage (OpenAI function calling format)
-TRANSITION_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "transition_to_next",
-        "description": (
-            "Call this when the conversation has reached a good stopping point "
-            "and the user is ready to move to the next stage. "
-            "Use this after 2-3 exchanges, or when the user indicates readiness."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
-    },
-}
+MAX_TOOL_ROUNDS = 3
 
 
 def _build_system_prompt(
     current_stage: Stage,
     current_content: str | None,
     section_context: SectionContext | None,
+    course_overview: str | None = None,
 ) -> str:
     """Build the system prompt based on current stage and context.
 
@@ -52,9 +39,13 @@ def _build_system_prompt(
         current_stage: The current module stage
         current_content: Content of current stage (for article/video stages)
         section_context: Previous/current content from the section
+        course_overview: Optional course overview to inject after base prompt
     """
 
     base = DEFAULT_BASE_PROMPT
+
+    if course_overview:
+        base += f"\n\n{course_overview}"
 
     if isinstance(current_stage, ChatStage):
         # Active chat stage - use shared assembly
@@ -152,9 +143,11 @@ async def send_module_message(
     current_content: str | None = None,
     section_context: SectionContext | None = None,
     provider: str | None = None,
+    course_overview: str | None = None,
+    mcp_manager=None,
 ) -> AsyncIterator[dict]:
     """
-    Send messages to an LLM and stream the response.
+    Send messages to an LLM and stream the response, with multi-round tool execution.
 
     Args:
         messages: List of {"role": "user"|"assistant"|"system", "content": str}
@@ -163,14 +156,26 @@ async def send_module_message(
         section_context: Previous/current content from the section
         provider: LLM provider string (e.g., "anthropic/claude-sonnet-4-20250514")
                   If None, uses DEFAULT_PROVIDER from environment.
+        course_overview: Optional course overview text for system prompt
+        mcp_manager: Optional MCPClientManager for tool access
 
     Yields:
         Dicts with either:
+        - {"type": "thinking", "content": str} for thinking chunks
         - {"type": "text", "content": str} for text chunks
         - {"type": "tool_use", "name": str} for tool calls
         - {"type": "done"} when complete
     """
-    system = _build_system_prompt(current_stage, current_content, section_context)
+    system = _build_system_prompt(
+        current_stage, current_content, section_context, course_overview
+    )
+
+    # Get available tools if mcp_manager provided
+    tools = None
+    if mcp_manager is not None:
+        tools = await get_tools(mcp_manager)
+        if tools:
+            system += TOOL_USAGE_GUIDANCE
 
     # Debug mode: show system prompt in chat
     if os.environ.get("DEBUG") == "1":
@@ -180,13 +185,49 @@ async def send_module_message(
     # Filter out system messages (stage transition markers) - LLM APIs don't accept them in messages
     api_messages = [m for m in messages if m["role"] != "system"]
 
-    # Only include transition tool for chat stages
-    tools = [TRANSITION_TOOL] if isinstance(current_stage, ChatStage) else None
+    model = provider or DEFAULT_PROVIDER
 
-    async for event in stream_chat(
-        messages=api_messages,
-        system=system,
-        tools=tools,
-        provider=provider,
-    ):
-        yield event
+    # Tool execution loop
+    for round_num in range(MAX_TOOL_ROUNDS + 1):
+        llm_messages = [{"role": "system", "content": system}] + api_messages
+        kwargs = {
+            "model": model,
+            "messages": llm_messages,
+            "max_tokens": 16384,
+            "stream": True,
+            "thinking": {"type": "adaptive"},
+            "output_config": {"effort": "low"},
+        }
+        if tools:
+            kwargs["tools"] = tools
+            if round_num == MAX_TOOL_ROUNDS:
+                kwargs["tool_choice"] = "none"  # force text on final round
+
+        response = await acompletion(**kwargs)
+        chunks = []
+        async for chunk in response:
+            chunks.append(chunk)
+            for event in iter_chunk_events(chunk):
+                yield event
+
+        built = stream_chunk_builder(chunks, messages=llm_messages)
+        assistant_message = built.choices[0].message
+
+        if not assistant_message.tool_calls:
+            break
+
+        # Execute tool calls
+        api_messages.append(assistant_message.model_dump(exclude_none=True))
+        for tc in assistant_message.tool_calls:
+            yield {"type": "tool_use", "name": tc.function.name}
+            result = await execute_tool(mcp_manager, tc)
+            api_messages.append(
+                {
+                    "tool_call_id": tc.id,
+                    "role": "tool",
+                    "name": tc.function.name,
+                    "content": result,
+                }
+            )
+
+    yield {"type": "done"}
