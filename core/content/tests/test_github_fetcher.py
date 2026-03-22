@@ -1,26 +1,24 @@
-"""Tests for GitHub content fetcher."""
+"""Tests for GitHub content fetcher (git-based)."""
 
 import os
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 from datetime import datetime
+from pathlib import Path
 from uuid import UUID
 
-# These imports will fail until we implement the module
 from core.content.github_fetcher import (
     get_content_branch,
     ContentBranchNotConfiguredError,
     GitHubFetchError,
     CONTENT_REPO,
     fetch_file,
-    list_directory,
     fetch_all_content,
     get_latest_commit_sha,
     compare_commits,
     ChangedFile,
     CommitComparison,
     incremental_refresh,
-    _apply_file_change,
     _get_tracked_directory,
 )
 from core.content.cache import ContentCache, set_cache, clear_cache, get_cache
@@ -50,136 +48,37 @@ class TestConfig:
 
 
 class TestFetchFile:
-    """Test fetch_file function."""
+    """Test fetch_file function (reads from local clone dir)."""
 
     @pytest.mark.asyncio
-    async def test_fetch_file_success(self):
-        """Should fetch file content from GitHub."""
-        mock_response = AsyncMock()
-        mock_response.status_code = 200
-        mock_response.text = "# Test Content\n\nHello world"
+    async def test_fetch_file_success(self, tmp_path):
+        """Should read file content from clone directory."""
+        # Create a fake clone dir with a file
+        (tmp_path / "modules").mkdir()
+        (tmp_path / "modules" / "test.md").write_text("# Test Content\n\nHello world")
 
         with patch.dict(
             os.environ,
-            {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "test-token"},
+            {"EDUCATIONAL_CONTENT_BRANCH": "main", "API_PORT": "8000"},
         ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_response
-                mock_client_class.return_value = mock_client
-
+            with patch(
+                "core.content.github_fetcher._get_clone_dir", return_value=tmp_path
+            ):
                 result = await fetch_file("modules/test.md")
 
                 assert result == "# Test Content\n\nHello world"
-                mock_client.get.assert_called_once()
-                # Verify URL contains correct path
-                call_url = mock_client.get.call_args[0][0]
-                assert "modules/test.md" in call_url
-                assert "Lens-Academy/lens-edu-relay" in call_url
-                assert "main" in call_url
 
     @pytest.mark.asyncio
-    async def test_fetch_file_with_auth_header(self):
-        """Should include auth header when GITHUB_TOKEN is set."""
-        mock_response = AsyncMock()
-        mock_response.status_code = 200
-        mock_response.text = "content"
-
-        with patch.dict(
-            os.environ,
-            {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "secret-token"},
-        ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_response
-                mock_client_class.return_value = mock_client
-
-                await fetch_file("test.md")
-
-                call_kwargs = mock_client.get.call_args[1]
-                assert "headers" in call_kwargs
-                assert "Authorization" in call_kwargs["headers"]
-                assert "token secret-token" in call_kwargs["headers"]["Authorization"]
-
-    @pytest.mark.asyncio
-    async def test_fetch_file_raises_on_404(self):
-        """Should raise GitHubFetchError on HTTP errors."""
-        mock_response = AsyncMock()
-        mock_response.status_code = 404
-        mock_response.text = "Not Found"
-
+    async def test_fetch_file_raises_on_missing_file(self, tmp_path):
+        """Should raise GitHubFetchError when file not found in clone dir."""
         with patch.dict(os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main"}):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_response
-                mock_client_class.return_value = mock_client
-
+            with patch(
+                "core.content.github_fetcher._get_clone_dir", return_value=tmp_path
+            ):
                 with pytest.raises(GitHubFetchError) as exc_info:
                     await fetch_file("nonexistent.md")
 
-                assert "404" in str(exc_info.value)
-
-
-class TestListDirectory:
-    """Test list_directory function."""
-
-    @pytest.mark.asyncio
-    async def test_list_directory_success(self):
-        """Should list files in directory."""
-        # Use MagicMock for response since httpx .json() is synchronous
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = [
-            {"path": "modules/intro.md", "type": "file"},
-            {"path": "modules/advanced.md", "type": "file"},
-            {"path": "modules/drafts", "type": "dir"},  # Should be excluded
-        ]
-
-        with patch.dict(
-            os.environ,
-            {"EDUCATIONAL_CONTENT_BRANCH": "staging", "GITHUB_TOKEN": "test-token"},
-        ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_response
-                mock_client_class.return_value = mock_client
-
-                result = await list_directory("modules")
-
-                assert result == ["modules/intro.md", "modules/advanced.md"]
-                # Verify API URL is used
-                call_url = mock_client.get.call_args[0][0]
-                assert "api.github.com" in call_url
-                assert "modules" in call_url
-
-    @pytest.mark.asyncio
-    async def test_list_directory_raises_on_error(self):
-        """Should raise GitHubFetchError on API errors."""
-        # Use MagicMock for response since httpx .json() is synchronous
-        mock_response = MagicMock()
-        mock_response.status_code = 403
-        mock_response.json.return_value = {"message": "Rate limit exceeded"}
-
-        with patch.dict(os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main"}):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_response
-                mock_client_class.return_value = mock_client
-
-                with pytest.raises(GitHubFetchError) as exc_info:
-                    await list_directory("modules")
-
-                assert "403" in str(exc_info.value)
+                assert "not found" in str(exc_info.value).lower()
 
 
 class TestFetchAllContent:
@@ -187,91 +86,76 @@ class TestFetchAllContent:
 
     @pytest.mark.asyncio
     async def test_fetch_all_content_returns_cache(self):
-        """Should fetch all content and return ContentCache."""
-        # Mock directory listings
-        dir_responses = {
-            "modules": [{"path": "modules/intro.md", "type": "file"}],
-            "courses": [{"path": "courses/fundamentals.md", "type": "file"}],
-            "articles": [{"path": "articles/safety.md", "type": "file"}],
-            "video_transcripts": [
-                {"path": "video_transcripts/vid1.md", "type": "file"}
-            ],
-        }
-
-        # Mock file contents
-        module_md = """---
-slug: intro
-title: Introduction
----
-
-# Chat: Welcome
-instructions:: Hello!
-"""
-        course_md = """---
-slug: fundamentals
-title: AI Safety Fundamentals
----
-
-# Lesson: [[modules/intro]]
-"""
+        """Should fetch all content via git clone and return ContentCache."""
+        module_md = "---\nslug: intro\ntitle: Introduction\n---\n\n# Chat: Welcome\ninstructions:: Hello!\n"
+        course_md = "---\nslug: fundamentals\ntitle: AI Safety Fundamentals\n---\n\n# Lesson: [[modules/intro]]\n"
         article_md = "# Safety Article\n\nContent here."
         transcript_md = "# Video Transcript\n\nTranscript here."
 
-        def mock_get_side_effect(url, **kwargs):
-            # Use MagicMock for response since httpx .json() is synchronous
-            import base64
+        all_files = {
+            "modules/intro.md": module_md,
+            "courses/fundamentals.md": course_md,
+            "articles/safety.md": article_md,
+            "video_transcripts/vid1.md": transcript_md,
+        }
 
-            response = MagicMock()
-            response.status_code = 200
-            if "api.github.com" in url:
-                if "/commits/" in url:
-                    # Commit SHA API call
-                    response.json.return_value = {"sha": "abc123def456"}
-                elif ".md" in url:
-                    # Contents API for file fetch (returns base64-encoded content)
-                    content = ""
-                    if "modules/" in url:
-                        content = module_md
-                    elif "courses/" in url:
-                        content = course_md
-                    elif "articles/" in url:
-                        content = article_md
-                    elif "video_transcripts/" in url:
-                        content = transcript_md
-                    response.json.return_value = {
-                        "content": base64.b64encode(content.encode()).decode()
-                    }
-                else:
-                    # Directory listing (no .md in URL)
-                    for dir_name, items in dir_responses.items():
-                        if dir_name in url:
-                            response.json.return_value = items
-                            break
-            else:
-                # Raw file fetch (not used when ref is provided, but keep for completeness)
-                if "modules/" in url:
-                    response.text = module_md
-                elif "courses/" in url:
-                    response.text = course_md
-                elif "articles/" in url:
-                    response.text = article_md
-                elif "video_transcripts/" in url:
-                    response.text = transcript_md
-            return response
+        # Mock TypeScript processor result
+        ts_result = {
+            "modules": [
+                {
+                    "slug": "intro",
+                    "title": "Introduction",
+                    "contentId": "00000000-0000-0000-0000-000000000001",
+                    "sections": [
+                        {
+                            "type": "lens",
+                            "contentId": "00000000-0000-0000-0000-000000000002",
+                            "title": "Welcome",
+                            "segments": [{"type": "text", "content": "Hello"}],
+                        }
+                    ],
+                }
+            ],
+            "courses": [
+                {
+                    "slug": "fundamentals",
+                    "title": "AI Safety Fundamentals",
+                    "progression": [],
+                }
+            ],
+            "errors": [],
+        }
 
         with patch.dict(
             os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "token"}
         ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.side_effect = mock_get_side_effect
-                mock_client_class.return_value = mock_client
+            with patch(
+                "core.content.github_fetcher.git_fetcher.clone_repo",
+                new_callable=AsyncMock,
+            ):
+                with patch(
+                    "core.content.github_fetcher.git_fetcher.read_all_files",
+                    new_callable=AsyncMock,
+                    return_value=all_files,
+                ):
+                    with patch(
+                        "core.content.github_fetcher.git_fetcher.get_head_sha",
+                        new_callable=AsyncMock,
+                        return_value="abc123def456",
+                    ):
+                        with patch(
+                            "core.content.github_fetcher.process_content_typescript",
+                            new_callable=AsyncMock,
+                            return_value=ts_result,
+                        ):
+                            # Mock _get_clone_dir to return a path without .git
+                            with patch(
+                                "core.content.github_fetcher._get_clone_dir",
+                                return_value=Path("/tmp/fake-clone-no-git"),
+                            ):
+                                cache = await fetch_all_content()
 
-                cache = await fetch_all_content()
-
-                # Verify cache structure - now uses flattened_modules
+                # Verify cache structure
                 assert "intro" in cache.flattened_modules
                 assert cache.flattened_modules["intro"].title == "Introduction"
 
@@ -291,80 +175,81 @@ class TestGetLatestCommitSha:
     """Test get_latest_commit_sha function."""
 
     @pytest.mark.asyncio
-    async def test_get_latest_commit_sha_success(self):
-        """Should return SHA from GitHub API response."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "sha": "a1b2c3d4e5f6g7h8i9j0",
-            "commit": {"message": "Latest commit"},
-        }
+    async def test_get_latest_commit_sha_from_git(self, tmp_path):
+        """Should return SHA from git when clone exists."""
+        # Create fake .git dir to indicate clone exists
+        (tmp_path / ".git").mkdir()
 
         with patch.dict(
             os.environ,
             {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "test-token"},
         ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_response
-                mock_client_class.return_value = mock_client
+            with patch(
+                "core.content.github_fetcher._get_clone_dir", return_value=tmp_path
+            ):
+                with patch(
+                    "core.content.github_fetcher.git_fetcher.fetch_latest_sha",
+                    new_callable=AsyncMock,
+                    return_value="a1b2c3d4e5f6g7h8i9j0",
+                ):
+                    result = await get_latest_commit_sha()
 
-                result = await get_latest_commit_sha()
-
-                assert result == "a1b2c3d4e5f6g7h8i9j0"
-                # Verify correct API URL is used
-                call_url = mock_client.get.call_args[0][0]
-                assert "api.github.com" in call_url
-                assert "/commits/" in call_url
-                assert "main" in call_url
+                    assert result == "a1b2c3d4e5f6g7h8i9j0"
 
     @pytest.mark.asyncio
-    async def test_get_latest_commit_sha_uses_configured_branch(self):
-        """Should use configured branch in API URL."""
+    async def test_get_latest_commit_sha_api_fallback(self, tmp_path):
+        """Should fall back to GitHub API when clone doesn't exist."""
+        # tmp_path has no .git dir, so API fallback is used
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"sha": "sha123"}
+        mock_response.json.return_value = {"sha": "api_sha_123"}
 
         with patch.dict(
             os.environ,
             {"EDUCATIONAL_CONTENT_BRANCH": "staging"},
         ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_response
-                mock_client_class.return_value = mock_client
+            with patch(
+                "core.content.github_fetcher._get_clone_dir", return_value=tmp_path
+            ):
+                with patch("httpx.AsyncClient") as mock_client_class:
+                    mock_client = AsyncMock()
+                    mock_client.__aenter__.return_value = mock_client
+                    mock_client.__aexit__.return_value = None
+                    mock_client.get.return_value = mock_response
+                    mock_client_class.return_value = mock_client
 
-                await get_latest_commit_sha()
+                    result = await get_latest_commit_sha()
 
-                call_url = mock_client.get.call_args[0][0]
-                assert "staging" in call_url
+                    assert result == "api_sha_123"
+                    call_url = mock_client.get.call_args[0][0]
+                    assert "api.github.com" in call_url
+                    assert "staging" in call_url
 
     @pytest.mark.asyncio
-    async def test_get_latest_commit_sha_raises_on_error(self):
-        """Should raise GitHubFetchError on API errors."""
+    async def test_get_latest_commit_sha_api_raises_on_error(self, tmp_path):
+        """Should raise GitHubFetchError when API fallback fails."""
         mock_response = MagicMock()
         mock_response.status_code = 404
 
         with patch.dict(os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main"}):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_response
-                mock_client_class.return_value = mock_client
+            with patch(
+                "core.content.github_fetcher._get_clone_dir", return_value=tmp_path
+            ):
+                with patch("httpx.AsyncClient") as mock_client_class:
+                    mock_client = AsyncMock()
+                    mock_client.__aenter__.return_value = mock_client
+                    mock_client.__aexit__.return_value = None
+                    mock_client.get.return_value = mock_response
+                    mock_client_class.return_value = mock_client
 
-                with pytest.raises(GitHubFetchError) as exc_info:
-                    await get_latest_commit_sha()
+                    with pytest.raises(GitHubFetchError) as exc_info:
+                        await get_latest_commit_sha()
 
-                assert "404" in str(exc_info.value)
+                    assert "404" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_get_latest_commit_sha_includes_auth_header(self):
-        """Should include auth header when GITHUB_TOKEN is set."""
+    async def test_get_latest_commit_sha_api_includes_auth_header(self, tmp_path):
+        """Should include auth header when GITHUB_TOKEN is set (API fallback)."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"sha": "sha123"}
@@ -373,19 +258,22 @@ class TestGetLatestCommitSha:
             os.environ,
             {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "my-secret-token"},
         ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_response
-                mock_client_class.return_value = mock_client
+            with patch(
+                "core.content.github_fetcher._get_clone_dir", return_value=tmp_path
+            ):
+                with patch("httpx.AsyncClient") as mock_client_class:
+                    mock_client = AsyncMock()
+                    mock_client.__aenter__.return_value = mock_client
+                    mock_client.__aexit__.return_value = None
+                    mock_client.get.return_value = mock_response
+                    mock_client_class.return_value = mock_client
 
-                await get_latest_commit_sha()
+                    await get_latest_commit_sha()
 
-                call_kwargs = mock_client.get.call_args[1]
-                assert "headers" in call_kwargs
-                assert "Authorization" in call_kwargs["headers"]
-                assert "my-secret-token" in call_kwargs["headers"]["Authorization"]
+                    call_kwargs = mock_client.get.call_args[1]
+                    assert "headers" in call_kwargs
+                    assert "Authorization" in call_kwargs["headers"]
+                    assert "my-secret-token" in call_kwargs["headers"]["Authorization"]
 
 
 class TestFetchAllContentWithCommitSha:
@@ -394,41 +282,35 @@ class TestFetchAllContentWithCommitSha:
     @pytest.mark.asyncio
     async def test_fetch_all_content_includes_commit_sha(self):
         """Should include last_commit_sha in returned cache."""
-        # Minimal mock setup to test commit SHA integration
         test_commit_sha = "deadbeef1234567890"
-
-        dir_responses = {
-            "modules": [],
-            "courses": [],
-            "articles": [],
-            "video_transcripts": [],
-        }
-
-        def mock_get_side_effect(url, **kwargs):
-            response = MagicMock()
-            response.status_code = 200
-            if "api.github.com" in url:
-                if "/commits/" in url:
-                    response.json.return_value = {"sha": test_commit_sha}
-                else:
-                    # Directory listing - return empty for simplicity
-                    for dir_name in dir_responses:
-                        if dir_name in url:
-                            response.json.return_value = []
-                            break
-            return response
 
         with patch.dict(
             os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "token"}
         ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.side_effect = mock_get_side_effect
-                mock_client_class.return_value = mock_client
-
-                cache = await fetch_all_content()
+            with patch(
+                "core.content.github_fetcher.git_fetcher.clone_repo",
+                new_callable=AsyncMock,
+            ):
+                with patch(
+                    "core.content.github_fetcher.git_fetcher.read_all_files",
+                    new_callable=AsyncMock,
+                    return_value={},
+                ):
+                    with patch(
+                        "core.content.github_fetcher.git_fetcher.get_head_sha",
+                        new_callable=AsyncMock,
+                        return_value=test_commit_sha,
+                    ):
+                        with patch(
+                            "core.content.github_fetcher.process_content_typescript",
+                            new_callable=AsyncMock,
+                            return_value={"modules": [], "courses": [], "errors": []},
+                        ):
+                            with patch(
+                                "core.content.github_fetcher._get_clone_dir",
+                                return_value=Path("/tmp/fake-clone-no-git"),
+                            ):
+                                cache = await fetch_all_content()
 
                 assert cache.last_commit_sha == test_commit_sha
 
@@ -729,7 +611,11 @@ class TestGetTrackedDirectory:
 
 
 class TestIncrementalRefresh:
-    """Test incremental_refresh function."""
+    """Test incremental_refresh function.
+
+    incremental_refresh now uses git_fetcher.fetch_and_reset + git_fetcher.read_all_files
+    for content I/O, and compare_commits (GitHub API) for frontend diff display.
+    """
 
     @pytest.fixture(autouse=True)
     def setup_and_teardown(self):
@@ -785,109 +671,65 @@ class TestIncrementalRefresh:
         return cache
 
     @pytest.mark.asyncio
-    async def test_incremental_refresh_with_modified_module(self):
-        """Should trigger full refresh when module is modified.
-
-        Note: With flattened modules, module changes require re-flattening
-        which is complex, so we fall back to full refresh for now.
-        """
+    async def test_incremental_refresh_with_tracked_changes(self):
+        """Should re-read files and re-process when tracked files change."""
         self._create_test_cache(last_commit_sha="oldsha123")
 
-        # Mock compare_commits to return a modified module
-        mock_compare_response = MagicMock()
-        mock_compare_response.status_code = 200
-        mock_compare_response.json.return_value = {
-            "files": [{"filename": "modules/intro.md", "status": "modified"}]
+        # Mock compare_commits to return a modified module file
+        mock_comparison = CommitComparison(
+            files=[ChangedFile(path="modules/intro.md", status="modified")],
+            is_truncated=False,
+        )
+
+        updated_files = {
+            "modules/intro.md": "# Updated Introduction\nNew content",
+            "courses/fundamentals.md": "# AI Safety Fundamentals\nContent",
+            "articles/safety.md": "# Safety Article\nContent",
+            "video_transcripts/vid1.md": "# Video 1\nTranscript",
+        }
+
+        ts_result = {
+            "modules": [
+                {
+                    "slug": "intro",
+                    "title": "Updated Introduction",
+                    "contentId": "00000000-0000-0000-0000-000000000001",
+                    "sections": [],
+                }
+            ],
+            "courses": [],
+            "errors": [],
         }
 
         with patch.dict(
             os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "token"}
         ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_compare_response
-                mock_client_class.return_value = mock_client
-
+            with patch(
+                "core.content.github_fetcher.git_fetcher.fetch_and_reset",
+                new_callable=AsyncMock,
+                return_value="newsha456",
+            ):
                 with patch(
-                    "core.content.github_fetcher.refresh_cache", new_callable=AsyncMock
-                ) as mock_refresh:
-                    await incremental_refresh("newsha456")
+                    "core.content.github_fetcher.git_fetcher.read_all_files",
+                    new_callable=AsyncMock,
+                    return_value=updated_files,
+                ):
+                    with patch(
+                        "core.content.github_fetcher.compare_commits",
+                        new_callable=AsyncMock,
+                        return_value=mock_comparison,
+                    ):
+                        with patch(
+                            "core.content.github_fetcher.process_content_typescript",
+                            new_callable=AsyncMock,
+                            return_value=ts_result,
+                        ):
+                            await incremental_refresh("newsha456")
 
-                    # Module changes should trigger full refresh
-                    mock_refresh.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_incremental_refresh_with_added_file(self):
-        """Should add new article when file is added."""
-        self._create_test_cache(last_commit_sha="oldsha123")
-
-        mock_compare_response = MagicMock()
-        mock_compare_response.status_code = 200
-        mock_compare_response.json.return_value = {
-            "files": [{"filename": "articles/new_article.md", "status": "added"}]
-        }
-
-        new_article_content = "# New Article\nThis is new content."
-        import base64
-
-        mock_file_response = MagicMock()
-        mock_file_response.status_code = 200
-        mock_file_response.json.return_value = {
-            "content": base64.b64encode(new_article_content.encode()).decode()
-        }
-
-        def mock_get_side_effect(url, **kwargs):
-            if "compare" in url:
-                return mock_compare_response
-            else:
-                return mock_file_response
-
-        with patch.dict(
-            os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "token"}
-        ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.side_effect = mock_get_side_effect
-                mock_client_class.return_value = mock_client
-
-                await incremental_refresh("newsha456")
-
-                cache = get_cache()
-                assert "articles/new_article.md" in cache.articles
-                assert cache.articles["articles/new_article.md"] == new_article_content
-                # Original article should still exist
-                assert "articles/safety.md" in cache.articles
-
-    @pytest.mark.asyncio
-    async def test_incremental_refresh_with_removed_file(self):
-        """Should remove article when file is deleted."""
-        self._create_test_cache(last_commit_sha="oldsha123")
-
-        mock_compare_response = MagicMock()
-        mock_compare_response.status_code = 200
-        mock_compare_response.json.return_value = {
-            "files": [{"filename": "articles/safety.md", "status": "removed"}]
-        }
-
-        with patch.dict(
-            os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "token"}
-        ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_compare_response
-                mock_client_class.return_value = mock_client
-
-                await incremental_refresh("newsha456")
-
-                cache = get_cache()
-                assert "articles/safety.md" not in cache.articles
-                assert cache.last_commit_sha == "newsha456"
+        cache = get_cache()
+        assert cache.last_commit_sha == "newsha456"
+        assert "intro" in cache.flattened_modules
+        assert cache.flattened_modules["intro"].title == "Updated Introduction"
 
     @pytest.mark.asyncio
     async def test_incremental_refresh_falls_back_on_no_previous_sha(self):
@@ -907,100 +749,52 @@ class TestIncrementalRefresh:
                 mock_refresh.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_incremental_refresh_falls_back_on_truncated_comparison(self):
-        """Should do full refresh when comparison has too many files."""
-        self._create_test_cache(last_commit_sha="oldsha123")
-
-        # Create 300 files to trigger truncation
-        files_data = [
-            {"filename": f"modules/file{i}.md", "status": "modified"}
-            for i in range(300)
-        ]
-
-        mock_compare_response = MagicMock()
-        mock_compare_response.status_code = 200
-        mock_compare_response.json.return_value = {"files": files_data}
-
-        with patch.dict(
-            os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "token"}
-        ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_compare_response
-                mock_client_class.return_value = mock_client
-
-                with patch(
-                    "core.content.github_fetcher.refresh_cache", new_callable=AsyncMock
-                ) as mock_refresh:
-                    await incremental_refresh("newsha456")
-
-                    # Should have called full refresh due to truncation
-                    mock_refresh.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_incremental_refresh_falls_back_on_api_error(self):
-        """Should do full refresh when compare API fails."""
-        self._create_test_cache(last_commit_sha="oldsha123")
-
-        mock_compare_response = MagicMock()
-        mock_compare_response.status_code = 500  # API error
-
-        with patch.dict(
-            os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "token"}
-        ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_compare_response
-                mock_client_class.return_value = mock_client
-
-                with patch(
-                    "core.content.github_fetcher.refresh_cache", new_callable=AsyncMock
-                ) as mock_refresh:
-                    await incremental_refresh("newsha456")
-
-                    # Should have called full refresh due to API error
-                    mock_refresh.assert_called_once()
-
-    @pytest.mark.asyncio
     async def test_incremental_refresh_ignores_untracked_files(self):
-        """Should ignore files outside tracked directories."""
+        """Should skip re-read when only untracked files changed."""
         self._create_test_cache(last_commit_sha="oldsha123")
 
-        mock_compare_response = MagicMock()
-        mock_compare_response.status_code = 200
-        mock_compare_response.json.return_value = {
-            "files": [
-                {"filename": "README.md", "status": "modified"},
-                {"filename": ".github/workflows/ci.yml", "status": "modified"},
-                {"filename": "docs/architecture.md", "status": "added"},
-            ]
-        }
+        # compare_commits returns only untracked files
+        mock_comparison = CommitComparison(
+            files=[
+                ChangedFile(path="README.md", status="modified"),
+                ChangedFile(path=".github/workflows/ci.yml", status="modified"),
+                ChangedFile(path="docs/architecture.md", status="added"),
+            ],
+            is_truncated=False,
+        )
 
         with patch.dict(
             os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "token"}
         ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.return_value = mock_compare_response
-                mock_client_class.return_value = mock_client
+            with patch(
+                "core.content.github_fetcher.git_fetcher.fetch_and_reset",
+                new_callable=AsyncMock,
+                return_value="newsha456",
+            ):
+                with patch(
+                    "core.content.github_fetcher.compare_commits",
+                    new_callable=AsyncMock,
+                    return_value=mock_comparison,
+                ):
+                    # read_all_files should NOT be called since no tracked files changed
+                    with patch(
+                        "core.content.github_fetcher.git_fetcher.read_all_files",
+                        new_callable=AsyncMock,
+                    ) as mock_read:
+                        initial_modules = get_cache().flattened_modules.copy()
+                        initial_articles = get_cache().articles.copy()
 
-                initial_modules = get_cache().flattened_modules.copy()
-                initial_articles = get_cache().articles.copy()
+                        await incremental_refresh("newsha456")
 
-                await incremental_refresh("newsha456")
+                        # read_all_files should not have been called
+                        mock_read.assert_not_called()
 
-                cache = get_cache()
-                # Cache should be unchanged (except metadata)
-                assert cache.flattened_modules == initial_modules
-                assert cache.articles == initial_articles
-                # But commit SHA should be updated
-                assert cache.last_commit_sha == "newsha456"
+        cache = get_cache()
+        # Cache content should be unchanged
+        assert cache.flattened_modules == initial_modules
+        assert cache.articles == initial_articles
+        # But commit SHA should be updated
+        assert cache.last_commit_sha == "newsha456"
 
     @pytest.mark.asyncio
     async def test_incremental_refresh_skips_if_same_commit(self):
@@ -1010,67 +804,14 @@ class TestIncrementalRefresh:
         with patch.dict(
             os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "token"}
         ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client_class.return_value = mock_client
-
+            with patch(
+                "core.content.github_fetcher.git_fetcher.fetch_and_reset",
+                new_callable=AsyncMock,
+            ) as mock_fetch:
                 await incremental_refresh("samesha123")
 
-                # Should not have made any API calls
-                mock_client.get.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_incremental_refresh_handles_renamed_files(self):
-        """Should handle renamed files correctly (delete old, add new)."""
-        self._create_test_cache(last_commit_sha="oldsha123")
-
-        mock_compare_response = MagicMock()
-        mock_compare_response.status_code = 200
-        mock_compare_response.json.return_value = {
-            "files": [
-                {
-                    "filename": "articles/renamed_safety.md",
-                    "status": "renamed",
-                    "previous_filename": "articles/safety.md",
-                }
-            ]
-        }
-
-        new_content = "# Renamed Safety\nNew content."
-        import base64
-
-        mock_file_response = MagicMock()
-        mock_file_response.status_code = 200
-        mock_file_response.json.return_value = {
-            "content": base64.b64encode(new_content.encode()).decode()
-        }
-
-        def mock_get_side_effect(url, **kwargs):
-            if "compare" in url:
-                return mock_compare_response
-            else:
-                return mock_file_response
-
-        with patch.dict(
-            os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "token"}
-        ):
-            with patch("httpx.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get.side_effect = mock_get_side_effect
-                mock_client_class.return_value = mock_client
-
-                await incremental_refresh("newsha456")
-
-                cache = get_cache()
-                # Old path should be removed
-                assert "articles/safety.md" not in cache.articles
-                # New path should exist
-                assert "articles/renamed_safety.md" in cache.articles
-                assert cache.articles["articles/renamed_safety.md"] == new_content
+                # Should not have fetched
+                mock_fetch.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_incremental_refresh_falls_back_when_cache_not_initialized(self):
@@ -1089,153 +830,26 @@ class TestIncrementalRefresh:
                 # Should have called full refresh
                 mock_refresh.assert_called_once()
 
-
-class TestApplyFileChange:
-    """Test _apply_file_change helper function."""
-
-    @pytest.fixture(autouse=True)
-    def setup_and_teardown(self):
-        """Clear cache before and after each test."""
-        clear_cache()
-        yield
-        clear_cache()
-
-    def _create_test_cache(self) -> ContentCache:
-        """Create a test cache with some initial content using new field names."""
-        from core.modules.flattened_types import ParsedCourse
-
-        cache = ContentCache(
-            flattened_modules={
-                "intro": FlattenedModule(
-                    slug="intro",
-                    title="Introduction",
-                    content_id=UUID("00000000-0000-0000-0000-000000000001"),
-                    sections=[
-                        {
-                            "type": "lens",
-                            "contentId": "00000000-0000-0000-0000-000000000002",
-                            "title": "Welcome",
-                            "segments": [{"type": "text", "content": "Hello"}],
-                        }
-                    ],
-                )
-            },
-            courses={
-                "fundamentals": ParsedCourse(
-                    slug="fundamentals",
-                    title="AI Safety Fundamentals",
-                    progression=[],
-                )
-            },
-            articles={"articles/safety.md": "# Safety Article\nContent"},
-            video_transcripts={"video_transcripts/vid1.md": "# Video 1\nTranscript"},
-            parsed_learning_outcomes={},
-            parsed_lenses={},
-            last_refreshed=datetime.now(),
-            last_commit_sha="testsha",
-        )
-        set_cache(cache)
-        return cache
-
     @pytest.mark.asyncio
-    async def test_apply_file_change_ignores_untracked_directory(self):
-        """Should do nothing for files outside tracked directories."""
-        cache = self._create_test_cache()
+    async def test_incremental_refresh_falls_back_on_error(self):
+        """Should do full refresh when git operations fail."""
+        self._create_test_cache(last_commit_sha="oldsha123")
 
-        change = ChangedFile(path="README.md", status="modified")
+        with patch.dict(
+            os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main", "GITHUB_TOKEN": "token"}
+        ):
+            with patch(
+                "core.content.github_fetcher.git_fetcher.fetch_and_reset",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("git fetch failed"),
+            ):
+                with patch(
+                    "core.content.github_fetcher.refresh_cache", new_callable=AsyncMock
+                ) as mock_refresh:
+                    await incremental_refresh("newsha456")
 
-        mock_client = AsyncMock()
-
-        with patch.dict(os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main"}):
-            await _apply_file_change(mock_client, cache, change)
-
-            # Client should not have been called
-            mock_client.get.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_apply_file_change_triggers_full_refresh_for_module(self):
-        """Should return True (needs full refresh) for module changes."""
-        cache = self._create_test_cache()
-        assert "intro" in cache.flattened_modules
-
-        change = ChangedFile(path="modules/intro.md", status="removed")
-
-        mock_client = AsyncMock()
-
-        with patch.dict(os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main"}):
-            needs_refresh = await _apply_file_change(mock_client, cache, change)
-
-            # Module changes need full refresh for re-flattening
-            assert needs_refresh is True
-
-    @pytest.mark.asyncio
-    async def test_apply_file_change_removes_article(self):
-        """Should remove article from cache on removal."""
-        cache = self._create_test_cache()
-        assert "articles/safety.md" in cache.articles
-
-        change = ChangedFile(path="articles/safety.md", status="removed")
-
-        mock_client = AsyncMock()
-
-        with patch.dict(os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main"}):
-            needs_refresh = await _apply_file_change(mock_client, cache, change)
-
-            assert "articles/safety.md" not in cache.articles
-            assert needs_refresh is False
-
-    @pytest.mark.asyncio
-    async def test_apply_file_change_adds_article(self):
-        """Should add new article to cache."""
-        cache = self._create_test_cache()
-
-        change = ChangedFile(path="articles/new.md", status="added")
-
-        new_content = "# New Article\nContent here."
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.text = new_content
-
-        mock_client = AsyncMock()
-        mock_client.get.return_value = mock_response
-
-        with patch.dict(os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main"}):
-            needs_refresh = await _apply_file_change(mock_client, cache, change)
-
-            assert "articles/new.md" in cache.articles
-            assert cache.articles["articles/new.md"] == new_content
-            assert needs_refresh is False
-
-    @pytest.mark.asyncio
-    async def test_apply_file_change_triggers_full_refresh_for_module_update(self):
-        """Should return True (needs full refresh) when module is modified."""
-        cache = self._create_test_cache()
-
-        change = ChangedFile(path="modules/intro.md", status="modified")
-
-        mock_client = AsyncMock()
-
-        with patch.dict(os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main"}):
-            needs_refresh = await _apply_file_change(mock_client, cache, change)
-
-            # Module changes need full refresh for re-flattening
-            assert needs_refresh is True
-
-    @pytest.mark.asyncio
-    async def test_apply_file_change_ignores_non_md_files(self):
-        """Should ignore non-markdown files."""
-        cache = self._create_test_cache()
-
-        change = ChangedFile(path="modules/image.png", status="added")
-
-        mock_client = AsyncMock()
-
-        with patch.dict(os.environ, {"EDUCATIONAL_CONTENT_BRANCH": "main"}):
-            needs_refresh = await _apply_file_change(mock_client, cache, change)
-
-            # Client should not have been called
-            mock_client.get.assert_not_called()
-            assert needs_refresh is False
+                    # Should have called full refresh
+                    mock_refresh.assert_called_once()
 
 
 class TestIncrementalRefreshSHATracking:
@@ -1284,16 +898,23 @@ class TestIncrementalRefreshSHATracking:
             return_value=mock_comparison,
         ):
             with patch(
-                "core.content.github_fetcher._fetch_file_with_client",
+                "core.content.github_fetcher.git_fetcher.fetch_and_reset",
                 new_callable=AsyncMock,
-                return_value="---\ntitle: Test Updated\nslug: test\n---\n",
+                return_value="new_sha_222",
             ):
                 with patch(
-                    "core.content.github_fetcher.process_content_typescript",
+                    "core.content.github_fetcher.git_fetcher.read_all_files",
                     new_callable=AsyncMock,
-                    return_value={"modules": [], "courses": [], "errors": []},
+                    return_value={
+                        "modules/test.md": "---\ntitle: Test Updated\nslug: test\n---\n"
+                    },
                 ):
-                    await incremental_refresh("new_sha_222")
+                    with patch(
+                        "core.content.github_fetcher.process_content_typescript",
+                        new_callable=AsyncMock,
+                        return_value={"modules": [], "courses": [], "errors": []},
+                    ):
+                        await incremental_refresh("new_sha_222")
 
         cache = get_cache()
         assert cache.fetched_sha == "new_sha_222"
@@ -1338,16 +959,21 @@ class TestIncrementalRefreshSHATracking:
             return_value=mock_comparison,
         ):
             with patch(
-                "core.content.github_fetcher._fetch_file_with_client",
+                "core.content.github_fetcher.git_fetcher.fetch_and_reset",
                 new_callable=AsyncMock,
-                return_value="updated content",
+                return_value="new_sha_222",
             ):
                 with patch(
-                    "core.content.github_fetcher.process_content_typescript",
+                    "core.content.github_fetcher.git_fetcher.read_all_files",
                     new_callable=AsyncMock,
-                    return_value={"modules": [], "courses": [], "errors": []},
+                    return_value={"modules/test.md": "updated content"},
                 ):
-                    await incremental_refresh("new_sha_222")
+                    with patch(
+                        "core.content.github_fetcher.process_content_typescript",
+                        new_callable=AsyncMock,
+                        return_value={"modules": [], "courses": [], "errors": []},
+                    ):
+                        await incremental_refresh("new_sha_222")
 
         cache = get_cache()
         assert cache.last_diff is not None
