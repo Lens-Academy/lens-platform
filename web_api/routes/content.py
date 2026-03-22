@@ -122,22 +122,17 @@ async def manual_incremental_refresh(commit_sha: str | None = None):
 
     TODO: Add admin authentication or disable in production
     """
-    import httpx
+    from core.content.github_fetcher import get_latest_commit_sha
 
-    from core.content.github_fetcher import CONTENT_REPO, get_content_branch
-
-    # If no commit SHA provided, fetch the latest from GitHub
+    # If no commit SHA provided, fetch the latest
     if not commit_sha:
-        branch = get_content_branch()
-        url = f"https://api.github.com/repos/{CONTENT_REPO}/commits/{branch}"
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url)
-            if resp.status_code != 200:
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"Failed to fetch latest commit: {resp.status_code}",
-                )
-            commit_sha = resp.json()["sha"]
+        try:
+            commit_sha = await get_latest_commit_sha()
+        except Exception as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Failed to fetch latest commit: {e}",
+            )
 
     logger.info(f"Manual incremental refresh requested for commit {commit_sha[:8]}...")
 

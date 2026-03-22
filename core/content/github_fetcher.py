@@ -1,12 +1,17 @@
-"""Fetch educational content from GitHub repository."""
+"""Fetch educational content from GitHub repository.
 
-import base64
+Uses local git clone (via git_fetcher) instead of GitHub API for content I/O.
+GitHub API is still used for commit comparison (frontend diff display) and
+as a fallback for latest commit SHA when clone doesn't exist yet.
+"""
+
 import json
 import logging
 import os
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
@@ -22,6 +27,7 @@ from core.content.typescript_processor import (
     process_content_typescript,
     TypeScriptProcessorError,
 )
+from core.content import git_fetcher
 from .cache import ContentCache, set_cache, get_cache
 
 
@@ -111,30 +117,19 @@ def _get_github_token() -> str | None:
     return os.getenv("GITHUB_TOKEN")
 
 
-def _get_raw_url(path: str) -> str:
-    """Get raw.githubusercontent.com URL for a file."""
+def _get_clone_dir() -> Path:
+    """Get workspace-specific clone directory."""
     branch = get_content_branch()
-    return f"https://raw.githubusercontent.com/{CONTENT_REPO}/{branch}/{path}"
+    port = os.getenv("API_PORT", "8000")
+    return Path(f"/tmp/lens-edu-relay-{branch}-{port}")
 
 
-def _get_contents_api_url(path: str, ref: str | None = None) -> str:
-    """Get GitHub API URL for fetching file contents.
-
-    Uses the Contents API which properly respects the ref parameter,
-    avoiding CDN caching issues with raw.githubusercontent.com.
-
-    Args:
-        path: File path relative to repo root
-        ref: Commit SHA or branch name (defaults to configured branch)
-    """
-    ref = ref or get_content_branch()
-    return f"https://api.github.com/repos/{CONTENT_REPO}/contents/{path}?ref={ref}"
-
-
-def _get_api_url(path: str) -> str:
-    """Get GitHub API URL for listing directory contents."""
-    branch = get_content_branch()
-    return f"https://api.github.com/repos/{CONTENT_REPO}/contents/{path}?ref={branch}"
+def _get_repo_url() -> str:
+    """Get authenticated git URL for cloning."""
+    token = _get_github_token()
+    if token:
+        return f"https://x-access-token:{token}@github.com/{CONTENT_REPO}.git"
+    return f"https://github.com/{CONTENT_REPO}.git"
 
 
 def _get_commit_api_url() -> str:
@@ -162,7 +157,7 @@ def _get_headers(for_api: bool = False) -> dict[str, str]:
 
 
 async def fetch_file(path: str) -> str:
-    """Fetch a single file from GitHub.
+    """Fetch a single file from the content repo. Reads from local git clone.
 
     Args:
         path: Path relative to repo root (e.g., "modules/introduction.md")
@@ -171,57 +166,30 @@ async def fetch_file(path: str) -> str:
         File content as string
 
     Raises:
-        GitHubFetchError: If fetch fails
+        GitHubFetchError: If file not found
     """
-    url = _get_raw_url(path)
-    headers = _get_headers(for_api=False)
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers)
-        if response.status_code != 200:
-            raise GitHubFetchError(
-                f"Failed to fetch {path}: HTTP {response.status_code}"
-            )
-        return response.text
-
-
-async def list_directory(path: str) -> list[str]:
-    """List files in a directory using GitHub API.
-
-    Args:
-        path: Directory path relative to repo root (e.g., "modules")
-
-    Returns:
-        List of file paths (e.g., ["modules/intro.md", "modules/advanced.md"])
-
-    Raises:
-        GitHubFetchError: If API call fails
-    """
-    url = _get_api_url(path)
-    headers = _get_headers(for_api=True)
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers)
-        if response.status_code != 200:
-            raise GitHubFetchError(
-                f"Failed to list {path}: HTTP {response.status_code}"
-            )
-
-        data = response.json()
-        return [item["path"] for item in data if item["type"] == "file"]
+    clone_dir = _get_clone_dir()
+    file_path = clone_dir / path
+    if file_path.exists():
+        return file_path.read_text(encoding="utf-8")
+    raise GitHubFetchError(f"File not found: {path} (clone dir: {clone_dir})")
 
 
 async def get_latest_commit_sha() -> str:
     """Get the SHA of the latest commit on the content branch.
 
-    Uses: GET /repos/{owner}/{repo}/commits/{branch}
-    Returns just the SHA string.
+    Uses local git clone if available, falls back to GitHub API.
 
     Raises:
-        GitHubFetchError: If API call fails
+        GitHubFetchError: If both methods fail
     """
-    async with httpx.AsyncClient() as client:
-        return await _get_latest_commit_sha_with_client(client)
+    clone_dir = _get_clone_dir()
+    if not (clone_dir / ".git").exists():
+        # Not cloned yet — fall back to API
+        async with httpx.AsyncClient() as client:
+            return await _get_latest_commit_sha_with_client(client)
+    branch = get_content_branch()
+    return await git_fetcher.fetch_latest_sha(clone_dir, branch)
 
 
 async def compare_commits(base_sha: str, head_sha: str) -> CommitComparison:
@@ -299,7 +267,7 @@ def _parse_frontmatter(content: str) -> dict:
 
 
 async def fetch_all_content() -> ContentCache:
-    """Fetch all educational content from GitHub.
+    """Fetch all educational content via git clone.
 
     Modules are flattened by TypeScript subprocess - all Learning Outcome and
     Uncategorized references are resolved to lens-video/lens-article sections.
@@ -310,209 +278,109 @@ async def fetch_all_content() -> ContentCache:
     Raises:
         GitHubFetchError: If any fetch fails
     """
-    import asyncio
+    clone_dir = _get_clone_dir()
+    branch = get_content_branch()
+    repo_url = _get_repo_url()
 
-    async with httpx.AsyncClient() as client:
-        # Get the latest commit SHA for tracking
-        commit_sha = await _get_latest_commit_sha_with_client(client)
-
-        # List all directories in parallel
-        (
-            module_files,
-            course_files,
-            article_files,
-            transcript_files,
-            learning_outcome_files,
-            lens_files,
-        ) = await asyncio.gather(
-            _list_directory_with_client(client, "modules"),
-            _list_directory_with_client(client, "courses"),
-            _list_directory_with_client(client, "articles"),
-            _list_directory_with_client(client, "video_transcripts"),
-            _list_directory_with_client(client, "Learning Outcomes"),
-            _list_directory_with_client(client, "Lenses"),
-        )
-
-        # Collect all file paths to fetch
-        paths_to_fetch: list[str] = []
-
-        for path in module_files:
-            if path.endswith(".md"):
-                paths_to_fetch.append(path)
-
-        for path in course_files:
-            if path.endswith(".md"):
-                paths_to_fetch.append(path)
-
-        for path in learning_outcome_files:
-            if path.endswith(".md"):
-                paths_to_fetch.append(path)
-
-        for path in lens_files:
-            if path.endswith(".md"):
-                paths_to_fetch.append(path)
-
-        for path in article_files:
-            if path.endswith(".md"):
-                paths_to_fetch.append(path)
-
-        for path in transcript_files:
-            if path.endswith(".md") or path.endswith(".timestamps.json"):
-                paths_to_fetch.append(path)
-
-        # Fetch all files in parallel with concurrency limit
-        logger.info(f"Fetching {len(paths_to_fetch)} files from GitHub...")
-        semaphore = asyncio.Semaphore(20)  # Limit concurrent requests
-
-        async def fetch_with_semaphore(path: str) -> str:
-            async with semaphore:
-                return await _fetch_file_with_client(client, path, ref=commit_sha)
-
-        contents = await asyncio.gather(
-            *[fetch_with_semaphore(path) for path in paths_to_fetch]
-        )
-
-        # Build path -> content mapping
-        all_files: dict[str, str] = dict(zip(paths_to_fetch, contents))
-
-        # Extract articles and video_transcripts into separate dicts
-        articles: dict[str, str] = {
-            path: content
-            for path, content in all_files.items()
-            if path.startswith("articles/") and path.endswith(".md")
-        }
-
-        video_transcripts: dict[str, str] = {
-            path: content
-            for path, content in all_files.items()
-            if path.startswith("video_transcripts/") and path.endswith(".md")
-        }
-
-        # Parse timestamp files
-        video_timestamps: dict[str, list[dict]] = {}
-        for path, content in all_files.items():
-            if path.endswith(".timestamps.json"):
-                try:
-                    timestamps_data = json.loads(content)
-                    md_path = path.replace(".timestamps.json", ".md")
-                    if md_path in video_transcripts:
-                        metadata = _parse_frontmatter(video_transcripts[md_path])
-                        video_id = metadata.get("video_id", "")
-                        if not video_id and metadata.get("url"):
-                            url = metadata["url"].strip("\"'")
-                            match = re.search(
-                                r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]+)",
-                                url,
-                            )
-                            if match:
-                                video_id = match.group(1)
-                        if video_id:
-                            video_timestamps[video_id] = timestamps_data
-                except Exception as e:
-                    logger.warning(f"Failed to parse timestamps {path}: {e}")
-
-        # Process all content with TypeScript subprocess
-        try:
-            ts_result = await process_content_typescript(all_files)
-        except TypeScriptProcessorError as e:
-            logger.error(f"TypeScript processing failed: {e}")
-            raise GitHubFetchError(f"Content processing failed: {e}")
-
-        # Convert TypeScript result to Python cache format
-        flattened_modules: dict[str, FlattenedModule] = {}
-        for mod in ts_result.get("modules", []):
-            flattened_modules[mod["slug"]] = FlattenedModule(
-                slug=mod["slug"],
-                title=mod["title"],
-                content_id=UUID(mod["contentId"]) if mod.get("contentId") else None,
-                sections=mod["sections"],
-                error=mod.get("error"),
-                parent_slug=mod.get("parentSlug"),
-                parent_title=mod.get("parentTitle"),
-            )
-
-        # Convert courses from TypeScript result
-        courses: dict[str, ParsedCourse] = {}
-        for course in ts_result.get("courses", []):
-            courses[course["slug"]] = _convert_ts_course_to_parsed_course(course)
-
-        # Extract validation errors from TypeScript result
-        validation_errors = ts_result.get("errors", [])
-
-        # Build and return cache
-        now = datetime.now(UTC)
-        cache = ContentCache(
-            courses=courses,
-            flattened_modules=flattened_modules,
-            parsed_learning_outcomes={},  # No longer needed - TS handles
-            parsed_lenses={},  # No longer needed - TS handles
-            articles=articles,
-            video_transcripts=video_transcripts,
-            video_timestamps=video_timestamps,
-            last_refreshed=now,
-            last_commit_sha=commit_sha,
-            known_sha=commit_sha,
-            known_sha_timestamp=now,
-            fetched_sha=commit_sha,
-            fetched_sha_timestamp=now,
-            processed_sha=commit_sha,
-            processed_sha_timestamp=now,
-            raw_files=all_files,  # Store for incremental updates
-            validation_errors=validation_errors,
-        )
-        set_cache(cache)
-        return cache
-
-
-async def _fetch_file_with_client(
-    client: httpx.AsyncClient, path: str, ref: str | None = None
-) -> str:
-    """Fetch a file using an existing client.
-
-    Args:
-        client: HTTP client
-        path: File path relative to repo root
-        ref: Optional commit SHA - when provided, uses Contents API to avoid CDN cache
-
-    When ref is provided, uses GitHub Contents API which properly respects
-    the ref parameter. Without ref, uses raw.githubusercontent.com which is
-    faster but has a 5-minute CDN cache.
-    """
-    if ref:
-        # Use Contents API for specific commits (bypasses CDN cache)
-        url = _get_contents_api_url(path, ref=ref)
-        headers = _get_headers(for_api=True)
-        response = await client.get(url, headers=headers)
-        if response.status_code != 200:
-            raise GitHubFetchError(
-                f"Failed to fetch {path}: HTTP {response.status_code}"
-            )
-        data = response.json()
-        # Contents API returns base64-encoded content
-        return base64.b64decode(data["content"]).decode("utf-8")
+    # Clone if not exists, otherwise fetch+reset
+    if not (clone_dir / ".git").exists():
+        await git_fetcher.clone_repo(repo_url, branch, clone_dir)
     else:
-        # Use raw URL for speed (e.g., during full refresh)
-        url = _get_raw_url(path)
-        headers = _get_headers(for_api=False)
-        response = await client.get(url, headers=headers)
-        if response.status_code != 200:
-            raise GitHubFetchError(
-                f"Failed to fetch {path}: HTTP {response.status_code}"
-            )
-        return response.text
+        await git_fetcher.fetch_and_reset(clone_dir, branch)
 
+    commit_sha = await git_fetcher.get_head_sha(clone_dir)
 
-async def _list_directory_with_client(
-    client: httpx.AsyncClient, path: str
-) -> list[str]:
-    """List directory contents using an existing client."""
-    url = _get_api_url(path)
-    headers = _get_headers(for_api=True)
-    response = await client.get(url, headers=headers)
-    if response.status_code != 200:
-        raise GitHubFetchError(f"Failed to list {path}: HTTP {response.status_code}")
-    data = response.json()
-    return [item["path"] for item in data if item["type"] == "file"]
+    # Read all files from disk
+    all_files = await git_fetcher.read_all_files(clone_dir)
+    logger.info("Read %d files from local clone", len(all_files))
+
+    # Extract articles and video_transcripts into separate dicts
+    articles: dict[str, str] = {
+        path: content
+        for path, content in all_files.items()
+        if path.startswith("articles/") and path.endswith(".md")
+    }
+
+    video_transcripts: dict[str, str] = {
+        path: content
+        for path, content in all_files.items()
+        if path.startswith("video_transcripts/") and path.endswith(".md")
+    }
+
+    # Parse timestamp files
+    video_timestamps: dict[str, list[dict]] = {}
+    for path, content in all_files.items():
+        if path.endswith(".timestamps.json"):
+            try:
+                timestamps_data = json.loads(content)
+                md_path = path.replace(".timestamps.json", ".md")
+                if md_path in video_transcripts:
+                    metadata = _parse_frontmatter(video_transcripts[md_path])
+                    video_id = metadata.get("video_id", "")
+                    if not video_id and metadata.get("url"):
+                        url = metadata["url"].strip("\"'")
+                        match = re.search(
+                            r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]+)",
+                            url,
+                        )
+                        if match:
+                            video_id = match.group(1)
+                    if video_id:
+                        video_timestamps[video_id] = timestamps_data
+            except Exception as e:
+                logger.warning(f"Failed to parse timestamps {path}: {e}")
+
+    # Process all content with TypeScript subprocess
+    try:
+        ts_result = await process_content_typescript(all_files)
+    except TypeScriptProcessorError as e:
+        logger.error(f"TypeScript processing failed: {e}")
+        raise GitHubFetchError(f"Content processing failed: {e}")
+
+    # Convert TypeScript result to Python cache format
+    flattened_modules: dict[str, FlattenedModule] = {}
+    for mod in ts_result.get("modules", []):
+        flattened_modules[mod["slug"]] = FlattenedModule(
+            slug=mod["slug"],
+            title=mod["title"],
+            content_id=UUID(mod["contentId"]) if mod.get("contentId") else None,
+            sections=mod["sections"],
+            error=mod.get("error"),
+            parent_slug=mod.get("parentSlug"),
+            parent_title=mod.get("parentTitle"),
+        )
+
+    # Convert courses from TypeScript result
+    courses: dict[str, ParsedCourse] = {}
+    for course in ts_result.get("courses", []):
+        courses[course["slug"]] = _convert_ts_course_to_parsed_course(course)
+
+    # Extract validation errors from TypeScript result
+    validation_errors = ts_result.get("errors", [])
+
+    # Build and return cache
+    now = datetime.now(UTC)
+    cache = ContentCache(
+        courses=courses,
+        flattened_modules=flattened_modules,
+        parsed_learning_outcomes={},  # No longer needed - TS handles
+        parsed_lenses={},  # No longer needed - TS handles
+        articles=articles,
+        video_transcripts=video_transcripts,
+        video_timestamps=video_timestamps,
+        last_refreshed=now,
+        last_commit_sha=commit_sha,
+        known_sha=commit_sha,
+        known_sha_timestamp=now,
+        fetched_sha=commit_sha,
+        fetched_sha_timestamp=now,
+        processed_sha=commit_sha,
+        processed_sha_timestamp=now,
+        raw_files=all_files,  # Store for incremental updates
+        validation_errors=validation_errors,
+    )
+    set_cache(cache)
+    return cache
 
 
 async def _get_latest_commit_sha_with_client(client: httpx.AsyncClient) -> str:
@@ -591,110 +459,20 @@ def _get_tracked_directory(path: str) -> str | None:
     return None
 
 
-async def _apply_file_change(
-    client: httpx.AsyncClient,
-    cache: ContentCache,
-    change: ChangedFile,
-    ref: str | None = None,
-) -> bool:
-    """Apply a single file change to the cache.
-
-    Args:
-        client: HTTP client for fetching file content
-        cache: The content cache to update
-        change: The file change to apply
-        ref: Commit SHA for cache-busting when fetching files
-
-    Returns:
-        True if a full refresh is needed (module/LO/Lens changed), False otherwise.
-
-    For modules, LOs, Lenses: changes require full refresh for re-flattening
-    For articles and video_transcripts: apply incremental update
-    For courses: parse and store by slug
-    """
-    tracked_dir = _get_tracked_directory(change.path)
-    if tracked_dir is None:
-        # File is not in a tracked directory, skip it
-        return False
-
-    # Module, LO, Lens, and Course changes require full refresh
-    # (TypeScript processor handles all content together)
-    # Only process markdown files
-    if tracked_dir in ("modules", "Learning Outcomes", "Lenses", "courses"):
-        if change.path.endswith(".md"):
-            logger.info(
-                f"Change in {tracked_dir} ({change.path}) requires full refresh"
-            )
-            return True
-        # Non-.md files in these directories don't require any action
-        return False
-
-    # Handle removals for articles and video_transcripts
-    if change.status == "removed":
-        if tracked_dir == "articles":
-            if change.path in cache.articles:
-                del cache.articles[change.path]
-                logger.info(f"Removed article: {change.path}")
-
-        elif tracked_dir == "video_transcripts":
-            if change.path in cache.video_transcripts:
-                del cache.video_transcripts[change.path]
-                logger.info(f"Removed video transcript: {change.path}")
-
-        return False
-
-    # Handle renamed files - delete old path first
-    if change.status == "renamed" and change.previous_path:
-        prev_tracked_dir = _get_tracked_directory(change.previous_path)
-
-        if prev_tracked_dir == "articles":
-            if change.previous_path in cache.articles:
-                del cache.articles[change.previous_path]
-                logger.info(f"Removed renamed article: {change.previous_path}")
-
-        elif prev_tracked_dir == "video_transcripts":
-            if change.previous_path in cache.video_transcripts:
-                del cache.video_transcripts[change.previous_path]
-                logger.info(f"Removed renamed video transcript: {change.previous_path}")
-
-    # Handle added, modified, or renamed (fetch new content)
-    if change.status in ("added", "modified", "renamed"):
-        # Only process markdown files
-        if not change.path.endswith(".md"):
-            return False
-
-        try:
-            content = await _fetch_file_with_client(client, change.path, ref=ref)
-
-            if tracked_dir == "articles":
-                cache.articles[change.path] = content
-                logger.info(f"Updated article: {change.path}")
-
-            elif tracked_dir == "video_transcripts":
-                cache.video_transcripts[change.path] = content
-                logger.info(f"Updated video transcript: {change.path}")
-
-        except Exception as e:
-            logger.warning(f"Failed to fetch/parse {change.path}: {e}")
-            # Continue with other files, don't fail the entire refresh
-
-    return False
-
-
 async def incremental_refresh(new_commit_sha: str) -> list[dict]:
     """Refresh cache incrementally based on changed files.
 
     Strategy:
-    1. Fetch only changed files from GitHub
-    2. Merge changes into cached raw_files
-    3. Re-run TypeScript processing on all files
-    4. Update cache with new results
+    1. Update local clone via git fetch+reset
+    2. Use GitHub Compare API for frontend diff display
+    3. Re-read all files from disk
+    4. Re-run TypeScript processing on all files
+    5. Update cache with new results
 
     Falls back to full refresh if:
     - Cache not initialized
     - No previous commit SHA
     - No raw_files in cache (old cache format)
-    - Too many changes (GitHub's 300 file limit)
     - Any error during processing
 
     Args:
@@ -703,8 +481,6 @@ async def incremental_refresh(new_commit_sha: str) -> list[dict]:
     Returns:
         List of validation errors/warnings from content processing.
     """
-    import asyncio
-
     try:
         cache = get_cache()
     except Exception:
@@ -730,37 +506,31 @@ async def incremental_refresh(new_commit_sha: str) -> list[dict]:
         return cache.validation_errors or []
 
     try:
-        comparison = await compare_commits(cache.last_commit_sha, new_commit_sha)
+        clone_dir = _get_clone_dir()
+        branch = get_content_branch()
 
-        # Store diff for frontend display
-        diff_data = [
-            {
-                "filename": c.path,
-                "status": c.status,
-                "additions": c.additions,
-                "deletions": c.deletions,
-                "patch": c.patch,
-            }
-            for c in comparison.files
-        ]
+        # Update the local clone
+        await git_fetcher.fetch_and_reset(clone_dir, branch)
 
-        # Fallback: too many changes (GitHub's 300 file limit)
-        if comparison.is_truncated:
-            logger.warning(
-                "Compare result truncated (>= 300 files), performing full refresh"
+        # Get diff data for frontend display (GitHub Compare API — 1 call)
+        diff_data = []
+        tracked_change_count = 0
+        try:
+            comparison = await compare_commits(cache.last_commit_sha, new_commit_sha)
+            diff_data = [
+                {"filename": c.path, "status": c.status,
+                 "additions": c.additions, "deletions": c.deletions, "patch": c.patch}
+                for c in comparison.files
+            ]
+            tracked_change_count = sum(
+                1 for c in comparison.files if _get_tracked_directory(c.path) is not None
             )
-            return await refresh_cache()
+        except Exception as e:
+            logger.warning("Failed to get diff for frontend: %s", e)
+            tracked_change_count = -1  # Unknown — assume changes exist
 
-        # Filter to only tracked files
-        tracked_changes = [
-            c for c in comparison.files if _get_tracked_directory(c.path) is not None
-        ]
-
-        if not tracked_changes:
-            # No tracked files changed, just update commit SHA and return cached errors
-            print(
-                f"No tracked files changed, updating commit SHA to {new_commit_sha[:8]}"
-            )
+        # Optimization: skip re-read + TypeScript if no tracked files changed
+        if tracked_change_count == 0:
             now = datetime.now(UTC)
             cache.last_commit_sha = new_commit_sha
             cache.fetched_sha = new_commit_sha
@@ -771,55 +541,11 @@ async def incremental_refresh(new_commit_sha: str) -> list[dict]:
             cache.last_refreshed = now
             return cache.validation_errors or []
 
-        print(
-            f"Incremental update: {len(tracked_changes)} tracked files changed "
-            f"({cache.last_commit_sha[:8]}...{new_commit_sha[:8]})"
-        )
-        logger.info(
-            f"Incremental update: {len(tracked_changes)} tracked files changed "
-            f"({cache.last_commit_sha[:8]}...{new_commit_sha[:8]})"
-        )
-
-        # Fetch changed files in parallel
-        files_to_fetch = [
-            c for c in tracked_changes if c.status in ("added", "modified", "renamed")
-        ]
-
-        async with httpx.AsyncClient() as client:
-            if files_to_fetch:
-                contents = await asyncio.gather(
-                    *[
-                        _fetch_file_with_client(client, c.path, ref=new_commit_sha)
-                        for c in files_to_fetch
-                    ]
-                )
-                fetched = dict(zip([c.path for c in files_to_fetch], contents))
-            else:
-                fetched = {}
-
-        # Mark raw files as fetched from this commit
         cache.fetched_sha = new_commit_sha
         cache.fetched_sha_timestamp = datetime.now(UTC)
 
-        # Apply changes to raw_files
-        raw_files = dict(cache.raw_files)  # Make a copy
-
-        for change in tracked_changes:
-            if change.status == "removed":
-                raw_files.pop(change.path, None)
-                logger.info(f"Removed: {change.path}")
-            elif change.status == "renamed":
-                # Remove old path
-                if change.previous_path:
-                    raw_files.pop(change.previous_path, None)
-                # Add new path
-                if change.path in fetched:
-                    raw_files[change.path] = fetched[change.path]
-                logger.info(f"Renamed: {change.previous_path} -> {change.path}")
-            else:  # added or modified
-                if change.path in fetched:
-                    raw_files[change.path] = fetched[change.path]
-                logger.info(f"{change.status.title()}: {change.path}")
+        # Read ALL files fresh from disk
+        raw_files = await git_fetcher.read_all_files(clone_dir)
 
         # Re-run TypeScript processing on all files
         logger.info(f"Re-processing {len(raw_files)} files with TypeScript...")
