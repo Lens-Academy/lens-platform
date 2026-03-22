@@ -19,6 +19,7 @@ import asyncio
 import logging
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -269,6 +270,15 @@ async def lifespan(app: FastAPI):
                 replace_existing=True,
             )
             print("Scheduled Substack sync job (every 6 hours)")
+
+            scheduler.add_job(
+                sync_substack_subscribers,
+                trigger="date",
+                run_date=datetime.now(timezone.utc) + timedelta(minutes=2),
+                id="sync_substack_initial",
+                replace_existing=True,
+            )
+            print("Scheduled initial Substack sync (in ~2 minutes)")
     else:
         print("Running in --no-db mode (database operations will fail)")
 
