@@ -82,20 +82,22 @@ class TestExecuteToolSuccess:
         tool_call = MagicMock()
         tool_call.function.name = "search_alignment_research"
 
+        mock_result = MagicMock()
+        mock_result.content = [MagicMock(text="Some alignment research results")]
+
         with (
             patch.object(
                 mgr, "get_session", new_callable=AsyncMock, return_value=mock_session
             ),
             patch(
-                "core.modules.tools.alignment_search.execute",
+                "core.modules.tools.alignment_search.experimental_mcp_client.call_openai_tool",
                 new_callable=AsyncMock,
-                return_value="Some alignment research results",
-            ) as mock_execute,
+                return_value=mock_result,
+            ),
         ):
             result = await execute_tool(mgr, tool_call)
 
-        assert result == "Some alignment research results"
-        mock_execute.assert_awaited_once_with(mock_session, tool_call)
+        assert "Some alignment research results" in result
 
 
 class TestExecuteToolTimeout:
@@ -124,6 +126,77 @@ class TestExecuteToolTimeout:
             result = await execute_tool(mgr, tool_call)
 
         assert "timed out" in result.lower()
+
+
+class TestExecuteToolRetryOnClosedSession:
+    """execute_tool() retries once after ClosedResourceError (stale session)."""
+
+    @pytest.mark.asyncio
+    async def test_reconnects_and_succeeds_on_retry(self):
+        """When MCP session dies between requests, should reset, reconnect, and succeed."""
+        from anyio import ClosedResourceError
+
+        mgr = MCPClientManager(url="http://example.com/mcp")
+        tool_call = MagicMock()
+        tool_call.function.name = "search_alignment_research"
+
+        call_count = 0
+        mock_result = MagicMock()
+        mock_result.content = [MagicMock(text="Results after reconnect")]
+
+        async def call_openai_tool_with_stale_session(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise ClosedResourceError()
+            return mock_result
+
+        session1 = MagicMock()
+        session2 = MagicMock()
+        session_sequence = iter([session1, session2])
+
+        async def get_session_sequence():
+            return next(session_sequence)
+
+        with (
+            patch.object(mgr, "get_session", side_effect=get_session_sequence),
+            patch.object(mgr, "reset", new_callable=AsyncMock) as mock_reset,
+            patch(
+                "core.modules.tools.alignment_search.experimental_mcp_client.call_openai_tool",
+                side_effect=call_openai_tool_with_stale_session,
+            ),
+        ):
+            result = await execute_tool(mgr, tool_call)
+
+        assert "Results after reconnect" in result
+        mock_reset.assert_awaited_once()
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_gives_up_after_second_failure(self):
+        """If retry also fails, should return error."""
+        from anyio import ClosedResourceError
+
+        mgr = MCPClientManager(url="http://example.com/mcp")
+        tool_call = MagicMock()
+        tool_call.function.name = "search_alignment_research"
+
+        mock_session = MagicMock()
+
+        with (
+            patch.object(
+                mgr, "get_session", new_callable=AsyncMock, return_value=mock_session
+            ),
+            patch.object(mgr, "reset", new_callable=AsyncMock),
+            patch(
+                "core.modules.tools.alignment_search.experimental_mcp_client.call_openai_tool",
+                new_callable=AsyncMock,
+                side_effect=ClosedResourceError(),
+            ),
+        ):
+            result = await execute_tool(mgr, tool_call)
+
+        assert "unavailable" in result.lower()
 
 
 class TestExecuteToolNoSession:

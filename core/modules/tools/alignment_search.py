@@ -23,18 +23,14 @@ async def load_tools(session: ClientSession) -> list[dict]:
 async def execute(session: ClientSession, tool_call) -> str:
     """Execute an alignment search tool call via MCP.
 
-    Returns:
-        Tool result as string
+    Raises on connection errors (ClosedResourceError etc.) so the caller
+    can retry with a fresh session. Only catches response-format errors.
     """
-    try:
-        result = await experimental_mcp_client.call_openai_tool(
-            session=session, openai_tool=tool_call
-        )
-        # Extract text from MCP result
-        if result.content:
-            texts = [block.text for block in result.content if hasattr(block, "text")]
-            return "\n".join(texts) if texts else "No results found."
-        return "No results found."
-    except Exception as e:
-        logger.warning("MCP tool execution failed: %s", e, exc_info=True)
-        return f"Error: search unavailable ({e})"
+    result = await experimental_mcp_client.call_openai_tool(
+        session=session, openai_tool=tool_call
+    )
+    # Extract text from MCP result
+    if result.content:
+        texts = [block.text for block in result.content if hasattr(block, "text")]
+        return "\n".join(texts) if texts else "No results found."
+    return "No results found."

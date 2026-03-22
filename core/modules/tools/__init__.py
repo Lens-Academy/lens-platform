@@ -29,6 +29,7 @@ async def get_tools(mcp_manager: MCPClientManager) -> list[dict] | None:
         return None
 
     mcp_tools = await alignment_search.load_tools(session)
+    logger.info("Loaded %d MCP tools", len(mcp_tools))
     mcp_manager.tools_cache = mcp_tools
     return mcp_tools if mcp_tools else None
 
@@ -41,20 +42,29 @@ async def execute_tool(mcp_manager: MCPClientManager, tool_call) -> str:
     """
     name = tool_call.function.name
 
-    try:
-        session = await mcp_manager.get_session()
-        if not session:
-            return "Error: search service unavailable"
+    for attempt in range(2):
+        try:
+            session = await mcp_manager.get_session()
+            if not session:
+                return "Error: search service unavailable"
 
-        result = await asyncio.wait_for(
-            alignment_search.execute(session, tool_call), timeout=TOOL_TIMEOUT
-        )
-        return result
 
-    except asyncio.TimeoutError:
-        logger.warning("Tool %s timed out after %ds", name, TOOL_TIMEOUT)
-        return "Tool timed out — respond without this information."
-    except Exception as e:
-        logger.warning("Tool %s failed: %s", name, e, exc_info=True)
-        await mcp_manager.reset()
-        return f"Error: tool unavailable ({e})"
+            result = await asyncio.wait_for(
+                alignment_search.execute(session, tool_call), timeout=TOOL_TIMEOUT
+            )
+            return result
+
+        except asyncio.TimeoutError:
+            logger.warning("Tool %s timed out after %ds", name, TOOL_TIMEOUT)
+            return "Tool timed out — respond without this information."
+        except Exception as e:
+            if attempt == 0:
+                # First failure — reconnect and retry once
+                logger.info("Tool %s failed, reconnecting: %s", name, e)
+                await mcp_manager.reset()
+                continue
+            logger.warning("Tool %s failed after retry: %s", name, e, exc_info=True)
+            await mcp_manager.reset()
+            return f"Error: tool unavailable ({e})"
+
+    return "Error: tool unavailable"
