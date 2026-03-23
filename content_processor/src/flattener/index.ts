@@ -13,7 +13,7 @@ import type {
   SectionMeta,
 } from '../index.js';
 import type { ContentTier } from '../validator/tier.js';
-import { resolveTextLinks } from './resolve-text-links.js';
+import { resolveTextLinks, enrichCardLinks } from './resolve-text-links.js';
 import { checkTierViolation } from '../validator/tier.js';
 import { parseModule, type ParsedModule, hasFieldBeforeSegmentHeaders } from '../parser/module.js';
 import { parseLearningOutcome, type ParsedTestRef } from '../parser/learning-outcome.js';
@@ -355,6 +355,11 @@ export function flattenModule(
     ...(g.parentSlug ? { parentSlug: g.parentSlug, parentTitle: g.parentTitle } : {}),
     ...(moduleError ? { error: moduleError } : {}),
   }));
+
+  // Enrich ::card links in text segments with computed metadata (duration, attribution, displayType)
+  for (const mod of resultModules) {
+    enrichCardLinks(mod.sections);
+  }
 
   // Backwards compat: module is the first result or a merged single module
   const primaryModule = resultModules.length > 0 ? resultModules[0] : null;

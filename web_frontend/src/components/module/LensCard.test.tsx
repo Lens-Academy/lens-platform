@@ -19,7 +19,6 @@ describe("LensCard", () => {
     const { container } = render(
       <LensCard title="Test Lens" targetType="lens" isCompleted={true} />,
     );
-    // The dot should have the lens-gold fill class
     const dot = container.querySelector(".rounded-full");
     expect(dot).not.toBeNull();
     expect(dot!.className).toContain("bg-lens-gold-400");
@@ -44,11 +43,23 @@ describe("LensCard", () => {
   });
 
   it("renders as link when href provided", () => {
-    render(
-      <LensCard title="Linked" targetType="lens" href="#test" />,
-    );
+    render(<LensCard title="Linked" targetType="lens" href="#test" />);
     const link = screen.getByText("Linked").closest("a");
     expect(link).not.toBeNull();
     expect(link!.getAttribute("href")).toBe("#test");
+  });
+
+  it("renders duration when provided", () => {
+    render(
+      <LensCard title="Test" targetType="lens" duration="3 min" />,
+    );
+    expect(screen.getByText("3 min")).toBeDefined();
+  });
+
+  it("renders attribution when provided", () => {
+    render(
+      <LensCard title="Test" targetType="lens" attribution="Tim Urban" />,
+    );
+    expect(screen.getByText("Tim Urban")).toBeDefined();
   });
 });
