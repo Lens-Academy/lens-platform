@@ -2,7 +2,8 @@ import type { ContentError } from '../index.js';
 import { resolveWikilinkPath, findFileWithExtension } from '../parser/wikilink.js';
 import { parseFrontmatter } from '../parser/frontmatter.js';
 
-const INLINE_WIKILINK_RE = /(?<!!)(\[\[([^\]|]+)(?:\|([^\]]+))?\]\])/g;
+const INLINE_WIKILINK_RE = /(?<!!)(?<!::card)(\[\[([^\]|]+)(?:\|([^\]]+))?\]\])/g;
+const CARD_LINK_RE = /::card\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 
 export interface ResolveResult {
   content: string;
@@ -16,7 +17,45 @@ export function resolveTextLinks(
 ): ResolveResult {
   const errors: ContentError[] = [];
 
-  const resolved = content.replace(INLINE_WIKILINK_RE, (fullMatch, _outer, rawPath, pipeDisplay) => {
+  // First pass: resolve ::card links (before inline wikilinks to prevent partial matching)
+  const processed = content.replace(CARD_LINK_RE, (fullMatch, rawPath, _pipeDisplay) => {
+    const path = rawPath.trim();
+    const resolvedPath = resolveWikilinkPath(path, sourcePath);
+    const filePath = findFileWithExtension(resolvedPath, files);
+
+    if (!filePath) {
+      errors.push({
+        file: sourcePath,
+        line: 0,
+        message: `Card link target not found: ${path}`,
+        severity: 'warning',
+      });
+      return fullMatch;
+    }
+
+    const fileContent = files.get(filePath)!;
+    const fm = parseFrontmatter(fileContent, filePath);
+    const isModule = filePath.toLowerCase().includes('modules/');
+
+    const cardData: Record<string, unknown> = {
+      targetType: isModule ? 'module' : 'lens',
+      title: (fm.frontmatter.title as string) || fileNameToTitle(filePath),
+    };
+
+    if (isModule) {
+      cardData.slug = (fm.frontmatter.slug as string) || fileNameToSlug(filePath);
+    } else {
+      cardData.contentId = (fm.frontmatter.id as string) || null;
+      cardData.tldr = (fm.frontmatter.tldr as string) || null;
+      cardData.moduleSlug = null;
+    }
+
+    const json = JSON.stringify(cardData).replace(/'/g, '&#39;');
+    return `<div data-lens-card='${json}'></div>`;
+  });
+
+  // Second pass: resolve inline wikilinks
+  const resolved = processed.replace(INLINE_WIKILINK_RE, (fullMatch, _outer, rawPath, pipeDisplay) => {
     const path = rawPath.trim();
     const resolvedPath = resolveWikilinkPath(path, sourcePath);
     const filePath = findFileWithExtension(resolvedPath, files);

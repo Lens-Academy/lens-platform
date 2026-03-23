@@ -60,4 +60,47 @@ describe('resolveTextLinks', () => {
     const result = resolveTextLinks(content, 'modules/test.md', filesNoTitle);
     expect(result.content).toBe('See [Untitled](lens:cccc-dddd)');
   });
+
+  describe('::card links', () => {
+    const files = new Map<string, string>([
+      ['Lenses/My Lens.md', '---\nid: aaaa-bbbb\ntitle: "My Lens Title"\ntldr: "A short summary"\n---\n#### Text\ncontent:: hello world foo bar baz'],
+      ['modules/My Module.md', '---\nslug: my-module\ntitle: "My Module Title"\n---\n# Lens: Welcome'],
+    ]);
+
+    it('resolves ::card[[lens]] to HTML div with JSON metadata', () => {
+      const content = '::card[[../Lenses/My Lens]]';
+      const result = resolveTextLinks(content, 'modules/test.md', files);
+      expect(result.content).toContain('data-lens-card=');
+      const match = result.content.match(/data-lens-card='([^']+)'/);
+      expect(match).not.toBeNull();
+      const data = JSON.parse(match![1]);
+      expect(data.contentId).toBe('aaaa-bbbb');
+      expect(data.title).toBe('My Lens Title');
+      expect(data.tldr).toBe('A short summary');
+      expect(data.targetType).toBe('lens');
+    });
+
+    it('resolves ::card[[module]] to HTML div with module metadata', () => {
+      const content = '::card[[../modules/My Module]]';
+      const result = resolveTextLinks(content, 'Lenses/test.md', files);
+      const match = result.content.match(/data-lens-card='([^']+)'/);
+      const data = JSON.parse(match![1]);
+      expect(data.targetType).toBe('module');
+      expect(data.slug).toBe('my-module');
+      expect(data.title).toBe('My Module Title');
+    });
+
+    it('handles mixed inline and card links', () => {
+      const content = 'See [[../Lenses/My Lens|link]] and:\n::card[[../Lenses/My Lens]]';
+      const result = resolveTextLinks(content, 'modules/test.md', files);
+      expect(result.content).toContain('[link](lens:aaaa-bbbb)');
+      expect(result.content).toContain('data-lens-card=');
+    });
+
+    it('returns error for unresolved ::card link', () => {
+      const content = '::card[[../Lenses/Nonexistent]]';
+      const result = resolveTextLinks(content, 'modules/test.md', files);
+      expect(result.errors).toHaveLength(1);
+    });
+  });
 });
