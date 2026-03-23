@@ -1473,7 +1473,16 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     switch (segment.type) {
       case "text":
         return wrapWithSentinel(
-          <AuthoredText key={`text-${keyPrefix}`} content={segment.content} />,
+          <AuthoredText
+            key={`text-${keyPrefix}`}
+            content={segment.content}
+            courseId={courseId ?? undefined}
+            moduleSlug={moduleId}
+            moduleSections={module.sections.map((s) => ({
+              contentId: s.contentId,
+              meta: s.meta,
+            }))}
+          />,
         );
 
       case "article": {
