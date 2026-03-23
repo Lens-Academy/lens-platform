@@ -97,6 +97,17 @@ class CommitComparison:
 CONTENT_REPO = "Lens-Academy/lens-edu-relay"
 
 
+def _try_parse_uuid(value: str | None) -> UUID | None:
+    """Parse a UUID string, returning None if missing or malformed."""
+    if not value:
+        return None
+    try:
+        return UUID(value)
+    except ValueError:
+        logger.warning("Invalid UUID in content: %s", value)
+        return None
+
+
 def get_content_branch() -> str:
     """Get the content branch from environment.
 
@@ -343,7 +354,7 @@ async def fetch_all_content() -> ContentCache:
         flattened_modules[mod["slug"]] = FlattenedModule(
             slug=mod["slug"],
             title=mod["title"],
-            content_id=UUID(mod["contentId"]) if mod.get("contentId") else None,
+            content_id=_try_parse_uuid(mod.get("contentId")),
             sections=mod["sections"],
             error=mod.get("error"),
             parent_slug=mod.get("parentSlug"),
@@ -561,7 +572,7 @@ async def incremental_refresh(new_commit_sha: str) -> list[dict]:
             flattened_modules[mod["slug"]] = FlattenedModule(
                 slug=mod["slug"],
                 title=mod["title"],
-                content_id=UUID(mod["contentId"]) if mod.get("contentId") else None,
+                content_id=_try_parse_uuid(mod.get("contentId")),
                 sections=mod["sections"],
                 error=mod.get("error"),
                 parent_slug=mod.get("parentSlug"),
