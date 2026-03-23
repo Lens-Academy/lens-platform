@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
+import { CoursesDropdown } from "./CoursesDropdown";
 import { DiscordInviteButton } from "./DiscordInviteButton";
 import { UserMenu } from "./UserMenu";
 
@@ -70,13 +71,10 @@ export function MobileMenu({
 
         {/* Navigation links */}
         <nav className="flex flex-col gap-6 px-6 pt-4">
-          <a
-            href="/course"
-            onClick={onClose}
-            className="text-lg font-medium text-[var(--brand-text)] py-3 transition-transform active:scale-[0.97]"
-          >
-            Course
-          </a>
+          <div className="text-sm font-medium text-[var(--brand-text-muted)] uppercase tracking-wide mb-1">
+            Courses
+          </div>
+          <CoursesDropdown onNavigate={onClose} />
 
           <div className="py-2">
             <DiscordInviteButton />

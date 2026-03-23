@@ -12,7 +12,8 @@ import type { CourseProgress, ModuleInfo } from "../types/course";
 import CourseTimeline from "../components/course/CourseTimeline";
 import ModuleOverview from "../components/course/ModuleOverview";
 import { generateHeadingId } from "../utils/extractHeadings";
-import { DiscordInviteButton, UserMenu } from "../components/nav";
+import { CoursesDropdown, DiscordInviteButton, UserMenu } from "../components/nav";
+import { Popover } from "../components/Popover";
 import { Skeleton } from "../components/Skeleton";
 import { useScrollDirection } from "../hooks/useScrollDirection";
 
@@ -244,13 +245,19 @@ export default function CourseOverview({
               </a>
             </div>
             <div className="flex items-center gap-4">
-              <a
-                href="/course"
-                className="font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200 hidden md:block"
-                style={{ color: "var(--brand-text-muted)" }}
+              <Popover
+                placement="bottom-start"
+                hover
+                className="bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-lg shadow-lg p-2 z-50 min-w-[220px]"
+                content={(close) => <CoursesDropdown onNavigate={close} />}
               >
-                Course
-              </a>
+                <button
+                  className="font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200 hidden md:block"
+                  style={{ color: "var(--brand-text-muted)" }}
+                >
+                  Courses
+                </button>
+              </Popover>
               <div className="hidden md:block">
                 <DiscordInviteButton />
               </div>

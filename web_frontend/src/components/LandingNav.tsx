@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useMedia } from "react-use";
 import { Menu, X } from "lucide-react";
-import { UserMenu } from "./nav";
+import { Popover } from "./Popover";
+import { CoursesDropdown, UserMenu } from "./nav";
 import { DISCORD_INVITE_URL } from "../config";
 
 const NAV_LINKS = [
-  { label: "Courses", href: "/course/default" },
-  { label: "Community", href: DISCORD_INVITE_URL, external: true },
-  { label: "About", href: "/about" },
-] as const;
+  { label: "Community", href: DISCORD_INVITE_URL, external: true as const },
+  { label: "About", href: "/about", external: false as const },
+];
 
 const CTA_HREF = "/course/default/module/introduction";
 
@@ -75,6 +75,19 @@ export function LandingNav() {
             ) : (
               /* Desktop: nav links + user menu + CTA */
               <div className="flex items-center gap-6">
+                <Popover
+                  placement="bottom-start"
+                  hover
+                  className="bg-[var(--landing-bg)] border border-[var(--landing-border)] rounded-lg shadow-lg p-2 z-50 min-w-[220px]"
+                  content={(close) => <CoursesDropdown onNavigate={close} />}
+                >
+                  <button
+                    className="text-sm font-medium transition-colors duration-200 hover:text-[var(--landing-text)]"
+                    style={{ color: "var(--landing-text-muted)" }}
+                  >
+                    Courses
+                  </button>
+                </Popover>
                 {NAV_LINKS.map((link) => (
                   <a
                     key={link.label}
@@ -157,6 +170,15 @@ export function LandingNav() {
 
         {/* Navigation links */}
         <nav className="flex flex-col gap-6 px-6 pt-4">
+          <div>
+            <div
+              className="text-sm font-medium uppercase tracking-wide mb-1"
+              style={{ color: "var(--landing-text-muted)" }}
+            >
+              Courses
+            </div>
+            <CoursesDropdown onNavigate={() => setMenuOpen(false)} />
+          </div>
           {NAV_LINKS.map((link) => (
             <a
               key={link.label}
