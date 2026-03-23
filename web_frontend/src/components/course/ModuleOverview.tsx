@@ -342,6 +342,10 @@ export default function ModuleOverview({
         {/* pl-1 gives space for the selection ring to not be cut off */}
         <div className="pl-1">
           {layout.map((item, li) => {
+            // Skip hidden items
+            if (item.kind === "trunk" && item.stage.hide) return null;
+            if (item.kind === "branch" && item.items.every((bi) => bi.stage.hide)) return null;
+
             const colors = layoutColors[li];
             const isFirst = li === 0;
             const isLast = li === layout.length - 1;
@@ -470,7 +474,7 @@ export default function ModuleOverview({
                   )}
                   {/* Branch items, indented — pt-6 gives the S-curve room to breathe */}
                   <div className="ml-8 pt-6 pb-1">
-                    {item.items.map((branchItem, bi) => (
+                    {item.items.filter((bi) => !bi.stage.hide).map((branchItem, bi) => (
                       <div key={bi} className="relative">
                         {/* Fork-to-circle connector for first item — ends at circle center (22px from top) */}
                         {bi === 0 && hasPrecedingTrunk && (

@@ -250,6 +250,7 @@ export default function StageProgressBar({
           title: getStageTitle(s),
           duration: null,
           optional: s.optional ?? false,
+          hide: s.hide,
         }),
       ),
     [stages],
@@ -368,7 +369,12 @@ export default function StageProgressBar({
       {/* Stage dots */}
       <div className="flex items-start">
         {layout.map((item, li) => {
+          // Skip entirely hidden trunk items
+          if (item.kind === "trunk" && stages[item.index]?.hide) return null;
           if (item.kind === "branch") {
+            // Skip branch group if all items are hidden
+            const visibleItems = item.items.filter((bi) => !stages[bi.index]?.hide);
+            if (visibleItems.length === 0) return null;
             const dotSize = compact ? 28 : 32;
             const drop = compact ? 20 : 24; // distance from trunk center to branch dot center
             const r = Math.min(8, Math.floor(drop / 2));
@@ -483,8 +489,8 @@ export default function StageProgressBar({
                     <div style={{ width: arcWidth }} className="shrink-0" />
                   )}
 
-                  {/* Branch dots */}
-                  {item.items.map((branchItem, bi) => (
+                  {/* Branch dots (only visible ones) */}
+                  {visibleItems.map((branchItem, bi) => (
                     <div key={bi} className="flex items-center">
                       {bi > 0 && (
                         <div

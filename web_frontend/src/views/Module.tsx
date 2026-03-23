@@ -544,6 +544,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: 0,
           to: null,
           optional: isOptional,
+          hide: section.hide === true || undefined,
           title,
           tldr,
           duration,
@@ -555,6 +556,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: null,
           to: null,
           optional: isOptional,
+          hide: section.hide === true || undefined,
           title,
           tldr,
           duration,
@@ -566,6 +568,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: null,
           to: null,
           optional: isOptional,
+          hide: section.hide === true || undefined,
           title,
           tldr,
           duration,
@@ -600,6 +603,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         title: section.meta?.title || `Section ${index + 1}`,
         duration: dur || null,
         optional: section.optional === true,
+        hide: section.hide === true || undefined,
         tldr: section.tldr,
         attribution:
           attributions.length > 0 ? attributions.join(" & ") : undefined,
@@ -676,6 +680,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         ({ section, index }) =>
           "optional" in section &&
           section.optional &&
+          !section.hide &&
           !completedSections.has(index),
       )
       .filter(({ section }) => {
@@ -1180,6 +1185,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     for (let i = 0; i < sections.length; i++) {
       if (completed.has(i)) continue;
       const section = sections[i];
+      if (section.hide) continue;
       if (!("optional" in section)) continue;
       const sectionType = section.type as SectionChoice["type"];
       if (!["lens", "test"].includes(sectionType)) continue;

@@ -377,6 +377,11 @@ function SectionList({
   return (
     <div className="ml-5 mt-1.5 mb-1.5 pl-0.5">
       {layout.map((item, li) => {
+        // Skip hidden trunk items
+        if (item.kind === "trunk" && item.stage.hide) return null;
+        // Skip entirely hidden branch groups
+        if (item.kind === "branch" && item.items.every((bi) => bi.stage.hide)) return null;
+
         const colors = layoutColors[li];
         const isFirst = li === 0;
         const isLast = li === layout.length - 1;
@@ -467,7 +472,7 @@ function SectionList({
                 />
               )}
               <div className="ml-5 pt-4 pb-0.5">
-                {item.items.map((branchItem, bi) => (
+                {item.items.filter((bi) => !bi.stage.hide).map((branchItem, bi) => (
                   <div key={bi} className="relative">
                     {bi === 0 && hasPrecedingTrunk && (
                       <div
