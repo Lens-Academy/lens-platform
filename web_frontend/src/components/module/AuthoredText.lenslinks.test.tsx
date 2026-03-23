@@ -74,6 +74,9 @@ describe("AuthoredText card links", () => {
         completedContentIds={new Set(["aaaa-bbbb"])}
       />,
     );
-    expect(container.querySelector("[data-completed]")).not.toBeNull();
+    // Completed card has lens-gold dot
+    const dot = container.querySelector(".rounded-full");
+    expect(dot).not.toBeNull();
+    expect(dot!.className).toContain("bg-lens-gold-400");
   });
 });

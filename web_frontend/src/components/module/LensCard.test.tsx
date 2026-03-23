@@ -15,37 +15,40 @@ describe("LensCard", () => {
     expect(screen.getByText(/The authors argue/)).toBeDefined();
   });
 
-  it("shows completion checkmark when completed", () => {
+  it("uses lens-gold dot when completed", () => {
     const { container } = render(
-      <LensCard
-        title="Test Lens"
-        targetType="lens"
-        isCompleted={true}
-      />,
+      <LensCard title="Test Lens" targetType="lens" isCompleted={true} />,
     );
-    expect(container.querySelector("[data-completed]")).not.toBeNull();
+    // The dot should have the lens-gold fill class
+    const dot = container.querySelector(".rounded-full");
+    expect(dot).not.toBeNull();
+    expect(dot!.className).toContain("bg-lens-gold-400");
+    expect(dot!.className).toContain("text-white");
   });
 
-  it("shows empty circle when not completed", () => {
+  it("uses gray dot when not completed", () => {
     const { container } = render(
-      <LensCard
-        title="Test Lens"
-        targetType="lens"
-        isCompleted={false}
-      />,
+      <LensCard title="Test Lens" targetType="lens" isCompleted={false} />,
     );
-    expect(container.querySelector("[data-completed]")).toBeNull();
-    expect(container.querySelector("[data-incomplete]")).not.toBeNull();
+    const dot = container.querySelector(".rounded-full");
+    expect(dot).not.toBeNull();
+    expect(dot!.className).toContain("bg-gray-200");
+    expect(dot!.className).toContain("text-gray-400");
   });
 
-  it("renders module variant with book icon", () => {
+  it("renders module variant", () => {
     render(
-      <LensCard
-        title="Module 2"
-        targetType="module"
-        slug="module-2"
-      />,
+      <LensCard title="Module 2" targetType="module" slug="module-2" />,
     );
     expect(screen.getByText("Module 2")).toBeDefined();
+  });
+
+  it("renders as link when href provided", () => {
+    render(
+      <LensCard title="Linked" targetType="lens" href="#test" />,
+    );
+    const link = screen.getByText("Linked").closest("a");
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute("href")).toBe("#test");
   });
 });
