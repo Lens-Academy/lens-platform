@@ -183,35 +183,30 @@ export function ChatMessageList({
 
   const isToolCalling = activeToolCall?.state === "calling";
 
-  const streamingEl = isLoading && streamingContent && (
+  const toolIndicator = activeToolCall && (
+    isToolCalling
+      ? <ToolCallingIndicator name={activeToolCall.name} />
+      : <ToolResultPanel msg={{ role: "tool" as const, name: activeToolCall.name, tool_call_id: "", content: "" }} />
+  );
+
+  const streamingEl = isLoading && (streamingContent || activeToolCall) && (
     <div className="text-gray-800">
       <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
         <Bot size={13} />
         Tutor
       </div>
-      <ChatMarkdown>{streamingContent}</ChatMarkdown>
-      {isToolCalling && <ToolCallingIndicator name={activeToolCall.name} />}
+      {streamingContent && <ChatMarkdown>{streamingContent}</ChatMarkdown>}
+      {toolIndicator}
     </div>
   );
 
-  const thinkingEl = isLoading && !streamingContent && !isToolCalling && (
+  const thinkingEl = isLoading && !streamingContent && !activeToolCall && (
     <div className="text-gray-800">
       <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
         <Bot size={13} />
         Tutor
       </div>
       <div>Thinking...</div>
-    </div>
-  );
-
-  // Show tool calling indicator even without streaming content
-  const toolOnlyEl = isLoading && !streamingContent && isToolCalling && (
-    <div className="text-gray-800">
-      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-        <Bot size={13} />
-        Tutor
-      </div>
-      <ToolCallingIndicator name={activeToolCall.name} />
     </div>
   );
 
@@ -239,7 +234,6 @@ export function ChatMessageList({
             .map((msg, i) => renderMessage(msg, startIndex + splitAt + i))}
           {pendingEl}
           {streamingEl}
-          {toolOnlyEl}
           {thinkingEl}
           <div className="flex-grow" />
         </div>
@@ -247,7 +241,6 @@ export function ChatMessageList({
         <>
           {pendingEl}
           {streamingEl}
-          {toolOnlyEl}
           {thinkingEl}
         </>
       )}

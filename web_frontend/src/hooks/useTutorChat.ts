@@ -29,7 +29,7 @@ import { trackChatMessageSent } from "@/analytics";
 // Chat lifecycle reducer
 // ---------------------------------------------------------------------------
 
-type ChatState = {
+export type ChatState = {
   messages: ChatMessage[];
   pendingMessage: PendingMessage | null;
   streamingContent: string;
@@ -40,7 +40,7 @@ type ChatState = {
   activeToolCall: { name: string; state: "calling" | "result" | "error" } | null;
 };
 
-type ChatAction =
+export type ChatAction =
   | { type: "LOAD_HISTORY"; messages: ChatMessage[] }
   | {
       type: "SEND_START";
@@ -60,7 +60,7 @@ type ChatAction =
   | { type: "CLEAR_PENDING" }
   | { type: "TOOL_CALL"; name: string; state: "calling" | "result" | "error" };
 
-const initialChatState: ChatState = {
+export const initialChatState: ChatState = {
   messages: [],
   pendingMessage: null,
   streamingContent: "",
@@ -70,7 +70,7 @@ const initialChatState: ChatState = {
   activeToolCall: null,
 };
 
-function chatReducer(state: ChatState, action: ChatAction): ChatState {
+export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
     case "LOAD_HISTORY":
       return {

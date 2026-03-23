@@ -20,7 +20,7 @@ import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import { renderMessage } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
 import ChatMarkdown from "@/components/ChatMarkdown";
-import { Bot, ChevronUp, ChevronDown, Search } from "lucide-react";
+import { Bot, Check, ChevronUp, ChevronDown, Search } from "lucide-react";
 import { chatViewReducer, initialChatViewState } from "./chatViewReducer";
 
 type ChatInlineShellProps = {
@@ -253,10 +253,9 @@ export function ChatInlineShell({
 
   const showPending = hasInteracted && !!pendingMessage;
   const isToolCalling = activeToolCall?.state === "calling";
-  const showStreaming = hasInteracted && isLoading && !!streamingContent;
-  const showToolOnly = hasInteracted && isLoading && !streamingContent && isToolCalling;
+  const showStreaming = hasInteracted && isLoading && (!!streamingContent || !!activeToolCall);
   const showThinking =
-    hasInteracted && isLoading && !streamingContent && !isToolCalling;
+    hasInteracted && isLoading && !streamingContent && !activeToolCall;
   const wrapperMinHeight = hasInteracted && spacerHeight > 0 ? spacerHeight : 0;
   const scrollMargin = hasInteracted
     ? isExpanded
@@ -488,7 +487,7 @@ export function ChatInlineShell({
                   </div>
                 )}
 
-                {/* Streaming response */}
+                {/* Streaming response with tool indicator */}
                 {showStreaming && (
                   <div
                     ref={activeScrollToResponse ? responseRef : undefined}
@@ -498,38 +497,23 @@ export function ChatInlineShell({
                       <Bot size={13} />
                       Tutor
                     </div>
-                    <ChatMarkdown>{streamingContent}</ChatMarkdown>
-                    {isToolCalling && (
+                    {streamingContent && <ChatMarkdown>{streamingContent}</ChatMarkdown>}
+                    {activeToolCall && (
                       <div className="my-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
                         <div className="flex items-center gap-2 px-3 py-2">
-                          <Search size={14} className="animate-pulse text-gray-500 shrink-0" />
-                          <span className="text-gray-500">
-                            {{search_alignment_research: "Searching alignment research\u2026"}[activeToolCall!.name] ?? "Using tool\u2026"}
+                          {isToolCalling ? (
+                            <Search size={14} className="animate-pulse text-gray-500 shrink-0" />
+                          ) : (
+                            <Check size={14} className="text-green-600 shrink-0" />
+                          )}
+                          <span className={isToolCalling ? "text-gray-500" : "text-gray-700"}>
+                            {isToolCalling
+                              ? ({search_alignment_research: "Searching alignment research\u2026"}[activeToolCall.name] ?? "Using tool\u2026")
+                              : ({search_alignment_research: "Searched alignment research"}[activeToolCall.name] ?? "Tool completed")}
                           </span>
                         </div>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {/* Tool calling without prior text */}
-                {showToolOnly && (
-                  <div
-                    ref={activeScrollToResponse ? responseRef : undefined}
-                    className="text-gray-800"
-                  >
-                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                      <Bot size={13} />
-                      Tutor
-                    </div>
-                    <div className="my-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
-                      <div className="flex items-center gap-2 px-3 py-2">
-                        <Search size={14} className="animate-pulse text-gray-500 shrink-0" />
-                        <span className="text-gray-500">
-                          {{search_alignment_research: "Searching alignment research\u2026"}[activeToolCall!.name] ?? "Using tool\u2026"}
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 )}
 
