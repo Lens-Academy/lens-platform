@@ -1621,3 +1621,32 @@ title: Test Course
     expect(moduleSlugs).not.toContain('big');
   });
 });
+
+describe('text segment wikilink resolution', () => {
+  it('resolves wikilinks in text segment content', () => {
+    const files = new Map<string, string>([
+      ['modules/test-module.md', `---
+slug: test-module
+title: "Test Module"
+---
+# Lens: Welcome
+id:: welcome-id
+
+#### Text
+content:: See [[../Lenses/Target Lens]] for more.
+`],
+      ['Lenses/Target Lens.md', `---
+id: target-lens-id
+title: "Target Lens Title"
+---
+#### Text
+content:: hello
+`],
+    ]);
+
+    const result = flattenModule('modules/test-module.md', files);
+    const textSeg = result.module!.sections[0].segments[0];
+    expect(textSeg.type).toBe('text');
+    expect((textSeg as any).content).toBe('See [Target Lens Title](lens:target-lens-id) for more.');
+  });
+});

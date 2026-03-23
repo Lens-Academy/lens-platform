@@ -13,6 +13,7 @@ import type {
   SectionMeta,
 } from '../index.js';
 import type { ContentTier } from '../validator/tier.js';
+import { resolveTextLinks } from './resolve-text-links.js';
 import { checkTierViolation } from '../validator/tier.js';
 import { parseModule, type ParsedModule, hasFieldBeforeSegmentHeaders } from '../parser/module.js';
 import { parseLearningOutcome, type ParsedTestRef } from '../parser/learning-outcome.js';
@@ -965,9 +966,11 @@ function convertSegment(
 
   switch (parsedSegment.type) {
     case 'text': {
+      const resolved = resolveTextLinks(parsedSegment.content, lensPath, files);
+      errors.push(...resolved.errors);
       const segment: TextSegment = {
         type: 'text',
-        content: parsedSegment.content,
+        content: resolved.content,
       };
       if (parsedSegment.optional) {
         segment.optional = true;
