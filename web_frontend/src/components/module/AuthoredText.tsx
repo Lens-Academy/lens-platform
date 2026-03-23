@@ -30,7 +30,7 @@ type AuthoredTextProps = {
 export default function AuthoredText({
   content,
   courseId,
-  moduleSlug,
+  moduleSlug: _moduleSlug,
   moduleSections,
   completedContentIds,
 }: AuthoredTextProps) {
@@ -114,7 +114,7 @@ export default function AuthoredText({
           components={{
             // Card divs
             div: ({ node, ...props }) => {
-              const lensCardJson = (node?.properties as any)?.["dataLensCard"] as string | undefined;
+              const lensCardJson = (node?.properties as Record<string, unknown>)?.["dataLensCard"] as string | undefined;
               if (lensCardJson) {
                 try {
                   const data = JSON.parse(lensCardJson);
