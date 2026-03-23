@@ -232,4 +232,7 @@ async def send_module_message(
                 }
             )
 
+        # Separate pre-tool text from post-tool text so they don't concatenate
+        yield {"type": "text", "content": "\n\n"}
+
     yield {"type": "done"}

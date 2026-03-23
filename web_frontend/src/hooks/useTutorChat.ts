@@ -26,6 +26,14 @@ import { sendMessage as sendMessageApi, getChatHistory } from "@/api/modules";
 import { trackChatMessageSent } from "@/analytics";
 
 // ---------------------------------------------------------------------------
+// Tool call labels (used to embed summary in message content)
+// ---------------------------------------------------------------------------
+
+const TOOL_DONE_LABELS: Record<string, string> = {
+  search_alignment_research: "Searched alignment research",
+};
+
+// ---------------------------------------------------------------------------
 // Chat lifecycle reducer
 // ---------------------------------------------------------------------------
 
@@ -104,7 +112,6 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return {
         ...state,
         streamingContent: action.accumulated,
-        activeToolCall: null,
       };
 
     case "SEND_SUCCESS":
@@ -436,11 +443,22 @@ export function useTutorChat({
               content: chunk.content,
             });
           } else if (chunk.type === "tool_use" && chunk.name) {
+            const toolState = (chunk.state as "calling" | "result" | "error") ?? "calling";
             dispatchChat({
               type: "TOOL_CALL",
               name: chunk.name as string,
-              state: (chunk.state as "calling" | "result" | "error") ?? "calling",
+              state: toolState,
             });
+            // When tool completes, embed a summary into the content so it persists
+            if (toolState !== "calling") {
+              const label = TOOL_DONE_LABELS[chunk.name as string] ?? "Used tool";
+              const icon = toolState === "error" ? "⚠️" : "✅";
+              assistantContent += `\n\n${icon} *${label}*\n\n`;
+              dispatchChat({
+                type: "STREAM_CHUNK",
+                accumulated: assistantContent,
+              });
+            }
           } else if (chunk.type === "error") {
             throw new Error(
               (chunk as unknown as { message?: string }).message ||

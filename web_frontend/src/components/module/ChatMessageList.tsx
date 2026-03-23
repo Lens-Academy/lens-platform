@@ -14,7 +14,7 @@ import { StageIcon } from "@/components/module/StageProgressBar";
 import { ChatMarkdown } from "./ChatMarkdown";
 import { Bot, BookOpen, Search } from "lucide-react";
 
-const TOOL_LABELS: Record<string, string> = {
+const TOOL_CALLING_LABELS: Record<string, string> = {
   search_alignment_research: "Searching alignment research\u2026",
 };
 
@@ -141,17 +141,10 @@ export function ChatMessageList({
   );
 
   const toolCallEl = isLoading &&
-    activeToolCall &&
-    activeToolCall.state === "calling" && (
-      <div className="text-gray-800">
-        <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-          <Bot size={13} />
-          Tutor
-        </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Search size={14} className="animate-pulse" />
-          {TOOL_LABELS[activeToolCall.name] ?? "Using tool\u2026"}
-        </div>
+    activeToolCall?.state === "calling" && (
+      <div className="flex items-center gap-2 text-sm text-gray-500 py-1">
+        <Search size={14} className="animate-pulse" />
+        {TOOL_CALLING_LABELS[activeToolCall.name] ?? "Using tool\u2026"}
       </div>
     );
 
@@ -188,16 +181,16 @@ export function ChatMessageList({
             .slice(splitAt)
             .map((msg, i) => renderMessage(msg, startIndex + splitAt + i))}
           {pendingEl}
-          {toolCallEl}
           {streamingEl}
+          {toolCallEl}
           {thinkingEl}
           <div className="flex-grow" />
         </div>
       ) : (
         <>
           {pendingEl}
-          {toolCallEl}
           {streamingEl}
+          {toolCallEl}
           {thinkingEl}
         </>
       )}

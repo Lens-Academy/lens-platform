@@ -254,7 +254,7 @@ export function ChatInlineShell({
   const showPending = hasInteracted && !!pendingMessage;
   const showStreaming = hasInteracted && isLoading && !!streamingContent;
   const showToolCall =
-    hasInteracted && isLoading && !!activeToolCall && activeToolCall.state === "calling";
+    hasInteracted && isLoading && activeToolCall?.state === "calling";
   const showThinking =
     hasInteracted && isLoading && !streamingContent && !activeToolCall;
   const wrapperMinHeight = hasInteracted && spacerHeight > 0 ? spacerHeight : 0;
@@ -502,25 +502,17 @@ export function ChatInlineShell({
                   </div>
                 )}
 
-                {/* Tool call indicator */}
-                {showToolCall && (
+                {/* Tool call indicator (calling only — completed state is embedded in content) */}
+                {showToolCall && activeToolCall && (
                   <div
                     ref={activeScrollToResponse ? responseRef : undefined}
-                    className="text-gray-800"
+                    className="flex items-center gap-2 text-sm text-gray-500 py-1"
                   >
-                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                      <Bot size={13} />
-                      Tutor
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <Search size={14} className="animate-pulse" />
-                      {activeToolCall
-                        ? {
-                            search_alignment_research:
-                              "Searching alignment research\u2026",
-                          }[activeToolCall.name] ?? "Using tool\u2026"
-                        : "Using tool\u2026"}
-                    </div>
+                    <Search size={14} className="animate-pulse" />
+                    {{
+                      search_alignment_research:
+                        "Searching alignment research\u2026",
+                    }[activeToolCall.name] ?? "Using tool\u2026"}
                   </div>
                 )}
 
