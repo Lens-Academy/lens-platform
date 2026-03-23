@@ -29,6 +29,11 @@ import { trackChatMessageSent } from "@/analytics";
 // Chat lifecycle reducer
 // ---------------------------------------------------------------------------
 
+type ToolCallState = {
+  name: string;
+  state: "calling" | "result" | "error";
+};
+
 type ChatState = {
   messages: ChatMessage[];
   pendingMessage: PendingMessage | null;
@@ -36,6 +41,7 @@ type ChatState = {
   isLoading: boolean;
   lastPosition: { sectionIndex: number; segmentIndex: number } | null;
   sendSource: "sidebar" | "inline" | null;
+  activeToolCall: ToolCallState | null;
 };
 
 type ChatAction =
@@ -55,7 +61,8 @@ type ChatAction =
       systemMessages?: ChatMessage[];
     }
   | { type: "SEND_FAILURE" }
-  | { type: "CLEAR_PENDING" };
+  | { type: "CLEAR_PENDING" }
+  | { type: "TOOL_CALL"; name: string; state: "calling" | "result" | "error" };
 
 const initialChatState: ChatState = {
   messages: [],
@@ -64,6 +71,7 @@ const initialChatState: ChatState = {
   isLoading: false,
   lastPosition: null,
   sendSource: null,
+  activeToolCall: null,
 };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -96,6 +104,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return {
         ...state,
         streamingContent: action.accumulated,
+        activeToolCall: null,
       };
 
     case "SEND_SUCCESS":
@@ -113,6 +122,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         streamingContent: "",
         isLoading: false,
         sendSource: null,
+        activeToolCall: null,
       };
 
     case "SEND_FAILURE":
@@ -124,6 +134,13 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         streamingContent: "",
         isLoading: false,
         sendSource: null,
+        activeToolCall: null,
+      };
+
+    case "TOOL_CALL":
+      return {
+        ...state,
+        activeToolCall: { name: action.name, state: action.state },
       };
 
     case "CLEAR_PENDING":
@@ -418,6 +435,12 @@ export function useTutorChat({
               role: "system" as const,
               content: chunk.content,
             });
+          } else if (chunk.type === "tool_use" && chunk.name) {
+            dispatchChat({
+              type: "TOOL_CALL",
+              name: chunk.name as string,
+              state: (chunk.state as "calling" | "result" | "error") ?? "calling",
+            });
           } else if (chunk.type === "error") {
             throw new Error(
               (chunk as unknown as { message?: string }).message ||
@@ -461,6 +484,7 @@ export function useTutorChat({
     streamingContent: chat.streamingContent,
     isLoading: chat.isLoading,
     sendSource: chat.sendSource,
+    activeToolCall: chat.activeToolCall,
 
     // Actions
     sendMessage,

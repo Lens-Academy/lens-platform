@@ -183,10 +183,11 @@ async def test_tool_call_executes_and_continues():
         ):
             events.append(event)
 
-    # Should have tool_use event, text from second call, and done
+    # Should have tool_use events (calling + result), text from second call, and done
     tool_events = [e for e in events if e["type"] == "tool_use"]
-    assert len(tool_events) == 1
-    assert tool_events[0]["name"] == "search_alignment_research"
+    assert len(tool_events) == 2
+    assert tool_events[0] == {"type": "tool_use", "name": "search_alignment_research", "state": "calling"}
+    assert tool_events[1] == {"type": "tool_use", "name": "search_alignment_research", "state": "result"}
 
     text_events = [e for e in events if e["type"] == "text"]
     assert any("Here is what I found" in e["content"] for e in text_events)

@@ -219,8 +219,10 @@ async def send_module_message(
         # Execute tool calls
         api_messages.append(assistant_message.model_dump(exclude_none=True))
         for tc in assistant_message.tool_calls:
-            yield {"type": "tool_use", "name": tc.function.name}
+            yield {"type": "tool_use", "name": tc.function.name, "state": "calling"}
             result = await execute_tool(mcp_manager, tc)
+            is_error = result.startswith("Error:") or result.startswith("Tool timed out")
+            yield {"type": "tool_use", "name": tc.function.name, "state": "error" if is_error else "result"}
             api_messages.append(
                 {
                     "tool_call_id": tc.id,

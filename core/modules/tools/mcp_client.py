@@ -83,9 +83,16 @@ class MCPClientManager:
         await self.close()
 
     async def close(self):
-        """Close the MCP session and transport."""
+        """Close the MCP session and transport.
+
+        Best-effort — anyio cancel scope errors during cleanup are logged
+        and swallowed so a stale session never crashes the request.
+        """
         if self._stack:
-            await self._stack.aclose()
+            try:
+                await self._stack.aclose()
+            except Exception:
+                logger.warning("Error closing MCP session (ignored)", exc_info=True)
         self._session = None
         self._stack = None
         self._tools_cache = None

@@ -20,7 +20,7 @@ import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import { renderMessage } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
 import ChatMarkdown from "@/components/ChatMarkdown";
-import { Bot, ChevronUp, ChevronDown } from "lucide-react";
+import { Bot, ChevronUp, ChevronDown, Search } from "lucide-react";
 import { chatViewReducer, initialChatViewState } from "./chatViewReducer";
 
 type ChatInlineShellProps = {
@@ -28,6 +28,7 @@ type ChatInlineShellProps = {
   pendingMessage: PendingMessage | null;
   streamingContent: string;
   isLoading: boolean;
+  activeToolCall?: { name: string; state: string } | null;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
   activated?: boolean;
@@ -70,6 +71,7 @@ export function ChatInlineShell({
   pendingMessage,
   streamingContent,
   isLoading,
+  activeToolCall,
   onSendMessage,
   onRetryMessage,
   activated,
@@ -251,7 +253,10 @@ export function ChatInlineShell({
 
   const showPending = hasInteracted && !!pendingMessage;
   const showStreaming = hasInteracted && isLoading && !!streamingContent;
-  const showThinking = hasInteracted && isLoading && !streamingContent;
+  const showToolCall =
+    hasInteracted && isLoading && !!activeToolCall && activeToolCall.state === "calling";
+  const showThinking =
+    hasInteracted && isLoading && !streamingContent && !activeToolCall;
   const wrapperMinHeight = hasInteracted && spacerHeight > 0 ? spacerHeight : 0;
   const scrollMargin = hasInteracted
     ? isExpanded
@@ -494,6 +499,28 @@ export function ChatInlineShell({
                       Tutor
                     </div>
                     <ChatMarkdown>{streamingContent}</ChatMarkdown>
+                  </div>
+                )}
+
+                {/* Tool call indicator */}
+                {showToolCall && (
+                  <div
+                    ref={activeScrollToResponse ? responseRef : undefined}
+                    className="text-gray-800"
+                  >
+                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+                      <Bot size={13} />
+                      Tutor
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Search size={14} className="animate-pulse" />
+                      {activeToolCall
+                        ? {
+                            search_alignment_research:
+                              "Searching alignment research\u2026",
+                          }[activeToolCall.name] ?? "Using tool\u2026"
+                        : "Using tool\u2026"}
+                    </div>
                   </div>
                 )}
 

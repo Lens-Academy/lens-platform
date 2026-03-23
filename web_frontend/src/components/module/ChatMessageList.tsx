@@ -12,13 +12,18 @@
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { StageIcon } from "@/components/module/StageProgressBar";
 import { ChatMarkdown } from "./ChatMarkdown";
-import { Bot, BookOpen } from "lucide-react";
+import { Bot, BookOpen, Search } from "lucide-react";
+
+const TOOL_LABELS: Record<string, string> = {
+  search_alignment_research: "Searching alignment research\u2026",
+};
 
 type ChatMessageListProps = {
   messages: ChatMessage[];
   pendingMessage?: PendingMessage | null;
   streamingContent?: string;
   isLoading?: boolean;
+  activeToolCall?: { name: string; state: string } | null;
   /** Optional: only render messages from this index onward */
   startIndex?: number;
   /** Ref for the message list container */
@@ -85,6 +90,7 @@ export function ChatMessageList({
   pendingMessage,
   streamingContent,
   isLoading,
+  activeToolCall,
   startIndex = 0,
   containerRef,
   onScroll,
@@ -134,7 +140,22 @@ export function ChatMessageList({
     </div>
   );
 
-  const thinkingEl = isLoading && !streamingContent && (
+  const toolCallEl = isLoading &&
+    activeToolCall &&
+    activeToolCall.state === "calling" && (
+      <div className="text-gray-800">
+        <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+          <Bot size={13} />
+          Tutor
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Search size={14} className="animate-pulse" />
+          {TOOL_LABELS[activeToolCall.name] ?? "Using tool\u2026"}
+        </div>
+      </div>
+    );
+
+  const thinkingEl = isLoading && !streamingContent && !activeToolCall && (
     <div className="text-gray-800">
       <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
         <Bot size={13} />
@@ -167,6 +188,7 @@ export function ChatMessageList({
             .slice(splitAt)
             .map((msg, i) => renderMessage(msg, startIndex + splitAt + i))}
           {pendingEl}
+          {toolCallEl}
           {streamingEl}
           {thinkingEl}
           <div className="flex-grow" />
@@ -174,6 +196,7 @@ export function ChatMessageList({
       ) : (
         <>
           {pendingEl}
+          {toolCallEl}
           {streamingEl}
           {thinkingEl}
         </>
