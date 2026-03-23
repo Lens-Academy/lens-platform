@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { getSectionSlug } from "@/utils/sectionSlug";
+import LensCard from "./LensCard";
 
 type ModuleSection = {
   contentId: string | null;
@@ -31,6 +32,7 @@ export default function AuthoredText({
   courseId,
   moduleSlug,
   moduleSections,
+  completedContentIds,
 }: AuthoredTextProps) {
   const resolveLensHref = useCallback(
     (contentId: string): string => {
@@ -110,6 +112,28 @@ export default function AuthoredText({
             return url;
           }}
           components={{
+            // Card divs
+            div: ({ node, ...props }) => {
+              const lensCardJson = (node?.properties as any)?.["dataLensCard"] as string | undefined;
+              if (lensCardJson) {
+                try {
+                  const data = JSON.parse(lensCardJson);
+                  const isCompleted = completedContentIds?.has(data.contentId) ?? false;
+                  let href: string | undefined;
+                  if (data.targetType === "lens") {
+                    href = resolveLensHref(data.contentId);
+                  } else if (data.targetType === "module") {
+                    href = courseId
+                      ? `/course/${courseId}/module/${data.slug}`
+                      : `/module/${data.slug}`;
+                  }
+                  return <LensCard {...data} isCompleted={isCompleted} href={href} />;
+                } catch {
+                  return <div {...props} />;
+                }
+              }
+              return <div {...props} />;
+            },
             // Links
             a: renderLink,
             // Headings

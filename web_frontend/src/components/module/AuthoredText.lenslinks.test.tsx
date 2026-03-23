@@ -42,3 +42,38 @@ describe("AuthoredText lens links", () => {
     expect(link.getAttribute("target")).toBe("_blank");
   });
 });
+
+describe("AuthoredText card links", () => {
+  it("renders data-lens-card div as a LensCard component", () => {
+    const cardData = JSON.stringify({
+      contentId: "aaaa-bbbb",
+      targetType: "lens",
+      title: "My Card Title",
+      tldr: "A summary",
+    });
+    render(
+      <AuthoredText
+        content={`<div data-lens-card='${cardData}'></div>`}
+        courseId="my-course"
+        moduleSlug="my-module"
+      />,
+    );
+    expect(screen.getByText("My Card Title")).toBeDefined();
+    expect(screen.getByText("A summary")).toBeDefined();
+  });
+
+  it("shows completion state on card when contentId is in completedContentIds", () => {
+    const cardData = JSON.stringify({
+      contentId: "aaaa-bbbb",
+      targetType: "lens",
+      title: "Completed Lens",
+    });
+    const { container } = render(
+      <AuthoredText
+        content={`<div data-lens-card='${cardData}'></div>`}
+        completedContentIds={new Set(["aaaa-bbbb"])}
+      />,
+    );
+    expect(container.querySelector("[data-completed]")).not.toBeNull();
+  });
+});
