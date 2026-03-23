@@ -395,6 +395,18 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     new Set(),
   );
 
+  // Derive completed contentIds from completedSections for LensCard completion state
+  const completedContentIds = useMemo(() => {
+    if (!module) return new Set<string>();
+    const ids = new Set<string>();
+    for (const [index] of module.sections.entries()) {
+      if (completedSections.has(index) && module.sections[index].contentId) {
+        ids.add(module.sections[index].contentId!);
+      }
+    }
+    return ids;
+  }, [module, completedSections]);
+
   // Theater mode: track how many videos are in theater mode (for scroll-snap)
   const [theaterCount, setTheaterCount] = useState(0);
   const handleTheaterChange = useCallback((active: boolean) => {
@@ -1482,6 +1494,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               contentId: s.contentId,
               meta: s.meta,
             }))}
+            completedContentIds={completedContentIds}
           />,
         );
 
