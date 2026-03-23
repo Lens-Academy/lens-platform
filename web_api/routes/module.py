@@ -26,6 +26,7 @@ from core.modules.chat_sessions import (
     add_chat_message,
     get_latest_roleplay_session,
     get_or_create_chat_session,
+    save_raw_message,
 )
 from core.modules.context import gather_section_context
 from core.modules.loader import load_flattened_module
@@ -247,7 +248,17 @@ async def event_generator(
                 pending_context.clear()
             llm_messages.append({"role": "user", "content": content})
         elif m["role"] == "assistant":
-            llm_messages.append({"role": "assistant", "content": m["content"]})
+            msg = {"role": "assistant", "content": m.get("content", "")}
+            if "tool_calls" in m:
+                msg["tool_calls"] = m["tool_calls"]
+            llm_messages.append(msg)
+        elif m["role"] == "tool":
+            llm_messages.append({
+                "role": "tool",
+                "tool_call_id": m["tool_call_id"],
+                "name": m["name"],
+                "content": m["content"],
+            })
 
     if user_message:
         content = user_message
@@ -295,6 +306,8 @@ async def event_generator(
 
     # Stream response
     assistant_content = ""
+    had_tool_calls = False
+    post_tool_content_start = 0
     try:
         async for chunk in send_module_message(
             llm_messages, stage, None, section_context,
@@ -303,7 +316,17 @@ async def event_generator(
         ):
             if chunk.get("type") == "text":
                 assistant_content += chunk.get("content", "")
-            yield f"data: {json.dumps(chunk)}\n\n"
+                yield f"data: {json.dumps(chunk)}\n\n"
+            elif chunk.get("type") == "tool_save":
+                had_tool_calls = True
+                # Track where post-tool content starts (after last tool result save)
+                if chunk["message"].get("role") == "tool":
+                    post_tool_content_start = len(assistant_content)
+                async with get_connection() as conn:
+                    await save_raw_message(conn, session_id=session_id, message=chunk["message"])
+                # Don't yield tool_save to SSE
+            else:
+                yield f"data: {json.dumps(chunk)}\n\n"
     except Exception as e:
         logger.error("Chat LLM error: %s", e)
         sentry_sdk.capture_exception(e)
@@ -311,14 +334,15 @@ async def event_generator(
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return
 
-    # Save assistant response
-    if assistant_content:
+    # Save final assistant response (post-tool text only if tool calls happened)
+    final_content = assistant_content[post_tool_content_start:].strip() if had_tool_calls else assistant_content
+    if final_content:
         async with get_connection() as conn:
             await add_chat_message(
                 conn,
                 session_id=session_id,
                 role="assistant",
-                content=assistant_content,
+                content=final_content,
             )
 
 

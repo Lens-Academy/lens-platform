@@ -134,6 +134,24 @@ async def add_chat_message(
     await conn.commit()
 
 
+async def save_raw_message(
+    conn: AsyncConnection,
+    *,
+    session_id: int,
+    message: dict,
+) -> None:
+    """Append a raw message dict to chat session (for tool calls etc.)."""
+    await conn.execute(
+        update(chat_sessions)
+        .where(chat_sessions.c.session_id == session_id)
+        .values(
+            messages=chat_sessions.c.messages + [message],
+            last_active_at=datetime.now(timezone.utc),
+        )
+    )
+    await conn.commit()
+
+
 async def complete_chat_session(
     conn: AsyncConnection,
     *,

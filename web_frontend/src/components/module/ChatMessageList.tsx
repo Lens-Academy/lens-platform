@@ -2,27 +2,70 @@
  * ChatMessageList — shared message rendering for all chat surfaces
  * (ChatInlineShell, ChatSidebar, ReflectionChatDialog).
  *
- * Handles all four message roles:
+ * Handles message roles:
  *   - "user"           → gray bubble, right-aligned
  *   - "assistant"      → plain text, labeled "Tutor"
  *   - "system"         → centered pill (progress markers)
  *   - "course-content" → plain text, labeled "Lens" (authored opening questions)
+ *   - "tool"           → collapsible panel showing tool input/output
  */
 
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { StageIcon } from "@/components/module/StageProgressBar";
 import { ChatMarkdown } from "./ChatMarkdown";
-import { Bot, BookOpen, Search } from "lucide-react";
+import { Bot, BookOpen, Check, Search, ChevronDown } from "lucide-react";
 
 const TOOL_CALLING_LABELS: Record<string, string> = {
   search_alignment_research: "Searching alignment research\u2026",
 };
+
+const TOOL_DONE_LABELS: Record<string, string> = {
+  search_alignment_research: "Searched alignment research",
+};
+
+/** Collapsible panel for a tool call result (from DB history). */
+function ToolResultPanel({
+  msg,
+}: {
+  msg: { role: "tool"; name: string; content: string };
+}) {
+  const label = TOOL_DONE_LABELS[msg.name] ?? "Tool completed";
+  return (
+    <details className="my-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
+      <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+        <Check size={14} className="text-green-600 shrink-0" />
+        <span className="text-gray-700">{label}</span>
+        <ChevronDown size={14} className="ml-auto text-gray-400 shrink-0" />
+      </summary>
+      <div className="px-3 pb-2 text-xs text-gray-600">
+        <div className="font-medium text-gray-500 mb-0.5">Result</div>
+        <pre className="bg-white rounded p-2 overflow-x-auto border border-gray-100 whitespace-pre-wrap max-h-60 overflow-y-auto">
+          {msg.content}
+        </pre>
+      </div>
+    </details>
+  );
+}
+
+/** Live streaming indicator for an in-progress tool call. */
+function ToolCallingIndicator({ name }: { name: string }) {
+  const label = TOOL_CALLING_LABELS[name] ?? "Using tool\u2026";
+  return (
+    <div className="my-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
+      <div className="flex items-center gap-2 px-3 py-2">
+        <Search size={14} className="animate-pulse text-gray-500 shrink-0" />
+        <span className="text-gray-500">{label}</span>
+      </div>
+    </div>
+  );
+}
 
 type ChatMessageListProps = {
   messages: ChatMessage[];
   pendingMessage?: PendingMessage | null;
   streamingContent?: string;
   isLoading?: boolean;
+  /** Live tool call indicator (only during streaming) */
   activeToolCall?: { name: string; state: string } | null;
   /** Optional: only render messages from this index onward */
   startIndex?: number;
@@ -62,7 +105,15 @@ export function renderMessage(msg: ChatMessage, key: string | number) {
     );
   }
 
+  if (msg.role === "tool") {
+    return <ToolResultPanel key={key} msg={msg} />;
+  }
+
   if (msg.role === "assistant") {
+    // Skip assistant messages that only contain tool_calls with no text
+    if (msg.tool_calls && !msg.content?.trim()) {
+      return null;
+    }
     return (
       <div key={key} className="text-gray-800">
         <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
@@ -130,6 +181,8 @@ export function ChatMessageList({
     </div>
   );
 
+  const isToolCalling = activeToolCall?.state === "calling";
+
   const streamingEl = isLoading && streamingContent && (
     <div className="text-gray-800">
       <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
@@ -137,24 +190,28 @@ export function ChatMessageList({
         Tutor
       </div>
       <ChatMarkdown>{streamingContent}</ChatMarkdown>
+      {isToolCalling && <ToolCallingIndicator name={activeToolCall.name} />}
     </div>
   );
 
-  const toolCallEl = isLoading &&
-    activeToolCall?.state === "calling" && (
-      <div className="flex items-center gap-2 text-sm text-gray-500 py-1">
-        <Search size={14} className="animate-pulse" />
-        {TOOL_CALLING_LABELS[activeToolCall.name] ?? "Using tool\u2026"}
-      </div>
-    );
-
-  const thinkingEl = isLoading && !streamingContent && !activeToolCall && (
+  const thinkingEl = isLoading && !streamingContent && !isToolCalling && (
     <div className="text-gray-800">
       <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
         <Bot size={13} />
         Tutor
       </div>
       <div>Thinking...</div>
+    </div>
+  );
+
+  // Show tool calling indicator even without streaming content
+  const toolOnlyEl = isLoading && !streamingContent && isToolCalling && (
+    <div className="text-gray-800">
+      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+        <Bot size={13} />
+        Tutor
+      </div>
+      <ToolCallingIndicator name={activeToolCall.name} />
     </div>
   );
 
@@ -182,7 +239,7 @@ export function ChatMessageList({
             .map((msg, i) => renderMessage(msg, startIndex + splitAt + i))}
           {pendingEl}
           {streamingEl}
-          {toolCallEl}
+          {toolOnlyEl}
           {thinkingEl}
           <div className="flex-grow" />
         </div>
@@ -190,7 +247,7 @@ export function ChatMessageList({
         <>
           {pendingEl}
           {streamingEl}
-          {toolCallEl}
+          {toolOnlyEl}
           {thinkingEl}
         </>
       )}

@@ -3,6 +3,7 @@
 Module chat - LLM integration with stage-aware prompting and tool execution loop.
 """
 
+import json
 import logging
 import os
 from typing import AsyncIterator
@@ -217,12 +218,49 @@ async def send_module_message(
             break
 
         # Execute tool calls
+        # Save the assistant message with tool_calls to DB
+        assistant_msg_for_db = {
+            "role": "assistant",
+            "content": assistant_message.content or "",
+            "tool_calls": [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    },
+                }
+                for tc in assistant_message.tool_calls
+            ],
+        }
+        yield {"type": "tool_save", "message": assistant_msg_for_db}
+
         api_messages.append(assistant_message.model_dump(exclude_none=True))
         for tc in assistant_message.tool_calls:
-            yield {"type": "tool_use", "name": tc.function.name, "state": "calling"}
+            try:
+                args = json.loads(tc.function.arguments)
+            except (json.JSONDecodeError, TypeError):
+                args = {}
+            yield {"type": "tool_use", "name": tc.function.name, "state": "calling", "arguments": args}
             result = await execute_tool(mcp_manager, tc)
             is_error = result.startswith("Error:") or result.startswith("Tool timed out")
-            yield {"type": "tool_use", "name": tc.function.name, "state": "error" if is_error else "result"}
+            result_preview = result[:500] + ("…" if len(result) > 500 else "")
+            yield {
+                "type": "tool_use", "name": tc.function.name,
+                "state": "error" if is_error else "result",
+                "result": result_preview,
+            }
+
+            # Save tool result to DB
+            tool_msg_for_db = {
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "name": tc.function.name,
+                "content": result,
+            }
+            yield {"type": "tool_save", "message": tool_msg_for_db}
+
             api_messages.append(
                 {
                     "tool_call_id": tc.id,
@@ -231,8 +269,5 @@ async def send_module_message(
                     "content": result,
                 }
             )
-
-        # Separate pre-tool text from post-tool text so they don't concatenate
-        yield {"type": "text", "content": "\n\n"}
 
     yield {"type": "done"}

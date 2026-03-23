@@ -183,11 +183,24 @@ async def test_tool_call_executes_and_continues():
         ):
             events.append(event)
 
-    # Should have tool_use events (calling + result), text from second call, and done
-    tool_events = [e for e in events if e["type"] == "tool_use"]
-    assert len(tool_events) == 2
-    assert tool_events[0] == {"type": "tool_use", "name": "search_alignment_research", "state": "calling"}
-    assert tool_events[1] == {"type": "tool_use", "name": "search_alignment_research", "state": "result"}
+    # Should have tool_use events (calling + result) and tool_save events
+    tool_use_events = [e for e in events if e["type"] == "tool_use"]
+    assert len(tool_use_events) == 2
+    assert tool_use_events[0]["name"] == "search_alignment_research"
+    assert tool_use_events[0]["state"] == "calling"
+    assert tool_use_events[0]["arguments"] == {"query": "test"}
+    assert tool_use_events[1]["name"] == "search_alignment_research"
+    assert tool_use_events[1]["state"] == "result"
+
+    # Should have tool_save events for DB persistence
+    tool_save_events = [e for e in events if e["type"] == "tool_save"]
+    assert len(tool_save_events) == 2
+    # First: assistant message with tool_calls
+    assert tool_save_events[0]["message"]["role"] == "assistant"
+    assert "tool_calls" in tool_save_events[0]["message"]
+    # Second: tool result message
+    assert tool_save_events[1]["message"]["role"] == "tool"
+    assert tool_save_events[1]["message"]["name"] == "search_alignment_research"
 
     text_events = [e for e in events if e["type"] == "text"]
     assert any("Here is what I found" in e["content"] for e in text_events)

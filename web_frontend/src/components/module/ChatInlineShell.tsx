@@ -252,11 +252,11 @@ export function ChatInlineShell({
   const wrapperMessages = displayMessages.slice(adjustedWrapperStart);
 
   const showPending = hasInteracted && !!pendingMessage;
+  const isToolCalling = activeToolCall?.state === "calling";
   const showStreaming = hasInteracted && isLoading && !!streamingContent;
-  const showToolCall =
-    hasInteracted && isLoading && activeToolCall?.state === "calling";
+  const showToolOnly = hasInteracted && isLoading && !streamingContent && isToolCalling;
   const showThinking =
-    hasInteracted && isLoading && !streamingContent && !activeToolCall;
+    hasInteracted && isLoading && !streamingContent && !isToolCalling;
   const wrapperMinHeight = hasInteracted && spacerHeight > 0 ? spacerHeight : 0;
   const scrollMargin = hasInteracted
     ? isExpanded
@@ -499,20 +499,37 @@ export function ChatInlineShell({
                       Tutor
                     </div>
                     <ChatMarkdown>{streamingContent}</ChatMarkdown>
+                    {isToolCalling && (
+                      <div className="my-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
+                        <div className="flex items-center gap-2 px-3 py-2">
+                          <Search size={14} className="animate-pulse text-gray-500 shrink-0" />
+                          <span className="text-gray-500">
+                            {{search_alignment_research: "Searching alignment research\u2026"}[activeToolCall!.name] ?? "Using tool\u2026"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Tool call indicator (calling only — completed state is embedded in content) */}
-                {showToolCall && activeToolCall && (
+                {/* Tool calling without prior text */}
+                {showToolOnly && (
                   <div
                     ref={activeScrollToResponse ? responseRef : undefined}
-                    className="flex items-center gap-2 text-sm text-gray-500 py-1"
+                    className="text-gray-800"
                   >
-                    <Search size={14} className="animate-pulse" />
-                    {{
-                      search_alignment_research:
-                        "Searching alignment research\u2026",
-                    }[activeToolCall.name] ?? "Using tool\u2026"}
+                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+                      <Bot size={13} />
+                      Tutor
+                    </div>
+                    <div className="my-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
+                      <div className="flex items-center gap-2 px-3 py-2">
+                        <Search size={14} className="animate-pulse text-gray-500 shrink-0" />
+                        <span className="text-gray-500">
+                          {{search_alignment_research: "Searching alignment research\u2026"}[activeToolCall!.name] ?? "Using tool\u2026"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
