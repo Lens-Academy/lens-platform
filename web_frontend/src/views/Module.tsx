@@ -2065,7 +2065,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         )}
                         isShort={getSectionTextLength(section) < 1750}
                         chatGated={
-                          ("segments" in section &&
+                          (!section.optional &&
+                            "segments" in section &&
                             section.segments?.some((s) => s.type === "chat") &&
                             !chatInteractedSections.has(sectionIndex)) ||
                           false
