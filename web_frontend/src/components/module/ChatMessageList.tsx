@@ -78,7 +78,7 @@ type ChatMessageListProps = {
   minHeightWrapperRef?: React.Ref<HTMLDivElement>;
 };
 
-export function renderMessage(msg: ChatMessage, key: string | number) {
+export function renderMessage(msg: ChatMessage, key: string | number, prevRole?: string) {
   if (msg.role === "system") {
     return (
       <div key={key} className="flex justify-center my-3">
@@ -119,12 +119,17 @@ export function renderMessage(msg: ChatMessage, key: string | number) {
     if (!msg.content?.trim()) {
       return null;
     }
+    // Show "Tutor" label only on the first assistant message in a turn.
+    // Continuation messages after tool calls (prev = "assistant" or "tool") skip the label.
+    const showLabel = prevRole !== "assistant" && prevRole !== "tool";
     return (
       <div key={key} className="text-gray-800">
-        <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-          <Bot size={13} />
-          Tutor
-        </div>
+        {showLabel && (
+          <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+            <Bot size={13} />
+            Tutor
+          </div>
+        )}
         <ChatMarkdown>{msg.content}</ChatMarkdown>
       </div>
     );
@@ -192,12 +197,28 @@ export function ChatMessageList({
     !lastMsg.content?.trim() &&
     !("tool_calls" in lastMsg && lastMsg.tool_calls);
 
+  // Check if the Thinking indicator should show the "Tutor" label
+  // (suppress if previous visible message is assistant or tool — continuation of same turn)
+  let thinkingPrevRole: string | undefined;
+  if (showThinking) {
+    for (let j = messages.length - 2; j >= 0; j--) {
+      const m = messages[j];
+      if (m.role === "assistant" && m.tool_calls && !m.content?.trim()) continue;
+      if (m.role === "assistant" && !m.content?.trim()) continue;
+      thinkingPrevRole = m.role;
+      break;
+    }
+  }
+  const thinkingShowLabel = thinkingPrevRole !== "assistant" && thinkingPrevRole !== "tool";
+
   const thinkingEl = showThinking && (
     <div className="text-gray-800">
-      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-        <Bot size={13} />
-        Tutor
-      </div>
+      {thinkingShowLabel && (
+        <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+          <Bot size={13} />
+          Tutor
+        </div>
+      )}
       <div>Thinking...</div>
     </div>
   );
@@ -211,7 +232,18 @@ export function ChatMessageList({
     >
       {visibleMessages
         .slice(0, splitAt)
-        .map((msg, i) => renderMessage(msg, startIndex + i))}
+        .map((msg, i) => {
+          // Find previous VISIBLE message's role (skip hidden ones like empty assistant+tool_calls)
+          let prevVisibleRole: string | undefined;
+          for (let j = startIndex + i - 1; j >= 0; j--) {
+            const m = messages[j];
+            if (m.role === "assistant" && m.tool_calls && !m.content?.trim()) continue;
+            if (m.role === "assistant" && !m.content?.trim()) continue;
+            prevVisibleRole = m.role;
+            break;
+          }
+          return renderMessage(msg, startIndex + i, prevVisibleRole);
+        })}
 
       {useWrapper ? (
         <div
@@ -223,7 +255,18 @@ export function ChatMessageList({
         >
           {visibleMessages
             .slice(splitAt)
-            .map((msg, i) => renderMessage(msg, startIndex + splitAt + i))}
+            .map((msg, i) => {
+              const absIdx = startIndex + splitAt + i;
+              let prevVisibleRole: string | undefined;
+              for (let j = absIdx - 1; j >= 0; j--) {
+                const m = messages[j];
+                if (m.role === "assistant" && m.tool_calls && !m.content?.trim()) continue;
+                if (m.role === "assistant" && !m.content?.trim()) continue;
+                prevVisibleRole = m.role;
+                break;
+              }
+              return renderMessage(msg, absIdx, prevVisibleRole);
+            })}
           {pendingEl}
           {thinkingEl}
           <div className="flex-grow" />

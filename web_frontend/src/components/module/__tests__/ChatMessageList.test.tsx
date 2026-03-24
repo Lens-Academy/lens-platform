@@ -125,8 +125,9 @@ describe("ChatMessageList — tool messages in history", () => {
     expect(screen.getByText("Searched alignment research")).toBeInTheDocument();
     expect(screen.getByText("Here's what I found.")).toBeInTheDocument();
 
-    // Only one "Tutor" label (empty assistant with tool_calls is hidden)
-    expect(screen.getAllByText("Tutor")).toHaveLength(1);
+    // No "Tutor" labels — the first assistant is hidden (empty+tool_calls),
+    // and the second is a continuation after tool call (label suppressed)
+    expect(screen.queryByText("Tutor")).not.toBeInTheDocument();
   });
 
   it("renders three tool panels from history", () => {
@@ -250,6 +251,65 @@ describe("ChatMessageList — streaming via messages array", () => {
     expect(result1).toBeLessThan(deeper);
     expect(deeper).toBeLessThan(result2);
     expect(result2).toBeLessThan(combined);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ChatMessageList — Tutor label deduplication
+// ---------------------------------------------------------------------------
+
+describe("ChatMessageList — Tutor label deduplication", () => {
+  it("shows only one Tutor label for a two-round tool call sequence", () => {
+    // user → assistant(text+tc) → tool → assistant(text+tc) → tool → assistant(text)
+    // Only the first assistant after the user should show "Tutor"
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Explain thoroughly" },
+      { role: "assistant", content: "Let me search.", tool_calls: [
+        { id: "", type: "function", function: { name: "search_alignment_research", arguments: "" } },
+      ] },
+      { role: "tool", tool_call_id: "", name: "search_alignment_research", content: "Result A" },
+      { role: "assistant", content: "Let me dig deeper.", tool_calls: [
+        { id: "", type: "function", function: { name: "search_alignment_research", arguments: "" } },
+      ] },
+      { role: "tool", tool_call_id: "", name: "search_alignment_research", content: "Result B" },
+      { role: "assistant", content: "Combined findings." },
+    ];
+
+    render(<ChatMessageList messages={messages} />);
+
+    // All text should be visible
+    expect(screen.getByText("Let me search.")).toBeInTheDocument();
+    expect(screen.getByText("Let me dig deeper.")).toBeInTheDocument();
+    expect(screen.getByText("Combined findings.")).toBeInTheDocument();
+
+    // Only ONE "Tutor" label — the first assistant message shows it,
+    // continuation messages after tool calls do not
+    expect(screen.getAllByText("Tutor")).toHaveLength(1);
+  });
+
+  it("shows Tutor label again after a new user message", () => {
+    // Two separate exchanges — each gets its own Tutor label
+    const messages: ChatMessage[] = [
+      { role: "user", content: "First question" },
+      { role: "assistant", content: "First answer." },
+      { role: "user", content: "Second question" },
+      { role: "assistant", content: "Second answer." },
+    ];
+
+    render(<ChatMessageList messages={messages} />);
+    expect(screen.getAllByText("Tutor")).toHaveLength(2);
+  });
+
+  it("shows Tutor label after system message break", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Question" },
+      { role: "assistant", content: "Answer." },
+      { role: "system", content: "Now viewing: Section 2" },
+      { role: "assistant", content: "New context response." },
+    ];
+
+    render(<ChatMessageList messages={messages} />);
+    expect(screen.getAllByText("Tutor")).toHaveLength(2);
   });
 });
 

@@ -404,7 +404,8 @@ export function ChatInlineShell({
                 {previousMessages.map((msg, i) => {
                   const isRecentBoundary =
                     isExpanded && i === recentMessagesStartIdx;
-                  const msgEl = renderMessage(msg, i);
+                  const prev = i > 0 ? previousMessages[i - 1] : undefined;
+                  const msgEl = renderMessage(msg, i, prev?.role);
                   return isRecentBoundary ? (
                     <Fragment key={i}>
                       <div ref={recentStartRef} />
@@ -449,7 +450,7 @@ export function ChatInlineShell({
                           style={{ scrollMarginTop: scrollMargin }}
                         />
                       )}
-                      {renderMessage(msg, `current-${i}`)}
+                      {renderMessage(msg, `current-${i}`, i > 0 ? wrapperMessages[i - 1]?.role : (previousMessages.length > 0 ? previousMessages[previousMessages.length - 1]?.role : undefined))}
                     </Fragment>
                   ));
                 })()}
