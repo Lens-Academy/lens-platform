@@ -338,6 +338,7 @@ export default function CourseOverview({
 
         {/* Main panel */}
         <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+          <div className="max-w-3xl">
           {selectedModule ? (
             <ModuleOverview
               moduleTitle={selectedModule.title}
@@ -360,6 +361,7 @@ export default function CourseOverview({
               Select a module to view details
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>
