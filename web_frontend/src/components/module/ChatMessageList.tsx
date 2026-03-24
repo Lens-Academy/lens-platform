@@ -13,7 +13,7 @@
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { StageIcon } from "@/components/module/StageProgressBar";
 import { ChatMarkdown } from "./ChatMarkdown";
-import { Bot, BookOpen, Check, Search, ChevronDown } from "lucide-react";
+import { Bot, BookOpen, Check, Search, ChevronRight } from "lucide-react";
 
 const TOOL_CALLING_LABELS: Record<string, string> = {
   search_alignment_research: "Searching alignment research\u2026",
@@ -35,7 +35,7 @@ function ToolResultPanel({
       <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
         <Check size={14} className="text-green-600 shrink-0" />
         <span className="text-gray-700">{label}</span>
-        <ChevronDown size={14} className="ml-auto text-gray-400 shrink-0" />
+        <ChevronRight size={14} className="ml-auto text-gray-400 shrink-0 transition-transform duration-200 [[open]>summary>&]:rotate-90" />
       </summary>
       <div className="px-3 pb-2 text-xs text-gray-600">
         <div className="font-medium text-gray-500 mb-0.5">Result</div>

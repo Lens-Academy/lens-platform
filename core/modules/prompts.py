@@ -101,7 +101,11 @@ def build_course_overview(
     from .loader import load_flattened_module
     from . import ModuleNotFoundError
 
-    lines = [f"Course Overview: {course.title}", ""]
+    lines = [
+        "The course contains lenses (articles, videos, discussions) organized into modules. "
+        "The student can navigate between them.",
+        "",
+    ]
 
     for item in course.progression:
         if isinstance(item, MeetingMarker):
@@ -117,12 +121,13 @@ def build_course_overview(
         try:
             module = load_flattened_module(item.slug)
         except (ModuleNotFoundError, Exception):
-            lines.append(f"  {'→' if is_current_module else '•'} {item.slug} (unavailable)")
+            lines.append(f"## {item.slug} (unavailable)")
+            lines.append("")
             continue
 
-        marker = "→ CURRENT:" if is_current_module else "•"
         optional = " (optional)" if item.optional else ""
-        lines.append(f"  {marker} {module.title}{optional}")
+        lines.append(f"## {module.title}{optional}")
+        lines.append("")
 
         for i, section in enumerate(module.sections):
             title = section.get("meta", {}).get("title", "Untitled")
@@ -131,18 +136,15 @@ def build_course_overview(
 
             # Status marker
             if is_current_module and i == current_section_index:
-                status = "← you are here"
+                status = " ← you are here"
             elif content_id and str(content_id) in completed_content_ids:
-                status = "✓"
+                status = " ✓"
             else:
                 status = ""
 
-            line = f"    - {title}"
-            if status:
-                line += f" [{status}]"
+            lines.append(f"- **{title}**{status}")
             if tldr:
-                line += f" — {tldr}"
-            lines.append(line)
+                lines.append(f"  TLDR: {tldr}")
 
         lines.append("")
 

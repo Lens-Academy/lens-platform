@@ -79,7 +79,9 @@ class TestCourseOverview:
     @patch("core.modules.loader.load_flattened_module", side_effect=_mock_load)
     def test_includes_course_title(self, _mock, simple_course):
         result = build_course_overview(simple_course, "mod-a", 0, set())
-        assert "Course Overview: Intro to AI Safety" in result
+        # Title is no longer emitted; module titles appear as ## headers instead.
+        assert "Module A" in result
+        assert "lenses" in result
 
     @patch("core.modules.loader.load_flattened_module", side_effect=_mock_load)
     def test_includes_section_tldrs(self, _mock, simple_course):
@@ -90,7 +92,6 @@ class TestCourseOverview:
     @patch("core.modules.loader.load_flattened_module", side_effect=_mock_load)
     def test_marks_current_module_and_section(self, _mock, simple_course):
         result = build_course_overview(simple_course, "mod-a", 1, set())
-        assert "CURRENT:" in result
         assert "Module A" in result
         assert "you are here" in result
         # Section A2 (index 1) should be marked
