@@ -1,3 +1,4 @@
+// Standalone embeddable version: web_frontend/public/lw-widget.html
 import { useState, useEffect } from "react";
 import { LandingNav } from "@/components/LandingNav";
 import { LandingFooter } from "@/components/LandingFooter";
@@ -96,6 +97,73 @@ function Toggle({
         }}
       />
     </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Info tooltip
+// ---------------------------------------------------------------------------
+function InfoTip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <span
+      className="relative inline-flex items-center ml-1 align-middle"
+      style={{ verticalAlign: "middle" }}
+    >
+      <button
+        type="button"
+        aria-label="More info"
+        onClick={() => setOpen((v) => !v)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        className="inline-flex items-center justify-center w-[34px] h-[34px] -m-[9px] transition-colors duration-150"
+        style={{
+          cursor: "pointer",
+          background: "transparent",
+        }}
+      >
+        <span
+          className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full text-[11px] font-bold leading-none"
+          style={{
+            color: "var(--landing-text-muted)",
+            border: "1.5px solid var(--landing-border)",
+          }}
+        >
+          i
+        </span>
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 bottom-full mb-2 w-64 px-3 py-2.5 rounded-lg text-[13px] leading-snug z-50"
+          style={{
+            backgroundColor: "#fff",
+            color: "var(--landing-text)",
+            border: "1px solid var(--landing-border)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
+          }}
+        >
+          {text}
+          <div
+            className="absolute right-[5px] top-full w-0 h-0"
+            style={{
+              borderLeft: "6px solid transparent",
+              borderRight: "6px solid transparent",
+              borderTop: "6px solid var(--landing-border)",
+            }}
+          />
+          <div
+            className="absolute right-[5px] top-full w-0 h-0"
+            style={{
+              borderLeft: "6px solid transparent",
+              borderRight: "6px solid transparent",
+              borderTop: "6px solid #fff",
+              marginTop: "-1px",
+            }}
+          />
+        </div>
+      )}
+    </span>
   );
 }
 
@@ -221,7 +289,7 @@ export default function SubscribePage() {
               {/* Options */}
               <div className="flex flex-col gap-3.5 mb-5">
                 {/* Courses */}
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3">
                   <div className="flex flex-col gap-px">
                     <span className="text-[15px] font-semibold">Courses</span>
                     <span
@@ -231,7 +299,10 @@ export default function SubscribePage() {
                       Get notified when courses open for enrollment
                     </span>
                   </div>
-                  <CoursePill value={courseMode} onChange={setCourseMode} />
+                  <div className="inline-flex items-center gap-1.5 shrink-0">
+                    <CoursePill value={courseMode} onChange={setCourseMode} />
+                    <InfoTip text="Navigators facilitate the weekly group calls, guiding discussion and helping learners stay on track." />
+                  </div>
                 </div>
 
                 {/* Posts */}
