@@ -38,6 +38,9 @@ export type ChatState = {
   sendSource: "sidebar" | "inline" | null;
   /** Live tool call indicator — only used during streaming, cleared on completion */
   activeToolCall: { name: string; state: "calling" | "result" | "error" } | null;
+  /** Character offset in streamingContent where the tool call was inserted.
+   *  Used by the UI to split streaming text: pre-tool | indicator | post-tool. */
+  toolCallInsertPoint: number | null;
 };
 
 export type ChatAction =
@@ -55,6 +58,8 @@ export type ChatAction =
       userContent: string;
       assistantContent: string;
       systemMessages?: ChatMessage[];
+      /** Tool-related messages (assistant with tool_calls + tool results) saved during streaming */
+      toolMessages?: ChatMessage[];
     }
   | { type: "SEND_FAILURE" }
   | { type: "CLEAR_PENDING" }
@@ -68,6 +73,7 @@ export const initialChatState: ChatState = {
   lastPosition: null,
   sendSource: null,
   activeToolCall: null,
+  toolCallInsertPoint: null,
 };
 
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -79,6 +85,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         pendingMessage: null,
         streamingContent: "",
         isLoading: false,
+        activeToolCall: null,
+        toolCallInsertPoint: null,
       };
 
     case "SEND_START":
@@ -94,6 +102,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           segmentIndex: action.segmentIndex,
         },
         sendSource: action.source,
+        toolCallInsertPoint: null,
       };
 
     case "STREAM_CHUNK":
@@ -111,6 +120,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           ...(action.userContent
             ? [{ role: "user" as const, content: action.userContent }]
             : []),
+          ...(action.toolMessages || []),
           { role: "assistant" as const, content: action.assistantContent },
         ],
         pendingMessage: null,
@@ -118,6 +128,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         isLoading: false,
         sendSource: null,
         activeToolCall: null,
+        toolCallInsertPoint: null,
       };
 
     case "SEND_FAILURE":
@@ -130,12 +141,18 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         isLoading: false,
         sendSource: null,
         activeToolCall: null,
+        toolCallInsertPoint: null,
       };
 
     case "TOOL_CALL":
       return {
         ...state,
         activeToolCall: { name: action.name, state: action.state },
+        // Record where in streamingContent the tool call started (only on first "calling")
+        toolCallInsertPoint:
+          action.state === "calling" && state.toolCallInsertPoint === null
+            ? state.streamingContent.length
+            : state.toolCallInsertPoint,
       };
 
     case "CLEAR_PENDING":
@@ -411,6 +428,7 @@ export function useTutorChat({
       try {
         let assistantContent = "";
         const systemMessages: ChatMessage[] = [];
+        const toolMessages: ChatMessage[] = [];
 
         for await (const chunk of sendMessageApi(
           moduleId,
@@ -431,11 +449,21 @@ export function useTutorChat({
               content: chunk.content,
             });
           } else if (chunk.type === "tool_use" && chunk.name) {
+            const toolState = (chunk.state as "calling" | "result" | "error") ?? "calling";
             dispatchChat({
               type: "TOOL_CALL",
               name: chunk.name as string,
-              state: (chunk.state as "calling" | "result" | "error") ?? "calling",
+              state: toolState,
             });
+            // Accumulate tool result messages for local state persistence
+            if (toolState === "result" || toolState === "error") {
+              toolMessages.push({
+                role: "tool" as const,
+                tool_call_id: "",
+                name: chunk.name as string,
+                content: (chunk as Record<string, unknown>).result as string || "",
+              });
+            }
           } else if (chunk.type === "error") {
             throw new Error(
               (chunk as unknown as { message?: string }).message ||
@@ -449,6 +477,7 @@ export function useTutorChat({
           userContent: content,
           assistantContent,
           systemMessages,
+          toolMessages: toolMessages.length > 0 ? toolMessages : undefined,
         });
       } catch {
         dispatchChat({ type: "SEND_FAILURE" });
@@ -480,6 +509,7 @@ export function useTutorChat({
     isLoading: chat.isLoading,
     sendSource: chat.sendSource,
     activeToolCall: chat.activeToolCall,
+    toolCallInsertPoint: chat.toolCallInsertPoint,
 
     // Actions
     sendMessage,

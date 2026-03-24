@@ -43,6 +43,7 @@ type ChatSidebarProps = {
   streamingContent: string;
   isLoading: boolean;
   activeToolCall: { name: string; state: string } | null;
+  toolCallInsertPoint?: number | null;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
   /** When true, disables swipe-to-open and hides the FAB (e.g. module drawer is open). */
@@ -58,6 +59,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       streamingContent,
       isLoading,
       activeToolCall,
+      toolCallInsertPoint,
       onSendMessage,
       onRetryMessage: _onRetryMessage,
       drawerOpen = false,
@@ -287,6 +289,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           streamingContent={streamingContent}
           isLoading={isLoading}
           activeToolCall={activeToolCall}
+          toolCallInsertPoint={toolCallInsertPoint}
           containerRef={scrollContainerRef}
           wrapperStartIdx={wrapperStartIdx}
           wrapperMinHeight={

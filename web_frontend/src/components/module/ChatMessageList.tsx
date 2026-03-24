@@ -79,6 +79,9 @@ type ChatMessageListProps = {
   wrapperMinHeight?: number;
   /** Ref for the min-height wrapper (used for scrollIntoView) */
   minHeightWrapperRef?: React.Ref<HTMLDivElement>;
+  /** Character offset in streamingContent where tool call was inserted.
+   *  When set, streaming content is split: [0..point] | toolIndicator | [point..] */
+  toolCallInsertPoint?: number | null;
 };
 
 export function renderMessage(msg: ChatMessage, key: string | number) {
@@ -148,6 +151,7 @@ export function ChatMessageList({
   wrapperStartIdx,
   wrapperMinHeight,
   minHeightWrapperRef,
+  toolCallInsertPoint,
 }: ChatMessageListProps) {
   const visibleMessages = messages.slice(startIndex);
   const useWrapper = wrapperStartIdx != null;
@@ -186,8 +190,17 @@ export function ChatMessageList({
   const toolIndicator = activeToolCall && (
     isToolCalling
       ? <ToolCallingIndicator name={activeToolCall.name} />
-      : <ToolResultPanel msg={{ role: "tool" as const, name: activeToolCall.name, tool_call_id: "", content: "" }} />
+      : <ToolResultPanel msg={{ role: "tool" as const, name: activeToolCall.name, content: "" }} />
   );
+
+  // Split streaming content around tool call insert point
+  const hasInsertPoint = toolCallInsertPoint != null && toolCallInsertPoint >= 0 && streamingContent;
+  const preToolContent = hasInsertPoint
+    ? streamingContent.slice(0, toolCallInsertPoint)
+    : streamingContent;
+  const postToolContent = hasInsertPoint
+    ? streamingContent.slice(toolCallInsertPoint)
+    : null;
 
   const streamingEl = isLoading && (streamingContent || activeToolCall) && (
     <div className="text-gray-800">
@@ -195,8 +208,9 @@ export function ChatMessageList({
         <Bot size={13} />
         Tutor
       </div>
-      {streamingContent && <ChatMarkdown>{streamingContent}</ChatMarkdown>}
+      {preToolContent && <ChatMarkdown>{preToolContent}</ChatMarkdown>}
       {toolIndicator}
+      {postToolContent && <ChatMarkdown>{postToolContent}</ChatMarkdown>}
     </div>
   );
 

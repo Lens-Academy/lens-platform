@@ -29,6 +29,7 @@ type ChatInlineShellProps = {
   streamingContent: string;
   isLoading: boolean;
   activeToolCall?: { name: string; state: string } | null;
+  toolCallInsertPoint?: number | null;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
   activated?: boolean;
@@ -72,6 +73,7 @@ export function ChatInlineShell({
   streamingContent,
   isLoading,
   activeToolCall,
+  toolCallInsertPoint,
   onSendMessage,
   onRetryMessage,
   activated,
@@ -497,23 +499,37 @@ export function ChatInlineShell({
                       <Bot size={13} />
                       Tutor
                     </div>
-                    {streamingContent && <ChatMarkdown>{streamingContent}</ChatMarkdown>}
-                    {activeToolCall && (
-                      <div className="my-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
-                        <div className="flex items-center gap-2 px-3 py-2">
-                          {isToolCalling ? (
-                            <Search size={14} className="animate-pulse text-gray-500 shrink-0" />
-                          ) : (
-                            <Check size={14} className="text-green-600 shrink-0" />
+                    {(() => {
+                      const hasInsertPoint = toolCallInsertPoint != null && toolCallInsertPoint >= 0 && streamingContent;
+                      const preToolContent = hasInsertPoint
+                        ? streamingContent.slice(0, toolCallInsertPoint)
+                        : streamingContent;
+                      const postToolContent = hasInsertPoint
+                        ? streamingContent.slice(toolCallInsertPoint)
+                        : null;
+                      return (
+                        <>
+                          {preToolContent && <ChatMarkdown>{preToolContent}</ChatMarkdown>}
+                          {activeToolCall && (
+                            <div className="my-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
+                              <div className="flex items-center gap-2 px-3 py-2">
+                                {isToolCalling ? (
+                                  <Search size={14} className="animate-pulse text-gray-500 shrink-0" />
+                                ) : (
+                                  <Check size={14} className="text-green-600 shrink-0" />
+                                )}
+                                <span className={isToolCalling ? "text-gray-500" : "text-gray-700"}>
+                                  {isToolCalling
+                                    ? ({search_alignment_research: "Searching alignment research\u2026"}[activeToolCall.name] ?? "Using tool\u2026")
+                                    : ({search_alignment_research: "Searched alignment research"}[activeToolCall.name] ?? "Tool completed")}
+                                </span>
+                              </div>
+                            </div>
                           )}
-                          <span className={isToolCalling ? "text-gray-500" : "text-gray-700"}>
-                            {isToolCalling
-                              ? ({search_alignment_research: "Searching alignment research\u2026"}[activeToolCall.name] ?? "Using tool\u2026")
-                              : ({search_alignment_research: "Searched alignment research"}[activeToolCall.name] ?? "Tool completed")}
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                          {postToolContent && <ChatMarkdown>{postToolContent}</ChatMarkdown>}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
 

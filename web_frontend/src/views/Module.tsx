@@ -779,6 +779,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     isLoading,
     sendSource,
     activeToolCall,
+    toolCallInsertPoint,
     sendMessage: handleSendMessage,
     retryMessage: handleRetryMessage,
     activeSurface,
@@ -1584,6 +1585,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             streamingContent={streamingContent}
             isLoading={isLoading}
             activeToolCall={activeToolCall}
+            toolCallInsertPoint={toolCallInsertPoint}
             sendSource={sendSource}
             onSendMessage={(content) =>
               handleSendMessage(content, sectionIndex, segmentIndex)
@@ -1955,6 +1957,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                                     streamingContent={streamingContent}
                                     isLoading={isLoading}
                                     activeToolCall={activeToolCall}
+                                    toolCallInsertPoint={toolCallInsertPoint}
                                     sendSource={sendSource}
                                     onSendMessage={(content) =>
                                       handleSendMessage(
@@ -2085,6 +2088,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                   isLoading={sendSource !== "inline" ? isLoading : false}
                   activeToolCall={
                     sendSource !== "inline" ? activeToolCall : null
+                  }
+                  toolCallInsertPoint={
+                    sendSource !== "inline" ? toolCallInsertPoint : null
                   }
                   onSendMessage={(content) =>
                     handleSendMessage(

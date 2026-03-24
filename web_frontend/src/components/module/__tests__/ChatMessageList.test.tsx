@@ -9,8 +9,9 @@
  * DOM structure/order rather than markdown rendering.
  */
 
+import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ChatMessage } from "@/types/module";
 
 // Mock ChatMarkdown — we're testing rendering structure, not markdown parsing.
@@ -35,7 +36,7 @@ import { renderMessage, ChatMessageList } from "../ChatMessageList";
 describe("renderMessage", () => {
   it("renders user message as right-aligned bubble", () => {
     const msg: ChatMessage = { role: "user", content: "Hello tutor" };
-    const { container } = render(renderMessage(msg, "test-key") as JSX.Element);
+    const { container } = render(renderMessage(msg, "test-key") as React.ReactElement);
 
     expect(screen.getByText("Hello tutor")).toBeInTheDocument();
     // User messages have ml-auto for right alignment
@@ -47,7 +48,7 @@ describe("renderMessage", () => {
       role: "assistant",
       content: "Here is my response",
     };
-    render(renderMessage(msg, "test-key") as JSX.Element);
+    render(renderMessage(msg, "test-key") as React.ReactElement);
 
     expect(screen.getByText("Tutor")).toBeInTheDocument();
     expect(screen.getByText("Here is my response")).toBeInTheDocument();
@@ -55,7 +56,7 @@ describe("renderMessage", () => {
 
   it("renders system message as centered pill", () => {
     const msg: ChatMessage = { role: "system", content: "Now viewing: Section 1" };
-    const { container } = render(renderMessage(msg, "test-key") as JSX.Element);
+    const { container } = render(renderMessage(msg, "test-key") as React.ReactElement);
 
     expect(screen.getByText("Now viewing: Section 1")).toBeInTheDocument();
     expect(container.firstElementChild).toHaveClass("flex", "justify-center");
@@ -66,7 +67,7 @@ describe("renderMessage", () => {
       role: "course-content",
       content: "What do you think about this?",
     };
-    render(renderMessage(msg, "test-key") as JSX.Element);
+    render(renderMessage(msg, "test-key") as React.ReactElement);
 
     expect(screen.getByText("Lens")).toBeInTheDocument();
     expect(
@@ -81,7 +82,7 @@ describe("renderMessage", () => {
       name: "search_alignment_research",
       content: "Result text from search",
     };
-    const { container } = render(renderMessage(msg, "test-key") as JSX.Element);
+    const { container } = render(renderMessage(msg, "test-key") as React.ReactElement);
 
     // Should render a <details> element
     const details = container.querySelector("details");
@@ -103,7 +104,7 @@ describe("renderMessage", () => {
       name: "unknown_tool",
       content: "Some result",
     };
-    render(renderMessage(msg, "test-key") as JSX.Element);
+    render(renderMessage(msg, "test-key") as React.ReactElement);
 
     expect(screen.getByText("Tool completed")).toBeInTheDocument();
   });
@@ -142,7 +143,7 @@ describe("renderMessage", () => {
         },
       ],
     };
-    render(renderMessage(msg, "test-key") as JSX.Element);
+    render(renderMessage(msg, "test-key") as React.ReactElement);
 
     expect(screen.getByText("Tutor")).toBeInTheDocument();
     expect(screen.getByText("Let me search for that.")).toBeInTheDocument();
@@ -393,9 +394,6 @@ describe("ChatMessageList — tool call content positioning (Bug #1 & #2)", () =
   });
 
   it("post-tool text should appear AFTER the tool indicator in the DOM", () => {
-    // This test will fail until we implement content splitting.
-    // Currently ALL of streamingContent renders before the tool indicator.
-    //
     // With a split point, the rendering should be:
     //   <ChatMarkdown>{preToolContent}</ChatMarkdown>
     //   <ToolIndicator />
@@ -409,7 +407,7 @@ describe("ChatMessageList — tool call content positioning (Bug #1 & #2)", () =
           name: "search_alignment_research",
           state: "result",
         }}
-        // The component would need a splitPoint prop or derive it from state
+        toolCallInsertPoint={"Pre-tool.".length}
       />,
     );
 
