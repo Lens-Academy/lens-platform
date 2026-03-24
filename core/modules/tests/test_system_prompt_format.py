@@ -219,6 +219,89 @@ class TestBuildCourseOverviewFormat:
         assert result == expected
 
 
+class TestFullSystemPromptFormat:
+    """Golden-file tests for _build_system_prompt output format."""
+
+    def _make_chat_stage(self, instructions="Be helpful.", hide=False):
+        from core.modules.types import ChatStage
+
+        return ChatStage(
+            type="chat",
+            instructions=instructions,
+            hide_previous_content_from_tutor=hide,
+        )
+
+    def _make_article_stage(self):
+        from core.modules.types import ArticleStage
+
+        return ArticleStage(type="article", source="some/article.md")
+
+    def test_chat_stage_with_overview_and_context(self):
+        """Section order: Role, Instructions, Course Overview, Current Context."""
+        from core.modules.chat import _build_system_prompt
+
+        ctx = SectionContext(
+            segments=[(0, "Some content")],
+            segment_index=0,
+            total_segments=1,
+            module_title="Intro to AI Safety",
+            section_title="The Alignment Problem",
+        )
+        stage = self._make_chat_stage(instructions="Ask the student what they think.")
+        overview = "The course contains lenses...\n\n## Module A\n\n- **Section 1**\n"
+        result = _build_system_prompt(stage, None, ctx, course_overview=overview)
+
+        # Role header must come first
+        assert result.startswith("# Role\n\n")
+        # All four sections present
+        assert "# Role" in result
+        assert "# Instructions" in result
+        assert "# Course Overview" in result
+        assert "# Current Context" in result
+        # Correct ordering
+        role_pos = result.index("# Role")
+        instructions_pos = result.index("# Instructions")
+        overview_pos = result.index("# Course Overview")
+        context_pos = result.index("# Current Context")
+        assert role_pos < instructions_pos < overview_pos < context_pos
+        # Overview content present
+        assert "The course contains lenses..." in result
+
+    def test_chat_stage_no_overview(self):
+        """Role present, no Course Overview section when overview not provided."""
+        from core.modules.chat import _build_system_prompt
+
+        ctx = SectionContext(
+            segments=[(0, "Content")],
+            segment_index=0,
+            total_segments=1,
+            module_title="Module A",
+            section_title="Section 1",
+        )
+        stage = self._make_chat_stage()
+        result = _build_system_prompt(stage, None, ctx)
+
+        assert result.startswith("# Role\n\n")
+        assert "# Course Overview" not in result
+        assert "# Instructions" in result
+        assert "# Current Context" in result
+
+    def test_article_stage_with_overview(self):
+        """Role present, reading an article text, Course Overview present."""
+        from core.modules.chat import _build_system_prompt
+
+        stage = self._make_article_stage()
+        overview = "The course contains lenses...\n\n## Module A\n\n- **Section 1**\n"
+        result = _build_system_prompt(stage, "Article body text.", None, course_overview=overview)
+
+        assert result.startswith("# Role\n\n")
+        assert "reading an article" in result
+        assert "# Course Overview" in result
+        assert "The course contains lenses..." in result
+        # Article body present
+        assert "Article body text." in result
+
+
 class TestAssembleChatPromptFormat:
     """Golden-file tests for assemble_chat_prompt markdown header format."""
 

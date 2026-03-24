@@ -43,10 +43,7 @@ def _build_system_prompt(
         course_overview: Optional course overview to inject after base prompt
     """
 
-    base = DEFAULT_BASE_PROMPT
-
-    if course_overview:
-        base += f"\n\n{course_overview}"
+    base = f"# Role\n\n{DEFAULT_BASE_PROMPT}"
 
     if isinstance(current_stage, ChatStage):
         # Active chat stage - use shared assembly
@@ -56,6 +53,13 @@ def _build_system_prompt(
             else None
         )
         prompt = assemble_chat_prompt(base, current_stage.instructions, context)
+        # Inject course overview between # Instructions and # Current Context
+        if course_overview:
+            overview_block = f"\n\n# Course Overview\n\n{course_overview}"
+            if "\n\n# Current Context" in prompt:
+                prompt = prompt.replace("\n\n# Current Context", overview_block + "\n\n# Current Context", 1)
+            else:
+                prompt += overview_block
 
     elif isinstance(current_stage, (ArticleStage, VideoStage)):
         # User is consuming content - be helpful but brief
@@ -70,11 +74,15 @@ def _build_system_prompt(
 The user is currently {content_type}. Answer the student's questions to help them understand the content, but don't lengthen the conversation. There will be more time for chatting after they are done reading/watching.
 """
         )
+        if course_overview:
+            prompt += f"\n\n# Course Overview\n\n{course_overview}"
         if current_content:
             prompt += f"\n\nContent the user is viewing:\n---\n{current_content}\n---"
 
     else:
         prompt = base
+        if course_overview:
+            prompt += f"\n\n# Course Overview\n\n{course_overview}"
 
     return prompt
 
