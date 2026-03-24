@@ -310,7 +310,7 @@ export default function CourseTimeline({
                     />
                     {/* Label */}
                     <span
-                      className={`shrink-0 whitespace-nowrap transition-all duration-300 ${
+                      className={`shrink-0 whitespace-nowrap font-display transition-all duration-300 ${
                         isExpanded
                           ? "text-sm text-[var(--brand-text)]"
                           : "text-base text-[var(--brand-text)]"
@@ -345,7 +345,7 @@ export default function CourseTimeline({
                     />
                     {/* Chevron */}
                     <ChevronRight
-                      className={`shrink-0 w-3.5 h-3.5 text-[var(--brand-border)] ml-1 transition-transform duration-300 ${
+                      className={`shrink-0 w-3.5 h-3.5 text-[var(--brand-text-muted)] ml-1 transition-transform duration-300 ${
                         isExpanded ? "rotate-90" : ""
                       }`}
                     />
@@ -462,15 +462,17 @@ function renderUnitModules(
             }`}
           >
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-start gap-2">
+                <div className="mt-[3px]">
                 <ProgressCircle
                   status={parentStatus}
                   completedLenses={Math.round(parentFraction * 100)}
                   totalLenses={100}
                   selected={anyChildSelected && !isParentExpanded}
                 />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-base font-medium truncate block leading-snug text-[var(--brand-text)]">
+                  <span className="text-base font-display truncate block leading-snug text-[var(--brand-text)]">
                     {parentTitle}
                   </span>
                   {dueDateIso &&
@@ -498,7 +500,7 @@ function renderUnitModules(
                   </span>
                 )}
                 <ChevronRight
-                  className={`w-3.5 h-3.5 text-[var(--brand-border)] flex-shrink-0 transition-transform duration-200 ${
+                  className={`w-3.5 h-3.5 text-[var(--brand-text-muted)] flex-shrink-0 transition-transform duration-200 ${
                     isParentExpanded ? "rotate-90" : ""
                   }`}
                 />
@@ -533,7 +535,7 @@ function renderUnitModules(
                         size={14}
                         selected={isSelected}
                       />
-                      <span className="text-base truncate text-[var(--brand-text)]">
+                      <span className="text-base font-display truncate text-[var(--brand-text)]">
                         {child.title}
                       </span>
                       {childEstimate && (
@@ -574,7 +576,7 @@ function renderUnitModules(
                 />
               )}
               <span
-                className="text-base truncate text-[var(--brand-text)]"
+                className="text-base font-display truncate text-[var(--brand-text)]"
               >
                 {mod.title}
               </span>
