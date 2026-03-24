@@ -68,49 +68,12 @@ export default function AuthoredText({
       if (href?.startsWith("lens:")) {
         const rest = href.slice("lens:".length);
         const atIndex = rest.indexOf("@");
-        let contentId: string;
-        let targetModuleSlug: string | null = null;
+        const contentId = atIndex !== -1 ? rest.slice(0, atIndex) : rest;
+        const targetModuleSlug = atIndex !== -1 ? rest.slice(atIndex + 1) : null;
 
-        if (atIndex !== -1) {
-          contentId = rest.slice(0, atIndex);
-          targetModuleSlug = rest.slice(atIndex + 1);
-        } else {
-          contentId = rest;
-        }
-
-        // Same-module: hash link
-        if (moduleSections) {
-          const index = moduleSections.findIndex(
-            (s) => s.contentId === contentId,
-          );
-          if (index !== -1) {
-            return (
-              <a
-                href={`#${getSectionSlug(moduleSections[index], index)}`}
-                className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600"
-              >
-                {children}
-              </a>
-            );
-          }
-        }
-
-        // Cross-module
-        if (targetModuleSlug && courseId) {
-          return (
-            <a
-              href={`/course/${courseId}/module/${targetModuleSlug}`}
-              className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600"
-            >
-              {children}
-            </a>
-          );
-        }
-
-        // Standalone lens
         return (
           <a
-            href={`/lens/${contentId}`}
+            href={resolveLensHref(contentId, targetModuleSlug)}
             className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600"
           >
             {children}
