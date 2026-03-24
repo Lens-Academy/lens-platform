@@ -251,7 +251,7 @@ export default function CourseOverview({
               className="flex-shrink-0 h-full flex items-center"
               style={{ width: "max(20rem, calc((100vw - 42rem) / 2))" }}
             >
-              <div className="max-w-sm ml-auto w-full px-4">
+              <div className="max-w-sm ml-auto w-full px-4 min-[90rem]:pl-8">
                 <a href="/" className="flex items-center gap-2">
                   <img
                     src="/assets/Logo_magnifying_glass.png"
