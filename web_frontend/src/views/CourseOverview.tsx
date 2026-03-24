@@ -245,49 +245,34 @@ export default function CourseOverview({
             </div>
           </div>
         ) : (
-          <div className="flex items-center h-16">
-            {/* Left section — aligned with sidebar content */}
-            <div
-              className="flex-shrink-0 h-full flex items-center"
-              style={{ width: "max(20rem, calc((100vw - 42rem) / 2))" }}
-            >
-              <div className="max-w-sm ml-auto w-full px-4 min-[90rem]:pl-8">
-                <a href="/" className="flex items-center gap-2">
-                  <img
-                    src="/assets/Logo_magnifying_glass.png"
-                    alt="Lens Academy"
-                    className="h-8"
-                  />
-                  <span
-                    className="text-xl font-medium"
-                    style={{
-                      color: "var(--brand-text)",
-                      fontFamily: "var(--brand-font-display)",
-                    }}
-                  >
-                    Lens Academy
-                  </span>
-                </a>
-              </div>
-            </div>
-            {/* Right section — symmetrical: same margin as logo's left margin */}
-            <div
-              className="flex-1 h-full flex items-center justify-end"
-              style={{
-                paddingRight: "max(1rem, calc((100vw - 42rem) / 2 - 24rem + 1rem))",
-              }}
-            >
-              <div className="flex items-center gap-4">
-                <a
-                  href="/course"
-                  className="font-medium text-sm transition-colors duration-200"
-                  style={{ color: "var(--brand-text)" }}
-                >
-                  Course
-                </a>
-                <DiscordInviteButton />
-                <UserMenu />
-              </div>
+          <div className="flex items-center h-16 max-w-6xl mx-auto pl-[33px] pr-8">
+            <a href="/" className="flex items-center gap-2">
+              <img
+                src="/assets/Logo_magnifying_glass.png"
+                alt="Lens Academy"
+                className="h-8"
+              />
+              <span
+                className="text-xl font-medium"
+                style={{
+                  color: "var(--brand-text)",
+                  fontFamily: "var(--brand-font-display)",
+                }}
+              >
+                Lens Academy
+              </span>
+            </a>
+            <div className="flex-1" />
+            <div className="flex items-center gap-4">
+              <a
+                href="/course"
+                className="font-medium text-sm transition-colors duration-200"
+                style={{ color: "var(--brand-text)" }}
+              >
+                Course
+              </a>
+              <DiscordInviteButton />
+              <UserMenu />
             </div>
           </div>
         )}
@@ -297,30 +282,23 @@ export default function CourseOverview({
 
       {/* Two-panel layout */}
       <div
-        className="flex-1 flex relative overflow-hidden"
+        className="flex-1 relative overflow-y-auto"
         style={{ backgroundColor: "var(--brand-bg-alt)" }}
       >
-        {/* Desktop: inline sidebar — fills space left of the centered content */}
+        <div className="flex min-h-full max-w-6xl mx-auto">
+        {/* Desktop: inline sidebar */}
         {!isMobile && (
           <div
-            className="flex-shrink-0 transition-[width] duration-200 min-[90rem]:!bg-[var(--brand-bg-alt)]"
-            style={{
-              /* Content is centered in viewport; sidebar fills the left margin.
-                 margin-left = (100vw - content_width) / 2, clamped to min sidebar width.
-                 Sidebar width = that margin. */
-              width: "max(20rem, calc((100vw - 42rem) / 2))",
-              backgroundColor: "var(--brand-bg)",
-            }}
+            className="w-80 xl:w-96 2xl:w-[28rem] flex-shrink-0 transition-[width] duration-200 py-4 pl-4 pr-3 self-start sticky top-0 h-[calc(100vh-4rem)]"
+            style={{ backgroundColor: "var(--brand-bg-alt)" }}
           >
-            <div className="max-w-sm ml-auto h-full min-[90rem]:py-4 min-[90rem]:pr-3 min-[90rem]:pl-4">
-            <div className="h-full min-[90rem]:rounded-2xl min-[90rem]:shadow-lg min-[90rem]:overflow-hidden min-[90rem]:border min-[90rem]:border-[var(--brand-border)]">
+            <div className="h-full rounded-2xl shadow-lg overflow-hidden border border-[var(--brand-border)]">
             <CourseTimeline
               courseTitle={courseProgress.course.title}
               units={courseProgress.units}
               selectedModuleSlug={selectedModule?.slug ?? null}
               onModuleSelect={handleModuleSelect}
             />
-            </div>
             </div>
           </div>
         )}
@@ -387,7 +365,7 @@ export default function CourseOverview({
 
         {/* Main panel */}
         <div
-          className="flex-1 p-4 md:p-8 overflow-y-auto"
+          className="flex-1 p-4 md:p-8"
           style={{ backgroundColor: "var(--brand-bg-alt)" }}
         >
           <div className="max-w-2xl">
@@ -414,6 +392,7 @@ export default function CourseOverview({
             </div>
           )}
           </div>
+        </div>
         </div>
       </div>
     </div>
