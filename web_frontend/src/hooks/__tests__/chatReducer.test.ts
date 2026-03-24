@@ -1,16 +1,8 @@
 /**
- * Tests for the chatReducer in useTutorChat.
+ * Tests for the chatReducer — unified streaming architecture.
  *
- * Focuses on tool call state transitions — the streaming lifecycle where
- * the LLM sends pre-tool text, invokes a tool, then sends post-tool text.
- * These tests document the DESIRED behavior for three known bugs:
- *
- *   1. Tool panel should render between pre-tool and post-tool text
- *      (requires tracking where in streamingContent the tool call occurred)
- *   2. Post-tool text should appear after the tool panel, not above it
- *      (same root cause as #1)
- *   3. Tool messages should persist in the messages array after SEND_SUCCESS
- *      (currently only user + assistant messages are added)
+ * The reducer builds the messages[] array incrementally during streaming.
+ * No separate streaming state — messages are in the same format as DB history.
  */
 
 import { describe, it, expect } from "vitest";
@@ -24,7 +16,6 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Simulate SEND_START for a user message */
 function sendStart(state: ChatState, content = "test message"): ChatState {
   return chatReducer(state, {
     type: "SEND_START",
@@ -36,841 +27,367 @@ function sendStart(state: ChatState, content = "test message"): ChatState {
 }
 
 // ---------------------------------------------------------------------------
-// Basic TOOL_CALL action
+// SEND_START
 // ---------------------------------------------------------------------------
 
-describe("chatReducer — TOOL_CALL", () => {
-  it("sets activeToolCall on TOOL_CALL with state 'calling'", () => {
-    const state = sendStart(initialChatState);
-    const next = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
+describe("chatReducer — SEND_START", () => {
+  it("appends user message and empty assistant message", () => {
+    const state = sendStart(initialChatState, "Hello tutor");
 
-    expect(next.activeToolCall).toEqual({
-      name: "search_alignment_research",
-      state: "calling",
-    });
-  });
-
-  it("updates activeToolCall when state transitions to 'result'", () => {
-    let state = sendStart(initialChatState);
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "result",
-    });
-
-    expect(state.activeToolCall).toEqual({
-      name: "search_alignment_research",
-      state: "result",
-    });
-  });
-
-  it("clears activeToolCall on SEND_SUCCESS", () => {
-    let state = sendStart(initialChatState);
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-
-    state = chatReducer(state, {
-      type: "SEND_SUCCESS",
-      userContent: "test",
-      assistantContent: "response",
-    });
-
-    expect(state.activeToolCall).toBeNull();
-  });
-
-  it("clears activeToolCall on SEND_FAILURE", () => {
-    let state = sendStart(initialChatState);
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-
-    state = chatReducer(state, { type: "SEND_FAILURE" });
-
-    expect(state.activeToolCall).toBeNull();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Full tool call streaming lifecycle
-// ---------------------------------------------------------------------------
-
-describe("chatReducer — full tool call streaming lifecycle", () => {
-  it("simulates complete tool call flow: pre-text → tool → post-text → success", () => {
-    let state = sendStart(initialChatState, "Search for deceptive alignment");
-
-    // 1. Pre-tool text streams in
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Let me search for that.",
-    });
-    expect(state.streamingContent).toBe("Let me search for that.");
-
-    // 2. Tool call starts
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-    expect(state.activeToolCall?.state).toBe("calling");
-
-    // 3. Tool call completes
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "result",
-    });
-    expect(state.activeToolCall?.state).toBe("result");
-
-    // 4. Post-tool text streams in (accumulated includes ALL text)
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated:
-        "Let me search for that.\n\nHere's what the research says about deceptive alignment...",
-    });
-    expect(state.streamingContent).toContain("Here's what the research says");
-
-    // 5. Stream completes
-    state = chatReducer(state, {
-      type: "SEND_SUCCESS",
-      userContent: "Search for deceptive alignment",
-      assistantContent:
-        "Let me search for that.\n\nHere's what the research says about deceptive alignment...",
-    });
-
-    expect(state.isLoading).toBe(false);
-    expect(state.activeToolCall).toBeNull();
-    expect(state.streamingContent).toBe("");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Bug #3: Tool messages should persist after SEND_SUCCESS
-// ---------------------------------------------------------------------------
-
-describe("chatReducer — tool message persistence (Bug #3)", () => {
-  it("SEND_SUCCESS should include tool messages in the messages array", () => {
-    let state = sendStart(initialChatState, "Search for deceptive alignment");
-
-    // Simulate streaming with tool call
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Let me search.",
-    });
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "result",
-    });
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Let me search.\n\nHere are the results.",
-    });
-
-    // SEND_SUCCESS with tool messages
-    state = chatReducer(state, {
-      type: "SEND_SUCCESS",
-      userContent: "Search for deceptive alignment",
-      assistantContent: "Here are the results.",
-      toolMessages: [
-        {
-          role: "assistant" as const,
-          content: "Let me search.",
-          tool_calls: [
-            {
-              id: "call_abc",
-              type: "function",
-              function: {
-                name: "search_alignment_research",
-                arguments: '{"query":"deceptive alignment"}',
-              },
-            },
-          ],
-        },
-        {
-          role: "tool" as const,
-          tool_call_id: "call_abc",
-          name: "search_alignment_research",
-          content: "Deceptive alignment refers to...",
-        },
-      ],
-    });
-
-    // Messages should contain: user, assistant-with-tool-calls, tool-result, assistant-response
-    const roles = state.messages.map((m) => m.role);
-    expect(roles).toContain("tool");
-
-    // The tool result message should be in the array
-    const toolMsg = state.messages.find((m) => m.role === "tool");
-    expect(toolMsg).toBeDefined();
-    if (toolMsg && toolMsg.role === "tool") {
-      expect(toolMsg.name).toBe("search_alignment_research");
-      expect(toolMsg.content).toBe("Deceptive alignment refers to...");
-    }
-  });
-
-  it("SEND_SUCCESS without tool messages still works normally", () => {
-    let state = sendStart(initialChatState, "Hello");
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Hi there!",
-    });
-    state = chatReducer(state, {
-      type: "SEND_SUCCESS",
-      userContent: "Hello",
-      assistantContent: "Hi there!",
-    });
-
-    expect(state.messages).toEqual([
-      { role: "user", content: "Hello" },
-      { role: "assistant", content: "Hi there!" },
-    ]);
-  });
-
-  it("messages array preserves correct order: user → assistant+tool_calls → tool → assistant", () => {
-    let state = sendStart(initialChatState, "Search deceptive alignment");
-
-    state = chatReducer(state, {
-      type: "SEND_SUCCESS",
-      userContent: "Search deceptive alignment",
-      assistantContent: "Here are the results.",
-      toolMessages: [
-        {
-          role: "assistant" as const,
-          content: "",
-          tool_calls: [
-            {
-              id: "call_1",
-              type: "function",
-              function: {
-                name: "search_alignment_research",
-                arguments: '{"query":"deceptive alignment"}',
-              },
-            },
-          ],
-        },
-        {
-          role: "tool" as const,
-          tool_call_id: "call_1",
-          name: "search_alignment_research",
-          content: "Results...",
-        },
-      ],
-    });
-
-    const roles = state.messages.map((m) => m.role);
-    // Expected order: user, assistant (with tool_calls), tool, assistant (final response)
-    expect(roles).toEqual(["user", "assistant", "tool", "assistant"]);
-
-    // Also verify CONTENT at each position (not just roles)
-    expect(state.messages[0]).toEqual(
-      expect.objectContaining({ role: "user", content: "Search deceptive alignment" }),
-    );
-    // Assistant with tool_calls has empty content
+    // Should have user msg + empty assistant msg
+    expect(state.messages).toHaveLength(2);
+    expect(state.messages[0]).toEqual({ role: "user", content: "Hello tutor" });
     expect(state.messages[1]).toEqual(
       expect.objectContaining({ role: "assistant", content: "" }),
     );
-    if (state.messages[1].role !== "tool") {
-      expect((state.messages[1] as { tool_calls?: unknown[] }).tool_calls).toBeDefined();
-    }
-    // Tool result
-    expect(state.messages[2]).toEqual(
-      expect.objectContaining({ role: "tool", content: "Results..." }),
-    );
-    // Final assistant response
-    expect(state.messages[3]).toEqual(
-      expect.objectContaining({ role: "assistant", content: "Here are the results." }),
-    );
+  });
+
+  it("sets isLoading, does not set pendingMessage (user msg is in messages[])", () => {
+    const state = sendStart(initialChatState, "Hello");
+    expect(state.isLoading).toBe(true);
+    // pendingMessage is NOT set — the user message is already in messages[]
+    // pendingMessage is only used for SEND_FAILURE "Failed to send" indicator
+    expect(state.pendingMessage).toBeNull();
+  });
+
+  it("empty content creates no pending message but still appends messages", () => {
+    const state = sendStart(initialChatState, "");
+    expect(state.pendingMessage).toBeNull();
+    expect(state.isLoading).toBe(true);
+    // Still appends the assistant message (for the response)
+    expect(state.messages).toHaveLength(1); // no user msg for empty content, just assistant
+  });
+
+  it("rejects if already loading", () => {
+    const state = sendStart(initialChatState);
+    const state2 = sendStart(state, "another");
+    // Should be unchanged
+    expect(state2).toBe(state);
+  });
+
+  it("sets streamingMessageIndex (internal)", () => {
+    const state = sendStart(initialChatState, "Hello");
+    // streamingMessageIndex should point to the assistant message
+    expect(state.streamingMessageIndex).toBe(1);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Streaming→finalized transition: tool messages must be interleaved
+// STREAM_TEXT
 // ---------------------------------------------------------------------------
 
-describe("chatReducer — streaming to finalized transition", () => {
-  it("two-round tool call: SEND_SUCCESS with interleaved toolMessages produces correct order", () => {
-    // When the hook provides properly interleaved toolMessages, the reducer
-    // should produce the correct message order.
-    let state = sendStart(initialChatState, "Explain deceptive alignment");
+describe("chatReducer — STREAM_TEXT", () => {
+  it("appends text to the streaming assistant message", () => {
+    let state = sendStart(initialChatState, "Hello");
 
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Hi " });
+    expect(state.messages[state.streamingMessageIndex!].content).toBe("Hi ");
+
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "there!" });
+    expect(state.messages[state.streamingMessageIndex!].content).toBe("Hi there!");
+  });
+
+  it("does nothing if not streaming", () => {
+    const state = chatReducer(initialChatState, { type: "STREAM_TEXT", text: "orphan" });
+    expect(state).toBe(initialChatState);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TOOL_CALL_START
+// ---------------------------------------------------------------------------
+
+describe("chatReducer — TOOL_CALL_START", () => {
+  it("freezes current assistant, appends tool placeholder + new assistant", () => {
+    let state = sendStart(initialChatState, "Search for X");
+
+    // Stream some pre-tool text
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Let me search." });
+
+    // Tool call starts
     state = chatReducer(state, {
-      type: "SEND_SUCCESS",
-      userContent: "Explain deceptive alignment",
-      assistantContent: "Here are the combined findings.",
-      toolMessages: [
-        // Round 1: assistant with tool_calls, then tool result
-        {
-          role: "assistant" as const,
-          content: "Let me search.",
-          tool_calls: [{ id: "c1", type: "function", function: { name: "search_alignment_research", arguments: "{}" } }],
-        },
-        { role: "tool" as const, tool_call_id: "c1", name: "search_alignment_research", content: "Result A" },
-        // Round 2: assistant with tool_calls, then tool result
-        {
-          role: "assistant" as const,
-          content: "Let me dig deeper.",
-          tool_calls: [{ id: "c2", type: "function", function: { name: "search_alignment_research", arguments: "{}" } }],
-        },
-        { role: "tool" as const, tool_call_id: "c2", name: "search_alignment_research", content: "Result B" },
-      ],
+      type: "TOOL_CALL_START",
+      name: "search_alignment_research",
     });
 
-    // Messages should be interleaved
+    // Messages: user, assistant("Let me search." + tool_calls), tool(placeholder), assistant("")
+    expect(state.messages).toHaveLength(4);
+
+    // First assistant is frozen with tool_calls
+    expect(state.messages[1].content).toBe("Let me search.");
+    expect(state.messages[1]).toHaveProperty("tool_calls");
+
+    // Tool placeholder
+    expect(state.messages[2].role).toBe("tool");
+    if (state.messages[2].role === "tool") {
+      expect(state.messages[2].name).toBe("search_alignment_research");
+      expect(state.messages[2].content).toBe(""); // empty = "calling"
+    }
+
+    // New streaming assistant
+    expect(state.messages[3]).toEqual(
+      expect.objectContaining({ role: "assistant", content: "" }),
+    );
+    expect(state.streamingMessageIndex).toBe(3);
+  });
+
+  it("works with no pre-tool text", () => {
+    let state = sendStart(initialChatState, "Search");
+
+    state = chatReducer(state, {
+      type: "TOOL_CALL_START",
+      name: "search_alignment_research",
+    });
+
+    // First assistant has empty content + tool_calls
+    expect(state.messages[1].content).toBe("");
+    expect(state.messages[1]).toHaveProperty("tool_calls");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TOOL_CALL_DONE
+// ---------------------------------------------------------------------------
+
+describe("chatReducer — TOOL_CALL_DONE", () => {
+  it("fills the tool placeholder with result content", () => {
+    let state = sendStart(initialChatState, "Search");
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Let me search." });
+    state = chatReducer(state, { type: "TOOL_CALL_START", name: "search_alignment_research" });
+
+    state = chatReducer(state, {
+      type: "TOOL_CALL_DONE",
+      name: "search_alignment_research",
+      result: "Deceptive alignment refers to...",
+    });
+
+    const toolMsg = state.messages.find((m) => m.role === "tool");
+    expect(toolMsg).toBeDefined();
+    if (toolMsg?.role === "tool") {
+      expect(toolMsg.content).toBe("Deceptive alignment refers to...");
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SEND_SUCCESS
+// ---------------------------------------------------------------------------
+
+describe("chatReducer — SEND_SUCCESS", () => {
+  it("clears loading state, keeps messages intact", () => {
+    let state = sendStart(initialChatState, "Hello");
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Hi there!" });
+    state = chatReducer(state, { type: "SEND_SUCCESS" });
+
+    expect(state.isLoading).toBe(false);
+    expect(state.streamingMessageIndex).toBeNull();
+    expect(state.pendingMessage).toBeNull();
+    expect(state.sendSource).toBeNull();
+
+    // Messages unchanged
+    expect(state.messages).toHaveLength(2);
+    expect(state.messages[0]).toEqual({ role: "user", content: "Hello" });
+    expect(state.messages[1]).toEqual(
+      expect.objectContaining({ role: "assistant", content: "Hi there!" }),
+    );
+  });
+
+  it("removes trailing empty assistant message", () => {
+    let state = sendStart(initialChatState, "Search");
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Let me search." });
+    state = chatReducer(state, { type: "TOOL_CALL_START", name: "search_alignment_research" });
+    state = chatReducer(state, { type: "TOOL_CALL_DONE", name: "search_alignment_research", result: "Results" });
+    // At this point: user, assistant+tc, tool(result), assistant("")
+    // The trailing empty assistant should be removed on SEND_SUCCESS
+
+    state = chatReducer(state, { type: "SEND_SUCCESS" });
+
+    const lastMsg = state.messages[state.messages.length - 1];
+    expect(lastMsg.role).toBe("tool"); // trailing empty assistant removed
+  });
+
+  it("keeps trailing assistant if it has content", () => {
+    let state = sendStart(initialChatState, "Search");
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Let me search." });
+    state = chatReducer(state, { type: "TOOL_CALL_START", name: "search_alignment_research" });
+    state = chatReducer(state, { type: "TOOL_CALL_DONE", name: "search_alignment_research", result: "Results" });
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Here's what I found." });
+
+    state = chatReducer(state, { type: "SEND_SUCCESS" });
+
+    const lastMsg = state.messages[state.messages.length - 1];
+    expect(lastMsg.role).toBe("assistant");
+    expect(lastMsg.content).toBe("Here's what I found.");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Full streaming lifecycle
+// ---------------------------------------------------------------------------
+
+describe("chatReducer — full streaming lifecycle", () => {
+  it("text only: simple question and answer", () => {
+    let state = sendStart(initialChatState, "What is AI safety?");
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "AI safety is..." });
+    state = chatReducer(state, { type: "SEND_SUCCESS" });
+
+    expect(state.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(state.messages[1].content).toBe("AI safety is...");
+    expect(state.isLoading).toBe(false);
+  });
+
+  it("text → tool → text: single tool call", () => {
+    let state = sendStart(initialChatState, "Search deceptive alignment");
+
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Let me search." });
+    state = chatReducer(state, { type: "TOOL_CALL_START", name: "search_alignment_research" });
+    state = chatReducer(state, { type: "TOOL_CALL_DONE", name: "search_alignment_research", result: "Result A" });
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Here's what I found." });
+    state = chatReducer(state, { type: "SEND_SUCCESS" });
+
+    const roles = state.messages.map((m) => m.role);
+    expect(roles).toEqual(["user", "assistant", "tool", "assistant"]);
+
+    expect(state.messages[1].content).toBe("Let me search.");
+    if (state.messages[2].role === "tool") {
+      expect(state.messages[2].content).toBe("Result A");
+    }
+    expect(state.messages[3].content).toBe("Here's what I found.");
+  });
+
+  it("text → tool → text → tool → text: two rounds", () => {
+    let state = sendStart(initialChatState, "Explain thoroughly");
+
+    // Round 1
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Let me search." });
+    state = chatReducer(state, { type: "TOOL_CALL_START", name: "search_alignment_research" });
+    state = chatReducer(state, { type: "TOOL_CALL_DONE", name: "search_alignment_research", result: "Result A" });
+
+    // Round 2
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Let me dig deeper." });
+    state = chatReducer(state, { type: "TOOL_CALL_START", name: "search_alignment_research" });
+    state = chatReducer(state, { type: "TOOL_CALL_DONE", name: "search_alignment_research", result: "Result B" });
+
+    // Final text
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Combined findings." });
+    state = chatReducer(state, { type: "SEND_SUCCESS" });
+
     const roles = state.messages.map((m) => m.role);
     expect(roles).toEqual([
       "user", "assistant", "tool", "assistant", "tool", "assistant",
     ]);
+
+    // Verify interleaved content
+    expect(state.messages[1].content).toBe("Let me search.");
+    expect(state.messages[3].content).toBe("Let me dig deeper.");
+    expect(state.messages[5].content).toBe("Combined findings.");
   });
 
-  it("BUG: tool-only toolMessages (no intermediate assistants) clusters tools at top", () => {
-    // This is what the hook CURRENTLY sends: only role:"tool" messages,
-    // no intermediate assistant messages. This causes all tool panels
-    // to appear before any text after streaming finishes.
-    let state = sendStart(initialChatState, "Explain deceptive alignment");
+  it("three parallel tool calls in one round", () => {
+    let state = sendStart(initialChatState, "Search three topics");
 
-    state = chatReducer(state, {
-      type: "SEND_SUCCESS",
-      userContent: "Explain deceptive alignment",
-      assistantContent: "Let me search.\n\nLet me dig deeper.\n\nHere are the combined findings.",
-      toolMessages: [
-        // Only tool results — no intermediate assistant messages
-        { role: "tool" as const, tool_call_id: "c1", name: "search_alignment_research", content: "Result A" },
-        { role: "tool" as const, tool_call_id: "c2", name: "search_alignment_research", content: "Result B" },
-      ],
-    });
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Searching..." });
+    // Three tool calls in sequence (same LLM round)
+    state = chatReducer(state, { type: "TOOL_CALL_START", name: "search_alignment_research" });
+    state = chatReducer(state, { type: "TOOL_CALL_DONE", name: "search_alignment_research", result: "R1" });
+    state = chatReducer(state, { type: "TOOL_CALL_START", name: "search_alignment_research" });
+    state = chatReducer(state, { type: "TOOL_CALL_DONE", name: "search_alignment_research", result: "R2" });
+    state = chatReducer(state, { type: "TOOL_CALL_START", name: "search_alignment_research" });
+    state = chatReducer(state, { type: "TOOL_CALL_DONE", name: "search_alignment_research", result: "R3" });
 
-    // Current behavior: user → tool → tool → assistant (all text concatenated)
-    // This is WRONG — tools appear before any assistant text.
-    const roles = state.messages.map((m) => m.role);
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Here are all results." });
+    state = chatReducer(state, { type: "SEND_SUCCESS" });
 
-    // The desired behavior: tools should be interleaved with text.
-    // At minimum, tools should NOT all appear before the assistant text.
-    // This test documents that the CURRENT state is broken:
-    // If we just have tool-only toolMessages, the final assistant message
-    // contains ALL the text (pre-tool + mid-tool + post-tool concatenated).
-    // The tool panels render before all that text.
-    //
-    // The fix is for the hook to include intermediate assistant messages
-    // in toolMessages, or to reload from DB after success.
-    expect(roles).toEqual(["user", "tool", "tool", "assistant"]);
+    const toolMsgs = state.messages.filter((m) => m.role === "tool");
+    expect(toolMsgs).toHaveLength(3);
 
-    // Verify the assistant message has ALL the text concatenated
-    const assistantMsg = state.messages.find(
-      (m, i) => m.role === "assistant" && i === state.messages.length - 1,
-    );
-    expect(assistantMsg?.content).toContain("Let me search.");
-    expect(assistantMsg?.content).toContain("Let me dig deeper.");
-    expect(assistantMsg?.content).toContain("combined findings");
+    const lastMsg = state.messages[state.messages.length - 1];
+    expect(lastMsg.content).toBe("Here are all results.");
+  });
+
+  it("tool call with no final text: trailing empty assistant removed", () => {
+    let state = sendStart(initialChatState, "Search");
+    state = chatReducer(state, { type: "TOOL_CALL_START", name: "search_alignment_research" });
+    state = chatReducer(state, { type: "TOOL_CALL_DONE", name: "search_alignment_research", result: "Done" });
+    state = chatReducer(state, { type: "SEND_SUCCESS" });
+
+    // user, assistant(empty+tc), tool → no trailing empty assistant
+    const lastMsg = state.messages[state.messages.length - 1];
+    expect(lastMsg.role).toBe("tool");
   });
 });
 
 // ---------------------------------------------------------------------------
-// Bug #1 & #2: Streaming content split point for tool call positioning
+// SEND_FAILURE
 // ---------------------------------------------------------------------------
 
-describe("chatReducer — streaming content split point (Bug #1 & #2)", () => {
-  it("TOOL_CALL should record the current streamingContent length as split point", () => {
-    let state = sendStart(initialChatState);
-
-    // Stream pre-tool text
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Let me search for that.",
-    });
-
-    // Tool call starts — should snapshot the current content length
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-
-    // The reducer should track where the tool call was inserted
-    // so the UI can split: streamingContent[0..splitPoint] | toolIndicator | streamingContent[splitPoint..]
-    expect(state.toolCallInsertPoint).toBe("Let me search for that.".length);
-  });
-
-  it("split point allows separating pre-tool and post-tool content", () => {
-    let state = sendStart(initialChatState);
-
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Pre-tool text.",
-    });
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-
-    const splitPoint = state.toolCallInsertPoint;
-    expect(splitPoint).toBeDefined();
-
-    // Post-tool text arrives
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Pre-tool text.\n\nPost-tool text.",
-    });
-
-    // The split point should still work to divide the content
-    const preToolText = state.streamingContent.slice(0, splitPoint!);
-    const postToolText = state.streamingContent.slice(splitPoint!);
-    expect(preToolText).toBe("Pre-tool text.");
-    expect(postToolText).toBe("\n\nPost-tool text.");
-  });
-
-  it("split point is cleared on SEND_SUCCESS", () => {
-    let state = sendStart(initialChatState);
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "text",
-    });
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-    state = chatReducer(state, {
-      type: "SEND_SUCCESS",
-      userContent: "q",
-      assistantContent: "text",
-    });
-
-    expect(state.toolCallInsertPoint).toBeNull();
-  });
-
-  it("split point is cleared on SEND_FAILURE", () => {
-    let state = sendStart(initialChatState);
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "text",
-    });
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
+describe("chatReducer — SEND_FAILURE", () => {
+  it("marks pending as failed, clears loading, keeps messages", () => {
+    let state = sendStart(initialChatState, "Hello");
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "partial" });
     state = chatReducer(state, { type: "SEND_FAILURE" });
 
-    expect(state.toolCallInsertPoint).toBeNull();
-  });
-
-  it("SEND_START resets split point", () => {
-    let state = sendStart(initialChatState);
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-
-    // New message send should reset
-    state = sendStart(state, "new message");
-    expect(state.toolCallInsertPoint).toBeNull();
+    expect(state.isLoading).toBe(false);
+    expect(state.pendingMessage).toEqual({ content: "Hello", status: "failed" });
+    expect(state.streamingMessageIndex).toBeNull();
+    // Messages are kept (not removed)
+    expect(state.messages.length).toBeGreaterThan(0);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Edge cases
+// SYSTEM_MESSAGE
 // ---------------------------------------------------------------------------
 
-describe("chatReducer — edge cases", () => {
-  it("LOAD_HISTORY resets all streaming state", () => {
-    let state = sendStart(initialChatState);
+describe("chatReducer — SYSTEM_MESSAGE", () => {
+  it("inserts system message before the streaming assistant", () => {
+    let state = sendStart(initialChatState, "Hello");
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Hi" });
+
     state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "partial",
+      type: "SYSTEM_MESSAGE",
+      content: "Now viewing: Section 2",
     });
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
+
+    // System msg inserted before the streaming assistant
+    // Order: user, system, assistant
+    expect(state.messages.map((m) => m.role)).toEqual(["user", "system", "assistant"]);
+    expect(state.messages[1].content).toBe("Now viewing: Section 2");
+    // streamingMessageIndex should have incremented
+    expect(state.streamingMessageIndex).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LOAD_HISTORY
+// ---------------------------------------------------------------------------
+
+describe("chatReducer — LOAD_HISTORY", () => {
+  it("replaces messages and clears all state", () => {
+    let state = sendStart(initialChatState, "Hello");
+    state = chatReducer(state, { type: "STREAM_TEXT", text: "Hi" });
 
     state = chatReducer(state, {
       type: "LOAD_HISTORY",
-      messages: [{ role: "user" as const, content: "old message" }],
+      messages: [{ role: "user" as const, content: "old msg" }],
     });
 
-    expect(state.streamingContent).toBe("");
+    expect(state.messages).toEqual([{ role: "user", content: "old msg" }]);
     expect(state.isLoading).toBe(false);
-    // LOAD_HISTORY doesn't currently clear activeToolCall — this is a bug.
-    // Once fixed, activeToolCall should be null after loading history.
-    expect(state.activeToolCall).toBeNull();
-  });
-
-  it("empty content SEND_START creates no pending message", () => {
-    const state = chatReducer(initialChatState, {
-      type: "SEND_START",
-      content: "",
-      sectionIndex: 0,
-      segmentIndex: 0,
-      source: "inline",
-    });
-
+    expect(state.streamingMessageIndex).toBeNull();
     expect(state.pendingMessage).toBeNull();
-    expect(state.isLoading).toBe(true);
   });
+});
 
-  it("SEND_SUCCESS with empty userContent omits user message", () => {
-    let state = sendStart(initialChatState, "");
-    state = chatReducer(state, {
-      type: "SEND_SUCCESS",
-      userContent: "",
-      assistantContent: "Auto-response",
-    });
+// ---------------------------------------------------------------------------
+// CLEAR_PENDING
+// ---------------------------------------------------------------------------
 
-    // Should only have assistant message, no empty user message
-    expect(state.messages).toEqual([
-      { role: "assistant", content: "Auto-response" },
-    ]);
-  });
-
-  it("CLEAR_PENDING clears pending message and sendSource", () => {
+describe("chatReducer — CLEAR_PENDING", () => {
+  it("clears pending message and sendSource", () => {
     let state = sendStart(initialChatState, "retry me");
-    expect(state.pendingMessage).not.toBeNull();
-    expect(state.sendSource).toBe("inline");
-
     state = chatReducer(state, { type: "CLEAR_PENDING" });
     expect(state.pendingMessage).toBeNull();
     expect(state.sendSource).toBeNull();
-    // isLoading should NOT be cleared by CLEAR_PENDING (retry will re-send)
-    expect(state.isLoading).toBe(true);
-  });
-
-  it("SEND_FAILURE clears sendSource", () => {
-    let state = sendStart(initialChatState, "will fail");
-    expect(state.sendSource).toBe("inline");
-
-    state = chatReducer(state, { type: "SEND_FAILURE" });
-    expect(state.sendSource).toBeNull();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Multiple sequential tool calls
-// ---------------------------------------------------------------------------
-
-describe("chatReducer — multiple sequential tool calls", () => {
-  it("second TOOL_CALL overwrites the first (current behavior)", () => {
-    let state = sendStart(initialChatState);
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "tool_a",
-      state: "calling",
-    });
-    expect(state.activeToolCall?.name).toBe("tool_a");
-
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "tool_b",
-      state: "calling",
-    });
-    // Second tool call replaces the first
-    expect(state.activeToolCall?.name).toBe("tool_b");
-  });
-
-  it("TOOL_CALL error state is tracked", () => {
-    let state = sendStart(initialChatState);
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "error",
-    });
-
-    expect(state.activeToolCall).toEqual({
-      name: "search_alignment_research",
-      state: "error",
-    });
-  });
-
-  it("completed tool calls accumulate in completedToolCalls array", () => {
-    let state = sendStart(initialChatState);
-
-    // Tool A: calling → result
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
-    expect(state.completedToolCalls).toEqual([]);
-    // activeToolCall shows A as calling
-    expect(state.activeToolCall?.state).toBe("calling");
-
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
-    // A is still active (showing result indicator), not yet archived
-    expect(state.completedToolCalls).toEqual([]);
-    expect(state.activeToolCall?.state).toBe("result");
-
-    // Tool B starts: A gets archived to completedToolCalls
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
-    expect(state.completedToolCalls).toHaveLength(1);
-    expect(state.completedToolCalls[0].name).toBe("search_alignment_research");
-    expect(state.activeToolCall?.state).toBe("calling");
-
-    // Tool B completes
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
-    // B is active (result), A is archived
-    expect(state.completedToolCalls).toHaveLength(1);
-
-    // Tool C starts: B gets archived
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
-    expect(state.completedToolCalls).toHaveLength(2);
-
-    // Tool C completes
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
-    // C is active, A+B archived
-    expect(state.completedToolCalls).toHaveLength(2);
-    // Total visible: 2 completed + 1 active = 3 panels
-  });
-
-  it("completedToolCalls is cleared on SEND_SUCCESS", () => {
-    let state = sendStart(initialChatState);
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
-    expect(state.completedToolCalls).toHaveLength(1);
-
-    state = chatReducer(state, {
-      type: "SEND_SUCCESS",
-      userContent: "q",
-      assistantContent: "a",
-    });
-    expect(state.completedToolCalls).toEqual([]);
-  });
-
-  it("completedToolCalls is cleared on SEND_START", () => {
-    let state = sendStart(initialChatState);
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
-
-    state = sendStart(state, "new message");
-    expect(state.completedToolCalls).toEqual([]);
-  });
-
-  it("toolCallInsertPoint only records the FIRST tool call position", () => {
-    let state = sendStart(initialChatState);
-
-    // Stream some pre-tool text
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Let me search for that.",
-    });
-
-    // First tool call — captures insert point
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "tool_a",
-      state: "calling",
-    });
-    const firstInsertPoint = state.toolCallInsertPoint;
-    expect(firstInsertPoint).toBe("Let me search for that.".length);
-
-    // First tool completes
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "tool_a",
-      state: "result",
-    });
-
-    // Second tool call — insert point should NOT change
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "tool_b",
-      state: "calling",
-    });
-    expect(state.toolCallInsertPoint).toBe(firstInsertPoint);
-
-    // Third tool call — still same insert point
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "tool_c",
-      state: "calling",
-    });
-    expect(state.toolCallInsertPoint).toBe(firstInsertPoint);
-  });
-
-  it("three sequential tool calls: all tool messages included in SEND_SUCCESS", () => {
-    let state = sendStart(initialChatState, "Search three topics");
-
-    const toolMessages = [
-      {
-        role: "assistant" as const,
-        content: "",
-        tool_calls: [
-          { id: "call_1", type: "function", function: { name: "search_alignment_research", arguments: '{"query":"deceptive alignment"}' } },
-          { id: "call_2", type: "function", function: { name: "search_alignment_research", arguments: '{"query":"mesa optimization"}' } },
-          { id: "call_3", type: "function", function: { name: "search_alignment_research", arguments: '{"query":"inner alignment"}' } },
-        ],
-      },
-      { role: "tool" as const, tool_call_id: "call_1", name: "search_alignment_research", content: "Result 1" },
-      { role: "tool" as const, tool_call_id: "call_2", name: "search_alignment_research", content: "Result 2" },
-      { role: "tool" as const, tool_call_id: "call_3", name: "search_alignment_research", content: "Result 3" },
-    ];
-
-    state = chatReducer(state, {
-      type: "SEND_SUCCESS",
-      userContent: "Search three topics",
-      assistantContent: "Here's what I found across all three searches.",
-      toolMessages,
-    });
-
-    // Should have: user, assistant+tool_calls, tool, tool, tool, assistant
-    const roles = state.messages.map((m) => m.role);
-    expect(roles).toEqual([
-      "user", "assistant", "tool", "tool", "tool", "assistant",
-    ]);
-
-    // Verify all three tool results are present
-    const toolMsgs = state.messages.filter((m) => m.role === "tool");
-    expect(toolMsgs).toHaveLength(3);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Alternating text and tool calls (multi-round tool loop)
-// ---------------------------------------------------------------------------
-
-describe("chatReducer — alternating text and tool calls", () => {
-  it("simulates: text → tool → text → tool → text (two LLM rounds with tools)", () => {
-    let state = sendStart(initialChatState, "Explain deceptive alignment");
-
-    // Round 1: LLM streams pre-tool text
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Let me search for that.",
-    });
-
-    // Round 1: Tool call starts
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-    expect(state.toolCallInsertPoint).toBe("Let me search for that.".length);
-
-    // Round 1: Tool completes
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "result",
-    });
-
-    // Round 2: LLM streams mid-text (after seeing tool result)
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Let me search for that.\n\nBased on that, let me search deeper.",
-    });
-
-    // Round 2: Second tool call
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-    // Insert point updates to second tool call position
-    expect(state.toolCallInsertPoint).toBe(
-      "Let me search for that.\n\nBased on that, let me search deeper.".length,
-    );
-    // First tool is archived with its own insert point
-    expect(state.completedToolCalls).toHaveLength(1);
-    expect(state.completedToolCalls[0].insertPoint).toBe("Let me search for that.".length);
-
-    // Round 2: Second tool completes
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "result",
-    });
-
-    // Final text
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Let me search for that.\n\nBased on that, let me search deeper.\n\nHere are the combined findings.",
-    });
-
-    // toolCallInsertPoint now points to the SECOND tool's position
-    // First tool's position is in completedToolCalls[0].insertPoint
-    const firstSplit = state.completedToolCalls[0].insertPoint;
-    const secondSplit = state.toolCallInsertPoint!;
-    expect(state.streamingContent.slice(0, firstSplit)).toBe("Let me search for that.");
-    expect(state.streamingContent.slice(firstSplit, secondSplit)).toContain("Based on that");
-    expect(state.streamingContent.slice(secondSplit)).toContain("combined findings");
-  });
-
-  it("each completed tool call records its own insert point in streamingContent", () => {
-    let state = sendStart(initialChatState, "Explain deceptive alignment");
-
-    // Round 1: pre-tool text
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Let me search.",
-    });
-
-    // Round 1: tool A
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
-
-    // Round 2: mid-text arrives
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Let me search.\n\nBased on that, let me dig deeper.",
-    });
-
-    // Round 2: tool B starts — archives tool A with its insert point
-    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
-
-    // Tool A should be archived with its insert point (14 = "Let me search.".length)
-    expect(state.completedToolCalls).toHaveLength(1);
-    expect(state.completedToolCalls[0].insertPoint).toBe("Let me search.".length);
-
-    // Tool B's insert point (the current toolCallInsertPoint for activeToolCall)
-    // should be at the END of "Let me search.\n\nBased on that, let me dig deeper."
-    // NOT at the same position as tool A
-    expect(state.toolCallInsertPoint).not.toBe(state.completedToolCalls[0].insertPoint);
-    expect(state.toolCallInsertPoint).toBe(
-      "Let me search.\n\nBased on that, let me dig deeper.".length,
-    );
-  });
-
-  it("tool call with no pre-text: insert point is 0", () => {
-    let state = sendStart(initialChatState, "Search immediately");
-
-    // Tool call fires before any text streams
-    state = chatReducer(state, {
-      type: "TOOL_CALL",
-      name: "search_alignment_research",
-      state: "calling",
-    });
-
-    expect(state.toolCallInsertPoint).toBe(0);
-    expect(state.streamingContent).toBe("");
-
-    // Post-tool text arrives
-    state = chatReducer(state, {
-      type: "STREAM_CHUNK",
-      accumulated: "Here are the results.",
-    });
-
-    // All content is post-tool
-    const preToolContent = state.streamingContent.slice(0, state.toolCallInsertPoint!);
-    const postToolContent = state.streamingContent.slice(state.toolCallInsertPoint!);
-    expect(preToolContent).toBe("");
-    expect(postToolContent).toBe("Here are the results.");
   });
 });

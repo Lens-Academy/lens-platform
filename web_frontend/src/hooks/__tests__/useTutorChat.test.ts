@@ -75,7 +75,6 @@ describe("useTutorChat", () => {
 
     expect(result.current.messages).toEqual([]);
     expect(result.current.pendingMessage).toBeNull();
-    expect(result.current.streamingContent).toBe("");
     expect(result.current.isLoading).toBe(false);
     expect(result.current.activeSurface).toEqual({ type: "sidebar" });
   });

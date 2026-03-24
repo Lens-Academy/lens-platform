@@ -775,12 +775,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   const {
     messages,
     pendingMessage,
-    streamingContent,
     isLoading,
     sendSource,
-    activeToolCall,
-    toolCallInsertPoint,
-    completedToolCalls,
     sendMessage: handleSendMessage,
     retryMessage: handleRetryMessage,
     activeSurface,
@@ -1583,11 +1579,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             key={`chat-${keyPrefix}`}
             messages={messages}
             pendingMessage={pendingMessage}
-            streamingContent={streamingContent}
             isLoading={isLoading}
-            activeToolCall={activeToolCall}
-            toolCallInsertPoint={toolCallInsertPoint}
-            completedToolCalls={completedToolCalls}
             sendSource={sendSource}
             onSendMessage={(content) =>
               handleSendMessage(content, sectionIndex, segmentIndex)
@@ -1632,7 +1624,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               <ChatInlineShell
                 messages={messages}
                 pendingMessage={pendingMessage}
-                streamingContent={streamingContent}
                 isLoading={isLoading}
                 sendSource={sendSource}
                 onSendMessage={(content) =>
@@ -1672,7 +1663,6 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               <ChatInlineShell
                 messages={messages}
                 pendingMessage={pendingMessage}
-                streamingContent={streamingContent}
                 isLoading={isLoading}
                 sendSource={sendSource}
                 onSendMessage={(content) =>
@@ -1956,11 +1946,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                                   <ChatInlineShell
                                     messages={messages}
                                     pendingMessage={pendingMessage}
-                                    streamingContent={streamingContent}
                                     isLoading={isLoading}
-                                    activeToolCall={activeToolCall}
-                                    toolCallInsertPoint={toolCallInsertPoint}
-                                    completedToolCalls={completedToolCalls}
                                     sendSource={sendSource}
                                     onSendMessage={(content) =>
                                       handleSendMessage(
@@ -2085,19 +2071,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                   pendingMessage={
                     sendSource !== "inline" ? pendingMessage : null
                   }
-                  streamingContent={
-                    sendSource !== "inline" ? streamingContent : ""
-                  }
                   isLoading={sendSource !== "inline" ? isLoading : false}
-                  activeToolCall={
-                    sendSource !== "inline" ? activeToolCall : null
-                  }
-                  toolCallInsertPoint={
-                    sendSource !== "inline" ? toolCallInsertPoint : null
-                  }
-                  completedToolCalls={
-                    sendSource !== "inline" ? completedToolCalls : []
-                  }
                   onSendMessage={(content) =>
                     handleSendMessage(
                       content,

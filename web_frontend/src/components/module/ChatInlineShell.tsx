@@ -19,18 +19,13 @@ import type { ChatMessage, PendingMessage } from "@/types/module";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import { renderMessage } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
-import ChatMarkdown from "@/components/ChatMarkdown";
-import { Bot, Check, ChevronUp, ChevronDown, Search } from "lucide-react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { chatViewReducer, initialChatViewState } from "./chatViewReducer";
 
 type ChatInlineShellProps = {
   messages: ChatMessage[];
   pendingMessage: PendingMessage | null;
-  streamingContent: string;
   isLoading: boolean;
-  activeToolCall?: { name: string; state: string } | null;
-  toolCallInsertPoint?: number | null;
-  completedToolCalls?: Array<{ name: string; insertPoint: number }>;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
   activated?: boolean;
@@ -71,11 +66,7 @@ function PillVisibilityWrapper({
 export function ChatInlineShell({
   messages,
   pendingMessage,
-  streamingContent,
   isLoading,
-  activeToolCall,
-  toolCallInsertPoint,
-  completedToolCalls,
   onSendMessage,
   onRetryMessage,
   activated,
@@ -256,10 +247,7 @@ export function ChatInlineShell({
   const wrapperMessages = displayMessages.slice(adjustedWrapperStart);
 
   const showPending = hasInteracted && !!pendingMessage;
-  const isToolCalling = activeToolCall?.state === "calling";
-  const showStreaming = hasInteracted && isLoading && (!!streamingContent || !!activeToolCall);
-  const showThinking =
-    hasInteracted && isLoading && !streamingContent && !activeToolCall;
+  const showStreaming = hasInteracted && isLoading;
   const wrapperMinHeight = hasInteracted && spacerHeight > 0 ? spacerHeight : 0;
   const scrollMargin = hasInteracted
     ? isExpanded
@@ -491,87 +479,10 @@ export function ChatInlineShell({
                   </div>
                 )}
 
-                {/* Streaming response with tool indicator */}
-                {showStreaming && (
-                  <div
-                    ref={activeScrollToResponse ? responseRef : undefined}
-                    className="text-gray-800"
-                  >
-                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                      <Bot size={13} />
-                      Tutor
-                    </div>
-                    {(() => {
-                      const CALLING_LABELS: Record<string, string> = {
-                        search_alignment_research: "Searching alignment research\u2026",
-                      };
-                      const DONE_LABELS: Record<string, string> = {
-                        search_alignment_research: "Searched alignment research",
-                      };
-
-                      type ToolEntry = { name: string; insertPoint: number; isCalling: boolean };
-                      const allTools: ToolEntry[] = [
-                        ...(completedToolCalls ?? []).map((tc) => ({
-                          name: tc.name, insertPoint: tc.insertPoint, isCalling: false,
-                        })),
-                        ...(activeToolCall && toolCallInsertPoint != null
-                          ? [{ name: activeToolCall.name, insertPoint: toolCallInsertPoint, isCalling: isToolCalling }]
-                          : []),
-                      ];
-
-                      if (!allTools.length) {
-                        return streamingContent ? <ChatMarkdown>{streamingContent}</ChatMarkdown> : null;
-                      }
-
-                      allTools.sort((a, b) => a.insertPoint - b.insertPoint);
-                      const elements: React.ReactNode[] = [];
-                      let cursor = 0;
-
-                      for (let i = 0; i < allTools.length; i++) {
-                        const tool = allTools[i];
-                        if (streamingContent && tool.insertPoint > cursor) {
-                          const seg = streamingContent.slice(cursor, tool.insertPoint);
-                          if (seg) elements.push(<ChatMarkdown key={`text-${i}`}>{seg}</ChatMarkdown>);
-                        }
-                        cursor = tool.insertPoint;
-                        elements.push(
-                          <div key={`tool-${i}`} className="my-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
-                            <div className="flex items-center gap-2 px-3 py-2">
-                              {tool.isCalling ? (
-                                <Search size={14} className="animate-pulse text-gray-500 shrink-0" />
-                              ) : (
-                                <Check size={14} className="text-green-600 shrink-0" />
-                              )}
-                              <span className={tool.isCalling ? "text-gray-500" : "text-gray-700"}>
-                                {tool.isCalling
-                                  ? (CALLING_LABELS[tool.name] ?? "Using tool\u2026")
-                                  : (DONE_LABELS[tool.name] ?? "Tool completed")}
-                              </span>
-                            </div>
-                          </div>,
-                        );
-                      }
-                      if (streamingContent && cursor < streamingContent.length) {
-                        const remaining = streamingContent.slice(cursor);
-                        if (remaining) elements.push(<ChatMarkdown key="text-final">{remaining}</ChatMarkdown>);
-                      }
-                      return <>{elements}</>;
-                    })()}
-                  </div>
-                )}
-
-                {/* Thinking indicator */}
-                {showThinking && (
-                  <div
-                    ref={activeScrollToResponse ? responseRef : undefined}
-                    className="text-gray-800"
-                  >
-                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                      <Bot size={13} />
-                      Tutor
-                    </div>
-                    <div>Thinking...</div>
-                  </div>
+                {/* Scroll anchor for scrollToResponse — streaming/thinking
+                    content is now rendered as a regular message by renderMessage() */}
+                {showStreaming && activeScrollToResponse && (
+                  <div ref={responseRef} />
                 )}
               </div>
 

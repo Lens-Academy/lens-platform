@@ -7,7 +7,7 @@
  *   - "assistant"      → plain text, labeled "Tutor"
  *   - "system"         → centered pill (progress markers)
  *   - "course-content" → plain text, labeled "Lens" (authored opening questions)
- *   - "tool"           → collapsible panel showing tool input/output
+ *   - "tool"           → collapsible panel (or calling indicator if content empty)
  */
 
 import type { ChatMessage, PendingMessage } from "@/types/module";
@@ -23,7 +23,7 @@ const TOOL_DONE_LABELS: Record<string, string> = {
   search_alignment_research: "Searched alignment research",
 };
 
-/** Collapsible panel for a tool call result (from DB history). */
+/** Collapsible panel for a tool call result. */
 function ToolResultPanel({
   msg,
 }: {
@@ -47,7 +47,7 @@ function ToolResultPanel({
   );
 }
 
-/** Live streaming indicator for an in-progress tool call. */
+/** Live indicator for an in-progress tool call. */
 function ToolCallingIndicator({ name }: { name: string }) {
   const label = TOOL_CALLING_LABELS[name] ?? "Using tool\u2026";
   return (
@@ -63,10 +63,7 @@ function ToolCallingIndicator({ name }: { name: string }) {
 type ChatMessageListProps = {
   messages: ChatMessage[];
   pendingMessage?: PendingMessage | null;
-  streamingContent?: string;
   isLoading?: boolean;
-  /** Live tool call indicator (only during streaming) */
-  activeToolCall?: { name: string; state: string } | null;
   /** Optional: only render messages from this index onward */
   startIndex?: number;
   /** Ref for the message list container */
@@ -79,12 +76,6 @@ type ChatMessageListProps = {
   wrapperMinHeight?: number;
   /** Ref for the min-height wrapper (used for scrollIntoView) */
   minHeightWrapperRef?: React.Ref<HTMLDivElement>;
-  /** Character offset in streamingContent where tool call was inserted.
-   *  When set, streaming content is split: [0..point] | toolIndicator | [point..] */
-  toolCallInsertPoint?: number | null;
-  /** Completed tool calls accumulated during streaming (rendered as panels).
-   *  Each entry includes its position in streamingContent for correct placement. */
-  completedToolCalls?: Array<{ name: string; insertPoint: number }>;
 };
 
 export function renderMessage(msg: ChatMessage, key: string | number) {
@@ -112,12 +103,20 @@ export function renderMessage(msg: ChatMessage, key: string | number) {
   }
 
   if (msg.role === "tool") {
+    // Empty content = tool call in progress ("calling" state)
+    if (!msg.content) {
+      return <ToolCallingIndicator key={key} name={msg.name} />;
+    }
     return <ToolResultPanel key={key} msg={msg} />;
   }
 
   if (msg.role === "assistant") {
     // Skip assistant messages that only contain tool_calls with no text
     if (msg.tool_calls && !msg.content?.trim()) {
+      return null;
+    }
+    // Skip empty assistant messages (streaming placeholder before text arrives)
+    if (!msg.content?.trim()) {
       return null;
     }
     return (
@@ -145,17 +144,13 @@ export function renderMessage(msg: ChatMessage, key: string | number) {
 export function ChatMessageList({
   messages,
   pendingMessage,
-  streamingContent,
   isLoading,
-  activeToolCall,
   startIndex = 0,
   containerRef,
   onScroll,
   wrapperStartIdx,
   wrapperMinHeight,
   minHeightWrapperRef,
-  toolCallInsertPoint,
-  completedToolCalls,
 }: ChatMessageListProps) {
   const visibleMessages = messages.slice(startIndex);
   const useWrapper = wrapperStartIdx != null;
@@ -189,91 +184,15 @@ export function ChatMessageList({
     </div>
   );
 
-  const isToolCalling = activeToolCall?.state === "calling";
+  // Thinking indicator: show when loading and last message is an empty assistant
+  const lastMsg = visibleMessages[visibleMessages.length - 1];
+  const showThinking =
+    isLoading &&
+    lastMsg?.role === "assistant" &&
+    !lastMsg.content?.trim() &&
+    !("tool_calls" in lastMsg && lastMsg.tool_calls);
 
-  const toolIndicator = activeToolCall && (
-    isToolCalling
-      ? <ToolCallingIndicator name={activeToolCall.name} />
-      : <ToolResultPanel msg={{ role: "tool" as const, name: activeToolCall.name, content: "" }} />
-  );
-
-  // Build interleaved segments: text → tool panel → text → tool panel → ...
-  // Each tool call (completed + active) has an insert point in streamingContent.
-  const streamingSegments = (() => {
-    if (!streamingContent && !activeToolCall) return null;
-
-    type ToolEntry = { name: string; insertPoint: number; isActive: boolean; isCalling: boolean };
-    const allTools: ToolEntry[] = [
-      ...(completedToolCalls ?? []).map((tc) => ({
-        name: tc.name,
-        insertPoint: tc.insertPoint,
-        isActive: false,
-        isCalling: false,
-      })),
-      ...(activeToolCall && toolCallInsertPoint != null
-        ? [{
-            name: activeToolCall.name,
-            insertPoint: toolCallInsertPoint,
-            isActive: true,
-            isCalling: activeToolCall.state === "calling",
-          }]
-        : []),
-    ];
-
-    if (!allTools.length) {
-      // No tool calls — render all content, then indicator if active
-      return (
-        <>
-          {streamingContent && <ChatMarkdown>{streamingContent}</ChatMarkdown>}
-          {toolIndicator}
-        </>
-      );
-    }
-
-    // Sort by insert point position
-    allTools.sort((a, b) => a.insertPoint - b.insertPoint);
-
-    const elements: React.ReactNode[] = [];
-    let cursor = 0;
-
-    for (let i = 0; i < allTools.length; i++) {
-      const tool = allTools[i];
-      // Text segment before this tool
-      if (streamingContent && tool.insertPoint > cursor) {
-        const segment = streamingContent.slice(cursor, tool.insertPoint);
-        if (segment) elements.push(<ChatMarkdown key={`text-${i}`}>{segment}</ChatMarkdown>);
-      }
-      cursor = tool.insertPoint;
-      // Tool panel
-      if (tool.isCalling) {
-        elements.push(<ToolCallingIndicator key={`tool-${i}`} name={tool.name} />);
-      } else {
-        elements.push(
-          <ToolResultPanel key={`tool-${i}`} msg={{ role: "tool" as const, name: tool.name, content: "" }} />,
-        );
-      }
-    }
-
-    // Remaining text after all tools
-    if (streamingContent && cursor < streamingContent.length) {
-      const remaining = streamingContent.slice(cursor);
-      if (remaining) elements.push(<ChatMarkdown key="text-final">{remaining}</ChatMarkdown>);
-    }
-
-    return <>{elements}</>;
-  })();
-
-  const streamingEl = isLoading && (streamingContent || activeToolCall) && (
-    <div className="text-gray-800">
-      <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-        <Bot size={13} />
-        Tutor
-      </div>
-      {streamingSegments}
-    </div>
-  );
-
-  const thinkingEl = isLoading && !streamingContent && !activeToolCall && (
+  const thinkingEl = showThinking && (
     <div className="text-gray-800">
       <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
         <Bot size={13} />
@@ -306,14 +225,12 @@ export function ChatMessageList({
             .slice(splitAt)
             .map((msg, i) => renderMessage(msg, startIndex + splitAt + i))}
           {pendingEl}
-          {streamingEl}
           {thinkingEl}
           <div className="flex-grow" />
         </div>
       ) : (
         <>
           {pendingEl}
-          {streamingEl}
           {thinkingEl}
         </>
       )}

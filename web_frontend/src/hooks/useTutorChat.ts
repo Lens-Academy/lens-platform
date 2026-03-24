@@ -32,18 +32,11 @@ import { trackChatMessageSent } from "@/analytics";
 export type ChatState = {
   messages: ChatMessage[];
   pendingMessage: PendingMessage | null;
-  streamingContent: string;
   isLoading: boolean;
+  /** Index into messages[] of the assistant message currently being streamed into. */
+  streamingMessageIndex: number | null;
   lastPosition: { sectionIndex: number; segmentIndex: number } | null;
   sendSource: "sidebar" | "inline" | null;
-  /** Live tool call indicator — only used during streaming, cleared on completion */
-  activeToolCall: { name: string; state: "calling" | "result" | "error" } | null;
-  /** Character offset in streamingContent where the tool call was inserted.
-   *  Used by the UI to split streaming text: pre-tool | indicator | post-tool. */
-  toolCallInsertPoint: number | null;
-  /** Tool calls that completed during streaming (accumulated for rendering).
-   *  Each entry records where in streamingContent it was inserted. */
-  completedToolCalls: Array<{ name: string; insertPoint: number }>;
 };
 
 export type ChatAction =
@@ -55,30 +48,33 @@ export type ChatAction =
       segmentIndex: number;
       source: "sidebar" | "inline";
     }
-  | { type: "STREAM_CHUNK"; accumulated: string }
-  | {
-      type: "SEND_SUCCESS";
-      userContent: string;
-      assistantContent: string;
-      systemMessages?: ChatMessage[];
-      /** Tool-related messages (assistant with tool_calls + tool results) saved during streaming */
-      toolMessages?: ChatMessage[];
-    }
+  | { type: "STREAM_TEXT"; text: string }
+  | { type: "TOOL_CALL_START"; name: string }
+  | { type: "TOOL_CALL_DONE"; name: string; result?: string }
+  | { type: "SYSTEM_MESSAGE"; content: string }
+  | { type: "SEND_SUCCESS" }
   | { type: "SEND_FAILURE" }
-  | { type: "CLEAR_PENDING" }
-  | { type: "TOOL_CALL"; name: string; state: "calling" | "result" | "error" };
+  | { type: "CLEAR_PENDING" };
 
 export const initialChatState: ChatState = {
   messages: [],
   pendingMessage: null,
-  streamingContent: "",
   isLoading: false,
+  streamingMessageIndex: null,
   lastPosition: null,
   sendSource: null,
-  activeToolCall: null,
-  toolCallInsertPoint: null,
-  completedToolCalls: [],
 };
+
+/** Helper: shallow-copy messages array with an updated message at index. */
+function updateMessageAt(
+  messages: ChatMessage[],
+  index: number,
+  updater: (msg: ChatMessage) => ChatMessage,
+): ChatMessage[] {
+  const copy = [...messages];
+  copy[index] = updater(copy[index]);
+  return copy;
+}
 
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
@@ -87,96 +83,155 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ...state,
         messages: action.messages,
         pendingMessage: null,
-        streamingContent: "",
         isLoading: false,
-        activeToolCall: null,
-        toolCallInsertPoint: null,
-        completedToolCalls: [],
+        streamingMessageIndex: null,
       };
 
-    case "SEND_START":
+    case "SEND_START": {
+      if (state.isLoading) return state; // reject concurrent sends
+
+      const newMessages = [...state.messages];
+      if (action.content) {
+        newMessages.push({ role: "user" as const, content: action.content });
+      }
+      newMessages.push({ role: "assistant" as const, content: "" });
+
       return {
         ...state,
-        pendingMessage: action.content
-          ? { content: action.content, status: "sending" }
-          : null,
-        streamingContent: "",
+        messages: newMessages,
+        // Don't set pendingMessage here — the user message is already in messages[].
+        // pendingMessage is only set on SEND_FAILURE for the "Failed to send" indicator.
+        pendingMessage: null,
         isLoading: true,
+        streamingMessageIndex: newMessages.length - 1,
         lastPosition: {
           sectionIndex: action.sectionIndex,
           segmentIndex: action.segmentIndex,
         },
         sendSource: action.source,
-        toolCallInsertPoint: null,
-        completedToolCalls: [],
       };
+    }
 
-    case "STREAM_CHUNK":
+    case "STREAM_TEXT": {
+      if (state.streamingMessageIndex == null) return state;
+      const idx = state.streamingMessageIndex;
       return {
         ...state,
-        streamingContent: action.accumulated,
+        messages: updateMessageAt(state.messages, idx, (msg) => ({
+          ...msg,
+          content: msg.content + action.text,
+        })),
       };
+    }
 
-    case "SEND_SUCCESS":
-      return {
-        ...state,
-        messages: [
-          ...state.messages,
-          ...(action.systemMessages || []),
-          ...(action.userContent
-            ? [{ role: "user" as const, content: action.userContent }]
-            : []),
-          ...(action.toolMessages || []),
-          { role: "assistant" as const, content: action.assistantContent },
+    case "TOOL_CALL_START": {
+      if (state.streamingMessageIndex == null) return state;
+      const idx = state.streamingMessageIndex;
+      const currentMsg = state.messages[idx];
+
+      // Freeze current assistant message with tool_calls metadata
+      const frozenAssistant: ChatMessage = {
+        ...currentMsg,
+        tool_calls: [
+          {
+            id: "",
+            type: "function",
+            function: { name: action.name, arguments: "" },
+          },
         ],
+      };
+
+      // Tool placeholder (empty content = "calling" state)
+      const toolPlaceholder: ChatMessage = {
+        role: "tool" as const,
+        tool_call_id: "",
+        name: action.name,
+        content: "",
+      };
+
+      // New empty assistant for post-tool text
+      const newAssistant: ChatMessage = {
+        role: "assistant" as const,
+        content: "",
+      };
+
+      const newMessages = [...state.messages];
+      newMessages[idx] = frozenAssistant;
+      newMessages.push(toolPlaceholder, newAssistant);
+
+      return {
+        ...state,
+        messages: newMessages,
+        streamingMessageIndex: newMessages.length - 1,
+      };
+    }
+
+    case "TOOL_CALL_DONE": {
+      // Find the last tool message with matching name and empty content
+      const toolIdx = state.messages.findLastIndex(
+        (m) => m.role === "tool" && "name" in m && m.name === action.name && !m.content,
+      );
+      if (toolIdx === -1) return state;
+
+      return {
+        ...state,
+        messages: updateMessageAt(state.messages, toolIdx, (msg) => ({
+          ...msg,
+          content: action.result ?? "",
+        })),
+      };
+    }
+
+    case "SYSTEM_MESSAGE": {
+      if (state.streamingMessageIndex == null) return state;
+      const idx = state.streamingMessageIndex;
+      const newMessages = [...state.messages];
+      const systemMsg: ChatMessage = {
+        role: "system" as const,
+        content: action.content,
+      };
+      newMessages.splice(idx, 0, systemMsg);
+
+      return {
+        ...state,
+        messages: newMessages,
+        streamingMessageIndex: idx + 1,
+      };
+    }
+
+    case "SEND_SUCCESS": {
+      // Remove trailing empty assistant message if present
+      const newMessages = [...state.messages];
+      const lastMsg = newMessages[newMessages.length - 1];
+      if (
+        lastMsg?.role === "assistant" &&
+        !lastMsg.content?.trim() &&
+        !("tool_calls" in lastMsg && lastMsg.tool_calls)
+      ) {
+        newMessages.pop();
+      }
+
+      return {
+        ...state,
+        messages: newMessages,
         pendingMessage: null,
-        streamingContent: "",
         isLoading: false,
+        streamingMessageIndex: null,
         sendSource: null,
-        activeToolCall: null,
-        toolCallInsertPoint: null,
-        completedToolCalls: [],
       };
+    }
 
-    case "SEND_FAILURE":
+    case "SEND_FAILURE": {
+      // Find the user message that was sent (last user message in the array)
+      const lastUserMsg = [...state.messages].reverse().find((m) => m.role === "user");
       return {
         ...state,
-        pendingMessage: state.pendingMessage
-          ? { content: state.pendingMessage.content, status: "failed" }
+        pendingMessage: lastUserMsg
+          ? { content: lastUserMsg.content, status: "failed" as const }
           : null,
-        streamingContent: "",
         isLoading: false,
+        streamingMessageIndex: null,
         sendSource: null,
-        activeToolCall: null,
-        toolCallInsertPoint: null,
-        completedToolCalls: [],
-      };
-
-    case "TOOL_CALL": {
-      // When a new "calling" arrives and the previous tool was "result",
-      // archive the previous one to completedToolCalls with its insert point.
-      const shouldArchive =
-        action.state === "calling" &&
-        state.activeToolCall?.state === "result";
-      return {
-        ...state,
-        activeToolCall: { name: action.name, state: action.state },
-        completedToolCalls: shouldArchive
-          ? [
-              ...state.completedToolCalls,
-              {
-                name: state.activeToolCall!.name,
-                insertPoint: state.toolCallInsertPoint ?? 0,
-              },
-            ]
-          : state.completedToolCalls,
-        // Record where in streamingContent this tool call starts.
-        // On first "calling": snapshot current content length.
-        // On subsequent "calling" (new tool round): update to current length.
-        toolCallInsertPoint:
-          action.state === "calling"
-            ? state.streamingContent.length
-            : state.toolCallInsertPoint,
       };
     }
 
@@ -276,14 +331,24 @@ export function useTutorChat({
 
           dispatchChat({
             type: "LOAD_HISTORY",
-            messages: messagesToShow.map((m) => ({
-              role: m.role as
-                | "user"
-                | "assistant"
-                | "system"
-                | "course-content",
-              content: m.content,
-            })),
+            messages: messagesToShow.map((m) => {
+              if (m.role === "tool") {
+                return {
+                  role: "tool" as const,
+                  tool_call_id: m.tool_call_id ?? "",
+                  name: m.name ?? "",
+                  content: m.content ?? "",
+                };
+              }
+              const msg: ChatMessage = {
+                role: m.role as "user" | "assistant" | "system" | "course-content",
+                content: m.content ?? "",
+              };
+              if (m.tool_calls) {
+                (msg as { tool_calls?: unknown }).tool_calls = m.tool_calls;
+              }
+              return msg;
+            }),
           });
         }
         // Messages already cleared above if history is empty
@@ -451,10 +516,6 @@ export function useTutorChat({
       }
 
       try {
-        let assistantContent = "";
-        const systemMessages: ChatMessage[] = [];
-        const toolMessages: ChatMessage[] = [];
-
         for await (const chunk of sendMessageApi(
           moduleId,
           sectionIndex,
@@ -462,31 +523,19 @@ export function useTutorChat({
           content,
         )) {
           if (chunk.type === "text" && chunk.content) {
-            assistantContent += chunk.content;
-            dispatchChat({
-              type: "STREAM_CHUNK",
-              accumulated: assistantContent,
-            });
+            dispatchChat({ type: "STREAM_TEXT", text: chunk.content });
             triggerChatActivity();
           } else if (chunk.type === "system" && chunk.content) {
-            systemMessages.push({
-              role: "system" as const,
-              content: chunk.content,
-            });
+            dispatchChat({ type: "SYSTEM_MESSAGE", content: chunk.content });
           } else if (chunk.type === "tool_use" && chunk.name) {
-            const toolState = (chunk.state as "calling" | "result" | "error") ?? "calling";
-            dispatchChat({
-              type: "TOOL_CALL",
-              name: chunk.name as string,
-              state: toolState,
-            });
-            // Accumulate tool result messages for local state persistence
-            if (toolState === "result" || toolState === "error") {
-              toolMessages.push({
-                role: "tool" as const,
-                tool_call_id: "",
+            const toolState = (chunk.state as string) ?? "calling";
+            if (toolState === "calling") {
+              dispatchChat({ type: "TOOL_CALL_START", name: chunk.name as string });
+            } else {
+              dispatchChat({
+                type: "TOOL_CALL_DONE",
                 name: chunk.name as string,
-                content: (chunk as Record<string, unknown>).result as string || "",
+                result: (chunk as Record<string, unknown>).result as string || "",
               });
             }
           } else if (chunk.type === "error") {
@@ -497,13 +546,7 @@ export function useTutorChat({
           }
         }
 
-        dispatchChat({
-          type: "SEND_SUCCESS",
-          userContent: content,
-          assistantContent,
-          systemMessages,
-          toolMessages: toolMessages.length > 0 ? toolMessages : undefined,
-        });
+        dispatchChat({ type: "SEND_SUCCESS" });
       } catch {
         dispatchChat({ type: "SEND_FAILURE" });
       }
@@ -530,12 +573,8 @@ export function useTutorChat({
     // Reducer-managed chat state
     messages: chat.messages,
     pendingMessage: chat.pendingMessage,
-    streamingContent: chat.streamingContent,
     isLoading: chat.isLoading,
     sendSource: chat.sendSource,
-    activeToolCall: chat.activeToolCall,
-    toolCallInsertPoint: chat.toolCallInsertPoint,
-    completedToolCalls: chat.completedToolCalls,
 
     // Actions
     sendMessage,
