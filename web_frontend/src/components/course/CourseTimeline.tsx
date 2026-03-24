@@ -386,12 +386,12 @@ export default function CourseTimeline({
                           }
                         >
                           <div className="flex items-center py-1.5 px-2 gap-2 cursor-default">
-                            <Users className="w-4 h-4 text-[var(--brand-text-muted)]" />
-                            <span className="text-base text-[var(--brand-text-muted)]">
+                            <Users className="w-4 h-4 text-[var(--brand-text)]" />
+                            <span className="text-base text-[var(--brand-text)]">
                               #{unit.meetingNumber}
                             </span>
                             {unit.meetingDate && (
-                              <span className="text-xs text-[var(--brand-text-muted)]">
+                              <span className="text-xs text-[var(--brand-text)]">
                                 {formatMeetingDate(unit.meetingDate)}
                               </span>
                             )}
@@ -493,7 +493,7 @@ function renderUnitModules(
                     })()}
                 </div>
                 {!isParentExpanded && parentDuration > 0 && (
-                  <span className="text-xs text-[var(--brand-text-muted)] flex-shrink-0 tabular-nums">
+                  <span className="text-xs text-[var(--brand-text)] flex-shrink-0 tabular-nums">
                     {formatDuration(parentDuration)}
                   </span>
                 )}
@@ -522,7 +522,7 @@ function renderUnitModules(
                     className={`relative w-full flex items-center py-1 text-left transition-colors px-2 rounded-lg ${
                       isSelected
                         ? "bg-[#f0ece4] text-[var(--brand-text)]"
-                        : "hover:bg-[var(--brand-border)]/30 text-[var(--brand-text-muted)]"
+                        : "hover:bg-[var(--brand-border)]/30 text-[var(--brand-text)]"
                     }`}
                   >
                     <div className="ml-4 flex-1 min-w-0 flex items-center gap-2">
@@ -533,11 +533,11 @@ function renderUnitModules(
                         size={14}
                         selected={isSelected}
                       />
-                      <span className="text-base truncate text-[var(--brand-text-muted)]">
+                      <span className="text-base truncate text-[var(--brand-text)]">
                         {child.title}
                       </span>
                       {childEstimate && (
-                        <span className="text-xs text-[var(--brand-text-muted)] ml-auto flex-shrink-0 tabular-nums">
+                        <span className="text-xs text-[var(--brand-text)] ml-auto flex-shrink-0 tabular-nums">
                           {formatDuration(childEstimate)}
                         </span>
                       )}
@@ -574,11 +574,7 @@ function renderUnitModules(
                 />
               )}
               <span
-                className={`text-base truncate ${
-                  mod.optional
-                    ? "text-[var(--brand-text-muted)]"
-                    : "text-[var(--brand-text-muted)]"
-                }`}
+                className="text-base truncate text-[var(--brand-text)]"
               >
                 {mod.title}
               </span>
@@ -596,13 +592,13 @@ function renderUnitModules(
                 >
                   {dueLabel}
                   {estimate ? (
-                    <span className="text-[var(--brand-text-muted)] font-normal tabular-nums">
+                    <span className="text-[var(--brand-text)] font-normal tabular-nums">
                       · {formatDuration(estimate)}
                     </span>
                   ) : null}
                 </span>
               ) : estimate ? (
-                <span className="text-xs text-[var(--brand-text-muted)] ml-auto flex-shrink-0 tabular-nums">
+                <span className="text-xs text-[var(--brand-text)] ml-auto flex-shrink-0 tabular-nums">
                   {formatDuration(estimate)}
                 </span>
               ) : null}

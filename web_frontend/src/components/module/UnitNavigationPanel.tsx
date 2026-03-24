@@ -198,7 +198,7 @@ function StageDuration({
   const contentTime = Math.round(duration / 1.5);
   const aiTime = duration - contentTime;
   return (
-    <span className="inline-flex items-center gap-0.5 text-xs text-slate-500 whitespace-nowrap ml-auto flex-shrink-0 tabular-nums">
+    <span className="inline-flex items-center gap-0.5 text-xs text-slate-900 whitespace-nowrap ml-auto flex-shrink-0 tabular-nums">
       {isVideo ? (
         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
           <path
@@ -333,7 +333,7 @@ function SectionList({
           )}
           {stage.tldr && (
             <p
-              className={`text-sm text-slate-600 overflow-hidden transition-[max-height] duration-500 ease-in-out mt-0.5`}
+              className={`text-sm text-slate-900 overflow-hidden transition-[max-height] duration-500 ease-in-out mt-0.5`}
               style={{ maxHeight: allTldrsExpanded ? "20em" : 0 }}
             >
               {stage.tldr}
@@ -558,7 +558,7 @@ function ModuleRow({
         </span>
         <span className="flex items-center gap-1.5 ml-auto flex-shrink-0">
           {!isExpanded && duration ? (
-            <span className="text-xs text-slate-500 whitespace-nowrap tabular-nums">
+            <span className="text-xs text-slate-900 whitespace-nowrap tabular-nums">
               {formatDurationMinutes(duration)}
             </span>
           ) : null}

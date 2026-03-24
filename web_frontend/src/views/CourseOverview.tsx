@@ -280,8 +280,8 @@ export default function CourseOverview({
               <div className="flex items-center gap-4">
                 <a
                   href="/course"
-                  className="font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200"
-                  style={{ color: "var(--brand-text-muted)" }}
+                  className="font-medium text-sm transition-colors duration-200"
+                  style={{ color: "var(--brand-text)" }}
                 >
                   Course
                 </a>

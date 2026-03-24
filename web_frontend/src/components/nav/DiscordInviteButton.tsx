@@ -5,7 +5,7 @@ export function DiscordInviteButton() {
   return (
     <a
       href={DISCORD_INVITE_URL}
-      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border-2 border-[var(--brand-border)] text-[var(--brand-text-muted)] font-medium text-sm hover:border-lens-gold-300 hover:bg-lens-gold-50 transition-all duration-200"
+      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[var(--brand-text)] font-medium text-sm hover:bg-lens-gold-50 transition-all duration-200"
     >
       <DiscordIcon />
       Community

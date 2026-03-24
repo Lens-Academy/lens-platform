@@ -143,11 +143,7 @@ export default function ModuleOverview({
         <div className="relative z-[5] flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
             <span
-              className={`font-medium ${
-                isCompleted || isViewing
-                  ? "text-[var(--brand-text)]"
-                  : "text-[var(--brand-text-muted)]"
-              }`}
+              className="font-medium text-[var(--brand-text)]"
               style={{ fontFamily: "var(--brand-font-display)" }}
             >
               {stage.title}
@@ -160,7 +156,7 @@ export default function ModuleOverview({
               const contentTime = Math.round(stage.duration / 1.5);
               const aiTime = stage.duration - contentTime;
               return (
-                <span className="inline-flex items-center gap-0.5 whitespace-nowrap text-sm text-[var(--brand-text-muted)] ml-auto flex-shrink-0">
+                <span className="inline-flex items-center gap-0.5 whitespace-nowrap text-sm text-[var(--brand-text)] ml-auto flex-shrink-0">
                   {isVideo ? (
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path
@@ -190,7 +186,7 @@ export default function ModuleOverview({
               );
             })()}
           </div>
-          <div className="text-sm text-[var(--brand-text-muted)] flex items-center gap-1.5">
+          <div className="text-sm text-[var(--brand-text)] flex items-center gap-1.5">
             {stage.optional && <OptionalBadge />}
             {stage.type === "chat"
               ? "Discuss with AI tutor"
@@ -223,7 +219,7 @@ export default function ModuleOverview({
                 })()}
           </div>
           {stage.tldr && (
-            <p className="mt-1 text-sm text-[var(--brand-text-muted)]">
+            <p className="mt-1 text-sm text-[var(--brand-text)]">
               {stage.tldr}
             </p>
           )}
@@ -319,7 +315,7 @@ export default function ModuleOverview({
           {prevModule ? (
             <button
               onClick={() => onNavigate?.("prev")}
-              className="flex items-center gap-1 text-sm text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] transition-colors min-w-0 max-w-[45%]"
+              className="flex items-center gap-1 text-sm text-[var(--brand-text)] hover:text-[var(--brand-text)] transition-colors min-w-0 max-w-[45%]"
             >
               <ChevronLeft className="w-4 h-4 flex-shrink-0" />
               <span className="truncate">{prevModule.title}</span>
@@ -330,7 +326,7 @@ export default function ModuleOverview({
           {nextModule ? (
             <button
               onClick={() => onNavigate?.("next")}
-              className="flex items-center gap-1 text-sm text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] transition-colors min-w-0 max-w-[45%]"
+              className="flex items-center gap-1 text-sm text-[var(--brand-text)] hover:text-[var(--brand-text)] transition-colors min-w-0 max-w-[45%]"
             >
               <span className="truncate">{nextModule.title}</span>
               <ChevronRight className="w-4 h-4 flex-shrink-0" />
