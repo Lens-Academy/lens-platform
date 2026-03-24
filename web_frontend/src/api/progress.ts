@@ -85,3 +85,19 @@ export async function sendHeartbeatPing(
   });
   // Fire and forget - don't throw on error
 }
+
+export async function getCompletedContentIds(): Promise<Set<string>> {
+  const res = await fetchWithRefresh(`${API_BASE}/api/progress/completed`, {
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      return new Set();
+    }
+    throw new Error("Failed to fetch completed content IDs");
+  }
+
+  const data = await res.json();
+  return new Set(data.completed);
+}
