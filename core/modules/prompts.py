@@ -126,7 +126,7 @@ def build_course_overview(
 
         for i, section in enumerate(module.sections):
             title = section.get("meta", {}).get("title", "Untitled")
-            tldr = section.get("tldr", "")
+            tldr = section.get("summaryForTutor") or section.get("tldr", "")
             content_id = section.get("contentId")
 
             # Status marker

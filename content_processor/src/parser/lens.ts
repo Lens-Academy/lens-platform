@@ -77,6 +77,7 @@ export interface ParsedLens {
   id: string;
   title?: string;
   tldr?: string;
+  summaryForTutor?: string;
   segments: ParsedLensSegment[];
 }
 
@@ -587,6 +588,7 @@ export function parseLens(content: string, file: string): LensParseResult {
 
   const title = typeof frontmatter.title === 'string' ? frontmatter.title : undefined;
   const tldr = typeof frontmatter.tldr === 'string' ? frontmatter.tldr : undefined;
+  const summaryForTutor = typeof frontmatter.summary_for_tutor === 'string' ? frontmatter.summary_for_tutor : undefined;
   if (tldr) {
     const wordCount = tldr.trim().split(/\s+/).filter(Boolean).length;
     if (wordCount > 80) {
@@ -657,6 +659,7 @@ export function parseLens(content: string, file: string): LensParseResult {
     id: frontmatter.id as string,
     title,
     tldr,
+    summaryForTutor,
     segments: parsedSegments,
   };
 

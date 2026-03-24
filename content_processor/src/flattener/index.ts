@@ -507,6 +507,7 @@ function processLOWithSubmodules(
         learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
         contentId: lens.id ?? null,
         tldr: lens.tldr,
+        summaryForTutor: lens.summaryForTutor,
         ...computeSectionStats(segments),
         displayType: computeDisplayType(segments),
       } as Section);
@@ -708,6 +709,7 @@ function flattenLearningOutcomeSection(
       learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
       contentId: lens.id ?? null,
       tldr: lens.tldr,
+      summaryForTutor: lens.summaryForTutor,
       ...computeSectionStats(segments),
       displayType: computeDisplayType(segments),
     };
@@ -758,6 +760,7 @@ function flattenLensSection(
       learningOutcomeName: null,
       contentId: inlineLens.id ?? null,
       tldr: inlineLens.tldr,
+      summaryForTutor: inlineLens.summaryForTutor,
       ...computeSectionStats(segments),
       displayType: computeDisplayType(segments),
     };
@@ -859,6 +862,7 @@ function flattenLensSection(
     learningOutcomeName: null,
     contentId: lens.id ?? null,
     tldr: lens.tldr,
+    summaryForTutor: lens.summaryForTutor,
     ...computeSectionStats(segments),
     displayType: computeDisplayType(segments),
   };
@@ -1315,6 +1319,7 @@ export function flattenLens(
     learningOutcomeName: null,
     contentId: lens.id ?? null,
     tldr: lens.tldr,
+    summaryForTutor: lens.summaryForTutor,
     ...computeSectionStats(segments),
     displayType: computeDisplayType(segments),
   };

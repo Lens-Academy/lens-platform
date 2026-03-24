@@ -43,6 +43,7 @@ export interface Section {
   wordCount?: number;              // word count of text + article segments
   videoDurationSeconds?: number;   // total seconds of video segments
   tldr?: string;
+  summaryForTutor?: string;
 }
 
 export interface SectionMeta {
