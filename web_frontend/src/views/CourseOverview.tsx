@@ -205,7 +205,7 @@ export default function CourseOverview({
         `}
         style={{
           backgroundColor:
-            "color-mix(in srgb, var(--brand-bg) 80%, transparent)",
+            "var(--brand-bg)",
           borderColor: "var(--brand-border)",
           fontFamily: "var(--brand-font-body)",
         }}
@@ -303,7 +303,7 @@ export default function CourseOverview({
         {/* Desktop: inline sidebar — fills space left of the centered content */}
         {!isMobile && (
           <div
-            className="flex-shrink-0 transition-[width] duration-200"
+            className="flex-shrink-0 transition-[width] duration-200 min-[90rem]:!bg-[var(--brand-bg-alt)]"
             style={{
               /* Content is centered in viewport; sidebar fills the left margin.
                  margin-left = (100vw - content_width) / 2, clamped to min sidebar width.
@@ -312,13 +312,15 @@ export default function CourseOverview({
               backgroundColor: "var(--brand-bg)",
             }}
           >
-            <div className="max-w-sm ml-auto h-full">
+            <div className="max-w-sm ml-auto h-full min-[90rem]:py-4 min-[90rem]:pr-3 min-[90rem]:pl-4">
+            <div className="h-full min-[90rem]:rounded-2xl min-[90rem]:shadow-lg min-[90rem]:overflow-hidden min-[90rem]:border min-[90rem]:border-[var(--brand-border)]">
             <CourseTimeline
               courseTitle={courseProgress.course.title}
               units={courseProgress.units}
               selectedModuleSlug={selectedModule?.slug ?? null}
               onModuleSelect={handleModuleSelect}
             />
+            </div>
             </div>
           </div>
         )}
