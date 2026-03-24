@@ -20,18 +20,31 @@ async def get_tools(mcp_manager: MCPClientManager) -> list[dict] | None:
 
     Caches tool definitions after first load (they don't change between requests).
     Returns None (not empty list) when no tools are available.
+    If loading fails (stale session), resets and retries once.
     """
     if mcp_manager.tools_cache is not None:
         return mcp_manager.tools_cache or None
 
-    session = await mcp_manager.get_session()
-    if not session:
-        return None
+    for attempt in range(2):
+        session = await mcp_manager.get_session()
+        if not session:
+            return None
 
-    mcp_tools = await alignment_search.load_tools(session)
-    logger.info("Loaded %d MCP tools", len(mcp_tools))
-    mcp_manager.tools_cache = mcp_tools
-    return mcp_tools if mcp_tools else None
+        mcp_tools = await alignment_search.load_tools(session)
+        if mcp_tools:
+            logger.info("Loaded %d MCP tools", len(mcp_tools))
+            mcp_manager.tools_cache = mcp_tools
+            return mcp_tools
+
+        if attempt == 0:
+            # Tools failed to load — session may be stale, reconnect and retry
+            logger.info("No MCP tools loaded, resetting session and retrying")
+            await mcp_manager.reset()
+            continue
+
+    logger.info("Loaded 0 MCP tools after retry")
+    mcp_manager.tools_cache = []
+    return None
 
 
 async def execute_tool(mcp_manager: MCPClientManager, tool_call) -> str:

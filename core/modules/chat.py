@@ -183,8 +183,23 @@ async def send_module_message(
         debug_text = f"**[DEBUG - System Prompt]**\n\n```\n{system}\n```\n\n**[DEBUG - Messages]**\n\n```\n{messages}\n```\n\n---\n\n"
         yield {"type": "text", "content": debug_text}
 
-    # Filter out system messages (stage transition markers) - LLM APIs don't accept them in messages
-    api_messages = [m for m in messages if m["role"] != "system"]
+    # Filter out system messages (stage transition markers) - LLM APIs don't accept them in messages.
+    # Also strip tool_calls/tool messages when no tools are available — Anthropic
+    # rejects tool_calls in messages if tools= param is not set.
+    if tools:
+        api_messages = [m for m in messages if m["role"] != "system"]
+    else:
+        api_messages = []
+        for m in messages:
+            if m["role"] == "system":
+                continue
+            if m["role"] == "tool":
+                continue  # drop tool result messages
+            if m["role"] == "assistant" and "tool_calls" in m:
+                # Keep assistant text but strip tool_calls metadata
+                api_messages.append({"role": "assistant", "content": m.get("content", "")})
+            else:
+                api_messages.append(m)
 
     model = provider or DEFAULT_PROVIDER
 
