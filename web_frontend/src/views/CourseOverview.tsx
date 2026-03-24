@@ -210,22 +210,19 @@ export default function CourseOverview({
           fontFamily: "var(--brand-font-body)",
         }}
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+        {isMobile ? (
+          <div className="flex items-center justify-between h-16 px-4">
             <div className="flex items-center gap-2">
-              {/* Mobile menu button */}
-              {isMobile && (
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="p-2 -ml-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-black/5 rounded-lg transition-colors"
-                  aria-label="Open course menu"
-                >
-                  <Menu
-                    className="w-5 h-5"
-                    style={{ color: "var(--brand-text-muted)" }}
-                  />
-                </button>
-              )}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 -ml-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-black/5 rounded-lg transition-colors"
+                aria-label="Open course menu"
+              >
+                <Menu
+                  className="w-5 h-5"
+                  style={{ color: "var(--brand-text-muted)" }}
+                />
+              </button>
               <a href="/" className="flex items-center gap-2">
                 <img
                   src="/assets/Logo_magnifying_glass.png"
@@ -244,46 +241,85 @@ export default function CourseOverview({
               </a>
             </div>
             <div className="flex items-center gap-4">
-              <a
-                href="/course"
-                className="font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200 hidden md:block"
-                style={{ color: "var(--brand-text-muted)" }}
-              >
-                Course
-              </a>
-              <div className="hidden md:block">
-                <DiscordInviteButton />
-              </div>
               <UserMenu />
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center h-16">
+            {/* Left section — aligned with sidebar content */}
+            <div
+              className="flex-shrink-0 h-full flex items-center"
+              style={{ width: "max(20rem, calc((100vw - 42rem) / 2))" }}
+            >
+              <div className="max-w-sm ml-auto w-full px-4">
+                <a href="/" className="flex items-center gap-2">
+                  <img
+                    src="/assets/Logo_magnifying_glass.png"
+                    alt="Lens Academy"
+                    className="h-8"
+                  />
+                  <span
+                    className="text-xl font-medium"
+                    style={{
+                      color: "var(--brand-text)",
+                      fontFamily: "var(--brand-font-display)",
+                    }}
+                  >
+                    Lens Academy
+                  </span>
+                </a>
+              </div>
+            </div>
+            {/* Right section — symmetrical: same margin as logo's left margin */}
+            <div
+              className="flex-1 h-full flex items-center justify-end"
+              style={{
+                paddingRight: "max(1rem, calc((100vw - 42rem) / 2 - 24rem + 1rem))",
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <a
+                  href="/course"
+                  className="font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200"
+                  style={{ color: "var(--brand-text-muted)" }}
+                >
+                  Course
+                </a>
+                <DiscordInviteButton />
+                <UserMenu />
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
       {/* Spacer for fixed header */}
       <div className="h-16 flex-shrink-0" />
 
       {/* Two-panel layout */}
       <div
-        className="flex-1 relative overflow-hidden"
+        className="flex-1 flex relative overflow-hidden"
         style={{ backgroundColor: "var(--brand-bg-alt)" }}
       >
-        {/* Gold bleed for sidebar's left side */}
+        {/* Desktop: inline sidebar — fills space left of the centered content */}
         {!isMobile && (
           <div
-            className="absolute top-0 bottom-0 left-0 w-1/2"
-            style={{ backgroundColor: "var(--brand-bg)" }}
-          />
-        )}
-        <div className="relative flex flex-1 max-w-7xl mx-auto w-full">
-        {/* Desktop: inline sidebar */}
-        {!isMobile && (
-          <div className="w-80 xl:w-96 2xl:w-[28rem] flex-shrink-0 transition-[width] duration-200">
+            className="flex-shrink-0 transition-[width] duration-200"
+            style={{
+              /* Content is centered in viewport; sidebar fills the left margin.
+                 margin-left = (100vw - content_width) / 2, clamped to min sidebar width.
+                 Sidebar width = that margin. */
+              width: "max(20rem, calc((100vw - 42rem) / 2))",
+              backgroundColor: "var(--brand-bg)",
+            }}
+          >
+            <div className="max-w-sm ml-auto h-full">
             <CourseTimeline
               courseTitle={courseProgress.course.title}
               units={courseProgress.units}
               selectedModuleSlug={selectedModule?.slug ?? null}
               onModuleSelect={handleModuleSelect}
             />
+            </div>
           </div>
         )}
 
@@ -376,7 +412,6 @@ export default function CourseOverview({
             </div>
           )}
           </div>
-        </div>
         </div>
       </div>
     </div>
