@@ -130,7 +130,7 @@ export interface RoleplaySegment {
 export type Segment = TextSegment | ChatSegment | ArticleSegment | VideoSegment | QuestionSegment | RoleplaySegment;
 
 import { flattenModule, flattenLens } from './flattener/index.js';
-import { populateCardModuleSlugs } from './flattener/resolve-text-links.js';
+import { populateCardModuleSlugs, resolveInlineLensModuleSlugs } from './flattener/resolve-text-links.js';
 import { parseModule, hasFieldBeforeSegmentHeaders } from './parser/module.js';
 import { parseCourse } from './parser/course.js';
 import { parseLearningOutcome } from './parser/learning-outcome.js';
@@ -465,6 +465,7 @@ export function processContent(files: Map<string, string>): ProcessResult {
   }
   for (const mod of modules) {
     populateCardModuleSlugs(mod.sections, contentIdToModuleSlug);
+    resolveInlineLensModuleSlugs(mod.sections, contentIdToModuleSlug);
   }
 
   // Resolve course module paths to frontmatter slugs.

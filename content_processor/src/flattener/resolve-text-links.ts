@@ -164,6 +164,34 @@ export function populateCardModuleSlugs(
   }
 }
 
+const INLINE_LENS_RE = /\[([^\]]+)\]\(lens:([a-f0-9-]+)\)/g;
+
+/**
+ * Post-processing step: add moduleSlug to inline lens links.
+ * Rewrites [text](lens:contentId) → [text](lens:contentId@moduleSlug)
+ * for lenses that appear in the contentId→moduleSlug mapping.
+ * Call from processContent after all modules are flattened.
+ */
+export function resolveInlineLensModuleSlugs(
+  sections: Section[],
+  contentIdToModuleSlug: Map<string, string>,
+): void {
+  for (const section of sections) {
+    for (const seg of section.segments) {
+      if (seg.type !== 'text') continue;
+      if (!seg.content.includes('lens:')) continue;
+
+      seg.content = seg.content.replace(INLINE_LENS_RE, (match, display, contentId) => {
+        const moduleSlug = contentIdToModuleSlug.get(contentId);
+        if (moduleSlug) {
+          return `[${display}](lens:${contentId}@${moduleSlug})`;
+        }
+        return match;
+      });
+    }
+  }
+}
+
 export function enrichCardLinks(sections: Section[]): void {
   // Build lookup: contentId → enrichment data
   const lookup = new Map<string, CardEnrichment>();

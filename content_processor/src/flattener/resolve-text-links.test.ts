@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveTextLinks, populateCardModuleSlugs } from './resolve-text-links.js';
+import { resolveTextLinks, populateCardModuleSlugs, resolveInlineLensModuleSlugs } from './resolve-text-links.js';
 import type { Section } from '../index.js';
 
 describe('resolveTextLinks', () => {
@@ -160,5 +160,46 @@ describe('populateCardModuleSlugs', () => {
     const match = (section.segments[0] as { content: string }).content.match(/data-lens-card='([^']+)'/);
     const data = JSON.parse(match![1].replace(/&#39;/g, "'"));
     expect(data.moduleSlug).toBeNull();
+  });
+});
+
+describe('resolveInlineLensModuleSlugs', () => {
+  it('adds moduleSlug to inline lens links', () => {
+    const section: Section = {
+      type: 'lens',
+      meta: { title: 'Host' },
+      contentId: 'host-id',
+      learningOutcomeId: null,
+      learningOutcomeName: null,
+      segments: [
+        { type: 'text', content: 'See [My Lens](lens:aaaa-bbbb)' },
+      ],
+    };
+
+    const mapping = new Map([['aaaa-bbbb', 'other-module']]);
+    resolveInlineLensModuleSlugs([section], mapping);
+
+    expect((section.segments[0] as { content: string }).content).toBe(
+      'See [My Lens](lens:aaaa-bbbb@other-module)'
+    );
+  });
+
+  it('leaves inline lens links unchanged when contentId not in mapping', () => {
+    const section: Section = {
+      type: 'lens',
+      meta: { title: 'Host' },
+      contentId: 'host-id',
+      learningOutcomeId: null,
+      learningOutcomeName: null,
+      segments: [
+        { type: 'text', content: 'See [My Lens](lens:unknown-id)' },
+      ],
+    };
+
+    resolveInlineLensModuleSlugs([section], new Map());
+
+    expect((section.segments[0] as { content: string }).content).toBe(
+      'See [My Lens](lens:unknown-id)'
+    );
   });
 });
