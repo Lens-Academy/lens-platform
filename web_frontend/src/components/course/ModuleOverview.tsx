@@ -81,13 +81,19 @@ export default function ModuleOverview({
     [layout, branchPaths, branchStates],
   );
 
-  // Index of the last trunk item in the layout
-  const lastTrunkLi = (() => {
-    for (let i = layout.length - 1; i >= 0; i--) {
-      if (layout[i].kind === "trunk") return i;
-    }
-    return -1;
-  })();
+  // Pre-filter hidden items so index math (isFirst/isLast/trailsIntoBranch) just works
+  const visibleLayout = useMemo(() => {
+    type VEntry = { item: (typeof layout)[number]; li: number; visibleItems?: { index: number; stage: StageInfo }[] };
+    return layout.reduce<VEntry[]>((acc, item, li) => {
+      if (item.kind === "trunk") {
+        if (!item.stage.hide) acc.push({ item, li });
+      } else {
+        const vis = item.items.filter((bi) => !bi.stage.hide);
+        if (vis.length > 0) acc.push({ item, li, visibleItems: vis });
+      }
+      return acc;
+    }, []);
+  }, [layout]);
 
   // Static mapping so Tailwind's scanner sees full class names
   const textColorMap: Record<string, string> = {
@@ -341,18 +347,14 @@ export default function ModuleOverview({
       <div className="flex-1 overflow-y-auto">
         {/* pl-1 gives space for the selection ring to not be cut off */}
         <div className="pl-1">
-          {layout.map((item, li) => {
-            // Skip hidden items
-            if (item.kind === "trunk" && item.stage.hide) return null;
-            if (item.kind === "branch" && item.items.every((bi) => bi.stage.hide)) return null;
-
+          {visibleLayout.map((entry, vi) => {
+            const { item, li } = entry;
             const colors = layoutColors[li];
-            const isFirst = li === 0;
-            const isLast = li === layout.length - 1;
+            const isFirst = vi === 0;
+            const isLast = vi === visibleLayout.length - 1;
 
             if (item.kind === "trunk" && colors.kind === "trunk") {
-              // Dash the bottom connector when only optional content follows
-              const trailsIntoBranchOnly = li === lastTrunkLi && !isLast;
+              const trailsIntoBranchOnly = visibleLayout[vi + 1]?.item.kind === "branch";
               return (
                 <div key={li} className="relative">
                   {/* Top connector: from previous item to this circle center */}
@@ -381,7 +383,7 @@ export default function ModuleOverview({
 
             if (item.kind === "branch" && colors.kind === "branch") {
               // Leading branch (first layout item) = no preceding trunk
-              const hasPrecedingTrunk = li > 0;
+              const hasPrecedingTrunk = vi > 0 && visibleLayout[vi - 1].item.kind === "trunk";
 
               // Geometry (px from branch wrapper's left edge):
               //   Trunk line center:  14  (0.875rem = half of w-7)
@@ -474,7 +476,7 @@ export default function ModuleOverview({
                   )}
                   {/* Branch items, indented — pt-6 gives the S-curve room to breathe */}
                   <div className="ml-8 pt-6 pb-1">
-                    {item.items.filter((bi) => !bi.stage.hide).map((branchItem, bi) => (
+                    {(entry.visibleItems ?? item.items).map((branchItem, bi) => (
                       <div key={bi} className="relative">
                         {/* Fork-to-circle connector for first item — ends at circle center (22px from top) */}
                         {bi === 0 && hasPrecedingTrunk && (
@@ -490,7 +492,7 @@ export default function ModuleOverview({
                           />
                         )}
                         {/* Branch connector below */}
-                        {bi < item.items.length - 1 && (
+                        {bi < (entry.visibleItems ?? item.items).length - 1 && (
                           <div
                             className={`absolute ${branchConnZ} left-[0.875rem] top-[22px] bottom-0 -translate-x-1/2 dotted-round-v ${forkDotColor(bi + 1)}`}
                           />

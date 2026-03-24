@@ -283,10 +283,23 @@ export default function StageProgressBar({
     "bg-gray-200": { text: "text-gray-300", border: "border-gray-200" },
   };
 
-  // Find the last trunk item index for dashed trailing connector
-  const lastTrunkLi = (() => {
-    for (let i = layout.length - 1; i >= 0; i--) {
-      if (layout[i].kind === "trunk") return i;
+  // Pre-filter hidden items so index math (isFirst/isLast/trailsIntoBranch) just works
+  const visibleLayout = useMemo(() => {
+    type VEntry = { item: (typeof layout)[number]; li: number; visibleItems?: { index: number; stage: StageInfo }[] };
+    return layout.reduce<VEntry[]>((acc, item, li) => {
+      if (item.kind === "trunk") {
+        if (!stages[item.index]?.hide) acc.push({ item, li });
+      } else {
+        const vis = item.items.filter((bi) => !stages[bi.index]?.hide);
+        if (vis.length > 0) acc.push({ item, li, visibleItems: vis });
+      }
+      return acc;
+    }, []);
+  }, [layout, stages]);
+
+  const lastVisibleTrunkVi = (() => {
+    for (let i = visibleLayout.length - 1; i >= 0; i--) {
+      if (visibleLayout[i].item.kind === "trunk") return i;
     }
     return -1;
   })();
@@ -368,13 +381,10 @@ export default function StageProgressBar({
 
       {/* Stage dots */}
       <div className="flex items-start">
-        {layout.map((item, li) => {
-          // Skip entirely hidden trunk items
-          if (item.kind === "trunk" && stages[item.index]?.hide) return null;
+        {visibleLayout.map((entry, vi) => {
+          const { item, li } = entry;
           if (item.kind === "branch") {
-            // Skip branch group if all items are hidden
-            const visibleItems = item.items.filter((bi) => !stages[bi.index]?.hide);
-            if (visibleItems.length === 0) return null;
+            const visibleItems = entry.visibleItems!;
             const dotSize = compact ? 28 : 32;
             const drop = compact ? 20 : 24; // distance from trunk center to branch dot center
             const r = Math.min(8, Math.floor(drop / 2));
@@ -387,11 +397,9 @@ export default function StageProgressBar({
             const segmentColors =
               colors.kind === "branch" ? colors.segmentColors : [];
             const hasPrecedingTrunk =
-              li > 0 && layout[li - 1]?.kind === "trunk";
-            const isAfterLastTrunk =
-              hasPrecedingTrunk &&
-              li - 1 === lastTrunkLi &&
-              lastTrunkLi < layout.length - 1;
+              vi > 0 && visibleLayout[vi - 1].item.kind === "trunk";
+            const isLastBranch = vi - 1 === lastVisibleTrunkVi;
+            const isAfterLastTrunk = hasPrecedingTrunk && isLastBranch;
             // Arc color from first segment
             const arcColor = segmentColors[0] ?? "bg-gray-200";
             const arcTextColor =
@@ -517,8 +525,8 @@ export default function StageProgressBar({
 
           return (
             <div key={li} className="flex items-center">
-              {/* Connector line (except before first) */}
-              {li > 0 && (
+              {/* Connector line (except before first visible) */}
+              {vi > 0 && (
                 <div
                   className={`h-0.5 ${compact ? "w-4" : "w-2 sm:w-4"} ${
                     layoutColors[li].kind === "trunk"

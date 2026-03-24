@@ -283,11 +283,18 @@ function SectionList({
     [layout, branchPaths, branchStates],
   );
 
-  const lastTrunkLi = useMemo(() => {
-    for (let i = layout.length - 1; i >= 0; i--) {
-      if (layout[i].kind === "trunk") return i;
-    }
-    return -1;
+  // Pre-filter hidden items so index math (isFirst/isLast/trailsIntoBranch) just works
+  const visibleLayout = useMemo(() => {
+    type VEntry = { item: (typeof layout)[number]; li: number; visibleItems?: { index: number; stage: StageInfo }[] };
+    return layout.reduce<VEntry[]>((acc, item, li) => {
+      if (item.kind === "trunk") {
+        if (!item.stage.hide) acc.push({ item, li });
+      } else {
+        const vis = item.items.filter((bi) => !bi.stage.hide);
+        if (vis.length > 0) acc.push({ item, li, visibleItems: vis });
+      }
+      return acc;
+    }, []);
   }, [layout]);
 
   if (stages.length === 0) return null;
@@ -376,18 +383,14 @@ function SectionList({
 
   return (
     <div className="ml-5 mt-1.5 mb-1.5 pl-0.5">
-      {layout.map((item, li) => {
-        // Skip hidden trunk items
-        if (item.kind === "trunk" && item.stage.hide) return null;
-        // Skip entirely hidden branch groups
-        if (item.kind === "branch" && item.items.every((bi) => bi.stage.hide)) return null;
-
+      {visibleLayout.map((entry, vi) => {
+        const { item, li } = entry;
         const colors = layoutColors[li];
-        const isFirst = li === 0;
-        const isLast = li === layout.length - 1;
+        const isFirst = vi === 0;
+        const isLast = vi === visibleLayout.length - 1;
 
         if (item.kind === "trunk" && colors.kind === "trunk") {
-          const trailsIntoBranchOnly = li === lastTrunkLi && !isLast;
+          const trailsIntoBranchOnly = visibleLayout[vi + 1]?.item.kind === "branch";
           return (
             <div key={li} className="relative">
               {!isFirst && (
@@ -411,7 +414,7 @@ function SectionList({
         }
 
         if (item.kind === "branch" && colors.kind === "branch") {
-          const hasPrecedingTrunk = li > 0;
+          const hasPrecedingTrunk = vi > 0 && visibleLayout[vi - 1].item.kind === "trunk";
           const segmentColors = colors.segmentColors;
           const endX = branchDotCenter - dotCenter + 1;
 
@@ -472,7 +475,7 @@ function SectionList({
                 />
               )}
               <div className="ml-5 pt-4 pb-0.5">
-                {item.items.filter((bi) => !bi.stage.hide).map((branchItem, bi) => (
+                {(entry.visibleItems ?? item.items).map((branchItem, bi) => (
                   <div key={bi} className="relative">
                     {bi === 0 && hasPrecedingTrunk && (
                       <div
@@ -485,7 +488,7 @@ function SectionList({
                         className={`absolute ${branchConnZ} left-[20px] top-0 h-[20px] -translate-x-1/2 dotted-round-v ${forkDotColor(bi)}`}
                       />
                     )}
-                    {bi < item.items.length - 1 && (
+                    {bi < (entry.visibleItems ?? item.items).length - 1 && (
                       <div
                         className={`absolute ${branchConnZ} left-[20px] top-[20px] bottom-0 -translate-x-1/2 dotted-round-v ${forkDotColor(bi + 1)}`}
                       />
