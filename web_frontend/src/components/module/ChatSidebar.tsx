@@ -44,6 +44,7 @@ type ChatSidebarProps = {
   isLoading: boolean;
   activeToolCall: { name: string; state: string } | null;
   toolCallInsertPoint?: number | null;
+  completedToolCalls?: Array<{ name: string; insertPoint: number }>;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
   /** When true, disables swipe-to-open and hides the FAB (e.g. module drawer is open). */
@@ -60,6 +61,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       isLoading,
       activeToolCall,
       toolCallInsertPoint,
+      completedToolCalls,
       onSendMessage,
       onRetryMessage: _onRetryMessage,
       drawerOpen = false,
@@ -290,6 +292,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           isLoading={isLoading}
           activeToolCall={activeToolCall}
           toolCallInsertPoint={toolCallInsertPoint}
+          completedToolCalls={completedToolCalls}
           containerRef={scrollContainerRef}
           wrapperStartIdx={wrapperStartIdx}
           wrapperMinHeight={

@@ -303,6 +303,87 @@ describe("chatReducer — tool message persistence (Bug #3)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Streaming→finalized transition: tool messages must be interleaved
+// ---------------------------------------------------------------------------
+
+describe("chatReducer — streaming to finalized transition", () => {
+  it("two-round tool call: SEND_SUCCESS with interleaved toolMessages produces correct order", () => {
+    // When the hook provides properly interleaved toolMessages, the reducer
+    // should produce the correct message order.
+    let state = sendStart(initialChatState, "Explain deceptive alignment");
+
+    state = chatReducer(state, {
+      type: "SEND_SUCCESS",
+      userContent: "Explain deceptive alignment",
+      assistantContent: "Here are the combined findings.",
+      toolMessages: [
+        // Round 1: assistant with tool_calls, then tool result
+        {
+          role: "assistant" as const,
+          content: "Let me search.",
+          tool_calls: [{ id: "c1", type: "function", function: { name: "search_alignment_research", arguments: "{}" } }],
+        },
+        { role: "tool" as const, tool_call_id: "c1", name: "search_alignment_research", content: "Result A" },
+        // Round 2: assistant with tool_calls, then tool result
+        {
+          role: "assistant" as const,
+          content: "Let me dig deeper.",
+          tool_calls: [{ id: "c2", type: "function", function: { name: "search_alignment_research", arguments: "{}" } }],
+        },
+        { role: "tool" as const, tool_call_id: "c2", name: "search_alignment_research", content: "Result B" },
+      ],
+    });
+
+    // Messages should be interleaved
+    const roles = state.messages.map((m) => m.role);
+    expect(roles).toEqual([
+      "user", "assistant", "tool", "assistant", "tool", "assistant",
+    ]);
+  });
+
+  it("BUG: tool-only toolMessages (no intermediate assistants) clusters tools at top", () => {
+    // This is what the hook CURRENTLY sends: only role:"tool" messages,
+    // no intermediate assistant messages. This causes all tool panels
+    // to appear before any text after streaming finishes.
+    let state = sendStart(initialChatState, "Explain deceptive alignment");
+
+    state = chatReducer(state, {
+      type: "SEND_SUCCESS",
+      userContent: "Explain deceptive alignment",
+      assistantContent: "Let me search.\n\nLet me dig deeper.\n\nHere are the combined findings.",
+      toolMessages: [
+        // Only tool results — no intermediate assistant messages
+        { role: "tool" as const, tool_call_id: "c1", name: "search_alignment_research", content: "Result A" },
+        { role: "tool" as const, tool_call_id: "c2", name: "search_alignment_research", content: "Result B" },
+      ],
+    });
+
+    // Current behavior: user → tool → tool → assistant (all text concatenated)
+    // This is WRONG — tools appear before any assistant text.
+    const roles = state.messages.map((m) => m.role);
+
+    // The desired behavior: tools should be interleaved with text.
+    // At minimum, tools should NOT all appear before the assistant text.
+    // This test documents that the CURRENT state is broken:
+    // If we just have tool-only toolMessages, the final assistant message
+    // contains ALL the text (pre-tool + mid-tool + post-tool concatenated).
+    // The tool panels render before all that text.
+    //
+    // The fix is for the hook to include intermediate assistant messages
+    // in toolMessages, or to reload from DB after success.
+    expect(roles).toEqual(["user", "tool", "tool", "assistant"]);
+
+    // Verify the assistant message has ALL the text concatenated
+    const assistantMsg = state.messages.find(
+      (m, i) => m.role === "assistant" && i === state.messages.length - 1,
+    );
+    expect(assistantMsg?.content).toContain("Let me search.");
+    expect(assistantMsg?.content).toContain("Let me dig deeper.");
+    expect(assistantMsg?.content).toContain("combined findings");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Bug #1 & #2: Streaming content split point for tool call positioning
 // ---------------------------------------------------------------------------
 
@@ -519,5 +600,277 @@ describe("chatReducer — multiple sequential tool calls", () => {
       name: "search_alignment_research",
       state: "error",
     });
+  });
+
+  it("completed tool calls accumulate in completedToolCalls array", () => {
+    let state = sendStart(initialChatState);
+
+    // Tool A: calling → result
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
+    expect(state.completedToolCalls).toEqual([]);
+    // activeToolCall shows A as calling
+    expect(state.activeToolCall?.state).toBe("calling");
+
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
+    // A is still active (showing result indicator), not yet archived
+    expect(state.completedToolCalls).toEqual([]);
+    expect(state.activeToolCall?.state).toBe("result");
+
+    // Tool B starts: A gets archived to completedToolCalls
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
+    expect(state.completedToolCalls).toHaveLength(1);
+    expect(state.completedToolCalls[0].name).toBe("search_alignment_research");
+    expect(state.activeToolCall?.state).toBe("calling");
+
+    // Tool B completes
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
+    // B is active (result), A is archived
+    expect(state.completedToolCalls).toHaveLength(1);
+
+    // Tool C starts: B gets archived
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
+    expect(state.completedToolCalls).toHaveLength(2);
+
+    // Tool C completes
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
+    // C is active, A+B archived
+    expect(state.completedToolCalls).toHaveLength(2);
+    // Total visible: 2 completed + 1 active = 3 panels
+  });
+
+  it("completedToolCalls is cleared on SEND_SUCCESS", () => {
+    let state = sendStart(initialChatState);
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
+    expect(state.completedToolCalls).toHaveLength(1);
+
+    state = chatReducer(state, {
+      type: "SEND_SUCCESS",
+      userContent: "q",
+      assistantContent: "a",
+    });
+    expect(state.completedToolCalls).toEqual([]);
+  });
+
+  it("completedToolCalls is cleared on SEND_START", () => {
+    let state = sendStart(initialChatState);
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
+
+    state = sendStart(state, "new message");
+    expect(state.completedToolCalls).toEqual([]);
+  });
+
+  it("toolCallInsertPoint only records the FIRST tool call position", () => {
+    let state = sendStart(initialChatState);
+
+    // Stream some pre-tool text
+    state = chatReducer(state, {
+      type: "STREAM_CHUNK",
+      accumulated: "Let me search for that.",
+    });
+
+    // First tool call — captures insert point
+    state = chatReducer(state, {
+      type: "TOOL_CALL",
+      name: "tool_a",
+      state: "calling",
+    });
+    const firstInsertPoint = state.toolCallInsertPoint;
+    expect(firstInsertPoint).toBe("Let me search for that.".length);
+
+    // First tool completes
+    state = chatReducer(state, {
+      type: "TOOL_CALL",
+      name: "tool_a",
+      state: "result",
+    });
+
+    // Second tool call — insert point should NOT change
+    state = chatReducer(state, {
+      type: "TOOL_CALL",
+      name: "tool_b",
+      state: "calling",
+    });
+    expect(state.toolCallInsertPoint).toBe(firstInsertPoint);
+
+    // Third tool call — still same insert point
+    state = chatReducer(state, {
+      type: "TOOL_CALL",
+      name: "tool_c",
+      state: "calling",
+    });
+    expect(state.toolCallInsertPoint).toBe(firstInsertPoint);
+  });
+
+  it("three sequential tool calls: all tool messages included in SEND_SUCCESS", () => {
+    let state = sendStart(initialChatState, "Search three topics");
+
+    const toolMessages = [
+      {
+        role: "assistant" as const,
+        content: "",
+        tool_calls: [
+          { id: "call_1", type: "function", function: { name: "search_alignment_research", arguments: '{"query":"deceptive alignment"}' } },
+          { id: "call_2", type: "function", function: { name: "search_alignment_research", arguments: '{"query":"mesa optimization"}' } },
+          { id: "call_3", type: "function", function: { name: "search_alignment_research", arguments: '{"query":"inner alignment"}' } },
+        ],
+      },
+      { role: "tool" as const, tool_call_id: "call_1", name: "search_alignment_research", content: "Result 1" },
+      { role: "tool" as const, tool_call_id: "call_2", name: "search_alignment_research", content: "Result 2" },
+      { role: "tool" as const, tool_call_id: "call_3", name: "search_alignment_research", content: "Result 3" },
+    ];
+
+    state = chatReducer(state, {
+      type: "SEND_SUCCESS",
+      userContent: "Search three topics",
+      assistantContent: "Here's what I found across all three searches.",
+      toolMessages,
+    });
+
+    // Should have: user, assistant+tool_calls, tool, tool, tool, assistant
+    const roles = state.messages.map((m) => m.role);
+    expect(roles).toEqual([
+      "user", "assistant", "tool", "tool", "tool", "assistant",
+    ]);
+
+    // Verify all three tool results are present
+    const toolMsgs = state.messages.filter((m) => m.role === "tool");
+    expect(toolMsgs).toHaveLength(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Alternating text and tool calls (multi-round tool loop)
+// ---------------------------------------------------------------------------
+
+describe("chatReducer — alternating text and tool calls", () => {
+  it("simulates: text → tool → text → tool → text (two LLM rounds with tools)", () => {
+    let state = sendStart(initialChatState, "Explain deceptive alignment");
+
+    // Round 1: LLM streams pre-tool text
+    state = chatReducer(state, {
+      type: "STREAM_CHUNK",
+      accumulated: "Let me search for that.",
+    });
+
+    // Round 1: Tool call starts
+    state = chatReducer(state, {
+      type: "TOOL_CALL",
+      name: "search_alignment_research",
+      state: "calling",
+    });
+    expect(state.toolCallInsertPoint).toBe("Let me search for that.".length);
+
+    // Round 1: Tool completes
+    state = chatReducer(state, {
+      type: "TOOL_CALL",
+      name: "search_alignment_research",
+      state: "result",
+    });
+
+    // Round 2: LLM streams mid-text (after seeing tool result)
+    state = chatReducer(state, {
+      type: "STREAM_CHUNK",
+      accumulated: "Let me search for that.\n\nBased on that, let me search deeper.",
+    });
+
+    // Round 2: Second tool call
+    state = chatReducer(state, {
+      type: "TOOL_CALL",
+      name: "search_alignment_research",
+      state: "calling",
+    });
+    // Insert point updates to second tool call position
+    expect(state.toolCallInsertPoint).toBe(
+      "Let me search for that.\n\nBased on that, let me search deeper.".length,
+    );
+    // First tool is archived with its own insert point
+    expect(state.completedToolCalls).toHaveLength(1);
+    expect(state.completedToolCalls[0].insertPoint).toBe("Let me search for that.".length);
+
+    // Round 2: Second tool completes
+    state = chatReducer(state, {
+      type: "TOOL_CALL",
+      name: "search_alignment_research",
+      state: "result",
+    });
+
+    // Final text
+    state = chatReducer(state, {
+      type: "STREAM_CHUNK",
+      accumulated: "Let me search for that.\n\nBased on that, let me search deeper.\n\nHere are the combined findings.",
+    });
+
+    // toolCallInsertPoint now points to the SECOND tool's position
+    // First tool's position is in completedToolCalls[0].insertPoint
+    const firstSplit = state.completedToolCalls[0].insertPoint;
+    const secondSplit = state.toolCallInsertPoint!;
+    expect(state.streamingContent.slice(0, firstSplit)).toBe("Let me search for that.");
+    expect(state.streamingContent.slice(firstSplit, secondSplit)).toContain("Based on that");
+    expect(state.streamingContent.slice(secondSplit)).toContain("combined findings");
+  });
+
+  it("each completed tool call records its own insert point in streamingContent", () => {
+    let state = sendStart(initialChatState, "Explain deceptive alignment");
+
+    // Round 1: pre-tool text
+    state = chatReducer(state, {
+      type: "STREAM_CHUNK",
+      accumulated: "Let me search.",
+    });
+
+    // Round 1: tool A
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "result" });
+
+    // Round 2: mid-text arrives
+    state = chatReducer(state, {
+      type: "STREAM_CHUNK",
+      accumulated: "Let me search.\n\nBased on that, let me dig deeper.",
+    });
+
+    // Round 2: tool B starts — archives tool A with its insert point
+    state = chatReducer(state, { type: "TOOL_CALL", name: "search_alignment_research", state: "calling" });
+
+    // Tool A should be archived with its insert point (14 = "Let me search.".length)
+    expect(state.completedToolCalls).toHaveLength(1);
+    expect(state.completedToolCalls[0].insertPoint).toBe("Let me search.".length);
+
+    // Tool B's insert point (the current toolCallInsertPoint for activeToolCall)
+    // should be at the END of "Let me search.\n\nBased on that, let me dig deeper."
+    // NOT at the same position as tool A
+    expect(state.toolCallInsertPoint).not.toBe(state.completedToolCalls[0].insertPoint);
+    expect(state.toolCallInsertPoint).toBe(
+      "Let me search.\n\nBased on that, let me dig deeper.".length,
+    );
+  });
+
+  it("tool call with no pre-text: insert point is 0", () => {
+    let state = sendStart(initialChatState, "Search immediately");
+
+    // Tool call fires before any text streams
+    state = chatReducer(state, {
+      type: "TOOL_CALL",
+      name: "search_alignment_research",
+      state: "calling",
+    });
+
+    expect(state.toolCallInsertPoint).toBe(0);
+    expect(state.streamingContent).toBe("");
+
+    // Post-tool text arrives
+    state = chatReducer(state, {
+      type: "STREAM_CHUNK",
+      accumulated: "Here are the results.",
+    });
+
+    // All content is post-tool
+    const preToolContent = state.streamingContent.slice(0, state.toolCallInsertPoint!);
+    const postToolContent = state.streamingContent.slice(state.toolCallInsertPoint!);
+    expect(preToolContent).toBe("");
+    expect(postToolContent).toBe("Here are the results.");
   });
 });

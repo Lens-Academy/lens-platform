@@ -30,6 +30,7 @@ type ChatInlineShellProps = {
   isLoading: boolean;
   activeToolCall?: { name: string; state: string } | null;
   toolCallInsertPoint?: number | null;
+  completedToolCalls?: Array<{ name: string; insertPoint: number }>;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
   activated?: boolean;
@@ -74,6 +75,7 @@ export function ChatInlineShell({
   isLoading,
   activeToolCall,
   toolCallInsertPoint,
+  completedToolCalls,
   onSendMessage,
   onRetryMessage,
   activated,
@@ -500,35 +502,60 @@ export function ChatInlineShell({
                       Tutor
                     </div>
                     {(() => {
-                      const hasInsertPoint = toolCallInsertPoint != null && toolCallInsertPoint >= 0 && streamingContent;
-                      const preToolContent = hasInsertPoint
-                        ? streamingContent.slice(0, toolCallInsertPoint)
-                        : streamingContent;
-                      const postToolContent = hasInsertPoint
-                        ? streamingContent.slice(toolCallInsertPoint)
-                        : null;
-                      return (
-                        <>
-                          {preToolContent && <ChatMarkdown>{preToolContent}</ChatMarkdown>}
-                          {activeToolCall && (
-                            <div className="my-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
-                              <div className="flex items-center gap-2 px-3 py-2">
-                                {isToolCalling ? (
-                                  <Search size={14} className="animate-pulse text-gray-500 shrink-0" />
-                                ) : (
-                                  <Check size={14} className="text-green-600 shrink-0" />
-                                )}
-                                <span className={isToolCalling ? "text-gray-500" : "text-gray-700"}>
-                                  {isToolCalling
-                                    ? ({search_alignment_research: "Searching alignment research\u2026"}[activeToolCall.name] ?? "Using tool\u2026")
-                                    : ({search_alignment_research: "Searched alignment research"}[activeToolCall.name] ?? "Tool completed")}
-                                </span>
-                              </div>
+                      const CALLING_LABELS: Record<string, string> = {
+                        search_alignment_research: "Searching alignment research\u2026",
+                      };
+                      const DONE_LABELS: Record<string, string> = {
+                        search_alignment_research: "Searched alignment research",
+                      };
+
+                      type ToolEntry = { name: string; insertPoint: number; isCalling: boolean };
+                      const allTools: ToolEntry[] = [
+                        ...(completedToolCalls ?? []).map((tc) => ({
+                          name: tc.name, insertPoint: tc.insertPoint, isCalling: false,
+                        })),
+                        ...(activeToolCall && toolCallInsertPoint != null
+                          ? [{ name: activeToolCall.name, insertPoint: toolCallInsertPoint, isCalling: isToolCalling }]
+                          : []),
+                      ];
+
+                      if (!allTools.length) {
+                        return streamingContent ? <ChatMarkdown>{streamingContent}</ChatMarkdown> : null;
+                      }
+
+                      allTools.sort((a, b) => a.insertPoint - b.insertPoint);
+                      const elements: React.ReactNode[] = [];
+                      let cursor = 0;
+
+                      for (let i = 0; i < allTools.length; i++) {
+                        const tool = allTools[i];
+                        if (streamingContent && tool.insertPoint > cursor) {
+                          const seg = streamingContent.slice(cursor, tool.insertPoint);
+                          if (seg) elements.push(<ChatMarkdown key={`text-${i}`}>{seg}</ChatMarkdown>);
+                        }
+                        cursor = tool.insertPoint;
+                        elements.push(
+                          <div key={`tool-${i}`} className="my-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
+                            <div className="flex items-center gap-2 px-3 py-2">
+                              {tool.isCalling ? (
+                                <Search size={14} className="animate-pulse text-gray-500 shrink-0" />
+                              ) : (
+                                <Check size={14} className="text-green-600 shrink-0" />
+                              )}
+                              <span className={tool.isCalling ? "text-gray-500" : "text-gray-700"}>
+                                {tool.isCalling
+                                  ? (CALLING_LABELS[tool.name] ?? "Using tool\u2026")
+                                  : (DONE_LABELS[tool.name] ?? "Tool completed")}
+                              </span>
                             </div>
-                          )}
-                          {postToolContent && <ChatMarkdown>{postToolContent}</ChatMarkdown>}
-                        </>
-                      );
+                          </div>,
+                        );
+                      }
+                      if (streamingContent && cursor < streamingContent.length) {
+                        const remaining = streamingContent.slice(cursor);
+                        if (remaining) elements.push(<ChatMarkdown key="text-final">{remaining}</ChatMarkdown>);
+                      }
+                      return <>{elements}</>;
                     })()}
                   </div>
                 )}

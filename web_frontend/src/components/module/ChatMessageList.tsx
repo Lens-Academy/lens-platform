@@ -82,6 +82,9 @@ type ChatMessageListProps = {
   /** Character offset in streamingContent where tool call was inserted.
    *  When set, streaming content is split: [0..point] | toolIndicator | [point..] */
   toolCallInsertPoint?: number | null;
+  /** Completed tool calls accumulated during streaming (rendered as panels).
+   *  Each entry includes its position in streamingContent for correct placement. */
+  completedToolCalls?: Array<{ name: string; insertPoint: number }>;
 };
 
 export function renderMessage(msg: ChatMessage, key: string | number) {
@@ -152,6 +155,7 @@ export function ChatMessageList({
   wrapperMinHeight,
   minHeightWrapperRef,
   toolCallInsertPoint,
+  completedToolCalls,
 }: ChatMessageListProps) {
   const visibleMessages = messages.slice(startIndex);
   const useWrapper = wrapperStartIdx != null;
@@ -193,14 +197,71 @@ export function ChatMessageList({
       : <ToolResultPanel msg={{ role: "tool" as const, name: activeToolCall.name, content: "" }} />
   );
 
-  // Split streaming content around tool call insert point
-  const hasInsertPoint = toolCallInsertPoint != null && toolCallInsertPoint >= 0 && streamingContent;
-  const preToolContent = hasInsertPoint
-    ? streamingContent.slice(0, toolCallInsertPoint)
-    : streamingContent;
-  const postToolContent = hasInsertPoint
-    ? streamingContent.slice(toolCallInsertPoint)
-    : null;
+  // Build interleaved segments: text → tool panel → text → tool panel → ...
+  // Each tool call (completed + active) has an insert point in streamingContent.
+  const streamingSegments = (() => {
+    if (!streamingContent && !activeToolCall) return null;
+
+    type ToolEntry = { name: string; insertPoint: number; isActive: boolean; isCalling: boolean };
+    const allTools: ToolEntry[] = [
+      ...(completedToolCalls ?? []).map((tc) => ({
+        name: tc.name,
+        insertPoint: tc.insertPoint,
+        isActive: false,
+        isCalling: false,
+      })),
+      ...(activeToolCall && toolCallInsertPoint != null
+        ? [{
+            name: activeToolCall.name,
+            insertPoint: toolCallInsertPoint,
+            isActive: true,
+            isCalling: activeToolCall.state === "calling",
+          }]
+        : []),
+    ];
+
+    if (!allTools.length) {
+      // No tool calls — render all content, then indicator if active
+      return (
+        <>
+          {streamingContent && <ChatMarkdown>{streamingContent}</ChatMarkdown>}
+          {toolIndicator}
+        </>
+      );
+    }
+
+    // Sort by insert point position
+    allTools.sort((a, b) => a.insertPoint - b.insertPoint);
+
+    const elements: React.ReactNode[] = [];
+    let cursor = 0;
+
+    for (let i = 0; i < allTools.length; i++) {
+      const tool = allTools[i];
+      // Text segment before this tool
+      if (streamingContent && tool.insertPoint > cursor) {
+        const segment = streamingContent.slice(cursor, tool.insertPoint);
+        if (segment) elements.push(<ChatMarkdown key={`text-${i}`}>{segment}</ChatMarkdown>);
+      }
+      cursor = tool.insertPoint;
+      // Tool panel
+      if (tool.isCalling) {
+        elements.push(<ToolCallingIndicator key={`tool-${i}`} name={tool.name} />);
+      } else {
+        elements.push(
+          <ToolResultPanel key={`tool-${i}`} msg={{ role: "tool" as const, name: tool.name, content: "" }} />,
+        );
+      }
+    }
+
+    // Remaining text after all tools
+    if (streamingContent && cursor < streamingContent.length) {
+      const remaining = streamingContent.slice(cursor);
+      if (remaining) elements.push(<ChatMarkdown key="text-final">{remaining}</ChatMarkdown>);
+    }
+
+    return <>{elements}</>;
+  })();
 
   const streamingEl = isLoading && (streamingContent || activeToolCall) && (
     <div className="text-gray-800">
@@ -208,9 +269,7 @@ export function ChatMessageList({
         <Bot size={13} />
         Tutor
       </div>
-      {preToolContent && <ChatMarkdown>{preToolContent}</ChatMarkdown>}
-      {toolIndicator}
-      {postToolContent && <ChatMarkdown>{postToolContent}</ChatMarkdown>}
+      {streamingSegments}
     </div>
   );
 

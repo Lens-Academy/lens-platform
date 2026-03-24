@@ -573,3 +573,316 @@ describe("ChatMessageList — tool call edge cases (from review)", () => {
     expect(tutorLabels).toHaveLength(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Multiple tool calls from DB history
+// ---------------------------------------------------------------------------
+
+describe("ChatMessageList — multiple tool calls in history", () => {
+  it("renders three tool result panels from a single turn", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Search three topics" },
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          { id: "call_1", type: "function", function: { name: "search_alignment_research", arguments: '{"query":"deceptive alignment"}' } },
+          { id: "call_2", type: "function", function: { name: "search_alignment_research", arguments: '{"query":"mesa optimization"}' } },
+          { id: "call_3", type: "function", function: { name: "search_alignment_research", arguments: '{"query":"inner alignment"}' } },
+        ],
+      },
+      { role: "tool", tool_call_id: "call_1", name: "search_alignment_research", content: "RESULT_ONE" },
+      { role: "tool", tool_call_id: "call_2", name: "search_alignment_research", content: "RESULT_TWO" },
+      { role: "tool", tool_call_id: "call_3", name: "search_alignment_research", content: "RESULT_THREE" },
+      { role: "assistant", content: "Here's what I found across all three searches." },
+    ];
+
+    const { container } = render(<ChatMessageList messages={messages} />);
+
+    // All three tool result panels should be rendered
+    const details = container.querySelectorAll("details");
+    expect(details).toHaveLength(3);
+
+    // All three labels should say "Searched alignment research"
+    const labels = screen.getAllByText("Searched alignment research");
+    expect(labels).toHaveLength(3);
+
+    // All three results should be present
+    expect(screen.getByText("RESULT_ONE")).toBeInTheDocument();
+    expect(screen.getByText("RESULT_TWO")).toBeInTheDocument();
+    expect(screen.getByText("RESULT_THREE")).toBeInTheDocument();
+
+    // Final response visible
+    expect(screen.getByText("Here's what I found across all three searches.")).toBeInTheDocument();
+
+    // Only one "Tutor" label (the assistant with tool_calls has empty content → hidden)
+    const tutorLabels = screen.getAllByText("Tutor");
+    expect(tutorLabels).toHaveLength(1);
+  });
+
+  it("renders tool panels in correct DOM order: user → tool1 → tool2 → tool3 → assistant", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "USER_Q" },
+      { role: "assistant", content: "", tool_calls: [
+        { id: "c1", type: "function", function: { name: "search_alignment_research", arguments: "{}" } },
+        { id: "c2", type: "function", function: { name: "search_alignment_research", arguments: "{}" } },
+      ] },
+      { role: "tool", tool_call_id: "c1", name: "search_alignment_research", content: "TOOL_R1" },
+      { role: "tool", tool_call_id: "c2", name: "search_alignment_research", content: "TOOL_R2" },
+      { role: "assistant", content: "FINAL_A" },
+    ];
+
+    const { container } = render(<ChatMessageList messages={messages} />);
+    const scrollContainer = container.firstElementChild!;
+    const fullText = scrollContainer.textContent || "";
+
+    const userPos = fullText.indexOf("USER_Q");
+    const tool1Pos = fullText.indexOf("TOOL_R1");
+    const tool2Pos = fullText.indexOf("TOOL_R2");
+    const finalPos = fullText.indexOf("FINAL_A");
+
+    expect(userPos).toBeLessThan(tool1Pos);
+    expect(tool1Pos).toBeLessThan(tool2Pos);
+    expect(tool2Pos).toBeLessThan(finalPos);
+  });
+
+  it("renders two-round tool call history (text → tool → text → tool → text)", () => {
+    // This simulates the alternating pattern: the LLM searched, got results,
+    // searched again, then gave a final response.
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Explain deceptive alignment thoroughly" },
+      // Round 1: assistant searches
+      {
+        role: "assistant",
+        content: "Let me search for that.",
+        tool_calls: [
+          { id: "c1", type: "function", function: { name: "search_alignment_research", arguments: '{"query":"deceptive alignment"}' } },
+        ],
+      },
+      { role: "tool", tool_call_id: "c1", name: "search_alignment_research", content: "ROUND1_RESULT" },
+      // Round 2: assistant searches deeper
+      {
+        role: "assistant",
+        content: "Let me dig deeper.",
+        tool_calls: [
+          { id: "c2", type: "function", function: { name: "search_alignment_research", arguments: '{"query":"deceptive alignment examples"}' } },
+        ],
+      },
+      { role: "tool", tool_call_id: "c2", name: "search_alignment_research", content: "ROUND2_RESULT" },
+      // Final response
+      { role: "assistant", content: "Here's my comprehensive explanation." },
+    ];
+
+    const { container } = render(<ChatMessageList messages={messages} />);
+    const scrollContainer = container.firstElementChild!;
+    const fullText = scrollContainer.textContent || "";
+
+    // Both intermediate assistant texts should be visible (they have content)
+    expect(screen.getByText("Let me search for that.")).toBeInTheDocument();
+    expect(screen.getByText("Let me dig deeper.")).toBeInTheDocument();
+
+    // Both tool results should be visible
+    expect(screen.getByText("ROUND1_RESULT")).toBeInTheDocument();
+    expect(screen.getByText("ROUND2_RESULT")).toBeInTheDocument();
+
+    // Final response
+    expect(screen.getByText("Here's my comprehensive explanation.")).toBeInTheDocument();
+
+    // Three "Tutor" labels: two intermediate + one final (all have text content)
+    const tutorLabels = screen.getAllByText("Tutor");
+    expect(tutorLabels).toHaveLength(3);
+
+    // DOM order: user → "Let me search" → tool1 → "dig deeper" → tool2 → "comprehensive"
+    const searchPos = fullText.indexOf("Let me search for that.");
+    const round1Pos = fullText.indexOf("ROUND1_RESULT");
+    const deeperPos = fullText.indexOf("Let me dig deeper.");
+    const round2Pos = fullText.indexOf("ROUND2_RESULT");
+    const finalPos = fullText.indexOf("comprehensive explanation");
+
+    expect(searchPos).toBeLessThan(round1Pos);
+    expect(round1Pos).toBeLessThan(deeperPos);
+    expect(deeperPos).toBeLessThan(round2Pos);
+    expect(round2Pos).toBeLessThan(finalPos);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Streaming with multiple tool calls (live indicator behavior)
+// ---------------------------------------------------------------------------
+
+describe("ChatMessageList — streaming with sequential tool calls", () => {
+  it("during streaming with tool at insert point 0, all content appears after indicator", () => {
+    // Tool call fires before any text — insert point is 0
+    // All streaming text is "post-tool"
+    render(
+      <ChatMessageList
+        messages={[]}
+        isLoading={true}
+        streamingContent="Here are the results from my search."
+        activeToolCall={{
+          name: "search_alignment_research",
+          state: "result",
+        }}
+        toolCallInsertPoint={0}
+      />,
+    );
+
+    // Tool indicator should be present
+    expect(screen.getByText("Searched alignment research")).toBeInTheDocument();
+    // Content should be present
+    expect(screen.getByText("Here are the results from my search.")).toBeInTheDocument();
+  });
+
+  it("streaming content with insert point splits correctly when pre-tool text exists", () => {
+    const { container } = render(
+      <ChatMessageList
+        messages={[]}
+        isLoading={true}
+        streamingContent="Pre-tool text.\n\nMid and post-tool text."
+        activeToolCall={{
+          name: "search_alignment_research",
+          state: "result",
+        }}
+        toolCallInsertPoint={"Pre-tool text.".length}
+      />,
+    );
+
+    const scrollContainer = container.firstElementChild!;
+    const fullText = scrollContainer.textContent || "";
+
+    const prePos = fullText.indexOf("Pre-tool text.");
+    const toolPos = fullText.indexOf("Searched alignment research");
+    const postPos = fullText.indexOf("Mid and post-tool text.");
+
+    expect(prePos).toBeGreaterThanOrEqual(0);
+    expect(toolPos).toBeGreaterThanOrEqual(0);
+    expect(postPos).toBeGreaterThanOrEqual(0);
+
+    expect(prePos).toBeLessThan(toolPos);
+    expect(toolPos).toBeLessThan(postPos);
+  });
+
+  it("shows completed tool panels plus active indicator during streaming with 3 tool calls", () => {
+    // State: tools A+B archived, tool C is calling.
+    // User should see: 2 completed panels + 1 "Searching..." indicator = 3 panels
+    render(
+      <ChatMessageList
+        messages={[]}
+        isLoading={true}
+        streamingContent="Let me search."
+        activeToolCall={{
+          name: "search_alignment_research",
+          state: "calling",
+        }}
+        completedToolCalls={[
+          { name: "search_alignment_research" },
+          { name: "search_alignment_research" },
+        ]}
+        toolCallInsertPoint={"Let me search.".length}
+      />,
+    );
+
+    // Should show 2 completed panels (with "Searched alignment research")
+    const completedLabels = screen.getAllByText("Searched alignment research");
+    expect(completedLabels).toHaveLength(2);
+
+    // Plus 1 active "Searching..." indicator
+    expect(screen.getByText("Searching alignment research\u2026")).toBeInTheDocument();
+  });
+
+  it("shows all 3 tool panels when last tool finishes during streaming", () => {
+    // State: tools A+B archived, tool C just finished (result).
+    // 2 completed + 1 active result = 3 "Searched" labels
+    render(
+      <ChatMessageList
+        messages={[]}
+        isLoading={true}
+        streamingContent="Let me search.\n\nHere are the combined results."
+        activeToolCall={{
+          name: "search_alignment_research",
+          state: "result",
+        }}
+        completedToolCalls={[
+          { name: "search_alignment_research" },
+          { name: "search_alignment_research" },
+        ]}
+        toolCallInsertPoint={"Let me search.".length}
+      />,
+    );
+
+    // 2 from completedToolCalls + 1 from activeToolCall (result state) = 3 panels
+    const completedLabels = screen.getAllByText("Searched alignment research");
+    expect(completedLabels).toHaveLength(3);
+  });
+
+  it("two tool calls at different positions render with text between them", () => {
+    // Streaming content: "Pre-A.\n\nMid-text.\n\nPost-B."
+    // Tool A at position 6 ("Pre-A.".length)
+    // Tool B at position 18 ("Pre-A.\n\nMid-text.".length)
+    // Expected DOM: "Pre-A." → Tool A panel → "Mid-text." → Tool B indicator → "Post-B."
+    const preA = "Pre-A.";
+    const mid = "\n\nMid-text.";
+    const postB = "\n\nPost-B.";
+    const fullContent = preA + mid + postB;
+
+    const { container } = render(
+      <ChatMessageList
+        messages={[]}
+        isLoading={true}
+        streamingContent={fullContent}
+        activeToolCall={{
+          name: "search_alignment_research",
+          state: "calling",
+        }}
+        completedToolCalls={[
+          { name: "search_alignment_research", insertPoint: preA.length },
+        ]}
+        toolCallInsertPoint={preA.length + mid.length}
+      />,
+    );
+
+    const scrollContainer = container.firstElementChild!;
+    const fullText = scrollContainer.textContent || "";
+
+    // Verify all content is present
+    expect(fullText).toContain("Pre-A.");
+    expect(fullText).toContain("Mid-text.");
+    expect(fullText).toContain("Post-B.");
+
+    // Verify DOM order: Pre-A < completed panel < Mid-text < active indicator < Post-B
+    const preAPos = fullText.indexOf("Pre-A.");
+    const completedPos = fullText.indexOf("Searched alignment research");
+    const midPos = fullText.indexOf("Mid-text.");
+    const activePos = fullText.indexOf("Searching alignment research");
+    const postBPos = fullText.indexOf("Post-B.");
+
+    expect(preAPos).toBeLessThan(completedPos);
+    expect(completedPos).toBeLessThan(midPos);
+    expect(midPos).toBeLessThan(activePos);
+    expect(activePos).toBeLessThan(postBPos);
+  });
+
+  it("no tool call insert point: all content renders before indicator (legacy behavior)", () => {
+    const { container } = render(
+      <ChatMessageList
+        messages={[]}
+        isLoading={true}
+        streamingContent="All the text here."
+        activeToolCall={{
+          name: "search_alignment_research",
+          state: "calling",
+        }}
+        // No toolCallInsertPoint — null/undefined
+      />,
+    );
+
+    const scrollContainer = container.firstElementChild!;
+    const fullText = scrollContainer.textContent || "";
+
+    // Text should come before the indicator
+    const textPos = fullText.indexOf("All the text here.");
+    const indicatorPos = fullText.indexOf("Searching alignment research");
+
+    expect(textPos).toBeLessThan(indicatorPos);
+  });
+});

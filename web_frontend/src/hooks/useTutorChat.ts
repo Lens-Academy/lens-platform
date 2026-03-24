@@ -41,6 +41,9 @@ export type ChatState = {
   /** Character offset in streamingContent where the tool call was inserted.
    *  Used by the UI to split streaming text: pre-tool | indicator | post-tool. */
   toolCallInsertPoint: number | null;
+  /** Tool calls that completed during streaming (accumulated for rendering).
+   *  Each entry records where in streamingContent it was inserted. */
+  completedToolCalls: Array<{ name: string; insertPoint: number }>;
 };
 
 export type ChatAction =
@@ -74,6 +77,7 @@ export const initialChatState: ChatState = {
   sendSource: null,
   activeToolCall: null,
   toolCallInsertPoint: null,
+  completedToolCalls: [],
 };
 
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -87,6 +91,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         isLoading: false,
         activeToolCall: null,
         toolCallInsertPoint: null,
+        completedToolCalls: [],
       };
 
     case "SEND_START":
@@ -103,6 +108,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         },
         sendSource: action.source,
         toolCallInsertPoint: null,
+        completedToolCalls: [],
       };
 
     case "STREAM_CHUNK":
@@ -129,6 +135,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         sendSource: null,
         activeToolCall: null,
         toolCallInsertPoint: null,
+        completedToolCalls: [],
       };
 
     case "SEND_FAILURE":
@@ -142,18 +149,36 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         sendSource: null,
         activeToolCall: null,
         toolCallInsertPoint: null,
+        completedToolCalls: [],
       };
 
-    case "TOOL_CALL":
+    case "TOOL_CALL": {
+      // When a new "calling" arrives and the previous tool was "result",
+      // archive the previous one to completedToolCalls with its insert point.
+      const shouldArchive =
+        action.state === "calling" &&
+        state.activeToolCall?.state === "result";
       return {
         ...state,
         activeToolCall: { name: action.name, state: action.state },
-        // Record where in streamingContent the tool call started (only on first "calling")
+        completedToolCalls: shouldArchive
+          ? [
+              ...state.completedToolCalls,
+              {
+                name: state.activeToolCall!.name,
+                insertPoint: state.toolCallInsertPoint ?? 0,
+              },
+            ]
+          : state.completedToolCalls,
+        // Record where in streamingContent this tool call starts.
+        // On first "calling": snapshot current content length.
+        // On subsequent "calling" (new tool round): update to current length.
         toolCallInsertPoint:
-          action.state === "calling" && state.toolCallInsertPoint === null
+          action.state === "calling"
             ? state.streamingContent.length
             : state.toolCallInsertPoint,
       };
+    }
 
     case "CLEAR_PENDING":
       return {
@@ -510,6 +535,7 @@ export function useTutorChat({
     sendSource: chat.sendSource,
     activeToolCall: chat.activeToolCall,
     toolCallInsertPoint: chat.toolCallInsertPoint,
+    completedToolCalls: chat.completedToolCalls,
 
     // Actions
     sendMessage,

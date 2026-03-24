@@ -14,7 +14,7 @@ vi.mock("@/analytics", () => ({
 }));
 
 import { useTutorChat } from "../useTutorChat";
-import { getChatHistory } from "@/api/modules";
+import { sendMessage as sendMessageApi, getChatHistory } from "@/api/modules";
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -198,6 +198,69 @@ describe("useTutorChat", () => {
     expect(result.current.messages).toEqual([
       { role: "user", content: "First real message" },
       { role: "assistant", content: "Reply" },
+    ]);
+  });
+
+  it("after two-round tool call, messages are interleaved (not tools-first)", async () => {
+    // Simulates the SSE stream for: text → tool → text → tool → text
+    // The sendMessage API mock yields events in order.
+    const mockModule: Module = {
+      slug: "test-module",
+      title: "Test Module",
+      sections: [testArticleSection],
+    };
+
+    vi.mocked(getChatHistory).mockResolvedValue({
+      sessionId: 1,
+      messages: [],
+    });
+
+    // Mock sendMessage to yield a two-round tool call sequence
+    async function* twoRoundToolStream() {
+      yield { type: "text", content: "Let me search." };
+      yield { type: "tool_use", name: "search_alignment_research", state: "calling" };
+      yield { type: "tool_use", name: "search_alignment_research", state: "result", result: "Result A" };
+      yield { type: "text", content: "\n\nLet me dig deeper." };
+      yield { type: "tool_use", name: "search_alignment_research", state: "calling" };
+      yield { type: "tool_use", name: "search_alignment_research", state: "result", result: "Result B" };
+      yield { type: "text", content: "\n\nHere are the findings." };
+    }
+    vi.mocked(sendMessageApi).mockReturnValue(twoRoundToolStream());
+
+    const { result } = renderHook(() =>
+      useTutorChat({
+        ...baseOptions,
+        module: mockModule,
+        currentSectionIndex: 0,
+        currentSection: testArticleSection,
+        isArticleSection: true,
+      }),
+    );
+
+    await act(async () => {});
+
+    // Send a message
+    await act(async () => {
+      await result.current.sendMessage("Search two topics", 0, 2, "inline");
+    });
+
+    // After streaming finishes, messages should have tool results interleaved with text
+    const roles = result.current.messages.map((m) => m.role);
+
+    // DESIRED: user → assistant+tc → tool → assistant+tc → tool → assistant
+    // or at minimum the tools should not ALL appear before the text.
+    //
+    // Currently the hook only sends role:"tool" in toolMessages, so we get:
+    // user → tool → tool → assistant (all text concatenated) — BAD
+    //
+    // This test asserts the DESIRED behavior:
+    expect(roles).toEqual([
+      "user",
+      "assistant",  // "Let me search." with tool_calls
+      "tool",       // Result A
+      "assistant",  // "Let me dig deeper." with tool_calls
+      "tool",       // Result B
+      "assistant",  // "Here are the findings."
     ]);
   });
 });
