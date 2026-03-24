@@ -28,7 +28,7 @@ import type { ModuleCompletionResult, LensProgress } from "@/api/modules";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { useTutorChat } from "@/hooks/useTutorChat";
-import { markComplete } from "@/api/progress";
+import { markComplete, getCompletedContentIds } from "@/api/progress";
 import type { MarkCompleteResponse } from "@/api/progress";
 import AuthoredText from "@/components/module/AuthoredText";
 import ArticleEmbed, {
@@ -407,6 +407,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     return ids;
   }, [module, completedSections]);
 
+  // Cross-module completion state (for LensCard completion indicators on cross-module cards)
+  const [allCompletedContentIds, setAllCompletedContentIds] = useState<Set<string>>(new Set());
+
   // Theater mode: track how many videos are in theater mode (for scroll-snap)
   const [theaterCount, setTheaterCount] = useState(0);
   const handleTheaterChange = useCallback((active: boolean) => {
@@ -441,6 +444,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
     wasAuthenticated.current = isAuthenticated;
   }, [isAuthenticated, moduleId, updateCompletedFromLenses]);
+
+  // Fetch global completed content IDs for cross-module card completion indicators
+  useEffect(() => {
+    if (isAuthenticated) {
+      getCompletedContentIds()
+        .then(setAllCompletedContentIds)
+        .catch(() => {}); // Non-critical, fail silently
+    }
+  }, [isAuthenticated]);
 
   // Module completion modal state
   // undefined = not yet fetched, null = end of course, object = next module or unit complete
@@ -1501,6 +1513,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
               meta: s.meta,
             }))}
             completedContentIds={completedContentIds}
+            allCompletedContentIds={allCompletedContentIds}
           />,
         );
 
