@@ -457,7 +457,7 @@ function renderUnitModules(
         <div key={parentSlug}>
           <button
             onClick={() => toggleParent(parentSlug)}
-            className={`relative w-full flex items-center py-1.5 group text-left px-2 rounded-lg ${
+            className={`relative w-full flex items-center py-1.5 group text-left px-2 rounded-[16px] ${
               anyChildSelected && !isParentExpanded ? "bg-[#f0ece4]" : ""
             }`}
           >
@@ -509,11 +509,21 @@ function renderUnitModules(
           </button>
 
           <div
-            className={`grid transition-[grid-template-rows] duration-200 ${
+            className={`relative grid transition-[grid-template-rows] duration-200 ${
               isParentExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
             }`}
           >
-            <div className="overflow-hidden">
+            {/* Vertical connector line from parent circle through children */}
+            {isParentExpanded && (
+              <div
+                className="absolute top-0 bottom-2 w-px z-0"
+                style={{
+                  left: 15, /* center of parent's 16px circle at px-2 (8px) + 8px */
+                  backgroundColor: "var(--brand-border)",
+                }}
+              />
+            )}
+            <div className="overflow-hidden relative z-[1]">
               {children.map((child) => {
                 const isSelected = child.slug === selectedModuleSlug;
                 const childEstimate = child.duration;
@@ -521,13 +531,13 @@ function renderUnitModules(
                   <button
                     key={child.slug}
                     onClick={() => onModuleSelect(child)}
-                    className={`relative w-full flex items-center py-1 text-left transition-colors px-2 rounded-lg ${
-                      isSelected
-                        ? "bg-[#f0ece4] text-[var(--brand-text)]"
-                        : "hover:bg-[var(--brand-border)]/30 text-[var(--brand-text)]"
-                    }`}
+                    className="relative w-full flex items-center py-0.5 text-left transition-colors px-2"
                   >
-                    <div className="ml-4 flex-1 min-w-0 flex items-center gap-2">
+                    <div className={`ml-4 flex-1 min-w-0 flex items-center gap-2 py-1 px-2 rounded-[16px] transition-colors ${
+                      isSelected
+                        ? "bg-[#f0ece4]"
+                        : "hover:bg-[var(--brand-border)]/30"
+                    }`}>
                       <ProgressCircle
                         status={child.status}
                         completedLenses={child.completedLenses}
@@ -561,7 +571,7 @@ function renderUnitModules(
         <button
           key={mod.slug}
           onClick={() => onModuleSelect(mod)}
-          className={`relative w-full flex items-center py-1.5 text-left group transition-colors px-2 rounded-lg ${
+          className={`relative w-full flex items-center py-1.5 text-left group transition-colors px-2 rounded-[16px] ${
             isSelected ? "bg-[#f0ece4]" : "hover:bg-[var(--brand-border)]/30"
           }`}
         >
