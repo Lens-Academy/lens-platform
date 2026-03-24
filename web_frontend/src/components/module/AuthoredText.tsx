@@ -18,6 +18,7 @@ type AuthoredTextProps = {
   moduleSlug?: string;
   moduleSections?: ModuleSection[];
   completedContentIds?: Set<string>;
+  allCompletedContentIds?: Set<string>;
 };
 
 /**
@@ -33,9 +34,11 @@ export default function AuthoredText({
   moduleSlug: _moduleSlug,
   moduleSections,
   completedContentIds,
+  allCompletedContentIds,
 }: AuthoredTextProps) {
   const resolveLensHref = useCallback(
-    (contentId: string): string => {
+    (contentId: string, moduleSlug?: string | null): string => {
+      // Same-module lookup
       if (moduleSections) {
         const index = moduleSections.findIndex(
           (s) => s.contentId === contentId,
@@ -44,10 +47,14 @@ export default function AuthoredText({
           return `#${getSectionSlug(moduleSections[index], index)}`;
         }
       }
-      // Fallback for cross-module or unknown content
-      return `#lens-${contentId}`;
+      // Cross-module
+      if (moduleSlug && courseId) {
+        return `/course/${courseId}/module/${moduleSlug}`;
+      }
+      // Standalone lens
+      return `/lens/${contentId}`;
     },
-    [moduleSections],
+    [moduleSections, courseId],
   );
 
   const renderLink = useCallback(
@@ -59,10 +66,51 @@ export default function AuthoredText({
       href?: string;
     }) => {
       if (href?.startsWith("lens:")) {
-        const contentId = href.slice("lens:".length);
+        const rest = href.slice("lens:".length);
+        const atIndex = rest.indexOf("@");
+        let contentId: string;
+        let targetModuleSlug: string | null = null;
+
+        if (atIndex !== -1) {
+          contentId = rest.slice(0, atIndex);
+          targetModuleSlug = rest.slice(atIndex + 1);
+        } else {
+          contentId = rest;
+        }
+
+        // Same-module: hash link
+        if (moduleSections) {
+          const index = moduleSections.findIndex(
+            (s) => s.contentId === contentId,
+          );
+          if (index !== -1) {
+            return (
+              <a
+                href={`#${getSectionSlug(moduleSections[index], index)}`}
+                className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600"
+              >
+                {children}
+              </a>
+            );
+          }
+        }
+
+        // Cross-module
+        if (targetModuleSlug && courseId) {
+          return (
+            <a
+              href={`/course/${courseId}/module/${targetModuleSlug}`}
+              className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600"
+            >
+              {children}
+            </a>
+          );
+        }
+
+        // Standalone lens
         return (
           <a
-            href={resolveLensHref(contentId)}
+            href={`/lens/${contentId}`}
             className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600"
           >
             {children}
@@ -118,10 +166,11 @@ export default function AuthoredText({
               if (lensCardJson) {
                 try {
                   const data = JSON.parse(lensCardJson);
-                  const isCompleted = completedContentIds?.has(data.contentId) ?? false;
+                  const isCompleted =
+                    (completedContentIds?.has(data.contentId) || allCompletedContentIds?.has(data.contentId)) ?? false;
                   let href: string | undefined;
                   if (data.targetType === "lens") {
-                    href = resolveLensHref(data.contentId);
+                    href = resolveLensHref(data.contentId, data.moduleSlug);
                   } else if (data.targetType === "module") {
                     href = courseId
                       ? `/course/${courseId}/module/${data.slug}`

@@ -80,3 +80,73 @@ describe("AuthoredText card links", () => {
     expect(dot!.className).toContain("bg-lens-gold-400");
   });
 });
+
+describe("cross-module lens links", () => {
+  it("renders lens:contentId@moduleSlug as a cross-module link", () => {
+    render(
+      <AuthoredText
+        content="See [Other Lens](lens:aaaa-bbbb@other-module)"
+        courseId="my-course"
+        moduleSlug="current-module"
+        moduleSections={[]}
+      />,
+    );
+    const link = screen.getByText("Other Lens");
+    expect(link.tagName).toBe("A");
+    expect(link.getAttribute("href")).toBe("/course/my-course/module/other-module");
+  });
+
+  it("renders lens:contentId (no moduleSlug, not in current module) as standalone lens link", () => {
+    render(
+      <AuthoredText
+        content="See [Standalone](lens:aaaa-bbbb)"
+        courseId="my-course"
+        moduleSlug="current-module"
+        moduleSections={[]}
+      />,
+    );
+    const link = screen.getByText("Standalone");
+    expect(link.tagName).toBe("A");
+    expect(link.getAttribute("href")).toBe("/lens/aaaa-bbbb");
+  });
+});
+
+describe("cross-module card completion", () => {
+  it("shows completion for cross-module card when contentId is in allCompletedContentIds", () => {
+    const cardData = JSON.stringify({
+      contentId: "cross-mod-id",
+      targetType: "lens",
+      title: "Cross-Module Lens",
+      moduleSlug: "other-module",
+    });
+    const { container } = render(
+      <AuthoredText
+        content={`<div data-lens-card='${cardData}'></div>`}
+        courseId="my-course"
+        allCompletedContentIds={new Set(["cross-mod-id"])}
+      />,
+    );
+    const dot = container.querySelector(".rounded-full");
+    expect(dot).not.toBeNull();
+    expect(dot!.className).toContain("bg-lens-gold-400");
+  });
+
+  it("does not show completion when cross-module card contentId is not completed", () => {
+    const cardData = JSON.stringify({
+      contentId: "not-done-id",
+      targetType: "lens",
+      title: "Not Done Lens",
+      moduleSlug: "other-module",
+    });
+    const { container } = render(
+      <AuthoredText
+        content={`<div data-lens-card='${cardData}'></div>`}
+        courseId="my-course"
+        allCompletedContentIds={new Set()}
+      />,
+    );
+    const dot = container.querySelector(".rounded-full");
+    expect(dot).not.toBeNull();
+    expect(dot!.className).toContain("bg-gray-200");
+  });
+});
