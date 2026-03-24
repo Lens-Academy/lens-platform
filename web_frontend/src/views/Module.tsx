@@ -790,6 +790,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     currentSection,
     isArticleSection,
     triggerChatActivity,
+    courseSlug: courseId,
   });
 
   const sidebarRef = useRef<ChatSidebarHandle>(null);

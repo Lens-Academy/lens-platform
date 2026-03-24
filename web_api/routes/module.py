@@ -59,6 +59,7 @@ class ModuleChatRequest(BaseModel):
     sectionIndex: int
     segmentIndex: int
     message: str
+    courseSlug: str | None = None
 
 
 class ChatHistoryResponse(BaseModel):
@@ -76,6 +77,7 @@ async def event_generator(
     segment_index: int,
     user_message: str,
     app=None,
+    course_slug: str | None = None,
 ):
     """Generate SSE events from chat interaction."""
     # Get or create chat session
@@ -253,12 +255,14 @@ async def event_generator(
                 msg["tool_calls"] = m["tool_calls"]
             llm_messages.append(msg)
         elif m["role"] == "tool":
-            llm_messages.append({
-                "role": "tool",
-                "tool_call_id": m["tool_call_id"],
-                "name": m["name"],
-                "content": m["content"],
-            })
+            llm_messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": m["tool_call_id"],
+                    "name": m["name"],
+                    "content": m["content"],
+                }
+            )
 
     if user_message:
         content = user_message
@@ -278,26 +282,12 @@ async def event_generator(
     # Build course overview for system prompt
     from core.modules.prompts import build_course_overview
     from core.modules.course_loader import load_course
-    from core.content import get_cache
 
     course_overview = None
     try:
-        cache = get_cache()
-        if cache.courses:
-            course_slug = next(iter(cache.courses))
+        if course_slug:
             course = load_course(course_slug)
-
-            # Get user's completed content IDs
-            completed_ids = set()
-            if user_id:
-                from core.modules.progress import get_completed_content_ids
-
-                async with get_connection() as conn:
-                    completed_ids = await get_completed_content_ids(conn, user_id)
-
-            course_overview = build_course_overview(
-                course, module.slug, section_index, completed_ids
-            )
+            course_overview = build_course_overview(course)
     except Exception as e:
         logger.warning("Failed to build course overview: %s", e)
 
@@ -310,7 +300,10 @@ async def event_generator(
     post_tool_content_start = 0
     try:
         async for chunk in send_module_message(
-            llm_messages, stage, None, section_context,
+            llm_messages,
+            stage,
+            None,
+            section_context,
             mcp_manager=mcp_manager,
             course_overview=course_overview,
         ):
@@ -323,7 +316,9 @@ async def event_generator(
                 if chunk["message"].get("role") == "tool":
                     post_tool_content_start = len(assistant_content)
                 async with get_connection() as conn:
-                    await save_raw_message(conn, session_id=session_id, message=chunk["message"])
+                    await save_raw_message(
+                        conn, session_id=session_id, message=chunk["message"]
+                    )
                 # Don't yield tool_save to SSE
             else:
                 yield f"data: {json.dumps(chunk)}\n\n"
@@ -335,7 +330,11 @@ async def event_generator(
         return
 
     # Save final assistant response (post-tool text only if tool calls happened)
-    final_content = assistant_content[post_tool_content_start:].strip() if had_tool_calls else assistant_content
+    final_content = (
+        assistant_content[post_tool_content_start:].strip()
+        if had_tool_calls
+        else assistant_content
+    )
     if final_content:
         async with get_connection() as conn:
             await add_chat_message(
@@ -386,6 +385,7 @@ async def chat_module(
             segment_index=body.segmentIndex,
             user_message=body.message,
             app=request.app,
+            course_slug=body.courseSlug,
         ),
         media_type="text/event-stream",
         headers={

@@ -95,19 +95,14 @@ def assemble_chat_prompt(
 
 def build_course_overview(
     course: ParsedCourse,
-    current_module_slug: str,
-    current_section_index: int,
-    completed_content_ids: set[str],
 ) -> str:
     """Build a structured course overview for the system prompt.
 
     Meetings divide the course into units. Modules are listed within each unit.
+    This is static (no user-specific state) so it can be cached across users.
 
     Args:
         course: The parsed course definition
-        current_module_slug: Slug of the module the student is currently in
-        current_section_index: Index of the current section within the module
-        completed_content_ids: Set of content IDs the student has completed
 
     Returns:
         Formatted overview string for injection into system prompt
@@ -133,8 +128,6 @@ def build_course_overview(
         lines.append("")
 
         for mod_ref in module_refs:
-            is_current_module = mod_ref.slug == current_module_slug
-
             try:
                 module = load_flattened_module(mod_ref.slug)
             except (ModuleNotFoundError, Exception):
@@ -146,20 +139,11 @@ def build_course_overview(
             lines.append(f"### Module: {module.title}{optional}")
             lines.append("Lenses:")
 
-            for i, section in enumerate(module.sections):
+            for section in module.sections:
                 title = section.get("meta", {}).get("title", "Untitled")
                 tldr = section.get("tldr", "")
-                content_id = section.get("contentId")
 
-                # Status marker
-                if is_current_module and i == current_section_index:
-                    status = " ← you are here"
-                elif content_id and str(content_id) in completed_content_ids:
-                    status = " ✓"
-                else:
-                    status = ""
-
-                lines.append(f"- **{title}**{status}")
+                lines.append(f"- **{title}**")
                 if tldr:
                     lines.append(f"  TLDR: {tldr}")
 

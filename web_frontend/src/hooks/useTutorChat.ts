@@ -265,6 +265,8 @@ export type UseTutorChatOptions = {
   /** kept for prefix message, chat segment index computations */
   isArticleSection: boolean;
   triggerChatActivity: () => void;
+  /** course slug from URL — used for course overview in system prompt */
+  courseSlug?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -277,6 +279,7 @@ export function useTutorChat({
   currentSection,
   isArticleSection,
   triggerChatActivity,
+  courseSlug,
 }: UseTutorChatOptions) {
   const [chat, dispatchChat] = useReducer(chatReducer, initialChatState);
 
@@ -521,6 +524,7 @@ export function useTutorChat({
           sectionIndex,
           segmentIndex,
           content,
+          courseSlug,
         )) {
           if (chunk.type === "text" && chunk.content) {
             dispatchChat({ type: "STREAM_TEXT", text: chunk.content });

@@ -127,12 +127,7 @@ class TestFullSystemPromptGoldenFile:
             patch("core.modules.prompts.DEFAULT_BASE_PROMPT", base),
             patch("core.modules.prompts.COURSE_OVERVIEW_INTRO", overview_intro),
         ):
-            overview = build_course_overview(
-                self.course,
-                current_module_slug=self.pos["module_slug"],
-                current_section_index=self.pos["section_index"],
-                completed_content_ids=set(self.pos["completed_content_ids"]),
-            )
+            overview = build_course_overview(self.course)
             result = _build_system_prompt(stage, None, self.ctx, course_overview=overview)
 
         expected = (
@@ -156,7 +151,7 @@ class TestSystemPromptStructure:
         stage = ChatStage(type="chat", instructions="Be helpful.")
         result = _build_system_prompt(stage, None, None)
 
-        assert "# General Role" in result
+        assert "# General Instructions" in result
         assert "# Segment-Specific Instructions" in result
         assert "# Course Overview" not in result
 
@@ -167,6 +162,6 @@ class TestSystemPromptStructure:
         stage = ArticleStage(type="article", source="test.md")
         result = _build_system_prompt(stage, "Article text.", None)
 
-        assert "# General Role" in result
+        assert "# General Instructions" in result
         assert "reading an article" in result
 

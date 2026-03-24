@@ -43,7 +43,7 @@ def _build_system_prompt(
         course_overview: Optional course overview to inject after base prompt
     """
 
-    role_block = f"# General Role\n\n{DEFAULT_BASE_PROMPT}"
+    role_block = f"# General Instructions\n\n{DEFAULT_BASE_PROMPT}"
 
     if isinstance(current_stage, ChatStage):
         # Order: Role → Course Overview → Location → Instructions → Role (repeat)
