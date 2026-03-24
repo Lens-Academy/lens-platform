@@ -12,7 +12,7 @@ from litellm import acompletion, stream_chunk_builder
 
 from .llm import iter_chunk_events, DEFAULT_PROVIDER
 from .context import SectionContext
-from .prompts import assemble_chat_prompt, DEFAULT_BASE_PROMPT, TOOL_USAGE_GUIDANCE
+from .prompts import assemble_chat_prompt, DEFAULT_BASE_PROMPT
 from .types import Stage, ArticleStage, VideoStage, ChatStage
 from .content import (
     load_article_with_metadata,
@@ -43,33 +43,28 @@ def _build_system_prompt(
         course_overview: Optional course overview to inject after base prompt
     """
 
-    base = f"# Role\n\n{DEFAULT_BASE_PROMPT}"
+    role_block = f"# General Role\n\n{DEFAULT_BASE_PROMPT}"
 
     if isinstance(current_stage, ChatStage):
-        # Active chat stage - use shared assembly
+        # Order: Role → Course Overview → Location → Instructions → Role (repeat)
         context = (
             section_context
             if not current_stage.hide_previous_content_from_tutor
             else None
         )
-        prompt = assemble_chat_prompt(base, current_stage.instructions, context)
-        # Inject course overview between # Instructions and # Current Context
+        prompt = role_block
         if course_overview:
-            overview_block = f"\n\n# Course Overview\n\n{course_overview}"
-            if "\n\n# Current Context" in prompt:
-                prompt = prompt.replace("\n\n# Current Context", overview_block + "\n\n# Current Context", 1)
-            else:
-                prompt += overview_block
-
+            prompt += f"\n\n# Course Overview\n\n{course_overview}"
+        # Add location/segments context
+        prompt = assemble_chat_prompt(prompt, None, context)
     elif isinstance(current_stage, (ArticleStage, VideoStage)):
-        # User is consuming content - be helpful but brief
         content_type = (
             "reading an article"
             if isinstance(current_stage, ArticleStage)
             else "watching a video"
         )
         prompt = (
-            base
+            role_block
             + f"""
 The user is currently {content_type}. Answer the student's questions to help them understand the content, but don't lengthen the conversation. There will be more time for chatting after they are done reading/watching.
 """
@@ -80,9 +75,16 @@ The user is currently {content_type}. Answer the student's questions to help the
             prompt += f"\n\nContent the user is viewing:\n---\n{current_content}\n---"
 
     else:
-        prompt = base
+        prompt = role_block
         if course_overview:
             prompt += f"\n\n# Course Overview\n\n{course_overview}"
+
+    # Repeat general instructions at the end for improved adherence
+    prompt += f"\n\n# General Instructions:\n\n{DEFAULT_BASE_PROMPT}"
+
+    # Segment-specific instructions last (closest to the conversation)
+    if isinstance(current_stage, ChatStage) and current_stage.instructions:
+        prompt += f"\n\n# Segment-Specific Instructions\n\n{current_stage.instructions}"
 
     return prompt
 
@@ -175,16 +177,14 @@ async def send_module_message(
         - {"type": "tool_use", "name": str} for tool calls
         - {"type": "done"} when complete
     """
-    system = _build_system_prompt(
-        current_stage, current_content, section_context, course_overview
-    )
-
     # Get available tools if mcp_manager provided
     tools = None
     if mcp_manager is not None:
         tools = await get_tools(mcp_manager)
-        if tools:
-            system += TOOL_USAGE_GUIDANCE
+
+    system = _build_system_prompt(
+        current_stage, current_content, section_context, course_overview
+    )
 
     # Debug mode: show system prompt in chat
     if os.environ.get("DEBUG") == "1":
@@ -205,7 +205,9 @@ async def send_module_message(
                 continue  # drop tool result messages
             if m["role"] == "assistant" and "tool_calls" in m:
                 # Keep assistant text but strip tool_calls metadata
-                api_messages.append({"role": "assistant", "content": m.get("content", "")})
+                api_messages.append(
+                    {"role": "assistant", "content": m.get("content", "")}
+                )
             else:
                 api_messages.append(m)
 
@@ -265,12 +267,20 @@ async def send_module_message(
                 args = json.loads(tc.function.arguments)
             except (json.JSONDecodeError, TypeError):
                 args = {}
-            yield {"type": "tool_use", "name": tc.function.name, "state": "calling", "arguments": args}
+            yield {
+                "type": "tool_use",
+                "name": tc.function.name,
+                "state": "calling",
+                "arguments": args,
+            }
             result = await execute_tool(mcp_manager, tc)
-            is_error = result.startswith("Error:") or result.startswith("Tool timed out")
+            is_error = result.startswith("Error:") or result.startswith(
+                "Tool timed out"
+            )
             result_preview = result[:500] + ("…" if len(result) > 500 else "")
             yield {
-                "type": "tool_use", "name": tc.function.name,
+                "type": "tool_use",
+                "name": tc.function.name,
                 "state": "error" if is_error else "result",
                 "result": result_preview,
             }

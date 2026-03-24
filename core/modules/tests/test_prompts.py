@@ -12,21 +12,22 @@ class TestAssembleChatPrompt:
 
     def test_with_instructions(self):
         result = assemble_chat_prompt("Base", instructions="Do this thing")
-        assert result == "Base\n\n# Instructions\n\nDo this thing"
+        assert result == "Base\n\n# Current Instructions\n\nDo this thing"
 
     def test_with_context(self):
         result = assemble_chat_prompt("Base", context="Some content")
         assert result == (
-            "Base\n\n# Current Context\n\nThe user previously read this content:\n---\nSome content\n---"
+            "Base\n\n# User's Current Location\n\n"
+            "The user previously read this content:\n---\nSome content\n---"
         )
 
     def test_with_both(self):
         result = assemble_chat_prompt(
             "Base", instructions="Do this", context="Content here"
         )
-        assert "# Instructions\n\nDo this" in result
+        assert "# Current Instructions\n\nDo this" in result
         assert "---\nContent here\n---" in result
-        assert result.index("# Instructions") < result.index("Content here")
+        assert result.index("# Current Instructions") < result.index("Content here")
 
     def test_empty_instructions_skipped(self):
         result = assemble_chat_prompt("Base", instructions="")
@@ -56,8 +57,11 @@ class TestNumberedSegments:
             total_segments=3,
         )
         result = assemble_chat_prompt("Base", context=ctx)
-        assert "Segment 1:\n[Written by Lens Academy]\nIntro text" in result
-        assert "Segment 2:\nArticle content" in result
+        assert '<segment index="1">' in result
+        assert "[Written by Lens Academy]\nIntro text" in result
+        assert "</segment>" in result
+        assert '<segment index="2">' in result
+        assert "Article content" in result
 
     def test_position_line_mid_section(self):
         ctx = SectionContext(
@@ -67,7 +71,7 @@ class TestNumberedSegments:
         )
         result = assemble_chat_prompt("Base", context=ctx)
         assert "currently at segment 2" in result
-        assert "not read segments 3\u20133 yet" in result
+        assert "not read segment 3 yet" in result
 
     def test_position_line_last_segment(self):
         ctx = SectionContext(
@@ -86,10 +90,20 @@ class TestNumberedSegments:
         )
         result = assemble_chat_prompt("Base", context=ctx)
         assert "currently at segment 1" in result
-        assert "not read segments 2\u20132 yet" in result
+        assert "not read segment 2 yet" in result
+
+    def test_position_line_multiple_remaining(self):
+        ctx = SectionContext(
+            segments=[(0, "Text")],
+            segment_index=0,
+            total_segments=5,
+        )
+        result = assemble_chat_prompt("Base", context=ctx)
+        assert "currently at segment 1" in result
+        assert "not read segments 2\u20135 yet" in result
 
 
-class TestSectionContextBreadcrumb:
+class TestSectionContextLocation:
     def test_module_and_section(self):
         ctx = SectionContext(
             segments=[(0, "content")],
@@ -99,21 +113,23 @@ class TestSectionContextBreadcrumb:
             section_title="The Alignment Problem",
         )
         result = assemble_chat_prompt("Base", context=ctx)
-        assert "Current location: Intro to AI Safety > The Alignment Problem" in result
+        assert "- Module: Intro to AI Safety" in result
+        assert "- Lens: The Alignment Problem" in result
 
-    def test_no_metadata_no_breadcrumb(self):
+    def test_no_metadata_no_location(self):
         ctx = SectionContext(
             segments=[(0, "content")],
             segment_index=0,
             total_segments=1,
         )
         result = assemble_chat_prompt("Base", context=ctx)
-        assert "Current location" not in result
+        assert "Module:" not in result
+        assert "Lens:" not in result
 
     def test_empty_segments_no_content_block(self):
         ctx = SectionContext(segments=[], segment_index=0, total_segments=1)
         result = assemble_chat_prompt("Base", context=ctx)
-        assert "engaging with" not in result
+        assert "Segments of this lens" not in result
 
 
 class TestDefaultBasePrompt:

@@ -159,7 +159,7 @@ class TestSystemPromptIncludesContext:
         prompt = _build_system_prompt(stage, None, context)
 
         assert "This is important AI safety content" in prompt
-        assert "engaging with the following content" in prompt
+        assert "Segments of this lens:" in prompt
 
     def test_chat_stage_without_previous_content(self):
         """_build_system_prompt should work without previous_content."""
@@ -172,7 +172,7 @@ class TestSystemPromptIncludesContext:
         prompt = _build_system_prompt(stage, None, None)
 
         assert "Help the user" in prompt
-        assert "engaging with" not in prompt
+        assert "Segments of this lens" not in prompt
 
     def test_chat_stage_hides_content_when_flag_set(self):
         """_build_system_prompt should not include content when hide flag is set."""
@@ -251,4 +251,4 @@ class TestEndToEndTranscriptFlow:
         # Final verification: transcript content is in the prompt
         assert "AI" in prompt
         assert "safety" in prompt
-        assert "engaging with the following content" in prompt
+        assert "Segments of this lens:" in prompt
