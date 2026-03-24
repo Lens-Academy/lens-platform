@@ -263,10 +263,21 @@ export default function CourseOverview({
       <div className="h-16 flex-shrink-0" />
 
       {/* Two-panel layout */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div
+        className="flex-1 relative overflow-hidden"
+        style={{ backgroundColor: "var(--brand-bg-alt)" }}
+      >
+        {/* Gold bleed for sidebar's left side */}
+        {!isMobile && (
+          <div
+            className="absolute top-0 bottom-0 left-0 w-1/2"
+            style={{ backgroundColor: "var(--brand-bg)" }}
+          />
+        )}
+        <div className="relative flex flex-1 max-w-7xl mx-auto w-full">
         {/* Desktop: inline sidebar */}
         {!isMobile && (
-          <div className="w-80 flex-shrink-0">
+          <div className="w-80 xl:w-96 2xl:w-[28rem] flex-shrink-0 transition-[width] duration-200">
             <CourseTimeline
               courseTitle={courseProgress.course.title}
               units={courseProgress.units}
@@ -337,8 +348,11 @@ export default function CourseOverview({
         )}
 
         {/* Main panel */}
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
-          <div className="max-w-3xl">
+        <div
+          className="flex-1 p-4 md:p-8 overflow-y-auto"
+          style={{ backgroundColor: "var(--brand-bg-alt)" }}
+        >
+          <div className="max-w-2xl">
           {selectedModule ? (
             <ModuleOverview
               moduleTitle={selectedModule.title}
@@ -362,6 +376,7 @@ export default function CourseOverview({
             </div>
           )}
           </div>
+        </div>
         </div>
       </div>
     </div>
