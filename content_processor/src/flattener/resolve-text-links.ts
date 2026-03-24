@@ -130,6 +130,40 @@ interface CardEnrichment {
  * (duration, attribution, displayType) from flattened sections.
  * Call after all sections are flattened so wordCount/videoDurationSeconds are available.
  */
+/**
+ * Post-processing step: populate moduleSlug in card links using a
+ * contentId → moduleSlug mapping built from all flattened modules.
+ * Call from processContent after all modules are flattened.
+ */
+export function populateCardModuleSlugs(
+  sections: Section[],
+  contentIdToModuleSlug: Map<string, string>,
+): void {
+  for (const section of sections) {
+    for (const seg of section.segments) {
+      if (seg.type !== 'text') continue;
+      if (!seg.content.includes('data-lens-card=')) continue;
+
+      seg.content = seg.content.replace(CARD_HTML_RE, (_match, prefix, jsonStr, suffix) => {
+        try {
+          const data = JSON.parse(jsonStr.replace(/&#39;/g, "'"));
+          if (data.targetType !== 'lens' || !data.contentId) {
+            return `${prefix}${jsonStr}${suffix}`;
+          }
+          const moduleSlug = contentIdToModuleSlug.get(data.contentId);
+          if (moduleSlug) {
+            data.moduleSlug = moduleSlug;
+          }
+          const newJson = JSON.stringify(data).replace(/'/g, '&#39;');
+          return `${prefix}${newJson}${suffix}`;
+        } catch {
+          return `${prefix}${jsonStr}${suffix}`;
+        }
+      });
+    }
+  }
+}
+
 export function enrichCardLinks(sections: Section[]): void {
   // Build lookup: contentId → enrichment data
   const lookup = new Map<string, CardEnrichment>();

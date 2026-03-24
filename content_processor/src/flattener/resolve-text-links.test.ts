@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolveTextLinks } from './resolve-text-links.js';
+import { resolveTextLinks, populateCardModuleSlugs } from './resolve-text-links.js';
+import type { Section } from '../index.js';
 
 describe('resolveTextLinks', () => {
   const files = new Map<string, string>([
@@ -102,5 +103,62 @@ describe('resolveTextLinks', () => {
       const result = resolveTextLinks(content, 'modules/test.md', files);
       expect(result.errors).toHaveLength(1);
     });
+  });
+});
+
+describe('populateCardModuleSlugs', () => {
+  it('populates moduleSlug in card data from contentId→moduleSlug map', () => {
+    const cardData = JSON.stringify({
+      contentId: 'aaaa-bbbb',
+      targetType: 'lens',
+      title: 'My Lens',
+      tldr: 'Summary',
+      moduleSlug: null,
+    }).replace(/'/g, '&#39;');
+
+    const section: Section = {
+      type: 'lens',
+      meta: { title: 'Host Section' },
+      contentId: 'host-id',
+      learningOutcomeId: null,
+      learningOutcomeName: null,
+      segments: [
+        { type: 'text', content: `<div data-lens-card='${cardData}'></div>` },
+      ],
+    };
+
+    const mapping = new Map([['aaaa-bbbb', 'target-module']]);
+    populateCardModuleSlugs([section], mapping);
+
+    const match = (section.segments[0] as { content: string }).content.match(/data-lens-card='([^']+)'/);
+    const data = JSON.parse(match![1].replace(/&#39;/g, "'"));
+    expect(data.moduleSlug).toBe('target-module');
+  });
+
+  it('leaves moduleSlug null when contentId not in mapping', () => {
+    const cardData = JSON.stringify({
+      contentId: 'unknown-id',
+      targetType: 'lens',
+      title: 'Unknown',
+      moduleSlug: null,
+    }).replace(/'/g, '&#39;');
+
+    const section: Section = {
+      type: 'lens',
+      meta: { title: 'Host' },
+      contentId: 'host-id',
+      learningOutcomeId: null,
+      learningOutcomeName: null,
+      segments: [
+        { type: 'text', content: `<div data-lens-card='${cardData}'></div>` },
+      ],
+    };
+
+    const mapping = new Map<string, string>();
+    populateCardModuleSlugs([section], mapping);
+
+    const match = (section.segments[0] as { content: string }).content.match(/data-lens-card='([^']+)'/);
+    const data = JSON.parse(match![1].replace(/&#39;/g, "'"));
+    expect(data.moduleSlug).toBeNull();
   });
 });
