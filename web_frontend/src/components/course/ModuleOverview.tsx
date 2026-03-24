@@ -152,6 +152,43 @@ export default function ModuleOverview({
             >
               {stage.title}
             </span>
+            {stage.type !== "chat" && stage.duration != null && stage.duration > 0 && (() => {
+              const isVideo =
+                stage.type === "video" ||
+                stage.displayType === "lens-video" ||
+                stage.displayType === "lens-mixed";
+              const contentTime = Math.round(stage.duration / 1.5);
+              const aiTime = stage.duration - contentTime;
+              return (
+                <span className="inline-flex items-center gap-0.5 whitespace-nowrap text-sm text-[var(--brand-text-muted)] ml-auto flex-shrink-0">
+                  {isVideo ? (
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  ) : (
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                  <span>{formatDurationMinutes(contentTime)}</span>
+                  {aiTime > 0 && (
+                    <>
+                      <span>+</span>
+                      <BotMessageSquare className="w-3 h-3 ml-0.5" />
+                      <span>{formatDurationMinutes(aiTime)}</span>
+                    </>
+                  )}
+                </span>
+              );
+            })()}
           </div>
           <div className="text-sm text-[var(--brand-text-muted)] flex items-center gap-1.5">
             {stage.optional && <OptionalBadge />}
@@ -174,54 +211,15 @@ export default function ModuleOverview({
                             : "Article";
                     return stage.attribution ? (
                       <span>
-                        {label} · {stage.attribution}
+                        {label} · <span className="italic">{stage.attribution}</span>
                       </span>
                     ) : (
                       label
                     );
                   }
-                  const contentTime = Math.round(stage.duration / 1.5);
-                  const aiTime = stage.duration - contentTime;
-                  return (
-                    <span className="inline-flex items-center gap-0.5 text-[var(--brand-text-muted)]">
-                      {isVideo ? (
-                        <svg
-                          className="w-3 h-3 inline translate-y-px"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="w-3 h-3 inline translate-y-px"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      )}
-                      <span>{formatDurationMinutes(contentTime)}</span>
-                      {aiTime > 0 && (
-                        <>
-                          <span>+</span>
-                          <BotMessageSquare className="w-3 h-3 inline ml-0.5" />
-                          <span>{formatDurationMinutes(aiTime)}</span>
-                        </>
-                      )}
-                      {stage.attribution && (
-                        <span className="ml-0.5"> · {stage.attribution}</span>
-                      )}
-                    </span>
-                  );
+                  return stage.attribution ? (
+                    <span className="italic">{stage.attribution}</span>
+                  ) : null;
                 })()}
           </div>
           {stage.tldr && (
