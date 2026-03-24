@@ -1,16 +1,17 @@
 # core/modules/tests/test_system_prompt_format.py
-"""Golden-file tests for build_course_overview output format."""
+"""Golden-file tests for build_course_overview and assemble_chat_prompt output format."""
 
 from unittest.mock import patch
 from uuid import uuid4
 
+from core.modules.context import SectionContext
 from core.modules.flattened_types import (
     FlattenedModule,
     MeetingMarker,
     ModuleRef,
     ParsedCourse,
 )
-from core.modules.prompts import build_course_overview
+from core.modules.prompts import assemble_chat_prompt, build_course_overview
 
 
 def _make_module(slug, title, sections):
@@ -216,3 +217,66 @@ class TestBuildCourseOverviewFormat:
             "- **No TLDR Section** ← you are here\n"
         )
         assert result == expected
+
+
+class TestAssembleChatPromptFormat:
+    """Golden-file tests for assemble_chat_prompt markdown header format."""
+
+    def test_full_prompt_with_instructions_and_context(self):
+        """Both instructions and context present — verify headers and order."""
+        ctx = SectionContext(
+            segments=[(0, "Article content here")],
+            segment_index=0,
+            total_segments=1,
+            module_title="Intro to AI Safety",
+            section_title="The Alignment Problem",
+        )
+        result = assemble_chat_prompt(
+            "You are a tutor.",
+            instructions="Ask the student what they think about X.\nDo not give away the answer.",
+            context=ctx,
+        )
+        expected = (
+            "You are a tutor.\n"
+            "\n"
+            "# Instructions\n"
+            "\n"
+            "Ask the student what they think about X.\n"
+            "Do not give away the answer.\n"
+            "\n"
+            "# Current Context\n"
+            "\n"
+            "Current location: Intro to AI Safety > The Alignment Problem\n"
+            "\n"
+            "The user is engaging with the following content:\n"
+            "\n"
+            "Segment 1:\n"
+            "Article content here\n"
+            "\n"
+            "The user is currently at segment 1 (the last segment)."
+        )
+        assert result == expected
+        # Instructions must come before context
+        assert result.index("# Instructions") < result.index("# Current Context")
+
+    def test_instructions_only_no_context(self):
+        """Instructions present, no context — # Instructions present, # Current Context absent."""
+        result = assemble_chat_prompt(
+            "You are a tutor.",
+            instructions="Be concise.",
+        )
+        assert "# Instructions\n\nBe concise." in result
+        assert "# Current Context" not in result
+
+    def test_context_only_no_instructions(self):
+        """Context present, no instructions — # Current Context present, # Instructions absent."""
+        ctx = SectionContext(
+            segments=[(0, "Some content")],
+            segment_index=0,
+            total_segments=1,
+            module_title="Module A",
+            section_title="Section 1",
+        )
+        result = assemble_chat_prompt("You are a tutor.", context=ctx)
+        assert "# Current Context" in result
+        assert "# Instructions" not in result

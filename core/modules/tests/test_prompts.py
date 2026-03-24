@@ -12,21 +12,21 @@ class TestAssembleChatPrompt:
 
     def test_with_instructions(self):
         result = assemble_chat_prompt("Base", instructions="Do this thing")
-        assert result == "Base\n\nInstructions:\nDo this thing"
+        assert result == "Base\n\n# Instructions\n\nDo this thing"
 
     def test_with_context(self):
         result = assemble_chat_prompt("Base", context="Some content")
         assert result == (
-            "Base\n\nThe user previously read this content:\n---\nSome content\n---"
+            "Base\n\n# Current Context\n\nThe user previously read this content:\n---\nSome content\n---"
         )
 
     def test_with_both(self):
         result = assemble_chat_prompt(
             "Base", instructions="Do this", context="Content here"
         )
-        assert "Instructions:\nDo this" in result
+        assert "# Instructions\n\nDo this" in result
         assert "---\nContent here\n---" in result
-        assert result.index("Instructions") < result.index("Content here")
+        assert result.index("# Instructions") < result.index("Content here")
 
     def test_empty_instructions_skipped(self):
         result = assemble_chat_prompt("Base", instructions="")
@@ -99,7 +99,7 @@ class TestSectionContextBreadcrumb:
             section_title="The Alignment Problem",
         )
         result = assemble_chat_prompt("Base", context=ctx)
-        assert "Intro to AI Safety > The Alignment Problem" in result
+        assert "Current location: Intro to AI Safety > The Alignment Problem" in result
 
     def test_no_metadata_no_breadcrumb(self):
         ctx = SectionContext(

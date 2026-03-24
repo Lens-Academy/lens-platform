@@ -77,9 +77,8 @@ def _mock_load(slug):
 
 class TestCourseOverview:
     @patch("core.modules.loader.load_flattened_module", side_effect=_mock_load)
-    def test_includes_course_title(self, _mock, simple_course):
+    def test_includes_module_titles_and_intro(self, _mock, simple_course):
         result = build_course_overview(simple_course, "mod-a", 0, set())
-        # Title is no longer emitted; module titles appear as ## headers instead.
         assert "Module A" in result
         assert "lenses" in result
 

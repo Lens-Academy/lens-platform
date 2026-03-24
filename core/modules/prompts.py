@@ -55,18 +55,23 @@ def assemble_chat_prompt(
     """
     prompt = base
     if instructions:
-        prompt += f"\n\nInstructions:\n{instructions}"
+        prompt += f"\n\n# Instructions\n\n{instructions}"
     if context:
         if isinstance(context, str):
             # Legacy callers (e.g. promptlab) pass a plain string
-            prompt += f"\n\nThe user previously read this content:\n---\n{context}\n---"
+            prompt += f"\n\n# Current Context\n\nThe user previously read this content:\n---\n{context}\n---"
         else:
             location = _format_location(context)
+            has_segments = bool(context.segments)
+
+            if location or has_segments:
+                prompt += "\n\n# Current Context"
+
             if location:
-                prompt += f"\n\nCurrent location in course: {location}"
+                prompt += f"\n\nCurrent location: {location}"
 
             # Content block (cacheable — same regardless of position)
-            if context.segments:
+            if has_segments:
                 prompt += "\n\nThe user is engaging with the following content:"
                 for seg_num, content in context.segments:
                     prompt += f"\n\nSegment {seg_num + 1}:\n{content}"
