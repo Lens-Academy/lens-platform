@@ -1,6 +1,6 @@
 """In-memory content cache for educational content from GitHub."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -23,6 +23,7 @@ class ContentCache:
     """
 
     courses: dict[str, ParsedCourse]  # slug -> parsed course
+    course_slug_aliases: dict[str, str] = field(default_factory=dict)  # alias -> canonical slug
     flattened_modules: dict[str, FlattenedModule]  # slug -> flattened module
     # Legacy fields - kept for compatibility but always empty (TypeScript handles these)
     parsed_learning_outcomes: dict[str, Any]  # Always {} - TypeScript handles

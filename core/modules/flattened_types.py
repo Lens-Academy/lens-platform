@@ -58,3 +58,4 @@ class ParsedCourse:
     slug: str
     title: str
     progression: list[ProgressionItem] = field(default_factory=list)
+    slug_aliases: list[str] = field(default_factory=list)
