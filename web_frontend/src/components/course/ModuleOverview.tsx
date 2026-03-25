@@ -343,7 +343,9 @@ export default function ModuleOverview({
             const isLast = vi === visibleLayout.length - 1;
 
             if (item.kind === "trunk" && colors.kind === "trunk") {
-              const trailsIntoBranchOnly = visibleLayout[vi + 1]?.item.kind === "branch";
+              // Only use dotted if this is the very last trunk item (only optional branches after)
+              const isLastTrunk = !visibleLayout.slice(vi + 1).some((e) => e.item.kind === "trunk");
+              const trailsIntoBranchOnly = isLastTrunk && visibleLayout[vi + 1]?.item.kind === "branch";
               return (
                 <div key={li} className="relative">
                   {/* Top connector: from previous item to this circle center */}

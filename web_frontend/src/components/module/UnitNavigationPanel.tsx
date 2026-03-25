@@ -269,7 +269,8 @@ function SectionList({
         const isLast = vi === visibleLayout.length - 1;
 
         if (item.kind === "trunk" && colors.kind === "trunk") {
-          const trailsIntoBranchOnly = visibleLayout[vi + 1]?.item.kind === "branch";
+          // Check if this is the very last trunk item (only optional branches after it)
+          const isLastTrunk = !visibleLayout.slice(vi + 1).some((e) => e.item.kind === "trunk");
           return (
             <div key={li} className="relative">
               {!isFirst && (
@@ -278,7 +279,7 @@ function SectionList({
                 />
               )}
               {!isLast &&
-                (trailsIntoBranchOnly ? (
+                (isLastTrunk ? (
                   <div
                     className={`absolute left-[20px] top-[20px] bottom-0 -translate-x-1/2 z-[1] dotted-round-v ${textColorMap[colors.outgoingColor] ?? "text-gray-200"}`}
                   />
