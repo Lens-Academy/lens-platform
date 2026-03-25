@@ -345,7 +345,7 @@ export default function LandingPage() {
                 className="text-2xl sm:text-3xl mb-4 leading-snug"
                 style={fontDisplay}
               >
-                Introduction to AI Safety
+                Navigating Superintelligence
               </h3>
               <p
                 className="text-base leading-relaxed mb-8 flex-1"

@@ -1,6 +1,6 @@
 const COURSES = [
   {
-    label: "Introduction to AI Safety",
+    label: "Navigating Superintelligence",
     href: "/course/default",
   },
   {
