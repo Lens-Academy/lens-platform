@@ -246,7 +246,7 @@ export default function Module({ courseId: courseIdProp, moduleId }: ModuleProps
 
         // Fix URL if viewing via alias slug (no reload, just update address bar)
         if (courseResult?.course?.slug && courseIdProp && courseResult.course.slug !== courseIdProp) {
-          history.replaceState(null, "", `/course/${courseResult.course.slug}/module/${moduleId}`);
+          history.replaceState(null, "", `/course/${courseResult.course.slug}/module/${moduleId}${window.location.hash}`);
           setCourseId(courseResult.course.slug);
         }
 
