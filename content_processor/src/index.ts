@@ -26,6 +26,7 @@ export interface FlattenedModule {
 export interface Course {
   slug: string;
   title: string;
+  slugAliases?: string[];
   progression: ProgressionItem[];
   error?: string;
 }
