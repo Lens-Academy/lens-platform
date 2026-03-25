@@ -536,6 +536,37 @@ export function processContent(files: Map<string, string>): ProcessResult {
     }
   }
 
+  // Validate course slug alias collisions
+  {
+    // Map of all course slugs (primary + aliases) -> source file
+    const allCourseSlugs = new Map<string, string>(); // slug -> file
+
+    // Register primary slugs first
+    for (const course of courses) {
+      const file = courseSlugToFile.get(course.slug) ?? 'courses/';
+      allCourseSlugs.set(course.slug, file);
+    }
+
+    // Check each alias against all known slugs
+    for (const course of courses) {
+      const file = courseSlugToFile.get(course.slug) ?? 'courses/';
+      const tier = tierMap.get(file) ?? 'production';
+      for (const alias of course.slugAliases ?? []) {
+        const existing = allCourseSlugs.get(alias);
+        if (existing) {
+          errors.push({
+            file,
+            message: `Course slug alias '${alias}' collides with ${existing === file ? 'its own primary slug' : `slug in ${existing}`}`,
+            suggestion: `Choose a different alias or remove the conflicting slug`,
+            severity: tier === 'wip' ? 'warning' : 'error',
+          });
+        } else {
+          allCourseSlugs.set(alias, file);
+        }
+      }
+    }
+  }
+
   // Validate all collected UUIDs
   const uuidValidation = validateUuids(uuidEntries);
   errors.push(...uuidValidation.errors);
