@@ -93,7 +93,7 @@ describe("cross-module lens links", () => {
     );
     const link = screen.getByText("Other Lens");
     expect(link.tagName).toBe("A");
-    expect(link.getAttribute("href")).toBe("/course/my-course/module/other-module");
+    expect(link.getAttribute("href")).toBe("/course/my-course/module/other-module#other-lens");
   });
 
   it("renders lens:contentId (no moduleSlug, not in current module) as standalone lens link", () => {

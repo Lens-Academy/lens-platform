@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { getSectionSlug } from "@/utils/sectionSlug";
+import { generateHeadingId } from "@/utils/extractHeadings";
 import LensCard from "./LensCard";
 
 type ModuleSection = {
@@ -37,7 +38,7 @@ export default function AuthoredText({
   allCompletedContentIds,
 }: AuthoredTextProps) {
   const resolveLensHref = useCallback(
-    (contentId: string, moduleSlug?: string | null): string => {
+    (contentId: string, moduleSlug?: string | null, title?: string | null): string => {
       // Same-module lookup
       if (moduleSections) {
         const index = moduleSections.findIndex(
@@ -47,9 +48,10 @@ export default function AuthoredText({
           return `#${getSectionSlug(moduleSections[index], index)}`;
         }
       }
-      // Cross-module
+      // Cross-module — include section hash from title
       if (moduleSlug && courseId) {
-        return `/course/${courseId}/module/${moduleSlug}`;
+        const hash = title ? `#${generateHeadingId(title)}` : "";
+        return `/course/${courseId}/module/${moduleSlug}${hash}`;
       }
       // Standalone lens
       return `/lens/${contentId}`;
@@ -71,9 +73,12 @@ export default function AuthoredText({
         const contentId = atIndex !== -1 ? rest.slice(0, atIndex) : rest;
         const targetModuleSlug = atIndex !== -1 ? rest.slice(atIndex + 1) : null;
 
+        // Extract display text for section hash generation
+        const displayText = typeof children === "string" ? children : null;
+
         return (
           <a
-            href={resolveLensHref(contentId, targetModuleSlug)}
+            href={resolveLensHref(contentId, targetModuleSlug, displayText)}
             className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600"
           >
             {children}
@@ -133,7 +138,7 @@ export default function AuthoredText({
                     (completedContentIds?.has(data.contentId) || allCompletedContentIds?.has(data.contentId)) ?? false;
                   let href: string | undefined;
                   if (data.targetType === "lens") {
-                    href = resolveLensHref(data.contentId, data.moduleSlug);
+                    href = resolveLensHref(data.contentId, data.moduleSlug, data.title);
                   } else if (data.targetType === "module") {
                     href = courseId
                       ? `/course/${courseId}/module/${data.slug}`
