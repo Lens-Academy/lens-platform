@@ -63,3 +63,32 @@ describe("LensCard", () => {
     expect(screen.getByText("Tim Urban")).toBeDefined();
   });
 });
+
+describe("LensCard module type", () => {
+  it("renders a progress circle SVG for module cards", () => {
+    const { container } = render(
+      <LensCard
+        title="Module Title"
+        targetType="module"
+        moduleStatus="in_progress"
+        moduleCompletedLenses={3}
+        moduleTotalLenses={5}
+        href="/course/test/module/test-mod"
+      />,
+    );
+    const svg = container.querySelector("svg");
+    expect(svg).not.toBeNull();
+  });
+
+  it("renders lens icon dot for lens cards (not progress circle)", () => {
+    const { container } = render(
+      <LensCard
+        title="Lens Title"
+        targetType="lens"
+        href="#test"
+      />,
+    );
+    const dot = container.querySelector(".rounded-full");
+    expect(dot).not.toBeNull();
+  });
+});
