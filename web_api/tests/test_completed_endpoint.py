@@ -25,10 +25,16 @@ def test_returns_completed_ids_for_authenticated_user():
         yield AsyncMock()
 
     with (
-        patch("web_api.routes.progress.get_optional_user", new_callable=AsyncMock) as mock_auth,
-        patch("web_api.routes.progress.get_or_create_user", new_callable=AsyncMock) as mock_user,
+        patch(
+            "web_api.routes.progress.get_optional_user", new_callable=AsyncMock
+        ) as mock_auth,
+        patch(
+            "web_api.routes.progress.get_or_create_user", new_callable=AsyncMock
+        ) as mock_user,
         patch("web_api.routes.progress.get_connection", fake_conn),
-        patch("web_api.routes.progress.get_completed_content_ids", new_callable=AsyncMock) as mock_get,
+        patch(
+            "web_api.routes.progress.get_completed_content_ids", new_callable=AsyncMock
+        ) as mock_get,
     ):
         mock_auth.return_value = {"sub": "discord-123"}
         mock_user.return_value = {"user_id": 42}
@@ -43,7 +49,9 @@ def test_returns_completed_ids_for_authenticated_user():
 
 def test_returns_401_for_unauthenticated_user():
     """Unauthenticated user gets 401."""
-    with patch("web_api.routes.progress.get_optional_user", new_callable=AsyncMock) as mock_auth:
+    with patch(
+        "web_api.routes.progress.get_optional_user", new_callable=AsyncMock
+    ) as mock_auth:
         mock_auth.return_value = None
 
         resp = client.get("/api/progress/completed")

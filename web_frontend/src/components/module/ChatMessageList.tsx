@@ -35,7 +35,10 @@ function ToolResultPanel({
       <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
         <Check size={14} className="text-green-600 shrink-0" />
         <span className="text-gray-700">{label}</span>
-        <ChevronRight size={14} className="ml-auto text-gray-400 shrink-0 transition-transform duration-200 [[open]>summary>&]:rotate-90" />
+        <ChevronRight
+          size={14}
+          className="ml-auto text-gray-400 shrink-0 transition-transform duration-200 [[open]>summary>&]:rotate-90"
+        />
       </summary>
       <div className="px-3 pb-2 text-xs text-gray-600">
         <div className="font-medium text-gray-500 mb-0.5">Result</div>
@@ -78,7 +81,11 @@ type ChatMessageListProps = {
   minHeightWrapperRef?: React.Ref<HTMLDivElement>;
 };
 
-export function renderMessage(msg: ChatMessage, key: string | number, prevRole?: string) {
+export function renderMessage(
+  msg: ChatMessage,
+  key: string | number,
+  prevRole?: string,
+) {
   if (msg.role === "system") {
     return (
       <div key={key} className="flex justify-center my-3">
@@ -203,13 +210,15 @@ export function ChatMessageList({
   if (showThinking) {
     for (let j = messages.length - 2; j >= 0; j--) {
       const m = messages[j];
-      if (m.role === "assistant" && m.tool_calls && !m.content?.trim()) continue;
+      if (m.role === "assistant" && m.tool_calls && !m.content?.trim())
+        continue;
       if (m.role === "assistant" && !m.content?.trim()) continue;
       thinkingPrevRole = m.role;
       break;
     }
   }
-  const thinkingShowLabel = thinkingPrevRole !== "assistant" && thinkingPrevRole !== "tool";
+  const thinkingShowLabel =
+    thinkingPrevRole !== "assistant" && thinkingPrevRole !== "tool";
 
   const thinkingEl = showThinking && (
     <div className="text-gray-800">
@@ -230,20 +239,19 @@ export function ChatMessageList({
       style={{ overflowAnchor: "none" }}
       onScroll={onScroll}
     >
-      {visibleMessages
-        .slice(0, splitAt)
-        .map((msg, i) => {
-          // Find previous VISIBLE message's role (skip hidden ones like empty assistant+tool_calls)
-          let prevVisibleRole: string | undefined;
-          for (let j = startIndex + i - 1; j >= 0; j--) {
-            const m = messages[j];
-            if (m.role === "assistant" && m.tool_calls && !m.content?.trim()) continue;
-            if (m.role === "assistant" && !m.content?.trim()) continue;
-            prevVisibleRole = m.role;
-            break;
-          }
-          return renderMessage(msg, startIndex + i, prevVisibleRole);
-        })}
+      {visibleMessages.slice(0, splitAt).map((msg, i) => {
+        // Find previous VISIBLE message's role (skip hidden ones like empty assistant+tool_calls)
+        let prevVisibleRole: string | undefined;
+        for (let j = startIndex + i - 1; j >= 0; j--) {
+          const m = messages[j];
+          if (m.role === "assistant" && m.tool_calls && !m.content?.trim())
+            continue;
+          if (m.role === "assistant" && !m.content?.trim()) continue;
+          prevVisibleRole = m.role;
+          break;
+        }
+        return renderMessage(msg, startIndex + i, prevVisibleRole);
+      })}
 
       {useWrapper ? (
         <div
@@ -253,20 +261,19 @@ export function ChatMessageList({
             minHeight: wrapperMinHeight ? `${wrapperMinHeight}px` : undefined,
           }}
         >
-          {visibleMessages
-            .slice(splitAt)
-            .map((msg, i) => {
-              const absIdx = startIndex + splitAt + i;
-              let prevVisibleRole: string | undefined;
-              for (let j = absIdx - 1; j >= 0; j--) {
-                const m = messages[j];
-                if (m.role === "assistant" && m.tool_calls && !m.content?.trim()) continue;
-                if (m.role === "assistant" && !m.content?.trim()) continue;
-                prevVisibleRole = m.role;
-                break;
-              }
-              return renderMessage(msg, absIdx, prevVisibleRole);
-            })}
+          {visibleMessages.slice(splitAt).map((msg, i) => {
+            const absIdx = startIndex + splitAt + i;
+            let prevVisibleRole: string | undefined;
+            for (let j = absIdx - 1; j >= 0; j--) {
+              const m = messages[j];
+              if (m.role === "assistant" && m.tool_calls && !m.content?.trim())
+                continue;
+              if (m.role === "assistant" && !m.content?.trim()) continue;
+              prevVisibleRole = m.role;
+              break;
+            }
+            return renderMessage(msg, absIdx, prevVisibleRole);
+          })}
           {pendingEl}
           {thinkingEl}
           <div className="flex-grow" />

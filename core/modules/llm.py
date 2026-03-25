@@ -8,7 +8,7 @@ Normalizes streaming events to our internal format.
 import os
 from typing import AsyncIterator
 
-from litellm import acompletion, stream_chunk_builder
+from litellm import acompletion
 
 
 # Default provider - can be overridden per-call or via environment

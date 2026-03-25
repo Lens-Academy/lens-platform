@@ -217,11 +217,29 @@ describe("useTutorChat", () => {
     // Mock sendMessage to yield a two-round tool call sequence
     async function* twoRoundToolStream() {
       yield { type: "text", content: "Let me search." };
-      yield { type: "tool_use", name: "search_alignment_research", state: "calling" };
-      yield { type: "tool_use", name: "search_alignment_research", state: "result", result: "Result A" };
+      yield {
+        type: "tool_use",
+        name: "search_alignment_research",
+        state: "calling",
+      };
+      yield {
+        type: "tool_use",
+        name: "search_alignment_research",
+        state: "result",
+        result: "Result A",
+      };
       yield { type: "text", content: "\n\nLet me dig deeper." };
-      yield { type: "tool_use", name: "search_alignment_research", state: "calling" };
-      yield { type: "tool_use", name: "search_alignment_research", state: "result", result: "Result B" };
+      yield {
+        type: "tool_use",
+        name: "search_alignment_research",
+        state: "calling",
+      };
+      yield {
+        type: "tool_use",
+        name: "search_alignment_research",
+        state: "result",
+        result: "Result B",
+      };
       yield { type: "text", content: "\n\nHere are the findings." };
     }
     vi.mocked(sendMessageApi).mockReturnValue(twoRoundToolStream());
@@ -255,11 +273,11 @@ describe("useTutorChat", () => {
     // This test asserts the DESIRED behavior:
     expect(roles).toEqual([
       "user",
-      "assistant",  // "Let me search." with tool_calls
-      "tool",       // Result A
-      "assistant",  // "Let me dig deeper." with tool_calls
-      "tool",       // Result B
-      "assistant",  // "Here are the findings."
+      "assistant", // "Let me search." with tool_calls
+      "tool", // Result A
+      "assistant", // "Let me dig deeper." with tool_calls
+      "tool", // Result B
+      "assistant", // "Here are the findings."
     ]);
   });
 });

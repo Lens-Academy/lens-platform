@@ -48,18 +48,23 @@ export default function LensCard({
           size={32}
         />
       ) : (
-        <StageCircle type="lens" displayType={displayType ?? undefined} isCompleted={isCompleted ?? false} size={32} />
+        <StageCircle
+          type="lens"
+          displayType={displayType ?? undefined}
+          isCompleted={isCompleted ?? false}
+          size={32}
+        />
       )}
       <div className="not-prose min-w-0 flex-1 font-normal">
         <div className="font-display text-[17px] leading-snug text-slate-900">
           {title}
         </div>
         {attribution && (
-          <div className="text-sm text-slate-600 italic truncate">{attribution}</div>
+          <div className="text-sm text-slate-600 italic truncate">
+            {attribution}
+          </div>
         )}
-        {tldr && (
-          <div className="mt-0.5 text-sm text-slate-600">{tldr}</div>
-        )}
+        {tldr && <div className="mt-0.5 text-sm text-slate-600">{tldr}</div>}
       </div>
       {duration && (
         <span className="shrink-0 text-sm text-slate-500">{duration}</span>

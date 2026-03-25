@@ -333,7 +333,10 @@ def cache_with_aliases():
         articles={},
         video_transcripts={},
         last_refreshed=datetime.now(),
-        course_slug_aliases={"default": "navigating-asi", "old-course-name": "navigating-asi"},
+        course_slug_aliases={
+            "default": "navigating-asi",
+            "old-course-name": "navigating-asi",
+        },
     )
     set_cache(cache)
     yield cache

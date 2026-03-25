@@ -35,28 +35,40 @@ describe("renderMessage", () => {
   });
 
   it("renders assistant message with Tutor label", () => {
-    const msg: ChatMessage = { role: "assistant", content: "Here is my response" };
+    const msg: ChatMessage = {
+      role: "assistant",
+      content: "Here is my response",
+    };
     render(renderMessage(msg, "k") as React.ReactElement);
     expect(screen.getByText("Tutor")).toBeInTheDocument();
     expect(screen.getByText("Here is my response")).toBeInTheDocument();
   });
 
   it("renders system message as centered pill", () => {
-    const msg: ChatMessage = { role: "system", content: "Now viewing: Section 1" };
+    const msg: ChatMessage = {
+      role: "system",
+      content: "Now viewing: Section 1",
+    };
     const { container } = render(renderMessage(msg, "k") as React.ReactElement);
     expect(screen.getByText("Now viewing: Section 1")).toBeInTheDocument();
     expect(container.firstElementChild).toHaveClass("flex", "justify-center");
   });
 
   it("renders course-content message with Lens label", () => {
-    const msg: ChatMessage = { role: "course-content", content: "What do you think?" };
+    const msg: ChatMessage = {
+      role: "course-content",
+      content: "What do you think?",
+    };
     render(renderMessage(msg, "k") as React.ReactElement);
     expect(screen.getByText("Lens")).toBeInTheDocument();
   });
 
   it("renders tool message with content as collapsible panel", () => {
     const msg: ChatMessage = {
-      role: "tool", tool_call_id: "c1", name: "search_alignment_research", content: "Result text",
+      role: "tool",
+      tool_call_id: "c1",
+      name: "search_alignment_research",
+      content: "Result text",
     };
     const { container } = render(renderMessage(msg, "k") as React.ReactElement);
     expect(container.querySelector("details")).toBeInTheDocument();
@@ -66,15 +78,23 @@ describe("renderMessage", () => {
 
   it("renders tool message with empty content as calling indicator", () => {
     const msg: ChatMessage = {
-      role: "tool", tool_call_id: "", name: "search_alignment_research", content: "",
+      role: "tool",
+      tool_call_id: "",
+      name: "search_alignment_research",
+      content: "",
     };
     render(renderMessage(msg, "k") as React.ReactElement);
-    expect(screen.getByText("Searching alignment research\u2026")).toBeInTheDocument();
+    expect(
+      screen.getByText("Searching alignment research\u2026"),
+    ).toBeInTheDocument();
   });
 
   it("renders unknown tool with fallback labels", () => {
     const msg: ChatMessage = {
-      role: "tool", tool_call_id: "", name: "unknown_tool", content: "result",
+      role: "tool",
+      tool_call_id: "",
+      name: "unknown_tool",
+      content: "result",
     };
     render(renderMessage(msg, "k") as React.ReactElement);
     expect(screen.getByText("Tool completed")).toBeInTheDocument();
@@ -82,8 +102,15 @@ describe("renderMessage", () => {
 
   it("skips assistant with tool_calls and no text", () => {
     const msg: ChatMessage = {
-      role: "assistant", content: "",
-      tool_calls: [{ id: "c1", type: "function", function: { name: "search", arguments: "{}" } }],
+      role: "assistant",
+      content: "",
+      tool_calls: [
+        {
+          id: "c1",
+          type: "function",
+          function: { name: "search", arguments: "{}" },
+        },
+      ],
     };
     expect(renderMessage(msg, "k")).toBeNull();
   });
@@ -95,8 +122,15 @@ describe("renderMessage", () => {
 
   it("renders assistant with tool_calls AND text content", () => {
     const msg: ChatMessage = {
-      role: "assistant", content: "Let me search.",
-      tool_calls: [{ id: "c1", type: "function", function: { name: "search", arguments: "{}" } }],
+      role: "assistant",
+      content: "Let me search.",
+      tool_calls: [
+        {
+          id: "c1",
+          type: "function",
+          function: { name: "search", arguments: "{}" },
+        },
+      ],
     };
     render(renderMessage(msg, "k") as React.ReactElement);
     expect(screen.getByText("Tutor")).toBeInTheDocument();
@@ -112,16 +146,31 @@ describe("ChatMessageList — tool messages in history", () => {
   it("renders interleaved tool call history correctly", () => {
     const messages: ChatMessage[] = [
       { role: "user", content: "Search for deceptive alignment" },
-      { role: "assistant", content: "", tool_calls: [
-        { id: "c1", type: "function", function: { name: "search_alignment_research", arguments: "{}" } },
-      ] },
-      { role: "tool", tool_call_id: "c1", name: "search_alignment_research", content: "Deceptive alignment refers to..." },
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "c1",
+            type: "function",
+            function: { name: "search_alignment_research", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "c1",
+        name: "search_alignment_research",
+        content: "Deceptive alignment refers to...",
+      },
       { role: "assistant", content: "Here's what I found." },
     ];
 
     render(<ChatMessageList messages={messages} />);
 
-    expect(screen.getByText("Search for deceptive alignment")).toBeInTheDocument();
+    expect(
+      screen.getByText("Search for deceptive alignment"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Searched alignment research")).toBeInTheDocument();
     expect(screen.getByText("Here's what I found.")).toBeInTheDocument();
 
@@ -133,12 +182,35 @@ describe("ChatMessageList — tool messages in history", () => {
   it("renders three tool panels from history", () => {
     const messages: ChatMessage[] = [
       { role: "user", content: "Search three topics" },
-      { role: "assistant", content: "", tool_calls: [
-        { id: "c1", type: "function", function: { name: "search_alignment_research", arguments: "{}" } },
-      ] },
-      { role: "tool", tool_call_id: "c1", name: "search_alignment_research", content: "R1" },
-      { role: "tool", tool_call_id: "c2", name: "search_alignment_research", content: "R2" },
-      { role: "tool", tool_call_id: "c3", name: "search_alignment_research", content: "R3" },
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "c1",
+            type: "function",
+            function: { name: "search_alignment_research", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "c1",
+        name: "search_alignment_research",
+        content: "R1",
+      },
+      {
+        role: "tool",
+        tool_call_id: "c2",
+        name: "search_alignment_research",
+        content: "R2",
+      },
+      {
+        role: "tool",
+        tool_call_id: "c3",
+        name: "search_alignment_research",
+        content: "R3",
+      },
       { role: "assistant", content: "Combined results." },
     ];
 
@@ -150,7 +222,12 @@ describe("ChatMessageList — tool messages in history", () => {
   it("renders DOM elements in correct order", () => {
     const messages: ChatMessage[] = [
       { role: "user", content: "USER_MSG" },
-      { role: "tool", tool_call_id: "c1", name: "search_alignment_research", content: "TOOL_RESULT" },
+      {
+        role: "tool",
+        tool_call_id: "c1",
+        name: "search_alignment_research",
+        content: "TOOL_RESULT",
+      },
       { role: "assistant", content: "ASSISTANT_MSG" },
     ];
 
@@ -194,25 +271,53 @@ describe("ChatMessageList — streaming via messages array", () => {
     // During streaming: assistant text frozen, tool placeholder with empty content
     const messages: ChatMessage[] = [
       { role: "user", content: "Search" },
-      { role: "assistant", content: "Let me search.", tool_calls: [
-        { id: "", type: "function", function: { name: "search_alignment_research", arguments: "" } },
-      ] },
-      { role: "tool", tool_call_id: "", name: "search_alignment_research", content: "" },
+      {
+        role: "assistant",
+        content: "Let me search.",
+        tool_calls: [
+          {
+            id: "",
+            type: "function",
+            function: { name: "search_alignment_research", arguments: "" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "",
+        name: "search_alignment_research",
+        content: "",
+      },
       { role: "assistant", content: "" },
     ];
     render(<ChatMessageList messages={messages} isLoading={true} />);
 
     expect(screen.getByText("Let me search.")).toBeInTheDocument();
-    expect(screen.getByText("Searching alignment research\u2026")).toBeInTheDocument();
+    expect(
+      screen.getByText("Searching alignment research\u2026"),
+    ).toBeInTheDocument();
   });
 
   it("shows completed tool panel after tool result arrives", () => {
     const messages: ChatMessage[] = [
       { role: "user", content: "Search" },
-      { role: "assistant", content: "Let me search.", tool_calls: [
-        { id: "", type: "function", function: { name: "search_alignment_research", arguments: "" } },
-      ] },
-      { role: "tool", tool_call_id: "", name: "search_alignment_research", content: "Results here" },
+      {
+        role: "assistant",
+        content: "Let me search.",
+        tool_calls: [
+          {
+            id: "",
+            type: "function",
+            function: { name: "search_alignment_research", arguments: "" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "",
+        name: "search_alignment_research",
+        content: "Results here",
+      },
       { role: "assistant", content: "Here's what I found." },
     ];
     render(<ChatMessageList messages={messages} isLoading={true} />);
@@ -226,14 +331,40 @@ describe("ChatMessageList — streaming via messages array", () => {
     // Simulates the messages array during a two-round tool call stream
     const messages: ChatMessage[] = [
       { role: "user", content: "Explain thoroughly" },
-      { role: "assistant", content: "Let me search.", tool_calls: [
-        { id: "", type: "function", function: { name: "search_alignment_research", arguments: "" } },
-      ] },
-      { role: "tool", tool_call_id: "", name: "search_alignment_research", content: "Result A" },
-      { role: "assistant", content: "Let me dig deeper.", tool_calls: [
-        { id: "", type: "function", function: { name: "search_alignment_research", arguments: "" } },
-      ] },
-      { role: "tool", tool_call_id: "", name: "search_alignment_research", content: "Result B" },
+      {
+        role: "assistant",
+        content: "Let me search.",
+        tool_calls: [
+          {
+            id: "",
+            type: "function",
+            function: { name: "search_alignment_research", arguments: "" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "",
+        name: "search_alignment_research",
+        content: "Result A",
+      },
+      {
+        role: "assistant",
+        content: "Let me dig deeper.",
+        tool_calls: [
+          {
+            id: "",
+            type: "function",
+            function: { name: "search_alignment_research", arguments: "" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "",
+        name: "search_alignment_research",
+        content: "Result B",
+      },
       { role: "assistant", content: "Combined findings." },
     ];
 
@@ -264,14 +395,40 @@ describe("ChatMessageList — Tutor label deduplication", () => {
     // Only the first assistant after the user should show "Tutor"
     const messages: ChatMessage[] = [
       { role: "user", content: "Explain thoroughly" },
-      { role: "assistant", content: "Let me search.", tool_calls: [
-        { id: "", type: "function", function: { name: "search_alignment_research", arguments: "" } },
-      ] },
-      { role: "tool", tool_call_id: "", name: "search_alignment_research", content: "Result A" },
-      { role: "assistant", content: "Let me dig deeper.", tool_calls: [
-        { id: "", type: "function", function: { name: "search_alignment_research", arguments: "" } },
-      ] },
-      { role: "tool", tool_call_id: "", name: "search_alignment_research", content: "Result B" },
+      {
+        role: "assistant",
+        content: "Let me search.",
+        tool_calls: [
+          {
+            id: "",
+            type: "function",
+            function: { name: "search_alignment_research", arguments: "" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "",
+        name: "search_alignment_research",
+        content: "Result A",
+      },
+      {
+        role: "assistant",
+        content: "Let me dig deeper.",
+        tool_calls: [
+          {
+            id: "",
+            type: "function",
+            function: { name: "search_alignment_research", arguments: "" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "",
+        name: "search_alignment_research",
+        content: "Result B",
+      },
       { role: "assistant", content: "Combined findings." },
     ];
 

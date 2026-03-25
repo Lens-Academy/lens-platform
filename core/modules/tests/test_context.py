@@ -245,7 +245,9 @@ class TestGatherSectionContext:
         assert ctx is not None
         contents = [c for _, _, c in ctx.segments]
         assert any("<source>Lens Academy</source>" in c for c in contents)
-        assert any("<source>AI for AI safety, by Joe Carlsmith</source>" in c for c in contents)
+        assert any(
+            "<source>AI for AI safety, by Joe Carlsmith</source>" in c for c in contents
+        )
         assert any("The actual article text" in c for c in contents)
 
     def test_article_excerpt_no_meta(self):
@@ -325,6 +327,4 @@ class TestGatherSectionContext:
 
         assert ctx is not None
         contents = [c for _, _, c in ctx.segments]
-        assert any(
-            "<source>AGI Safety Fundamentals</source>" in c for c in contents
-        )
+        assert any("<source>AGI Safety Fundamentals</source>" in c for c in contents)

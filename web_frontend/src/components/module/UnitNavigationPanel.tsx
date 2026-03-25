@@ -55,7 +55,6 @@ function groupModules(modules: ModuleInfo[]): ModuleGroup[] {
 
 // --- Subcomponents ---
 
-
 function StageDuration({
   duration,
   type,
@@ -160,7 +159,11 @@ function SectionList({
 
   // Pre-filter hidden items so index math (isFirst/isLast/trailsIntoBranch) just works
   const visibleLayout = useMemo(() => {
-    type VEntry = { item: (typeof layout)[number]; li: number; visibleItems?: { index: number; stage: StageInfo }[] };
+    type VEntry = {
+      item: (typeof layout)[number];
+      li: number;
+      visibleItems?: { index: number; stage: StageInfo }[];
+    };
     return layout.reduce<VEntry[]>((acc, item, li) => {
       if (item.kind === "trunk") {
         if (!item.stage.hide) acc.push({ item, li });
@@ -270,7 +273,9 @@ function SectionList({
 
         if (item.kind === "trunk" && colors.kind === "trunk") {
           // Check if this is the very last trunk item (only optional branches after it)
-          const isLastTrunk = !visibleLayout.slice(vi + 1).some((e) => e.item.kind === "trunk");
+          const isLastTrunk = !visibleLayout
+            .slice(vi + 1)
+            .some((e) => e.item.kind === "trunk");
           return (
             <div key={li} className="relative">
               {!isFirst && (
@@ -294,7 +299,8 @@ function SectionList({
         }
 
         if (item.kind === "branch" && colors.kind === "branch") {
-          const hasPrecedingTrunk = vi > 0 && visibleLayout[vi - 1].item.kind === "trunk";
+          const hasPrecedingTrunk =
+            vi > 0 && visibleLayout[vi - 1].item.kind === "trunk";
           const segmentColors = colors.segmentColors;
           const endX = branchDotCenter - dotCenter + 1;
 

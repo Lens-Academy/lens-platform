@@ -47,7 +47,12 @@ export function Popover({
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
     onOpenChange(open, _event, reason) {
-      if (!open && pinned.current && reason !== "escape-key" && reason !== "outside-press") {
+      if (
+        !open &&
+        pinned.current &&
+        reason !== "escape-key" &&
+        reason !== "outside-press"
+      ) {
         // Hover trying to close, but user clicked to pin — stay open
         return;
       }
@@ -84,7 +89,9 @@ export function Popover({
 
   // When hover is enabled, pin on click
   const handleClick = enableHover
-    ? () => { pinned.current = !pinned.current; }
+    ? () => {
+        pinned.current = !pinned.current;
+      }
     : undefined;
 
   if (!isValidElement(children)) {

@@ -171,7 +171,11 @@ function DebugOverlay({
   );
 }
 
-export default function Module({ courseId, moduleId }: ModuleProps) {
+export default function Module({
+  courseId: courseIdProp,
+  moduleId,
+}: ModuleProps) {
+  const [courseId, setCourseId] = useState(courseIdProp);
   // Module data loading state
   const [module, setModule] = useState<ModuleType | null>(null);
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
@@ -197,7 +201,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   // Build module progress map for AuthoredText module cards
   const moduleProgressMap = useMemo(() => {
     if (!courseProgress) return new Map();
-    const map = new Map<string, { status: "completed" | "in_progress" | "not_started"; completedLenses: number; totalLenses: number }>();
+    const map = new Map<
+      string,
+      {
+        status: "completed" | "in_progress" | "not_started";
+        completedLenses: number;
+        totalLenses: number;
+      }
+    >();
     for (const unit of courseProgress.units) {
       for (const mod of unit.modules) {
         map.set(mod.slug, {
@@ -234,8 +245,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         // Fetch module, course progress, and module progress in parallel
         const [moduleResult, courseResult, progressResult] = await Promise.all([
           getModule(moduleId),
-          courseId
-            ? getCourseProgress(courseId).catch(() => null)
+          courseIdProp
+            ? getCourseProgress(courseIdProp).catch(() => null)
             : Promise.resolve(null),
           getModuleProgress(moduleId).catch(() => null),
         ]);
@@ -243,10 +254,18 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         setModule(moduleResult);
         setCourseProgress(courseResult);
 
-        // Redirect if viewing via alias slug
-        if (courseResult?.course?.slug && courseId && courseResult.course.slug !== courseId) {
-          window.location.replace(`/course/${courseResult.course.slug}/module/${moduleId}`);
-          return;
+        // Fix URL if viewing via alias slug (no reload, just update address bar)
+        if (
+          courseResult?.course?.slug &&
+          courseIdProp &&
+          courseResult.course.slug !== courseIdProp
+        ) {
+          history.replaceState(
+            null,
+            "",
+            `/course/${courseResult.course.slug}/module/${moduleId}${window.location.hash}`,
+          );
+          setCourseId(courseResult.course.slug);
         }
 
         // Initialize completedSections from progress API response
@@ -279,7 +298,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
 
     load();
-  }, [moduleId, courseId]);
+  }, [moduleId, courseIdProp]);
 
   // Helper to update completedSections from lenses array
   const updateCompletedFromLenses = useCallback((lenses: LensProgress[]) => {
@@ -430,7 +449,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
   }, [module, completedSections]);
 
   // Cross-module completion state (for LensCard completion indicators on cross-module cards)
-  const [allCompletedContentIds, setAllCompletedContentIds] = useState<Set<string>>(new Set());
+  const [allCompletedContentIds, setAllCompletedContentIds] = useState<
+    Set<string>
+  >(new Set());
 
   // Theater mode: track how many videos are in theater mode (for scroll-snap)
   const [theaterCount, setTheaterCount] = useState(0);
@@ -578,7 +599,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: 0,
           to: null,
           optional: isOptional,
-          hide: section.hide === true && index !== currentSectionIndex || undefined,
+          hide:
+            (section.hide === true && index !== currentSectionIndex) ||
+            undefined,
           title,
           tldr,
           duration,
@@ -590,7 +613,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: null,
           to: null,
           optional: isOptional,
-          hide: section.hide === true && index !== currentSectionIndex || undefined,
+          hide:
+            (section.hide === true && index !== currentSectionIndex) ||
+            undefined,
           title,
           tldr,
           duration,
@@ -602,7 +627,9 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: null,
           to: null,
           optional: isOptional,
-          hide: section.hide === true && index !== currentSectionIndex || undefined,
+          hide:
+            (section.hide === true && index !== currentSectionIndex) ||
+            undefined,
           title,
           tldr,
           duration,
@@ -637,7 +664,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         title: section.meta?.title || `Section ${index + 1}`,
         duration: dur || null,
         optional: section.optional === true,
-        hide: section.hide === true && index !== currentSectionIndex || undefined,
+        hide:
+          (section.hide === true && index !== currentSectionIndex) || undefined,
         tldr: section.tldr,
         attribution:
           attributions.length > 0 ? attributions.join(" & ") : undefined,

@@ -28,15 +28,13 @@ describe("AuthoredText lens links", () => {
     );
     const link = screen.getByText("Module 2");
     expect(link.tagName).toBe("A");
-    expect(link.getAttribute("href")).toBe("/course/my-course/module/my-module-2");
+    expect(link.getAttribute("href")).toBe(
+      "/course/my-course/module/my-module-2",
+    );
   });
 
   it("renders regular links unchanged", () => {
-    render(
-      <AuthoredText
-        content="Visit [example](https://example.com)"
-      />,
-    );
+    render(<AuthoredText content="Visit [example](https://example.com)" />);
     const link = screen.getByText("example");
     expect(link.getAttribute("href")).toBe("https://example.com");
     expect(link.getAttribute("target")).toBe("_blank");
@@ -93,7 +91,9 @@ describe("cross-module lens links", () => {
     );
     const link = screen.getByText("Other Lens");
     expect(link.tagName).toBe("A");
-    expect(link.getAttribute("href")).toBe("/course/my-course/module/other-module#other-lens");
+    expect(link.getAttribute("href")).toBe(
+      "/course/my-course/module/other-module#other-lens",
+    );
   });
 
   it("renders lens:contentId (no moduleSlug, not in current module) as standalone lens link", () => {
@@ -159,7 +159,10 @@ describe("module card with progress", () => {
       slug: "mod-3",
     });
     const moduleProgressMap = new Map([
-      ["mod-3", { status: "in_progress" as const, completedLenses: 2, totalLenses: 5 }],
+      [
+        "mod-3",
+        { status: "in_progress" as const, completedLenses: 2, totalLenses: 5 },
+      ],
     ]);
     const { container } = render(
       <AuthoredText

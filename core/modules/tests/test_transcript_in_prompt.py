@@ -146,7 +146,11 @@ class TestContentContextMessage:
         """build_content_context_message should include segment content."""
         context = SectionContext(
             segments=[
-                (0, "video", "<source>Video transcript</source>\nThis is important AI safety content"),
+                (
+                    0,
+                    "video",
+                    "<source>Video transcript</source>\nThis is important AI safety content",
+                ),
                 (1, "chat", "<source>Chat discussion</source>"),
             ],
             segment_index=1,

@@ -893,28 +893,40 @@ class TestIncrementalRefreshSHATracking:
         )
 
         with patch(
-            "core.content.github_fetcher.compare_commits",
-            new_callable=AsyncMock,
-            return_value=mock_comparison,
+            "core.content.github_fetcher._get_clone_dir",
+            return_value="/tmp/fake-clone",
         ):
             with patch(
-                "core.content.github_fetcher.git_fetcher.fetch_and_reset",
-                new_callable=AsyncMock,
-                return_value="new_sha_222",
+                "core.content.github_fetcher.get_content_branch",
+                return_value="staging",
             ):
                 with patch(
-                    "core.content.github_fetcher.git_fetcher.read_all_files",
+                    "core.content.github_fetcher.compare_commits",
                     new_callable=AsyncMock,
-                    return_value={
-                        "modules/test.md": "---\ntitle: Test Updated\nslug: test\n---\n"
-                    },
+                    return_value=mock_comparison,
                 ):
                     with patch(
-                        "core.content.github_fetcher.process_content_typescript",
+                        "core.content.github_fetcher.git_fetcher.fetch_and_reset",
                         new_callable=AsyncMock,
-                        return_value={"modules": [], "courses": [], "errors": []},
+                        return_value="new_sha_222",
                     ):
-                        await incremental_refresh("new_sha_222")
+                        with patch(
+                            "core.content.github_fetcher.git_fetcher.read_all_files",
+                            new_callable=AsyncMock,
+                            return_value={
+                                "modules/test.md": "---\ntitle: Test Updated\nslug: test\n---\n"
+                            },
+                        ):
+                            with patch(
+                                "core.content.github_fetcher.process_content_typescript",
+                                new_callable=AsyncMock,
+                                return_value={
+                                    "modules": [],
+                                    "courses": [],
+                                    "errors": [],
+                                },
+                            ):
+                                await incremental_refresh("new_sha_222")
 
         cache = get_cache()
         assert cache.fetched_sha == "new_sha_222"
@@ -954,26 +966,38 @@ class TestIncrementalRefreshSHATracking:
         )
 
         with patch(
-            "core.content.github_fetcher.compare_commits",
-            new_callable=AsyncMock,
-            return_value=mock_comparison,
+            "core.content.github_fetcher._get_clone_dir",
+            return_value="/tmp/fake-clone",
         ):
             with patch(
-                "core.content.github_fetcher.git_fetcher.fetch_and_reset",
-                new_callable=AsyncMock,
-                return_value="new_sha_222",
+                "core.content.github_fetcher.get_content_branch",
+                return_value="staging",
             ):
                 with patch(
-                    "core.content.github_fetcher.git_fetcher.read_all_files",
+                    "core.content.github_fetcher.compare_commits",
                     new_callable=AsyncMock,
-                    return_value={"modules/test.md": "updated content"},
+                    return_value=mock_comparison,
                 ):
                     with patch(
-                        "core.content.github_fetcher.process_content_typescript",
+                        "core.content.github_fetcher.git_fetcher.fetch_and_reset",
                         new_callable=AsyncMock,
-                        return_value={"modules": [], "courses": [], "errors": []},
+                        return_value="new_sha_222",
                     ):
-                        await incremental_refresh("new_sha_222")
+                        with patch(
+                            "core.content.github_fetcher.git_fetcher.read_all_files",
+                            new_callable=AsyncMock,
+                            return_value={"modules/test.md": "updated content"},
+                        ):
+                            with patch(
+                                "core.content.github_fetcher.process_content_typescript",
+                                new_callable=AsyncMock,
+                                return_value={
+                                    "modules": [],
+                                    "courses": [],
+                                    "errors": [],
+                                },
+                            ):
+                                await incremental_refresh("new_sha_222")
 
         cache = get_cache()
         assert cache.last_diff is not None

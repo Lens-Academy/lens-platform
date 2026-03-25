@@ -65,7 +65,9 @@ async def test_stream_chat_does_not_yield_tool_events():
         async for event in stream_chat(
             messages=[{"role": "user", "content": "search something"}],
             system="You are a tutor.",
-            tools=[{"type": "function", "function": {"name": "search_alignment_research"}}],
+            tools=[
+                {"type": "function", "function": {"name": "search_alignment_research"}}
+            ],
             provider="anthropic/claude-sonnet-4-20250514",
         ):
             events.append(event)

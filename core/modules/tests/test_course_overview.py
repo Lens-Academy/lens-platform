@@ -2,6 +2,7 @@
 """Tests for build_course_overview."""
 
 from datetime import datetime
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -131,7 +132,7 @@ class TestCourseOverview:
         mod_b_line = [line for line in lines if "Module B" in line][0]
         assert "(optional)" in mod_b_line
 
-    @patch("core.modules.loader.load_flattened_module")
+    @patch("core.modules.prompts.load_flattened_module")
     def test_prefers_summary_for_tutor_over_tldr(self, mock_load):
         mod = _make_module(
             "mod-x",
@@ -151,6 +152,6 @@ class TestCourseOverview:
             title="Test",
             progression=[ModuleRef(slug="mod-x")],
         )
-        result = build_course_overview(course, "mod-x", 0, set())
+        result = build_course_overview(course)
         assert "Dry informative summary" in result
         assert "Hooky marketing text" not in result

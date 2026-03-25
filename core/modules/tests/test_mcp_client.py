@@ -1,6 +1,5 @@
 """Tests for MCP client lifecycle manager."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

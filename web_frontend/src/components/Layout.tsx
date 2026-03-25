@@ -80,9 +80,7 @@ export default function Layout({
                   className="bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-lg shadow-lg p-2 z-50 min-w-[220px]"
                   content={(close) => <CoursesDropdown onNavigate={close} />}
                 >
-                  <button
-                    className="text-[var(--brand-text-muted)] font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200"
-                  >
+                  <button className="text-[var(--brand-text-muted)] font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200">
                     Courses
                   </button>
                 </Popover>

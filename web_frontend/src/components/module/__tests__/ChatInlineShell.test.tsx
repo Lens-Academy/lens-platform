@@ -93,7 +93,6 @@ describe("ChatInlineShell minHeight on second message", () => {
         messages={messages}
         pendingMessage={null}
         isLoading={false}
-
         onSendMessage={onSendMessage}
         hasActiveInput={true}
       />,
@@ -125,7 +124,6 @@ describe("ChatInlineShell minHeight on second message", () => {
         messages={messages}
         pendingMessage={null}
         isLoading={false}
-
         onSendMessage={onSendMessage}
         activated
         hasActiveInput={true}
@@ -150,7 +148,6 @@ describe("ChatInlineShell minHeight on second message", () => {
         messages={updatedMessages}
         pendingMessage={{ content: "Follow-up", status: "sending" }}
         isLoading={true}
-
         onSendMessage={onSendMessage}
         activated
         hasActiveInput={true}

@@ -324,7 +324,7 @@ export default function LandingPage() {
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Course 1 */}
+            {/* Course 1: Book Club */}
             <div
               className="p-8 sm:p-10 rounded-xl flex flex-col"
               style={{
@@ -339,7 +339,47 @@ export default function LandingPage() {
                   color: "var(--landing-accent-text)",
                 }}
               >
-                Available now
+                Starting April 2026
+              </span>
+              <h3
+                className="text-2xl sm:text-3xl mb-4 leading-snug"
+                style={fontDisplay}
+              >
+                If Anyone Builds It, Everyone Dies
+                <span
+                  className="block text-base font-normal mt-2"
+                  style={{ color: "var(--landing-text-muted)" }}
+                >
+                  Book Club Course
+                </span>
+              </h3>
+              <p
+                className="text-base leading-relaxed mb-8 flex-1"
+                style={{ color: "var(--landing-text-muted)" }}
+              >
+                Read and discuss the book together with a cohort. Weekly
+                sessions exploring the arguments, evidence, and implications
+                with fellow students and an AI tutor.
+              </p>
+              <ProspectEmailForm variant="inline" />
+            </div>
+
+            {/* Course 2: Navigating Superintelligence */}
+            <div
+              className="p-8 sm:p-10 rounded-xl flex flex-col"
+              style={{
+                backgroundColor: "var(--landing-bg-alt)",
+                border: "1px solid var(--landing-border)",
+              }}
+            >
+              <span
+                className="inline-block self-start text-xs font-semibold tracking-wide uppercase px-3 py-1 rounded-full mb-5 border"
+                style={{
+                  borderColor: "var(--landing-border)",
+                  color: "var(--landing-text-muted)",
+                }}
+              >
+                Next cohort starting May 2026
               </span>
               <h3
                 className="text-2xl sm:text-3xl mb-4 leading-snug"
@@ -358,24 +398,6 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
-                  href="/course/default/module/introduction"
-                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold transition-colors duration-200"
-                  style={{
-                    backgroundColor: "var(--landing-accent)",
-                    color: "var(--landing-accent-text)",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      "var(--landing-accent-hover)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      "var(--landing-accent)")
-                  }
-                >
-                  Start Learning
-                </a>
-                <a
                   href="/course/default"
                   className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold border transition-colors duration-200"
                   style={{
@@ -393,40 +415,6 @@ export default function LandingPage() {
                 </a>
               </div>
             </div>
-
-            {/* Course 2 */}
-            <div
-              className="p-8 sm:p-10 rounded-xl flex flex-col"
-              style={{
-                backgroundColor: "var(--landing-bg-alt)",
-                border: "1px solid var(--landing-border)",
-              }}
-            >
-              <span
-                className="inline-block self-start text-xs font-semibold tracking-wide uppercase px-3 py-1 rounded-full mb-5 border"
-                style={{
-                  borderColor: "var(--landing-border)",
-                  color: "var(--landing-text-muted)",
-                }}
-              >
-                Starting April 2026
-              </span>
-              <h3
-                className="text-2xl sm:text-3xl mb-4 leading-snug"
-                style={fontDisplay}
-              >
-                Book Club: If Anyone Builds It, Everyone Dies
-              </h3>
-              <p
-                className="text-base leading-relaxed mb-8 flex-1"
-                style={{ color: "var(--landing-text-muted)" }}
-              >
-                Read and discuss the book together with a cohort. Weekly
-                sessions exploring the arguments, evidence, and implications
-                with fellow students and an AI tutor.
-              </p>
-              <ProspectEmailForm variant="inline" />
-            </div>
           </div>
         </div>
       </RevealSection>
@@ -437,7 +425,7 @@ export default function LandingPage() {
       <RevealSection className="py-20 sm:py-28 px-4">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl mb-8" style={fontDisplay}>
-            Start learning today
+            Try the intro module today
           </h2>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
@@ -457,7 +445,7 @@ export default function LandingPage() {
                   "var(--landing-accent)")
               }
             >
-              Try the intro module
+              Start Learning
             </a>
             <a
               href="/enroll"

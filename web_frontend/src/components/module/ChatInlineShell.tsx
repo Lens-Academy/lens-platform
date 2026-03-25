@@ -450,7 +450,16 @@ export function ChatInlineShell({
                           style={{ scrollMarginTop: scrollMargin }}
                         />
                       )}
-                      {renderMessage(msg, `current-${i}`, i > 0 ? wrapperMessages[i - 1]?.role : (previousMessages.length > 0 ? previousMessages[previousMessages.length - 1]?.role : undefined))}
+                      {renderMessage(
+                        msg,
+                        `current-${i}`,
+                        i > 0
+                          ? wrapperMessages[i - 1]?.role
+                          : previousMessages.length > 0
+                            ? previousMessages[previousMessages.length - 1]
+                                ?.role
+                            : undefined,
+                      )}
                     </Fragment>
                   ));
                 })()}

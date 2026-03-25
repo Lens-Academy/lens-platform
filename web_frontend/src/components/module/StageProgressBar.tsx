@@ -187,7 +187,11 @@ export default function StageProgressBar({
 
   // Pre-filter hidden items so index math (isFirst/isLast/trailsIntoBranch) just works
   const visibleLayout = useMemo(() => {
-    type VEntry = { item: (typeof layout)[number]; li: number; visibleItems?: { index: number; stage: StageInfo }[] };
+    type VEntry = {
+      item: (typeof layout)[number];
+      li: number;
+      visibleItems?: { index: number; stage: StageInfo }[];
+    };
     return layout.reduce<VEntry[]>((acc, item, li) => {
       if (item.kind === "trunk") {
         if (!stages[item.index]?.hide) acc.push({ item, li });

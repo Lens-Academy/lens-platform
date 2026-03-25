@@ -46,7 +46,11 @@ export default function AuthoredText({
   moduleProgressMap,
 }: AuthoredTextProps) {
   const resolveLensHref = useCallback(
-    (contentId: string, moduleSlug?: string | null, title?: string | null): string => {
+    (
+      contentId: string,
+      moduleSlug?: string | null,
+      title?: string | null,
+    ): string => {
       // Same-module lookup
       if (moduleSections) {
         const index = moduleSections.findIndex(
@@ -68,18 +72,13 @@ export default function AuthoredText({
   );
 
   const renderLink = useCallback(
-    ({
-      children,
-      href,
-    }: {
-      children?: React.ReactNode;
-      href?: string;
-    }) => {
+    ({ children, href }: { children?: React.ReactNode; href?: string }) => {
       if (href?.startsWith("lens:")) {
         const rest = href.slice("lens:".length);
         const atIndex = rest.indexOf("@");
         const contentId = atIndex !== -1 ? rest.slice(0, atIndex) : rest;
-        const targetModuleSlug = atIndex !== -1 ? rest.slice(atIndex + 1) : null;
+        const targetModuleSlug =
+          atIndex !== -1 ? rest.slice(atIndex + 1) : null;
 
         // Extract display text for section hash generation
         const displayText = typeof children === "string" ? children : null;
@@ -138,23 +137,32 @@ export default function AuthoredText({
           components={{
             // Card divs
             div: ({ node, ...props }) => {
-              const lensCardJson = (node?.properties as Record<string, unknown>)?.["dataLensCard"] as string | undefined;
+              const lensCardJson = (
+                node?.properties as Record<string, unknown>
+              )?.["dataLensCard"] as string | undefined;
               if (lensCardJson) {
                 try {
                   const data = JSON.parse(lensCardJson);
                   const isCompleted =
-                    (completedContentIds?.has(data.contentId) || allCompletedContentIds?.has(data.contentId)) ?? false;
+                    (completedContentIds?.has(data.contentId) ||
+                      allCompletedContentIds?.has(data.contentId)) ??
+                    false;
                   let href: string | undefined;
                   if (data.targetType === "lens") {
-                    href = resolveLensHref(data.contentId, data.moduleSlug, data.title);
+                    href = resolveLensHref(
+                      data.contentId,
+                      data.moduleSlug,
+                      data.title,
+                    );
                   } else if (data.targetType === "module") {
                     href = courseId
                       ? `/course/${courseId}/module/${data.slug}`
                       : `/module/${data.slug}`;
                   }
-                  const modProgress = data.targetType === "module" && data.slug
-                    ? moduleProgressMap?.get(data.slug)
-                    : undefined;
+                  const modProgress =
+                    data.targetType === "module" && data.slug
+                      ? moduleProgressMap?.get(data.slug)
+                      : undefined;
                   return (
                     <LensCard
                       {...data}

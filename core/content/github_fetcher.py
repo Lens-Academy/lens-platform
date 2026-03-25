@@ -536,12 +536,19 @@ async def incremental_refresh(new_commit_sha: str) -> list[dict]:
         try:
             comparison = await compare_commits(cache.last_commit_sha, new_commit_sha)
             diff_data = [
-                {"filename": c.path, "status": c.status,
-                 "additions": c.additions, "deletions": c.deletions, "patch": c.patch}
+                {
+                    "filename": c.path,
+                    "status": c.status,
+                    "additions": c.additions,
+                    "deletions": c.deletions,
+                    "patch": c.patch,
+                }
                 for c in comparison.files
             ]
             tracked_change_count = sum(
-                1 for c in comparison.files if _get_tracked_directory(c.path) is not None
+                1
+                for c in comparison.files
+                if _get_tracked_directory(c.path) is not None
             )
         except Exception as e:
             logger.warning("Failed to get diff for frontend: %s", e)

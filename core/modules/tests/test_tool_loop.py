@@ -127,14 +127,20 @@ async def test_tool_call_executes_and_continues():
 
     # First call: LLM returns a tool call
     tool_chunk = _make_tool_chunk(
-        tool_name="search_alignment_research", tool_id="call_abc", arguments_fragment='{"query": "test"}'
+        tool_name="search_alignment_research",
+        tool_id="call_abc",
+        arguments_fragment='{"query": "test"}',
     )
-    tc_obj = _make_tool_call_obj("search_alignment_research", '{"query": "test"}', "call_abc")
+    tc_obj = _make_tool_call_obj(
+        "search_alignment_research", '{"query": "test"}', "call_abc"
+    )
     built_with_tool = _make_built_message(content=None, tool_calls=[tc_obj])
 
     # Second call: LLM returns text
     text_chunk = _make_text_chunk("Here is what I found.")
-    built_with_text = _make_built_message(content="Here is what I found.", tool_calls=None)
+    built_with_text = _make_built_message(
+        content="Here is what I found.", tool_calls=None
+    )
 
     call_count = 0
 
@@ -142,16 +148,22 @@ async def test_tool_call_executes_and_continues():
         nonlocal call_count
         call_count += 1
         if call_count == 1:
+
             async def gen():
                 yield tool_chunk
+
             return gen()
         else:
+
             async def gen():
                 yield text_chunk
+
             return gen()
 
     mock_mcp = MagicMock()
-    mock_tools = [{"type": "function", "function": {"name": "search_alignment_research"}}]
+    mock_tools = [
+        {"type": "function", "function": {"name": "search_alignment_research"}}
+    ]
 
     builder_calls = [0]
 
@@ -221,7 +233,9 @@ async def test_max_rounds_stops_loop():
 
     stage = ChatStage(type="chat", instructions="Test")
 
-    tc_obj = _make_tool_call_obj("search_alignment_research", '{"query": "x"}', "call_1")
+    tc_obj = _make_tool_call_obj(
+        "search_alignment_research", '{"query": "x"}', "call_1"
+    )
     built_with_tool = _make_built_message(content=None, tool_calls=[tc_obj])
 
     # Final round: text (because tool_choice="none" forces text)
@@ -234,7 +248,9 @@ async def test_max_rounds_stops_loop():
         nonlocal call_count
         call_count += 1
         tool_chunk = _make_tool_chunk(
-            tool_name="search_alignment_research", tool_id="call_1", arguments_fragment='{"query": "x"}'
+            tool_name="search_alignment_research",
+            tool_id="call_1",
+            arguments_fragment='{"query": "x"}',
         )
 
         # On the last round (MAX_TOOL_ROUNDS + 1), tool_choice should be "none"
@@ -242,12 +258,16 @@ async def test_max_rounds_stops_loop():
             assert kwargs.get("tool_choice") == "none", (
                 f"Expected tool_choice='none' on final round {call_count}"
             )
+
             async def gen():
                 yield text_chunk
+
             return gen()
         else:
+
             async def gen():
                 yield tool_chunk
+
             return gen()
 
     builder_calls = [0]
@@ -259,7 +279,9 @@ async def test_max_rounds_stops_loop():
         return built_with_text
 
     mock_mcp = MagicMock()
-    mock_tools = [{"type": "function", "function": {"name": "search_alignment_research"}}]
+    mock_tools = [
+        {"type": "function", "function": {"name": "search_alignment_research"}}
+    ]
 
     with (
         patch("core.modules.chat.acompletion", side_effect=mock_acompletion),

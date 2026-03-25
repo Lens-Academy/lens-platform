@@ -169,7 +169,11 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
     case "TOOL_CALL_DONE": {
       // Find the last tool message with matching name and empty content
       const toolIdx = state.messages.findLastIndex(
-        (m) => m.role === "tool" && "name" in m && m.name === action.name && !m.content,
+        (m) =>
+          m.role === "tool" &&
+          "name" in m &&
+          m.name === action.name &&
+          !m.content,
       );
       if (toolIdx === -1) return state;
 
@@ -223,7 +227,9 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case "SEND_FAILURE": {
       // Find the user message that was sent (last user message in the array)
-      const lastUserMsg = [...state.messages].reverse().find((m) => m.role === "user");
+      const lastUserMsg = [...state.messages]
+        .reverse()
+        .find((m) => m.role === "user");
       return {
         ...state,
         pendingMessage: lastUserMsg
@@ -319,7 +325,10 @@ export function useTutorChat({
           const messagesToShow =
             firstUserIdx === -1
               ? [] // Only auto-sent messages exist — skip all
-              : history.messages.slice(firstUserIdx);
+              : history.messages
+                  .slice(firstUserIdx)
+                  // Filter out system context messages (XML context for LLM only)
+                  .filter((m) => m.role !== "system");
 
           // Extract section indices where the user has sent messages
           const interacted = new Set<number>();
@@ -344,7 +353,11 @@ export function useTutorChat({
                 };
               }
               const msg: ChatMessage = {
-                role: m.role as "user" | "assistant" | "system" | "course-content",
+                role: m.role as
+                  | "user"
+                  | "assistant"
+                  | "system"
+                  | "course-content",
                 content: m.content ?? "",
               };
               if (m.tool_calls) {
@@ -534,12 +547,16 @@ export function useTutorChat({
           } else if (chunk.type === "tool_use" && chunk.name) {
             const toolState = (chunk.state as string) ?? "calling";
             if (toolState === "calling") {
-              dispatchChat({ type: "TOOL_CALL_START", name: chunk.name as string });
+              dispatchChat({
+                type: "TOOL_CALL_START",
+                name: chunk.name as string,
+              });
             } else {
               dispatchChat({
                 type: "TOOL_CALL_DONE",
                 name: chunk.name as string,
-                result: (chunk as Record<string, unknown>).result as string || "",
+                result:
+                  ((chunk as Record<string, unknown>).result as string) || "",
               });
             }
           } else if (chunk.type === "error") {

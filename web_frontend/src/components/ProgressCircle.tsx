@@ -64,7 +64,11 @@ export function ProgressCircle({
           cy={cy}
           r={r}
           stroke={
-            fraction > 0 ? (selected ? "#94a3b8" : "#cbd5e1") : "var(--color-lens-orange-400)"
+            fraction > 0
+              ? selected
+                ? "#94a3b8"
+                : "#cbd5e1"
+              : "var(--color-lens-orange-400)"
           }
           strokeWidth="2"
           fill={fraction > 0 ? "none" : "#fde8c8"}

@@ -377,12 +377,12 @@ function renderUnitModules(
             <div className="flex-1 min-w-0">
               <div className="flex items-start gap-2">
                 <div className="mt-[3px]">
-                <ProgressCircle
-                  status={parentStatus}
-                  completedLenses={Math.round(parentFraction * 100)}
-                  totalLenses={100}
-                  selected={anyChildSelected && !isParentExpanded}
-                />
+                  <ProgressCircle
+                    status={parentStatus}
+                    completedLenses={Math.round(parentFraction * 100)}
+                    totalLenses={100}
+                    selected={anyChildSelected && !isParentExpanded}
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-base font-display truncate block leading-snug text-[var(--brand-text)]">
@@ -431,7 +431,7 @@ function renderUnitModules(
               <div
                 className="absolute top-0 bottom-2 w-px z-0"
                 style={{
-                  left: 15, /* center of parent's 16px circle at px-2 (8px) + 8px */
+                  left: 15 /* center of parent's 16px circle at px-2 (8px) + 8px */,
                   backgroundColor: "var(--brand-border)",
                 }}
               />
@@ -446,11 +446,13 @@ function renderUnitModules(
                     onClick={() => onModuleSelect(child)}
                     className="relative w-full flex items-center py-0.5 text-left transition-colors px-2"
                   >
-                    <div className={`ml-4 flex-1 min-w-0 flex items-center gap-2 py-1 px-2 rounded-[16px] transition-colors ${
-                      isSelected
-                        ? "bg-[#f0ece4]"
-                        : "hover:bg-[var(--brand-border)]/30"
-                    }`}>
+                    <div
+                      className={`ml-4 flex-1 min-w-0 flex items-center gap-2 py-1 px-2 rounded-[16px] transition-colors ${
+                        isSelected
+                          ? "bg-[#f0ece4]"
+                          : "hover:bg-[var(--brand-border)]/30"
+                      }`}
+                    >
                       <ProgressCircle
                         status={child.status}
                         completedLenses={child.completedLenses}
@@ -498,9 +500,7 @@ function renderUnitModules(
                   selected={isSelected}
                 />
               )}
-              <span
-                className="text-base font-display truncate text-[var(--brand-text)]"
-              >
+              <span className="text-base font-display truncate text-[var(--brand-text)]">
                 {mod.title}
               </span>
               {mod.optional && <OptionalBadge />}

@@ -246,11 +246,8 @@ async def event_generator(
                 segmentIndex=segment_index,
             )
 
-    # Emit SSE events for context messages
-    for msg in context_messages:
-        yield f"data: {json.dumps({'type': 'system', 'content': msg})}\n\n"
-    if content_context_msg:
-        yield f"data: {json.dumps({'type': 'system', 'content': content_context_msg})}\n\n"
+    # Context messages are stored in DB for LLM history but not streamed
+    # to the frontend — they contain XML context meant only for the model.
 
     # Build messages for LLM (existing history + new message)
     # Merge system messages into adjacent user messages

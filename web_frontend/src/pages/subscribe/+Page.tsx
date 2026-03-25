@@ -140,7 +140,8 @@ function InfoTip({ text }: { text: string }) {
             backgroundColor: "#fff",
             color: "var(--landing-text)",
             border: "1px solid var(--landing-border)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
+            boxShadow:
+              "0 8px 24px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
           }}
         >
           {text}
@@ -224,9 +225,7 @@ export default function SubscribePage() {
       setStatus("success");
     } catch (err) {
       setStatus("error");
-      setErrorMsg(
-        err instanceof Error ? err.message : "Something went wrong.",
-      );
+      setErrorMsg(err instanceof Error ? err.message : "Something went wrong.");
     }
   };
 
@@ -263,10 +262,9 @@ export default function SubscribePage() {
                   className="text-sm mt-1.5"
                   style={{ color: "var(--landing-text-muted)" }}
                 >
-                  You'll receive a confirmation email from Substack in 1–6
-                  hours — please confirm it to start receiving posts. There's a
-                  delay in this, so there's no need to check your email right
-                  now.
+                  You'll receive a confirmation email from Substack in 1–6 hours
+                  — please confirm it to start receiving posts. There's a delay
+                  in this, so there's no need to check your email right now.
                 </p>
               )}
             </div>
@@ -313,7 +311,8 @@ export default function SubscribePage() {
                       className="text-[13px] leading-snug"
                       style={{ color: "var(--landing-text-muted)" }}
                     >
-                      Get notified when Lens Academy or Luc (Lens's founder) publishes a new post
+                      Get notified when Lens Academy or Luc (Lens's founder)
+                      publishes a new post
                     </span>
                   </div>
                   <Toggle

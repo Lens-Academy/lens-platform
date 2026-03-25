@@ -2,9 +2,8 @@
 
 Uses a real temp git repo — no mocking of git operations.
 """
-import os
+
 import pytest
-from pathlib import Path
 
 from core.content.git_fetcher import (
     read_all_files,
@@ -22,35 +21,55 @@ def temp_repo(tmp_path):
 
     # Create a bare "remote" repo
     bare = tmp_path / "remote.git"
-    subprocess.run(["git", "init", "--bare", "-b", "main", str(bare)], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "init", "--bare", "-b", "main", str(bare)],
+        check=True,
+        capture_output=True,
+    )
 
     # Clone it to create a working repo (simulates the content repo)
     origin = tmp_path / "origin"
     subprocess.run(
         ["git", "clone", str(bare), str(origin)],
-        check=True, capture_output=True,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
-        cwd=origin, check=True, capture_output=True,
+        cwd=origin,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test"],
-        cwd=origin, check=True, capture_output=True,
+        cwd=origin,
+        check=True,
+        capture_output=True,
     )
 
     # Create tracked directory structure
-    for d in ["modules", "articles", "courses", "video_transcripts", "Lenses", "Learning Outcomes"]:
+    for d in [
+        "modules",
+        "articles",
+        "courses",
+        "video_transcripts",
+        "Lenses",
+        "Learning Outcomes",
+    ]:
         (origin / d).mkdir()
 
     # Add files
     (origin / "modules" / "intro.md").write_text("---\nslug: intro\n---\n# Intro")
-    (origin / "articles" / "article1.md").write_text("---\ntitle: Article 1\n---\nContent")
+    (origin / "articles" / "article1.md").write_text(
+        "---\ntitle: Article 1\n---\nContent"
+    )
     (origin / "courses" / "course1.md").write_text("---\nslug: course1\n---\n")
     (origin / "README.md").write_text("# Not tracked")
 
     subprocess.run(["git", "add", "."], cwd=origin, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "initial"], cwd=origin, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "initial"], cwd=origin, check=True, capture_output=True
+    )
     subprocess.run(["git", "push"], cwd=origin, check=True, capture_output=True)
 
     return {"bare": bare, "origin": origin, "tmp": tmp_path}
@@ -75,12 +94,18 @@ async def test_clone_and_read_all_files(temp_repo):
 async def test_read_all_files_recursive(temp_repo):
     """Should read files in subdirectories."""
     import subprocess
+
     origin = temp_repo["origin"]
 
     (origin / "modules" / "subdir").mkdir()
     (origin / "modules" / "subdir" / "nested.md").write_text("---\nslug: nested\n---\n")
     subprocess.run(["git", "add", "."], cwd=origin, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "add nested"], cwd=origin, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "add nested"],
+        cwd=origin,
+        check=True,
+        capture_output=True,
+    )
     subprocess.run(["git", "push"], cwd=origin, check=True, capture_output=True)
 
     clone_dir = temp_repo["tmp"] / "clone2"
@@ -94,12 +119,18 @@ async def test_read_all_files_recursive(temp_repo):
 async def test_read_all_files_filters_by_extension(temp_repo):
     """Should skip non-tracked extensions in tracked directories."""
     import subprocess
+
     origin = temp_repo["origin"]
 
     (origin / "modules" / ".gitkeep").write_text("")
     (origin / "modules" / "image.png").write_bytes(b"\x89PNG")
     subprocess.run(["git", "add", "."], cwd=origin, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "add non-md files"], cwd=origin, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "add non-md files"],
+        cwd=origin,
+        check=True,
+        capture_output=True,
+    )
     subprocess.run(["git", "push"], cwd=origin, check=True, capture_output=True)
 
     clone_dir = temp_repo["tmp"] / "clone_ext"
@@ -126,6 +157,7 @@ async def test_get_head_sha(temp_repo):
 async def test_fetch_and_reset_picks_up_new_content(temp_repo):
     """After a push to origin, fetch_and_reset should get the new files."""
     import subprocess
+
     origin = temp_repo["origin"]
 
     # Clone first
@@ -136,9 +168,16 @@ async def test_fetch_and_reset_picks_up_new_content(temp_repo):
     assert "articles/article2.md" not in old_files
 
     # Push a new file to origin
-    (origin / "articles" / "article2.md").write_text("---\ntitle: New\n---\nNew content")
+    (origin / "articles" / "article2.md").write_text(
+        "---\ntitle: New\n---\nNew content"
+    )
     subprocess.run(["git", "add", "."], cwd=origin, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "add article2"], cwd=origin, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "add article2"],
+        cwd=origin,
+        check=True,
+        capture_output=True,
+    )
     subprocess.run(["git", "push"], cwd=origin, check=True, capture_output=True)
 
     # Fetch and reset
@@ -154,6 +193,7 @@ async def test_fetch_and_reset_picks_up_new_content(temp_repo):
 async def test_fetch_latest_sha(temp_repo):
     """Should return remote HEAD SHA without changing working tree."""
     import subprocess
+
     origin = temp_repo["origin"]
 
     clone_dir = temp_repo["tmp"] / "clone5"
@@ -164,7 +204,12 @@ async def test_fetch_latest_sha(temp_repo):
     # Push a commit to origin
     (origin / "modules" / "new.md").write_text("new")
     subprocess.run(["git", "add", "."], cwd=origin, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "new module"], cwd=origin, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "new module"],
+        cwd=origin,
+        check=True,
+        capture_output=True,
+    )
     subprocess.run(["git", "push"], cwd=origin, check=True, capture_output=True)
 
     # fetch_latest_sha should see the new commit

@@ -36,9 +36,7 @@ describe("LensCard", () => {
   });
 
   it("renders module variant", () => {
-    render(
-      <LensCard title="Module 2" targetType="module" slug="module-2" />,
-    );
+    render(<LensCard title="Module 2" targetType="module" slug="module-2" />);
     expect(screen.getByText("Module 2")).toBeDefined();
   });
 
@@ -50,16 +48,12 @@ describe("LensCard", () => {
   });
 
   it("renders duration when provided", () => {
-    render(
-      <LensCard title="Test" targetType="lens" duration="3 min" />,
-    );
+    render(<LensCard title="Test" targetType="lens" duration="3 min" />);
     expect(screen.getByText("3 min")).toBeDefined();
   });
 
   it("renders attribution when provided", () => {
-    render(
-      <LensCard title="Test" targetType="lens" attribution="Tim Urban" />,
-    );
+    render(<LensCard title="Test" targetType="lens" attribution="Tim Urban" />);
     expect(screen.getByText("Tim Urban")).toBeDefined();
   });
 });
@@ -82,11 +76,7 @@ describe("LensCard module type", () => {
 
   it("renders lens icon dot for lens cards (not progress circle)", () => {
     const { container } = render(
-      <LensCard
-        title="Lens Title"
-        targetType="lens"
-        href="#test"
-      />,
+      <LensCard title="Lens Title" targetType="lens" href="#test" />,
     );
     const dot = container.querySelector(".rounded-full");
     expect(dot).not.toBeNull();

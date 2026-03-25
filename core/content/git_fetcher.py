@@ -26,15 +26,14 @@ async def _run_git(args: list[str], cwd: Path) -> str:
     """Run a git command and return stdout."""
     try:
         proc = await asyncio.create_subprocess_exec(
-            "git", *args,
+            "git",
+            *args,
             cwd=cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
     except FileNotFoundError:
-        raise RuntimeError(
-            "git is not installed. Install git to use content fetching."
-        )
+        raise RuntimeError("git is not installed. Install git to use content fetching.")
     stdout, stderr = await proc.communicate()
     if proc.returncode != 0:
         raise RuntimeError(
@@ -47,8 +46,13 @@ async def clone_repo(repo_url: str, branch: str, clone_dir: Path) -> None:
     """Clone the content repo (single branch)."""
     logger.info("Cloning %s (branch %s) to %s", repo_url, branch, clone_dir)
     proc = await asyncio.create_subprocess_exec(
-        "git", "clone", "--branch", branch,
-        "--single-branch", repo_url, str(clone_dir),
+        "git",
+        "clone",
+        "--branch",
+        branch,
+        "--single-branch",
+        repo_url,
+        str(clone_dir),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
