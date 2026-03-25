@@ -36,7 +36,17 @@ def _extract_segment_content(
 
     if seg_type in ("video", "video-excerpt"):
         transcript = seg.get("transcript", "")
-        return f"<source>Video transcript</source>\n{transcript}" if transcript else None
+        if not transcript:
+            return None
+        title = seg.get("title")
+        channel = seg.get("channel")
+        parts = []
+        if title:
+            parts.append(title)
+        if channel:
+            parts.append(f"by {channel}")
+        source = ", ".join(parts) if parts else "Video transcript"
+        return f"<source>{source}</source>\n{transcript}"
 
     if seg_type in ("article", "article-excerpt"):
         content = seg.get("content", "")
@@ -99,6 +109,11 @@ def gather_section_context(section: dict, segment_index: int) -> SectionContext 
         content = _extract_segment_content(seg, article_title, article_author)
         if content:
             seg_type = seg.get("type", "unknown")
+            # Normalize: segments always show excerpts, not full content
+            if seg_type == "article":
+                seg_type = "article-excerpt"
+            elif seg_type == "video":
+                seg_type = "video-excerpt"
             extracted.append((i, seg_type, content))
 
     if not extracted:

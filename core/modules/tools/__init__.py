@@ -11,56 +11,72 @@ from .mcp_client import MCPClientManager
 
 logger = logging.getLogger(__name__)
 
-# Tool execution timeout in seconds
 TOOL_TIMEOUT = 15
+_LOCAL_TOOL_NAMES = {"search_course_content", "read_lens"}
 
 
-async def get_tools(mcp_manager: MCPClientManager) -> list[dict] | None:
+async def get_tools(
+    mcp_manager: MCPClientManager,
+    content_index=None,
+) -> list[dict] | None:
     """Get all available tools in OpenAI function-calling format.
 
-    Caches tool definitions after first load (they don't change between requests).
-    Returns None (not empty list) when no tools are available.
-    If loading fails (stale session), resets and retries once.
+    Combines MCP tools (alignment search) with local tools (course content).
+    Returns None when no tools are available at all.
     """
+    all_tools: list[dict] = []
+
+    # MCP tools (cached after first load)
     if mcp_manager.tools_cache is not None:
-        return mcp_manager.tools_cache or None
+        all_tools.extend(mcp_manager.tools_cache)
+    else:
+        for attempt in range(2):
+            session = await mcp_manager.get_session()
+            if not session:
+                break
+            mcp_tools = await alignment_search.load_tools(session)
+            if mcp_tools:
+                logger.info("Loaded %d MCP tools", len(mcp_tools))
+                mcp_manager.tools_cache = mcp_tools
+                all_tools.extend(mcp_tools)
+                break
+            if attempt == 0:
+                logger.info("No MCP tools loaded, resetting session and retrying")
+                await mcp_manager.reset()
+        else:
+            mcp_manager.tools_cache = []
 
-    for attempt in range(2):
-        session = await mcp_manager.get_session()
-        if not session:
-            return None
+    # Local tools (course content)
+    if content_index is not None:
+        from .course_search import get_tool_definitions
 
-        mcp_tools = await alignment_search.load_tools(session)
-        if mcp_tools:
-            logger.info("Loaded %d MCP tools", len(mcp_tools))
-            mcp_manager.tools_cache = mcp_tools
-            return mcp_tools
+        all_tools.extend(get_tool_definitions())
 
-        if attempt == 0:
-            # Tools failed to load — session may be stale, reconnect and retry
-            logger.info("No MCP tools loaded, resetting session and retrying")
-            await mcp_manager.reset()
-            continue
-
-    logger.info("Loaded 0 MCP tools after retry")
-    mcp_manager.tools_cache = []
-    return None
+    return all_tools or None
 
 
-async def execute_tool(mcp_manager: MCPClientManager, tool_call) -> str:
-    """Execute a single tool call and return the result as a string.
-
-    All MCP tools are dispatched through the MCP session.
-    Handles timeouts and errors gracefully -- always returns a string.
-    """
+async def execute_tool(
+    mcp_manager: MCPClientManager,
+    tool_call,
+    content_index=None,
+) -> str:
+    """Execute a single tool call and return the result as a string."""
     name = tool_call.function.name
 
+    # Local tools — no MCP needed
+    if name in _LOCAL_TOOL_NAMES:
+        if content_index is None:
+            return "Error: course content index not available"
+        from .course_search import execute_tool as execute_local
+
+        return execute_local(tool_call, content_index)
+
+    # MCP tools
     for attempt in range(2):
         try:
             session = await mcp_manager.get_session()
             if not session:
                 return "Error: search service unavailable"
-
 
             result = await asyncio.wait_for(
                 alignment_search.execute(session, tool_call), timeout=TOOL_TIMEOUT

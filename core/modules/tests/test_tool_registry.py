@@ -211,3 +211,85 @@ class TestExecuteToolNoSession:
         result = await execute_tool(mgr, tool_call)
 
         assert "unavailable" in result.lower()
+
+
+class TestLocalToolRegistration:
+    """Local course content tools should be included alongside MCP tools."""
+
+    @pytest.fixture
+    def content_index(self):
+        from core.modules.tests.test_content_index import _make_cache_data
+        from core.modules.tools.content_index import ContentIndex
+
+        courses, modules = _make_cache_data()
+        return ContentIndex(courses, modules)
+
+    @pytest.mark.asyncio
+    async def test_local_tools_available_without_mcp(self, content_index):
+        """Local tools should work even when MCP is unavailable."""
+        mgr = MCPClientManager(url=None)
+        tools = await get_tools(mgr, content_index=content_index)
+        assert tools is not None
+        names = [t["function"]["name"] for t in tools]
+        assert "search_course_content" in names
+        assert "read_lens" in names
+
+    @pytest.mark.asyncio
+    async def test_local_tools_included_when_mcp_available(self, content_index):
+        """get_tools should return both MCP and local tools."""
+        mgr = MCPClientManager(url="http://example.com/mcp")
+        mock_session = MagicMock()
+        fake_mcp_tools = [
+            {"type": "function", "function": {"name": "search_alignment_research"}}
+        ]
+        with (
+            patch.object(
+                mgr, "get_session", new_callable=AsyncMock, return_value=mock_session
+            ),
+            patch(
+                "core.modules.tools.alignment_search.load_tools",
+                new_callable=AsyncMock,
+                return_value=fake_mcp_tools,
+            ),
+        ):
+            tools = await get_tools(mgr, content_index=content_index)
+        names = [t["function"]["name"] for t in tools]
+        assert "search_alignment_research" in names
+        assert "search_course_content" in names
+        assert "read_lens" in names
+
+    @pytest.mark.asyncio
+    async def test_no_tools_without_index_or_mcp(self):
+        """No tools available when both MCP and index are unavailable."""
+        mgr = MCPClientManager(url=None)
+        tools = await get_tools(mgr, content_index=None)
+        assert tools is None
+
+
+class TestExecuteLocalTool:
+    """execute_tool dispatches local tools to course_search, not MCP."""
+
+    @pytest.mark.asyncio
+    async def test_dispatches_search_to_local_handler(self):
+        """search_course_content should use ContentIndex, not MCP session."""
+        from core.modules.tests.test_content_index import _make_cache_data
+        from core.modules.tools.content_index import ContentIndex
+
+        courses, modules = _make_cache_data()
+        index = ContentIndex(courses, modules)
+        mgr = MCPClientManager(url=None)
+        tool_call = MagicMock()
+        tool_call.function.name = "search_course_content"
+        tool_call.function.arguments = '{"query": "mesa-optimization"}'
+        result = await execute_tool(mgr, tool_call, content_index=index)
+        assert "Goal Misgeneralization" in result
+
+    @pytest.mark.asyncio
+    async def test_local_tool_without_index_returns_error(self):
+        """Local tool with no ContentIndex should return error, not crash."""
+        mgr = MCPClientManager(url=None)
+        tool_call = MagicMock()
+        tool_call.function.name = "search_course_content"
+        tool_call.function.arguments = '{"query": "test"}'
+        result = await execute_tool(mgr, tool_call, content_index=None)
+        assert "not available" in result.lower()

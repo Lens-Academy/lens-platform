@@ -281,3 +281,50 @@ class TestGatherSectionContext:
         assert ctx is not None
         contents = [c for _, _, c in ctx.segments]
         assert "<source>Question</source>" in contents
+
+    def test_video_excerpt_includes_title_and_channel(self):
+        """Video excerpts should show title and channel in <source> tag."""
+        section = {
+            "type": "lens",
+            "segments": [
+                {
+                    "type": "video-excerpt",
+                    "transcript": "In this video we discuss alignment.",
+                    "title": "Intro to AI Alignment",
+                    "channel": "Robert Miles",
+                },
+                {"type": "chat", "instructions": "Discuss"},
+            ],
+        }
+
+        ctx = gather_section_context(section, segment_index=1)
+
+        assert ctx is not None
+        contents = [c for _, _, c in ctx.segments]
+        assert any(
+            "<source>Intro to AI Alignment, by Robert Miles</source>" in c
+            for c in contents
+        )
+        assert any("In this video we discuss alignment." in c for c in contents)
+
+    def test_video_excerpt_title_only(self):
+        """Video excerpts with title but no channel should still show title."""
+        section = {
+            "type": "lens",
+            "segments": [
+                {
+                    "type": "video",
+                    "transcript": "Some transcript text.",
+                    "title": "AGI Safety Fundamentals",
+                },
+                {"type": "chat", "instructions": "Discuss"},
+            ],
+        }
+
+        ctx = gather_section_context(section, segment_index=1)
+
+        assert ctx is not None
+        contents = [c for _, _, c in ctx.segments]
+        assert any(
+            "<source>AGI Safety Fundamentals</source>" in c for c in contents
+        )
