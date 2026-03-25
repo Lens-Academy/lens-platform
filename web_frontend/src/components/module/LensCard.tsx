@@ -36,14 +36,13 @@ export default function LensCard({
     : "bg-gray-200 text-gray-400";
 
   const isModule = targetType === "module";
-  const dimCard = isModule ? false : isCompleted;
 
   const Tag = href ? "a" : "div";
 
   return (
     <Tag
       href={href}
-      className={`no-underline my-2 flex items-center gap-3.5 rounded-2xl bg-white px-4 py-3.5 border border-gray-200/60 shadow-sm hover:shadow-md transition-shadow ${dimCard ? "opacity-60" : ""}`}
+      className="no-underline my-2 flex items-center gap-3.5 rounded-2xl bg-white px-4 py-3.5 border border-gray-200/60 shadow-sm hover:shadow-md transition-shadow"
     >
       {isModule ? (
         <ProgressCircle
