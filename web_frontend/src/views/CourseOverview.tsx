@@ -42,6 +42,12 @@ export default function CourseOverview({
         const data = await getCourseProgress(courseId);
         setCourseProgress(data);
 
+        // Redirect if viewing via alias slug
+        if (data.course?.slug && data.course.slug !== courseId) {
+          window.location.replace(`/course/${data.course.slug}`);
+          return;
+        }
+
         // Auto-select current module (first in-progress, or first not-started)
         let currentModule: ModuleInfo | null = null;
         for (const unit of data.units) {

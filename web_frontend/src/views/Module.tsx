@@ -227,6 +227,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         setModule(moduleResult);
         setCourseProgress(courseResult);
 
+        // Redirect if viewing via alias slug
+        if (courseResult?.course?.slug && courseId && courseResult.course.slug !== courseId) {
+          window.location.replace(`/course/${courseResult.course.slug}/module/${moduleId}`);
+          return;
+        }
+
         // Initialize completedSections from progress API response
         if (progressResult) {
           const completed = new Set<number>();
