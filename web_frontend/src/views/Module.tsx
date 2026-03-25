@@ -572,7 +572,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: 0,
           to: null,
           optional: isOptional,
-          hide: section.hide === true || undefined,
+          hide: section.hide === true && index !== currentSectionIndex || undefined,
           title,
           tldr,
           duration,
@@ -584,7 +584,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: null,
           to: null,
           optional: isOptional,
-          hide: section.hide === true || undefined,
+          hide: section.hide === true && index !== currentSectionIndex || undefined,
           title,
           tldr,
           duration,
@@ -596,14 +596,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: null,
           to: null,
           optional: isOptional,
-          hide: section.hide === true || undefined,
+          hide: section.hide === true && index !== currentSectionIndex || undefined,
           title,
           tldr,
           duration,
         };
       }
     });
-  }, [module]);
+  }, [module, currentSectionIndex]);
 
   // Convert to StageInfo format for drawer
   const stagesForDrawer: StageInfo[] = useMemo(() => {
@@ -631,13 +631,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         title: section.meta?.title || `Section ${index + 1}`,
         duration: dur || null,
         optional: section.optional === true,
-        hide: section.hide === true || undefined,
+        hide: section.hide === true && index !== currentSectionIndex || undefined,
         tldr: section.tldr,
         attribution:
           attributions.length > 0 ? attributions.join(" & ") : undefined,
       };
     });
-  }, [module]);
+  }, [module, currentSectionIndex]);
 
   // Derived value for module completion
   // Complete if: API confirmed complete OR all sections marked locally
