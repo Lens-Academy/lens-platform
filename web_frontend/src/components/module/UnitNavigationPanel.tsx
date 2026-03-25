@@ -9,7 +9,7 @@ import { useMedia } from "react-use";
 import { ChevronRight, BotMessageSquare, X } from "lucide-react";
 import type { ModuleInfo, StageInfo } from "@/types/course";
 import { formatDurationMinutes } from "@/utils/duration";
-import { StageIcon } from "./StageProgressBar";
+import { StageIcon } from "../StageIcon";
 import { getCircleFillClasses, getRingClasses } from "@/utils/stageProgress";
 import { buildBranchLayout } from "@/utils/branchLayout";
 import { linkProps } from "@/utils/navigateLink";

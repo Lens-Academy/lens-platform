@@ -1,4 +1,4 @@
-import { StageIcon } from "./StageProgressBar";
+import { StageIcon } from "../StageIcon";
 import { formatDurationMinutes } from "../../utils/duration";
 
 export interface SectionChoice {

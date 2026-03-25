@@ -10,7 +10,7 @@
  */
 
 import type { ChatMessage, PendingMessage } from "@/types/module";
-import { StageIcon } from "@/components/module/StageProgressBar";
+import { StageIcon } from "@/components/StageIcon";
 import { ChatMarkdown } from "./ChatMarkdown";
 import { Bot, BookOpen } from "lucide-react";
 

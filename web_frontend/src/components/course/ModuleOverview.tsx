@@ -10,7 +10,7 @@ import { useMemo } from "react";
 import { Check } from "lucide-react";
 import type { StageInfo, ModuleStatus } from "../../types/course";
 import { OptionalBadge } from "../OptionalBadge";
-import { StageIcon } from "../module/StageProgressBar";
+import { StageIcon } from "../StageIcon";
 import {
   getCircleFillClasses,
   getRingClasses,
