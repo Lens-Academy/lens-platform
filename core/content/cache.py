@@ -23,7 +23,6 @@ class ContentCache:
     """
 
     courses: dict[str, ParsedCourse]  # slug -> parsed course
-    course_slug_aliases: dict[str, str] = field(default_factory=dict)  # alias -> canonical slug
     flattened_modules: dict[str, FlattenedModule]  # slug -> flattened module
     # Legacy fields - kept for compatibility but always empty (TypeScript handles these)
     parsed_learning_outcomes: dict[str, Any]  # Always {} - TypeScript handles
@@ -31,6 +30,7 @@ class ContentCache:
     articles: dict[str, str]  # path -> raw markdown (for metadata extraction)
     video_transcripts: dict[str, str]  # path -> raw markdown (for metadata extraction)
     last_refreshed: datetime
+    course_slug_aliases: dict[str, str] = field(default_factory=dict)  # alias -> canonical slug
     video_timestamps: dict[str, list[dict]] | None = (
         None  # video_id -> timestamp word list
     )
