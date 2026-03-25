@@ -1,88 +1,74 @@
 # core/modules/chat.py
 """
-Module chat - Claude SDK integration with stage-aware prompting.
+Module chat - LLM integration with stage-aware prompting and tool execution loop.
 """
 
+import json
 import logging
 import os
 from typing import AsyncIterator
 
-from .llm import stream_chat
-from .context import SectionContext
-from .prompts import assemble_chat_prompt, DEFAULT_BASE_PROMPT
-from .types import Stage, ArticleStage, VideoStage, ChatStage
+from litellm import acompletion, stream_chunk_builder
+
+from .llm import iter_chunk_events, DEFAULT_PROVIDER
+from .prompts import DEFAULT_BASE_PROMPT
+from .types import Stage, ArticleStage, VideoStage
 from .content import (
     load_article_with_metadata,
     load_video_transcript_with_metadata,
     ArticleContent,
     ArticleMetadata,
 )
+from .tools import get_tools, execute_tool
 from ..transcripts.tools import get_text_at_time
 
 logger = logging.getLogger(__name__)
 
-
-# Tool for transitioning to next stage (OpenAI function calling format)
-TRANSITION_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "transition_to_next",
-        "description": (
-            "Call this when the conversation has reached a good stopping point "
-            "and the user is ready to move to the next stage. "
-            "Use this after 2-3 exchanges, or when the user indicates readiness."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
-    },
-}
+MAX_TOOL_ROUNDS = 3
 
 
 def _build_system_prompt(
     current_stage: Stage,
     current_content: str | None,
-    section_context: SectionContext | None,
+    course_overview: str | None = None,
 ) -> str:
     """Build the system prompt based on current stage and context.
+
+    The system prompt is fully static (no user-specific content) for prompt
+    caching. Dynamic content (segments, position, instructions) is injected
+    into the conversation history instead.
 
     Args:
         current_stage: The current module stage
         current_content: Content of current stage (for article/video stages)
-        section_context: Previous/current content from the section
+        course_overview: Optional course overview to inject after base prompt
     """
 
-    base = DEFAULT_BASE_PROMPT
+    role_block = f"# General Instructions\n\n{DEFAULT_BASE_PROMPT}"
 
-    if isinstance(current_stage, ChatStage):
-        # Active chat stage - use shared assembly
-        context = (
-            section_context
-            if not current_stage.hide_previous_content_from_tutor
-            else None
-        )
-        prompt = assemble_chat_prompt(base, current_stage.instructions, context)
-
-    elif isinstance(current_stage, (ArticleStage, VideoStage)):
-        # User is consuming content - be helpful but brief
+    if isinstance(current_stage, (ArticleStage, VideoStage)):
         content_type = (
             "reading an article"
             if isinstance(current_stage, ArticleStage)
             else "watching a video"
         )
         prompt = (
-            base
+            role_block
             + f"""
 The user is currently {content_type}. Answer the student's questions to help them understand the content, but don't lengthen the conversation. There will be more time for chatting after they are done reading/watching.
 """
         )
+        if course_overview:
+            prompt += f"\n\n# Course Overview\n\n{course_overview}"
         if current_content:
             prompt += f"\n\nContent the user is viewing:\n---\n{current_content}\n---"
-
     else:
-        prompt = base
+        prompt = role_block
+        if course_overview:
+            prompt += f"\n\n# Course Overview\n\n{course_overview}"
+
+    # Repeat general instructions at the end for improved adherence
+    prompt += f"\n\n# General Instructions\n\n{DEFAULT_BASE_PROMPT}"
 
     return prompt
 
@@ -150,43 +136,152 @@ async def send_module_message(
     messages: list[dict],
     current_stage: Stage,
     current_content: str | None = None,
-    section_context: SectionContext | None = None,
     provider: str | None = None,
+    course_overview: str | None = None,
+    mcp_manager=None,
+    content_index=None,
 ) -> AsyncIterator[dict]:
     """
-    Send messages to an LLM and stream the response.
+    Send messages to an LLM and stream the response, with multi-round tool execution.
 
     Args:
         messages: List of {"role": "user"|"assistant"|"system", "content": str}
         current_stage: The current module stage
         current_content: Content of current stage (for article/video stages)
-        section_context: Previous/current content from the section
         provider: LLM provider string (e.g., "anthropic/claude-sonnet-4-20250514")
                   If None, uses DEFAULT_PROVIDER from environment.
+        course_overview: Optional course overview text for system prompt
+        mcp_manager: Optional MCPClientManager for tool access
 
     Yields:
         Dicts with either:
+        - {"type": "thinking", "content": str} for thinking chunks
         - {"type": "text", "content": str} for text chunks
         - {"type": "tool_use", "name": str} for tool calls
         - {"type": "done"} when complete
     """
-    system = _build_system_prompt(current_stage, current_content, section_context)
+    # Get available tools if mcp_manager provided
+    tools = None
+    if mcp_manager is not None:
+        tools = await get_tools(mcp_manager, content_index=content_index)
+
+    system = _build_system_prompt(current_stage, current_content, course_overview)
 
     # Debug mode: show system prompt in chat
     if os.environ.get("DEBUG") == "1":
         debug_text = f"**[DEBUG - System Prompt]**\n\n```\n{system}\n```\n\n**[DEBUG - Messages]**\n\n```\n{messages}\n```\n\n---\n\n"
         yield {"type": "text", "content": debug_text}
 
-    # Filter out system messages (stage transition markers) - LLM APIs don't accept them in messages
-    api_messages = [m for m in messages if m["role"] != "system"]
+    # Filter out system messages (stage transition markers) - LLM APIs don't accept them in messages.
+    # Also strip tool_calls/tool messages when no tools are available — Anthropic
+    # rejects tool_calls in messages if tools= param is not set.
+    if tools:
+        api_messages = [m for m in messages if m["role"] != "system"]
+    else:
+        api_messages = []
+        for m in messages:
+            if m["role"] == "system":
+                continue
+            if m["role"] == "tool":
+                continue  # drop tool result messages
+            if m["role"] == "assistant" and "tool_calls" in m:
+                # Keep assistant text but strip tool_calls metadata
+                api_messages.append(
+                    {"role": "assistant", "content": m.get("content", "")}
+                )
+            else:
+                api_messages.append(m)
 
-    # Only include transition tool for chat stages
-    tools = [TRANSITION_TOOL] if isinstance(current_stage, ChatStage) else None
+    model = provider or DEFAULT_PROVIDER
 
-    async for event in stream_chat(
-        messages=api_messages,
-        system=system,
-        tools=tools,
-        provider=provider,
-    ):
-        yield event
+    # Tool execution loop
+    for round_num in range(MAX_TOOL_ROUNDS + 1):
+        llm_messages = [{"role": "system", "content": system}] + api_messages
+        kwargs = {
+            "model": model,
+            "messages": llm_messages,
+            "max_tokens": 16384,
+            "stream": True,
+            "thinking": {"type": "adaptive"},
+            "output_config": {"effort": "low"},
+        }
+        if tools:
+            kwargs["tools"] = tools
+            if round_num == MAX_TOOL_ROUNDS:
+                kwargs["tool_choice"] = "none"  # force text on final round
+
+        response = await acompletion(**kwargs)
+        chunks = []
+        async for chunk in response:
+            chunks.append(chunk)
+            for event in iter_chunk_events(chunk):
+                yield event
+
+        built = stream_chunk_builder(chunks, messages=llm_messages)
+        assistant_message = built.choices[0].message
+
+        if not assistant_message.tool_calls:
+            break
+
+        # Execute tool calls
+        # Save the assistant message with tool_calls to DB
+        assistant_msg_for_db = {
+            "role": "assistant",
+            "content": assistant_message.content or "",
+            "tool_calls": [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    },
+                }
+                for tc in assistant_message.tool_calls
+            ],
+        }
+        yield {"type": "tool_save", "message": assistant_msg_for_db}
+
+        api_messages.append(assistant_message.model_dump(exclude_none=True))
+        for tc in assistant_message.tool_calls:
+            try:
+                args = json.loads(tc.function.arguments)
+            except (json.JSONDecodeError, TypeError):
+                args = {}
+            yield {
+                "type": "tool_use",
+                "name": tc.function.name,
+                "state": "calling",
+                "arguments": args,
+            }
+            result = await execute_tool(mcp_manager, tc, content_index=content_index)
+            is_error = result.startswith("Error:") or result.startswith(
+                "Tool timed out"
+            )
+            result_preview = result[:500] + ("…" if len(result) > 500 else "")
+            yield {
+                "type": "tool_use",
+                "name": tc.function.name,
+                "state": "error" if is_error else "result",
+                "result": result_preview,
+            }
+
+            # Save tool result to DB
+            tool_msg_for_db = {
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "name": tc.function.name,
+                "content": result,
+            }
+            yield {"type": "tool_save", "message": tool_msg_for_db}
+
+            api_messages.append(
+                {
+                    "tool_call_id": tc.id,
+                    "role": "tool",
+                    "name": tc.function.name,
+                    "content": result,
+                }
+            )
+
+    yield {"type": "done"}

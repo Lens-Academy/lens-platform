@@ -18,13 +18,13 @@ describe('CONTENT_SCHEMAS', () => {
   it('course schema has correct required and optional fields', () => {
     const schema = CONTENT_SCHEMAS['course'];
     expect(schema.requiredFields).toEqual(['slug', 'title']);
-    expect(schema.optionalFields).toEqual(['id', 'tags']);
+    expect(schema.optionalFields).toEqual(['id', 'slug-aliases', 'tags']);
   });
 
   it('lens schema has correct required and optional fields', () => {
     const schema = CONTENT_SCHEMAS['lens'];
     expect(schema.requiredFields).toEqual(['id']);
-    expect(schema.optionalFields).toEqual(['title', 'tldr', 'tags']);
+    expect(schema.optionalFields).toEqual(['title', 'tldr', 'summary_for_tutor', 'tags']);
   });
 
   it('learning-outcome schema has correct required and optional fields', () => {

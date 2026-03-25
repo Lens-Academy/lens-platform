@@ -14,7 +14,6 @@ from .github_fetcher import (
     refresh_cache,
     get_content_branch,
     fetch_file,
-    list_directory,
     fetch_all_content,
     CONTENT_REPO,
 )
@@ -36,7 +35,6 @@ __all__ = [
     "refresh_cache",
     "get_content_branch",
     "fetch_file",
-    "list_directory",
     "fetch_all_content",
     "CONTENT_REPO",
     "WebhookSignatureError",

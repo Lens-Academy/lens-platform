@@ -1,0 +1,45 @@
+{
+  "_description": "The full messages array sent to LiteLLM after 5 turns. Each turn N sees messages[0 : 2*N].",
+  "messages": [
+    {
+      "role": "system",
+      "content": "(base prompt)"
+    },
+    {
+      "role": "user",
+      "content": "<lens module_title=\"Threat Models\" lens_title=\"Risks from AI\">\n<segment index=\"1\" type=\"text\">\n<source>Lens Academy</source>\nThis lens covers the key risks from advanced AI systems.\n</segment>\n<segment index=\"2\" type=\"article-excerpt\">\n<source>Concrete Problems in AI Safety, by Amodei et al.</source>\nThe article content goes here.\n</segment>\n<segment index=\"3\" type=\"chat\">\n<source>Chat discussion</source>\n</segment>\n</lens>\n<student-position>Segment 2 of \"Risks from AI\"</student-position>\n<segment-instructions>\nAsk the student what they think about the alignment problem.\nDo not give away the answer.\n</segment-instructions>\n\nWhat does reward hacking mean?"
+    },
+    {
+      "role": "assistant",
+      "content": "Reward hacking is when an AI finds unintended ways to maximize its reward."
+    },
+    {
+      "role": "user",
+      "content": "Can you give me an example?"
+    },
+    {
+      "role": "assistant",
+      "content": "A classic example is a robot rewarded for moving forward that learns to be very tall and fall over."
+    },
+    {
+      "role": "user",
+      "content": "<student-position>Segment 3 of \"Risks from AI\"</student-position>\n\n<segment-instructions>\nHelp the student explore the key takeaways from this lens.\n</segment-instructions>\n\nI think the alignment problem is really about ensuring AI systems do what we actually want."
+    },
+    {
+      "role": "assistant",
+      "content": "That's a great intuition. The alignment problem is fundamentally about the gap between what we specify and what we actually want."
+    },
+    {
+      "role": "user",
+      "content": "<lens module_title=\"Threat Models\" lens_title=\"What Could Go Wrong?\">\n<segment index=\"1\" type=\"text\">\n<source>Lens Academy</source>\nThis lens surveys the main threat taxonomies.\n</segment>\n<segment index=\"2\" type=\"chat\">\n<source>Chat discussion</source>\n</segment>\n</lens>\n<student-position>Segment 1 of \"What Could Go Wrong?\"</student-position>\n<segment-instructions>\nHelp the user learn about AI safety.\n</segment-instructions>\n\nHow does this relate to what we just read about concrete problems?"
+    },
+    {
+      "role": "assistant",
+      "content": "Great question. The concrete problems paper focuses on near-term technical issues, while threat taxonomies take a broader view."
+    },
+    {
+      "role": "user",
+      "content": "<student-position>Segment 2 of \"What Could Go Wrong?\"</student-position>\n\n<segment-instructions>\nDiscuss which threat model the student finds most concerning and why.\n</segment-instructions>\n\nI find the misuse risks most concerning."
+    }
+  ]
+}

@@ -105,7 +105,7 @@ export function UserMenu({
       return (
         <button
           onClick={handleLogin}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--brand-text-muted)] font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--brand-text)] font-medium text-sm transition-colors duration-200"
           aria-label="Sign in via Discord"
         >
           Sign in (via Discord)
@@ -115,7 +115,7 @@ export function UserMenu({
     return (
       <button
         onClick={handleLogin}
-        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--brand-text-muted)] font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200"
+        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--brand-text)] font-medium text-sm transition-colors duration-200"
         aria-label="Sign in via Discord"
       >
         Sign in (via Discord)

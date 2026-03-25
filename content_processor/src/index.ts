@@ -26,6 +26,7 @@ export interface FlattenedModule {
 export interface Course {
   slug: string;
   title: string;
+  slugAliases?: string[];
   progression: ProgressionItem[];
   error?: string;
 }
@@ -36,6 +37,7 @@ export interface Section {
   meta: SectionMeta;
   segments: Segment[];
   optional?: boolean;
+  hide?: boolean;
   feedback?: boolean;
   contentId: string | null;
   learningOutcomeId: string | null;
@@ -43,6 +45,7 @@ export interface Section {
   wordCount?: number;              // word count of text + article segments
   videoDurationSeconds?: number;   // total seconds of video segments
   tldr?: string;
+  summaryForTutor?: string;
 }
 
 export interface SectionMeta {
@@ -129,6 +132,7 @@ export interface RoleplaySegment {
 export type Segment = TextSegment | ChatSegment | ArticleSegment | VideoSegment | QuestionSegment | RoleplaySegment;
 
 import { flattenModule, flattenLens } from './flattener/index.js';
+import { populateCardModuleSlugs, resolveInlineLensModuleSlugs } from './flattener/resolve-text-links.js';
 import { parseModule, hasFieldBeforeSegmentHeaders } from './parser/module.js';
 import { parseCourse } from './parser/course.js';
 import { parseLearningOutcome } from './parser/learning-outcome.js';
@@ -452,6 +456,23 @@ export function processContent(files: Map<string, string>): ProcessResult {
     }
   }
 
+  // Build contentId → moduleSlug mapping and populate moduleSlug in cross-module card links.
+  // Prefer real modules over standalone lenses (lens/ prefix) — a lens that appears in
+  // both a module and as a standalone should map to the module.
+  const contentIdToModuleSlug = new Map<string, string>();
+  for (const mod of modules) {
+    if (mod.slug.startsWith('lens/')) continue; // Skip standalone lenses
+    for (const section of mod.sections) {
+      if (section.contentId) {
+        contentIdToModuleSlug.set(section.contentId, mod.slug);
+      }
+    }
+  }
+  for (const mod of modules) {
+    populateCardModuleSlugs(mod.sections, contentIdToModuleSlug);
+    resolveInlineLensModuleSlugs(mod.sections, contentIdToModuleSlug);
+  }
+
   // Resolve course module paths to frontmatter slugs.
   // Use filePathToSlug (built during module parsing) instead of inverting slugToPath,
   // because slugToPath loses entries when duplicate slugs exist.
@@ -530,6 +551,37 @@ export function processContent(files: Map<string, string>): ProcessResult {
         const violation = checkTierViolation(coursePath, parentTier, modulePath, childTier, 'module');
         if (violation) {
           errors.push(violation);
+        }
+      }
+    }
+  }
+
+  // Validate course slug alias collisions
+  {
+    // Map of all course slugs (primary + aliases) -> source file
+    const allCourseSlugs = new Map<string, string>(); // slug -> file
+
+    // Register primary slugs first
+    for (const course of courses) {
+      const file = courseSlugToFile.get(course.slug) ?? 'courses/';
+      allCourseSlugs.set(course.slug, file);
+    }
+
+    // Check each alias against all known slugs
+    for (const course of courses) {
+      const file = courseSlugToFile.get(course.slug) ?? 'courses/';
+      const tier = tierMap.get(file) ?? 'production';
+      for (const alias of course.slugAliases ?? []) {
+        const existing = allCourseSlugs.get(alias);
+        if (existing) {
+          errors.push({
+            file,
+            message: `Course slug alias '${alias}' collides with ${existing === file ? 'its own primary slug' : `slug in ${existing}`}`,
+            suggestion: `Choose a different alias or remove the conflicting slug`,
+            severity: tier === 'wip' ? 'warning' : 'error',
+          });
+        } else {
+          allCourseSlugs.set(alias, file);
         }
       }
     }

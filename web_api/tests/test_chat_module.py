@@ -211,7 +211,7 @@ class TestPostChatModule:
             patch(
                 "web_api.routes.module.gather_section_context",
                 return_value=SectionContext(
-                    segments=[(0, "Video content here")],
+                    segments=[(0, "video", "Video content here")],
                     segment_index=1,
                     total_segments=2,
                 ),

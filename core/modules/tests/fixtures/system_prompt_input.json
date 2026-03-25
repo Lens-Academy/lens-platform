@@ -1,0 +1,152 @@
+{
+  "base_prompt": "(This will be replaced by the actual base prompt:) You are a tutor helping someone learn about AI safety. Each piece of content (article, video) has different topics and learning objectives.",
+
+  "course_overview_intro": "(This will be replaced by the actual course overview intro prompt:) The course structure is Course > Units > Modules > Lenses. A Lens is a page containing (excerpts from) articles or videos, and AI tutor discussions. Lens == Page == Section.\n\nFor each unit, the students study the modules and then have an online group discussion about the material.",
+
+  "course": {
+    "slug": "intro-ais",
+    "title": "Intro to AI Safety",
+    "progression": [
+      { "type": "module", "slug": "introduction" },
+      { "type": "module", "slug": "four-background-claims" },
+      { "type": "meeting", "name": "Week 1 Discussion" },
+      { "type": "module", "slug": "threat-models" },
+      { "type": "module", "slug": "threat-models-deceptive-alignment", "optional": true },
+      { "type": "module", "slug": "goals-of-alignment" },
+      { "type": "meeting", "name": "Week 2 Discussion" },
+      { "type": "module", "slug": "rlhf-and-alternatives" },
+      { "type": "module", "slug": "governance", "optional": true },
+      { "type": "meeting", "name": "Week 3 Discussion" }
+    ]
+  },
+
+  "modules": {
+    "introduction": {
+      "title": "Introduction",
+      "sections": [
+        {
+          "meta": { "title": "Why AI Safety?" },
+          "tldr": "Motivating the study of AI safety through concrete examples",
+          "contentId": "aaaa0001-0001-0001-0001-000000000001"
+        },
+        {
+          "meta": { "title": "Course Overview & Expectations" },
+          "tldr": "What you'll learn and how the course is structured",
+          "contentId": "aaaa0001-0001-0001-0001-000000000002"
+        }
+      ]
+    },
+    "four-background-claims": {
+      "title": "Four Background Claims",
+      "sections": [
+        {
+          "meta": { "title": "The \"most important century\" blog post series" },
+          "tldr": "Holden Karnofsky's argument that this century is pivotal for humanity's future",
+          "contentId": "aaaa0002-0001-0001-0001-000000000001"
+        },
+        {
+          "meta": { "title": "AGI and Superintelligence" },
+          "tldr": "Key concepts and timelines for transformative AI systems",
+          "contentId": "aaaa0002-0001-0001-0001-000000000002"
+        },
+        {
+          "meta": { "title": "The Alignment Problem" },
+          "tldr": "Why aligning AI with human values is hard",
+          "contentId": "aaaa0002-0001-0001-0001-000000000003"
+        }
+      ]
+    },
+    "threat-models": {
+      "title": "Threat Models",
+      "sections": [
+        {
+          "meta": { "title": "What Could Go Wrong?" },
+          "tldr": "Overview of AI risk scenarios and threat taxonomies",
+          "contentId": "aaaa0003-0001-0001-0001-000000000001"
+        },
+        {
+          "meta": { "title": "Risks from AI" },
+          "tldr": "Overview of catastrophic and existential risks",
+          "contentId": "aaaa0003-0001-0001-0001-000000000002"
+        }
+      ]
+    },
+    "threat-models-deceptive-alignment": {
+      "title": "Deceptive Alignment (Deep Dive)",
+      "parent_slug": "threat-models",
+      "parent_title": "Threat Models",
+      "sections": [
+        {
+          "meta": { "title": "Deceptive Alignment" },
+          "tldr": "When AI systems appear aligned but aren't",
+          "contentId": "aaaa0003-0002-0001-0001-000000000001"
+        }
+      ]
+    },
+    "goals-of-alignment": {
+      "title": "Goals of Alignment Research",
+      "sections": [
+        {
+          "meta": { "title": "What Are We Trying to Achieve?" },
+          "tldr": "Defining success criteria for alignment research",
+          "contentId": "aaaa0004-0001-0001-0001-000000000001"
+        }
+      ]
+    },
+    "rlhf-and-alternatives": {
+      "title": "RLHF and Alternatives",
+      "sections": [
+        {
+          "meta": { "title": "Learning from Human Feedback" },
+          "tldr": "How RLHF works and its limitations",
+          "contentId": "aaaa0005-0001-0001-0001-000000000001"
+        },
+        {
+          "meta": { "title": "Constitutional AI and Other Approaches" },
+          "tldr": "Alternatives to RLHF for steering model behavior",
+          "contentId": "aaaa0005-0001-0001-0001-000000000002"
+        }
+      ]
+    },
+    "governance": {
+      "title": "AI Governance",
+      "sections": [
+        {
+          "meta": { "title": "Policy Approaches to AI Safety" },
+          "tldr": "Government and industry efforts to regulate AI development",
+          "contentId": "aaaa0006-0001-0001-0001-000000000001"
+        }
+      ]
+    }
+  },
+
+  "current_position": {
+    "module_slug": "threat-models",
+    "section_index": 1,
+    "completed_content_ids": [
+      "aaaa0001-0001-0001-0001-000000000001",
+      "aaaa0001-0001-0001-0001-000000000002",
+      "aaaa0002-0001-0001-0001-000000000001",
+      "aaaa0002-0001-0001-0001-000000000002",
+      "aaaa0002-0001-0001-0001-000000000003",
+      "aaaa0003-0001-0001-0001-000000000001"
+    ]
+  },
+
+  "section_context": {
+    "segments": [
+      [0, "<source>Lens Academy</source>\nThis lens covers the key risks from advanced AI systems."],
+      [1, "<source>Concrete Problems in AI Safety, by Amodei et al.</source>\nThe article content goes here."],
+      [2, "<source>Chat discussion</source>"]
+    ],
+    "segment_index": 1,
+    "total_segments": 3,
+    "module_title": "Threat Models",
+    "section_title": "Risks from AI"
+  },
+
+  "stage": {
+    "type": "chat",
+    "instructions": "Ask the student what they think about the alignment problem.\nDo not give away the answer."
+  }
+}

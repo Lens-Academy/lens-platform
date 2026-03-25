@@ -543,13 +543,13 @@ export default function VideoPlayer({
                     className="h-full rounded pointer-events-none"
                     style={{
                       width: `${progress * 100}%`,
-                      backgroundColor: "var(--color-lens-gold-400)",
+                      backgroundColor: "var(--color-lens-orange-400)",
                     }}
                   />
                   <div
                     className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow pointer-events-none border-2 border-white"
                     style={{
-                      backgroundColor: "var(--color-lens-gold-500)",
+                      backgroundColor: "var(--color-lens-orange-500)",
                       left: `calc(${progress * 100}% - 8px)`,
                     }}
                   />
@@ -583,13 +583,13 @@ export default function VideoPlayer({
                     className="h-full rounded pointer-events-none"
                     style={{
                       width: `${progress * 100}%`,
-                      backgroundColor: "var(--color-lens-gold-400)",
+                      backgroundColor: "var(--color-lens-orange-400)",
                     }}
                   />
                   <div
                     className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full shadow pointer-events-none border-2 border-white"
                     style={{
-                      backgroundColor: "var(--color-lens-gold-500)",
+                      backgroundColor: "var(--color-lens-orange-500)",
                       left: `calc(${progress * 100}% - 10px)`,
                     }}
                   />

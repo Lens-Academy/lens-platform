@@ -1119,6 +1119,35 @@ content:: Some content.
     expect(result.lens?.tldr).toBe('This is a brief summary of the lens content.');
   });
 
+  it('parses summary_for_tutor from frontmatter', () => {
+    const content = `---
+id: test-id
+summary_for_tutor: Covers the sharp left turn problem and capabilities generalization.
+---
+
+#### Text
+content:: Some content.
+`;
+
+    const result = parseLens(content, 'Lenses/lens1.md');
+
+    expect(result.lens?.summaryForTutor).toBe('Covers the sharp left turn problem and capabilities generalization.');
+  });
+
+  it('sets summaryForTutor to undefined when not present', () => {
+    const content = `---
+id: test-id
+---
+
+#### Text
+content:: Some content.
+`;
+
+    const result = parseLens(content, 'Lenses/lens1.md');
+
+    expect(result.lens?.summaryForTutor).toBeUndefined();
+  });
+
   it('sets tldr to undefined when not present', () => {
     const content = `---
 id: test-id

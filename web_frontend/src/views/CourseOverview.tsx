@@ -12,7 +12,12 @@ import type { CourseProgress, ModuleInfo } from "../types/course";
 import CourseTimeline from "../components/course/CourseTimeline";
 import ModuleOverview from "../components/course/ModuleOverview";
 import { generateHeadingId } from "../utils/extractHeadings";
-import { DiscordInviteButton, UserMenu } from "../components/nav";
+import {
+  CoursesDropdown,
+  DiscordInviteButton,
+  UserMenu,
+} from "../components/nav";
+import { Popover } from "../components/Popover";
 import { Skeleton } from "../components/Skeleton";
 import { useScrollDirection } from "../hooks/useScrollDirection";
 
@@ -21,8 +26,9 @@ interface CourseOverviewProps {
 }
 
 export default function CourseOverview({
-  courseId = "default",
+  courseId: courseIdProp = "default",
 }: CourseOverviewProps) {
+  const [courseId, setCourseId] = useState(courseIdProp);
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
     null,
   );
@@ -41,6 +47,12 @@ export default function CourseOverview({
         setLoading(true);
         const data = await getCourseProgress(courseId);
         setCourseProgress(data);
+
+        // Fix URL if viewing via alias slug (no reload, just update address bar)
+        if (data.course?.slug && data.course.slug !== courseIdProp) {
+          history.replaceState(null, "", `/course/${data.course.slug}`);
+          setCourseId(data.course.slug);
+        }
 
         // Auto-select current module (first in-progress, or first not-started)
         let currentModule: ModuleInfo | null = null;
@@ -68,7 +80,7 @@ export default function CourseOverview({
       }
     }
     load();
-  }, [courseId]);
+  }, [courseIdProp]);
 
   const handleStartModule = () => {
     if (!selectedModule) return;
@@ -204,28 +216,24 @@ export default function CourseOverview({
           ${shouldHideHeader ? "-translate-y-full" : "translate-y-0"}
         `}
         style={{
-          backgroundColor:
-            "color-mix(in srgb, var(--brand-bg) 80%, transparent)",
+          backgroundColor: "var(--brand-bg)",
           borderColor: "var(--brand-border)",
           fontFamily: "var(--brand-font-body)",
         }}
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+        {isMobile ? (
+          <div className="flex items-center justify-between h-16 px-4">
             <div className="flex items-center gap-2">
-              {/* Mobile menu button */}
-              {isMobile && (
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="p-2 -ml-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-black/5 rounded-lg transition-colors"
-                  aria-label="Open course menu"
-                >
-                  <Menu
-                    className="w-5 h-5"
-                    style={{ color: "var(--brand-text-muted)" }}
-                  />
-                </button>
-              )}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 -ml-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-black/5 rounded-lg transition-colors"
+                aria-label="Open course menu"
+              >
+                <Menu
+                  className="w-5 h-5"
+                  style={{ color: "var(--brand-text-muted)" }}
+                />
+              </button>
               <a href="/" className="flex items-center gap-2">
                 <img
                   src="/assets/Logo_magnifying_glass.png"
@@ -244,122 +252,164 @@ export default function CourseOverview({
               </a>
             </div>
             <div className="flex items-center gap-4">
-              <a
-                href="/course"
-                className="font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200 hidden md:block"
-                style={{ color: "var(--brand-text-muted)" }}
-              >
-                Course
-              </a>
-              <div className="hidden md:block">
-                <DiscordInviteButton />
-              </div>
               <UserMenu />
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center h-16 max-w-6xl mx-auto pl-[33px] pr-8">
+            <a href="/" className="flex items-center gap-2">
+              <img
+                src="/assets/Logo_magnifying_glass.png"
+                alt="Lens Academy"
+                className="h-8"
+              />
+              <span
+                className="text-xl font-medium"
+                style={{
+                  color: "var(--brand-text)",
+                  fontFamily: "var(--brand-font-display)",
+                }}
+              >
+                Lens Academy
+              </span>
+            </a>
+            <div className="flex-1" />
+            <div className="flex items-center gap-4">
+              <Popover
+                placement="bottom-start"
+                hover
+                className="bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-lg shadow-lg p-2 z-50 min-w-[220px]"
+                content={(close) => <CoursesDropdown onNavigate={close} />}
+              >
+                <button
+                  className="font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200 hidden md:block"
+                  style={{ color: "var(--brand-text-muted)" }}
+                >
+                  Courses
+                </button>
+              </Popover>
+              <DiscordInviteButton />
+              <UserMenu />
+            </div>
+          </div>
+        )}
       </nav>
       {/* Spacer for fixed header */}
       <div className="h-16 flex-shrink-0" />
 
       {/* Two-panel layout */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Desktop: inline sidebar */}
-        {!isMobile && (
-          <div className="w-80 flex-shrink-0">
-            <CourseTimeline
-              courseTitle={courseProgress.course.title}
-              units={courseProgress.units}
-              selectedModuleSlug={selectedModule?.slug ?? null}
-              onModuleSelect={handleModuleSelect}
-            />
-          </div>
-        )}
-
-        {/* Mobile: drawer sidebar */}
-        {isMobile && (
-          <>
-            {/* Backdrop */}
-            {sidebarOpen && (
-              <div
-                className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-200"
-                onClick={() => setSidebarOpen(false)}
-              />
-            )}
-            {/* Drawer */}
+      <div
+        className="flex-1 relative overflow-y-auto"
+        style={{ backgroundColor: "var(--brand-bg-alt)" }}
+      >
+        <div className="flex min-h-full max-w-6xl mx-auto">
+          {/* Desktop: inline sidebar */}
+          {!isMobile && (
             <div
-              className={`fixed top-0 left-0 h-full w-[85%] max-w-sm z-50 transition-transform duration-300 ${
-                sidebarOpen ? "translate-x-0" : "-translate-x-full"
-              }`}
-              style={{
-                backgroundColor: "var(--brand-bg)",
-                paddingTop: "var(--safe-top)",
-                paddingBottom: "var(--safe-bottom)",
-              }}
+              className="w-80 xl:w-96 2xl:w-[28rem] flex-shrink-0 transition-[width] duration-200 py-4 pl-4 pr-3 self-start sticky top-0 h-[calc(100vh-4rem)]"
+              style={{ backgroundColor: "var(--brand-bg-alt)" }}
             >
-              {/* Drawer header with close button */}
-              <div
-                className="flex items-center justify-between p-4 border-b"
-                style={{
-                  borderColor: "var(--brand-border)",
-                  backgroundColor: "var(--brand-bg)",
-                }}
-              >
-                <span
-                  className="font-semibold"
-                  style={{ color: "var(--brand-text)" }}
-                >
-                  Course Overview
-                </span>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-black/5 rounded-lg transition-colors"
-                  aria-label="Close menu"
-                >
-                  <X
-                    className="w-5 h-5"
-                    style={{ color: "var(--brand-text-muted)" }}
-                  />
-                </button>
-              </div>
-              {/* Sidebar content */}
-              <div className="h-[calc(100%-4rem)]">
+              <div className="h-full rounded-2xl shadow-lg overflow-hidden border border-[var(--brand-border)]">
                 <CourseTimeline
                   courseTitle={courseProgress.course.title}
                   units={courseProgress.units}
                   selectedModuleSlug={selectedModule?.slug ?? null}
                   onModuleSelect={handleModuleSelect}
-                  isMobile
                 />
               </div>
             </div>
-          </>
-        )}
-
-        {/* Main panel */}
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
-          {selectedModule ? (
-            <ModuleOverview
-              moduleTitle={selectedModule.title}
-              stages={selectedModule.stages}
-              status={selectedModule.status}
-              completedStages={completedStages}
-              currentSectionIndex={currentSectionIndex}
-              onStageClick={handleStageClick}
-              onStartModule={handleStartModule}
-              completedLenses={selectedModule.completedLenses}
-              totalLenses={selectedModule.totalLenses}
-              prevModule={prevModule}
-              nextModule={nextModule}
-              onNavigate={handleNavigate}
-              parentTitle={selectedModule.parentTitle}
-              isMobile={isMobile}
-            />
-          ) : (
-            <div style={{ color: "var(--brand-text-muted)" }}>
-              Select a module to view details
-            </div>
           )}
+
+          {/* Mobile: drawer sidebar */}
+          {isMobile && (
+            <>
+              {/* Backdrop */}
+              {sidebarOpen && (
+                <div
+                  className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                />
+              )}
+              {/* Drawer */}
+              <div
+                className={`fixed top-0 left-0 h-full w-[85%] max-w-sm z-50 transition-transform duration-300 ${
+                  sidebarOpen ? "translate-x-0" : "-translate-x-full"
+                }`}
+                style={{
+                  backgroundColor: "var(--brand-bg)",
+                  paddingTop: "var(--safe-top)",
+                  paddingBottom: "var(--safe-bottom)",
+                }}
+              >
+                {/* Drawer header with close button */}
+                <div
+                  className="flex items-center justify-between p-4 border-b"
+                  style={{
+                    borderColor: "var(--brand-border)",
+                    backgroundColor: "var(--brand-bg)",
+                  }}
+                >
+                  <span
+                    className="font-semibold"
+                    style={{ color: "var(--brand-text)" }}
+                  >
+                    Course Overview
+                  </span>
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                    className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-black/5 rounded-lg transition-colors"
+                    aria-label="Close menu"
+                  >
+                    <X
+                      className="w-5 h-5"
+                      style={{ color: "var(--brand-text-muted)" }}
+                    />
+                  </button>
+                </div>
+                {/* Sidebar content */}
+                <div className="h-[calc(100%-4rem)]">
+                  <CourseTimeline
+                    courseTitle={courseProgress.course.title}
+                    units={courseProgress.units}
+                    selectedModuleSlug={selectedModule?.slug ?? null}
+                    onModuleSelect={handleModuleSelect}
+                    isMobile
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Main panel */}
+          <div
+            className="flex-1 p-4 md:p-8"
+            style={{ backgroundColor: "var(--brand-bg-alt)" }}
+          >
+            <div className="max-w-2xl">
+              {selectedModule ? (
+                <ModuleOverview
+                  moduleTitle={selectedModule.title}
+                  stages={selectedModule.stages}
+                  status={selectedModule.status}
+                  completedStages={completedStages}
+                  currentSectionIndex={currentSectionIndex}
+                  onStageClick={handleStageClick}
+                  onStartModule={handleStartModule}
+                  completedLenses={selectedModule.completedLenses}
+                  totalLenses={selectedModule.totalLenses}
+                  prevModule={prevModule}
+                  nextModule={nextModule}
+                  onNavigate={handleNavigate}
+                  parentTitle={selectedModule.parentTitle}
+                  isMobile={isMobile}
+                />
+              ) : (
+                <div style={{ color: "var(--brand-text-muted)" }}>
+                  Select a module to view details
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

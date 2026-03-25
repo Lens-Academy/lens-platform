@@ -12,16 +12,37 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request
 from pydantic import BaseModel
 
 from core import get_or_create_user
-from core.database import get_transaction
+from core.database import get_transaction, get_connection
 from core.modules.progress import (
     get_or_create_progress,
     mark_content_complete,
     update_time_spent,
     get_module_progress,
+    get_completed_content_ids,
 )
 from web_api.auth import get_optional_user
 
 router = APIRouter(prefix="/api/progress", tags=["progress"])
+
+
+@router.get("/completed")
+async def get_completed_endpoint(request: Request):
+    """Get all content IDs the authenticated user has completed.
+
+    Returns a list of content ID strings (UUIDs). Used by the frontend
+    to show completion checkmarks on cross-module lens cards.
+    """
+    user_jwt = await get_optional_user(request)
+    if not user_jwt:
+        raise HTTPException(401, "Authentication required")
+
+    discord_id = user_jwt["sub"]
+    user = await get_or_create_user(discord_id)
+
+    async with get_connection() as conn:
+        completed = await get_completed_content_ids(conn, user["user_id"])
+
+    return {"completed": list(completed)}
 
 
 class MarkCompleteRequest(BaseModel):

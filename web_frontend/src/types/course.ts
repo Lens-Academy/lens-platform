@@ -8,6 +8,7 @@ export type StageInfo = {
   title: string;
   duration: number | null;
   optional: boolean;
+  hide?: boolean;
   // New fields for lens-level progress tracking
   contentId?: string | null;
   completed?: boolean;

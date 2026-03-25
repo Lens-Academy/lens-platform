@@ -288,5 +288,14 @@ function parseFields(section: ParsedSection, file: string): ParseFieldsResult {
     section.fields[currentField] = currentValue.join('\n').trim();
   }
 
+  // Unescape \# → # at start of lines in markdown content fields.
+  // Authors use \## to prevent the parser from treating ## as a structural header;
+  // the escape must be stripped before the content reaches consumers (e.g. ReactMarkdown).
+  for (const field of MARKDOWN_CONTENT_FIELDS) {
+    if (section.fields[field]) {
+      section.fields[field] = section.fields[field].replace(/^\\(#+)/gm, '$1');
+    }
+  }
+
   return { warnings };
 }

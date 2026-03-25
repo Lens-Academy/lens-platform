@@ -19,14 +19,12 @@ import type { ChatMessage, PendingMessage } from "@/types/module";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import { renderMessage } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
-import ChatMarkdown from "@/components/ChatMarkdown";
-import { Bot, ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { chatViewReducer, initialChatViewState } from "./chatViewReducer";
 
 type ChatInlineShellProps = {
   messages: ChatMessage[];
   pendingMessage: PendingMessage | null;
-  streamingContent: string;
   isLoading: boolean;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
@@ -68,7 +66,6 @@ function PillVisibilityWrapper({
 export function ChatInlineShell({
   messages,
   pendingMessage,
-  streamingContent,
   isLoading,
   onSendMessage,
   onRetryMessage,
@@ -250,8 +247,7 @@ export function ChatInlineShell({
   const wrapperMessages = displayMessages.slice(adjustedWrapperStart);
 
   const showPending = hasInteracted && !!pendingMessage;
-  const showStreaming = hasInteracted && isLoading && !!streamingContent;
-  const showThinking = hasInteracted && isLoading && !streamingContent;
+  const showStreaming = hasInteracted && isLoading;
   const wrapperMinHeight = hasInteracted && spacerHeight > 0 ? spacerHeight : 0;
   const scrollMargin = hasInteracted
     ? isExpanded
@@ -408,7 +404,8 @@ export function ChatInlineShell({
                 {previousMessages.map((msg, i) => {
                   const isRecentBoundary =
                     isExpanded && i === recentMessagesStartIdx;
-                  const msgEl = renderMessage(msg, i);
+                  const prev = i > 0 ? previousMessages[i - 1] : undefined;
+                  const msgEl = renderMessage(msg, i, prev?.role);
                   return isRecentBoundary ? (
                     <Fragment key={i}>
                       <div ref={recentStartRef} />
@@ -453,7 +450,16 @@ export function ChatInlineShell({
                           style={{ scrollMarginTop: scrollMargin }}
                         />
                       )}
-                      {renderMessage(msg, `current-${i}`)}
+                      {renderMessage(
+                        msg,
+                        `current-${i}`,
+                        i > 0
+                          ? wrapperMessages[i - 1]?.role
+                          : previousMessages.length > 0
+                            ? previousMessages[previousMessages.length - 1]
+                                ?.role
+                            : undefined,
+                      )}
                     </Fragment>
                   ));
                 })()}
@@ -483,32 +489,10 @@ export function ChatInlineShell({
                   </div>
                 )}
 
-                {/* Streaming response */}
-                {showStreaming && (
-                  <div
-                    ref={activeScrollToResponse ? responseRef : undefined}
-                    className="text-gray-800"
-                  >
-                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                      <Bot size={13} />
-                      Tutor
-                    </div>
-                    <ChatMarkdown>{streamingContent}</ChatMarkdown>
-                  </div>
-                )}
-
-                {/* Thinking indicator */}
-                {showThinking && (
-                  <div
-                    ref={activeScrollToResponse ? responseRef : undefined}
-                    className="text-gray-800"
-                  >
-                    <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                      <Bot size={13} />
-                      Tutor
-                    </div>
-                    <div>Thinking...</div>
-                  </div>
+                {/* Scroll anchor for scrollToResponse — streaming/thinking
+                    content is now rendered as a regular message by renderMessage() */}
+                {showStreaming && activeScrollToResponse && (
+                  <div ref={responseRef} />
                 )}
               </div>
 

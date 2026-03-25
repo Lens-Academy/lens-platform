@@ -40,7 +40,6 @@ type ChatSidebarProps = {
   // Chat state (passed from Module.tsx / parent)
   messages: ChatMessage[];
   pendingMessage: PendingMessage | null;
-  streamingContent: string;
   isLoading: boolean;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
@@ -54,7 +53,6 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       sectionTitle,
       messages,
       pendingMessage,
-      streamingContent,
       isLoading,
       onSendMessage,
       onRetryMessage: _onRetryMessage,
@@ -193,15 +191,18 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       });
     }, [isOpen]);
 
-    // On send: scroll user's message to top
+    // On send: scroll user's message to top (triggered by isLoading going true)
+    const wasLoadingSendRef = useRef(false);
     useLayoutEffect(() => {
-      if (!pendingMessage || !minHeightWrapperRef.current) return;
+      const justStarted = isLoading && !wasLoadingSendRef.current;
+      wasLoadingSendRef.current = isLoading;
+      if (!justStarted || !minHeightWrapperRef.current) return;
       if (scrollContainerHeight <= 0) return;
       minHeightWrapperRef.current.scrollIntoView({
         block: "start",
         behavior: "smooth",
       });
-    }, [pendingMessage, scrollContainerHeight]);
+    }, [isLoading, scrollContainerHeight]);
 
     // Scroll to bottom after streaming finishes (before paint — no flash)
     const wasLoadingRef = useRef(false);
@@ -223,7 +224,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           container.scrollTop = container.scrollHeight;
         }
       }
-    }, [messages, streamingContent, isLoading, isOpen]);
+    }, [messages, isLoading, isOpen]);
 
     const chatIcon = (
       <BotMessageSquare className="w-5 h-5 text-slate-500" strokeWidth={1.5} />
@@ -282,7 +283,6 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         <ChatMessageList
           messages={messages}
           pendingMessage={pendingMessage}
-          streamingContent={streamingContent}
           isLoading={isLoading}
           containerRef={scrollContainerRef}
           wrapperStartIdx={wrapperStartIdx}

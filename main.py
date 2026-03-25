@@ -19,6 +19,7 @@ import asyncio
 import logging
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -220,6 +221,31 @@ async def lifespan(app: FastAPI):
             e,
         )
 
+    # Initialize MCP client for alignment research search
+    from core.modules.tools.mcp_client import MCPClientManager
+
+    stampy_url = os.getenv("STAMPY_MCP_URL", "").strip() or None
+    mcp_manager = MCPClientManager(url=stampy_url)
+    app.state.mcp_manager = mcp_manager
+    if stampy_url:
+        print(f"✓ MCP client configured for {stampy_url} (connects lazily)")
+    else:
+        print("Note: STAMPY_MCP_URL not set, alignment search tool disabled")
+
+    # Build content index for course search/read tools
+    from core.modules.tools.content_index import ContentIndex
+    from core.content import get_cache
+
+    try:
+        cache = get_cache()
+        app.state.content_index = ContentIndex(cache.courses, cache.flattened_modules)
+        print(
+            f"✓ Content index: {len(app.state.content_index.list_paths())} lenses indexed"
+        )
+    except Exception as e:
+        print(f"Warning: Failed to build content index: {e}")
+        app.state.content_index = None
+
     # Check database connection (runs in uvicorn's event loop - no issues)
     if not skip_db:
         print("Checking database connection...")
@@ -269,6 +295,15 @@ async def lifespan(app: FastAPI):
                 replace_existing=True,
             )
             print("Scheduled Substack sync job (every 6 hours)")
+
+            scheduler.add_job(
+                sync_substack_subscribers,
+                trigger="date",
+                run_date=datetime.now(timezone.utc) + timedelta(minutes=2),
+                id="sync_substack_initial",
+                replace_existing=True,
+            )
+            print("Scheduled initial Substack sync (in ~2 minutes)")
     else:
         print("Running in --no-db mode (database operations will fail)")
 
@@ -295,6 +330,10 @@ async def lifespan(app: FastAPI):
     print("Shutting down peer services...")
     shutdown_scheduler()
     await stop_bot()
+
+    # Close MCP client
+    if hasattr(app.state, "mcp_manager"):
+        await app.state.mcp_manager.close()
 
     await close_engine()  # Close database connections
     if _bot_task:

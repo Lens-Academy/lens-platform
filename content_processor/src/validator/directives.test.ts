@@ -387,6 +387,16 @@ describe('detectDirectivesInNonArticle', () => {
   });
 });
 
+// === Task 6 (card): card directive does not produce false errors ===
+describe('card directive', () => {
+  it('does not flag ::card as unknown directive', () => {
+    const body = '::card[[../Lenses/My Lens]]';
+    const errors = validateDirectives(body, 'test.md', 1);
+    const cardErrors = errors.filter(e => e.message.includes('card'));
+    expect(cardErrors).toHaveLength(0);
+  });
+});
+
 // === Task 8: Integration tests via processContent ===
 describe('integration: directive validation via processContent', () => {
   it('reports unclosed directive in article file', () => {

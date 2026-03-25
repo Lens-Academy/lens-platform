@@ -234,7 +234,7 @@ export default function MeetingsPage() {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lens-gold-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lens-orange-500"></div>
         </div>
       </Layout>
     );
@@ -251,7 +251,7 @@ export default function MeetingsPage() {
             </p>
             <button
               onClick={login}
-              className="text-lens-gold-600 hover:underline"
+              className="text-lens-orange-600 hover:underline"
             >
               Sign in
             </button>
@@ -270,7 +270,7 @@ export default function MeetingsPage() {
             <p className="text-[var(--brand-text-muted)] mb-4">
               You need to enroll in a cohort first.
             </p>
-            <a href="/enroll" className="text-lens-gold-600 hover:underline">
+            <a href="/enroll" className="text-lens-orange-600 hover:underline">
               Enroll now
             </a>
           </div>
@@ -390,7 +390,7 @@ export default function MeetingsPage() {
                 {activeVisits.map((visit) => (
                   <div
                     key={visit.attendance_id}
-                    className="border border-lens-gold-300 bg-lens-gold-50 rounded-lg p-4 flex items-center justify-between"
+                    className="border border-lens-orange-300 bg-lens-orange-50 rounded-lg p-4 flex items-center justify-between"
                   >
                     <div>
                       <p className="font-medium text-[var(--brand-text)]">

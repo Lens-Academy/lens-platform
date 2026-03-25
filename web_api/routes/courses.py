@@ -240,19 +240,20 @@ async def get_course_progress(
                         seen.add(name)
                 attribution = " & ".join(attributions) if attributions else None
 
-                stages.append(
-                    {
-                        "type": section_type,
-                        "displayType": section.get("displayType"),
-                        "title": title,
-                        "duration": section_dur or None,
-                        "optional": section.get("optional", False),
-                        "contentId": content_id_str,
-                        "completed": lens_completed,
-                        "tldr": section.get("tldr"),
-                        "attribution": attribution,
-                    }
-                )
+                stage_data = {
+                    "type": section_type,
+                    "displayType": section.get("displayType"),
+                    "title": title,
+                    "duration": section_dur or None,
+                    "optional": section.get("optional", False),
+                    "contentId": content_id_str,
+                    "completed": lens_completed,
+                    "tldr": section.get("tldr"),
+                    "attribution": attribution,
+                }
+                if section.get("hide"):
+                    stage_data["hide"] = True
+                stages.append(stage_data)
 
             # Compute module duration from core (non-optional) content only
             core_sections = [s for s in parsed.sections if not s.get("optional", False)]

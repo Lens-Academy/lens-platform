@@ -38,14 +38,14 @@ async def test_stream_chat_yields_text_chunks():
 
 
 @pytest.mark.asyncio
-async def test_stream_chat_yields_tool_calls():
-    """Should yield tool_use events when model calls a tool."""
+async def test_stream_chat_does_not_yield_tool_events():
+    """stream_chat should NOT yield tool_use events (handled by chat.py tool loop)."""
     from core.modules.llm import stream_chat
 
     # Create mock chunk with tool call
     mock_tool_call = MagicMock()
     mock_tool_call.function = MagicMock()
-    mock_tool_call.function.name = "transition_to_next"
+    mock_tool_call.function.name = "search_alignment_research"
 
     mock_delta = MagicMock()
     mock_delta.content = None
@@ -63,14 +63,84 @@ async def test_stream_chat_yields_tool_calls():
     with patch("core.modules.llm.acompletion", return_value=mock_response()):
         events = []
         async for event in stream_chat(
-            messages=[{"role": "user", "content": "I'm ready"}],
+            messages=[{"role": "user", "content": "search something"}],
             system="You are a tutor.",
-            tools=[{"type": "function", "function": {"name": "transition_to_next"}}],
+            tools=[
+                {"type": "function", "function": {"name": "search_alignment_research"}}
+            ],
             provider="anthropic/claude-sonnet-4-20250514",
         ):
             events.append(event)
 
-        assert {"type": "tool_use", "name": "transition_to_next"} in events
+        # No tool_use events should be yielded
+        tool_events = [e for e in events if e.get("type") == "tool_use"]
+        assert tool_events == []
+        # Should still get done event
+        assert {"type": "done"} in events
+
+
+@pytest.mark.asyncio
+async def test_iter_chunk_events_extracts_text():
+    """iter_chunk_events should extract text and thinking events from a chunk."""
+    from core.modules.llm import iter_chunk_events
+
+    # Text chunk
+    mock_delta = MagicMock()
+    mock_delta.content = "Hello world"
+    mock_delta.tool_calls = None
+    mock_delta.reasoning_content = None
+
+    mock_choice = MagicMock()
+    mock_choice.delta = mock_delta
+
+    mock_chunk = MagicMock()
+    mock_chunk.choices = [mock_choice]
+
+    events = iter_chunk_events(mock_chunk)
+    assert events == [{"type": "text", "content": "Hello world"}]
+
+
+@pytest.mark.asyncio
+async def test_iter_chunk_events_extracts_thinking():
+    """iter_chunk_events should extract thinking events."""
+    from core.modules.llm import iter_chunk_events
+
+    mock_delta = MagicMock()
+    mock_delta.content = None
+    mock_delta.reasoning_content = "Let me think..."
+
+    mock_choice = MagicMock()
+    mock_choice.delta = mock_delta
+
+    mock_chunk = MagicMock()
+    mock_chunk.choices = [mock_choice]
+
+    events = iter_chunk_events(mock_chunk)
+    assert events == [{"type": "thinking", "content": "Let me think..."}]
+
+
+@pytest.mark.asyncio
+async def test_iter_chunk_events_ignores_tool_calls():
+    """iter_chunk_events should NOT emit tool_use events."""
+    from core.modules.llm import iter_chunk_events
+
+    mock_tool_call = MagicMock()
+    mock_tool_call.function = MagicMock()
+    mock_tool_call.function.name = "some_tool"
+
+    mock_delta = MagicMock()
+    mock_delta.content = None
+    mock_delta.reasoning_content = None
+    mock_delta.tool_calls = [mock_tool_call]
+
+    mock_choice = MagicMock()
+    mock_choice.delta = mock_delta
+
+    mock_chunk = MagicMock()
+    mock_chunk.choices = [mock_choice]
+
+    events = iter_chunk_events(mock_chunk)
+    assert events == []  # No tool events
 
 
 @pytest.mark.asyncio

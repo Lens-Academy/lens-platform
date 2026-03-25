@@ -5,9 +5,6 @@ import React from "react";
 import type { ChatMessage } from "@/types/module";
 
 // Mock dependencies
-vi.mock("@/components/ChatMarkdown", () => ({
-  default: ({ children }: { children: string }) => <div>{children}</div>,
-}));
 vi.mock("@/components/module/StageProgressBar", () => ({
   StageIcon: () => null,
 }));
@@ -96,7 +93,6 @@ describe("ChatInlineShell minHeight on second message", () => {
         messages={messages}
         pendingMessage={null}
         isLoading={false}
-        streamingContent=""
         onSendMessage={onSendMessage}
         hasActiveInput={true}
       />,
@@ -128,7 +124,6 @@ describe("ChatInlineShell minHeight on second message", () => {
         messages={messages}
         pendingMessage={null}
         isLoading={false}
-        streamingContent=""
         onSendMessage={onSendMessage}
         activated
         hasActiveInput={true}
@@ -153,7 +148,6 @@ describe("ChatInlineShell minHeight on second message", () => {
         messages={updatedMessages}
         pendingMessage={{ content: "Follow-up", status: "sending" }}
         isLoading={true}
-        streamingContent=""
         onSendMessage={onSendMessage}
         activated
         hasActiveInput={true}

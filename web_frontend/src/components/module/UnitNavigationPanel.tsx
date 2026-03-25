@@ -9,8 +9,7 @@ import { useMedia } from "react-use";
 import { ChevronRight, BotMessageSquare, X } from "lucide-react";
 import type { ModuleInfo, StageInfo } from "@/types/course";
 import { formatDurationMinutes } from "@/utils/duration";
-import { StageIcon } from "./StageProgressBar";
-import { getCircleFillClasses, getRingClasses } from "@/utils/stageProgress";
+import { StageCircle } from "../StageCircle";
 import { buildBranchLayout } from "@/utils/branchLayout";
 import { linkProps } from "@/utils/navigateLink";
 import { generateHeadingId } from "@/utils/extractHeadings";
@@ -19,6 +18,7 @@ import {
   computeBranchStates,
   computeLayoutColors,
 } from "@/utils/branchColors";
+import { ProgressCircle } from "../ProgressCircle";
 
 // --- Helper types and functions ---
 
@@ -55,132 +55,6 @@ function groupModules(modules: ModuleInfo[]): ModuleGroup[] {
 
 // --- Subcomponents ---
 
-function ProgressCircle({
-  status,
-  completedLenses,
-  totalLenses,
-  size = 12,
-}: {
-  status: "completed" | "in_progress" | "not_started" | "current";
-  completedLenses?: number;
-  totalLenses?: number;
-  size?: number;
-}) {
-  if (status === "completed") {
-    return (
-      <svg
-        className="flex-shrink-0"
-        width={size}
-        height={size}
-        viewBox="0 0 20 20"
-        fill="none"
-      >
-        <circle cx="10" cy="10" r="9" fill="#b87018" />
-        <path
-          d="M6 10.5l2.5 2.5 5-5"
-          stroke="white"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-      </svg>
-    );
-  }
-  if (status === "current" || status === "in_progress") {
-    const r = 8;
-    const cx = 10;
-    const cy = 10;
-    const circumference = 2 * Math.PI * r;
-    const fraction =
-      status === "in_progress" && totalLenses && totalLenses > 0
-        ? Math.min((completedLenses ?? 0) / totalLenses, 1)
-        : 0;
-
-    return (
-      <svg
-        className="flex-shrink-0"
-        width={size}
-        height={size}
-        viewBox="0 0 20 20"
-        fill="none"
-        style={fraction > 0 ? { transform: "rotate(-90deg)" } : undefined}
-      >
-        <circle
-          cx={cx}
-          cy={cy}
-          r={r}
-          stroke={fraction > 0 ? "#cbd5e1" : "#d08838"}
-          strokeWidth="2"
-          fill={fraction > 0 ? "none" : "#fde8c8"}
-        />
-        {fraction > 0 && (
-          <circle
-            cx={cx}
-            cy={cy}
-            r={r}
-            stroke="#b87018"
-            strokeWidth="2"
-            fill="none"
-            strokeDasharray={circumference}
-            strokeDashoffset={circumference * (1 - fraction)}
-            strokeLinecap="round"
-          />
-        )}
-      </svg>
-    );
-  }
-  return (
-    <svg
-      className="flex-shrink-0"
-      width={size}
-      height={size}
-      viewBox="0 0 20 20"
-      fill="none"
-    >
-      <circle
-        cx="10"
-        cy="10"
-        r="8"
-        stroke="#ccc"
-        strokeWidth="2"
-        fill="white"
-      />
-    </svg>
-  );
-}
-
-function StageDot({
-  stage,
-  isCompleted,
-  isViewing,
-}: {
-  stage: StageInfo;
-  isCompleted: boolean;
-  isViewing: boolean;
-}) {
-  const isOptional = stage.optional;
-  const fillClasses = getCircleFillClasses(
-    { isCompleted, isViewing, isOptional },
-    { optionalBg: "bg-white" },
-  );
-  const ringClasses = getRingClasses(isViewing, isCompleted);
-
-  const isLargeIcon =
-    stage.type === "video" ||
-    stage.type === "chat" ||
-    (stage.type === "lens" &&
-      (stage.displayType === "lens-video" ||
-        stage.displayType === "lens-mixed"));
-  return (
-    <div
-      className={`relative z-10 w-6 h-6 rounded-[16px] flex items-center justify-center flex-shrink-0 ${isLargeIcon ? "[&_svg]:w-[18px] [&_svg]:h-[18px]" : "[&_svg]:w-3.5 [&_svg]:h-3.5"} ${fillClasses} ${ringClasses}`}
-    >
-      <StageIcon type={stage.type} displayType={stage.displayType} small />
-    </div>
-  );
-}
-
 function StageDuration({
   duration,
   type,
@@ -198,7 +72,7 @@ function StageDuration({
   const contentTime = Math.round(duration / 1.5);
   const aiTime = duration - contentTime;
   return (
-    <span className="inline-flex items-center gap-0.5 text-xs text-slate-500 whitespace-nowrap ml-auto flex-shrink-0 tabular-nums">
+    <span className="inline-flex items-center gap-0.5 text-xs text-slate-900 whitespace-nowrap ml-auto flex-shrink-0 tabular-nums">
       {isVideo ? (
         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
           <path
@@ -230,7 +104,7 @@ function StageDuration({
 
 // Static color map for Tailwind scanner
 const textColorMap: Record<string, string> = {
-  "bg-lens-gold-400": "text-lens-gold-400",
+  "bg-lens-orange-400": "text-lens-orange-400",
   "bg-gray-400": "text-gray-400",
   "bg-gray-200": "text-gray-300",
 };
@@ -283,11 +157,22 @@ function SectionList({
     [layout, branchPaths, branchStates],
   );
 
-  const lastTrunkLi = useMemo(() => {
-    for (let i = layout.length - 1; i >= 0; i--) {
-      if (layout[i].kind === "trunk") return i;
-    }
-    return -1;
+  // Pre-filter hidden items so index math (isFirst/isLast/trailsIntoBranch) just works
+  const visibleLayout = useMemo(() => {
+    type VEntry = {
+      item: (typeof layout)[number];
+      li: number;
+      visibleItems?: { index: number; stage: StageInfo }[];
+    };
+    return layout.reduce<VEntry[]>((acc, item, li) => {
+      if (item.kind === "trunk") {
+        if (!item.stage.hide) acc.push({ item, li });
+      } else {
+        const vis = item.items.filter((bi) => !bi.stage.hide);
+        if (vis.length > 0) acc.push({ item, li, visibleItems: vis });
+      }
+      return acc;
+    }, []);
   }, [layout]);
 
   if (stages.length === 0) return null;
@@ -297,10 +182,14 @@ function SectionList({
     const isCurrentSection = index === curIdx;
 
     const dot = (
-      <StageDot
-        stage={stage}
+      <StageCircle
+        type={stage.type}
+        displayType={stage.displayType}
         isCompleted={isCompleted}
         isViewing={isCurrentSection}
+        isOptional={stage.optional}
+        size={24}
+        className="z-10"
       />
     );
     const content = (
@@ -326,7 +215,7 @@ function SectionList({
           )}
           {stage.tldr && (
             <p
-              className={`text-sm text-slate-600 overflow-hidden transition-[max-height] duration-500 ease-in-out mt-0.5`}
+              className={`text-sm text-slate-900 overflow-hidden transition-[max-height] duration-500 ease-in-out mt-0.5`}
               style={{ maxHeight: allTldrsExpanded ? "20em" : 0 }}
             >
               {stage.tldr}
@@ -376,13 +265,17 @@ function SectionList({
 
   return (
     <div className="ml-5 mt-1.5 mb-1.5 pl-0.5">
-      {layout.map((item, li) => {
+      {visibleLayout.map((entry, vi) => {
+        const { item, li } = entry;
         const colors = layoutColors[li];
-        const isFirst = li === 0;
-        const isLast = li === layout.length - 1;
+        const isFirst = vi === 0;
+        const isLast = vi === visibleLayout.length - 1;
 
         if (item.kind === "trunk" && colors.kind === "trunk") {
-          const trailsIntoBranchOnly = li === lastTrunkLi && !isLast;
+          // Check if this is the very last trunk item (only optional branches after it)
+          const isLastTrunk = !visibleLayout
+            .slice(vi + 1)
+            .some((e) => e.item.kind === "trunk");
           return (
             <div key={li} className="relative">
               {!isFirst && (
@@ -391,7 +284,7 @@ function SectionList({
                 />
               )}
               {!isLast &&
-                (trailsIntoBranchOnly ? (
+                (isLastTrunk ? (
                   <div
                     className={`absolute left-[20px] top-[20px] bottom-0 -translate-x-1/2 z-[1] dotted-round-v ${textColorMap[colors.outgoingColor] ?? "text-gray-200"}`}
                   />
@@ -406,12 +299,13 @@ function SectionList({
         }
 
         if (item.kind === "branch" && colors.kind === "branch") {
-          const hasPrecedingTrunk = li > 0;
+          const hasPrecedingTrunk =
+            vi > 0 && visibleLayout[vi - 1].item.kind === "trunk";
           const segmentColors = colors.segmentColors;
           const endX = branchDotCenter - dotCenter + 1;
 
           const forkColors: Record<string, { text: string }> = {
-            "bg-lens-gold-400": { text: "text-lens-gold-400" },
+            "bg-lens-orange-400": { text: "text-lens-orange-400" },
             "bg-gray-400": { text: "text-gray-400" },
             "bg-gray-200": { text: "text-gray-300" },
           };
@@ -424,7 +318,7 @@ function SectionList({
           const colorRank: Record<string, number> = {
             "bg-gray-200": 0,
             "bg-gray-400": 1,
-            "bg-lens-gold-400": 2,
+            "bg-lens-orange-400": 2,
           };
           const arcDarker =
             (colorRank[segmentColors[0]] ?? 0) >
@@ -467,7 +361,7 @@ function SectionList({
                 />
               )}
               <div className="ml-5 pt-4 pb-0.5">
-                {item.items.map((branchItem, bi) => (
+                {(entry.visibleItems ?? item.items).map((branchItem, bi) => (
                   <div key={bi} className="relative">
                     {bi === 0 && hasPrecedingTrunk && (
                       <div
@@ -480,7 +374,7 @@ function SectionList({
                         className={`absolute ${branchConnZ} left-[20px] top-0 h-[20px] -translate-x-1/2 dotted-round-v ${forkDotColor(bi)}`}
                       />
                     )}
-                    {bi < item.items.length - 1 && (
+                    {bi < (entry.visibleItems ?? item.items).length - 1 && (
                       <div
                         className={`absolute ${branchConnZ} left-[20px] top-[20px] bottom-0 -translate-x-1/2 dotted-round-v ${forkDotColor(bi + 1)}`}
                       />
@@ -550,7 +444,7 @@ function ModuleRow({
         </span>
         <span className="flex items-center gap-1.5 ml-auto flex-shrink-0">
           {!isExpanded && duration ? (
-            <span className="text-xs text-slate-500 whitespace-nowrap tabular-nums">
+            <span className="text-xs text-slate-900 whitespace-nowrap tabular-nums">
               {formatDurationMinutes(duration)}
             </span>
           ) : null}
@@ -685,7 +579,7 @@ export default function UnitNavigationPanel({
         <a
           href={`/course/${courseId}`}
           onClick={onClose}
-          className="flex items-center gap-1 text-sm text-[#9a5c10] hover:text-[#7a470c]"
+          className="flex items-center gap-1 text-sm text-lens-orange-600 hover:text-lens-orange-700"
         >
           <ChevronRight className="w-3 h-3 rotate-180" />
           Back to course overview

@@ -28,6 +28,11 @@ def load_course(course_slug: str) -> ParsedCourse:
     if course_slug in cache.courses:
         return cache.courses[course_slug]
 
+    # Alias lookup
+    if course_slug in cache.course_slug_aliases:
+        canonical = cache.course_slug_aliases[course_slug]
+        return cache.courses[canonical]
+
     # Fallback: if only one course exists, return it regardless of slug
     if len(cache.courses) == 1:
         only_course = next(iter(cache.courses.values()))

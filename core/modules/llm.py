@@ -15,6 +15,31 @@ from litellm import acompletion
 DEFAULT_PROVIDER = os.environ.get("LLM_PROVIDER", "anthropic/claude-sonnet-4-6")
 
 
+def iter_chunk_events(chunk) -> list[dict]:
+    """Normalize a single streaming chunk into event dicts.
+
+    Extracts thinking and text events only. Tool call events are NOT emitted
+    here -- they are handled by the tool execution loop in chat.py after
+    full message reconstruction via stream_chunk_builder.
+
+    Returns:
+        List of event dicts (may be empty for chunks with no relevant content).
+    """
+    events = []
+    delta = chunk.choices[0].delta if chunk.choices else None
+    if not delta:
+        return events
+
+    reasoning = getattr(delta, "reasoning_content", None)
+    if reasoning:
+        events.append({"type": "thinking", "content": reasoning})
+
+    if delta.content:
+        events.append({"type": "text", "content": delta.content})
+
+    return events
+
+
 async def stream_chat(
     messages: list[dict],
     system: str,
@@ -40,8 +65,10 @@ async def stream_chat(
         Normalized events:
         - {"type": "thinking", "content": str} for reasoning chunks
         - {"type": "text", "content": str} for text chunks
-        - {"type": "tool_use", "name": str} for tool calls
         - {"type": "done"} when complete
+
+    Note: Tool call events are NOT yielded here. Tool calls are handled
+    by the tool execution loop in chat.py after full message reconstruction.
     """
     model = provider or DEFAULT_PROVIDER
 
@@ -63,30 +90,9 @@ async def stream_chat(
 
     response = await acompletion(**kwargs)
 
-    # Track if we're in a tool call
-    current_tool_name = None
-
     async for chunk in response:
-        delta = chunk.choices[0].delta if chunk.choices else None
-        if not delta:
-            continue
-
-        # Handle thinking/reasoning content
-        reasoning = getattr(delta, "reasoning_content", None)
-        if reasoning:
-            yield {"type": "thinking", "content": reasoning}
-
-        # Handle text content
-        if delta.content:
-            yield {"type": "text", "content": delta.content}
-
-        # Handle tool calls
-        if delta.tool_calls:
-            for tool_call in delta.tool_calls:
-                if tool_call.function and tool_call.function.name:
-                    # New tool call starting
-                    current_tool_name = tool_call.function.name
-                    yield {"type": "tool_use", "name": current_tool_name}
+        for event in iter_chunk_events(chunk):
+            yield event
 
     yield {"type": "done"}
 

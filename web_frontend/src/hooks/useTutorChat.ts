@@ -29,16 +29,17 @@ import { trackChatMessageSent } from "@/analytics";
 // Chat lifecycle reducer
 // ---------------------------------------------------------------------------
 
-type ChatState = {
+export type ChatState = {
   messages: ChatMessage[];
   pendingMessage: PendingMessage | null;
-  streamingContent: string;
   isLoading: boolean;
+  /** Index into messages[] of the assistant message currently being streamed into. */
+  streamingMessageIndex: number | null;
   lastPosition: { sectionIndex: number; segmentIndex: number } | null;
   sendSource: "sidebar" | "inline" | null;
 };
 
-type ChatAction =
+export type ChatAction =
   | { type: "LOAD_HISTORY"; messages: ChatMessage[] }
   | {
       type: "SEND_START";
@@ -47,84 +48,198 @@ type ChatAction =
       segmentIndex: number;
       source: "sidebar" | "inline";
     }
-  | { type: "STREAM_CHUNK"; accumulated: string }
-  | {
-      type: "SEND_SUCCESS";
-      userContent: string;
-      assistantContent: string;
-      systemMessages?: ChatMessage[];
-    }
+  | { type: "STREAM_TEXT"; text: string }
+  | { type: "TOOL_CALL_START"; name: string }
+  | { type: "TOOL_CALL_DONE"; name: string; result?: string }
+  | { type: "SYSTEM_MESSAGE"; content: string }
+  | { type: "SEND_SUCCESS" }
   | { type: "SEND_FAILURE" }
   | { type: "CLEAR_PENDING" };
 
-const initialChatState: ChatState = {
+export const initialChatState: ChatState = {
   messages: [],
   pendingMessage: null,
-  streamingContent: "",
   isLoading: false,
+  streamingMessageIndex: null,
   lastPosition: null,
   sendSource: null,
 };
 
-function chatReducer(state: ChatState, action: ChatAction): ChatState {
+/** Helper: shallow-copy messages array with an updated message at index. */
+function updateMessageAt(
+  messages: ChatMessage[],
+  index: number,
+  updater: (msg: ChatMessage) => ChatMessage,
+): ChatMessage[] {
+  const copy = [...messages];
+  copy[index] = updater(copy[index]);
+  return copy;
+}
+
+export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
     case "LOAD_HISTORY":
       return {
         ...state,
         messages: action.messages,
         pendingMessage: null,
-        streamingContent: "",
         isLoading: false,
+        streamingMessageIndex: null,
       };
 
-    case "SEND_START":
+    case "SEND_START": {
+      if (state.isLoading) return state; // reject concurrent sends
+
+      const newMessages = [...state.messages];
+      if (action.content) {
+        newMessages.push({ role: "user" as const, content: action.content });
+      }
+      newMessages.push({ role: "assistant" as const, content: "" });
+
       return {
         ...state,
-        pendingMessage: action.content
-          ? { content: action.content, status: "sending" }
-          : null,
-        streamingContent: "",
+        messages: newMessages,
+        // Don't set pendingMessage here — the user message is already in messages[].
+        // pendingMessage is only set on SEND_FAILURE for the "Failed to send" indicator.
+        pendingMessage: null,
         isLoading: true,
+        streamingMessageIndex: newMessages.length - 1,
         lastPosition: {
           sectionIndex: action.sectionIndex,
           segmentIndex: action.segmentIndex,
         },
         sendSource: action.source,
       };
+    }
 
-    case "STREAM_CHUNK":
+    case "STREAM_TEXT": {
+      if (state.streamingMessageIndex == null) return state;
+      const idx = state.streamingMessageIndex;
       return {
         ...state,
-        streamingContent: action.accumulated,
+        messages: updateMessageAt(state.messages, idx, (msg) => ({
+          ...msg,
+          content: msg.content + action.text,
+        })),
       };
+    }
 
-    case "SEND_SUCCESS":
-      return {
-        ...state,
-        messages: [
-          ...state.messages,
-          ...(action.systemMessages || []),
-          ...(action.userContent
-            ? [{ role: "user" as const, content: action.userContent }]
-            : []),
-          { role: "assistant" as const, content: action.assistantContent },
+    case "TOOL_CALL_START": {
+      if (state.streamingMessageIndex == null) return state;
+      const idx = state.streamingMessageIndex;
+      const currentMsg = state.messages[idx];
+
+      // Freeze current assistant message with tool_calls metadata
+      const frozenAssistant: ChatMessage = {
+        ...currentMsg,
+        tool_calls: [
+          {
+            id: "",
+            type: "function",
+            function: { name: action.name, arguments: "" },
+          },
         ],
-        pendingMessage: null,
-        streamingContent: "",
-        isLoading: false,
-        sendSource: null,
       };
 
-    case "SEND_FAILURE":
+      // Tool placeholder (empty content = "calling" state)
+      const toolPlaceholder: ChatMessage = {
+        role: "tool" as const,
+        tool_call_id: "",
+        name: action.name,
+        content: "",
+      };
+
+      // New empty assistant for post-tool text
+      const newAssistant: ChatMessage = {
+        role: "assistant" as const,
+        content: "",
+      };
+
+      const newMessages = [...state.messages];
+      newMessages[idx] = frozenAssistant;
+      newMessages.push(toolPlaceholder, newAssistant);
+
       return {
         ...state,
-        pendingMessage: state.pendingMessage
-          ? { content: state.pendingMessage.content, status: "failed" }
-          : null,
-        streamingContent: "",
+        messages: newMessages,
+        streamingMessageIndex: newMessages.length - 1,
+      };
+    }
+
+    case "TOOL_CALL_DONE": {
+      // Find the last tool message with matching name and empty content
+      const toolIdx = state.messages.findLastIndex(
+        (m) =>
+          m.role === "tool" &&
+          "name" in m &&
+          m.name === action.name &&
+          !m.content,
+      );
+      if (toolIdx === -1) return state;
+
+      return {
+        ...state,
+        messages: updateMessageAt(state.messages, toolIdx, (msg) => ({
+          ...msg,
+          content: action.result ?? "",
+        })),
+      };
+    }
+
+    case "SYSTEM_MESSAGE": {
+      if (state.streamingMessageIndex == null) return state;
+      const idx = state.streamingMessageIndex;
+      const newMessages = [...state.messages];
+      const systemMsg: ChatMessage = {
+        role: "system" as const,
+        content: action.content,
+      };
+      newMessages.splice(idx, 0, systemMsg);
+
+      return {
+        ...state,
+        messages: newMessages,
+        streamingMessageIndex: idx + 1,
+      };
+    }
+
+    case "SEND_SUCCESS": {
+      // Remove trailing empty assistant message if present
+      const newMessages = [...state.messages];
+      const lastMsg = newMessages[newMessages.length - 1];
+      if (
+        lastMsg?.role === "assistant" &&
+        !lastMsg.content?.trim() &&
+        !("tool_calls" in lastMsg && lastMsg.tool_calls)
+      ) {
+        newMessages.pop();
+      }
+
+      return {
+        ...state,
+        messages: newMessages,
+        pendingMessage: null,
         isLoading: false,
+        streamingMessageIndex: null,
         sendSource: null,
       };
+    }
+
+    case "SEND_FAILURE": {
+      // Find the user message that was sent (last user message in the array)
+      const lastUserMsg = [...state.messages]
+        .reverse()
+        .find((m) => m.role === "user");
+      return {
+        ...state,
+        pendingMessage: lastUserMsg
+          ? { content: lastUserMsg.content, status: "failed" as const }
+          : null,
+        isLoading: false,
+        streamingMessageIndex: null,
+        sendSource: null,
+      };
+    }
 
     case "CLEAR_PENDING":
       return {
@@ -156,6 +271,8 @@ export type UseTutorChatOptions = {
   /** kept for prefix message, chat segment index computations */
   isArticleSection: boolean;
   triggerChatActivity: () => void;
+  /** course slug from URL — used for course overview in system prompt */
+  courseSlug?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -168,6 +285,7 @@ export function useTutorChat({
   currentSection,
   isArticleSection,
   triggerChatActivity,
+  courseSlug,
 }: UseTutorChatOptions) {
   const [chat, dispatchChat] = useReducer(chatReducer, initialChatState);
 
@@ -207,7 +325,10 @@ export function useTutorChat({
           const messagesToShow =
             firstUserIdx === -1
               ? [] // Only auto-sent messages exist — skip all
-              : history.messages.slice(firstUserIdx);
+              : history.messages
+                  .slice(firstUserIdx)
+                  // Filter out system context messages (XML context for LLM only)
+                  .filter((m) => m.role !== "system");
 
           // Extract section indices where the user has sent messages
           const interacted = new Set<number>();
@@ -222,14 +343,28 @@ export function useTutorChat({
 
           dispatchChat({
             type: "LOAD_HISTORY",
-            messages: messagesToShow.map((m) => ({
-              role: m.role as
-                | "user"
-                | "assistant"
-                | "system"
-                | "course-content",
-              content: m.content,
-            })),
+            messages: messagesToShow.map((m) => {
+              if (m.role === "tool") {
+                return {
+                  role: "tool" as const,
+                  tool_call_id: m.tool_call_id ?? "",
+                  name: m.name ?? "",
+                  content: m.content ?? "",
+                };
+              }
+              const msg: ChatMessage = {
+                role: m.role as
+                  | "user"
+                  | "assistant"
+                  | "system"
+                  | "course-content",
+                content: m.content ?? "",
+              };
+              if (m.tool_calls) {
+                (msg as { tool_calls?: unknown }).tool_calls = m.tool_calls;
+              }
+              return msg;
+            }),
           });
         }
         // Messages already cleared above if history is empty
@@ -397,27 +532,33 @@ export function useTutorChat({
       }
 
       try {
-        let assistantContent = "";
-        const systemMessages: ChatMessage[] = [];
-
         for await (const chunk of sendMessageApi(
           moduleId,
           sectionIndex,
           segmentIndex,
           content,
+          courseSlug,
         )) {
           if (chunk.type === "text" && chunk.content) {
-            assistantContent += chunk.content;
-            dispatchChat({
-              type: "STREAM_CHUNK",
-              accumulated: assistantContent,
-            });
+            dispatchChat({ type: "STREAM_TEXT", text: chunk.content });
             triggerChatActivity();
           } else if (chunk.type === "system" && chunk.content) {
-            systemMessages.push({
-              role: "system" as const,
-              content: chunk.content,
-            });
+            dispatchChat({ type: "SYSTEM_MESSAGE", content: chunk.content });
+          } else if (chunk.type === "tool_use" && chunk.name) {
+            const toolState = (chunk.state as string) ?? "calling";
+            if (toolState === "calling") {
+              dispatchChat({
+                type: "TOOL_CALL_START",
+                name: chunk.name as string,
+              });
+            } else {
+              dispatchChat({
+                type: "TOOL_CALL_DONE",
+                name: chunk.name as string,
+                result:
+                  ((chunk as Record<string, unknown>).result as string) || "",
+              });
+            }
           } else if (chunk.type === "error") {
             throw new Error(
               (chunk as unknown as { message?: string }).message ||
@@ -426,12 +567,7 @@ export function useTutorChat({
           }
         }
 
-        dispatchChat({
-          type: "SEND_SUCCESS",
-          userContent: content,
-          assistantContent,
-          systemMessages,
-        });
+        dispatchChat({ type: "SEND_SUCCESS" });
       } catch {
         dispatchChat({ type: "SEND_FAILURE" });
       }
@@ -458,7 +594,6 @@ export function useTutorChat({
     // Reducer-managed chat state
     messages: chat.messages,
     pendingMessage: chat.pendingMessage,
-    streamingContent: chat.streamingContent,
     isLoading: chat.isLoading,
     sendSource: chat.sendSource,
 
