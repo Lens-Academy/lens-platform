@@ -7,6 +7,7 @@
  */
 
 import { useMemo } from "react";
+import { Check } from "lucide-react";
 import type { StageInfo, ModuleStatus } from "../../types/course";
 import { OptionalBadge } from "../OptionalBadge";
 import { StageIcon } from "../module/StageProgressBar";
@@ -133,10 +134,17 @@ export default function ModuleOverview({
           />
         )}
         {/* Circle */}
-        <div
-          className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${fillClasses} ${ringClasses}`}
-        >
-          <StageIcon type={stage.type} displayType={stage.displayType} small />
+        <div className="relative z-10 flex-shrink-0">
+          <div
+            className={`w-7 h-7 rounded-full flex items-center justify-center ${fillClasses} ${ringClasses}`}
+          >
+            <StageIcon type={stage.type} displayType={stage.displayType} small />
+          </div>
+          {isCompleted && (
+            <div className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-lens-gold-400 ring-[1.5px] ring-white">
+              <Check className="w-2.5 h-2.5" stroke="white" strokeWidth={3} />
+            </div>
+          )}
         </div>
 
         {/* Content */}
