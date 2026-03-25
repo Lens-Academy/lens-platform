@@ -150,3 +150,25 @@ describe("cross-module card completion", () => {
     expect(dot!.className).toContain("bg-gray-200");
   });
 });
+
+describe("module card with progress", () => {
+  it("renders module card with progress circle", () => {
+    const cardData = JSON.stringify({
+      targetType: "module",
+      title: "Module 3",
+      slug: "mod-3",
+    });
+    const moduleProgressMap = new Map([
+      ["mod-3", { status: "in_progress" as const, completedLenses: 2, totalLenses: 5 }],
+    ]);
+    const { container } = render(
+      <AuthoredText
+        content={`<div data-lens-card='${cardData}'></div>`}
+        courseId="my-course"
+        moduleProgressMap={moduleProgressMap}
+      />,
+    );
+    const svg = container.querySelector("svg");
+    expect(svg).not.toBeNull();
+  });
+});

@@ -13,6 +13,12 @@ type ModuleSection = {
   meta: { title?: string | null };
 };
 
+type ModuleProgress = {
+  status: "completed" | "in_progress" | "not_started";
+  completedLenses: number;
+  totalLenses: number;
+};
+
 type AuthoredTextProps = {
   content: string;
   courseId?: string;
@@ -20,6 +26,7 @@ type AuthoredTextProps = {
   moduleSections?: ModuleSection[];
   completedContentIds?: Set<string>;
   allCompletedContentIds?: Set<string>;
+  moduleProgressMap?: Map<string, ModuleProgress>;
 };
 
 /**
@@ -36,6 +43,7 @@ export default function AuthoredText({
   moduleSections,
   completedContentIds,
   allCompletedContentIds,
+  moduleProgressMap,
 }: AuthoredTextProps) {
   const resolveLensHref = useCallback(
     (contentId: string, moduleSlug?: string | null, title?: string | null): string => {
@@ -144,7 +152,19 @@ export default function AuthoredText({
                       ? `/course/${courseId}/module/${data.slug}`
                       : `/module/${data.slug}`;
                   }
-                  return <LensCard {...data} isCompleted={isCompleted} href={href} />;
+                  const modProgress = data.targetType === "module" && data.slug
+                    ? moduleProgressMap?.get(data.slug)
+                    : undefined;
+                  return (
+                    <LensCard
+                      {...data}
+                      isCompleted={isCompleted}
+                      href={href}
+                      moduleStatus={modProgress?.status}
+                      moduleCompletedLenses={modProgress?.completedLenses}
+                      moduleTotalLenses={modProgress?.totalLenses}
+                    />
+                  );
                 } catch {
                   return <div {...props} />;
                 }

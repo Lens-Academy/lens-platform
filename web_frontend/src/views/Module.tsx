@@ -194,6 +194,22 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     return modules;
   }, [courseProgress]);
 
+  // Build module progress map for AuthoredText module cards
+  const moduleProgressMap = useMemo(() => {
+    if (!courseProgress) return new Map();
+    const map = new Map<string, { status: "completed" | "in_progress" | "not_started"; completedLenses: number; totalLenses: number }>();
+    for (const unit of courseProgress.units) {
+      for (const mod of unit.modules) {
+        map.set(mod.slug, {
+          status: mod.status,
+          completedLenses: mod.completedLenses ?? 0,
+          totalLenses: mod.totalLenses ?? 0,
+        });
+      }
+    }
+    return map;
+  }, [courseProgress]);
+
   // Build course context for navigation
   const courseContext = useMemo(() => {
     if (!courseProgress) return null;
@@ -1514,6 +1530,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
             }))}
             completedContentIds={completedContentIds}
             allCompletedContentIds={allCompletedContentIds}
+            moduleProgressMap={moduleProgressMap}
           />,
         );
 
