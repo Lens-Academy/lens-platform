@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { StageIcon } from "./StageProgressBar";
 import { ProgressCircle } from "../ProgressCircle";
 
@@ -52,14 +53,21 @@ export default function LensCard({
           size={32}
         />
       ) : (
-        <div
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${dotClasses}`}
-        >
-          <StageIcon
-            type="lens"
-            displayType={displayType ?? undefined}
-            small
-          />
+        <div className="relative shrink-0">
+          <div
+            className={`flex h-8 w-8 items-center justify-center rounded-full ${dotClasses}`}
+          >
+            <StageIcon
+              type="lens"
+              displayType={displayType ?? undefined}
+              small
+            />
+          </div>
+          {isCompleted && (
+            <div className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-lens-gold-400 ring-[1.5px] ring-white">
+              <Check className="w-2.5 h-2.5" stroke="white" strokeWidth={3} />
+            </div>
+          )}
         </div>
       )}
       <div className="not-prose min-w-0 flex-1 font-normal">
