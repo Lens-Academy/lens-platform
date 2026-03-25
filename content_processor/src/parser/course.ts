@@ -69,6 +69,20 @@ function parseMeetingSection(
 }
 
 /**
+ * Normalize slug-aliases from frontmatter.
+ * Accepts: string ("default"), comma-separated ("a, b"), or YAML list (["a", "b"]).
+ */
+function parseSlugAliases(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map(a => String(a).trim()).filter(Boolean);
+  }
+  if (typeof raw === 'string') {
+    return raw.split(',').map(a => a.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+/**
  * Parses a course file and extracts its structure.
  *
  * Course files use H1 sections:
@@ -152,9 +166,21 @@ export function parseCourse(content: string, file: string): CourseParseResult {
     }
   }
 
+  const slugAliases = parseSlugAliases(frontmatter['slug-aliases']);
+
+  // Validate each alias format
+  for (const alias of slugAliases) {
+    const aliasError = validateSlugFormat(alias, file, 2);
+    if (aliasError) {
+      aliasError.message = aliasError.message.replace('slug format', 'slug-alias format');
+      errors.push(aliasError);
+    }
+  }
+
   const course: Course = {
     slug: frontmatter.slug as string,
     title: frontmatter.title as string,
+    slugAliases,
     progression,
   };
 

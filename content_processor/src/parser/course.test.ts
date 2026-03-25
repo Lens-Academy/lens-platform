@@ -187,4 +187,77 @@ title: Test Course
       e.message.includes('slug') && e.message.includes('format')
     )).toHaveLength(0);
   });
+
+  it('parses slug-aliases as string', () => {
+    const content = `---
+slug: navigating-asi
+title: Navigating ASI
+slug-aliases: default
+---
+
+# Module: [[../modules/intro.md|Introduction]]
+`;
+
+    const result = parseCourse(content, 'courses/nav.md');
+    expect(result.course?.slugAliases).toEqual(['default']);
+  });
+
+  it('parses slug-aliases as comma-separated string', () => {
+    const content = `---
+slug: navigating-asi
+title: Navigating ASI
+slug-aliases: default, old-name
+---
+
+# Module: [[../modules/intro.md|Introduction]]
+`;
+
+    const result = parseCourse(content, 'courses/nav.md');
+    expect(result.course?.slugAliases).toEqual(['default', 'old-name']);
+  });
+
+  it('parses slug-aliases as YAML list', () => {
+    const content = `---
+slug: navigating-asi
+title: Navigating ASI
+slug-aliases:
+  - default
+  - old-name
+---
+
+# Module: [[../modules/intro.md|Introduction]]
+`;
+
+    const result = parseCourse(content, 'courses/nav.md');
+    expect(result.course?.slugAliases).toEqual(['default', 'old-name']);
+  });
+
+  it('returns empty slugAliases when not specified', () => {
+    const content = `---
+slug: my-course
+title: My Course
+---
+
+# Module: [[../modules/intro.md|Introduction]]
+`;
+
+    const result = parseCourse(content, 'courses/test.md');
+    expect(result.course?.slugAliases).toEqual([]);
+  });
+
+  it('validates slug-alias format', () => {
+    const content = `---
+slug: my-course
+title: My Course
+slug-aliases: Bad Alias!
+---
+
+# Module: [[../modules/intro.md|Introduction]]
+`;
+
+    const result = parseCourse(content, 'courses/test.md');
+    expect(result.errors.some(e =>
+      e.severity === 'error' && e.message.includes('slug') && e.message.includes('format')
+    )).toBe(true);
+  });
 });
