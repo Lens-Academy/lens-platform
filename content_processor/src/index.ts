@@ -454,9 +454,12 @@ export function processContent(files: Map<string, string>): ProcessResult {
     }
   }
 
-  // Build contentId → moduleSlug mapping and populate moduleSlug in cross-module card links
+  // Build contentId → moduleSlug mapping and populate moduleSlug in cross-module card links.
+  // Prefer real modules over standalone lenses (lens/ prefix) — a lens that appears in
+  // both a module and as a standalone should map to the module.
   const contentIdToModuleSlug = new Map<string, string>();
   for (const mod of modules) {
+    if (mod.slug.startsWith('lens/')) continue; // Skip standalone lenses
     for (const section of mod.sections) {
       if (section.contentId) {
         contentIdToModuleSlug.set(section.contentId, mod.slug);
