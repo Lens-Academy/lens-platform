@@ -6,13 +6,13 @@
   --container-content-padded: calc(var(--container-content) + 128px);
 
   /* Brand gold palette — Blend B: warm earthy tone, hue drifts 73°→64° in darks */
-  --color-lens-gold-50: #fdf8f0;
-  --color-lens-gold-100: #f9eedb;
-  --color-lens-gold-300: #dea96c;
-  --color-lens-gold-400: #d08838;
-  --color-lens-gold-500: #b87018;
-  --color-lens-gold-600: #9a5c10;
-  --color-lens-gold-700: #7a470c;
+  --color-lens-orange-50: #fdf8f0;
+  --color-lens-orange-100: #f9eedb;
+  --color-lens-orange-300: #dea96c;
+  --color-lens-orange-400: #d08838;
+  --color-lens-orange-500: #b87018;
+  --color-lens-orange-600: #9a5c10;
+  --color-lens-orange-700: #7a470c;
 }
 
 /* Newsreader baseline correction — nudge down to align with DM Sans.

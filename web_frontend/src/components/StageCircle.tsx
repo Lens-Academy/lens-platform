@@ -58,7 +58,7 @@ export function StageCircle({
         <StageIcon type={type} displayType={displayType} small={size <= 32} />
       </div>
       {showCheckBadge && isCompleted && (
-        <div className={`absolute -bottom-0.5 -right-0.5 flex ${badgeSize} items-center justify-center rounded-full bg-lens-gold-400 ring-[1.5px] ring-white`}>
+        <div className={`absolute -bottom-0.5 -right-0.5 flex ${badgeSize} items-center justify-center rounded-full bg-lens-orange-400 ring-[1.5px] ring-white`}>
           <Check className={badgeIcon} stroke="white" strokeWidth={3} />
         </div>
       )}

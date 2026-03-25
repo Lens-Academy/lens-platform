@@ -93,7 +93,7 @@ export default function ModuleOverview({
 
   // Static mapping so Tailwind's scanner sees full class names
   const textColorMap: Record<string, string> = {
-    "bg-lens-gold-400": "text-lens-gold-400",
+    "bg-lens-orange-400": "text-lens-orange-400",
     "bg-gray-400": "text-gray-400",
     "bg-gray-200": "text-gray-300",
   };
@@ -279,7 +279,7 @@ export default function ModuleOverview({
                 style={{ backgroundColor: "var(--brand-border)" }}
               >
                 <div
-                  className="h-full bg-lens-gold-400 rounded-full transition-all"
+                  className="h-full bg-lens-orange-400 rounded-full transition-all"
                   style={{
                     width: `${(completedLenses / totalLenses) * 100}%`,
                   }}
@@ -396,9 +396,9 @@ export default function ModuleOverview({
                 string,
                 { text: string; border: string }
               > = {
-                "bg-lens-gold-400": {
-                  text: "text-lens-gold-400",
-                  border: "border-lens-gold-400",
+                "bg-lens-orange-400": {
+                  text: "text-lens-orange-400",
+                  border: "border-lens-orange-400",
                 },
                 "bg-gray-400": {
                   text: "text-gray-400",
@@ -421,7 +421,7 @@ export default function ModuleOverview({
               const colorRank: Record<string, number> = {
                 "bg-gray-200": 0,
                 "bg-gray-400": 1,
-                "bg-lens-gold-400": 2,
+                "bg-lens-orange-400": 2,
               };
               const arcDarker =
                 (colorRank[segmentColors[0]] ?? 0) >

@@ -105,7 +105,7 @@ function StageDuration({
 
 // Static color map for Tailwind scanner
 const textColorMap: Record<string, string> = {
-  "bg-lens-gold-400": "text-lens-gold-400",
+  "bg-lens-orange-400": "text-lens-orange-400",
   "bg-gray-400": "text-gray-400",
   "bg-gray-200": "text-gray-300",
 };
@@ -298,7 +298,7 @@ function SectionList({
           const endX = branchDotCenter - dotCenter + 1;
 
           const forkColors: Record<string, { text: string }> = {
-            "bg-lens-gold-400": { text: "text-lens-gold-400" },
+            "bg-lens-orange-400": { text: "text-lens-orange-400" },
             "bg-gray-400": { text: "text-gray-400" },
             "bg-gray-200": { text: "text-gray-300" },
           };
@@ -311,7 +311,7 @@ function SectionList({
           const colorRank: Record<string, number> = {
             "bg-gray-200": 0,
             "bg-gray-400": 1,
-            "bg-lens-gold-400": 2,
+            "bg-lens-orange-400": 2,
           };
           const arcDarker =
             (colorRank[segmentColors[0]] ?? 0) >
@@ -572,7 +572,7 @@ export default function UnitNavigationPanel({
         <a
           href={`/course/${courseId}`}
           onClick={onClose}
-          className="flex items-center gap-1 text-sm text-[#9a5c10] hover:text-[#7a470c]"
+          className="flex items-center gap-1 text-sm text-lens-orange-600 hover:text-lens-orange-700"
         >
           <ChevronRight className="w-3 h-3 rotate-180" />
           Back to course overview

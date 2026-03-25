@@ -10,7 +10,7 @@ export default function Page() {
         </p>
         <a
           href="/"
-          className="px-6 py-3 bg-lens-gold-500 text-white rounded-full font-medium hover:bg-lens-gold-600 transition-colors"
+          className="px-6 py-3 bg-lens-orange-500 text-white rounded-full font-medium hover:bg-lens-orange-600 transition-colors"
         >
           Go Home
         </a>

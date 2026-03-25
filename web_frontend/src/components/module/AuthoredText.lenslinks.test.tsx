@@ -77,7 +77,7 @@ describe("AuthoredText card links", () => {
     // Completed card has lens-gold dot
     const dot = container.querySelector(".rounded-full");
     expect(dot).not.toBeNull();
-    expect(dot!.className).toContain("bg-lens-gold-400");
+    expect(dot!.className).toContain("bg-lens-orange-400");
   });
 });
 
@@ -128,7 +128,7 @@ describe("cross-module card completion", () => {
     );
     const dot = container.querySelector(".rounded-full");
     expect(dot).not.toBeNull();
-    expect(dot!.className).toContain("bg-lens-gold-400");
+    expect(dot!.className).toContain("bg-lens-orange-400");
   });
 
   it("does not show completion when cross-module card contentId is not completed", () => {

@@ -330,7 +330,7 @@ export default function Privacy() {
             For privacy inquiries or to exercise your data rights, contact us
             at:
           </p>
-          <p className="text-[var(--brand-text-muted)] mt-2 p-4 bg-lens-gold-50 rounded-lg">
+          <p className="text-[var(--brand-text-muted)] mt-2 p-4 bg-lens-orange-50 rounded-lg">
             <strong>Lens Academy</strong>
             <br />
             Email: [Contact email to be added]
@@ -339,11 +339,11 @@ export default function Privacy() {
           </p>
         </section>
 
-        <section className="mb-8 p-4 bg-lens-gold-50 rounded-lg">
-          <h2 className="text-lg font-semibold text-lens-gold-700 mb-2">
+        <section className="mb-8 p-4 bg-lens-orange-50 rounded-lg">
+          <h2 className="text-lg font-semibold text-lens-orange-700 mb-2">
             Supervisory Authority
           </h2>
-          <p className="text-lens-gold-600 text-sm">
+          <p className="text-lens-orange-600 text-sm">
             If you are in the EU/EEA and believe we have not adequately
             addressed your data protection concerns, you have the right to lodge
             a complaint with your local data protection authority.

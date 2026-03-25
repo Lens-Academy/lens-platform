@@ -1773,7 +1773,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       <div className="min-h-dvh flex items-center justify-center bg-[var(--brand-bg)]">
         <div className="text-center">
           <p className="text-red-600 mb-4">{loadError ?? "Module not found"}</p>
-          <a href="/" className="text-lens-gold-600 hover:underline">
+          <a href="/" className="text-lens-orange-600 hover:underline">
             Go home
           </a>
         </div>
@@ -2047,7 +2047,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                                             handleMarkComplete(sectionIndex),
                                           );
                                       }}
-                                      className="flex items-center gap-2 px-4 py-2 bg-lens-gold-500 text-white rounded-lg hover:bg-lens-gold-600 transition-all active:scale-95 font-medium"
+                                      className="flex items-center gap-2 px-4 py-2 bg-lens-orange-500 text-white rounded-lg hover:bg-lens-orange-600 transition-all active:scale-95 font-medium"
                                     >
                                       Continue
                                       <svg

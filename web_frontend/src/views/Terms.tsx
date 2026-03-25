@@ -23,7 +23,7 @@ export default function Terms() {
             Terms of Service and our{" "}
             <a
               href="/privacy"
-              className="text-lens-gold-600 hover:text-lens-gold-700 underline"
+              className="text-lens-orange-600 hover:text-lens-orange-700 underline"
             >
               Privacy Policy
             </a>
@@ -206,7 +206,7 @@ export default function Terms() {
           <p className="text-[var(--brand-text-muted)]">
             For questions about these terms, contact us at:
           </p>
-          <p className="text-[var(--brand-text-muted)] mt-2 p-4 bg-lens-gold-50 rounded-lg">
+          <p className="text-[var(--brand-text-muted)] mt-2 p-4 bg-lens-orange-50 rounded-lg">
             <strong>Lens Academy</strong>
             <br />
             Email: [Contact email to be added]
@@ -215,8 +215,8 @@ export default function Terms() {
           </p>
         </section>
 
-        <section className="p-4 bg-lens-gold-50 rounded-lg">
-          <p className="text-lens-gold-600 text-sm">
+        <section className="p-4 bg-lens-orange-50 rounded-lg">
+          <p className="text-lens-orange-600 text-sm">
             By using Lens Academy, you acknowledge that you have read,
             understood, and agree to be bound by these Terms of Service.
           </p>

@@ -79,27 +79,27 @@ function SectionChoiceButton({
   if (variant === "optional") {
     // Completed optional: orange-gold dashed border + gold icon (matches progress bar)
     const iconClasses = choice.completed
-      ? "w-6 h-6 rounded-full border-2 border-dashed border-[#d08838] bg-[var(--brand-bg)] flex items-center justify-center flex-shrink-0 mt-0.5 text-[#d08838]"
+      ? "w-6 h-6 rounded-full border-2 border-dashed border-lens-orange-400 bg-[var(--brand-bg)] flex items-center justify-center flex-shrink-0 mt-0.5 text-lens-orange-400"
       : "w-6 h-6 rounded-full border-2 border-dashed border-gray-400 bg-white flex items-center justify-center flex-shrink-0 mt-0.5 text-gray-400";
 
     return (
       <button
         onClick={() => onChoose(choice.index)}
-        className="w-full flex items-start gap-3 p-3 rounded-[10px] border-[1.5px] border-gray-200 bg-white hover:border-[#dea96c] hover:bg-[#fdf8f0] transition-colors text-left"
+        className="w-full flex items-start gap-3 p-3 rounded-[10px] border-[1.5px] border-gray-200 bg-white hover:border-lens-orange-300 hover:bg-lens-orange-50 transition-colors text-left"
       >
         <div className={iconClasses}>
           <StageIcon type={choice.type} small />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium text-[#7a470c]">
+            <span className="text-sm font-medium text-lens-orange-700">
               {choice.title}
             </span>
-            <span className="text-[10px] font-medium bg-[#f9eedb] text-[#9a5c10] px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-medium bg-lens-orange-100 text-lens-orange-600 px-1.5 py-0.5 rounded">
               Optional
             </span>
           </div>
-          <div className="text-xs text-[#b87018] mt-0.5">
+          <div className="text-xs text-lens-orange-500 mt-0.5">
             <SectionTypeLabel type={choice.type} duration={choice.duration} />
           </div>
           {choice.completed && <CompletedBadge />}
@@ -115,22 +115,22 @@ function SectionChoiceButton({
 
   // Completed required: orange bg + white icon (matches progress bar)
   const iconClasses = choice.completed
-    ? "w-7 h-7 rounded-full bg-[#d08838] flex items-center justify-center flex-shrink-0 mt-0.5 text-white"
+    ? "w-7 h-7 rounded-full bg-lens-orange-400 flex items-center justify-center flex-shrink-0 mt-0.5 text-white"
     : "w-7 h-7 rounded-full border-2 border-gray-400 flex items-center justify-center flex-shrink-0 mt-0.5 text-gray-400";
 
   return (
     <button
       onClick={() => onChoose(choice.index)}
-      className="w-full flex items-start gap-3 p-3.5 rounded-[10px] border-[1.5px] border-[#dea96c] bg-[#fdf8f0]/60 hover:border-[#d08838] hover:bg-[#fdf8f0] transition-colors text-left"
+      className="w-full flex items-start gap-3 p-3.5 rounded-[10px] border-[1.5px] border-lens-orange-300 bg-lens-orange-50/60 hover:border-lens-orange-400 hover:bg-lens-orange-50 transition-colors text-left"
     >
       <div className={iconClasses}>
         <StageIcon type={choice.type} small />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-[15px] font-semibold text-[#7a470c]">
+        <div className="text-[15px] font-semibold text-lens-orange-700">
           {choice.title}
         </div>
-        <div className="text-xs text-[#9a5c10] mt-0.5">
+        <div className="text-xs text-lens-orange-600 mt-0.5">
           <SectionTypeLabel type={choice.type} duration={choice.duration} />
         </div>
         {choice.completed && <CompletedBadge />}
@@ -141,7 +141,7 @@ function SectionChoiceButton({
         )}
       </div>
       <svg
-        className="w-[18px] h-[18px] text-[#d08838] flex-shrink-0"
+        className="w-[18px] h-[18px] text-lens-orange-400 flex-shrink-0"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -299,13 +299,13 @@ export default function SectionChoiceModal({
               )}
               <a
                 href={nextModuleLink.href}
-                className="w-full flex items-center justify-between gap-3 p-3.5 rounded-[10px] border-[1.5px] border-[#dea96c] bg-[#fdf8f0]/60 hover:border-[#d08838] hover:bg-[#fdf8f0] transition-colors text-left"
+                className="w-full flex items-center justify-between gap-3 p-3.5 rounded-[10px] border-[1.5px] border-lens-orange-300 bg-lens-orange-50/60 hover:border-lens-orange-400 hover:bg-lens-orange-50 transition-colors text-left"
               >
-                <span className="text-[15px] font-semibold text-[#7a470c]">
+                <span className="text-[15px] font-semibold text-lens-orange-700">
                   {nextModuleLink.label}
                 </span>
                 <svg
-                  className="w-[18px] h-[18px] text-[#d08838] flex-shrink-0"
+                  className="w-[18px] h-[18px] text-lens-orange-400 flex-shrink-0"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -335,7 +335,7 @@ export default function SectionChoiceModal({
           {enrollLink && (
             <a
               href={enrollLink.href}
-              className="w-full inline-block text-center text-[#9a5c10] py-2 px-4 hover:text-[#7a470c] transition-colors text-sm"
+              className="w-full inline-block text-center text-lens-orange-600 py-2 px-4 hover:text-lens-orange-700 transition-colors text-sm"
             >
               {enrollLink.label}
             </a>

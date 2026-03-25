@@ -21,7 +21,7 @@ describe("LensCard", () => {
     );
     const dot = container.querySelector(".rounded-full");
     expect(dot).not.toBeNull();
-    expect(dot!.className).toContain("bg-lens-gold-400");
+    expect(dot!.className).toContain("bg-lens-orange-400");
     expect(dot!.className).toContain("text-white");
   });
 

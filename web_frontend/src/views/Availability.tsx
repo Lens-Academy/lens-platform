@@ -121,7 +121,7 @@ export default function Availability() {
               setTimezone(e.target.value);
               setSaveStatus("idle");
             }}
-            className="w-full max-w-xs px-3 py-2 border border-[var(--brand-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-lens-gold-500 focus:border-lens-gold-500"
+            className="w-full max-w-xs px-3 py-2 border border-[var(--brand-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-lens-orange-500 focus:border-lens-orange-500"
           >
             {/* Include current timezone if not in common list */}
             {!COMMON_TIMEZONES.includes(
@@ -157,7 +157,7 @@ export default function Availability() {
             className={`px-6 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
               isSaving || totalSlots === 0
                 ? "bg-[var(--brand-border)] text-[var(--brand-text-muted)]"
-                : "bg-lens-gold-500 hover:bg-lens-gold-600 text-white"
+                : "bg-lens-orange-500 hover:bg-lens-orange-600 text-white"
             }`}
           >
             {isSaving
