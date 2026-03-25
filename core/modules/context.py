@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 class SectionContext:
     """All segments in the section plus the user's current position."""
 
-    segments: list[tuple[int, str]] = field(default_factory=list)
-    """List of (original_index, content) for segments with extractable content."""
+    segments: list[tuple[int, str, str]] = field(default_factory=list)
+    """List of (original_index, segment_type, content) for segments with extractable content."""
     segment_index: int = 0
     """User's current segment position (0-based)."""
     total_segments: int = 0
@@ -32,11 +32,11 @@ def _extract_segment_content(
 
     if seg_type == "text":
         content = seg.get("content", "")
-        return f"[Written by Lens Academy]\n{content}" if content else None
+        return f"<source>Lens Academy</source>\n{content}" if content else None
 
     if seg_type in ("video", "video-excerpt"):
         transcript = seg.get("transcript", "")
-        return f"[Video transcript]\n{transcript}" if transcript else None
+        return f"<source>Video transcript</source>\n{transcript}" if transcript else None
 
     if seg_type in ("article", "article-excerpt"):
         content = seg.get("content", "")
@@ -48,22 +48,22 @@ def _extract_segment_content(
         author = seg.get("author") or article_author
         parts = []
         if title:
-            parts.append(f'"{title}"')
+            parts.append(title)
         if author:
             parts.append(f"by {author}")
         if parts:
-            return f"[From {', '.join(parts)}]\n{content}"
+            return f"<source>{', '.join(parts)}</source>\n{content}"
         return content
 
     if seg_type == "roleplay":
         content = seg.get("content", "")
-        return f"[Roleplay scenario]\n{content}" if content else None
+        return f"<source>Roleplay scenario</source>\n{content}" if content else None
 
     if seg_type == "chat":
-        return "[Chat discussion]"
+        return "<source>Chat discussion</source>"
 
     if seg_type == "question":
-        return "[Question]"
+        return "<source>Question</source>"
 
     return None
 
@@ -94,11 +94,12 @@ def gather_section_context(section: dict, segment_index: int) -> SectionContext 
     article_author = meta.get("author")
 
     # Gather ALL segments in the section
-    extracted: list[tuple[int, str]] = []
+    extracted: list[tuple[int, str, str]] = []
     for i, seg in enumerate(segments):
         content = _extract_segment_content(seg, article_title, article_author)
         if content:
-            extracted.append((i, content))
+            seg_type = seg.get("type", "unknown")
+            extracted.append((i, seg_type, content))
 
     if not extracted:
         return None

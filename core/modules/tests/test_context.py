@@ -24,9 +24,9 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        contents = [c for _, c in ctx.segments]
+        contents = [c for _, _, c in ctx.segments]
         assert any("Hello world from video" in c for c in contents)
-        assert any("[Video transcript]" in c for c in contents)
+        assert any("<source>Video transcript</source>" in c for c in contents)
 
     def test_gathers_article_content(self):
         """Should include article-excerpt content in segments."""
@@ -45,7 +45,7 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        contents = [c for _, c in ctx.segments]
+        contents = [c for _, _, c in ctx.segments]
         assert any("Article content here" in c for c in contents)
 
     def test_gathers_text_content(self):
@@ -65,7 +65,7 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        contents = [c for _, c in ctx.segments]
+        contents = [c for _, _, c in ctx.segments]
         assert any("Some authored text" in c for c in contents)
 
     def test_respects_hide_from_tutor_flag(self):
@@ -105,14 +105,14 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        contents = [c for _, c in ctx.segments]
+        contents = [c for _, _, c in ctx.segments]
         assert any("First text" in c for c in contents)
         assert any("Article bit" in c for c in contents)
         assert any("Second text" in c for c in contents)
-        assert any("[Chat discussion]" in c for c in contents)
+        assert any("<source>Chat discussion</source>" in c for c in contents)
 
     def test_chat_segments_labeled(self):
-        """Chat segments should appear as [Chat discussion]."""
+        """Chat segments should appear as <source>Chat discussion</source>."""
         section = {
             "type": "article",
             "segments": [
@@ -130,8 +130,8 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=3)
 
         assert ctx is not None
-        contents = [c for _, c in ctx.segments]
-        assert contents.count("[Chat discussion]") == 2
+        contents = [c for _, _, c in ctx.segments]
+        assert contents.count("<source>Chat discussion</source>") == 2
         assert "First discussion" not in str(contents)
 
     def test_only_chat_segment_returns_context(self):
@@ -150,7 +150,7 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=0)
 
         assert ctx is not None
-        assert ctx.segments == [(0, "[Chat discussion]")]
+        assert ctx.segments == [(0, "chat", "<source>Chat discussion</source>")]
 
     def test_segment_index_out_of_bounds(self):
         """Should handle segment_index gracefully when out of bounds."""
@@ -201,7 +201,7 @@ class TestGatherSectionContext:
 
         assert ctx is not None
         # Empty transcript segment should be skipped
-        indices = [i for i, _ in ctx.segments]
+        indices = [i for i, _, _ in ctx.segments]
         assert 0 not in indices  # empty transcript skipped
         assert 1 in indices  # real content included
 
@@ -218,7 +218,7 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        indices = [i for i, _ in ctx.segments]
+        indices = [i for i, _, _ in ctx.segments]
         assert indices == [0, 1]
 
     def test_article_excerpt_includes_title_and_author(self):
@@ -243,9 +243,9 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=2)
 
         assert ctx is not None
-        contents = [c for _, c in ctx.segments]
-        assert any("[Written by Lens Academy]" in c for c in contents)
-        assert any('From "AI for AI safety", by Joe Carlsmith' in c for c in contents)
+        contents = [c for _, _, c in ctx.segments]
+        assert any("<source>Lens Academy</source>" in c for c in contents)
+        assert any("<source>AI for AI safety, by Joe Carlsmith</source>" in c for c in contents)
         assert any("The actual article text" in c for c in contents)
 
     def test_article_excerpt_no_meta(self):
@@ -261,12 +261,12 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=1)
 
         assert ctx is not None
-        contents = [c for _, c in ctx.segments]
+        contents = [c for _, _, c in ctx.segments]
         assert any(c == "Some text" for c in contents)
         assert not any("[From" in c for c in contents)
 
     def test_question_segment_labeled(self):
-        """Question segments should appear as [Question]."""
+        """Question segments should appear as <source>Question</source>."""
         section = {
             "type": "article",
             "segments": [
@@ -279,5 +279,5 @@ class TestGatherSectionContext:
         ctx = gather_section_context(section, segment_index=2)
 
         assert ctx is not None
-        contents = [c for _, c in ctx.segments]
-        assert "[Question]" in contents
+        contents = [c for _, _, c in ctx.segments]
+        assert "<source>Question</source>" in contents

@@ -29,6 +29,10 @@ from core.modules.chat_sessions import (
     save_raw_message,
 )
 from core.modules.context import gather_section_context
+from core.modules.prompts import (
+    build_content_context_message,
+    build_location_update_message,
+)
 from core.modules.loader import load_flattened_module
 from core.modules.types import ChatStage
 from web_api.auth import get_user_or_anonymous
@@ -92,7 +96,7 @@ async def event_generator(
         existing_messages = session.get("messages", [])
 
         # Detect position change from previous user message
-        context_msg_content: str | None = None
+        context_messages: list[str] = []
         last_section_idx = None
         last_segment_idx = None
         for m in reversed(existing_messages):
@@ -103,46 +107,50 @@ async def event_generator(
 
         has_user_message = any(m["role"] == "user" for m in existing_messages)
 
-        if has_user_message and last_section_idx is not None:
-            if last_section_idx != section_index:
-                # Section changed — inject context message with section title
-                section_data = (
-                    module.sections[section_index]
-                    if section_index < len(module.sections)
-                    else {}
-                )
-                title = section_data.get("meta", {}).get("title")
-                if title:
-                    context_msg_content = f"Now viewing: {title}"
-            elif last_segment_idx is not None and last_segment_idx != segment_index:
-                # Segment changed within same section
-                section_data = (
-                    module.sections[section_index]
-                    if section_index < len(module.sections)
-                    else {}
-                )
-                segments = section_data.get("segments", [])
-                seg = segments[segment_index] if segment_index < len(segments) else {}
-                desc = _segment_context_label(seg.get("type", ""))
-                if desc:
-                    context_msg_content = desc
-        elif not has_user_message:
-            # First message — inject current section context
-            section_data = (
-                module.sections[section_index]
-                if section_index < len(module.sections)
-                else {}
-            )
-            title = section_data.get("meta", {}).get("title")
-            if title:
-                context_msg_content = f"Now viewing: {title}"
+        # Get section data for context injection
+        section = (
+            module.sections[section_index]
+            if section_index < len(module.sections)
+            else {}
+        )
+        section_title = section.get("meta", {}).get("title")
 
-        if context_msg_content:
+        # Determine what context to inject
+        needs_full_content = False
+        needs_location_update = False
+        section_context = None
+
+        if not has_user_message:
+            # First message — inject full content context
+            needs_full_content = True
+        elif has_user_message and last_section_idx is not None:
+            if last_section_idx != section_index:
+                # Section changed — inject full content for new section
+                needs_full_content = True
+            elif last_segment_idx is not None and last_segment_idx != segment_index:
+                # Segment changed within same section — location update only
+                needs_location_update = True
+
+        if needs_full_content:
+            section_context = gather_section_context(section, segment_index)
+            if section_context:
+                section_context.module_title = module.title
+                section_context.section_title = section_title
+                section_context.learning_outcome = section.get("learningOutcomeName")
+                # Instructions are built below after section_context is set
+        elif needs_location_update and section_title:
+            location_msg = build_location_update_message(
+                section_title, segment_index
+            )
+            context_messages.append(location_msg)
+
+        # Save context messages to DB
+        for msg in context_messages:
             await add_chat_message(
                 conn,
                 session_id=session_id,
                 role="system",
-                content=context_msg_content,
+                content=msg,
             )
 
         # Save user message with position metadata
@@ -156,19 +164,9 @@ async def event_generator(
                 segmentIndex=segment_index,
             )
 
-    # Emit SSE event so the frontend sees system messages in real-time
-    if context_msg_content:
-        yield f"data: {json.dumps({'type': 'system', 'content': context_msg_content})}\n\n"
-
-    # Get section and gather context
-    section = (
-        module.sections[section_index] if section_index < len(module.sections) else {}
-    )
-    section_context = gather_section_context(section, segment_index)
-    if section_context:
-        section_context.module_title = module.title
-        section_context.section_title = section.get("meta", {}).get("title")
-        section_context.learning_outcome = section.get("learningOutcomeName")
+    # Emit SSE events for context messages
+    for msg in context_messages:
+        yield f"data: {json.dumps({'type': 'system', 'content': msg})}\n\n"
 
     # Get chat instructions from segment
     segments = section.get("segments", [])
@@ -235,18 +233,41 @@ async def event_generator(
             "instructions", "Help the user learn about AI safety."
         )
 
+    # Inject full content context + instructions into conversation history
+    # (on first message or section change; location update already handled above)
+    content_context_msg: str | None = None
+    if needs_full_content and section_context:
+        content_context_msg = build_content_context_message(
+            section_context, instructions
+        )
+    elif needs_location_update:
+        # Segment changed — inject new instructions alongside the location update
+        content_context_msg = (
+            f"<segment-instructions>\n{instructions}\n</segment-instructions>"
+        )
+
+    if content_context_msg:
+        async with get_connection() as conn:
+            await add_chat_message(
+                conn,
+                session_id=session_id,
+                role="system",
+                content=content_context_msg,
+            )
+        yield f"data: {json.dumps({'type': 'system', 'content': content_context_msg})}\n\n"
+
     # Build messages for LLM (existing history + new message)
-    # Merge system messages as [Context: ...] into adjacent user messages
+    # Merge system messages into adjacent user messages
     # to avoid consecutive user-role messages (Anthropic API requirement)
     llm_messages = []
     pending_context: list[str] = []
     for m in existing_messages:
         if m["role"] == "system":
-            pending_context.append(f"[Context: {m['content']}]")
+            pending_context.append(m["content"])
         elif m["role"] == "user":
             content = m["content"]
             if pending_context:
-                content = "\n".join(pending_context) + "\n\n" + content
+                content = "\n\n".join(pending_context) + "\n\n" + content
                 pending_context.clear()
             llm_messages.append({"role": "user", "content": content})
         elif m["role"] == "assistant":
@@ -266,17 +287,19 @@ async def event_generator(
 
     if user_message:
         content = user_message
-        if context_msg_content:
-            content = f"[Context: {context_msg_content}]\n\n{content}"
-        if pending_context:
-            content = "\n".join(pending_context) + "\n\n" + content
+        # Prepend any pending context (content context + location + instructions)
+        all_context = list(pending_context)
+        if content_context_msg:
+            all_context.append(content_context_msg)
+        if all_context:
+            content = "\n\n".join(all_context) + "\n\n" + content
             pending_context.clear()
         llm_messages.append({"role": "user", "content": content})
 
-    # Create chat stage
+    # Create chat stage (instructions now in conversation history, not system prompt)
     stage = ChatStage(
         type="chat",
-        instructions=instructions,
+        instructions=None,
     )
 
     # Build course overview for system prompt
@@ -303,7 +326,6 @@ async def event_generator(
             llm_messages,
             stage,
             None,
-            section_context,
             mcp_manager=mcp_manager,
             course_overview=course_overview,
         ):

@@ -135,9 +135,9 @@
 
   "section_context": {
     "segments": [
-      [0, "[Written by Lens Academy]\nThis lens covers the key risks from advanced AI systems."],
-      [1, "[From \"Concrete Problems in AI Safety\", by Amodei et al.]\nThe article content goes here."],
-      [2, "[Chat discussion]"]
+      [0, "<source>Lens Academy</source>\nThis lens covers the key risks from advanced AI systems."],
+      [1, "<source>Concrete Problems in AI Safety, by Amodei et al.</source>\nThe article content goes here."],
+      [2, "<source>Chat discussion</source>"]
     ],
     "segment_index": 1,
     "total_segments": 3,

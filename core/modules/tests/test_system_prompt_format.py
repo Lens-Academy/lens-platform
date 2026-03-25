@@ -44,7 +44,9 @@ def _load_input():
     progression = []
     for item in data["course"]["progression"]:
         if item["type"] == "module":
-            progression.append(ModuleRef(slug=item["slug"], optional=item.get("optional", False)))
+            progression.append(
+                ModuleRef(slug=item["slug"], optional=item.get("optional", False))
+            )
         elif item["type"] == "meeting":
             progression.append(MeetingMarker(name=item["name"]))
     course = ParsedCourse(
@@ -128,7 +130,7 @@ class TestFullSystemPromptGoldenFile:
             patch("core.modules.prompts.COURSE_OVERVIEW_INTRO", overview_intro),
         ):
             overview = build_course_overview(self.course)
-            result = _build_system_prompt(stage, None, self.ctx, course_overview=overview)
+            result = _build_system_prompt(stage, None, course_overview=overview)
 
         expected = (
             (FIXTURES_DIR / "system_prompt_expected_output.md").read_text().rstrip("\n")
@@ -149,10 +151,11 @@ class TestSystemPromptStructure:
         from core.modules.types import ChatStage
 
         stage = ChatStage(type="chat", instructions="Be helpful.")
-        result = _build_system_prompt(stage, None, None)
+        result = _build_system_prompt(stage, None)
 
         assert "# General Instructions" in result
-        assert "# Segment-Specific Instructions" in result
+        # Instructions are now in conversation history, not system prompt
+        assert "# Segment-Specific Instructions" not in result
         assert "# Course Overview" not in result
 
     def test_article_stage_includes_role(self):
@@ -160,8 +163,7 @@ class TestSystemPromptStructure:
         from core.modules.types import ArticleStage
 
         stage = ArticleStage(type="article", source="test.md")
-        result = _build_system_prompt(stage, "Article text.", None)
+        result = _build_system_prompt(stage, "Article text.")
 
         assert "# General Instructions" in result
         assert "reading an article" in result
-

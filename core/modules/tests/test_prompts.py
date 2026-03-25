@@ -2,10 +2,17 @@
 """Tests for shared prompt assembly."""
 
 from core.modules.context import SectionContext
-from core.modules.prompts import assemble_chat_prompt, DEFAULT_BASE_PROMPT
+from core.modules.prompts import (
+    assemble_chat_prompt,
+    build_content_context_message,
+    build_location_update_message,
+    DEFAULT_BASE_PROMPT,
+)
 
 
 class TestAssembleChatPrompt:
+    """Tests for the plain-string assemble_chat_prompt (used by promptlab)."""
+
     def test_base_only(self):
         result = assemble_chat_prompt("Base prompt")
         assert result == "Base prompt"
@@ -46,90 +53,110 @@ class TestAssembleChatPrompt:
         assert result == "Base"
 
 
-class TestNumberedSegments:
-    def test_renders_numbered_segments(self):
+class TestBuildContentContextMessage:
+    """Tests for content context message formatting (conversation history injection)."""
+
+    def test_renders_segments_in_lens_tag(self):
         ctx = SectionContext(
             segments=[
-                (0, "[Written by Lens Academy]\nIntro text"),
-                (1, "Article content"),
+                (0, "text", "<source>Lens Academy</source>\nIntro text"),
+                (1, "article-excerpt", "Article content"),
             ],
             segment_index=1,
             total_segments=3,
+            module_title="Threat Models",
+            section_title="Risks from AI",
         )
-        result = assemble_chat_prompt("Base", context=ctx)
-        assert '<segment index="1">' in result
-        assert "[Written by Lens Academy]\nIntro text" in result
+        result = build_content_context_message(ctx)
+        assert (
+            '<lens module_title="Threat Models" lens_title="Risks from AI">' in result
+        )
+        assert '<segment index="1" type="text">' in result
+        assert "<source>Lens Academy</source>\nIntro text" in result
         assert "</segment>" in result
-        assert '<segment index="2">' in result
+        assert '<segment index="2" type="article-excerpt">' in result
         assert "Article content" in result
+        assert "</lens>" in result
 
-    def test_position_line_mid_section(self):
+    def test_location_marker(self):
         ctx = SectionContext(
-            segments=[(0, "Text"), (1, "More text"), (2, "[Chat discussion]")],
+            segments=[
+                (0, "text", "Text"),
+                (1, "article-excerpt", "More text"),
+                (2, "chat", "<source>Chat discussion</source>"),
+            ],
             segment_index=1,
             total_segments=3,
+            section_title="Risks from AI",
         )
-        result = assemble_chat_prompt("Base", context=ctx)
-        assert "currently at segment 2" in result
-        assert "not read segment 3 yet" in result
-
-    def test_position_line_last_segment(self):
-        ctx = SectionContext(
-            segments=[(0, "Text"), (1, "[Chat discussion]")],
-            segment_index=1,
-            total_segments=2,
+        result = build_content_context_message(ctx)
+        assert (
+            '<student-position>Segment 2 of "Risks from AI"</student-position>'
+            in result
         )
-        result = assemble_chat_prompt("Base", context=ctx)
-        assert "currently at segment 2 (the last segment)" in result
 
-    def test_position_line_first_segment(self):
+    def test_instructions_in_tutor_instructions_tag(self):
         ctx = SectionContext(
-            segments=[(0, "First content"), (1, "[Chat discussion]")],
+            segments=[(0, "text", "Text")],
             segment_index=0,
-            total_segments=2,
+            total_segments=1,
+            section_title="Test Section",
         )
-        result = assemble_chat_prompt("Base", context=ctx)
-        assert "currently at segment 1" in result
-        assert "not read segment 2 yet" in result
+        result = build_content_context_message(ctx, instructions="Ask about alignment.")
+        assert "<segment-instructions>" in result
+        assert "Ask about alignment." in result
+        assert "</segment-instructions>" in result
 
-    def test_position_line_multiple_remaining(self):
+    def test_no_instructions_omits_tag(self):
         ctx = SectionContext(
-            segments=[(0, "Text")],
+            segments=[(0, "text", "Text")],
             segment_index=0,
-            total_segments=5,
+            total_segments=1,
+            section_title="Test",
         )
-        result = assemble_chat_prompt("Base", context=ctx)
-        assert "currently at segment 1" in result
-        assert "not read segments 2\u20135 yet" in result
+        result = build_content_context_message(ctx)
+        assert "<segment-instructions>" not in result
 
+    def test_no_segments_no_lens_tag(self):
+        ctx = SectionContext(segments=[], segment_index=0, total_segments=1)
+        result = build_content_context_message(ctx)
+        assert "<lens" not in result
 
-class TestSectionContextLocation:
-    def test_module_and_section(self):
+    def test_no_section_title_no_location_marker(self):
         ctx = SectionContext(
-            segments=[(0, "content")],
+            segments=[(0, "text", "Text")],
+            segment_index=0,
+            total_segments=1,
+        )
+        result = build_content_context_message(ctx)
+        assert "<student-position>The student" not in result
+
+    def test_module_title_only_in_lens_attrs(self):
+        ctx = SectionContext(
+            segments=[(0, "text", "content")],
             segment_index=0,
             total_segments=1,
             module_title="Intro to AI Safety",
-            section_title="The Alignment Problem",
         )
-        result = assemble_chat_prompt("Base", context=ctx)
-        assert "- Module: Intro to AI Safety" in result
-        assert "- Lens: The Alignment Problem" in result
+        result = build_content_context_message(ctx)
+        assert 'module_title="Intro to AI Safety"' in result
+        assert "lens_title" not in result
 
-    def test_no_metadata_no_location(self):
-        ctx = SectionContext(
-            segments=[(0, "content")],
-            segment_index=0,
-            total_segments=1,
+
+class TestBuildLocationUpdateMessage:
+    def test_format(self):
+        result = build_location_update_message("Risks from AI", 2)
+        assert (
+            result
+            == '<student-position>Segment 3 of "Risks from AI"</student-position>'
         )
-        result = assemble_chat_prompt("Base", context=ctx)
-        assert "Module:" not in result
-        assert "Lens:" not in result
 
-    def test_empty_segments_no_content_block(self):
-        ctx = SectionContext(segments=[], segment_index=0, total_segments=1)
-        result = assemble_chat_prompt("Base", context=ctx)
-        assert "Segments of this lens" not in result
+    def test_first_segment(self):
+        result = build_location_update_message("Test Section", 0)
+        assert (
+            result
+            == '<student-position>Segment 1 of "Test Section"</student-position>'
+        )
 
 
 class TestDefaultBasePrompt:

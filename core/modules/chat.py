@@ -11,9 +11,8 @@ from typing import AsyncIterator
 from litellm import acompletion, stream_chunk_builder
 
 from .llm import iter_chunk_events, DEFAULT_PROVIDER
-from .context import SectionContext
-from .prompts import assemble_chat_prompt, DEFAULT_BASE_PROMPT
-from .types import Stage, ArticleStage, VideoStage, ChatStage
+from .prompts import DEFAULT_BASE_PROMPT
+from .types import Stage, ArticleStage, VideoStage
 from .content import (
     load_article_with_metadata,
     load_video_transcript_with_metadata,
@@ -31,33 +30,23 @@ MAX_TOOL_ROUNDS = 3
 def _build_system_prompt(
     current_stage: Stage,
     current_content: str | None,
-    section_context: SectionContext | None,
     course_overview: str | None = None,
 ) -> str:
     """Build the system prompt based on current stage and context.
 
+    The system prompt is fully static (no user-specific content) for prompt
+    caching. Dynamic content (segments, position, instructions) is injected
+    into the conversation history instead.
+
     Args:
         current_stage: The current module stage
         current_content: Content of current stage (for article/video stages)
-        section_context: Previous/current content from the section
         course_overview: Optional course overview to inject after base prompt
     """
 
     role_block = f"# General Instructions\n\n{DEFAULT_BASE_PROMPT}"
 
-    if isinstance(current_stage, ChatStage):
-        # Order: Role → Course Overview → Location → Instructions → Role (repeat)
-        context = (
-            section_context
-            if not current_stage.hide_previous_content_from_tutor
-            else None
-        )
-        prompt = role_block
-        if course_overview:
-            prompt += f"\n\n# Course Overview\n\n{course_overview}"
-        # Add location/segments context
-        prompt = assemble_chat_prompt(prompt, None, context)
-    elif isinstance(current_stage, (ArticleStage, VideoStage)):
+    if isinstance(current_stage, (ArticleStage, VideoStage)):
         content_type = (
             "reading an article"
             if isinstance(current_stage, ArticleStage)
@@ -73,18 +62,13 @@ The user is currently {content_type}. Answer the student's questions to help the
             prompt += f"\n\n# Course Overview\n\n{course_overview}"
         if current_content:
             prompt += f"\n\nContent the user is viewing:\n---\n{current_content}\n---"
-
     else:
         prompt = role_block
         if course_overview:
             prompt += f"\n\n# Course Overview\n\n{course_overview}"
 
     # Repeat general instructions at the end for improved adherence
-    prompt += f"\n\n# General Instructions:\n\n{DEFAULT_BASE_PROMPT}"
-
-    # Segment-specific instructions last (closest to the conversation)
-    if isinstance(current_stage, ChatStage) and current_stage.instructions:
-        prompt += f"\n\n# Segment-Specific Instructions\n\n{current_stage.instructions}"
+    prompt += f"\n\n# General Instructions\n\n{DEFAULT_BASE_PROMPT}"
 
     return prompt
 
@@ -152,7 +136,6 @@ async def send_module_message(
     messages: list[dict],
     current_stage: Stage,
     current_content: str | None = None,
-    section_context: SectionContext | None = None,
     provider: str | None = None,
     course_overview: str | None = None,
     mcp_manager=None,
@@ -164,7 +147,6 @@ async def send_module_message(
         messages: List of {"role": "user"|"assistant"|"system", "content": str}
         current_stage: The current module stage
         current_content: Content of current stage (for article/video stages)
-        section_context: Previous/current content from the section
         provider: LLM provider string (e.g., "anthropic/claude-sonnet-4-20250514")
                   If None, uses DEFAULT_PROVIDER from environment.
         course_overview: Optional course overview text for system prompt
@@ -182,9 +164,7 @@ async def send_module_message(
     if mcp_manager is not None:
         tools = await get_tools(mcp_manager)
 
-    system = _build_system_prompt(
-        current_stage, current_content, section_context, course_overview
-    )
+    system = _build_system_prompt(current_stage, current_content, course_overview)
 
     # Debug mode: show system prompt in chat
     if os.environ.get("DEBUG") == "1":

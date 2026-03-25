@@ -35,15 +35,14 @@ COURSE_OVERVIEW_INTRO = (
 def assemble_chat_prompt(
     base: str,
     instructions: str | None = None,
-    context: SectionContext | str | None = None,
+    context: str | None = None,
 ) -> str:
-    """Assemble a system prompt from its parts.
+    """Assemble a simple system prompt from parts (for promptlab).
 
     Args:
         base: The base system prompt.
         instructions: Stage-specific instructions (appended under header).
-        context: SectionContext with previous/current content, or a plain string
-                 (legacy — treated as previous content).
+        context: Plain string context (treated as previous content).
 
     Returns:
         The assembled system prompt string.
@@ -52,45 +51,84 @@ def assemble_chat_prompt(
     if instructions:
         prompt += f"\n\n# Current Instructions\n\n{instructions}"
     if context:
-        if isinstance(context, str):
-            # Legacy callers (e.g. promptlab) pass a plain string
-            prompt += (
-                "\n\n# User's Current Location\n\n"
-                f"The user previously read this content:\n---\n{context}\n---"
-            )
-        else:
-            has_location = context.module_title or context.section_title
-            has_segments = bool(context.segments)
-
-            if has_location or has_segments:
-                prompt += "\n\n# User's Current Location"
-
-            if has_location:
-                parts = []
-                if context.module_title:
-                    parts.append(f"- Module: {context.module_title}")
-                if context.section_title:
-                    parts.append(f"- Lens: {context.section_title}")
-                prompt += "\n" + "\n".join(parts)
-
-            if has_segments:
-                prompt += "\n\nSegments of this lens:"
-                for seg_num, content in context.segments:
-                    idx = seg_num + 1
-                    prompt += f'\n\n<segment index="{idx}">\n{content}\n</segment>'
-
-                # Position line
-                pos = context.segment_index + 1
-                total = context.total_segments
-                if pos < total:
-                    remaining_start = pos + 1
-                    if remaining_start == total:
-                        prompt += f"\n\nThe user is currently at segment {pos}. They have probably not read segment {total} yet."
-                    else:
-                        prompt += f"\n\nThe user is currently at segment {pos}. They have probably not read segments {remaining_start}\u2013{total} yet."
-                else:
-                    prompt += f"\n\nThe user is currently at segment {pos} (the last segment)."
+        prompt += (
+            "\n\n# User's Current Location\n\n"
+            f"The user previously read this content:\n---\n{context}\n---"
+        )
     return prompt
+
+
+def build_content_context_message(
+    context: SectionContext,
+    instructions: str | None = None,
+) -> str:
+    """Build a content context message for injection into conversation history.
+
+    This formats segment content, location, and instructions as a single
+    message to be stored as a system message in the DB and merged into the
+    adjacent user message at LLM call time.
+
+    Args:
+        context: SectionContext with segments and position info.
+        instructions: Optional segment-specific tutor instructions.
+
+    Returns:
+        Formatted string with <lens>, location marker, and optional
+        <segment-instructions> blocks.
+    """
+    parts = []
+
+    # Lens content with all segments
+    if context.segments:
+        attrs = []
+        if context.module_title:
+            attrs.append(f'module_title="{context.module_title}"')
+        if context.section_title:
+            attrs.append(f'lens_title="{context.section_title}"')
+        attr_str = " " + " ".join(attrs) if attrs else ""
+        parts.append(f"<lens{attr_str}>")
+
+        for seg_num, seg_type, content in context.segments:
+            idx = seg_num + 1
+            parts.append(f'<segment index="{idx}" type="{seg_type}">')
+            parts.append(content)
+            parts.append("</segment>")
+
+        parts.append("</lens>")
+
+    # Location marker
+    if context.section_title:
+        pos = context.segment_index + 1
+        parts.append(
+            f'<student-position>Segment {pos} of "{context.section_title}"</student-position>'
+        )
+
+    # Tutor instructions
+    if instructions:
+        parts.append("<segment-instructions>")
+        parts.append(instructions)
+        parts.append("</segment-instructions>")
+
+    return "\n".join(parts)
+
+
+def build_location_update_message(
+    section_title: str,
+    segment_index: int,
+) -> str:
+    """Build a location update message for segment navigation.
+
+    Used when the user moves to a different segment within the same section.
+
+    Args:
+        section_title: The current section/lens title.
+        segment_index: The new segment index (0-based).
+
+    Returns:
+        Location marker string.
+    """
+    pos = segment_index + 1
+    return f'<student-position>Segment {pos} of "{section_title}"</student-position>'
 
 
 def build_course_overview(
