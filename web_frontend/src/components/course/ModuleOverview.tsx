@@ -7,14 +7,9 @@
  */
 
 import { useMemo } from "react";
-import { Check } from "lucide-react";
 import type { StageInfo, ModuleStatus } from "../../types/course";
 import { OptionalBadge } from "../OptionalBadge";
-import { StageIcon } from "../StageIcon";
-import {
-  getCircleFillClasses,
-  getRingClasses,
-} from "../../utils/stageProgress";
+import { StageCircle } from "../StageCircle";
 import {
   buildBranchPaths,
   computeBranchStates,
@@ -113,12 +108,6 @@ export default function ModuleOverview({
     const isTestStage = stage.type === "test";
     const isDimmed = testModeActive && !isTestStage;
 
-    const fillClasses = getCircleFillClasses(
-      { isCompleted, isViewing, isOptional: stage.optional },
-      { includeHover: false, optionalBg: "bg-[var(--brand-bg)]" },
-    );
-    const ringClasses = getRingClasses(isViewing, isCompleted);
-
     return (
       <div
         className={`group relative flex items-start gap-4 py-2 rounded-lg ${
@@ -134,18 +123,16 @@ export default function ModuleOverview({
           />
         )}
         {/* Circle */}
-        <div className="relative z-10 flex-shrink-0">
-          <div
-            className={`w-7 h-7 rounded-full flex items-center justify-center ${fillClasses} ${ringClasses}`}
-          >
-            <StageIcon type={stage.type} displayType={stage.displayType} small />
-          </div>
-          {isCompleted && (
-            <div className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-lens-gold-400 ring-[1.5px] ring-white">
-              <Check className="w-2.5 h-2.5" stroke="white" strokeWidth={3} />
-            </div>
-          )}
-        </div>
+        <StageCircle
+          type={stage.type}
+          displayType={stage.displayType}
+          isCompleted={isCompleted}
+          isViewing={isViewing}
+          isOptional={stage.optional}
+          size={28}
+          optionalBg="bg-[var(--brand-bg)]"
+          className="z-10"
+        />
 
         {/* Content */}
         <div className="relative z-[5] flex-1 min-w-0">

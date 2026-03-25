@@ -6,13 +6,9 @@ import type { StageInfo } from "../../types/course";
 import { buildBranchLayout } from "../../utils/branchLayout";
 import { formatDurationMinutes } from "../../utils/duration";
 import { triggerHaptic } from "@/utils/haptics";
-import { StageIcon } from "../StageIcon";
+import { StageCircle } from "../StageCircle";
 import { Tooltip } from "../Tooltip";
 import { OptionalBadge } from "../OptionalBadge";
-import {
-  getCircleFillClasses,
-  getRingClasses,
-} from "../../utils/stageProgress";
 import {
   buildBranchPaths,
   computeBranchStates,
@@ -219,16 +215,6 @@ export default function StageProgressBar({
     const isTestDot = (stage as unknown as { type: string }).type === "test";
     const isDimmed = testModeActive && !isTestDot;
 
-    const fillClasses = getCircleFillClasses(
-      { isCompleted, isViewing, isOptional },
-      { includeHover: !isDimmed, optionalBg: "bg-[var(--brand-bg)]" },
-    );
-    const ringClasses = getRingClasses(isViewing, isCompleted);
-
-    const sizeClasses = compact
-      ? "w-7 h-7"
-      : "min-w-[44px] min-h-[44px] w-11 h-11";
-
     return (
       <Tooltip
         content={getTooltipContent(stage, index, isCompleted, isViewing)}
@@ -238,17 +224,22 @@ export default function StageProgressBar({
           onClick={() => handleDotClick(index)}
           disabled={isDimmed}
           className={`
-            relative rounded-full flex items-center justify-center
+            relative
             transition-all duration-150
             ${compact ? "" : "active:scale-95 shrink-0"}
             ${isViewing ? "z-[3]" : ""}
-            ${sizeClasses}
-            ${fillClasses}
-            ${ringClasses}
             ${isDimmed ? "opacity-30 cursor-default" : ""}
           `}
         >
-          <StageIcon type={stage.type} small={compact || branch} />
+          <StageCircle
+            type={stage.type}
+            isCompleted={isCompleted}
+            isViewing={isViewing}
+            isOptional={isOptional}
+            size={compact || branch ? 28 : 44}
+            optionalBg="bg-[var(--brand-bg)]"
+            includeHover={!isDimmed}
+          />
         </button>
       </Tooltip>
     );

@@ -9,8 +9,7 @@ import { useMedia } from "react-use";
 import { ChevronRight, BotMessageSquare, X } from "lucide-react";
 import type { ModuleInfo, StageInfo } from "@/types/course";
 import { formatDurationMinutes } from "@/utils/duration";
-import { StageIcon } from "../StageIcon";
-import { getCircleFillClasses, getRingClasses } from "@/utils/stageProgress";
+import { StageCircle } from "../StageCircle";
 import { buildBranchLayout } from "@/utils/branchLayout";
 import { linkProps } from "@/utils/navigateLink";
 import { generateHeadingId } from "@/utils/extractHeadings";
@@ -56,36 +55,6 @@ function groupModules(modules: ModuleInfo[]): ModuleGroup[] {
 
 // --- Subcomponents ---
 
-function StageDot({
-  stage,
-  isCompleted,
-  isViewing,
-}: {
-  stage: StageInfo;
-  isCompleted: boolean;
-  isViewing: boolean;
-}) {
-  const isOptional = stage.optional;
-  const fillClasses = getCircleFillClasses(
-    { isCompleted, isViewing, isOptional },
-    { optionalBg: "bg-white" },
-  );
-  const ringClasses = getRingClasses(isViewing, isCompleted);
-
-  const isLargeIcon =
-    stage.type === "video" ||
-    stage.type === "chat" ||
-    (stage.type === "lens" &&
-      (stage.displayType === "lens-video" ||
-        stage.displayType === "lens-mixed"));
-  return (
-    <div
-      className={`relative z-10 w-6 h-6 rounded-[16px] flex items-center justify-center flex-shrink-0 ${isLargeIcon ? "[&_svg]:w-[18px] [&_svg]:h-[18px]" : "[&_svg]:w-3.5 [&_svg]:h-3.5"} ${fillClasses} ${ringClasses}`}
-    >
-      <StageIcon type={stage.type} displayType={stage.displayType} small />
-    </div>
-  );
-}
 
 function StageDuration({
   duration,
@@ -210,10 +179,14 @@ function SectionList({
     const isCurrentSection = index === curIdx;
 
     const dot = (
-      <StageDot
-        stage={stage}
+      <StageCircle
+        type={stage.type}
+        displayType={stage.displayType}
         isCompleted={isCompleted}
         isViewing={isCurrentSection}
+        isOptional={stage.optional}
+        size={24}
+        className="z-10"
       />
     );
     const content = (
