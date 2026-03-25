@@ -27,7 +27,7 @@ export function ProgressCircle({
         viewBox="0 0 20 20"
         fill="none"
       >
-        <circle cx="10" cy="10" r="9" fill="#b87018" />
+        <circle cx="10" cy="10" r="9" fill="var(--color-lens-gold-400)" />
         <path
           d="M6 10.5l2.5 2.5 5-5"
           stroke="white"
@@ -64,7 +64,7 @@ export function ProgressCircle({
           cy={cy}
           r={r}
           stroke={
-            fraction > 0 ? (selected ? "#94a3b8" : "#cbd5e1") : "#d08838"
+            fraction > 0 ? (selected ? "#94a3b8" : "#cbd5e1") : "var(--color-lens-gold-400)"
           }
           strokeWidth="2"
           fill={fraction > 0 ? "none" : "#fde8c8"}
@@ -74,7 +74,7 @@ export function ProgressCircle({
             cx={cx}
             cy={cy}
             r={r}
-            stroke="#b87018"
+            stroke="var(--color-lens-gold-400)"
             strokeWidth="2"
             fill="none"
             strokeDasharray={circumference}
