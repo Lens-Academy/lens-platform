@@ -171,7 +171,8 @@ function DebugOverlay({
   );
 }
 
-export default function Module({ courseId, moduleId }: ModuleProps) {
+export default function Module({ courseId: courseIdProp, moduleId }: ModuleProps) {
+  const [courseId, setCourseId] = useState(courseIdProp);
   // Module data loading state
   const [module, setModule] = useState<ModuleType | null>(null);
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
@@ -234,8 +235,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         // Fetch module, course progress, and module progress in parallel
         const [moduleResult, courseResult, progressResult] = await Promise.all([
           getModule(moduleId),
-          courseId
-            ? getCourseProgress(courseId).catch(() => null)
+          courseIdProp
+            ? getCourseProgress(courseIdProp).catch(() => null)
             : Promise.resolve(null),
           getModuleProgress(moduleId).catch(() => null),
         ]);
@@ -243,10 +244,10 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         setModule(moduleResult);
         setCourseProgress(courseResult);
 
-        // Redirect if viewing via alias slug
-        if (courseResult?.course?.slug && courseId && courseResult.course.slug !== courseId) {
-          window.location.replace(`/course/${courseResult.course.slug}/module/${moduleId}`);
-          return;
+        // Fix URL if viewing via alias slug (no reload, just update address bar)
+        if (courseResult?.course?.slug && courseIdProp && courseResult.course.slug !== courseIdProp) {
+          history.replaceState(null, "", `/course/${courseResult.course.slug}/module/${moduleId}`);
+          setCourseId(courseResult.course.slug);
         }
 
         // Initialize completedSections from progress API response
@@ -279,7 +280,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
 
     load();
-  }, [moduleId, courseId]);
+  }, [moduleId, courseIdProp]);
 
   // Helper to update completedSections from lenses array
   const updateCompletedFromLenses = useCallback((lenses: LensProgress[]) => {

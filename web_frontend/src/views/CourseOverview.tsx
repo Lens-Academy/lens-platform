@@ -22,8 +22,9 @@ interface CourseOverviewProps {
 }
 
 export default function CourseOverview({
-  courseId = "default",
+  courseId: courseIdProp = "default",
 }: CourseOverviewProps) {
+  const [courseId, setCourseId] = useState(courseIdProp);
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
     null,
   );
@@ -43,10 +44,10 @@ export default function CourseOverview({
         const data = await getCourseProgress(courseId);
         setCourseProgress(data);
 
-        // Redirect if viewing via alias slug
-        if (data.course?.slug && data.course.slug !== courseId) {
-          window.location.replace(`/course/${data.course.slug}`);
-          return;
+        // Fix URL if viewing via alias slug (no reload, just update address bar)
+        if (data.course?.slug && data.course.slug !== courseIdProp) {
+          history.replaceState(null, "", `/course/${data.course.slug}`);
+          setCourseId(data.course.slug);
         }
 
         // Auto-select current module (first in-progress, or first not-started)
@@ -75,7 +76,7 @@ export default function CourseOverview({
       }
     }
     load();
-  }, [courseId]);
+  }, [courseIdProp]);
 
   const handleStartModule = () => {
     if (!selectedModule) return;
