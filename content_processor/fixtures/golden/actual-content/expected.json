@@ -772,6 +772,7 @@
     {
       "slug": "default",
       "title": "AI Safety Course",
+      "slugAliases": [],
       "progression": [
         {
           "type": "module",

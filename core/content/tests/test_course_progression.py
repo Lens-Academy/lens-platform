@@ -63,3 +63,28 @@ class TestCourseProgressionConversion:
         # Fifth item - another meeting
         assert isinstance(course.progression[4], MeetingMarker)
         assert course.progression[4].name == "Feedback Loops"
+
+    def test_slug_aliases_parsed_from_ts_output(self):
+        """slug_aliases should be extracted from TypeScript slugAliases field."""
+        ts_course = {
+            "slug": "navigating-asi",
+            "title": "Navigating ASI",
+            "slugAliases": ["default", "old-name"],
+            "progression": [],
+        }
+        from core.content.github_fetcher import _convert_ts_course_to_parsed_course
+
+        course = _convert_ts_course_to_parsed_course(ts_course)
+        assert course.slug_aliases == ["default", "old-name"]
+
+    def test_slug_aliases_empty_when_not_present(self):
+        """slug_aliases should be empty list when TypeScript output has no aliases."""
+        ts_course = {
+            "slug": "my-course",
+            "title": "My Course",
+            "progression": [],
+        }
+        from core.content.github_fetcher import _convert_ts_course_to_parsed_course
+
+        course = _convert_ts_course_to_parsed_course(ts_course)
+        assert course.slug_aliases == []

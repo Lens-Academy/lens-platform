@@ -156,6 +156,7 @@ function parseInlineLens(
 
   const title = section.fields.title || undefined;
   const tldr = section.fields.tldr || undefined;
+  const summaryForTutor = section.fields.summary_for_tutor || undefined;
 
   // Parse segments from section body using unified parser (flat mode)
   const { sections: rawSegments, errors: segmentErrors } = parseSections(
@@ -207,6 +208,7 @@ function parseInlineLens(
     id,
     title,
     tldr,
+    summaryForTutor,
     segments: parsedSegments,
   };
 

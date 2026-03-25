@@ -304,3 +304,63 @@ def test_load_course_parses_progression_types(test_cache):
     # Check meetings
     assert meetings[0].name == "Week 1"
     assert meetings[1].name == "Week 2"
+
+
+@pytest.fixture
+def cache_with_aliases():
+    """Set up a cache with a course that has slug aliases."""
+    courses = {
+        "navigating-asi": ParsedCourse(
+            slug="navigating-asi",
+            title="Navigating ASI",
+            progression=[ModuleRef(slug="module-a")],
+            slug_aliases=["default", "old-course-name"],
+        ),
+    }
+
+    cache = ContentCache(
+        courses=courses,
+        flattened_modules={
+            "module-a": FlattenedModule(
+                slug="module-a",
+                title="Module A",
+                content_id=None,
+                sections=[],
+            ),
+        },
+        parsed_learning_outcomes={},
+        parsed_lenses={},
+        articles={},
+        video_transcripts={},
+        last_refreshed=datetime.now(),
+        course_slug_aliases={"default": "navigating-asi", "old-course-name": "navigating-asi"},
+    )
+    set_cache(cache)
+    yield cache
+    clear_cache()
+
+
+def test_load_course_by_alias(cache_with_aliases):
+    """Should resolve alias to canonical course."""
+    course = load_course("default")
+    assert course.slug == "navigating-asi"
+    assert course.title == "Navigating ASI"
+
+
+def test_load_course_by_second_alias(cache_with_aliases):
+    """Should resolve any alias to canonical course."""
+    course = load_course("old-course-name")
+    assert course.slug == "navigating-asi"
+
+
+def test_load_course_canonical_still_works(cache_with_aliases):
+    """Canonical slug should still work when aliases exist."""
+    course = load_course("navigating-asi")
+    assert course.slug == "navigating-asi"
+
+
+def test_load_course_nonexistent_with_aliases(cache_with_aliases):
+    """Non-existent slug that isn't an alias should use single-course fallback."""
+    # Only one course exists, so fallback should return it
+    course = load_course("totally-unknown")
+    assert course.slug == "navigating-asi"

@@ -1,6 +1,6 @@
 """In-memory content cache for educational content from GitHub."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -30,6 +30,7 @@ class ContentCache:
     articles: dict[str, str]  # path -> raw markdown (for metadata extraction)
     video_transcripts: dict[str, str]  # path -> raw markdown (for metadata extraction)
     last_refreshed: datetime
+    course_slug_aliases: dict[str, str] = field(default_factory=dict)  # alias -> canonical slug
     video_timestamps: dict[str, list[dict]] | None = (
         None  # video_id -> timestamp word list
     )

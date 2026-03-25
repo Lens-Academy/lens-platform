@@ -48,7 +48,7 @@ export default function ContentIndexPage() {
             <li key={m.slug}>
               <a
                 href={`/module/${m.slug}`}
-                className="text-lens-gold-600 hover:text-lens-gold-700 hover:underline"
+                className="text-lens-orange-600 hover:text-lens-orange-700 hover:underline"
               >
                 {m.title}
               </a>
@@ -66,7 +66,7 @@ export default function ContentIndexPage() {
             <li key={l.slug}>
               <a
                 href={`/${l.slug}`}
-                className="text-lens-gold-600 hover:text-lens-gold-700 hover:underline"
+                className="text-lens-orange-600 hover:text-lens-orange-700 hover:underline"
               >
                 {l.title}
               </a>
@@ -85,7 +85,7 @@ export default function ContentIndexPage() {
               <li key={a.slug}>
                 <a
                   href={`/${a.slug}`}
-                  className="text-lens-gold-600 hover:text-lens-gold-700 hover:underline"
+                  className="text-lens-orange-600 hover:text-lens-orange-700 hover:underline"
                 >
                   {a.title}
                 </a>

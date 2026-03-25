@@ -26,8 +26,8 @@ export function getCircleFillClasses(
   if (isOptional) {
     if (isCompleted) {
       return includeHover
-        ? `${optionalBg} text-lens-gold-400 border-2 border-dashed border-lens-gold-400 hover:border-lens-gold-400`
-        : `${optionalBg} text-lens-gold-400 border-2 border-dashed border-lens-gold-400`;
+        ? `${optionalBg} text-lens-orange-400 border-2 border-dashed border-lens-orange-400 hover:border-lens-orange-400`
+        : `${optionalBg} text-lens-orange-400 border-2 border-dashed border-lens-orange-400`;
     }
     if (isViewing) {
       return includeHover
@@ -41,8 +41,8 @@ export function getCircleFillClasses(
 
   if (isCompleted) {
     return includeHover
-      ? "bg-lens-gold-400 text-white hover:bg-lens-gold-400"
-      : "bg-lens-gold-400 text-white";
+      ? "bg-lens-orange-400 text-white hover:bg-lens-orange-400"
+      : "bg-lens-orange-400 text-white";
   }
 
   if (isViewing) {
@@ -66,6 +66,6 @@ export function getRingClasses(
 ): string {
   if (!isViewing) return "";
   return isCompleted
-    ? "ring-2 ring-offset-2 ring-lens-gold-400"
+    ? "ring-2 ring-offset-2 ring-lens-orange-400"
     : "ring-2 ring-offset-2 ring-gray-500";
 }

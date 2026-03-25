@@ -1,7 +1,9 @@
+<!-- Main React implementation: src/pages/subscribe/+Page.tsx -->
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <script>
 // ── CONFIG ─────────────────────────────────────────────
 var CONFIG = {
@@ -65,6 +67,13 @@ var CONFIG = {
     justify-content: space-between;
     gap: 12px;
   }
+  @media (max-width: 480px) {
+    .option-row.courses-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
+  }
   .option-info {
     display: flex;
     flex-direction: column;
@@ -115,6 +124,81 @@ var CONFIG = {
     background: #b87018;
     color: #fff;
     box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  /* Info tip */
+  .pill-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .info-tip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+  .info-tip-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    margin: -9px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+  .info-tip-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid #e8e5df;
+    font-size: 11px;
+    font-weight: 700;
+    font-style: italic;
+    color: #6b6b6b;
+    line-height: 1;
+  }
+  .info-tip-bubble {
+    display: none;
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    margin-bottom: 8px;
+    width: 256px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    background: #fff;
+    color: #1a1a1a;
+    border: 1px solid #e8e5df;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08);
+    z-index: 50;
+  }
+  .info-tip-bubble.open { display: block; }
+  .info-tip-bubble::before {
+    content: "";
+    position: absolute;
+    right: 5px;
+    top: 100%;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #e8e5df;
+  }
+  .info-tip-bubble::after {
+    content: "";
+    position: absolute;
+    right: 5px;
+    top: 100%;
+    margin-top: -1px;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #fff;
   }
   /* Toggle switch */
   .toggle {
@@ -221,15 +305,23 @@ var CONFIG = {
 
   <div id="form-container">
     <div class="options">
-      <div class="option-row" id="courses-row">
+      <div class="option-row courses-row" id="courses-row">
         <div class="option-info">
           <span class="option-label">Courses</span>
           <span class="option-sub">Get notified when courses open for enrollment</span>
         </div>
-        <div class="seg-pill" id="course-pill">
-          <button type="button" data-val="none" onclick="setCourse('none')">None</button>
-          <button type="button" data-val="learner" class="active-accent" onclick="setCourse('learner')">Learner</button>
-          <button type="button" data-val="navigator" onclick="setCourse('navigator')">Navigator</button>
+        <div class="pill-wrap">
+          <div class="seg-pill" id="course-pill">
+            <button type="button" data-val="none" onclick="setCourse('none')">None</button>
+            <button type="button" data-val="learner" class="active-accent" onclick="setCourse('learner')">Learner</button>
+            <button type="button" data-val="navigator" onclick="setCourse('navigator')">Navigator</button>
+          </div>
+          <span class="info-tip" id="info-tip">
+            <button type="button" class="info-tip-btn" aria-label="More info" onclick="toggleInfo()">
+              <span class="info-tip-icon">i</span>
+            </button>
+            <div class="info-tip-bubble" id="info-bubble">Navigators facilitate the weekly group calls, guiding discussion and helping learners stay on track.</div>
+          </span>
         </div>
       </div>
       <div class="option-row" id="posts-row">
@@ -260,6 +352,20 @@ var CONFIG = {
 
 <script>
   var courseMode = CONFIG.courses || "none";
+
+  function toggleInfo() {
+    var bubble = document.getElementById("info-bubble");
+    bubble.classList.toggle("open");
+  }
+  (function() {
+    var tip = document.getElementById("info-tip");
+    tip.addEventListener("mouseenter", function() {
+      document.getElementById("info-bubble").classList.add("open");
+    });
+    tip.addEventListener("mouseleave", function() {
+      document.getElementById("info-bubble").classList.remove("open");
+    });
+  })();
 
   function setCourse(val) {
     courseMode = val;

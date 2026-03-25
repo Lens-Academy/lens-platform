@@ -90,6 +90,7 @@ export type LensSection = {
   meta: { title?: string | null };
   segments: ModuleSegment[];
   optional: boolean;
+  hide?: boolean;
   tldr?: string;
   wordCount?: number;
   videoDurationSeconds?: number;
@@ -107,6 +108,7 @@ export type TestSection = {
   meta: { title?: string | null };
   segments: ModuleSegment[];
   optional: boolean;
+  hide?: boolean;
   feedback?: boolean;
 };
 
@@ -165,6 +167,7 @@ export type ArticleStage = {
   to: number | null;
   title?: string;
   optional?: boolean;
+  hide?: boolean;
   tldr?: string;
   duration?: number | null;
 };
@@ -176,6 +179,7 @@ export type VideoStage = {
   to: number | null;
   title?: string;
   optional?: boolean;
+  hide?: boolean;
   tldr?: string;
   duration?: number | null;
 };
@@ -187,6 +191,7 @@ export type ChatStage = {
   hidePreviousContentFromTutor: boolean;
   title?: string;
   optional?: boolean;
+  hide?: boolean;
   tldr?: string;
   duration?: number | null;
 };
@@ -198,6 +203,7 @@ export type LensStage = {
   to: number | null;
   title?: string;
   optional?: boolean;
+  hide?: boolean;
   tldr?: string;
   duration?: number | null;
 };

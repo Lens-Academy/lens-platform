@@ -130,3 +130,27 @@ class TestCourseOverview:
         lines = result.split("\n")
         mod_b_line = [line for line in lines if "Module B" in line][0]
         assert "(optional)" in mod_b_line
+
+    @patch("core.modules.loader.load_flattened_module")
+    def test_prefers_summary_for_tutor_over_tldr(self, mock_load):
+        mod = _make_module(
+            "mod-x",
+            "Module X",
+            [
+                {
+                    "meta": {"title": "Section X1"},
+                    "tldr": "Hooky marketing text",
+                    "summaryForTutor": "Dry informative summary",
+                    "contentId": str(uuid4()),
+                },
+            ],
+        )
+        mock_load.return_value = mod
+        course = ParsedCourse(
+            slug="test",
+            title="Test",
+            progression=[ModuleRef(slug="mod-x")],
+        )
+        result = build_course_overview(course, "mod-x", 0, set())
+        assert "Dry informative summary" in result
+        assert "Hooky marketing text" not in result

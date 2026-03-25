@@ -969,7 +969,7 @@ export default function ArticleEmbed({
       {isConsecutiveExcerpt ? (
         // Consecutive excerpt: skip attribution, just show collapsed_before if present
         processedCollapsedBefore && (
-          <div className="bg-lens-gold-50/60 px-4 py-1">
+          <div className="bg-lens-orange-50/60 px-4 py-1">
             <CollapsedSection
               content={processedCollapsedBefore}
               components={markdownComponents}
@@ -977,7 +977,7 @@ export default function ArticleEmbed({
           </div>
         )
       ) : (
-        <div className="bg-lens-gold-50/60 px-4 pt-4 sm:pt-6 pb-2">
+        <div className="bg-lens-orange-50/60 px-4 pt-4 sm:pt-6 pb-2">
           {isFirst ? (
             <div className="mb-1 max-w-content mx-auto">
               {title && (
@@ -1065,7 +1065,7 @@ export default function ArticleEmbed({
 
         if (segment.type === "note") {
           return (
-            <div key={i} className="bg-lens-gold-50/60 px-4 py-2">
+            <div key={i} className="bg-lens-orange-50/60 px-4 py-2">
               <NoteBox className="max-w-[calc(var(--container-content)+2rem)] mx-auto">
                 <article className="prose prose-gray max-w-content [&>*:last-child]:mb-0">
                   <ReactMarkdown
@@ -1084,7 +1084,7 @@ export default function ArticleEmbed({
         return (
           <div
             key={i}
-            className={`bg-lens-gold-50/60 px-4 py-1 ${isLast ? "pb-4 sm:pb-6" : ""}`}
+            className={`bg-lens-orange-50/60 px-4 py-1 ${isLast ? "pb-4 sm:pb-6" : ""}`}
           >
             <article className="prose prose-gray max-w-content mx-auto overflow-x-hidden [&>*:last-child]:mb-0">
               <ReactMarkdown
@@ -1107,7 +1107,7 @@ export default function ArticleEmbed({
 
       {/* If last segment is a note, add yellow footer for collapsed_after + bottom padding */}
       {segments[segments.length - 1]?.type === "note" && (
-        <div className="bg-lens-gold-50/60 px-4 pb-4 sm:pb-6">
+        <div className="bg-lens-orange-50/60 px-4 pb-4 sm:pb-6">
           {processedCollapsedAfter && (
             <CollapsedSection
               content={processedCollapsedAfter}

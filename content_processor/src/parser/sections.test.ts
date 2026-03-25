@@ -597,6 +597,60 @@ content::
     });
   });
 
+  describe('backslash-escaped headings in content fields', () => {
+    it('unescapes \\## to ## in content:: fields', () => {
+      const body = `
+#### Text
+content::
+Some intro text.
+
+\\## Chapter 12: "I Don't Want to Be Alarmist"
+More text here.
+`;
+      const result = parseSections(body, 3, new Set(['text']), 'test.md', true);
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].fields.content).toContain('## Chapter 12');
+      expect(result.sections[0].fields.content).not.toContain('\\##');
+    });
+
+    it('unescapes \\# at multiple heading levels', () => {
+      const body = `
+#### Text
+content::
+\\# Heading 1
+\\## Heading 2
+\\### Heading 3
+`;
+      const result = parseSections(body, 3, new Set(['text']), 'test.md', true);
+      expect(result.sections[0].fields.content).toContain('# Heading 1');
+      expect(result.sections[0].fields.content).toContain('## Heading 2');
+      expect(result.sections[0].fields.content).toContain('### Heading 3');
+      expect(result.sections[0].fields.content).not.toContain('\\#');
+    });
+
+    it('does not unescape \\# in non-markdown fields', () => {
+      const body = `
+#### Text
+content:: hello
+source:: \\## not unescaped
+`;
+      const result = parseSections(body, 3, new Set(['text']), 'test.md', true);
+      expect(result.sections[0].fields.source).toBe('\\## not unescaped');
+    });
+
+    it('unescapes \\# in instructions:: fields', () => {
+      const body = `
+#### Chat
+instructions::
+\\## Discussion Topic
+Talk about this.
+`;
+      const result = parseSections(body, 3, new Set(['chat']), 'test.md', true);
+      expect(result.sections[0].fields.instructions).toContain('## Discussion Topic');
+      expect(result.sections[0].fields.instructions).not.toContain('\\##');
+    });
+  });
+
   describe('free text warnings', () => {
     it('errors when free text appears before first field in section body', () => {
       const content = `

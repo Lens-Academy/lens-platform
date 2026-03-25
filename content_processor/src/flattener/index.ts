@@ -13,6 +13,7 @@ import type {
   SectionMeta,
 } from '../index.js';
 import type { ContentTier } from '../validator/tier.js';
+import { resolveTextLinks, enrichCardLinks } from './resolve-text-links.js';
 import { checkTierViolation } from '../validator/tier.js';
 import { parseModule, type ParsedModule, hasFieldBeforeSegmentHeaders } from '../parser/module.js';
 import { parseLearningOutcome, type ParsedTestRef } from '../parser/learning-outcome.js';
@@ -355,6 +356,11 @@ export function flattenModule(
     ...(moduleError ? { error: moduleError } : {}),
   }));
 
+  // Enrich ::card links in text segments with computed metadata (duration, attribution, displayType)
+  for (const mod of resultModules) {
+    enrichCardLinks(mod.sections);
+  }
+
   // Backwards compat: module is the first result or a merged single module
   const primaryModule = resultModules.length > 0 ? resultModules[0] : null;
 
@@ -503,10 +509,12 @@ function processLOWithSubmodules(
         meta: { title: lens.title || section.title },
         segments,
         optional: section.fields.optional?.toLowerCase() === 'true' || lensRef.optional,
+        ...(section.fields.hide?.toLowerCase() === 'true' && { hide: true }),
         learningOutcomeId: lo.id ?? null,
         learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
         contentId: lens.id ?? null,
         tldr: lens.tldr,
+        summaryForTutor: lens.summaryForTutor,
         ...computeSectionStats(segments),
         displayType: computeDisplayType(segments),
       } as Section);
@@ -704,10 +712,12 @@ function flattenLearningOutcomeSection(
       meta: { title: lens.title || section.title },
       segments,
       optional: section.fields.optional?.toLowerCase() === 'true' || lensRef.optional,
+      ...(section.fields.hide?.toLowerCase() === 'true' && { hide: true }),
       learningOutcomeId: lo.id ?? null,
       learningOutcomeName: loPath.split('/').pop()?.replace(/\.md$/i, '') ?? null,
       contentId: lens.id ?? null,
       tldr: lens.tldr,
+      summaryForTutor: lens.summaryForTutor,
       ...computeSectionStats(segments),
       displayType: computeDisplayType(segments),
     };
@@ -754,10 +764,12 @@ function flattenLensSection(
       meta: { title: inlineLens.title || section.title },
       segments,
       optional: section.fields.optional?.toLowerCase() === 'true',
+      ...(section.fields.hide?.toLowerCase() === 'true' && { hide: true }),
       learningOutcomeId: null,
       learningOutcomeName: null,
       contentId: inlineLens.id ?? null,
       tldr: inlineLens.tldr,
+      summaryForTutor: inlineLens.summaryForTutor,
       ...computeSectionStats(segments),
       displayType: computeDisplayType(segments),
     };
@@ -855,10 +867,12 @@ function flattenLensSection(
     meta: { title: lens.title || section.title },
     segments,
     optional: section.fields.optional?.toLowerCase() === 'true',
+    ...(section.fields.hide?.toLowerCase() === 'true' && { hide: true }),
     learningOutcomeId: null,
     learningOutcomeName: null,
     contentId: lens.id ?? null,
     tldr: lens.tldr,
+    summaryForTutor: lens.summaryForTutor,
     ...computeSectionStats(segments),
     displayType: computeDisplayType(segments),
   };
@@ -965,9 +979,11 @@ function convertSegment(
 
   switch (parsedSegment.type) {
     case 'text': {
+      const resolved = resolveTextLinks(parsedSegment.content, lensPath, files);
+      errors.push(...resolved.errors);
       const segment: TextSegment = {
         type: 'text',
-        content: parsedSegment.content,
+        content: resolved.content,
       };
       if (parsedSegment.optional) {
         segment.optional = true;
@@ -1315,6 +1331,7 @@ export function flattenLens(
     learningOutcomeName: null,
     contentId: lens.id ?? null,
     tldr: lens.tldr,
+    summaryForTutor: lens.summaryForTutor,
     ...computeSectionStats(segments),
     displayType: computeDisplayType(segments),
   };

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useMedia } from "react-use";
 import { Menu } from "lucide-react";
 import CookieSettings from "./CookieSettings";
+import { Popover } from "./Popover";
+import { CoursesDropdown } from "./nav/CoursesDropdown";
 import { BottomNav, DiscordInviteButton, MobileMenu, UserMenu } from "./nav";
 import { useScrollDirection } from "../hooks/useScrollDirection";
 
@@ -72,12 +74,18 @@ export default function Layout({
             ) : (
               /* Desktop: full navigation */
               <div className="flex items-center gap-4">
-                <a
-                  href="/course"
-                  className="text-[var(--brand-text-muted)] font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200"
+                <Popover
+                  placement="bottom-start"
+                  hover
+                  className="bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-lg shadow-lg p-2 z-50 min-w-[220px]"
+                  content={(close) => <CoursesDropdown onNavigate={close} />}
                 >
-                  Course
-                </a>
+                  <button
+                    className="text-[var(--brand-text-muted)] font-medium text-sm hover:text-[var(--brand-text)] transition-colors duration-200"
+                  >
+                    Courses
+                  </button>
+                </Popover>
                 <DiscordInviteButton />
                 <UserMenu />
               </div>

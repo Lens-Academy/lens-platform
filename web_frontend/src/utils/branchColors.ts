@@ -71,7 +71,7 @@ export function computeBranchStates(
   });
 }
 
-export type SegmentColor = "bg-lens-gold-400" | "bg-gray-400" | "bg-gray-200";
+export type SegmentColor = "bg-lens-orange-400" | "bg-gray-400" | "bg-gray-200";
 
 /**
  * Unified color function for line segments.
@@ -93,7 +93,7 @@ export function getSegmentColor(
         Math.max(b.highestCompleted, b.selected) > previousIndex,
     )
   )
-    return "bg-lens-gold-400";
+    return "bg-lens-orange-400";
   if (subscribedBranches.some((b) => b.selected > previousIndex))
     return "bg-gray-400";
   return "bg-gray-200";

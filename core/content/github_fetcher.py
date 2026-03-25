@@ -56,6 +56,7 @@ def _convert_ts_course_to_parsed_course(ts_course: dict) -> ParsedCourse:
         slug=ts_course["slug"],
         title=ts_course["title"],
         progression=progression,
+        slug_aliases=ts_course.get("slugAliases", []),
     )
 
 
@@ -366,6 +367,11 @@ async def fetch_all_content() -> ContentCache:
     for course in ts_result.get("courses", []):
         courses[course["slug"]] = _convert_ts_course_to_parsed_course(course)
 
+    course_slug_aliases: dict[str, str] = {}
+    for course in courses.values():
+        for alias in course.slug_aliases:
+            course_slug_aliases[alias] = course.slug
+
     # Extract validation errors from TypeScript result
     validation_errors = ts_result.get("errors", [])
 
@@ -373,6 +379,7 @@ async def fetch_all_content() -> ContentCache:
     now = datetime.now(UTC)
     cache = ContentCache(
         courses=courses,
+        course_slug_aliases=course_slug_aliases,
         flattened_modules=flattened_modules,
         parsed_learning_outcomes={},  # No longer needed - TS handles
         parsed_lenses={},  # No longer needed - TS handles
@@ -624,6 +631,11 @@ async def incremental_refresh(new_commit_sha: str) -> list[dict]:
 
         # Update cache in place
         cache.courses = courses
+        course_slug_aliases: dict[str, str] = {}
+        for course in courses.values():
+            for alias in course.slug_aliases:
+                course_slug_aliases[alias] = course.slug
+        cache.course_slug_aliases = course_slug_aliases
         cache.flattened_modules = flattened_modules
         cache.articles = articles
         cache.video_transcripts = video_transcripts

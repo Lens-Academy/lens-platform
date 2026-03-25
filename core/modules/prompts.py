@@ -180,7 +180,7 @@ def build_course_overview(
 
             for section in module.sections:
                 title = section.get("meta", {}).get("title", "Untitled")
-                tldr = section.get("tldr", "")
+                tldr = section.get("summaryForTutor") or section.get("tldr", "")
                 lines.append(f"    {title}")
                 if tldr:
                     lines.append(f"      TLDR: {tldr}")

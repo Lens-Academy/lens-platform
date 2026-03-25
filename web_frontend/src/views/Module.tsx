@@ -28,7 +28,7 @@ import type { ModuleCompletionResult, LensProgress } from "@/api/modules";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { useTutorChat } from "@/hooks/useTutorChat";
-import { markComplete } from "@/api/progress";
+import { markComplete, getCompletedContentIds } from "@/api/progress";
 import type { MarkCompleteResponse } from "@/api/progress";
 import AuthoredText from "@/components/module/AuthoredText";
 import ArticleEmbed, {
@@ -194,6 +194,22 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     return modules;
   }, [courseProgress]);
 
+  // Build module progress map for AuthoredText module cards
+  const moduleProgressMap = useMemo(() => {
+    if (!courseProgress) return new Map();
+    const map = new Map<string, { status: "completed" | "in_progress" | "not_started"; completedLenses: number; totalLenses: number }>();
+    for (const unit of courseProgress.units) {
+      for (const mod of unit.modules) {
+        map.set(mod.slug, {
+          status: mod.status,
+          completedLenses: mod.completedLenses ?? 0,
+          totalLenses: mod.totalLenses ?? 0,
+        });
+      }
+    }
+    return map;
+  }, [courseProgress]);
+
   // Build course context for navigation
   const courseContext = useMemo(() => {
     if (!courseProgress) return null;
@@ -226,6 +242,12 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
 
         setModule(moduleResult);
         setCourseProgress(courseResult);
+
+        // Redirect if viewing via alias slug
+        if (courseResult?.course?.slug && courseId && courseResult.course.slug !== courseId) {
+          window.location.replace(`/course/${courseResult.course.slug}/module/${moduleId}`);
+          return;
+        }
 
         // Initialize completedSections from progress API response
         if (progressResult) {
@@ -395,6 +417,21 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     new Set(),
   );
 
+  // Derive completed contentIds from completedSections for LensCard completion state
+  const completedContentIds = useMemo(() => {
+    if (!module) return new Set<string>();
+    const ids = new Set<string>();
+    for (const [index] of module.sections.entries()) {
+      if (completedSections.has(index) && module.sections[index].contentId) {
+        ids.add(module.sections[index].contentId!);
+      }
+    }
+    return ids;
+  }, [module, completedSections]);
+
+  // Cross-module completion state (for LensCard completion indicators on cross-module cards)
+  const [allCompletedContentIds, setAllCompletedContentIds] = useState<Set<string>>(new Set());
+
   // Theater mode: track how many videos are in theater mode (for scroll-snap)
   const [theaterCount, setTheaterCount] = useState(0);
   const handleTheaterChange = useCallback((active: boolean) => {
@@ -429,6 +466,15 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     }
     wasAuthenticated.current = isAuthenticated;
   }, [isAuthenticated, moduleId, updateCompletedFromLenses]);
+
+  // Fetch global completed content IDs for cross-module card completion indicators
+  useEffect(() => {
+    if (isAuthenticated) {
+      getCompletedContentIds()
+        .then(setAllCompletedContentIds)
+        .catch(() => {}); // Non-critical, fail silently
+    }
+  }, [isAuthenticated]);
 
   // Module completion modal state
   // undefined = not yet fetched, null = end of course, object = next module or unit complete
@@ -532,6 +578,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: 0,
           to: null,
           optional: isOptional,
+          hide: section.hide === true && index !== currentSectionIndex || undefined,
           title,
           tldr,
           duration,
@@ -543,6 +590,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: null,
           to: null,
           optional: isOptional,
+          hide: section.hide === true && index !== currentSectionIndex || undefined,
           title,
           tldr,
           duration,
@@ -554,13 +602,14 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
           from: null,
           to: null,
           optional: isOptional,
+          hide: section.hide === true && index !== currentSectionIndex || undefined,
           title,
           tldr,
           duration,
         };
       }
     });
-  }, [module]);
+  }, [module, currentSectionIndex]);
 
   // Convert to StageInfo format for drawer
   const stagesForDrawer: StageInfo[] = useMemo(() => {
@@ -588,12 +637,13 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         title: section.meta?.title || `Section ${index + 1}`,
         duration: dur || null,
         optional: section.optional === true,
+        hide: section.hide === true && index !== currentSectionIndex || undefined,
         tldr: section.tldr,
         attribution:
           attributions.length > 0 ? attributions.join(" & ") : undefined,
       };
     });
-  }, [module]);
+  }, [module, currentSectionIndex]);
 
   // Derived value for module completion
   // Complete if: API confirmed complete OR all sections marked locally
@@ -664,6 +714,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
         ({ section, index }) =>
           "optional" in section &&
           section.optional &&
+          !section.hide &&
           !completedSections.has(index),
       )
       .filter(({ section }) => {
@@ -1168,6 +1219,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     for (let i = 0; i < sections.length; i++) {
       if (completed.has(i)) continue;
       const section = sections[i];
+      if (section.hide) continue;
       if (!("optional" in section)) continue;
       const sectionType = section.type as SectionChoice["type"];
       if (!["lens", "test"].includes(sectionType)) continue;
@@ -1473,7 +1525,19 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
     switch (segment.type) {
       case "text":
         return wrapWithSentinel(
-          <AuthoredText key={`text-${keyPrefix}`} content={segment.content} />,
+          <AuthoredText
+            key={`text-${keyPrefix}`}
+            content={segment.content}
+            courseId={courseId ?? undefined}
+            moduleSlug={moduleId}
+            moduleSections={module.sections.map((s) => ({
+              contentId: s.contentId,
+              meta: s.meta,
+            }))}
+            completedContentIds={completedContentIds}
+            allCompletedContentIds={allCompletedContentIds}
+            moduleProgressMap={moduleProgressMap}
+          />,
         );
 
       case "article": {
@@ -1712,7 +1776,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
       <div className="min-h-dvh flex items-center justify-center bg-[var(--brand-bg)]">
         <div className="text-center">
           <p className="text-red-600 mb-4">{loadError ?? "Module not found"}</p>
-          <a href="/" className="text-lens-gold-600 hover:underline">
+          <a href="/" className="text-lens-orange-600 hover:underline">
             Go home
           </a>
         </div>
@@ -1985,7 +2049,7 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                                             handleMarkComplete(sectionIndex),
                                           );
                                       }}
-                                      className="flex items-center gap-2 px-4 py-2 bg-lens-gold-500 text-white rounded-lg hover:bg-lens-gold-600 transition-all active:scale-95 font-medium"
+                                      className="flex items-center gap-2 px-4 py-2 bg-lens-orange-500 text-white rounded-lg hover:bg-lens-orange-600 transition-all active:scale-95 font-medium"
                                     >
                                       Continue
                                       <svg
@@ -2052,7 +2116,8 @@ export default function Module({ courseId, moduleId }: ModuleProps) {
                         )}
                         isShort={getSectionTextLength(section) < 1750}
                         chatGated={
-                          ("segments" in section &&
+                          (!section.optional &&
+                            "segments" in section &&
                             section.segments?.some((s) => s.type === "chat") &&
                             !chatInteractedSections.has(sectionIndex)) ||
                           false

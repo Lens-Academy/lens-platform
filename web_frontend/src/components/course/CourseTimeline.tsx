@@ -10,94 +10,7 @@ import { OptionalBadge } from "../OptionalBadge";
 import { formatDurationMinutes } from "../../utils/duration";
 import { Tooltip } from "../Tooltip";
 import { getUnitLabel } from "../../utils/unitLabel";
-
-/**
- * Circular progress indicator:
- * - not_started: gray outline ring
- * - in_progress: gray outline ring with amber arc fill (clock-style, starting at 12 o'clock)
- * - completed: green filled circle with white checkmark
- */
-function ProgressCircle({
-  status,
-  completedLenses,
-  totalLenses,
-  size = 16,
-  selected,
-}: {
-  status: "completed" | "in_progress" | "not_started";
-  completedLenses?: number;
-  totalLenses?: number;
-  size?: number;
-  selected?: boolean;
-}) {
-  if (status === "completed") {
-    return (
-      <svg
-        className="flex-shrink-0"
-        width={size}
-        height={size}
-        viewBox="0 0 20 20"
-        fill="none"
-      >
-        {/* Blue filled circle */}
-        <circle cx="10" cy="10" r="9" fill="#b87018" />
-        {/* White checkmark */}
-        <path
-          d="M6 10.5l2.5 2.5 5-5"
-          stroke="white"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-      </svg>
-    );
-  }
-
-  const r = 8;
-  const cx = 10;
-  const cy = 10;
-  const circumference = 2 * Math.PI * r;
-  const fraction =
-    status === "in_progress" && totalLenses && totalLenses > 0
-      ? Math.min((completedLenses ?? 0) / totalLenses, 1)
-      : 0;
-
-  return (
-    <svg
-      className="flex-shrink-0"
-      width={size}
-      height={size}
-      viewBox="0 0 20 20"
-      fill="none"
-      style={{ transform: "rotate(-90deg)" }}
-    >
-      {/* Gray background ring */}
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r}
-        stroke={selected ? "#94a3b8" : "#cbd5e1"}
-        strokeWidth="2"
-        fill="none"
-      />
-      {/* Blue progress arc */}
-      {fraction > 0 && (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={r}
-          stroke="#b87018"
-          strokeWidth="2"
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - fraction)}
-          strokeLinecap="round"
-        />
-      )}
-    </svg>
-  );
-}
+import { ProgressCircle } from "../ProgressCircle";
 
 const formatDuration = formatDurationMinutes;
 
@@ -310,7 +223,7 @@ export default function CourseTimeline({
                     />
                     {/* Label */}
                     <span
-                      className={`shrink-0 whitespace-nowrap transition-all duration-300 ${
+                      className={`shrink-0 whitespace-nowrap font-display transition-all duration-300 ${
                         isExpanded
                           ? "text-sm text-[var(--brand-text)]"
                           : "text-base text-[var(--brand-text)]"
@@ -345,7 +258,7 @@ export default function CourseTimeline({
                     />
                     {/* Chevron */}
                     <ChevronRight
-                      className={`shrink-0 w-3.5 h-3.5 text-[var(--brand-border)] ml-1 transition-transform duration-300 ${
+                      className={`shrink-0 w-3.5 h-3.5 text-[var(--brand-text-muted)] ml-1 transition-transform duration-300 ${
                         isExpanded ? "rotate-90" : ""
                       }`}
                     />
@@ -386,12 +299,12 @@ export default function CourseTimeline({
                           }
                         >
                           <div className="flex items-center py-1.5 px-2 gap-2 cursor-default">
-                            <Users className="w-4 h-4 text-[var(--brand-text-muted)]" />
-                            <span className="text-base text-[var(--brand-text-muted)]">
+                            <Users className="w-4 h-4 text-[var(--brand-text)]" />
+                            <span className="text-base text-[var(--brand-text)]">
                               #{unit.meetingNumber}
                             </span>
                             {unit.meetingDate && (
-                              <span className="text-xs text-[var(--brand-text-muted)]">
+                              <span className="text-xs text-[var(--brand-text)]">
                                 {formatMeetingDate(unit.meetingDate)}
                               </span>
                             )}
@@ -457,20 +370,22 @@ function renderUnitModules(
         <div key={parentSlug}>
           <button
             onClick={() => toggleParent(parentSlug)}
-            className={`relative w-full flex items-center py-1.5 group text-left px-2 rounded-lg ${
+            className={`relative w-full flex items-center py-1.5 group text-left px-2 rounded-[16px] ${
               anyChildSelected && !isParentExpanded ? "bg-[#f0ece4]" : ""
             }`}
           >
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-start gap-2">
+                <div className="mt-[3px]">
                 <ProgressCircle
                   status={parentStatus}
                   completedLenses={Math.round(parentFraction * 100)}
                   totalLenses={100}
                   selected={anyChildSelected && !isParentExpanded}
                 />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-base font-medium truncate block leading-snug text-[var(--brand-text)]">
+                  <span className="text-base font-display truncate block leading-snug text-[var(--brand-text)]">
                     {parentTitle}
                   </span>
                   {dueDateIso &&
@@ -493,12 +408,12 @@ function renderUnitModules(
                     })()}
                 </div>
                 {!isParentExpanded && parentDuration > 0 && (
-                  <span className="text-xs text-[var(--brand-text-muted)] flex-shrink-0 tabular-nums">
+                  <span className="text-xs text-[var(--brand-text)] flex-shrink-0 tabular-nums">
                     {formatDuration(parentDuration)}
                   </span>
                 )}
                 <ChevronRight
-                  className={`w-3.5 h-3.5 text-[var(--brand-border)] flex-shrink-0 transition-transform duration-200 ${
+                  className={`w-3.5 h-3.5 text-[var(--brand-text-muted)] flex-shrink-0 transition-transform duration-200 ${
                     isParentExpanded ? "rotate-90" : ""
                   }`}
                 />
@@ -507,11 +422,21 @@ function renderUnitModules(
           </button>
 
           <div
-            className={`grid transition-[grid-template-rows] duration-200 ${
+            className={`relative grid transition-[grid-template-rows] duration-200 ${
               isParentExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
             }`}
           >
-            <div className="overflow-hidden">
+            {/* Vertical connector line from parent circle through children */}
+            {isParentExpanded && (
+              <div
+                className="absolute top-0 bottom-2 w-px z-0"
+                style={{
+                  left: 15, /* center of parent's 16px circle at px-2 (8px) + 8px */
+                  backgroundColor: "var(--brand-border)",
+                }}
+              />
+            )}
+            <div className="overflow-hidden relative z-[1]">
               {children.map((child) => {
                 const isSelected = child.slug === selectedModuleSlug;
                 const childEstimate = child.duration;
@@ -519,13 +444,13 @@ function renderUnitModules(
                   <button
                     key={child.slug}
                     onClick={() => onModuleSelect(child)}
-                    className={`relative w-full flex items-center py-1 text-left transition-colors px-2 rounded-lg ${
-                      isSelected
-                        ? "bg-[#f0ece4] text-[var(--brand-text)]"
-                        : "hover:bg-[var(--brand-border)]/30 text-[var(--brand-text-muted)]"
-                    }`}
+                    className="relative w-full flex items-center py-0.5 text-left transition-colors px-2"
                   >
-                    <div className="ml-4 flex-1 min-w-0 flex items-center gap-2">
+                    <div className={`ml-4 flex-1 min-w-0 flex items-center gap-2 py-1 px-2 rounded-[16px] transition-colors ${
+                      isSelected
+                        ? "bg-[#f0ece4]"
+                        : "hover:bg-[var(--brand-border)]/30"
+                    }`}>
                       <ProgressCircle
                         status={child.status}
                         completedLenses={child.completedLenses}
@@ -533,11 +458,11 @@ function renderUnitModules(
                         size={14}
                         selected={isSelected}
                       />
-                      <span className="text-base truncate text-[var(--brand-text-muted)]">
+                      <span className="text-base font-display truncate text-[var(--brand-text)]">
                         {child.title}
                       </span>
                       {childEstimate && (
-                        <span className="text-xs text-[var(--brand-text-muted)] ml-auto flex-shrink-0 tabular-nums">
+                        <span className="text-xs text-[var(--brand-text)] ml-auto flex-shrink-0 tabular-nums">
                           {formatDuration(childEstimate)}
                         </span>
                       )}
@@ -559,7 +484,7 @@ function renderUnitModules(
         <button
           key={mod.slug}
           onClick={() => onModuleSelect(mod)}
-          className={`relative w-full flex items-center py-1.5 text-left group transition-colors px-2 rounded-lg ${
+          className={`relative w-full flex items-center py-1.5 text-left group transition-colors px-2 rounded-[16px] ${
             isSelected ? "bg-[#f0ece4]" : "hover:bg-[var(--brand-border)]/30"
           }`}
         >
@@ -574,11 +499,7 @@ function renderUnitModules(
                 />
               )}
               <span
-                className={`text-base truncate ${
-                  mod.optional
-                    ? "text-[var(--brand-text-muted)]"
-                    : "text-[var(--brand-text-muted)]"
-                }`}
+                className="text-base font-display truncate text-[var(--brand-text)]"
               >
                 {mod.title}
               </span>
@@ -596,13 +517,13 @@ function renderUnitModules(
                 >
                   {dueLabel}
                   {estimate ? (
-                    <span className="text-[var(--brand-text-muted)] font-normal tabular-nums">
+                    <span className="text-[var(--brand-text)] font-normal tabular-nums">
                       · {formatDuration(estimate)}
                     </span>
                   ) : null}
                 </span>
               ) : estimate ? (
-                <span className="text-xs text-[var(--brand-text-muted)] ml-auto flex-shrink-0 tabular-nums">
+                <span className="text-xs text-[var(--brand-text)] ml-auto flex-shrink-0 tabular-nums">
                   {formatDuration(estimate)}
                 </span>
               ) : null}

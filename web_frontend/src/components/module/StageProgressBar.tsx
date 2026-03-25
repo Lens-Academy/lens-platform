@@ -6,12 +6,9 @@ import type { StageInfo } from "../../types/course";
 import { buildBranchLayout } from "../../utils/branchLayout";
 import { formatDurationMinutes } from "../../utils/duration";
 import { triggerHaptic } from "@/utils/haptics";
+import { StageCircle } from "../StageCircle";
 import { Tooltip } from "../Tooltip";
 import { OptionalBadge } from "../OptionalBadge";
-import {
-  getCircleFillClasses,
-  getRingClasses,
-} from "../../utils/stageProgress";
 import {
   buildBranchPaths,
   computeBranchStates,
@@ -30,101 +27,6 @@ type StageProgressBarProps = {
   compact?: boolean; // Smaller size for header use
   testModeActive?: boolean; // Dims non-test dots and blocks their clicks during test mode
 };
-
-export function StageIcon({
-  type,
-  displayType,
-  small = false,
-}: {
-  type: string;
-  displayType?: string;
-  small?: boolean;
-}) {
-  // Test icon: checkmark
-  if (type === "test") {
-    const size = small ? "w-4 h-4" : "w-5 h-5";
-    return (
-      <svg className={size} fill="currentColor" viewBox="0 0 20 20">
-        <path
-          fillRule="evenodd"
-          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-          clipRule="evenodd"
-        />
-      </svg>
-    );
-  }
-
-  // Lens with displayType — use specific icon
-  if (
-    type === "lens" &&
-    (displayType === "lens-video" || displayType === "lens-mixed")
-  ) {
-    const size = small ? "w-5 h-5" : "w-6 h-6";
-    return (
-      <svg className={size} fill="currentColor" viewBox="0 0 20 20">
-        <path
-          fillRule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-          clipRule="evenodd"
-        />
-      </svg>
-    );
-  }
-
-  // Lens icon: same as article (default for lens, or lens-article)
-  if (type === "lens") {
-    const size = small ? "w-4 h-4" : "w-5 h-5";
-    return (
-      <svg className={size} fill="currentColor" viewBox="0 0 20 20">
-        <path
-          fillRule="evenodd"
-          d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
-          clipRule="evenodd"
-        />
-      </svg>
-    );
-  }
-
-  // Article icon
-  if (type === "article") {
-    const size = small ? "w-4 h-4" : "w-5 h-5";
-    return (
-      <svg className={size} fill="currentColor" viewBox="0 0 20 20">
-        <path
-          fillRule="evenodd"
-          d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
-          clipRule="evenodd"
-        />
-      </svg>
-    );
-  }
-
-  // Video icon
-  if (type === "video") {
-    const size = small ? "w-5 h-5" : "w-6 h-6";
-    return (
-      <svg className={size} fill="currentColor" viewBox="0 0 20 20">
-        <path
-          fillRule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-          clipRule="evenodd"
-        />
-      </svg>
-    );
-  }
-
-  // Chat (default)
-  const size = small ? "w-5 h-5" : "w-6 h-6";
-  return (
-    <svg className={size} fill="currentColor" viewBox="0 0 20 20">
-      <path
-        fillRule="evenodd"
-        d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
 
 function getStageTitle(stage: Stage): string {
   if (stage.title) return stage.title;
@@ -250,6 +152,7 @@ export default function StageProgressBar({
           title: getStageTitle(s),
           duration: null,
           optional: s.optional ?? false,
+          hide: s.hide,
         }),
       ),
     [stages],
@@ -274,18 +177,31 @@ export default function StageProgressBar({
 
   // Static color mappings for Tailwind CSS v4 scanner
   const branchColorMap: Record<string, { text: string; border: string }> = {
-    "bg-lens-gold-400": {
-      text: "text-lens-gold-400",
-      border: "border-lens-gold-400",
+    "bg-lens-orange-400": {
+      text: "text-lens-orange-400",
+      border: "border-lens-orange-400",
     },
     "bg-gray-400": { text: "text-gray-400", border: "border-gray-400" },
     "bg-gray-200": { text: "text-gray-300", border: "border-gray-200" },
   };
 
-  // Find the last trunk item index for dashed trailing connector
-  const lastTrunkLi = (() => {
-    for (let i = layout.length - 1; i >= 0; i--) {
-      if (layout[i].kind === "trunk") return i;
+  // Pre-filter hidden items so index math (isFirst/isLast/trailsIntoBranch) just works
+  const visibleLayout = useMemo(() => {
+    type VEntry = { item: (typeof layout)[number]; li: number; visibleItems?: { index: number; stage: StageInfo }[] };
+    return layout.reduce<VEntry[]>((acc, item, li) => {
+      if (item.kind === "trunk") {
+        if (!stages[item.index]?.hide) acc.push({ item, li });
+      } else {
+        const vis = item.items.filter((bi) => !stages[bi.index]?.hide);
+        if (vis.length > 0) acc.push({ item, li, visibleItems: vis });
+      }
+      return acc;
+    }, []);
+  }, [layout, stages]);
+
+  const lastVisibleTrunkVi = (() => {
+    for (let i = visibleLayout.length - 1; i >= 0; i--) {
+      if (visibleLayout[i].item.kind === "trunk") return i;
     }
     return -1;
   })();
@@ -299,16 +215,6 @@ export default function StageProgressBar({
     const isTestDot = (stage as unknown as { type: string }).type === "test";
     const isDimmed = testModeActive && !isTestDot;
 
-    const fillClasses = getCircleFillClasses(
-      { isCompleted, isViewing, isOptional },
-      { includeHover: !isDimmed, optionalBg: "bg-[var(--brand-bg)]" },
-    );
-    const ringClasses = getRingClasses(isViewing, isCompleted);
-
-    const sizeClasses = compact
-      ? "w-7 h-7"
-      : "min-w-[44px] min-h-[44px] w-11 h-11";
-
     return (
       <Tooltip
         content={getTooltipContent(stage, index, isCompleted, isViewing)}
@@ -318,17 +224,22 @@ export default function StageProgressBar({
           onClick={() => handleDotClick(index)}
           disabled={isDimmed}
           className={`
-            relative rounded-full flex items-center justify-center
+            relative
             transition-all duration-150
             ${compact ? "" : "active:scale-95 shrink-0"}
             ${isViewing ? "z-[3]" : ""}
-            ${sizeClasses}
-            ${fillClasses}
-            ${ringClasses}
             ${isDimmed ? "opacity-30 cursor-default" : ""}
           `}
         >
-          <StageIcon type={stage.type} small={compact || branch} />
+          <StageCircle
+            type={stage.type}
+            isCompleted={isCompleted}
+            isViewing={isViewing}
+            isOptional={isOptional}
+            size={compact || branch ? 28 : 44}
+            optionalBg="bg-[var(--brand-bg)]"
+            includeHover={!isDimmed}
+          />
         </button>
       </Tooltip>
     );
@@ -367,8 +278,10 @@ export default function StageProgressBar({
 
       {/* Stage dots */}
       <div className="flex items-start">
-        {layout.map((item, li) => {
+        {visibleLayout.map((entry, vi) => {
+          const { item, li } = entry;
           if (item.kind === "branch") {
+            const visibleItems = entry.visibleItems!;
             const dotSize = compact ? 28 : 32;
             const drop = compact ? 20 : 24; // distance from trunk center to branch dot center
             const r = Math.min(8, Math.floor(drop / 2));
@@ -381,11 +294,9 @@ export default function StageProgressBar({
             const segmentColors =
               colors.kind === "branch" ? colors.segmentColors : [];
             const hasPrecedingTrunk =
-              li > 0 && layout[li - 1]?.kind === "trunk";
-            const isAfterLastTrunk =
-              hasPrecedingTrunk &&
-              li - 1 === lastTrunkLi &&
-              lastTrunkLi < layout.length - 1;
+              vi > 0 && visibleLayout[vi - 1].item.kind === "trunk";
+            const isLastBranch = vi - 1 === lastVisibleTrunkVi;
+            const isAfterLastTrunk = hasPrecedingTrunk && isLastBranch;
             // Arc color from first segment
             const arcColor = segmentColors[0] ?? "bg-gray-200";
             const arcTextColor =
@@ -399,7 +310,7 @@ export default function StageProgressBar({
             const colorRank: Record<string, number> = {
               "bg-gray-200": 0,
               "bg-gray-400": 1,
-              "bg-lens-gold-400": 2,
+              "bg-lens-orange-400": 2,
             };
             const arcDarker =
               (colorRank[segmentColors[0]] ?? 0) > (colorRank[passColor] ?? 0);
@@ -483,8 +394,8 @@ export default function StageProgressBar({
                     <div style={{ width: arcWidth }} className="shrink-0" />
                   )}
 
-                  {/* Branch dots */}
-                  {item.items.map((branchItem, bi) => (
+                  {/* Branch dots (only visible ones) */}
+                  {visibleItems.map((branchItem, bi) => (
                     <div key={bi} className="flex items-center">
                       {bi > 0 && (
                         <div
@@ -511,8 +422,8 @@ export default function StageProgressBar({
 
           return (
             <div key={li} className="flex items-center">
-              {/* Connector line (except before first) */}
-              {li > 0 && (
+              {/* Connector line (except before first visible) */}
+              {vi > 0 && (
                 <div
                   className={`h-0.5 ${compact ? "w-4" : "w-2 sm:w-4"} ${
                     layoutColors[li].kind === "trunk"
