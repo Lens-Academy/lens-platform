@@ -310,8 +310,9 @@ async def event_generator(
     except Exception as e:
         logger.warning("Failed to build course overview: %s", e)
 
-    # Get MCP manager from app state
+    # Get MCP manager and content index from app state
     mcp_manager = getattr(app.state, "mcp_manager", None) if app else None
+    content_index = getattr(app.state, "content_index", None) if app else None
 
     # Stream response
     assistant_content = ""
@@ -324,6 +325,7 @@ async def event_generator(
             None,
             mcp_manager=mcp_manager,
             course_overview=course_overview,
+            content_index=content_index,
         ):
             if chunk.get("type") == "text":
                 assistant_content += chunk.get("content", "")

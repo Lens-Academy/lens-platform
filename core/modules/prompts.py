@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .flattened_types import ParsedCourse, ModuleRef, MeetingMarker
+from .loader import load_flattened_module
 
 if TYPE_CHECKING:
     from .context import SectionContext
@@ -134,10 +135,12 @@ def build_location_update_message(
 def build_course_overview(
     course: ParsedCourse,
 ) -> str:
-    """Build a structured course overview for the system prompt.
+    """Build a tree-formatted course overview for the system prompt.
 
-    Meetings divide the course into units. Modules are listed within each unit.
-    This is static (no user-specific state) so it can be cached across users.
+    Uses the same path namespace as the search/read tools:
+    CourseTitle/ModuleTitle/LensTitle
+
+    Meetings divide the course into units.
 
     Args:
         course: The parsed course definition
@@ -145,10 +148,10 @@ def build_course_overview(
     Returns:
         Formatted overview string for injection into system prompt
     """
-    from .loader import load_flattened_module
     from . import ModuleNotFoundError
 
     lines = [COURSE_OVERVIEW_INTRO, ""]
+    lines.append(f"{course.title}/")
 
     # Split progression into units (delimited by MeetingMarkers)
     units: list[list[ModuleRef]] = [[]]
@@ -162,29 +165,24 @@ def build_course_overview(
         if not module_refs:
             continue
 
-        lines.append(f"## Unit {unit_num}:")
-        lines.append("")
+        lines.append(f"  --- Unit {unit_num} ---")
 
         for mod_ref in module_refs:
             try:
                 module = load_flattened_module(mod_ref.slug)
             except (ModuleNotFoundError, Exception):
-                lines.append(f"### Module: {mod_ref.slug} (unavailable)")
-                lines.append("")
+                optional = " (optional)" if mod_ref.optional else ""
+                lines.append(f"  {mod_ref.slug}/{optional} (unavailable)")
                 continue
 
             optional = " (optional)" if mod_ref.optional else ""
-            lines.append(f"### Module: {module.title}{optional}")
-            lines.append("Lenses:")
+            lines.append(f"  {module.title}/{optional}")
 
             for section in module.sections:
                 title = section.get("meta", {}).get("title", "Untitled")
                 tldr = section.get("tldr", "")
-
-                lines.append(f"- **{title}**")
+                lines.append(f"    {title}")
                 if tldr:
-                    lines.append(f"  TLDR: {tldr}")
-
-            lines.append("")
+                    lines.append(f"      TLDR: {tldr}")
 
     return "\n".join(lines)

@@ -168,7 +168,10 @@ class TestContentIndexSearch:
         index = ContentIndex(courses, modules)
         results = index.search("mesa-optimization")
         assert len(results) >= 1
-        assert results[0].path == "AGI Safety Fundamentals/Risks from AI/Goal Misgeneralization"
+        assert (
+            results[0].path
+            == "AGI Safety Fundamentals/Risks from AI/Goal Misgeneralization"
+        )
 
     def test_search_returns_snippets(self):
         """Results should include a text snippet with context."""
@@ -184,7 +187,10 @@ class TestContentIndexSearch:
         index = ContentIndex(courses, modules)
         results = index.search("mesa")
         if len(results) > 1:
-            assert results[0].path == "AGI Safety Fundamentals/Risks from AI/Goal Misgeneralization"
+            assert (
+                results[0].path
+                == "AGI Safety Fundamentals/Risks from AI/Goal Misgeneralization"
+            )
 
     def test_search_no_results(self):
         courses, modules = _make_cache_data()
@@ -211,5 +217,7 @@ class TestContentIndexSearch:
         results = index.search("deceptively aligned")
         assert len(results) >= 1
         result = results[0]
-        assert result.path == "AGI Safety Fundamentals/Risks from AI/Deceptive Alignment"
+        assert (
+            result.path == "AGI Safety Fundamentals/Risks from AI/Deceptive Alignment"
+        )
         assert result.segment_type == "video-excerpt"

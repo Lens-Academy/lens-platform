@@ -1,10 +1,19 @@
 # core/modules/tests/test_prompts.py
 """Tests for shared prompt assembly."""
 
+from unittest.mock import patch
+
 from core.modules.context import SectionContext
+from core.modules.flattened_types import (
+    ParsedCourse,
+    ModuleRef,
+    MeetingMarker,
+    FlattenedModule,
+)
 from core.modules.prompts import (
     assemble_chat_prompt,
     build_content_context_message,
+    build_course_overview,
     build_location_update_message,
     DEFAULT_BASE_PROMPT,
 )
@@ -154,8 +163,7 @@ class TestBuildLocationUpdateMessage:
     def test_first_segment(self):
         result = build_location_update_message("Test Section", 0)
         assert (
-            result
-            == '<student-position>Segment 1 of "Test Section"</student-position>'
+            result == '<student-position>Segment 1 of "Test Section"</student-position>'
         )
 
 
@@ -165,3 +173,124 @@ class TestDefaultBasePrompt:
 
     def test_contains_ai_safety(self):
         assert "AI safety" in DEFAULT_BASE_PROMPT
+
+
+class TestBuildCourseOverview:
+    def _make_course_and_modules(self):
+        """Build test course with modules for overview formatting."""
+        course = ParsedCourse(
+            slug="agi-safety",
+            title="AGI Safety Fundamentals",
+            progression=[
+                ModuleRef(slug="risks"),
+                MeetingMarker(name="Week 2"),
+                ModuleRef(slug="alignment"),
+                ModuleRef(slug="governance", optional=True),
+            ],
+        )
+        modules = {
+            "risks": FlattenedModule(
+                slug="risks",
+                title="Risks from AI",
+                content_id=None,
+                sections=[
+                    {
+                        "type": "lens",
+                        "meta": {"title": "Goal Misgeneralization"},
+                        "segments": [],
+                        "tldr": "How AI goals can diverge",
+                    },
+                    {
+                        "type": "lens",
+                        "meta": {"title": "Deceptive Alignment"},
+                        "segments": [],
+                        "tldr": "",
+                    },
+                ],
+            ),
+            "alignment": FlattenedModule(
+                slug="alignment",
+                title="Alignment Approaches",
+                content_id=None,
+                sections=[
+                    {
+                        "type": "lens",
+                        "meta": {"title": "RLHF Overview"},
+                        "segments": [],
+                        "tldr": "Training with human feedback",
+                    },
+                ],
+            ),
+            "governance": FlattenedModule(
+                slug="governance",
+                title="AI Governance",
+                content_id=None,
+                sections=[
+                    {
+                        "type": "lens",
+                        "meta": {"title": "Compute Governance"},
+                        "segments": [],
+                        "tldr": "",
+                    },
+                ],
+            ),
+        }
+        return course, modules
+
+    def test_tree_format_with_course_title(self):
+        """Course overview should start with course title as root."""
+        course, modules = self._make_course_and_modules()
+        with patch(
+            "core.modules.prompts.load_flattened_module",
+            side_effect=lambda slug: modules[slug],
+        ):
+            result = build_course_overview(course)
+        assert "AGI Safety Fundamentals/" in result
+
+    def test_tree_shows_modules_indented(self):
+        course, modules = self._make_course_and_modules()
+        with patch(
+            "core.modules.prompts.load_flattened_module",
+            side_effect=lambda slug: modules[slug],
+        ):
+            result = build_course_overview(course)
+        assert "  Risks from AI/" in result
+        assert "  Alignment Approaches/" in result
+
+    def test_tree_shows_lenses_indented(self):
+        course, modules = self._make_course_and_modules()
+        with patch(
+            "core.modules.prompts.load_flattened_module",
+            side_effect=lambda slug: modules[slug],
+        ):
+            result = build_course_overview(course)
+        assert "    Goal Misgeneralization" in result
+        assert "    RLHF Overview" in result
+
+    def test_tree_includes_tldr(self):
+        course, modules = self._make_course_and_modules()
+        with patch(
+            "core.modules.prompts.load_flattened_module",
+            side_effect=lambda slug: modules[slug],
+        ):
+            result = build_course_overview(course)
+        assert "TLDR: How AI goals can diverge" in result
+
+    def test_tree_shows_optional_marker(self):
+        course, modules = self._make_course_and_modules()
+        with patch(
+            "core.modules.prompts.load_flattened_module",
+            side_effect=lambda slug: modules[slug],
+        ):
+            result = build_course_overview(course)
+        assert "(optional)" in result
+
+    def test_tree_shows_unit_dividers(self):
+        course, modules = self._make_course_and_modules()
+        with patch(
+            "core.modules.prompts.load_flattened_module",
+            side_effect=lambda slug: modules[slug],
+        ):
+            result = build_course_overview(course)
+        assert "Unit 1" in result
+        assert "Unit 2" in result

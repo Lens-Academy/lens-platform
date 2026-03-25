@@ -144,7 +144,8 @@ class ContentIndex:
         idf: dict[str, float] = {}
         for term in terms:
             doc_freq = sum(
-                1 for e in self._entries.values()
+                1
+                for e in self._entries.values()
                 if term in _tokenize(e.searchable_text)
             )
             idf[term] = math.log((n_docs + 1) / (doc_freq + 1)) + 1
@@ -173,12 +174,14 @@ class ContentIndex:
             # Find best matching segment for snippet
             snippet, seg_type = _best_snippet(entry, terms)
 
-            results.append(SearchResult(
-                path=entry.path,
-                snippet=snippet,
-                segment_type=seg_type,
-                score=score,
-            ))
+            results.append(
+                SearchResult(
+                    path=entry.path,
+                    snippet=snippet,
+                    segment_type=seg_type,
+                    score=score,
+                )
+            )
 
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:max_results]

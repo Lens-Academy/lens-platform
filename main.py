@@ -231,6 +231,20 @@ async def lifespan(app: FastAPI):
     else:
         print("Note: STAMPY_MCP_URL not set, alignment search tool disabled")
 
+    # Build content index for course search/read tools
+    from core.modules.tools.content_index import ContentIndex
+    from core.content import get_cache
+
+    try:
+        cache = get_cache()
+        app.state.content_index = ContentIndex(cache.courses, cache.flattened_modules)
+        print(
+            f"✓ Content index: {len(app.state.content_index.list_paths())} lenses indexed"
+        )
+    except Exception as e:
+        print(f"Warning: Failed to build content index: {e}")
+        app.state.content_index = None
+
     # Check database connection (runs in uvicorn's event loop - no issues)
     if not skip_db:
         print("Checking database connection...")

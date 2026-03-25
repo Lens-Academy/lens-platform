@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.content import refresh_cache, get_cache, CacheNotInitializedError
 from core.content.github_fetcher import get_content_branch
+from core.modules.tools.content_index import ContentIndex
 from core.content.validation_broadcaster import broadcaster
 from core.modules.flattened_types import ModuleRef
 from core.content.webhook_handler import (
@@ -31,6 +32,22 @@ from core.content.webhook_handler import (
 )
 
 router = APIRouter(prefix="/api/content", tags=["content"])
+
+
+def _rebuild_content_index(request: Request) -> None:
+    """Rebuild the content index after a cache refresh."""
+    try:
+        cache = get_cache()
+        request.app.state.content_index = ContentIndex(
+            cache.courses, cache.flattened_modules
+        )
+        logger.info(
+            "Content index rebuilt: %d lenses",
+            len(request.app.state.content_index.list_paths()),
+        )
+    except Exception as e:
+        logger.warning("Failed to rebuild content index: %s", e)
+
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +103,7 @@ async def github_webhook(
     # Handle the update with fetch locking
     try:
         result = await handle_content_update(commit_sha)
+        _rebuild_content_index(request)
         logger.info(f"Webhook processed: {result}")
         return result
     except Exception as e:
@@ -94,7 +112,7 @@ async def github_webhook(
 
 
 @router.post("/refresh")
-async def manual_refresh():
+async def manual_refresh(request: Request):
     """
     Manually refresh the content cache (full refresh).
 
@@ -105,6 +123,7 @@ async def manual_refresh():
 
     try:
         await refresh_cache()
+        _rebuild_content_index(request)
         logger.info("Content cache refreshed successfully via manual request")
         return {"status": "ok", "message": "Cache refreshed (full)"}
     except Exception as e:
@@ -113,7 +132,7 @@ async def manual_refresh():
 
 
 @router.post("/refresh-incremental")
-async def manual_incremental_refresh(commit_sha: str | None = None):
+async def manual_incremental_refresh(request: Request, commit_sha: str | None = None):
     """
     Manually trigger an incremental refresh (dev only).
 
@@ -138,6 +157,7 @@ async def manual_incremental_refresh(commit_sha: str | None = None):
 
     try:
         result = await handle_content_update(commit_sha)
+        _rebuild_content_index(request)
         logger.info(f"Incremental refresh completed: {result}")
         return result
     except Exception as e:

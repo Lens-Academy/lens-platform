@@ -98,8 +98,7 @@ def _cache():
 class TestCourseOverview:
     def test_includes_module_titles_and_intro(self, simple_course):
         result = build_course_overview(simple_course)
-        assert "Module A" in result
-        assert "Lenses:" in result
+        assert "Module A/" in result
 
     def test_includes_section_tldrs(self, simple_course):
         result = build_course_overview(simple_course)
@@ -113,9 +112,8 @@ class TestCourseOverview:
 
     def test_meeting_creates_unit_boundary(self, course_with_meeting):
         result = build_course_overview(course_with_meeting)
-        assert "## Unit 1:" in result
-        assert "## Unit 2:" in result
-        assert "---" not in result
+        assert "--- Unit 1 ---" in result
+        assert "--- Unit 2 ---" in result
 
     def test_handles_missing_module(self):
         course = ParsedCourse(

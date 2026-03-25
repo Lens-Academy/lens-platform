@@ -139,6 +139,7 @@ async def send_module_message(
     provider: str | None = None,
     course_overview: str | None = None,
     mcp_manager=None,
+    content_index=None,
 ) -> AsyncIterator[dict]:
     """
     Send messages to an LLM and stream the response, with multi-round tool execution.
@@ -162,7 +163,7 @@ async def send_module_message(
     # Get available tools if mcp_manager provided
     tools = None
     if mcp_manager is not None:
-        tools = await get_tools(mcp_manager)
+        tools = await get_tools(mcp_manager, content_index=content_index)
 
     system = _build_system_prompt(current_stage, current_content, course_overview)
 
@@ -253,7 +254,7 @@ async def send_module_message(
                 "state": "calling",
                 "arguments": args,
             }
-            result = await execute_tool(mcp_manager, tc)
+            result = await execute_tool(mcp_manager, tc, content_index=content_index)
             is_error = result.startswith("Error:") or result.startswith(
                 "Tool timed out"
             )
