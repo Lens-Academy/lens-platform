@@ -4,6 +4,7 @@ const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY;
 const POSTHOG_HOST =
   import.meta.env.VITE_POSTHOG_HOST || "https://eu.posthog.com";
 const CONSENT_KEY = "analytics-consent";
+const MARKETING_CONSENT_KEY = "marketing-consent";
 
 import { API_URL } from "./config";
 
@@ -250,6 +251,30 @@ export function trackEnrollmentStepCompleted(stepName: string): void {
 export function trackEnrollmentCompleted(): void {
   if (!shouldTrack()) return;
   posthog.capture("enrollment_completed");
+}
+
+// ============ Marketing Consent ============
+
+export function hasMarketingConsent(): boolean {
+  return localStorage.getItem(MARKETING_CONSENT_KEY) === "accepted";
+}
+
+export function optInMarketing(): void {
+  localStorage.setItem(MARKETING_CONSENT_KEY, "accepted");
+  // Set a cookie the server can read for the /ref route
+  document.cookie = `marketing-consent=accepted; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax`;
+}
+
+export function optOutMarketing(): void {
+  localStorage.setItem(MARKETING_CONSENT_KEY, "declined");
+  document.cookie = "marketing-consent=declined; path=/; max-age=0";
+  // Also clear any ref cookie
+  document.cookie = "ref=; path=/; max-age=0";
+}
+
+export function hasMarketingConsentChoice(): boolean {
+  const consent = localStorage.getItem(MARKETING_CONSENT_KEY);
+  return consent === "accepted" || consent === "declined";
 }
 
 export { posthog };
