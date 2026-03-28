@@ -40,7 +40,7 @@ export interface AuthState {
 }
 
 export interface UseAuthReturn extends AuthState {
-  login: () => void;
+  login: (refSlug?: string) => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -166,7 +166,7 @@ export function useAuth(): UseAuthReturn {
     fetchUser();
   }, [fetchUser]);
 
-  const login = useCallback(() => {
+  const login = useCallback((refSlug?: string) => {
     // Redirect to Discord OAuth, with current path as the return URL
     const next = encodeURIComponent(window.location.pathname);
     const origin = encodeURIComponent(window.location.origin);
@@ -174,7 +174,10 @@ export function useAuth(): UseAuthReturn {
     const tokenParam = anonymousToken
       ? `&anonymous_token=${encodeURIComponent(anonymousToken)}`
       : "";
-    window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}`;
+    const refParam = refSlug
+      ? `&ref=${encodeURIComponent(refSlug)}`
+      : "";
+    window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}${refParam}`;
   }, []);
 
   const logout = useCallback(async () => {
