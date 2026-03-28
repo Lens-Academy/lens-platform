@@ -157,6 +157,7 @@ from web_api.routes.roleplay import router as roleplay_router
 from web_api.routes.roleplay_ws import router as roleplay_ws_router
 from web_api.routes.guest_visits import router as guest_visits_router
 from web_api.routes.subscribe import router as subscribe_router
+from web_api.routes.ref import router as ref_router
 
 # Track bot task for cleanup
 _bot_task: asyncio.Task | None = None
@@ -421,6 +422,7 @@ app.include_router(progress_router)
 app.include_router(questions_router)
 app.include_router(guest_visits_router)
 app.include_router(subscribe_router)
+app.include_router(ref_router)
 
 
 # New paths for static files
