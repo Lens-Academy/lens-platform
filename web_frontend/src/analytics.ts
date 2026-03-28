@@ -106,6 +106,25 @@ export async function syncConsentToServer(
 }
 
 /**
+ * Sync marketing consent choice to database (fire-and-forget).
+ * localStorage remains source of truth; DB enables cross-device sync and server-side queries.
+ */
+export async function syncMarketingConsentToServer(
+  choice: "accepted" | "declined",
+): Promise<void> {
+  try {
+    await fetch(`${API_URL}/api/users/me`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cookies_marketing_consent: choice }),
+    });
+  } catch {
+    // Fire-and-forget — localStorage is source of truth
+  }
+}
+
+/**
  * Opt in to tracking (user accepted consent)
  */
 export function optIn(): void {
@@ -261,12 +280,14 @@ export function hasMarketingConsent(): boolean {
 
 export function optInMarketing(): void {
   localStorage.setItem(MARKETING_CONSENT_KEY, "accepted");
+  syncMarketingConsentToServer("accepted");
   // Set a cookie the server can read for the /ref route
   document.cookie = `marketing-consent=accepted; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax`;
 }
 
 export function optOutMarketing(): void {
   localStorage.setItem(MARKETING_CONSENT_KEY, "declined");
+  syncMarketingConsentToServer("declined");
   document.cookie = "marketing-consent=declined; path=/; max-age=0";
   // Also clear any ref cookie
   document.cookie = "ref=; path=/; max-age=0";

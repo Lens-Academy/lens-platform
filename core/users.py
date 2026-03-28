@@ -70,6 +70,7 @@ async def update_user_profile(
     availability_local: str | None = None,
     tos_accepted: bool | None = None,
     cookies_analytics_consent: str | None = None,
+    cookies_marketing_consent: str | None = None,
 ) -> dict[str, Any] | None:
     """
     Update a user's profile with email verification handling.
@@ -85,6 +86,7 @@ async def update_user_profile(
         availability_local: JSON string of day -> list of time slots (in user's local timezone)
         tos_accepted: If True, sets tos_accepted_at to current time (only if not already set)
         cookies_analytics_consent: 'accepted' or 'declined' — sets consent and timestamp
+        cookies_marketing_consent: 'accepted' or 'declined' — sets consent and timestamp
 
     Returns:
         Updated user profile dict or None if user not found
@@ -107,6 +109,11 @@ async def update_user_profile(
             raise ValueError(f"Invalid consent value: {cookies_analytics_consent}")
         update_data["cookies_analytics_consent"] = cookies_analytics_consent
         update_data["cookies_analytics_consent_at"] = datetime.now(timezone.utc)
+    if cookies_marketing_consent is not None:
+        if cookies_marketing_consent not in ("accepted", "declined"):
+            raise ValueError(f"Invalid consent value: {cookies_marketing_consent}")
+        update_data["cookies_marketing_consent"] = cookies_marketing_consent
+        update_data["cookies_marketing_consent_at"] = datetime.now(timezone.utc)
 
     async with get_transaction() as conn:
         # If email is being updated, check if it changed and clear verification

@@ -6,6 +6,7 @@ import {
   resetUser,
   hasConsent,
   syncConsentToServer,
+  syncMarketingConsentToServer,
 } from "../analytics";
 import {
   identifySentryUser,
@@ -25,6 +26,8 @@ export interface User {
   tos_accepted_at: string | null;
   cookies_analytics_consent: string | null;
   cookies_analytics_consent_at: string | null;
+  cookies_marketing_consent: string | null;
+  cookies_marketing_consent_at: string | null;
 }
 
 export interface AuthState {
@@ -131,6 +134,17 @@ export function useAuth(): UseAuthReturn {
 
           if (localChoice && localChoice !== dbChoice) {
             syncConsentToServer(localChoice);
+          }
+
+          // Same for marketing consent
+          const marketingChoice = localStorage.getItem("marketing-consent") as
+            | "accepted"
+            | "declined"
+            | null;
+          const dbMarketingChoice = user.cookies_marketing_consent;
+
+          if (marketingChoice && marketingChoice !== dbMarketingChoice) {
+            syncMarketingConsentToServer(marketingChoice);
           }
         }
       } else {
