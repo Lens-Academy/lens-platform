@@ -115,7 +115,7 @@ async def get_module_progress_endpoint(
     if user_jwt:
         # Authenticated user - look up user_id from discord_id
         discord_id = user_jwt["sub"]
-        user = await get_or_create_user(discord_id)
+        user, _ = await get_or_create_user(discord_id)
         user_id = user["user_id"]
 
     anonymous_token = None

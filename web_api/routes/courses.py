@@ -114,7 +114,7 @@ async def get_course_progress(
 
     if user_jwt:
         discord_id = user_jwt["sub"]
-        user = await get_or_create_user(discord_id)
+        user, _ = await get_or_create_user(discord_id)
         user_id = user["user_id"]
     elif x_anonymous_token:
         try:

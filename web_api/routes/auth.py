@@ -26,6 +26,7 @@ from fastapi.responses import RedirectResponse
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core import get_or_create_user, get_user_profile
+from core.referrals import resolve_attribution
 from core.database import get_connection, get_transaction
 from core.modules.progress import claim_progress_records
 from core.modules.chat_sessions import claim_chat_sessions
@@ -144,6 +145,7 @@ async def discord_oauth_start(
     next: str = "/",
     origin: str | None = None,
     anonymous_token: str | None = None,
+    ref: str | None = None,
 ):
     """
     Start Discord OAuth flow.
@@ -179,6 +181,7 @@ async def discord_oauth_start(
         "next": _validate_next_path(next),
         "origin": validated_origin,
         "anonymous_token": anonymous_token,
+        "ref": ref,
         "created_at": time.time(),
     }
 
@@ -197,6 +200,7 @@ async def discord_oauth_start(
 
 @router.get("/discord/callback")
 async def discord_oauth_callback(
+    request: Request,
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
@@ -269,9 +273,17 @@ async def discord_oauth_callback(
     nickname = discord_user.get("global_name")
 
     # Create or update user in database
-    user = await get_or_create_user(
+    user, is_new = await get_or_create_user(
         discord_id, discord_username, discord_avatar, email, email_verified, nickname
     )
+
+    # Resolve referral attribution
+    ref_slug = state_data.get("ref")
+    if not ref_slug:
+        ref_slug = request.cookies.get("ref")
+    if ref_slug:
+        async with get_transaction() as conn:
+            await resolve_attribution(conn, user["user_id"], ref_slug)
 
     # Claim anonymous sessions if token provided
     anonymous_token_str = state_data.get("anonymous_token")
@@ -299,6 +311,10 @@ async def discord_oauth_callback(
     response = RedirectResponse(url=f"{origin}{next_url}")
     set_session_cookie(response, token)
     await _issue_refresh_token(response, user["user_id"])
+
+    # Clear referral cookie after attribution is resolved
+    if ref_slug and request.cookies.get("ref"):
+        response.delete_cookie("ref", path="/")
 
     return response
 
