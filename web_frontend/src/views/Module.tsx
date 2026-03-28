@@ -234,6 +234,9 @@ export default function Module({
   useEffect(() => {
     if (!moduleId) return;
 
+    // Sync courseId state with prop (useState only uses initial value)
+    setCourseId(courseIdProp);
+
     async function load() {
       setLoadingModule(true);
       setLoadError(null);
