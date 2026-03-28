@@ -146,6 +146,9 @@ export function useAuth(): UseAuthReturn {
           if (marketingChoice && marketingChoice !== dbMarketingChoice) {
             syncMarketingConsentToServer(marketingChoice);
           }
+
+          // Clear referral ref from sessionStorage — attribution is done
+          sessionStorage.removeItem("ref");
         }
       } else {
         setState({
@@ -180,6 +183,23 @@ export function useAuth(): UseAuthReturn {
     fetchUser();
   }, [fetchUser]);
 
+  // Persist ?ref= param across page navigations within this session.
+  // When a user lands on /?ref=slug and navigates to /enroll, the URL
+  // param is lost — sessionStorage preserves it until they sign up.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const urlRef = params.get("ref");
+    if (urlRef) {
+      sessionStorage.setItem("ref", urlRef);
+      // Clean the URL — ref is now in sessionStorage, no need to show it
+      params.delete("ref");
+      const clean = params.toString();
+      const newUrl = window.location.pathname + (clean ? `?${clean}` : "");
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, []);
+
   const login = useCallback((refSlug?: string) => {
     // Redirect to Discord OAuth, with current path as the return URL
     const next = encodeURIComponent(window.location.pathname);
@@ -188,9 +208,13 @@ export function useAuth(): UseAuthReturn {
     const tokenParam = anonymousToken
       ? `&anonymous_token=${encodeURIComponent(anonymousToken)}`
       : "";
-    const refParam = refSlug
-      ? `&ref=${encodeURIComponent(refSlug)}`
-      : "";
+    // Auto-detect ref: explicit param > URL > sessionStorage
+    const ref =
+      refSlug ||
+      new URLSearchParams(window.location.search).get("ref") ||
+      sessionStorage.getItem("ref") ||
+      undefined;
+    const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : "";
     window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}${refParam}`;
   }, []);
 

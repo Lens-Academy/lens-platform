@@ -200,7 +200,7 @@ def test_get_course_progress_includes_meeting_dates():
         patch(
             "web_api.routes.courses.get_or_create_user",
             new_callable=AsyncMock,
-            return_value={"user_id": 42},
+            return_value=({"user_id": 42}, False),
         ),
         patch(
             "web_api.routes.courses.get_meeting_dates_for_user",

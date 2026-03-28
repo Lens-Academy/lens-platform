@@ -1,14 +1,16 @@
 """Tests for core/referrals.py — slug generation and referral link CRUD."""
 
+from datetime import date
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import insert, select
 
 from core.referrals import (
     MAX_CAMPAIGN_LINKS_PER_USER,
-    SLUG_PATTERN,
     create_campaign_link,
     create_default_link,
+    get_all_referrer_stats,
     get_link_by_slug,
     get_link_stats,
     get_user_links,
@@ -19,7 +21,14 @@ from core.referrals import (
     update_link,
     validate_slug,
 )
-from core.tables import referral_links, users
+from core.tables import (
+    cohorts,
+    groups,
+    groups_users,
+    referral_links,
+    signups,
+    users,
+)
 
 
 # ── Fixtures ──────────────────────────────────────────────────
@@ -208,8 +217,8 @@ class TestLogClick:
 class TestGetLinkBySlug:
     @pytest.mark.asyncio
     async def test_get_link_by_slug(self, db_conn, test_user):
-        await create_default_link(db_conn, test_user, "Test User")
-        link = await get_link_by_slug(db_conn, "test-user")
+        created = await create_default_link(db_conn, test_user, "Test User")
+        link = await get_link_by_slug(db_conn, created["slug"])
         assert link is not None
         assert link["user_id"] == test_user
 
@@ -234,9 +243,7 @@ class TestResolveAttribution:
         referred_id = result.first()[0]
         await resolve_attribution(db_conn, referred_id, link["slug"])
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(
-                users.c.user_id == referred_id
-            )
+            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
         )
         assert row.scalar() == link["link_id"]
 
@@ -250,9 +257,7 @@ class TestResolveAttribution:
         referred_id = result.first()[0]
         await resolve_attribution(db_conn, referred_id, "nonexistent-slug")
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(
-                users.c.user_id == referred_id
-            )
+            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
         )
         assert row.scalar() is None
 
@@ -264,7 +269,7 @@ class TestGetLinkStats:
         await log_click(db_conn, link["link_id"])
         await log_click(db_conn, link["link_id"])
         await log_click(db_conn, link["link_id"])
-        result = await db_conn.execute(
+        await db_conn.execute(
             insert(users)
             .values(
                 discord_id="ref-user-1",
@@ -276,3 +281,306 @@ class TestGetLinkStats:
         stats = await get_link_stats(db_conn, link["link_id"])
         assert stats["clicks"] == 3
         assert stats["signups"] == 1
+
+
+# ── Additional attribution tests ─────────────────────────────
+
+
+class TestResolveAttributionIdempotent:
+    @pytest.mark.asyncio
+    async def test_second_attribution_does_not_overwrite(self, db_conn, test_user):
+        """Once a user has attribution, a second call with a different slug does NOT overwrite."""
+        # Create two referrers with links
+        referrer1 = test_user
+        link1 = await create_default_link(db_conn, referrer1, "Referrer One")
+
+        referrer2_row = await db_conn.execute(
+            insert(users)
+            .values(discord_id="referrer2-discord", discord_username="referrer2")
+            .returning(users.c.user_id)
+        )
+        referrer2 = referrer2_row.first()[0]
+        link2 = await create_default_link(db_conn, referrer2, "Referrer Two")
+
+        # Create the referred user
+        referred_row = await db_conn.execute(
+            insert(users)
+            .values(discord_id="referred-idempotent", discord_username="referred")
+            .returning(users.c.user_id)
+        )
+        referred_id = referred_row.first()[0]
+
+        # First attribution succeeds
+        await resolve_attribution(db_conn, referred_id, link1["slug"])
+        row = await db_conn.execute(
+            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
+        )
+        assert row.scalar() == link1["link_id"]
+
+        # Second attribution with different slug does NOT overwrite
+        await resolve_attribution(db_conn, referred_id, link2["slug"])
+        row = await db_conn.execute(
+            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
+        )
+        assert row.scalar() == link1["link_id"]
+
+
+class TestResolveAttributionSelfReferral:
+    @pytest.mark.asyncio
+    async def test_user_cannot_be_attributed_to_own_link(self, db_conn, test_user):
+        """A user cannot be attributed to their own referral link."""
+        link = await create_default_link(db_conn, test_user, "Self Referrer")
+        await resolve_attribution(db_conn, test_user, link["slug"])
+        row = await db_conn.execute(
+            select(users.c.referred_by_link_id).where(users.c.user_id == test_user)
+        )
+        assert row.scalar() is None
+
+
+# ── Full funnel stats tests ──────────────────────────────────
+
+
+@pytest_asyncio.fixture
+async def full_funnel_setup(db_conn, test_user):
+    """Set up a full funnel: referrer -> link -> referred users -> cohort -> group."""
+    link = await create_default_link(db_conn, test_user, "Funnel Referrer")
+
+    # Create a cohort
+    cohort_row = await db_conn.execute(
+        insert(cohorts)
+        .values(
+            cohort_name="Test Cohort",
+            course_slug="default",
+            cohort_start_date=date(2025, 1, 1),
+            duration_days=30,
+            number_of_group_meetings=4,
+        )
+        .returning(cohorts.c.cohort_id)
+    )
+    cohort_id = cohort_row.first()[0]
+
+    # Create a group in that cohort
+    group_row = await db_conn.execute(
+        insert(groups)
+        .values(group_name="Test Group", cohort_id=cohort_id)
+        .returning(groups.c.group_id)
+    )
+    group_id = group_row.first()[0]
+
+    # Create referred users
+    referred_ids = []
+    for i in range(3):
+        row = await db_conn.execute(
+            insert(users)
+            .values(
+                discord_id=f"funnel-ref-{i}",
+                discord_username=f"funnelref{i}",
+                referred_by_link_id=link["link_id"],
+            )
+            .returning(users.c.user_id)
+        )
+        referred_ids.append(row.first()[0])
+
+    return {
+        "link": link,
+        "cohort_id": cohort_id,
+        "group_id": group_id,
+        "referred_ids": referred_ids,
+    }
+
+
+class TestGetLinkStatsFullFunnel:
+    @pytest.mark.asyncio
+    async def test_enrolled_and_completed_counts(
+        self, db_conn, test_user, full_funnel_setup
+    ):
+        setup = full_funnel_setup
+        link = setup["link"]
+
+        # Log some clicks
+        for _ in range(5):
+            await log_click(db_conn, link["link_id"])
+
+        # Enroll 2 of 3 referred users (insert into signups)
+        for uid in setup["referred_ids"][:2]:
+            await db_conn.execute(
+                insert(signups).values(
+                    user_id=uid,
+                    cohort_id=setup["cohort_id"],
+                    role="participant",
+                )
+            )
+
+        # Complete 1 of 2 enrolled users (insert into groups_users with status=completed)
+        await db_conn.execute(
+            insert(groups_users).values(
+                user_id=setup["referred_ids"][0],
+                group_id=setup["group_id"],
+                role="participant",
+                status="completed",
+            )
+        )
+
+        stats = await get_link_stats(db_conn, link["link_id"])
+        assert stats["clicks"] == 5
+        assert stats["signups"] == 3  # 3 referred users
+        assert stats["enrolled"] == 2  # 2 with signups
+        assert stats["completed"] == 1  # 1 with completed group status
+
+
+# ── All referrer stats tests ─────────────────────────────────
+
+
+class TestGetAllReferrerStats:
+    @pytest.mark.asyncio
+    async def test_basic_aggregation(self, db_conn, test_user):
+        """One referrer with clicks and signups."""
+        link = await create_default_link(db_conn, test_user, "Stats Referrer")
+        await log_click(db_conn, link["link_id"])
+        await log_click(db_conn, link["link_id"])
+
+        # Create a referred user
+        await db_conn.execute(
+            insert(users).values(
+                discord_id="stats-ref-1",
+                discord_username="statsref1",
+                referred_by_link_id=link["link_id"],
+            )
+        )
+
+        stats = await get_all_referrer_stats(db_conn)
+        # Find our referrer in results
+        referrer = next(s for s in stats if s["user_id"] == test_user)
+        assert referrer["clicks"] == 2
+        assert referrer["signups"] == 1
+        assert referrer["links"] == 1
+
+    @pytest.mark.asyncio
+    async def test_multiple_referrers_sorted_by_clicks(self, db_conn):
+        """Multiple referrers sorted by clicks descending."""
+        # Create two referrers
+        row1 = await db_conn.execute(
+            insert(users)
+            .values(discord_id="multi-ref-1", discord_username="multiref1")
+            .returning(users.c.user_id)
+        )
+        user1 = row1.first()[0]
+        link1 = await create_default_link(db_conn, user1, "Multi Ref One")
+
+        row2 = await db_conn.execute(
+            insert(users)
+            .values(discord_id="multi-ref-2", discord_username="multiref2")
+            .returning(users.c.user_id)
+        )
+        user2 = row2.first()[0]
+        link2 = await create_default_link(db_conn, user2, "Multi Ref Two")
+
+        # User2 gets more clicks
+        await log_click(db_conn, link1["link_id"])
+        await log_click(db_conn, link2["link_id"])
+        await log_click(db_conn, link2["link_id"])
+        await log_click(db_conn, link2["link_id"])
+
+        stats = await get_all_referrer_stats(db_conn)
+        # Filter to just our test users
+        our_stats = [s for s in stats if s["user_id"] in (user1, user2)]
+        assert len(our_stats) == 2
+        # user2 should be first (more clicks)
+        assert our_stats[0]["user_id"] == user2
+        assert our_stats[0]["clicks"] == 3
+        assert our_stats[1]["user_id"] == user1
+        assert our_stats[1]["clicks"] == 1
+
+    @pytest.mark.asyncio
+    async def test_deleted_links_clicks_excluded(self, db_conn):
+        """Deleted links' clicks should be excluded from stats."""
+        row = await db_conn.execute(
+            insert(users)
+            .values(discord_id="del-ref-1", discord_username="delref1")
+            .returning(users.c.user_id)
+        )
+        uid = row.first()[0]
+        default_link = await create_default_link(db_conn, uid, "Del Ref")
+        campaign = await create_campaign_link(db_conn, uid, "Temp Campaign")
+
+        # Log clicks on both links
+        await log_click(db_conn, default_link["link_id"])
+        await log_click(db_conn, campaign["link_id"])
+        await log_click(db_conn, campaign["link_id"])
+
+        # Delete the campaign link
+        await soft_delete_link(db_conn, campaign["link_id"], uid)
+
+        stats = await get_all_referrer_stats(db_conn)
+        referrer = next(s for s in stats if s["user_id"] == uid)
+        # Only the default link's click should count (1 link remaining, 1 click)
+        assert referrer["links"] == 1
+        assert referrer["clicks"] == 1
+
+
+# ── Soft delete authorization tests ──────────────────────────
+
+
+class TestSoftDeleteLinkAuthorization:
+    @pytest.mark.asyncio
+    async def test_delete_link_owned_by_different_user(self, db_conn, test_user):
+        """Deleting a link owned by a different user raises ValueError."""
+        # Create a campaign link owned by test_user
+        await create_default_link(db_conn, test_user, "Owner")
+        campaign = await create_campaign_link(db_conn, test_user, "Their Link")
+
+        # Create a different user
+        other_row = await db_conn.execute(
+            insert(users)
+            .values(discord_id="other-user-delete", discord_username="otheruser")
+            .returning(users.c.user_id)
+        )
+        other_id = other_row.first()[0]
+
+        # Other user tries to delete test_user's link
+        with pytest.raises(ValueError, match="not found"):
+            await soft_delete_link(db_conn, campaign["link_id"], other_id)
+
+
+# ── Campaign link with explicit slug tests ───────────────────
+
+
+class TestCreateCampaignLinkWithExplicitSlug:
+    @pytest.mark.asyncio
+    async def test_explicit_slug_is_used(self, db_conn, test_user):
+        await create_default_link(db_conn, test_user, "Kate Smith")
+        link = await create_campaign_link(
+            db_conn, test_user, "My Campaign", slug="my-custom-slug"
+        )
+        assert link["slug"] == "my-custom-slug"
+
+    @pytest.mark.asyncio
+    async def test_explicit_slug_collision_gets_suffix(self, db_conn, test_user):
+        await create_default_link(db_conn, test_user, "Kate Smith")
+        # Create first with explicit slug
+        link1 = await create_campaign_link(
+            db_conn, test_user, "Campaign A", slug="shared-slug"
+        )
+        assert link1["slug"] == "shared-slug"
+
+        # Create second with same explicit slug - should get suffix
+        link2 = await create_campaign_link(
+            db_conn, test_user, "Campaign B", slug="shared-slug"
+        )
+        assert link2["slug"].startswith("shared-slug-")
+        assert link2["slug"] != "shared-slug"
+
+
+# ── Slugify edge cases ───────────────────────────────────────
+
+
+class TestSlugifyEdgeCases:
+    def test_empty_string_input(self):
+        result = slugify_name("")
+        assert len(result) >= 3
+        assert result == "ref"
+
+    def test_only_special_chars_input(self):
+        result = slugify_name("!!!@@@###")
+        assert len(result) >= 3
+        assert result == "ref"

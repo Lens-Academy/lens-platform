@@ -346,7 +346,7 @@ class TestAuthenticatedProgress:
             ) as mock_complete,
         ):
             mock_auth.return_value = {"sub": "123456789"}
-            mock_user.return_value = {"user_id": 42, "discord_id": "123456789"}
+            mock_user.return_value = ({"user_id": 42, "discord_id": "123456789"}, False)
             mock_complete.return_value = {
                 "id": 1,
                 "completed_at": datetime.now(timezone.utc),

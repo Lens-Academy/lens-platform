@@ -27,7 +27,7 @@ export async function getMyLinks(): Promise<{ links: ReferralLink[] }> {
 export async function createLink(
   name: string,
   slug?: string,
-): Promise<ReferralLink> {
+): Promise<{ link: ReferralLink }> {
   const res = await fetchWithRefresh(`${API_URL}/api/referrals/links`, {
     method: "POST",
     credentials: "include",
@@ -44,7 +44,7 @@ export async function createLink(
 export async function updateLink(
   linkId: number,
   data: { name?: string; slug?: string },
-): Promise<ReferralLink> {
+): Promise<{ link: ReferralLink }> {
   const res = await fetchWithRefresh(
     `${API_URL}/api/referrals/links/${linkId}`,
     {

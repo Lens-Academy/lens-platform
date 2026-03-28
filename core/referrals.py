@@ -63,9 +63,7 @@ async def _ensure_unique_slug(conn: AsyncConnection, slug: str) -> str:
     counter = 0
     while True:
         row = await conn.execute(
-            select(referral_links.c.link_id).where(
-                referral_links.c.slug == candidate
-            )
+            select(referral_links.c.link_id).where(referral_links.c.slug == candidate)
         )
         if row.first() is None:
             return candidate
@@ -138,9 +136,7 @@ async def create_campaign_link(
     )
     count = count_row.scalar()
     if count >= MAX_CAMPAIGN_LINKS_PER_USER:
-        raise ValueError(
-            f"Campaign link limit reached ({MAX_CAMPAIGN_LINKS_PER_USER})"
-        )
+        raise ValueError(f"Campaign link limit reached ({MAX_CAMPAIGN_LINKS_PER_USER})")
 
     if slug is None:
         default = await _get_default_link(conn, user_id)
@@ -177,9 +173,7 @@ async def get_user_links(conn: AsyncConnection, user_id: int) -> list[dict]:
     return [_row_to_dict(r) for r in rows.fetchall()]
 
 
-async def soft_delete_link(
-    conn: AsyncConnection, link_id: int, user_id: int
-) -> None:
+async def soft_delete_link(conn: AsyncConnection, link_id: int, user_id: int) -> None:
     """Soft-delete a referral link. Refuses to delete the default link."""
     row = await conn.execute(
         select(referral_links).where(
@@ -280,6 +274,10 @@ async def resolve_attribution(
     """
     link = await get_link_by_slug(conn, ref_slug)
     if link is None:
+        return
+
+    # Don't self-attribute
+    if link["user_id"] == user_id:
         return
 
     # Only set if not already attributed
@@ -402,8 +400,7 @@ async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
         .select_from(
             referral_links.join(
                 referred_users,
-                referral_links.c.link_id
-                == referred_users.c.referred_by_link_id,
+                referral_links.c.link_id == referred_users.c.referred_by_link_id,
             ).join(signups, signups.c.user_id == referred_users.c.user_id)
         )
         .where(referral_links.c.deleted_at.is_(None))
@@ -416,15 +413,12 @@ async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
     completed_counts = (
         select(
             referral_links.c.user_id,
-            func.count(func.distinct(groups_users.c.user_id)).label(
-                "completed"
-            ),
+            func.count(func.distinct(groups_users.c.user_id)).label("completed"),
         )
         .select_from(
             referral_links.join(
                 referred_users2,
-                referral_links.c.link_id
-                == referred_users2.c.referred_by_link_id,
+                referral_links.c.link_id == referred_users2.c.referred_by_link_id,
             ).join(
                 groups_users,
                 groups_users.c.user_id == referred_users2.c.user_id,
@@ -454,12 +448,8 @@ async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
         )
         .select_from(
             users.join(link_owners, users.c.user_id == link_owners.c.user_id)
-            .outerjoin(
-                click_counts, users.c.user_id == click_counts.c.user_id
-            )
-            .outerjoin(
-                signup_counts, users.c.user_id == signup_counts.c.user_id
-            )
+            .outerjoin(click_counts, users.c.user_id == click_counts.c.user_id)
+            .outerjoin(signup_counts, users.c.user_id == signup_counts.c.user_id)
             .outerjoin(
                 enrolled_counts,
                 users.c.user_id == enrolled_counts.c.user_id,

@@ -8,7 +8,6 @@ import { DISCORD_INVITE_URL } from "../config";
 const NAV_LINKS = [
   { label: "Community", href: DISCORD_INVITE_URL, external: true as const },
   { label: "About", href: "/about", external: false as const },
-  { label: "Referrals", href: "/referrals", external: false as const },
 ];
 
 const CTA_HREF = "/course/default/module/introduction";

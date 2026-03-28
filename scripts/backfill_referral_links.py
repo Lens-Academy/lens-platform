@@ -9,17 +9,23 @@ load_dotenv(".env.local")
 from core.database import get_transaction, get_connection
 from core.tables import users, referral_links
 from core.referrals import create_default_link
-from sqlalchemy import select, and_
+from sqlalchemy import select
 
 
 async def backfill():
     async with get_connection() as conn:
         # Find users without a default referral link
         result = await conn.execute(
-            select(users.c.user_id, users.c.nickname, users.c.discord_username, users.c.discord_id)
-            .where(
+            select(
+                users.c.user_id,
+                users.c.nickname,
+                users.c.discord_username,
+                users.c.discord_id,
+            ).where(
                 ~users.c.user_id.in_(
-                    select(referral_links.c.user_id).where(referral_links.c.is_default.is_(True))
+                    select(referral_links.c.user_id).where(
+                        referral_links.c.is_default.is_(True)
+                    )
                 )
             )
         )

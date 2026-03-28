@@ -282,15 +282,22 @@ export function optInMarketing(): void {
   localStorage.setItem(MARKETING_CONSENT_KEY, "accepted");
   syncMarketingConsentToServer("accepted");
   // Set a cookie the server can read for the /ref route
-  document.cookie = `marketing-consent=accepted; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax`;
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `marketing-consent=accepted; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax${secure}`;
+  // If there's a pending referral in sessionStorage, promote it to a cookie
+  // so attribution survives across sessions (e.g., user leaves and comes back later)
+  const pendingRef = sessionStorage.getItem("ref");
+  if (pendingRef) {
+    document.cookie = `ref=${encodeURIComponent(pendingRef)}; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax${secure}`;
+  }
 }
 
 export function optOutMarketing(): void {
   localStorage.setItem(MARKETING_CONSENT_KEY, "declined");
   syncMarketingConsentToServer("declined");
   document.cookie = "marketing-consent=declined; path=/; max-age=0";
-  // Also clear any ref cookie
-  document.cookie = "ref=; path=/; max-age=0";
+  // Note: the ref cookie is HttpOnly (server-set) so it cannot be cleared from JS.
+  // It will be ignored on next OAuth callback since marketing consent is declined.
 }
 
 export function hasMarketingConsentChoice(): boolean {

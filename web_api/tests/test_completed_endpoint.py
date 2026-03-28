@@ -37,7 +37,7 @@ def test_returns_completed_ids_for_authenticated_user():
         ) as mock_get,
     ):
         mock_auth.return_value = {"sub": "discord-123"}
-        mock_user.return_value = {"user_id": 42}
+        mock_user.return_value = ({"user_id": 42}, False)
         mock_get.return_value = mock_ids
 
         resp = client.get("/api/progress/completed")

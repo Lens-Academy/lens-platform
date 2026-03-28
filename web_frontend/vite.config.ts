@@ -60,6 +60,11 @@ export default defineConfig(({ mode }) => {
             process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
           changeOrigin: true,
         },
+        "/ref": {
+          target:
+            process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
+          changeOrigin: true,
+        },
         "/ws": {
           target:
             process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
