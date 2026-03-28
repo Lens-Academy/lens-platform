@@ -1,4 +1,4 @@
-"""Referral link business logic — slug generation and link CRUD."""
+"""Referral link business logic — slug generation, link CRUD, click tracking, attribution."""
 
 import re
 import unicodedata
@@ -6,7 +6,7 @@ import unicodedata
 from sqlalchemy import and_, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from .tables import referral_links
+from .tables import referral_clicks, referral_links, users
 
 # ── Constants ─────────────────────────────────────────────────
 
@@ -246,3 +246,231 @@ async def update_link(
         select(referral_links).where(referral_links.c.link_id == link_id)
     )
     return _row_to_dict(row.first())
+
+
+# ── Click tracking & attribution ─────────────────────────────
+
+
+async def log_click(conn: AsyncConnection, link_id: int) -> None:
+    """Record a click on a referral link."""
+    await conn.execute(insert(referral_clicks).values(link_id=link_id))
+
+
+async def get_link_by_slug(conn: AsyncConnection, slug: str) -> dict | None:
+    """Look up an active (non-deleted) referral link by slug."""
+    row = await conn.execute(
+        select(referral_links).where(
+            and_(
+                referral_links.c.slug == slug,
+                referral_links.c.deleted_at.is_(None),
+            )
+        )
+    )
+    result = row.first()
+    return _row_to_dict(result) if result else None
+
+
+async def resolve_attribution(
+    conn: AsyncConnection, user_id: int, ref_slug: str
+) -> None:
+    """Set referred_by_link_id on a user.
+
+    Silently does nothing if the slug is invalid or the user already has
+    attribution set.
+    """
+    link = await get_link_by_slug(conn, ref_slug)
+    if link is None:
+        return
+
+    # Only set if not already attributed
+    row = await conn.execute(
+        select(users.c.referred_by_link_id).where(users.c.user_id == user_id)
+    )
+    current = row.scalar()
+    if current is not None:
+        return
+
+    await conn.execute(
+        update(users)
+        .where(users.c.user_id == user_id)
+        .values(referred_by_link_id=link["link_id"])
+    )
+
+
+# ── Funnel stats ─────────────────────────────────────────────
+
+
+async def get_link_stats(conn: AsyncConnection, link_id: int) -> dict:
+    """Return click, signup, enrolled, and completed counts for a single link."""
+    from .tables import groups_users, signups
+
+    clicks = await conn.scalar(
+        select(func.count())
+        .select_from(referral_clicks)
+        .where(referral_clicks.c.link_id == link_id)
+    )
+    signup_count = await conn.scalar(
+        select(func.count())
+        .select_from(users)
+        .where(users.c.referred_by_link_id == link_id)
+    )
+    enrolled_count = await conn.scalar(
+        select(func.count(func.distinct(signups.c.user_id)))
+        .select_from(signups.join(users, signups.c.user_id == users.c.user_id))
+        .where(users.c.referred_by_link_id == link_id)
+    )
+    completed_count = await conn.scalar(
+        select(func.count(func.distinct(groups_users.c.user_id)))
+        .select_from(
+            groups_users.join(users, groups_users.c.user_id == users.c.user_id)
+        )
+        .where(
+            and_(
+                users.c.referred_by_link_id == link_id,
+                groups_users.c.status == "completed",
+            )
+        )
+    )
+    return {
+        "clicks": clicks or 0,
+        "signups": signup_count or 0,
+        "enrolled": enrolled_count or 0,
+        "completed": completed_count or 0,
+    }
+
+
+async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
+    """Aggregated stats per referrer for admin view.
+
+    Returns list of dicts with user_id, nickname, discord_username, links,
+    clicks, signups, enrolled, completed. Sorted by clicks descending.
+    """
+    from .tables import groups_users, signups
+
+    # Get all users who have at least one referral link
+    link_owners = (
+        select(
+            referral_links.c.user_id,
+            func.count(func.distinct(referral_links.c.link_id)).label("links"),
+        )
+        .where(referral_links.c.deleted_at.is_(None))
+        .group_by(referral_links.c.user_id)
+        .subquery("link_owners")
+    )
+
+    # Click counts per user (via their links)
+    click_counts = (
+        select(
+            referral_links.c.user_id,
+            func.count(referral_clicks.c.click_id).label("clicks"),
+        )
+        .select_from(
+            referral_links.outerjoin(
+                referral_clicks,
+                referral_links.c.link_id == referral_clicks.c.link_id,
+            )
+        )
+        .where(referral_links.c.deleted_at.is_(None))
+        .group_by(referral_links.c.user_id)
+        .subquery("click_counts")
+    )
+
+    # Signup counts per referrer
+    signup_counts = (
+        select(
+            referral_links.c.user_id,
+            func.count(users.c.user_id).label("signups"),
+        )
+        .select_from(
+            referral_links.join(
+                users,
+                referral_links.c.link_id == users.c.referred_by_link_id,
+            )
+        )
+        .where(referral_links.c.deleted_at.is_(None))
+        .group_by(referral_links.c.user_id)
+        .subquery("signup_counts")
+    )
+
+    # Enrolled counts per referrer (referred users who have signups)
+    referred_users = users.alias("referred")
+    enrolled_counts = (
+        select(
+            referral_links.c.user_id,
+            func.count(func.distinct(signups.c.user_id)).label("enrolled"),
+        )
+        .select_from(
+            referral_links.join(
+                referred_users,
+                referral_links.c.link_id
+                == referred_users.c.referred_by_link_id,
+            ).join(signups, signups.c.user_id == referred_users.c.user_id)
+        )
+        .where(referral_links.c.deleted_at.is_(None))
+        .group_by(referral_links.c.user_id)
+        .subquery("enrolled_counts")
+    )
+
+    # Completed counts per referrer
+    referred_users2 = users.alias("referred2")
+    completed_counts = (
+        select(
+            referral_links.c.user_id,
+            func.count(func.distinct(groups_users.c.user_id)).label(
+                "completed"
+            ),
+        )
+        .select_from(
+            referral_links.join(
+                referred_users2,
+                referral_links.c.link_id
+                == referred_users2.c.referred_by_link_id,
+            ).join(
+                groups_users,
+                groups_users.c.user_id == referred_users2.c.user_id,
+            )
+        )
+        .where(
+            and_(
+                referral_links.c.deleted_at.is_(None),
+                groups_users.c.status == "completed",
+            )
+        )
+        .group_by(referral_links.c.user_id)
+        .subquery("completed_counts")
+    )
+
+    # Main query: join everything together
+    query = (
+        select(
+            users.c.user_id,
+            users.c.nickname,
+            users.c.discord_username,
+            link_owners.c.links,
+            func.coalesce(click_counts.c.clicks, 0).label("clicks"),
+            func.coalesce(signup_counts.c.signups, 0).label("signups"),
+            func.coalesce(enrolled_counts.c.enrolled, 0).label("enrolled"),
+            func.coalesce(completed_counts.c.completed, 0).label("completed"),
+        )
+        .select_from(
+            users.join(link_owners, users.c.user_id == link_owners.c.user_id)
+            .outerjoin(
+                click_counts, users.c.user_id == click_counts.c.user_id
+            )
+            .outerjoin(
+                signup_counts, users.c.user_id == signup_counts.c.user_id
+            )
+            .outerjoin(
+                enrolled_counts,
+                users.c.user_id == enrolled_counts.c.user_id,
+            )
+            .outerjoin(
+                completed_counts,
+                users.c.user_id == completed_counts.c.user_id,
+            )
+        )
+        .order_by(func.coalesce(click_counts.c.clicks, 0).desc())
+    )
+
+    rows = await conn.execute(query)
+    return [dict(r._mapping) for r in rows.fetchall()]

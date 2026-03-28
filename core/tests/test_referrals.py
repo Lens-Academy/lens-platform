@@ -2,14 +2,18 @@
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 
 from core.referrals import (
     MAX_CAMPAIGN_LINKS_PER_USER,
     SLUG_PATTERN,
     create_campaign_link,
     create_default_link,
+    get_link_by_slug,
+    get_link_stats,
     get_user_links,
+    log_click,
+    resolve_attribution,
     slugify_name,
     soft_delete_link,
     update_link,
@@ -186,3 +190,89 @@ class TestUpdateLink:
             await update_link(
                 db_conn, campaign["link_id"], test_user, slug=default["slug"]
             )
+
+
+# ── Click tracking & attribution tests ───────────────────────
+
+
+class TestLogClick:
+    @pytest.mark.asyncio
+    async def test_log_click(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Test User")
+        await log_click(db_conn, link["link_id"])
+        await log_click(db_conn, link["link_id"])
+        stats = await get_link_stats(db_conn, link["link_id"])
+        assert stats["clicks"] == 2
+
+
+class TestGetLinkBySlug:
+    @pytest.mark.asyncio
+    async def test_get_link_by_slug(self, db_conn, test_user):
+        await create_default_link(db_conn, test_user, "Test User")
+        link = await get_link_by_slug(db_conn, "test-user")
+        assert link is not None
+        assert link["user_id"] == test_user
+
+    @pytest.mark.asyncio
+    async def test_get_link_by_slug_deleted(self, db_conn, test_user):
+        await create_default_link(db_conn, test_user, "Test User")
+        campaign = await create_campaign_link(db_conn, test_user, "Temp")
+        await soft_delete_link(db_conn, campaign["link_id"], test_user)
+        result = await get_link_by_slug(db_conn, campaign["slug"])
+        assert result is None
+
+
+class TestResolveAttribution:
+    @pytest.mark.asyncio
+    async def test_resolve_attribution(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Referrer")
+        result = await db_conn.execute(
+            insert(users)
+            .values(discord_id="referred-456", discord_username="referred")
+            .returning(users.c.user_id)
+        )
+        referred_id = result.first()[0]
+        await resolve_attribution(db_conn, referred_id, link["slug"])
+        row = await db_conn.execute(
+            select(users.c.referred_by_link_id).where(
+                users.c.user_id == referred_id
+            )
+        )
+        assert row.scalar() == link["link_id"]
+
+    @pytest.mark.asyncio
+    async def test_resolve_attribution_invalid_slug(self, db_conn, test_user):
+        result = await db_conn.execute(
+            insert(users)
+            .values(discord_id="referred-789", discord_username="referred2")
+            .returning(users.c.user_id)
+        )
+        referred_id = result.first()[0]
+        await resolve_attribution(db_conn, referred_id, "nonexistent-slug")
+        row = await db_conn.execute(
+            select(users.c.referred_by_link_id).where(
+                users.c.user_id == referred_id
+            )
+        )
+        assert row.scalar() is None
+
+
+class TestGetLinkStats:
+    @pytest.mark.asyncio
+    async def test_get_link_stats_full_funnel(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Referrer")
+        await log_click(db_conn, link["link_id"])
+        await log_click(db_conn, link["link_id"])
+        await log_click(db_conn, link["link_id"])
+        result = await db_conn.execute(
+            insert(users)
+            .values(
+                discord_id="ref-user-1",
+                discord_username="refuser1",
+                referred_by_link_id=link["link_id"],
+            )
+            .returning(users.c.user_id)
+        )
+        stats = await get_link_stats(db_conn, link["link_id"])
+        assert stats["clicks"] == 3
+        assert stats["signups"] == 1
