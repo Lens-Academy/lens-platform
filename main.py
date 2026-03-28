@@ -246,6 +246,17 @@ async def lifespan(app: FastAPI):
         print(f"Warning: Failed to build content index: {e}")
         app.state.content_index = None
 
+    # Load private reference content (copyrighted books etc.) into search index
+    if app.state.content_index is not None:
+        from core.content.private_sources import fetch_private_sources
+
+        try:
+            private_files = await fetch_private_sources()
+            count = app.state.content_index.add_reference_content(private_files)
+            print(f"✓ Private sources: {count} reference entries indexed")
+        except Exception as e:
+            print(f"Warning: Failed to load private sources: {e}")
+
     # Check database connection (runs in uvicorn's event loop - no issues)
     if not skip_db:
         print("Checking database connection...")
