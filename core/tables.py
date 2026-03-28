@@ -64,9 +64,20 @@ users = Table(
     Column("tos_accepted_at", TIMESTAMP(timezone=True)),
     Column("cookies_analytics_consent", Text),  # 'accepted' | 'declined' | NULL
     Column("cookies_analytics_consent_at", TIMESTAMP(timezone=True)),
+    Column("cookies_marketing_consent", Text),  # 'accepted' | 'declined' | NULL
+    Column("cookies_marketing_consent_at", TIMESTAMP(timezone=True)),
+    Column(
+        "referred_by_link_id",
+        Integer,
+        ForeignKey("referral_links.link_id", ondelete="SET NULL", use_alter=True),
+    ),
     CheckConstraint(
         "cookies_analytics_consent IN ('accepted', 'declined')",
         name="valid_cookies_analytics_consent",
+    ),
+    CheckConstraint(
+        "cookies_marketing_consent IN ('accepted', 'declined')",
+        name="valid_cookies_marketing_consent",
     ),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now()),
@@ -572,4 +583,49 @@ roleplay_assessments = Table(
     Column("prompt_version", Text, nullable=True),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Index("idx_roleplay_assessments_session_id", "session_id"),
+)
+
+
+# =====================================================
+# REFERRAL TRACKING
+# =====================================================
+
+referral_links = Table(
+    "referral_links",
+    metadata,
+    Column("link_id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "user_id",
+        Integer,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("name", Text, nullable=False),
+    Column("slug", Text, nullable=False, unique=True),
+    Column("is_default", Boolean, nullable=False, server_default="false"),
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column("deleted_at", TIMESTAMP(timezone=True)),
+    Index("idx_referral_links_user_id", "user_id"),
+)
+
+# Enforce one default link per user at DB level
+Index(
+    "idx_referral_links_one_default_per_user",
+    referral_links.c.user_id,
+    unique=True,
+    postgresql_where=referral_links.c.is_default.is_(True),
+)
+
+referral_clicks = Table(
+    "referral_clicks",
+    metadata,
+    Column("click_id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "link_id",
+        Integer,
+        ForeignKey("referral_links.link_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("clicked_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Index("idx_referral_clicks_link_id", "link_id"),
 )
