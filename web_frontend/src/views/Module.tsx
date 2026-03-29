@@ -572,17 +572,17 @@ export default function Module({
       const tldr = section.tldr;
       const duration = computeSectionDuration(section) || null;
 
-      // Test sections use lens stage type
+      // Test sections
       if (section.type === "test") {
         return {
-          type: "lens",
+          type: "test",
           source: "",
           from: null,
           to: null,
           title: section.meta?.title || "Test",
           tldr,
           duration,
-        } as unknown as Stage;
+        };
       }
 
       // Use displayType for stage type derivation
