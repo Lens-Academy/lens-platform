@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 
 const BASE_URL =
-  typeof window !== "undefined" ? window.location.origin : "https://lensacademy.ai";
+  typeof window !== "undefined"
+    ? window.location.origin
+    : "https://lensacademy.ai";
 
 function linkUrl(slug: string) {
   return `${BASE_URL}/ref/${slug}`;
@@ -50,7 +52,11 @@ function CopyIcon({ text }: { text: string }) {
       className="p-1 rounded hover:bg-[var(--brand-bg-muted,#f3f4f6)] text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] transition-colors"
       title="Copy link"
     >
-      {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+      {copied ? (
+        <Check className="w-4 h-4 text-green-600" />
+      ) : (
+        <Copy className="w-4 h-4" />
+      )}
     </button>
   );
 }
@@ -111,7 +117,11 @@ function LinkCard({
   const [error, setError] = useState<string | null>(null);
 
   const url = linkUrl(link.slug);
-  const hasActivity = link.clicks > 0 || link.signups > 0 || link.enrolled > 0 || link.completed > 0;
+  const hasActivity =
+    link.clicks > 0 ||
+    link.signups > 0 ||
+    link.enrolled > 0 ||
+    link.completed > 0;
 
   const handleSaveSlug = async () => {
     if (!slugValue.trim() || slugValue === link.slug) {
@@ -159,7 +169,11 @@ function LinkCard({
           className="p-1 rounded hover:bg-[var(--brand-bg-muted,#f3f4f6)] text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] transition-colors"
           title={expanded ? "Collapse" : "Details"}
         >
-          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          {expanded ? (
+            <ChevronUp className="w-4 h-4" />
+          ) : (
+            <ChevronDown className="w-4 h-4" />
+          )}
         </button>
       </div>
 
@@ -175,8 +189,12 @@ function LinkCard({
               { label: "Completed", value: link.completed },
             ].map((stat) => (
               <div key={stat.label}>
-                <div className="text-xl font-semibold tabular-nums">{stat.value}</div>
-                <div className="text-xs text-[var(--brand-text-muted)]">{stat.label}</div>
+                <div className="text-xl font-semibold tabular-nums">
+                  {stat.value}
+                </div>
+                <div className="text-xs text-[var(--brand-text-muted)]">
+                  {stat.label}
+                </div>
               </div>
             ))}
           </div>
@@ -185,7 +203,9 @@ function LinkCard({
           <div className="flex flex-wrap items-center gap-2">
             {editingSlug ? (
               <>
-                <span className="text-sm text-[var(--brand-text-muted)]">Slug:</span>
+                <span className="text-sm text-[var(--brand-text-muted)]">
+                  Slug:
+                </span>
                 <input
                   type="text"
                   value={slugValue}
@@ -194,7 +214,10 @@ function LinkCard({
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSaveSlug();
-                    if (e.key === "Escape") { setEditingSlug(false); setSlugValue(link.slug); }
+                    if (e.key === "Escape") {
+                      setEditingSlug(false);
+                      setSlugValue(link.slug);
+                    }
                   }}
                   disabled={saving}
                 />
@@ -206,7 +229,11 @@ function LinkCard({
                   {saving ? "..." : "Save"}
                 </button>
                 <button
-                  onClick={() => { setEditingSlug(false); setSlugValue(link.slug); setError(null); }}
+                  onClick={() => {
+                    setEditingSlug(false);
+                    setSlugValue(link.slug);
+                    setError(null);
+                  }}
                   className="px-2 py-1 text-xs font-medium rounded border border-[var(--brand-border)] text-[var(--brand-text-muted)]"
                 >
                   Cancel

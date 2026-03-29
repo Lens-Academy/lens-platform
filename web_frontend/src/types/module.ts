@@ -220,4 +220,9 @@ export type TestStage = {
   duration?: number | null;
 };
 
-export type Stage = ArticleStage | VideoStage | ChatStage | LensStage | TestStage;
+export type Stage =
+  | ArticleStage
+  | VideoStage
+  | ChatStage
+  | LensStage
+  | TestStage;

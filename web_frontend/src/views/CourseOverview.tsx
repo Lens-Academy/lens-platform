@@ -96,7 +96,9 @@ export default function CourseOverview({
     const slug = stage.title.trim()
       ? generateHeadingId(stage.title)
       : `section-${index + 1}`;
-    navigate(`/course/${resolvedCourseId}/module/${selectedModule.slug}#${slug}`);
+    navigate(
+      `/course/${resolvedCourseId}/module/${selectedModule.slug}#${slug}`,
+    );
   };
 
   // Compute completedStages and currentSectionIndex for ModuleOverview

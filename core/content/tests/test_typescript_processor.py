@@ -49,9 +49,11 @@ async def test_process_content_via_subprocess(fixture_files, expected_output):
 
     result = await process_content_typescript(fixture_files)
 
-    # Compare modules
-    assert len(result["modules"]) == len(expected_output["modules"])
-    for actual_mod, expected_mod in zip(result["modules"], expected_output["modules"]):
+    # Compare modules (sort by slug for deterministic comparison)
+    actual_mods = sorted(result["modules"], key=lambda m: m["slug"])
+    expected_mods = sorted(expected_output["modules"], key=lambda m: m["slug"])
+    assert len(actual_mods) == len(expected_mods)
+    for actual_mod, expected_mod in zip(actual_mods, expected_mods):
         assert actual_mod["slug"] == expected_mod["slug"]
         assert actual_mod["title"] == expected_mod["title"]
         assert actual_mod["sections"] == expected_mod["sections"]
