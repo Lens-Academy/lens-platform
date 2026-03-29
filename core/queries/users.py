@@ -7,6 +7,7 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from ..enums import GroupUserStatus
+from ..referrals import create_default_link
 from ..tables import cohorts, facilitators, groups, groups_users, signups, users
 
 
@@ -121,6 +122,9 @@ async def get_or_create_user(
     # Set nickname for new user if provided
     if nickname:
         new_user = await update_user(conn, discord_id, nickname=nickname)
+    # Create default referral link in the same transaction
+    display_name = nickname or discord_username or discord_id
+    await create_default_link(conn, new_user["user_id"], display_name)
     return new_user, True
 
 

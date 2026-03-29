@@ -4,6 +4,7 @@ const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY;
 const POSTHOG_HOST =
   import.meta.env.VITE_POSTHOG_HOST || "https://eu.posthog.com";
 const CONSENT_KEY = "analytics-consent";
+const MARKETING_CONSENT_KEY = "marketing-consent";
 
 import { API_URL } from "./config";
 
@@ -98,6 +99,25 @@ export async function syncConsentToServer(
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cookies_analytics_consent: choice }),
+    });
+  } catch {
+    // Fire-and-forget — localStorage is source of truth
+  }
+}
+
+/**
+ * Sync marketing consent choice to database (fire-and-forget).
+ * localStorage remains source of truth; DB enables cross-device sync and server-side queries.
+ */
+export async function syncMarketingConsentToServer(
+  choice: "accepted" | "declined",
+): Promise<void> {
+  try {
+    await fetch(`${API_URL}/api/users/me`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cookies_marketing_consent: choice }),
     });
   } catch {
     // Fire-and-forget — localStorage is source of truth
@@ -250,6 +270,39 @@ export function trackEnrollmentStepCompleted(stepName: string): void {
 export function trackEnrollmentCompleted(): void {
   if (!shouldTrack()) return;
   posthog.capture("enrollment_completed");
+}
+
+// ============ Marketing Consent ============
+
+export function hasMarketingConsent(): boolean {
+  return localStorage.getItem(MARKETING_CONSENT_KEY) === "accepted";
+}
+
+export function optInMarketing(): void {
+  localStorage.setItem(MARKETING_CONSENT_KEY, "accepted");
+  syncMarketingConsentToServer("accepted");
+  // Set a cookie the server can read for the /ref route
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `marketing-consent=accepted; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax${secure}`;
+  // If there's a pending referral in sessionStorage, promote it to a cookie
+  // so attribution survives across sessions (e.g., user leaves and comes back later)
+  const pendingRef = sessionStorage.getItem("ref");
+  if (pendingRef) {
+    document.cookie = `ref=${encodeURIComponent(pendingRef)}; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax${secure}`;
+  }
+}
+
+export function optOutMarketing(): void {
+  localStorage.setItem(MARKETING_CONSENT_KEY, "declined");
+  syncMarketingConsentToServer("declined");
+  document.cookie = "marketing-consent=declined; path=/; max-age=0";
+  // Note: the ref cookie is HttpOnly (server-set) so it cannot be cleared from JS.
+  // It will be ignored on next OAuth callback since marketing consent is declined.
+}
+
+export function hasMarketingConsentChoice(): boolean {
+  const consent = localStorage.getItem(MARKETING_CONSENT_KEY);
+  return consent === "accepted" || consent === "declined";
 }
 
 export { posthog };

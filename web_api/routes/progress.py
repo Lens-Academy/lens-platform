@@ -37,7 +37,7 @@ async def get_completed_endpoint(request: Request):
         raise HTTPException(401, "Authentication required")
 
     discord_id = user_jwt["sub"]
-    user = await get_or_create_user(discord_id)
+    user, _ = await get_or_create_user(discord_id)
 
     async with get_connection() as conn:
         completed = await get_completed_content_ids(conn, user["user_id"])
@@ -106,7 +106,7 @@ async def get_user_or_token(
     if user_jwt:
         # Authenticated user - look up user_id from discord_id
         discord_id = user_jwt["sub"]
-        user = await get_or_create_user(discord_id)
+        user, _ = await get_or_create_user(discord_id)
         return user["user_id"], None
 
     # Check header first, then query param (for sendBeacon)

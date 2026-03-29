@@ -1,7 +1,7 @@
 const COURSES = [
   {
     label: "Navigating Superintelligence",
-    href: "/course/default",
+    href: "/course/navigating-asi",
   },
   {
     label: "Book Club: If Anyone Builds It, Everyone Dies",

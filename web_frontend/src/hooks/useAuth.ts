@@ -6,6 +6,7 @@ import {
   resetUser,
   hasConsent,
   syncConsentToServer,
+  syncMarketingConsentToServer,
 } from "../analytics";
 import {
   identifySentryUser,
@@ -25,6 +26,8 @@ export interface User {
   tos_accepted_at: string | null;
   cookies_analytics_consent: string | null;
   cookies_analytics_consent_at: string | null;
+  cookies_marketing_consent: string | null;
+  cookies_marketing_consent_at: string | null;
 }
 
 export interface AuthState {
@@ -40,7 +43,7 @@ export interface AuthState {
 }
 
 export interface UseAuthReturn extends AuthState {
-  login: () => void;
+  login: (refSlug?: string) => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -132,6 +135,20 @@ export function useAuth(): UseAuthReturn {
           if (localChoice && localChoice !== dbChoice) {
             syncConsentToServer(localChoice);
           }
+
+          // Same for marketing consent
+          const marketingChoice = localStorage.getItem("marketing-consent") as
+            | "accepted"
+            | "declined"
+            | null;
+          const dbMarketingChoice = user.cookies_marketing_consent;
+
+          if (marketingChoice && marketingChoice !== dbMarketingChoice) {
+            syncMarketingConsentToServer(marketingChoice);
+          }
+
+          // Clear referral ref from sessionStorage — attribution is done
+          sessionStorage.removeItem("ref");
         }
       } else {
         setState({
@@ -166,7 +183,24 @@ export function useAuth(): UseAuthReturn {
     fetchUser();
   }, [fetchUser]);
 
-  const login = useCallback(() => {
+  // Persist ?ref= param across page navigations within this session.
+  // When a user lands on /?ref=slug and navigates to /enroll, the URL
+  // param is lost — sessionStorage preserves it until they sign up.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const urlRef = params.get("ref");
+    if (urlRef) {
+      sessionStorage.setItem("ref", urlRef);
+      // Clean the URL — ref is now in sessionStorage, no need to show it
+      params.delete("ref");
+      const clean = params.toString();
+      const newUrl = window.location.pathname + (clean ? `?${clean}` : "");
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, []);
+
+  const login = useCallback((refSlug?: string) => {
     // Redirect to Discord OAuth, with current path as the return URL
     const next = encodeURIComponent(window.location.pathname);
     const origin = encodeURIComponent(window.location.origin);
@@ -174,7 +208,14 @@ export function useAuth(): UseAuthReturn {
     const tokenParam = anonymousToken
       ? `&anonymous_token=${encodeURIComponent(anonymousToken)}`
       : "";
-    window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}`;
+    // Auto-detect ref: explicit param > URL > sessionStorage
+    const ref =
+      refSlug ||
+      new URLSearchParams(window.location.search).get("ref") ||
+      sessionStorage.getItem("ref") ||
+      undefined;
+    const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : "";
+    window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}${refParam}`;
   }, []);
 
   const logout = useCallback(async () => {

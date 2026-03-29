@@ -4,8 +4,6 @@ Subscribe routes — public email capture and Substack subscription.
 Endpoints:
 - POST /api/subscribe - Register interest (email capture) and/or subscribe to Substack
 - GET /api/subscribe/unsubscribe - Unsubscribe from notifications
-- GET /api/subscribe/pending-substack - Internal: get emails pending Substack sync
-- POST /api/subscribe/mark-synced - Internal: mark email as synced to Substack
 
 The POST endpoint supports cross-origin requests (Access-Control-Allow-Origin: *)
 to allow embedding in sandboxed iframes (e.g., LessWrong custom widgets).
@@ -20,9 +18,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.responses import Response
 
 from core.prospects import (
-    get_pending_substack_emails,
     is_valid_email,
-    mark_substack_synced,
     register_prospect,
     unsubscribe_prospect,
     verify_unsubscribe_token,
@@ -53,12 +49,6 @@ def _check_rate_limit(ip: str) -> bool:
         return False
     _rate_limit[ip].append(now)
     return True
-
-
-def _is_localhost(request: Request) -> bool:
-    """Check if request comes from localhost."""
-    host = request.client.host if request.client else ""
-    return host in ("127.0.0.1", "::1", "localhost")
 
 
 def _extract_course_fields(body: dict) -> dict:
@@ -181,28 +171,6 @@ async def subscribe(request: Request) -> Response:
     )
 
     return JSONResponse({"ok": True}, headers=_CORS_HEADERS)
-
-
-@router.get("/pending-substack")
-async def get_pending_substack(request: Request):
-    """Get emails pending Substack sync. Internal use only (localhost)."""
-    if not _is_localhost(request):
-        raise HTTPException(status_code=403, detail="Forbidden")
-    emails = await get_pending_substack_emails()
-    return {"emails": emails}
-
-
-@router.post("/mark-synced")
-async def mark_synced(request: Request):
-    """Mark an email as synced to Substack. Internal use only (localhost)."""
-    if not _is_localhost(request):
-        raise HTTPException(status_code=403, detail="Forbidden")
-    body = await request.json()
-    email = body.get("email", "")
-    if not email:
-        raise HTTPException(status_code=400, detail="email required")
-    await mark_substack_synced(email)
-    return {"ok": True}
 
 
 @router.get("/unsubscribe", response_class=HTMLResponse)

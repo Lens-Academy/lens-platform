@@ -11,7 +11,7 @@ async def get_or_create_user(
     email: str | None = None,
     email_verified: bool = False,
     nickname: str | None = None,
-) -> dict:
+) -> tuple[dict, bool]:
     """
     Get or create a user by Discord ID.
 
@@ -27,10 +27,10 @@ async def get_or_create_user(
         nickname: Optional nickname to pre-fill (only set if user has no nickname)
 
     Returns:
-        The user record from the database
+        Tuple of (user record, is_new) where is_new is True if user was just created
     """
     async with get_transaction() as conn:
-        user, _is_new = await _get_or_create_user(
+        user, is_new = await _get_or_create_user(
             conn,
             discord_id,
             discord_username,
@@ -40,4 +40,4 @@ async def get_or_create_user(
             nickname,
         )
 
-    return user
+    return user, is_new

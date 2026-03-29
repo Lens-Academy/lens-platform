@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { detectUserCountry, requiresCookieConsent } from "../geolocation";
-import { optIn, optOut, hasConsentChoice } from "../analytics";
+import {
+  optIn,
+  optOut,
+  hasConsentChoice,
+  optInMarketing,
+  optOutMarketing,
+  hasMarketingConsentChoice,
+} from "../analytics";
 import { initSentry } from "../errorTracking";
 
 export default function CookieBanner() {
@@ -9,38 +16,34 @@ export default function CookieBanner() {
 
   useEffect(() => {
     async function checkConsent() {
-      // Already made a choice
-      if (hasConsentChoice()) {
+      if (hasConsentChoice() && hasMarketingConsentChoice()) {
         setIsLoading(false);
         return;
       }
-
-      // Detect country for GDPR check
       const country = await detectUserCountry();
       const needsConsent = requiresCookieConsent(country);
-
       if (needsConsent) {
         setShowBanner(true);
       } else {
-        // Auto-consent for non-GDPR regions
         optIn();
+        optInMarketing();
         initSentry();
       }
-
       setIsLoading(false);
     }
-
     checkConsent();
   }, []);
 
-  const handleAccept = () => {
+  const handleAcceptAll = () => {
     optIn();
+    optInMarketing();
     initSentry();
     setShowBanner(false);
   };
 
-  const handleDecline = () => {
+  const handleDeclineAll = () => {
     optOut();
+    optOutMarketing();
     setShowBanner(false);
   };
 
@@ -51,11 +54,8 @@ export default function CookieBanner() {
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex-1">
           <p className="text-sm text-slate-300">
-            We care about AI Safety. We use analytics to understand how to
-            improve this course platform.{" "}
-            <strong className="text-white">
-              No marketing, no data selling.
-            </strong>{" "}
+            We use cookies to understand how you use this platform (analytics)
+            and how you found us (marketing).{" "}
             <a
               href="/privacy"
               className="text-blue-400 hover:text-blue-300 underline"
@@ -65,18 +65,17 @@ export default function CookieBanner() {
           </p>
         </div>
         <div className="flex gap-3 flex-shrink-0">
-          {/* Equal buttons - GDPR compliant (no dark patterns) */}
           <button
-            onClick={handleDecline}
+            onClick={handleDeclineAll}
             className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors"
           >
-            Decline Analytics
+            Decline All
           </button>
           <button
-            onClick={handleAccept}
+            onClick={handleAcceptAll}
             className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors"
           >
-            Accept Analytics
+            Accept All
           </button>
         </div>
       </div>

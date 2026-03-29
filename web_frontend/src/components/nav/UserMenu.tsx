@@ -75,6 +75,13 @@ export function UserMenu({
           >
             Meetings
           </a>
+          <a
+            href="/referrals"
+            className="text-sm text-[var(--brand-text-muted)] hover:text-[var(--brand-text)]"
+            onClick={close}
+          >
+            Referrals
+          </a>
           <button
             onClick={() => {
               logout();

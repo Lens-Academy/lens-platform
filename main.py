@@ -157,6 +157,9 @@ from web_api.routes.roleplay import router as roleplay_router
 from web_api.routes.roleplay_ws import router as roleplay_ws_router
 from web_api.routes.guest_visits import router as guest_visits_router
 from web_api.routes.subscribe import router as subscribe_router
+from web_api.routes.ref import router as ref_router
+from web_api.routes.referrals import router as referrals_router
+from web_api.routes.referrals import admin_router as referrals_admin_router
 
 # Track bot task for cleanup
 _bot_task: asyncio.Task | None = None
@@ -245,6 +248,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Warning: Failed to build content index: {e}")
         app.state.content_index = None
+
+    # Load private reference content (copyrighted books etc.) into search index
+    if app.state.content_index is not None:
+        from core.content.private_sources import fetch_private_sources
+
+        try:
+            private_files = await fetch_private_sources()
+            count = app.state.content_index.add_reference_content(private_files)
+            print(f"✓ Private sources: {count} reference entries indexed")
+        except Exception as e:
+            print(f"Warning: Failed to load private sources: {e}")
 
     # Check database connection (runs in uvicorn's event loop - no issues)
     if not skip_db:
@@ -410,6 +424,9 @@ app.include_router(progress_router)
 app.include_router(questions_router)
 app.include_router(guest_visits_router)
 app.include_router(subscribe_router)
+app.include_router(ref_router)
+app.include_router(referrals_router)
+app.include_router(referrals_admin_router)
 
 
 # New paths for static files

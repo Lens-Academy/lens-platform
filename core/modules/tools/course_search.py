@@ -14,9 +14,10 @@ SEARCH_TOOL = {
     "function": {
         "name": "search_course_content",
         "description": (
-            "Search across all course content (articles, videos, text) for relevant excerpts. "
-            "Use when the student asks about topics that may be covered elsewhere in the course, "
-            "or when you need to find specific content to reference."
+            "Search across all course content and reference materials (articles, videos, text, books) "
+            "for relevant excerpts. Use when the student asks about topics that may be covered "
+            "elsewhere in the course or in reference books, or when you need to find specific "
+            "content to reference."
         ),
         "parameters": {
             "type": "object",
@@ -36,8 +37,9 @@ READ_TOOL = {
     "function": {
         "name": "read_lens",
         "description": (
-            "Read the full content of a specific lens (page) in the course. "
-            "Use the path format from the course overview: Course/Module/Lens. "
+            "Read the full content of a specific lens (page) or reference chapter. "
+            "Use the path format: Course/Module/Lens for course content, or "
+            "Source/Chapter for reference materials (e.g. 'IABIED/01 - Chapter 1 - ...'). "
             "Returns all segments with their content."
         ),
         "parameters": {

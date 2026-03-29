@@ -43,6 +43,7 @@ class UserProfileUpdate(BaseModel):
     role: str | None = None  # "participant" or "facilitator" for cohort enrollment
     tos_accepted: bool | None = None
     cookies_analytics_consent: Literal["accepted", "declined"] | None = None
+    cookies_marketing_consent: Literal["accepted", "declined"] | None = None
     group_id: int | None = None  # Direct group join (for scheduled cohorts)
 
 
@@ -71,6 +72,7 @@ async def update_my_profile(
         availability_local=updates.availability_local,
         tos_accepted=updates.tos_accepted,
         cookies_analytics_consent=updates.cookies_analytics_consent,
+        cookies_marketing_consent=updates.cookies_marketing_consent,
     )
 
     if not updated_user:

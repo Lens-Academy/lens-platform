@@ -208,4 +208,21 @@ export type LensStage = {
   duration?: number | null;
 };
 
-export type Stage = ArticleStage | VideoStage | ChatStage | LensStage;
+export type TestStage = {
+  type: "test";
+  source: string;
+  from: null;
+  to: null;
+  title?: string;
+  optional?: boolean;
+  hide?: boolean;
+  tldr?: string;
+  duration?: number | null;
+};
+
+export type Stage =
+  | ArticleStage
+  | VideoStage
+  | ChatStage
+  | LensStage
+  | TestStage;

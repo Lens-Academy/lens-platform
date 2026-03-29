@@ -28,7 +28,7 @@ interface CourseOverviewProps {
 export default function CourseOverview({
   courseId: courseIdProp = "default",
 }: CourseOverviewProps) {
-  const [courseId, setCourseId] = useState(courseIdProp);
+  const [resolvedCourseId, setResolvedCourseId] = useState(courseIdProp);
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
     null,
   );
@@ -45,13 +45,14 @@ export default function CourseOverview({
     async function load() {
       try {
         setLoading(true);
-        const data = await getCourseProgress(courseId);
+        setResolvedCourseId(courseIdProp);
+        const data = await getCourseProgress(courseIdProp);
         setCourseProgress(data);
 
         // Fix URL if viewing via alias slug (no reload, just update address bar)
         if (data.course?.slug && data.course.slug !== courseIdProp) {
           history.replaceState(null, "", `/course/${data.course.slug}`);
-          setCourseId(data.course.slug);
+          setResolvedCourseId(data.course.slug);
         }
 
         // Auto-select current module (first in-progress, or first not-started)
@@ -84,7 +85,7 @@ export default function CourseOverview({
 
   const handleStartModule = () => {
     if (!selectedModule) return;
-    navigate(`/course/${courseId}/module/${selectedModule.slug}`);
+    navigate(`/course/${resolvedCourseId}/module/${selectedModule.slug}`);
   };
 
   const handleStageClick = (index: number) => {
@@ -95,7 +96,9 @@ export default function CourseOverview({
     const slug = stage.title.trim()
       ? generateHeadingId(stage.title)
       : `section-${index + 1}`;
-    navigate(`/course/${courseId}/module/${selectedModule.slug}#${slug}`);
+    navigate(
+      `/course/${resolvedCourseId}/module/${selectedModule.slug}#${slug}`,
+    );
   };
 
   // Compute completedStages and currentSectionIndex for ModuleOverview

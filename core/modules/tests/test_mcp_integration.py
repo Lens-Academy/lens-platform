@@ -31,7 +31,7 @@ async def test_connect_and_list_tools():
             tools = await session.list_tools()
 
             tool_names = [t.name for t in tools.tools]
-            assert "search_alignment_research" in tool_names
+            assert "lw_af_arxivsafety_search" in tool_names
 
 
 @pytest.mark.asyncio
@@ -44,7 +44,7 @@ async def test_search_returns_results():
         async with ClientSession(read, write) as session:
             await session.initialize()
             result = await session.call_tool(
-                "search_alignment_research",
+                "lw_af_arxivsafety_search",
                 {"query": "corrigibility", "k": 3},
             )
 
@@ -64,13 +64,13 @@ async def test_session_survives_multiple_calls():
             await session.initialize()
 
             result1 = await session.call_tool(
-                "search_alignment_research",
+                "lw_af_arxivsafety_search",
                 {"query": "corrigibility", "k": 2},
             )
             assert result1.content
 
             result2 = await session.call_tool(
-                "search_alignment_research",
+                "lw_af_arxivsafety_search",
                 {"query": "mesa optimization", "k": 2},
             )
             assert result2.content
@@ -106,7 +106,7 @@ def _make_tool_call(query: str, call_id: str = "call_test"):
         id=call_id,
         type="function",
         function=Function(
-            name="search_alignment_research",
+            name="lw_af_arxivsafety_search",
             arguments=f'{{"query": "{query}", "k": 3}}',
         ),
     )
@@ -124,7 +124,7 @@ async def test_full_tool_execution_flow():
     tools = await get_tools(mgr)
     assert tools is not None
     assert len(tools) >= 1
-    assert tools[0]["function"]["name"] == "search_alignment_research"
+    assert tools[0]["function"]["name"] == "lw_af_arxivsafety_search"
 
     # Execute with real tool_call type
     tool_call = _make_tool_call("deceptive alignment", "call_integration_test")
