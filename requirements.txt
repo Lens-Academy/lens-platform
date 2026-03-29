@@ -40,5 +40,8 @@ google-auth>=2.25.0
 # Error tracking
 sentry-sdk[fastapi]>=1.40.0
 
+# Substack sync
+cloudscraper>=1.2.71
+
 # Development
 ruff==0.15.0  # Pin version for consistent formatting across envs

@@ -94,6 +94,37 @@ class ContentIndex:
                         searchable_text="\n".join(text_parts),
                     )
 
+    def add_reference_content(self, files: dict[str, str]) -> int:
+        """Add private reference content to the index.
+
+        files: {path_key: markdown_content} where path_key is like
+        "IABIED/01 - Chapter 1 - Humanity's Special Power".
+
+        Returns number of entries added.
+        """
+        count = 0
+        for path_key, content in files.items():
+            if not content.strip():
+                continue
+            # Use the path_key directly as the entry path
+            # e.g. "IABIED/01 - Chapter 1 - Humanity's Special Power"
+            parts = path_key.split("/")
+            source = parts[0] if len(parts) > 1 else "Reference"
+            title = parts[-1]
+
+            self._entries[path_key.lower()] = LensEntry(
+                path=path_key,
+                course_title=source,
+                module_title=source,
+                lens_title=title,
+                module_slug="",
+                section_index=0,
+                segments=[(0, "reference", content)],
+                searchable_text=content,
+            )
+            count += 1
+        return count
+
     def list_paths(self) -> list[str]:
         """Return all indexed paths (original casing)."""
         return [e.path for e in self._entries.values()]

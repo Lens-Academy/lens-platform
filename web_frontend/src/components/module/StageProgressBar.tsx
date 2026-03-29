@@ -34,6 +34,7 @@ function getStageTitle(stage: Stage): string {
   if (stage.type === "video") return "Video";
   if (stage.type === "article") return "Article";
   if (stage.type === "lens") return "Lens";
+  if (stage.type === "test") return "Test";
   return "Discussion";
 }
 
@@ -134,8 +135,7 @@ export default function StageProgressBar({
     // Block clicks on non-test dots during test mode
     if (testModeActive) {
       const stage = stages[index];
-      const isTestStage =
-        (stage as unknown as { type: string }).type === "test";
+      const isTestStage = stage.type === "test";
       if (!isTestStage) return;
     }
     // Trigger haptic on any tap
@@ -216,7 +216,7 @@ export default function StageProgressBar({
     const isOptional = "optional" in stage && stage.optional === true;
 
     // Test mode dimming: dim non-test dots
-    const isTestDot = (stage as unknown as { type: string }).type === "test";
+    const isTestDot = stage.type === "test";
     const isDimmed = testModeActive && !isTestDot;
 
     return (
