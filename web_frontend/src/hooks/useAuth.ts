@@ -43,7 +43,7 @@ export interface AuthState {
 }
 
 export interface UseAuthReturn extends AuthState {
-  login: (refSlug?: string) => void;
+  login: (options?: { refSlug?: string; nextPath?: string }) => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -200,23 +200,28 @@ export function useAuth(): UseAuthReturn {
     }
   }, []);
 
-  const login = useCallback((refSlug?: string) => {
-    // Redirect to Discord OAuth, with current path as the return URL
-    const next = encodeURIComponent(window.location.pathname);
-    const origin = encodeURIComponent(window.location.origin);
-    const anonymousToken = getAnonymousToken();
-    const tokenParam = anonymousToken
-      ? `&anonymous_token=${encodeURIComponent(anonymousToken)}`
-      : "";
-    // Auto-detect ref: explicit param > URL > sessionStorage
-    const ref =
-      refSlug ||
-      new URLSearchParams(window.location.search).get("ref") ||
-      sessionStorage.getItem("ref") ||
-      undefined;
-    const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : "";
-    window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}${refParam}`;
-  }, []);
+  const login = useCallback(
+    (options?: { refSlug?: string; nextPath?: string }) => {
+      // Redirect to Discord OAuth, with current path as the return URL
+      const next = encodeURIComponent(
+        options?.nextPath || window.location.pathname,
+      );
+      const origin = encodeURIComponent(window.location.origin);
+      const anonymousToken = getAnonymousToken();
+      const tokenParam = anonymousToken
+        ? `&anonymous_token=${encodeURIComponent(anonymousToken)}`
+        : "";
+      // Auto-detect ref: explicit param > URL > sessionStorage
+      const ref =
+        options?.refSlug ||
+        new URLSearchParams(window.location.search).get("ref") ||
+        sessionStorage.getItem("ref") ||
+        undefined;
+      const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : "";
+      window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}${refParam}`;
+    },
+    [],
+  );
 
   const logout = useCallback(async () => {
     try {

@@ -172,14 +172,9 @@ export default function EnrollWizard() {
     }
   };
 
-  // Extract referral slug from URL query params (e.g., /enroll?ref=some-slug)
-  const refSlug = useMemo(() => {
-    if (typeof window === "undefined") return undefined;
-    return new URLSearchParams(window.location.search).get("ref") || undefined;
-  }, []);
-
   const handleDiscordConnect = () => {
-    login(refSlug);
+    // login() auto-detects ref from sessionStorage, no need to pass explicitly
+    login();
   };
 
   const handleSubmit = async () => {
