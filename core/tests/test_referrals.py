@@ -18,6 +18,7 @@ from core.referrals import (
     resolve_attribution,
     slugify_name,
     soft_delete_link,
+    update_click_consent,
     update_link,
     validate_slug,
 )
@@ -634,6 +635,52 @@ class TestCreateCampaignLinkWithExplicitSlug:
 
 
 # ── Slugify edge cases ───────────────────────────────────────
+
+
+class TestUpdateClickConsent:
+    @pytest.mark.asyncio
+    async def test_updates_pending_to_accepted(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Update Test")
+        click_id = await log_click(db_conn, link["link_id"], consent_state="pending")
+        updated = await update_click_consent(db_conn, click_id, "accepted")
+        assert updated is True
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.click_id == click_id
+            )
+        )
+        assert row.scalar() == "accepted"
+
+    @pytest.mark.asyncio
+    async def test_updates_pending_to_declined(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Update Test")
+        click_id = await log_click(db_conn, link["link_id"], consent_state="pending")
+        updated = await update_click_consent(db_conn, click_id, "declined")
+        assert updated is True
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.click_id == click_id
+            )
+        )
+        assert row.scalar() == "declined"
+
+    @pytest.mark.asyncio
+    async def test_does_not_update_already_resolved(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Update Test")
+        click_id = await log_click(db_conn, link["link_id"], consent_state="accepted")
+        updated = await update_click_consent(db_conn, click_id, "declined")
+        assert updated is False
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.click_id == click_id
+            )
+        )
+        assert row.scalar() == "accepted"  # unchanged
+
+    @pytest.mark.asyncio
+    async def test_nonexistent_click_id(self, db_conn):
+        updated = await update_click_consent(db_conn, 999999, "accepted")
+        assert updated is False
 
 
 class TestSlugifyEdgeCases:

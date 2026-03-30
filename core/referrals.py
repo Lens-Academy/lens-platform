@@ -263,6 +263,27 @@ async def log_click(
     return result.scalar()
 
 
+async def update_click_consent(
+    conn: AsyncConnection, click_id: int, consent_state: str
+) -> bool:
+    """Update consent_state on a click, but only if it's still 'pending'.
+
+    Returns True if the row was updated, False if it was already resolved
+    or the click_id doesn't exist.
+    """
+    result = await conn.execute(
+        update(referral_clicks)
+        .where(
+            and_(
+                referral_clicks.c.click_id == click_id,
+                referral_clicks.c.consent_state == "pending",
+            )
+        )
+        .values(consent_state=consent_state)
+    )
+    return result.rowcount > 0
+
+
 async def get_link_by_slug(conn: AsyncConnection, slug: str) -> dict | None:
     """Look up an active (non-deleted) referral link by slug."""
     row = await conn.execute(

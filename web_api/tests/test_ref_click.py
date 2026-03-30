@@ -169,3 +169,46 @@ class TestRefClick:
         response = client.get("/ref/nonexistent")
         assert response.status_code == 302
         assert "click_id" not in response.headers["location"]
+
+
+class TestClickConsentUpdate:
+    @patch("web_api.routes.ref.get_transaction", return_value=_fake_transaction())
+    @patch("web_api.routes.ref.update_click_consent", new_callable=AsyncMock)
+    def test_update_consent_accepted(self, mock_update, mock_txn):
+        mock_update.return_value = True
+        response = client.patch(
+            "/ref/clicks/123/consent",
+            json={"consent_state": "accepted"},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"updated": True}
+        mock_update.assert_called_once_with(None, 123, "accepted")
+
+    @patch("web_api.routes.ref.get_transaction", return_value=_fake_transaction())
+    @patch("web_api.routes.ref.update_click_consent", new_callable=AsyncMock)
+    def test_update_consent_declined(self, mock_update, mock_txn):
+        mock_update.return_value = True
+        response = client.patch(
+            "/ref/clicks/123/consent",
+            json={"consent_state": "declined"},
+        )
+        assert response.status_code == 200
+        mock_update.assert_called_once_with(None, 123, "declined")
+
+    @patch("web_api.routes.ref.get_transaction", return_value=_fake_transaction())
+    @patch("web_api.routes.ref.update_click_consent", new_callable=AsyncMock)
+    def test_update_consent_already_resolved(self, mock_update, mock_txn):
+        mock_update.return_value = False
+        response = client.patch(
+            "/ref/clicks/123/consent",
+            json={"consent_state": "accepted"},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"updated": False}
+
+    def test_update_consent_invalid_state(self):
+        response = client.patch(
+            "/ref/clicks/123/consent",
+            json={"consent_state": "invalid"},
+        )
+        assert response.status_code == 422

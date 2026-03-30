@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
 from core.database import get_transaction
-from core.referrals import get_link_by_slug, log_click
+from core.referrals import get_link_by_slug, log_click, update_click_consent
 
 router = APIRouter(tags=["referral"])
 
@@ -72,3 +72,29 @@ async def referral_click(slug: str, request: Request):
         )
 
     return response
+
+
+from enum import Enum
+
+from pydantic import BaseModel
+
+
+class ConsentChoice(str, Enum):
+    accepted = "accepted"
+    declined = "declined"
+
+
+class ConsentUpdateRequest(BaseModel):
+    consent_state: ConsentChoice
+
+
+@router.patch("/ref/clicks/{click_id}/consent")
+async def update_consent(click_id: int, body: ConsentUpdateRequest):
+    """Update consent_state on a referral click (pending -> accepted/declined).
+
+    Called by the frontend when the visitor makes their cookie banner choice.
+    Only updates clicks that are still 'pending'. Idempotent.
+    """
+    async with get_transaction() as conn:
+        updated = await update_click_consent(conn, click_id, body.consent_state.value)
+    return {"updated": updated}
