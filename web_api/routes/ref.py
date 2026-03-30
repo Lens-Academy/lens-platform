@@ -1,9 +1,11 @@
 """Public referral link click handler."""
 
-from urllib.parse import quote, urlencode
+from enum import Enum
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 
 from core.database import get_transaction
 from core.referrals import get_link_by_slug, log_click, update_click_consent
@@ -48,9 +50,7 @@ async def referral_click(slug: str, request: Request):
             if consent == "accepted" and existing_ref_cookie == slug:
                 pass  # Same browser, same link — don't inflate click count
             else:
-                click_id = await log_click(
-                    conn, link["link_id"], consent_state=consent
-                )
+                click_id = await log_click(conn, link["link_id"], consent_state=consent)
 
     # Build redirect URL with ref and optional click_id
     params = {"ref": slug}
@@ -72,11 +72,6 @@ async def referral_click(slug: str, request: Request):
         )
 
     return response
-
-
-from enum import Enum
-
-from pydantic import BaseModel
 
 
 class ConsentChoice(str, Enum):
