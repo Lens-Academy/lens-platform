@@ -627,5 +627,15 @@ referral_clicks = Table(
         nullable=False,
     ),
     Column("clicked_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column(
+        "consent_state",
+        Text,
+        CheckConstraint(
+            "consent_state IN ('accepted', 'declined', 'pending')",
+            name="consent_state_values",
+        ),
+        nullable=False,
+        server_default=text("'pending'"),
+    ),
     Index("idx_referral_clicks_link_id", "link_id"),
 )

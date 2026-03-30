@@ -25,6 +25,7 @@ from core.tables import (
     cohorts,
     groups,
     groups_users,
+    referral_clicks,
     referral_links,
     signups,
     users,
@@ -212,6 +213,67 @@ class TestLogClick:
         await log_click(db_conn, link["link_id"])
         stats = await get_link_stats(db_conn, link["link_id"])
         assert stats["clicks"] == 2
+
+
+class TestLogClickConsentState:
+    @pytest.mark.asyncio
+    async def test_log_click_records_consent_accepted(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Consent Test")
+        await log_click(db_conn, link["link_id"], consent_state="accepted")
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.link_id == link["link_id"]
+            )
+        )
+        assert row.scalar() == "accepted"
+
+    @pytest.mark.asyncio
+    async def test_log_click_records_consent_declined(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Consent Test")
+        await log_click(db_conn, link["link_id"], consent_state="declined")
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.link_id == link["link_id"]
+            )
+        )
+        assert row.scalar() == "declined"
+
+    @pytest.mark.asyncio
+    async def test_log_click_records_consent_pending(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Consent Test")
+        await log_click(db_conn, link["link_id"], consent_state="pending")
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.link_id == link["link_id"]
+            )
+        )
+        assert row.scalar() == "pending"
+
+    @pytest.mark.asyncio
+    async def test_log_click_defaults_to_pending(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Consent Test")
+        await log_click(db_conn, link["link_id"])
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.link_id == link["link_id"]
+            )
+        )
+        assert row.scalar() == "pending"
+
+
+class TestLogClickReturnsClickId:
+    @pytest.mark.asyncio
+    async def test_log_click_returns_click_id(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Return Test")
+        click_id = await log_click(db_conn, link["link_id"])
+        assert isinstance(click_id, int)
+
+    @pytest.mark.asyncio
+    async def test_log_click_returns_unique_ids(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Return Test")
+        id1 = await log_click(db_conn, link["link_id"])
+        id2 = await log_click(db_conn, link["link_id"])
+        assert id1 != id2
 
 
 class TestGetLinkBySlug:

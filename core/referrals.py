@@ -245,9 +245,22 @@ async def update_link(
 # ── Click tracking & attribution ─────────────────────────────
 
 
-async def log_click(conn: AsyncConnection, link_id: int) -> None:
-    """Record a click on a referral link."""
-    await conn.execute(insert(referral_clicks).values(link_id=link_id))
+async def log_click(
+    conn: AsyncConnection, link_id: int, *, consent_state: str = "pending"
+) -> int:
+    """Record a click on a referral link.
+
+    consent_state: 'accepted' (cookies on, dedup active), 'declined' (user
+    rejected cookies), or 'pending' (new visitor, no choice yet).
+
+    Returns the click_id of the new row.
+    """
+    result = await conn.execute(
+        insert(referral_clicks)
+        .values(link_id=link_id, consent_state=consent_state)
+        .returning(referral_clicks.c.click_id)
+    )
+    return result.scalar()
 
 
 async def get_link_by_slug(conn: AsyncConnection, slug: str) -> dict | None:
