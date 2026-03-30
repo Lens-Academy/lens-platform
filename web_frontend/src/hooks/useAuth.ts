@@ -192,8 +192,13 @@ export function useAuth(): UseAuthReturn {
     const urlRef = params.get("ref");
     if (urlRef) {
       sessionStorage.setItem("ref", urlRef);
-      // Clean the URL — ref is now in sessionStorage, no need to show it
+      const clickId = params.get("click_id");
+      if (clickId) {
+        sessionStorage.setItem("ref_click_id", clickId);
+      }
+      // Clean the URL — ref and click_id are now in sessionStorage
       params.delete("ref");
+      params.delete("click_id");
       const clean = params.toString();
       const newUrl = window.location.pathname + (clean ? `?${clean}` : "");
       window.history.replaceState({}, "", newUrl);

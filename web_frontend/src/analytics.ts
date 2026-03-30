@@ -278,6 +278,25 @@ export function hasMarketingConsent(): boolean {
   return localStorage.getItem(MARKETING_CONSENT_KEY) === "accepted";
 }
 
+/**
+ * Update the consent_state on a referral click (fire-and-forget).
+ * Called when the visitor makes their cookie banner choice, if they
+ * arrived via a referral link in this session.
+ */
+function updateClickConsent(choice: "accepted" | "declined"): void {
+  const clickId = sessionStorage.getItem("ref_click_id");
+  if (!clickId) return;
+  // Clear immediately so we don't send twice
+  sessionStorage.removeItem("ref_click_id");
+  fetch(`${API_URL}/ref/clicks/${clickId}/consent`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ consent_state: choice }),
+  }).catch(() => {
+    // Fire-and-forget — click consent is best-effort
+  });
+}
+
 export function optInMarketing(): void {
   localStorage.setItem(MARKETING_CONSENT_KEY, "accepted");
   syncMarketingConsentToServer("accepted");
@@ -290,6 +309,7 @@ export function optInMarketing(): void {
   if (pendingRef) {
     document.cookie = `ref=${encodeURIComponent(pendingRef)}; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax${secure}`;
   }
+  updateClickConsent("accepted");
 }
 
 export function optOutMarketing(): void {
@@ -298,6 +318,7 @@ export function optOutMarketing(): void {
   document.cookie = "marketing-consent=declined; path=/; max-age=0";
   // Note: the ref cookie is HttpOnly (server-set) so it cannot be cleared from JS.
   // It will be ignored on next OAuth callback since marketing consent is declined.
+  updateClickConsent("declined");
 }
 
 export function hasMarketingConsentChoice(): boolean {
