@@ -298,29 +298,30 @@ class TestResolveAttribution:
     @pytest.mark.asyncio
     async def test_resolve_attribution(self, db_conn, test_user):
         link = await create_default_link(db_conn, test_user, "Referrer")
-        result = await db_conn.execute(
+        click_id = await log_click(db_conn, link["link_id"])
+        referred_row = await db_conn.execute(
             insert(users)
             .values(discord_id="referred-456", discord_username="referred")
             .returning(users.c.user_id)
         )
-        referred_id = result.first()[0]
-        await resolve_attribution(db_conn, referred_id, link["slug"])
+        referred_id = referred_row.first()[0]
+        await resolve_attribution(db_conn, referred_id, click_id)
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
+            select(users.c.referred_by_click_id).where(users.c.user_id == referred_id)
         )
-        assert row.scalar() == link["link_id"]
+        assert row.scalar() == click_id
 
     @pytest.mark.asyncio
-    async def test_resolve_attribution_invalid_slug(self, db_conn, test_user):
-        result = await db_conn.execute(
+    async def test_resolve_attribution_invalid_click_id(self, db_conn):
+        referred_row = await db_conn.execute(
             insert(users)
             .values(discord_id="referred-789", discord_username="referred2")
             .returning(users.c.user_id)
         )
-        referred_id = result.first()[0]
-        await resolve_attribution(db_conn, referred_id, "nonexistent-slug")
+        referred_id = referred_row.first()[0]
+        await resolve_attribution(db_conn, referred_id, 999999)
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
+            select(users.c.referred_by_click_id).where(users.c.user_id == referred_id)
         )
         assert row.scalar() is None
 
@@ -352,10 +353,10 @@ class TestGetLinkStats:
 class TestResolveAttributionIdempotent:
     @pytest.mark.asyncio
     async def test_second_attribution_does_not_overwrite(self, db_conn, test_user):
-        """Once a user has attribution, a second call with a different slug does NOT overwrite."""
-        # Create two referrers with links
+        """Once a user has attribution, a second call with a different click does NOT overwrite."""
         referrer1 = test_user
         link1 = await create_default_link(db_conn, referrer1, "Referrer One")
+        click1 = await log_click(db_conn, link1["link_id"])
 
         referrer2_row = await db_conn.execute(
             insert(users)
@@ -364,8 +365,8 @@ class TestResolveAttributionIdempotent:
         )
         referrer2 = referrer2_row.first()[0]
         link2 = await create_default_link(db_conn, referrer2, "Referrer Two")
+        click2 = await log_click(db_conn, link2["link_id"])
 
-        # Create the referred user
         referred_row = await db_conn.execute(
             insert(users)
             .values(discord_id="referred-idempotent", discord_username="referred")
@@ -373,19 +374,17 @@ class TestResolveAttributionIdempotent:
         )
         referred_id = referred_row.first()[0]
 
-        # First attribution succeeds
-        await resolve_attribution(db_conn, referred_id, link1["slug"])
+        await resolve_attribution(db_conn, referred_id, click1)
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
+            select(users.c.referred_by_click_id).where(users.c.user_id == referred_id)
         )
-        assert row.scalar() == link1["link_id"]
+        assert row.scalar() == click1
 
-        # Second attribution with different slug does NOT overwrite
-        await resolve_attribution(db_conn, referred_id, link2["slug"])
+        await resolve_attribution(db_conn, referred_id, click2)
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
+            select(users.c.referred_by_click_id).where(users.c.user_id == referred_id)
         )
-        assert row.scalar() == link1["link_id"]
+        assert row.scalar() == click1  # unchanged
 
 
 class TestResolveAttributionSelfReferral:
@@ -393,9 +392,10 @@ class TestResolveAttributionSelfReferral:
     async def test_user_cannot_be_attributed_to_own_link(self, db_conn, test_user):
         """A user cannot be attributed to their own referral link."""
         link = await create_default_link(db_conn, test_user, "Self Referrer")
-        await resolve_attribution(db_conn, test_user, link["slug"])
+        click_id = await log_click(db_conn, link["link_id"])
+        await resolve_attribution(db_conn, test_user, click_id)
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(users.c.user_id == test_user)
+            select(users.c.referred_by_click_id).where(users.c.user_id == test_user)
         )
         assert row.scalar() is None
 

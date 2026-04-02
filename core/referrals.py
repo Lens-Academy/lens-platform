@@ -309,24 +309,38 @@ async def get_link_by_slug(conn: AsyncConnection, slug: str) -> dict | None:
 
 
 async def resolve_attribution(
-    conn: AsyncConnection, user_id: int, ref_slug: str
+    conn: AsyncConnection, user_id: int, click_id: int
 ) -> None:
-    """Set referred_by_link_id on a user.
+    """Set referred_by_click_id on a user.
 
-    Silently does nothing if the slug is invalid or the user already has
-    attribution set.
+    Silently does nothing if the click doesn't exist, the user already has
+    attribution set, or the click belongs to the user's own link (self-referral).
     """
-    link = await get_link_by_slug(conn, ref_slug)
-    if link is None:
+    # Look up the click to get link_id
+    click_row = await conn.execute(
+        select(referral_clicks.c.click_id, referral_clicks.c.link_id).where(
+            referral_clicks.c.click_id == click_id
+        )
+    )
+    click = click_row.first()
+    if click is None:
         return
 
+    # Look up the link to get the owner
+    link_row = await conn.execute(
+        select(referral_links.c.user_id).where(
+            referral_links.c.link_id == click.link_id
+        )
+    )
+    link_owner = link_row.scalar()
+
     # Don't self-attribute
-    if link["user_id"] == user_id:
+    if link_owner == user_id:
         return
 
     # Only set if not already attributed
     row = await conn.execute(
-        select(users.c.referred_by_link_id).where(users.c.user_id == user_id)
+        select(users.c.referred_by_click_id).where(users.c.user_id == user_id)
     )
     current = row.scalar()
     if current is not None:
@@ -335,7 +349,7 @@ async def resolve_attribution(
     await conn.execute(
         update(users)
         .where(users.c.user_id == user_id)
-        .values(referred_by_link_id=link["link_id"])
+        .values(referred_by_click_id=click_id)
     )
 
 
