@@ -67,9 +67,9 @@ users = Table(
     Column("cookies_marketing_consent", Text),  # 'accepted' | 'declined' | NULL
     Column("cookies_marketing_consent_at", TIMESTAMP(timezone=True)),
     Column(
-        "referred_by_link_id",
+        "referred_by_click_id",
         Integer,
-        ForeignKey("referral_links.link_id", ondelete="SET NULL", use_alter=True),
+        ForeignKey("referral_clicks.click_id", ondelete="SET NULL", use_alter=True),
     ),
     CheckConstraint(
         "cookies_analytics_consent IN ('accepted', 'declined')",
