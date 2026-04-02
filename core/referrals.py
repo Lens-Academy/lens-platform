@@ -268,9 +268,19 @@ async def update_click_consent(
 ) -> bool:
     """Update consent_state on a click, but only if it's still 'pending'.
 
+    When the frontend reports 'accepted', we store 'pending_then_accepted'
+    to distinguish "had cookies at click time" (accepted) from "accepted
+    during this session" (pending_then_accepted). The latter may include
+    privacy-browser users whose cookies don't persist.
+
+    'declined' is stored as-is (no need to distinguish pending_then_declined).
+
     Returns True if the row was updated, False if it was already resolved
     or the click_id doesn't exist.
     """
+    stored_state = (
+        "pending_then_accepted" if consent_state == "accepted" else consent_state
+    )
     result = await conn.execute(
         update(referral_clicks)
         .where(
@@ -279,7 +289,7 @@ async def update_click_consent(
                 referral_clicks.c.consent_state == "pending",
             )
         )
-        .values(consent_state=consent_state)
+        .values(consent_state=stored_state)
     )
     return result.rowcount > 0
 

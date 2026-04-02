@@ -631,7 +631,7 @@ referral_clicks = Table(
         "consent_state",
         Text,
         CheckConstraint(
-            "consent_state IN ('accepted', 'declined', 'pending')",
+            "consent_state IN ('accepted', 'declined', 'pending', 'pending_then_accepted')",
             name="consent_state_values",
         ),
         nullable=False,

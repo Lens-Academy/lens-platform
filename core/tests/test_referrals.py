@@ -639,7 +639,7 @@ class TestCreateCampaignLinkWithExplicitSlug:
 
 class TestUpdateClickConsent:
     @pytest.mark.asyncio
-    async def test_updates_pending_to_accepted(self, db_conn, test_user):
+    async def test_updates_pending_to_pending_then_accepted(self, db_conn, test_user):
         link = await create_default_link(db_conn, test_user, "Update Test")
         click_id = await log_click(db_conn, link["link_id"], consent_state="pending")
         updated = await update_click_consent(db_conn, click_id, "accepted")
@@ -649,7 +649,7 @@ class TestUpdateClickConsent:
                 referral_clicks.c.click_id == click_id
             )
         )
-        assert row.scalar() == "accepted"
+        assert row.scalar() == "pending_then_accepted"
 
     @pytest.mark.asyncio
     async def test_updates_pending_to_declined(self, db_conn, test_user):
