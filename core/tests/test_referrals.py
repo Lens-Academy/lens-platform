@@ -333,17 +333,17 @@ class TestGetLinkStats:
         await log_click(db_conn, link["link_id"])
         await log_click(db_conn, link["link_id"])
         await log_click(db_conn, link["link_id"])
+        ref_click_id = await log_click(db_conn, link["link_id"])
         await db_conn.execute(
             insert(users)
             .values(
                 discord_id="ref-user-1",
                 discord_username="refuser1",
-                referred_by_link_id=link["link_id"],
+                referred_by_click_id=ref_click_id,
             )
-            .returning(users.c.user_id)
         )
         stats = await get_link_stats(db_conn, link["link_id"])
-        assert stats["clicks"] == 3
+        assert stats["clicks"] == 4  # 3 original + 1 for the referred user's click
         assert stats["signups"] == 1
 
 
@@ -433,12 +433,13 @@ async def full_funnel_setup(db_conn, test_user):
     # Create referred users
     referred_ids = []
     for i in range(3):
+        click_id = await log_click(db_conn, link["link_id"])
         row = await db_conn.execute(
             insert(users)
             .values(
                 discord_id=f"funnel-ref-{i}",
                 discord_username=f"funnelref{i}",
-                referred_by_link_id=link["link_id"],
+                referred_by_click_id=click_id,
             )
             .returning(users.c.user_id)
         )
@@ -485,7 +486,7 @@ class TestGetLinkStatsFullFunnel:
         )
 
         stats = await get_link_stats(db_conn, link["link_id"])
-        assert stats["clicks"] == 5
+        assert stats["clicks"] == 8  # 5 from test + 3 from fixture's referred users
         assert stats["signups"] == 3  # 3 referred users
         assert stats["enrolled"] == 2  # 2 with signups
         assert stats["completed"] == 1  # 1 with completed group status
@@ -503,18 +504,19 @@ class TestGetAllReferrerStats:
         await log_click(db_conn, link["link_id"])
 
         # Create a referred user
+        ref_click = await log_click(db_conn, link["link_id"])
         await db_conn.execute(
             insert(users).values(
                 discord_id="stats-ref-1",
                 discord_username="statsref1",
-                referred_by_link_id=link["link_id"],
+                referred_by_click_id=ref_click,
             )
         )
 
         stats = await get_all_referrer_stats(db_conn)
         # Find our referrer in results
         referrer = next(s for s in stats if s["user_id"] == test_user)
-        assert referrer["clicks"] == 2
+        assert referrer["clicks"] == 3  # 2 original + 1 for the referred user
         assert referrer["signups"] == 1
         assert referrer["links"] == 1
 

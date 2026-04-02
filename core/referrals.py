@@ -365,24 +365,38 @@ async def get_link_stats(conn: AsyncConnection, link_id: int) -> dict:
         .select_from(referral_clicks)
         .where(referral_clicks.c.link_id == link_id)
     )
+    # Signups: users whose attributed click belongs to this link
     signup_count = await conn.scalar(
         select(func.count())
-        .select_from(users)
-        .where(users.c.referred_by_link_id == link_id)
+        .select_from(
+            users.join(
+                referral_clicks,
+                users.c.referred_by_click_id == referral_clicks.c.click_id,
+            )
+        )
+        .where(referral_clicks.c.link_id == link_id)
     )
     enrolled_count = await conn.scalar(
         select(func.count(func.distinct(signups.c.user_id)))
-        .select_from(signups.join(users, signups.c.user_id == users.c.user_id))
-        .where(users.c.referred_by_link_id == link_id)
+        .select_from(
+            signups.join(users, signups.c.user_id == users.c.user_id).join(
+                referral_clicks,
+                users.c.referred_by_click_id == referral_clicks.c.click_id,
+            )
+        )
+        .where(referral_clicks.c.link_id == link_id)
     )
     completed_count = await conn.scalar(
         select(func.count(func.distinct(groups_users.c.user_id)))
         .select_from(
-            groups_users.join(users, groups_users.c.user_id == users.c.user_id)
+            groups_users.join(users, groups_users.c.user_id == users.c.user_id).join(
+                referral_clicks,
+                users.c.referred_by_click_id == referral_clicks.c.click_id,
+            )
         )
         .where(
             and_(
-                users.c.referred_by_link_id == link_id,
+                referral_clicks.c.link_id == link_id,
                 groups_users.c.status == "completed",
             )
         )
@@ -431,7 +445,7 @@ async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
         .subquery("click_counts")
     )
 
-    # Signup counts per referrer
+    # Signup counts per referrer (via clicks)
     signup_counts = (
         select(
             referral_links.c.user_id,
@@ -439,8 +453,11 @@ async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
         )
         .select_from(
             referral_links.join(
+                referral_clicks,
+                referral_links.c.link_id == referral_clicks.c.link_id,
+            ).join(
                 users,
-                referral_links.c.link_id == users.c.referred_by_link_id,
+                referral_clicks.c.click_id == users.c.referred_by_click_id,
             )
         )
         .where(referral_links.c.deleted_at.is_(None))
@@ -457,9 +474,14 @@ async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
         )
         .select_from(
             referral_links.join(
+                referral_clicks,
+                referral_links.c.link_id == referral_clicks.c.link_id,
+            )
+            .join(
                 referred_users,
-                referral_links.c.link_id == referred_users.c.referred_by_link_id,
-            ).join(signups, signups.c.user_id == referred_users.c.user_id)
+                referral_clicks.c.click_id == referred_users.c.referred_by_click_id,
+            )
+            .join(signups, signups.c.user_id == referred_users.c.user_id)
         )
         .where(referral_links.c.deleted_at.is_(None))
         .group_by(referral_links.c.user_id)
@@ -475,9 +497,14 @@ async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
         )
         .select_from(
             referral_links.join(
+                referral_clicks,
+                referral_links.c.link_id == referral_clicks.c.link_id,
+            )
+            .join(
                 referred_users2,
-                referral_links.c.link_id == referred_users2.c.referred_by_link_id,
-            ).join(
+                referral_clicks.c.click_id == referred_users2.c.referred_by_click_id,
+            )
+            .join(
                 groups_users,
                 groups_users.c.user_id == referred_users2.c.user_id,
             )
