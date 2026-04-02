@@ -146,6 +146,7 @@ async def discord_oauth_start(
     origin: str | None = None,
     anonymous_token: str | None = None,
     ref: str | None = None,
+    click_id: str | None = None,
 ):
     """
     Start Discord OAuth flow.
@@ -159,6 +160,7 @@ async def discord_oauth_start(
         next: Path to redirect to after auth (default: "/")
         origin: Frontend origin URL (validated against whitelist)
         anonymous_token: Optional anonymous session token to claim on login
+        click_id: Optional referral click ID for attribution
     """
     oauth_start_limiter.check(request)
 
@@ -182,6 +184,7 @@ async def discord_oauth_start(
         "origin": validated_origin,
         "anonymous_token": anonymous_token,
         "ref": ref,
+        "click_id": click_id,
         "created_at": time.time(),
     }
 
@@ -278,12 +281,17 @@ async def discord_oauth_callback(
     )
 
     # Resolve referral attribution
-    ref_slug = state_data.get("ref")
-    if not ref_slug:
-        ref_slug = request.cookies.get("ref")
-    if ref_slug:
-        async with get_transaction() as conn:
-            await resolve_attribution(conn, user["user_id"], ref_slug)
+    click_id_str = state_data.get("click_id")
+    if not click_id_str:
+        click_id_str = request.cookies.get("ref_click_id")
+    if click_id_str:
+        try:
+            click_id_val = int(click_id_str)
+        except (ValueError, TypeError):
+            click_id_val = None
+        if click_id_val:
+            async with get_transaction() as conn:
+                await resolve_attribution(conn, user["user_id"], click_id_val)
 
     # Claim anonymous sessions if token provided
     anonymous_token_str = state_data.get("anonymous_token")
@@ -312,9 +320,12 @@ async def discord_oauth_callback(
     set_session_cookie(response, token)
     await _issue_refresh_token(response, user["user_id"])
 
-    # Clear referral cookie after attribution is resolved
-    if ref_slug and request.cookies.get("ref"):
-        response.delete_cookie("ref", path="/")
+    # Clear referral cookies after attribution is resolved
+    if click_id_str:
+        if request.cookies.get("ref"):
+            response.delete_cookie("ref", path="/")
+        if request.cookies.get("ref_click_id"):
+            response.delete_cookie("ref_click_id", path="/")
 
     return response
 

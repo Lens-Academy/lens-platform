@@ -335,8 +335,7 @@ class TestGetLinkStats:
         await log_click(db_conn, link["link_id"])
         ref_click_id = await log_click(db_conn, link["link_id"])
         await db_conn.execute(
-            insert(users)
-            .values(
+            insert(users).values(
                 discord_id="ref-user-1",
                 discord_username="refuser1",
                 referred_by_click_id=ref_click_id,

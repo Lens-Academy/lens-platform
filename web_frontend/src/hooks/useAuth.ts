@@ -223,7 +223,12 @@ export function useAuth(): UseAuthReturn {
         sessionStorage.getItem("ref") ||
         undefined;
       const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : "";
-      window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}${refParam}`;
+      // Pass click_id from sessionStorage through OAuth state
+      const clickId = sessionStorage.getItem("ref_click_id") || undefined;
+      const clickIdParam = clickId
+        ? `&click_id=${encodeURIComponent(clickId)}`
+        : "";
+      window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}${refParam}${clickIdParam}`;
     },
     [],
   );
