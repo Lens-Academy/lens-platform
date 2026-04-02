@@ -161,6 +161,35 @@ class TestRefClick:
     @patch("web_api.routes.ref.get_transaction", return_value=_fake_transaction())
     @patch("web_api.routes.ref.log_click", new_callable=AsyncMock)
     @patch("web_api.routes.ref.get_link_by_slug", new_callable=AsyncMock)
+    def test_ref_click_id_cookie_set_with_marketing_consent(
+        self, mock_get_link, mock_log_click, mock_txn
+    ):
+        """ref_click_id cookie is set alongside ref cookie when consent is accepted."""
+        mock_get_link.return_value = MOCK_LINK
+        mock_log_click.return_value = 55
+        # Clear any persisted cookies from previous tests to avoid dedup
+        client.cookies.clear()
+        response = client.get(
+            "/ref/kate-smith",
+            cookies={"marketing-consent": "accepted"},
+        )
+        assert response.cookies.get("ref_click_id") == "55"
+
+    @patch("web_api.routes.ref.get_transaction", return_value=_fake_transaction())
+    @patch("web_api.routes.ref.log_click", new_callable=AsyncMock)
+    @patch("web_api.routes.ref.get_link_by_slug", new_callable=AsyncMock)
+    def test_no_ref_click_id_cookie_without_consent(
+        self, mock_get_link, mock_log_click, mock_txn
+    ):
+        """ref_click_id cookie is NOT set without marketing consent."""
+        mock_get_link.return_value = MOCK_LINK
+        mock_log_click.return_value = 55
+        response = client.get("/ref/kate-smith")
+        assert "ref_click_id" not in response.cookies
+
+    @patch("web_api.routes.ref.get_transaction", return_value=_fake_transaction())
+    @patch("web_api.routes.ref.log_click", new_callable=AsyncMock)
+    @patch("web_api.routes.ref.get_link_by_slug", new_callable=AsyncMock)
     def test_no_click_id_for_invalid_slug(
         self, mock_get_link, mock_log_click, mock_txn
     ):

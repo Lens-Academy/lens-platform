@@ -58,7 +58,7 @@ async def referral_click(slug: str, request: Request):
         params["click_id"] = str(click_id)
     response = RedirectResponse(url=f"/?{urlencode(params)}", status_code=302)
 
-    # Set ref cookie if visitor has granted marketing consent
+    # Set ref and ref_click_id cookies if visitor has granted marketing consent
     if link and consent == "accepted":
         is_secure = request.url.scheme == "https"
         response.set_cookie(
@@ -70,6 +70,16 @@ async def referral_click(slug: str, request: Request):
             samesite="lax",
             path="/",
         )
+        if click_id is not None:
+            response.set_cookie(
+                key="ref_click_id",
+                value=str(click_id),
+                max_age=90 * 24 * 60 * 60,  # 90 days
+                httponly=True,
+                secure=is_secure,
+                samesite="lax",
+                path="/",
+            )
 
     return response
 
