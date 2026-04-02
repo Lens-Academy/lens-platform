@@ -147,8 +147,9 @@ export function useAuth(): UseAuthReturn {
             syncMarketingConsentToServer(marketingChoice);
           }
 
-          // Clear referral ref from sessionStorage — attribution is done
+          // Clear referral data from sessionStorage — attribution is done
           sessionStorage.removeItem("ref");
+          sessionStorage.removeItem("ref_click_id");
         }
       } else {
         setState({

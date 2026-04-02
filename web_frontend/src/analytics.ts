@@ -286,8 +286,8 @@ export function hasMarketingConsent(): boolean {
 function updateClickConsent(choice: "accepted" | "declined"): void {
   const clickId = sessionStorage.getItem("ref_click_id");
   if (!clickId) return;
-  // Clear immediately so we don't send twice
-  sessionStorage.removeItem("ref_click_id");
+  // Don't remove ref_click_id — it's still needed for OAuth attribution.
+  // It will be cleaned up by useAuth after successful login.
   fetch(`${API_URL}/ref/clicks/${clickId}/consent`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -308,6 +308,11 @@ export function optInMarketing(): void {
   const pendingRef = sessionStorage.getItem("ref");
   if (pendingRef) {
     document.cookie = `ref=${encodeURIComponent(pendingRef)}; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax${secure}`;
+  }
+  // Also promote click_id to a cookie for cross-session attribution fallback
+  const pendingClickId = sessionStorage.getItem("ref_click_id");
+  if (pendingClickId) {
+    document.cookie = `ref_click_id=${encodeURIComponent(pendingClickId)}; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax${secure}`;
   }
   updateClickConsent("accepted");
 }
