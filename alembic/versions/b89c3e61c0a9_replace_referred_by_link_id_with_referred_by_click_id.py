@@ -32,7 +32,9 @@ def upgrade() -> None:
         ["click_id"],
         ondelete="SET NULL",
     )
-    op.drop_constraint("fk_users_referred_by_link_id_referral_links", "users", type_="foreignkey")
+    op.drop_constraint(
+        "fk_users_referred_by_link_id_referral_links", "users", type_="foreignkey"
+    )
     op.drop_column("users", "referred_by_link_id")
 
 
@@ -49,5 +51,7 @@ def downgrade() -> None:
         ["link_id"],
         ondelete="SET NULL",
     )
-    op.drop_constraint("fk_users_referred_by_click_id_referral_clicks", "users", type_="foreignkey")
+    op.drop_constraint(
+        "fk_users_referred_by_click_id_referral_clicks", "users", type_="foreignkey"
+    )
     op.drop_column("users", "referred_by_click_id")

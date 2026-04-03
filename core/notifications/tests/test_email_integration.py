@@ -241,6 +241,7 @@ class TestNotificationFlowIntegration:
                     "group_name": "Test Group",
                     "meeting_time_utc": "2024-02-07T15:00:00+00:00",
                     "discord_channel_url": "https://discord.com/channels/111/222",
+                    "zoom_join_url": "https://zoom.us/j/123",
                 },
             )
 
@@ -284,6 +285,7 @@ class TestNotificationFlowIntegration:
                     "group_name": "Test Group",
                     "meeting_time_utc": "2024-02-07T15:00:00+00:00",
                     "discord_channel_url": discord_channel_url,
+                    "zoom_join_url": "https://zoom.us/j/123",
                 },
             )
 
@@ -329,6 +331,7 @@ class TestNotificationFlowIntegration:
                     "group_name": "Test Group",
                     "meeting_time_utc": "2024-02-07T15:00:00+00:00",
                     "discord_channel_url": "https://discord.com/channels/111/222",
+                    "zoom_join_url": "https://zoom.us/j/123",
                 },
             )
 
@@ -365,6 +368,7 @@ class TestNotificationFlowIntegration:
                     "group_name": "Test Group",
                     "meeting_time_utc": "2024-02-07T15:00:00+00:00",
                     "discord_channel_url": "https://discord.com/channels/111/222",
+                    "zoom_join_url": "https://zoom.us/j/123",
                 },
             )
 

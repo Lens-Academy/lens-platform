@@ -230,7 +230,9 @@ async def postpone_meeting(meeting_id: int) -> dict:
             try:
                 await zoom_delete_meeting(meeting["zoom_meeting_id"])
             except Exception as e:
-                logger.warning(f"Failed to delete Zoom meeting {meeting['zoom_meeting_id']}: {e}")
+                logger.warning(
+                    f"Failed to delete Zoom meeting {meeting['zoom_meeting_id']}: {e}"
+                )
 
         # Delete the meeting row
         await db_delete_meeting(conn, meeting_id)

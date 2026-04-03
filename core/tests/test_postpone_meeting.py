@@ -139,7 +139,9 @@ def mock_calendar():
 def mock_zoom():
     """Mock Zoom API calls used by postpone_meeting."""
     with (
-        patch("core.zoom.hosts.find_available_host", return_value=None) as mock_find_host,
+        patch(
+            "core.zoom.hosts.find_available_host", return_value=None
+        ) as mock_find_host,
         patch("core.zoom.meetings.delete_meeting") as mock_delete,
         patch("core.zoom.meetings.create_meeting") as mock_create,
     ):

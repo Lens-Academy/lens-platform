@@ -19,7 +19,9 @@ async def _get_licensed_hosts() -> list[dict]:
     Returns list of dicts with "id", "email".
     Only includes licensed (type=2) and active users.
     """
-    result = await zoom_request("GET", "/users", params={"page_size": 100, "status": "active"})
+    result = await zoom_request(
+        "GET", "/users", params={"page_size": 100, "status": "active"}
+    )
     if not result:
         return []
     return [
@@ -46,7 +48,8 @@ async def _get_busy_host_emails(
             .where(meetings.c.zoom_host_email.isnot(None))
             .where(meetings.c.scheduled_at < end_time)
             .where(
-                meetings.c.scheduled_at + timedelta(minutes=duration_minutes) > start_time
+                meetings.c.scheduled_at + timedelta(minutes=duration_minutes)
+                > start_time
             )
             .distinct()
         )
@@ -82,7 +85,6 @@ async def find_available_host(
             return host
 
     logger.warning(
-        f"All {len(hosts)} Zoom hosts are busy at {start_time} "
-        f"(busy: {busy_emails})"
+        f"All {len(hosts)} Zoom hosts are busy at {start_time} (busy: {busy_emails})"
     )
     return None

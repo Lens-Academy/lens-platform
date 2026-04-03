@@ -1424,25 +1424,27 @@ async def _patch_calendar_zoom_urls(group_id: int, recurring_event_id: str) -> N
         if any(ep.get("uri") == zoom_url for ep in existing):
             continue
 
-        patches.append({
-            "event_id": instance["id"],
-            "body": {
-                "conferenceData": {
-                    "entryPoints": [
-                        {
-                            "entryPointType": "video",
-                            "uri": zoom_url,
-                            "label": "Join Zoom Meeting",
-                        }
-                    ],
-                    "conferenceSolution": {
-                        "name": "Zoom",
-                        "key": {"type": "addOn"},
-                    },
-                }
-            },
-            "send_updates": "none",
-        })
+        patches.append(
+            {
+                "event_id": instance["id"],
+                "body": {
+                    "conferenceData": {
+                        "entryPoints": [
+                            {
+                                "entryPointType": "video",
+                                "uri": zoom_url,
+                                "label": "Join Zoom Meeting",
+                            }
+                        ],
+                        "conferenceSolution": {
+                            "name": "Zoom",
+                            "key": {"type": "addOn"},
+                        },
+                    }
+                },
+                "send_updates": "none",
+            }
+        )
 
     if patches:
         await asyncio.to_thread(batch_patch_events, patches)
@@ -1668,7 +1670,9 @@ async def sync_group_zoom(group_id: int) -> dict:
                 )
             results["created"] += 1
         except Exception as e:
-            logger.error(f"Failed to create Zoom meeting for meeting {mtg['meeting_id']}: {e}")
+            logger.error(
+                f"Failed to create Zoom meeting for meeting {mtg['meeting_id']}: {e}"
+            )
             sentry_sdk.capture_exception(e)
             results["failed"] += 1
             results["errors"].append(f"Meeting {mtg['meeting_id']}: {e}")

@@ -22,7 +22,9 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column(
         "referral_clicks",
-        sa.Column("consent_state", sa.Text(), server_default="'pending'", nullable=True),
+        sa.Column(
+            "consent_state", sa.Text(), server_default="'pending'", nullable=True
+        ),
     )
     op.create_check_constraint(
         "consent_state_values",

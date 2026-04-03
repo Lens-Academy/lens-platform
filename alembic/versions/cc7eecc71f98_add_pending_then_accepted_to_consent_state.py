@@ -19,7 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TABLE referral_clicks DROP CONSTRAINT ck_referral_clicks_consent_state_values")
+    op.execute(
+        "ALTER TABLE referral_clicks DROP CONSTRAINT ck_referral_clicks_consent_state_values"
+    )
     op.execute(
         "ALTER TABLE referral_clicks ADD CONSTRAINT ck_referral_clicks_consent_state_values "
         "CHECK (consent_state IN ('accepted', 'declined', 'pending', 'pending_then_accepted'))"
@@ -27,8 +29,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("UPDATE referral_clicks SET consent_state = 'accepted' WHERE consent_state = 'pending_then_accepted'")
-    op.execute("ALTER TABLE referral_clicks DROP CONSTRAINT ck_referral_clicks_consent_state_values")
+    op.execute(
+        "UPDATE referral_clicks SET consent_state = 'accepted' WHERE consent_state = 'pending_then_accepted'"
+    )
+    op.execute(
+        "ALTER TABLE referral_clicks DROP CONSTRAINT ck_referral_clicks_consent_state_values"
+    )
     op.execute(
         "ALTER TABLE referral_clicks ADD CONSTRAINT ck_referral_clicks_consent_state_values "
         "CHECK (consent_state IN ('accepted', 'declined', 'pending'))"
