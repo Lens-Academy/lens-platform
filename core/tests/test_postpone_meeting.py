@@ -135,6 +135,17 @@ def mock_calendar():
         yield mock_postpone_cal
 
 
+@pytest.fixture
+def mock_zoom():
+    """Mock Zoom API calls used by postpone_meeting."""
+    with (
+        patch("core.zoom.hosts.find_available_host", return_value=None) as mock_find_host,
+        patch("core.zoom.meetings.delete_meeting") as mock_delete,
+        patch("core.zoom.meetings.create_meeting") as mock_create,
+    ):
+        yield mock_find_host, mock_delete, mock_create
+
+
 # ============================================================================
 # Tests
 # ============================================================================
@@ -145,7 +156,7 @@ class TestPostponeMeeting:
 
     @pytest.mark.asyncio
     async def test_happy_path(
-        self, db_conn, mock_transaction, mock_reminders, mock_calendar
+        self, db_conn, mock_transaction, mock_reminders, mock_calendar, mock_zoom
     ):
         """Postpone meeting 3 of 5: delete 3, shift 4→3 5→4, add new meeting 5."""
         _, group, mtgs = await setup_group_with_meetings(db_conn)
@@ -178,14 +189,14 @@ class TestPostponeMeeting:
 
     @pytest.mark.asyncio
     async def test_meeting_not_found_raises(
-        self, db_conn, mock_transaction, mock_reminders, mock_calendar
+        self, db_conn, mock_transaction, mock_reminders, mock_calendar, mock_zoom
     ):
         with pytest.raises(ValueError, match="Meeting not found"):
             await postpone_meeting(999999)
 
     @pytest.mark.asyncio
     async def test_cancels_old_and_schedules_new_reminders(
-        self, db_conn, mock_transaction, mock_reminders, mock_calendar
+        self, db_conn, mock_transaction, mock_reminders, mock_calendar, mock_zoom
     ):
         mock_cancel, mock_schedule = mock_reminders
         _, _, mtgs = await setup_group_with_meetings(db_conn)
@@ -201,7 +212,7 @@ class TestPostponeMeeting:
 
     @pytest.mark.asyncio
     async def test_calls_calendar_when_gcal_event_exists(
-        self, db_conn, mock_transaction, mock_reminders, mock_calendar
+        self, db_conn, mock_transaction, mock_reminders, mock_calendar, mock_zoom
     ):
         _, group, mtgs = await setup_group_with_meetings(
             db_conn, gcal_event_id="recurring_abc123"
@@ -218,7 +229,7 @@ class TestPostponeMeeting:
 
     @pytest.mark.asyncio
     async def test_skips_calendar_when_no_gcal_event(
-        self, db_conn, mock_transaction, mock_reminders, mock_calendar
+        self, db_conn, mock_transaction, mock_reminders, mock_calendar, mock_zoom
     ):
         _, _, mtgs = await setup_group_with_meetings(db_conn, gcal_event_id=None)
 
@@ -228,7 +239,7 @@ class TestPostponeMeeting:
 
     @pytest.mark.asyncio
     async def test_postpone_first_meeting(
-        self, db_conn, mock_transaction, mock_reminders, mock_calendar
+        self, db_conn, mock_transaction, mock_reminders, mock_calendar, mock_zoom
     ):
         """Postpone meeting 1 of 5: all others shift down, new meeting 5 added."""
         _, group, mtgs = await setup_group_with_meetings(db_conn)
@@ -254,7 +265,7 @@ class TestPostponeMeeting:
 
     @pytest.mark.asyncio
     async def test_postpone_last_meeting(
-        self, db_conn, mock_transaction, mock_reminders, mock_calendar
+        self, db_conn, mock_transaction, mock_reminders, mock_calendar, mock_zoom
     ):
         """Postpone meeting 5 of 5: no renumbering, new meeting 5 at +1 week."""
         _, group, mtgs = await setup_group_with_meetings(db_conn)

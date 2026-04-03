@@ -129,6 +129,57 @@ async def reschedule_meeting(
         meeting_time=new_time,
     )
 
+    # Update Zoom meeting time if one exists
+    if meeting.get("zoom_meeting_id"):
+        from core.zoom.meetings import update_meeting as zoom_update_meeting
+        from core.zoom.hosts import find_available_host
+
+        # Check if current host is still available at new time
+        current_host_email = meeting.get("zoom_host_email")
+        host = await find_available_host(
+            start_time=new_time,
+            duration_minutes=60,
+        )
+
+        if host and host["email"] == current_host_email:
+            # Same host available — just update the time
+            await zoom_update_meeting(
+                meeting_id=meeting["zoom_meeting_id"],
+                start_time=new_time.isoformat(),
+            )
+        else:
+            # Need a different host — delete and recreate
+            from core.zoom.meetings import delete_meeting as zoom_delete_meeting
+            from core.zoom.meetings import create_meeting as zoom_create_meeting
+
+            await zoom_delete_meeting(meeting["zoom_meeting_id"])
+
+            if host:
+                # Get group name for Zoom meeting topic
+                async with get_connection() as conn:
+                    group = await get_group_for_meeting(conn, meeting_id)
+                group_name = group["group_name"] if group else "Group"
+
+                zoom_data = await zoom_create_meeting(
+                    host_email=host["email"],
+                    topic=f"{group_name} - Week {meeting['meeting_number']}",
+                    start_time=new_time.isoformat(),
+                    duration_minutes=60,
+                )
+                if zoom_data:
+                    async with get_transaction() as conn:
+                        from core.tables import meetings as meetings_table
+
+                        await conn.execute(
+                            meetings_table.update()
+                            .where(meetings_table.c.meeting_id == meeting_id)
+                            .values(
+                                zoom_meeting_id=zoom_data["id"],
+                                zoom_join_url=zoom_data["join_url"],
+                                zoom_host_email=host["email"],
+                            )
+                        )
+
     return True
 
 
@@ -172,6 +223,15 @@ async def postpone_meeting(meeting_id: int) -> dict:
         old_last_number = last_meeting["meeting_number"]
         new_meeting_time = last_meeting["scheduled_at"] + timedelta(weeks=1)
 
+        # Delete Zoom meeting if one exists
+        if meeting.get("zoom_meeting_id"):
+            from core.zoom.meetings import delete_meeting as zoom_delete_meeting
+
+            try:
+                await zoom_delete_meeting(meeting["zoom_meeting_id"])
+            except Exception as e:
+                logger.warning(f"Failed to delete Zoom meeting {meeting['zoom_meeting_id']}: {e}")
+
         # Delete the meeting row
         await db_delete_meeting(conn, meeting_id)
 
@@ -204,6 +264,33 @@ async def postpone_meeting(meeting_id: int) -> dict:
             recurring_event_id=gcal_event_id,
             instance_start=deleted_scheduled_at,
         )
+
+    # Create Zoom meeting for the new replacement meeting
+    from core.zoom.hosts import find_available_host
+    from core.zoom.meetings import create_meeting as zoom_create_meeting
+
+    host = await find_available_host(start_time=new_meeting_time, duration_minutes=60)
+    if host:
+        group_name = group.get("group_name", "Group")
+        zoom_data = await zoom_create_meeting(
+            host_email=host["email"],
+            topic=f"{group_name} - Week {old_last_number}",
+            start_time=new_meeting_time.isoformat(),
+            duration_minutes=60,
+        )
+        if zoom_data:
+            async with get_transaction() as conn:
+                from core.tables import meetings as meetings_table
+
+                await conn.execute(
+                    meetings_table.update()
+                    .where(meetings_table.c.meeting_id == new_meeting_id)
+                    .values(
+                        zoom_meeting_id=zoom_data["id"],
+                        zoom_join_url=zoom_data["join_url"],
+                        zoom_host_email=host["email"],
+                    )
+                )
 
     return {
         "deleted_meeting_number": deleted_number,
