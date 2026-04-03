@@ -331,6 +331,7 @@ class TestGetMeetingWithGroup:
             "group_id": 10,
             "scheduled_at": datetime(2026, 2, 10, 17, 0, tzinfo=timezone.utc),
             "meeting_number": 3,
+            "zoom_join_url": "https://zoom.us/j/123",
             "group_name": "Curious Capybaras",
             "discord_text_channel_id": "123456789",
             "course_slug": "default",

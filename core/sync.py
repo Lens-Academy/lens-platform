@@ -847,9 +847,12 @@ async def _send_sync_notifications(
         is_initial_realization: True if this is the group's first realization
         notification_context: Dict with group_name, meeting_time_utc, discord_channel_id, members
     """
+    from sqlalchemy import select
     from .notifications.dispatcher import was_notification_sent
     from .notifications.actions import notify_group_assigned, notify_member_joined
     from .enums import NotificationReferenceType
+    from .database import get_connection
+    from .tables import meetings
 
     result = {"sent": 0, "skipped": 0}
 
@@ -858,6 +861,22 @@ async def _send_sync_notifications(
             f"No notification context for group {group_id}, skipping notifications"
         )
         return result
+
+    # Fetch first available Zoom join URL for this group
+    zoom_join_url = ""
+    try:
+        async with get_connection() as conn:
+            first_zoom = await conn.execute(
+                select(meetings.c.zoom_join_url)
+                .where(meetings.c.group_id == group_id)
+                .where(meetings.c.zoom_join_url.isnot(None))
+                .order_by(meetings.c.scheduled_at)
+                .limit(1)
+            )
+            first_zoom_row = first_zoom.first()
+            zoom_join_url = first_zoom_row[0] if first_zoom_row else ""
+    except Exception:
+        logger.debug("Could not fetch Zoom URL for group %s", group_id, exc_info=True)
 
     group_name = notification_context.get("group_name", "Unknown Group")
     meeting_time_utc = notification_context.get("meeting_time_utc", "TBD")
@@ -901,6 +920,7 @@ async def _send_sync_notifications(
                     meeting_time_utc=meeting_time_utc,
                     member_names=member_names,
                     discord_channel_id=discord_channel_id,
+                    zoom_join_url=zoom_join_url,
                     reference_type=NotificationReferenceType.group_id,
                     reference_id=group_id,
                 )
@@ -913,6 +933,7 @@ async def _send_sync_notifications(
                     member_names=member_names,
                     discord_channel_id=discord_channel_id,
                     discord_user_id=discord_user_id,
+                    zoom_join_url=zoom_join_url,
                 )
 
             result["sent"] += 1

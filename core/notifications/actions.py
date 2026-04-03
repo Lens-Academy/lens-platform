@@ -47,6 +47,7 @@ async def notify_group_assigned(
     meeting_time_utc: str,
     member_names: list[str],
     discord_channel_id: str,
+    zoom_join_url: str = "",
     reference_type: NotificationReferenceType | None = None,
     reference_id: int | None = None,
 ) -> dict:
@@ -74,6 +75,7 @@ async def notify_group_assigned(
             "discord_channel_url": build_discord_channel_url(
                 channel_id=discord_channel_id
             ),
+            "zoom_join_url": zoom_join_url,
         },
         reference_type=reference_type,
         reference_id=reference_id,
@@ -87,6 +89,7 @@ async def notify_member_joined(
     member_names: list[str],
     discord_channel_id: str,
     discord_user_id: str,
+    zoom_join_url: str = "",
 ) -> dict:
     """
     Send notification when a user directly joins a group.
@@ -115,6 +118,7 @@ async def notify_member_joined(
                 channel_id=discord_channel_id
             ),
             "member_mention": f"<@{discord_user_id}>",
+            "zoom_join_url": zoom_join_url,
         },
         channel_id=discord_channel_id,  # dispatcher expects channel_id
     )
