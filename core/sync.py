@@ -19,10 +19,14 @@ Individual sync functions:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 import sentry_sdk
+
+from core.zoom.client import is_zoom_configured
+from core.zoom.hosts import find_available_host
+from core.zoom.meetings import create_meeting as zoom_create_meeting
 
 if TYPE_CHECKING:
     import discord
@@ -1482,6 +1486,102 @@ async def sync_all_group_rsvps() -> dict:
     return result
 
 
+async def sync_group_zoom(group_id: int) -> dict:
+    """
+    Ensure every future meeting for a group has a Zoom meeting.
+
+    For each meeting that lacks a zoom_meeting_id:
+    1. Find an available host from the Zoom account
+    2. Create a standalone Zoom meeting via the API
+    3. Store the Zoom meeting ID, join URL, and host email
+
+    Returns:
+        {"created": int, "existed": int, "skipped": int, "failed": int, "errors": list}
+    """
+    if not is_zoom_configured():
+        return {"skipped": "zoom_not_configured"}
+
+    from .database import get_connection, get_transaction
+    from .tables import groups, meetings
+    from sqlalchemy import select
+
+    results = {"created": 0, "existed": 0, "skipped": 0, "failed": 0, "errors": []}
+
+    async with get_connection() as conn:
+        # Get group info
+        group_row = await conn.execute(
+            select(groups).where(groups.c.group_id == group_id)
+        )
+        group = group_row.mappings().first()
+        if not group:
+            return {"error": "group_not_found"}
+
+        # Get future meetings without Zoom
+        now = datetime.now(tz=timezone.utc)
+        mtg_rows = await conn.execute(
+            select(meetings)
+            .where(meetings.c.group_id == group_id)
+            .where(meetings.c.scheduled_at > now)
+            .where(meetings.c.zoom_meeting_id.is_(None))
+            .order_by(meetings.c.scheduled_at)
+        )
+        future_meetings = mtg_rows.mappings().all()
+
+    for mtg in future_meetings:
+        host = await find_available_host(
+            start_time=mtg["scheduled_at"],
+            duration_minutes=60,
+        )
+        if host is None:
+            results["failed"] += 1
+            results["errors"].append(
+                f"Meeting {mtg['meeting_id']} ({mtg['scheduled_at']}): no available host"
+            )
+            continue
+
+        try:
+            topic = f"{group['group_name']} - Week {mtg['meeting_number']}"
+            zoom_data = await zoom_create_meeting(
+                host_email=host["email"],
+                topic=topic,
+                start_time=mtg["scheduled_at"].isoformat(),
+                duration_minutes=60,
+            )
+            if zoom_data is None:
+                results["skipped"] += 1
+                continue
+
+            async with get_transaction() as conn:
+                await conn.execute(
+                    meetings.update()
+                    .where(meetings.c.meeting_id == mtg["meeting_id"])
+                    .values(
+                        zoom_meeting_id=zoom_data["id"],
+                        zoom_join_url=zoom_data["join_url"],
+                        zoom_host_email=host["email"],
+                    )
+                )
+            results["created"] += 1
+        except Exception as e:
+            logger.error(f"Failed to create Zoom meeting for meeting {mtg['meeting_id']}: {e}")
+            sentry_sdk.capture_exception(e)
+            results["failed"] += 1
+            results["errors"].append(f"Meeting {mtg['meeting_id']}: {e}")
+
+    # Count meetings that already had Zoom
+    async with get_connection() as conn:
+        now = datetime.now(tz=timezone.utc)
+        existing = await conn.execute(
+            select(meetings)
+            .where(meetings.c.group_id == group_id)
+            .where(meetings.c.scheduled_at > now)
+            .where(meetings.c.zoom_meeting_id.isnot(None))
+        )
+        results["existed"] = len(existing.all())
+
+    return results
+
+
 async def sync_group(group_id: int, allow_create: bool = False) -> dict[str, Any]:
     """
     Sync all external systems for a group.
@@ -1596,6 +1696,10 @@ async def sync_group(group_id: int, allow_create: bool = False) -> dict[str, Any
         sentry_sdk.capture_exception(e)
         results["discord"] = {"error": str(e)}
         schedule_sync_retry(sync_type="discord", group_id=group_id, attempt=0)
+
+    # Zoom meetings
+    if allow_create:
+        results["zoom"] = await sync_group_zoom(group_id)
 
     # Sync Calendar
     try:
