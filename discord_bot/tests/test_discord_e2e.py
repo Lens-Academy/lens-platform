@@ -397,14 +397,11 @@ class TestRealizeGroupsE2E:
             result = await cleanup_conn.execute(
                 select(
                     groups.c.discord_text_channel_id,
-                    groups.c.discord_voice_channel_id,
                 ).where(groups.c.group_id == group_id)
             )
             row = result.first()
             if row and row[0]:
                 cleanup_discord["channels"].append(int(row[0]))
-            if row and row[1]:
-                cleanup_discord["channels"].append(int(row[1]))
             # Also get cohort channel
             result = await cleanup_conn.execute(
                 select(cohorts.c.discord_cohort_channel_id).where(
@@ -427,27 +424,19 @@ class TestRealizeGroupsE2E:
             result = await ch_conn.execute(
                 select(
                     groups.c.discord_text_channel_id,
-                    groups.c.discord_voice_channel_id,
                 ).where(groups.c.group_id == group_id)
             )
             row = result.first()
             text_channel_id = row[0] if row else None
-            voice_channel_id = row[1] if row else None
 
         assert text_channel_id is not None, "Text channel ID not saved to group in DB"
-        assert voice_channel_id is not None, "Voice channel ID not saved to group in DB"
 
         text_channel = await guild.fetch_channel(int(text_channel_id))
-        voice_channel = await guild.fetch_channel(int(voice_channel_id))
 
         expected_text_channel_name = group_name.lower().replace(" ", "-")
-        expected_voice_channel_name = f"{group_name} Voice"
 
         assert text_channel is not None, (
             f"Text channel '{expected_text_channel_name}' not found on Discord"
-        )
-        assert voice_channel is not None, (
-            f"Voice channel '{expected_voice_channel_name}' not found on Discord"
         )
 
         # === VERIFY: Permissions set correctly ===
@@ -462,25 +451,17 @@ class TestRealizeGroupsE2E:
             "Category: @everyone can still view"
         )
 
-        # Verify @everyone effectively cannot view channels
+        # Verify @everyone effectively cannot view text channel
         # (permissions_for checks inherited + explicit permissions)
         everyone_text_perms = text_channel.permissions_for(default_role)
-        everyone_voice_perms = voice_channel.permissions_for(default_role)
         assert not everyone_text_perms.view_channel, "Text channel: @everyone can view"
-        assert not everyone_voice_perms.view_channel, (
-            "Voice channel: @everyone can view"
-        )
 
-        # Verify group members CAN view channels (proves role assignment worked)
+        # Verify group members CAN view text channel (proves role assignment worked)
         for discord_id in [TEST_USER_ID_1, TEST_USER_ID_2]:
             member = await guild.fetch_member(int(discord_id))
             member_text_perms = text_channel.permissions_for(member)
-            member_voice_perms = voice_channel.permissions_for(member)
             assert member_text_perms.view_channel, (
                 f"Member {discord_id} cannot view text channel"
-            )
-            assert member_voice_perms.view_channel, (
-                f"Member {discord_id} cannot view voice channel"
             )
 
         # === VERIFY: IDs saved to database ===
@@ -503,14 +484,8 @@ class TestRealizeGroupsE2E:
         assert updated_group["discord_text_channel_id"] is not None, (
             "Text channel ID not saved to DB"
         )
-        assert updated_group["discord_voice_channel_id"] is not None, (
-            "Voice channel ID not saved to DB"
-        )
         assert updated_group["discord_text_channel_id"].isdigit(), (
             "Text channel ID should be numeric string"
-        )
-        assert updated_group["discord_voice_channel_id"].isdigit(), (
-            "Voice channel ID should be numeric string"
         )
 
         assert updated_cohort is not None, "Cohort not found in database"
@@ -542,28 +517,9 @@ class TestRealizeGroupsE2E:
         assert text_overwrites.view_channel is True, (
             "Role does not have view_channel permission on text channel"
         )
-        voice_overwrites = voice_channel.overwrites_for(role)
-        assert voice_overwrites.view_channel is True, (
-            "Role does not have view_channel permission on voice channel"
-        )
         # Note: We already verified members CAN view channels above, which proves
         # role assignment worked (since @everyone is denied). Checking member.roles
         # directly can fail due to Discord API cache issues.
-
-        # === VERIFY: Scheduled events created ===
-        # The test group has meeting time "Monday 09:00-10:00" and num_meetings=2
-        # So we expect 2 scheduled events (unless some are in the past)
-        # Fetch events from API since guild.scheduled_events cache may not be updated
-        all_events = await guild.fetch_scheduled_events()
-        scheduled_events = [
-            event for event in all_events if event.channel_id == voice_channel.id
-        ]
-        # At least 1 event should be created (some may be skipped if in the past)
-        assert len(scheduled_events) >= 1, "No scheduled events created for group"
-        # Verify event naming convention (event name should contain the group name)
-        assert any(group_name in event.name for event in scheduled_events), (
-            f"Scheduled event doesn't contain group name '{group_name}'"
-        )
 
         # === VERIFY: Idempotency (running again doesn't create duplicates) ===
         await cog.realize_cohort.callback(cog, interaction, cohort["cohort_id"])
@@ -586,29 +542,21 @@ class TestRealizeGroupsE2E:
             result = await idem_conn.execute(
                 select(
                     groups.c.discord_text_channel_id,
-                    groups.c.discord_voice_channel_id,
                 ).where(groups.c.group_id == group_id)
             )
             row = result.first()
             assert row[0] == text_channel_id, (
                 "Idempotency failed: text channel ID changed"
             )
-            assert row[1] == voice_channel_id, (
-                "Idempotency failed: voice channel ID changed"
-            )
 
         # Verify channels still exist on Discord
         category_check = await guild.fetch_channel(int(category.id))
         text_check = await guild.fetch_channel(int(text_channel_id))
-        voice_check = await guild.fetch_channel(int(voice_channel_id))
         assert category_check is not None, (
             "Category no longer exists after idempotency run"
         )
         assert text_check is not None, (
             "Text channel no longer exists after idempotency run"
-        )
-        assert voice_check is not None, (
-            "Voice channel no longer exists after idempotency run"
         )
 
         # === OPTIONAL PAUSE FOR MANUAL INSPECTION ===
@@ -623,8 +571,6 @@ class TestRealizeGroupsE2E:
             print("E2E_PAUSE enabled - pausing for manual inspection")
             print(f"Category: {category.name}")
             print(f"Text channel: #{text_channel.name}")
-            print(f"Voice channel: {voice_channel.name}")
-            print(f"Scheduled events: {len(scheduled_events)}")
             print("=" * 60)
             print(f"To continue, run: touch {signal_file}")
             print("Waiting...")

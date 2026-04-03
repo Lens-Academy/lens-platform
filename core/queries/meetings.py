@@ -14,8 +14,6 @@ async def create_meeting(
     cohort_id: int,
     scheduled_at: datetime,
     meeting_number: int,
-    discord_event_id: str | None = None,
-    discord_voice_channel_id: str | None = None,
 ) -> int:
     """
     Create a meeting record.
@@ -30,8 +28,6 @@ async def create_meeting(
             cohort_id=cohort_id,
             scheduled_at=scheduled_at,
             meeting_number=meeting_number,
-            discord_event_id=discord_event_id,
-            discord_voice_channel_id=discord_voice_channel_id,
         )
         .returning(meetings.c.meeting_id)
     )

@@ -33,9 +33,6 @@ async def create_meetings_for_group(
     group_name: str,
     first_meeting: datetime,
     num_meetings: int,
-    discord_voice_channel_id: str,
-    discord_events: list | None = None,
-    discord_text_channel_id: str | None = None,
 ) -> list[int]:
     """
     Create all meeting records for a group.
@@ -48,9 +45,6 @@ async def create_meetings_for_group(
         group_name: Group name (for calendar event titles)
         first_meeting: First meeting datetime (UTC)
         num_meetings: Number of weekly meetings
-        discord_voice_channel_id: Voice channel ID
-        discord_events: Optional list of Discord scheduled events
-        discord_text_channel_id: Text channel for reminders
 
     Returns:
         List of created meeting_ids
@@ -61,19 +55,12 @@ async def create_meetings_for_group(
         for week in range(num_meetings):
             meeting_time = first_meeting + timedelta(weeks=week)
 
-            # Get Discord event ID if available
-            discord_event_id = None
-            if discord_events and week < len(discord_events):
-                discord_event_id = str(discord_events[week].id)
-
             meeting_id = await create_meeting(
                 conn,
                 group_id=group_id,
                 cohort_id=cohort_id,
                 scheduled_at=meeting_time,
                 meeting_number=week + 1,
-                discord_event_id=discord_event_id,
-                discord_voice_channel_id=discord_voice_channel_id,
             )
             meeting_ids.append(meeting_id)
 
@@ -199,7 +186,6 @@ async def postpone_meeting(meeting_id: int) -> dict:
             cohort_id=meeting["cohort_id"],
             scheduled_at=new_meeting_time,
             meeting_number=old_last_number,
-            discord_voice_channel_id=meeting.get("discord_voice_channel_id"),
         )
 
     # Cancel reminders for deleted meeting

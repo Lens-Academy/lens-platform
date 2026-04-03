@@ -99,7 +99,6 @@ class TestGetRealizableCohorts:
             cohort["cohort_id"],
             "Group 1",
             discord_text_channel_id="111",
-            discord_voice_channel_id="222",
             status="active",
         )
 
