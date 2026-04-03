@@ -1305,6 +1305,14 @@ async def sync_group_calendar(group_id: int) -> dict:
                 result["failed"] = 1
                 result["error"] = "calendar_create_failed"
 
+            # Patch Zoom join URLs onto individual calendar instances
+            if event_id:
+                try:
+                    await _patch_calendar_zoom_urls(group_id, event_id)
+                except Exception as e:
+                    logger.error(f"Failed to patch Zoom URLs for group {group_id}: {e}")
+                    result["zoom_calendar_patch_error"] = str(e)
+
             return result
 
         # --- PATCH existing recurring event if attendees changed ---
@@ -1340,7 +1348,83 @@ async def sync_group_calendar(group_id: int) -> dict:
             else:
                 result["failed"] = 1
 
+        # Patch Zoom join URLs onto individual calendar instances
+        if event_id:
+            try:
+                await _patch_calendar_zoom_urls(group_id, event_id)
+            except Exception as e:
+                logger.error(f"Failed to patch Zoom URLs for group {group_id}: {e}")
+                result["zoom_calendar_patch_error"] = str(e)
+
         return result
+
+
+async def _patch_calendar_zoom_urls(group_id: int, recurring_event_id: str) -> None:
+    """Patch each calendar instance with its meeting's Zoom join URL."""
+    import asyncio
+    from datetime import datetime
+    from sqlalchemy import select
+    from core.calendar.events import get_event_instances
+    from core.calendar.client import batch_patch_events
+    from .database import get_connection
+    from .tables import meetings
+
+    async with get_connection() as conn:
+        mtg_rows = await conn.execute(
+            select(meetings)
+            .where(meetings.c.group_id == group_id)
+            .where(meetings.c.zoom_join_url.isnot(None))
+            .order_by(meetings.c.scheduled_at)
+        )
+        zoom_meetings = {
+            mtg["scheduled_at"]: mtg["zoom_join_url"]
+            for mtg in mtg_rows.mappings().all()
+        }
+
+    if not zoom_meetings:
+        return
+
+    instances = await get_event_instances(recurring_event_id)
+    if not instances:
+        return
+
+    patches = []
+    for instance in instances:
+        instance_start_str = instance.get("start", {}).get("dateTime", "")
+        if not instance_start_str:
+            continue
+        instance_start = datetime.fromisoformat(instance_start_str)
+        zoom_url = zoom_meetings.get(instance_start)
+        if not zoom_url:
+            continue
+
+        # Skip if already has this conference URL
+        existing = instance.get("conferenceData", {}).get("entryPoints", [])
+        if any(ep.get("uri") == zoom_url for ep in existing):
+            continue
+
+        patches.append({
+            "event_id": instance["id"],
+            "body": {
+                "conferenceData": {
+                    "entryPoints": [
+                        {
+                            "entryPointType": "video",
+                            "uri": zoom_url,
+                            "label": "Join Zoom Meeting",
+                        }
+                    ],
+                    "conferenceSolution": {
+                        "name": "Zoom",
+                        "key": {"type": "addOn"},
+                    },
+                }
+            },
+            "send_updates": "none",
+        })
+
+    if patches:
+        await asyncio.to_thread(batch_patch_events, patches)
 
 
 async def _get_group_member_emails(conn, group_id: int) -> set[str]:
