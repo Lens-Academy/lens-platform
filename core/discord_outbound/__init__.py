@@ -5,7 +5,6 @@ from .bot import get_bot, get_dm_semaphore, get_or_fetch_member, set_bot
 from .channels import (
     create_category,
     create_text_channel,
-    create_voice_channel,
     get_or_fetch_channel,
 )
 from .messages import edit_channel_message, edit_dm, send_channel_message, send_dm
@@ -33,7 +32,6 @@ __all__ = [
     "edit_channel_message",
     "create_category",
     "create_text_channel",
-    "create_voice_channel",
     "get_or_fetch_channel",
     "grant_channel_access",
     "revoke_channel_access",
