@@ -1,11 +1,11 @@
 const COURSES = [
   {
-    label: "Navigating Superintelligence",
-    href: "/course/default",
+    label: "Machine God (start here)",
+    href: "/course/machine-god",
   },
   {
-    label: "Book Club: If Anyone Builds It, Everyone Dies",
-    href: "/course/iabied-book-club",
+    label: "Navigating Superintelligence",
+    href: "/course/default",
   },
 ] as const;
 

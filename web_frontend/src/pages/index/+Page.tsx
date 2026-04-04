@@ -204,7 +204,7 @@ export default function LandingPage() {
                 e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
-              Enroll in the Course
+              Enroll in a Course
             </a>
           </div>
 
@@ -345,12 +345,12 @@ export default function LandingPage() {
                 className="text-2xl sm:text-3xl mb-4 leading-snug"
                 style={fontDisplay}
               >
-                If Anyone Builds It, Everyone Dies
+                Machine God
                 <span
                   className="block text-base font-normal mt-2"
                   style={{ color: "var(--landing-text-muted)" }}
                 >
-                  Book Club Course
+                  If Anyone Builds It, Everyone Dies
                 </span>
               </h3>
               <p
@@ -461,7 +461,7 @@ export default function LandingPage() {
                 e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
-              Enroll in the Course
+              Enroll in a Course
             </a>
           </div>
 
