@@ -106,7 +106,7 @@ export default function ProspectEmailForm({
           You're on the list!
         </p>
         <p className="text-gray-600">
-          We'll email you when the next cohort opens for enrollment.
+          We&rsquo;ll email you when the next course opens for enrollment.
         </p>
       </div>
     );

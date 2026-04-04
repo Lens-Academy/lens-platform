@@ -19,10 +19,14 @@ Individual sync functions:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 import sentry_sdk
+
+from core.zoom.client import is_zoom_configured
+from core.zoom.hosts import find_available_host
+from core.zoom.meetings import create_meeting as zoom_create_meeting
 
 if TYPE_CHECKING:
     import discord
@@ -111,7 +115,7 @@ async def _ensure_cohort_category(cohort_id: int) -> dict:
 
 async def _ensure_group_channels(group_id: int, category) -> dict:
     """
-    Ensure group has text and voice channels. Create if missing.
+    Ensure group has a text channel. Create if missing.
 
     Args:
         group_id: The group to check/create channels for
@@ -120,7 +124,6 @@ async def _ensure_group_channels(group_id: int, category) -> dict:
     Returns:
         {
             "text_channel": {"status": "existed"|"created"|"channel_missing"|"failed", "id": str|None},
-            "voice_channel": {"status": "existed"|"created"|"channel_missing"|"failed", "id": str|None},
             "welcome_message_sent": bool,
         }
     """
@@ -132,17 +135,11 @@ async def _ensure_group_channels(group_id: int, category) -> dict:
     _bot = get_bot()
     result = {
         "text_channel": {"status": "skipped", "id": None},
-        "voice_channel": {"status": "skipped", "id": None},
         "welcome_message_sent": False,
     }
 
     if not _bot:
         result["text_channel"] = {
-            "status": "failed",
-            "error": "bot_unavailable",
-            "id": None,
-        }
-        result["voice_channel"] = {
             "status": "failed",
             "error": "bot_unavailable",
             "id": None,
@@ -155,7 +152,6 @@ async def _ensure_group_channels(group_id: int, category) -> dict:
                 groups.c.group_id,
                 groups.c.group_name,
                 groups.c.discord_text_channel_id,
-                groups.c.discord_voice_channel_id,
                 groups.c.cohort_id,
             ).where(groups.c.group_id == group_id)
         )
@@ -167,16 +163,10 @@ async def _ensure_group_channels(group_id: int, category) -> dict:
             "error": "group_not_found",
             "id": None,
         }
-        result["voice_channel"] = {
-            "status": "failed",
-            "error": "group_not_found",
-            "id": None,
-        }
         return result
 
     group_name = group["group_name"]
     text_channel = None
-    voice_channel = None
     text_created = False
 
     # Check/create text channel
@@ -208,59 +198,15 @@ async def _ensure_group_channels(group_id: int, category) -> dict:
             sentry_sdk.capture_exception(e)
             result["text_channel"] = {"status": "failed", "error": str(e), "id": None}
 
-    # Check/create voice channel
-    if group["discord_voice_channel_id"]:
-        voice_channel = await get_or_fetch_channel(
-            _bot, int(group["discord_voice_channel_id"])
-        )
-        if voice_channel:
-            result["voice_channel"] = {
-                "status": "existed",
-                "id": group["discord_voice_channel_id"],
-            }
-        else:
-            result["voice_channel"] = {
-                "status": "channel_missing",
-                "id": group["discord_voice_channel_id"],
-            }
-    elif category:
-        try:
-            voice_channel = await category.guild.create_voice_channel(
-                name=f"{group_name} Voice",
-                category=category,
-                reason=f"Voice channel for {group_name}",
-            )
-            result["voice_channel"] = {"status": "created", "id": str(voice_channel.id)}
-        except Exception as e:
-            logger.error(f"Failed to create voice channel for group {group_id}: {e}")
-            sentry_sdk.capture_exception(e)
-            result["voice_channel"] = {"status": "failed", "error": str(e), "id": None}
-
-    # Save channel IDs to database if any were created
-    text_id = (
-        result["text_channel"].get("id")
-        if result["text_channel"]["status"] in ("created", "existed")
-        else None
-    )
-    voice_id = (
-        result["voice_channel"].get("id")
-        if result["voice_channel"]["status"] in ("created", "existed")
-        else None
-    )
-
-    if text_id or voice_id:
-        update_values = {}
-        if text_id and result["text_channel"]["status"] == "created":
-            update_values["discord_text_channel_id"] = text_id
-        if voice_id and result["voice_channel"]["status"] == "created":
-            update_values["discord_voice_channel_id"] = voice_id
-
-        if update_values:
+    # Save channel ID to database if created
+    if text_created:
+        text_id = result["text_channel"].get("id")
+        if text_id:
             async with get_transaction() as conn:
                 await conn.execute(
                     update(groups)
                     .where(groups.c.group_id == group_id)
-                    .values(**update_values)
+                    .values(discord_text_channel_id=text_id)
                 )
 
     # Send welcome message if text channel was just created
@@ -551,28 +497,25 @@ async def _ensure_cohort_channel(cohort_id: int) -> dict:
 async def _set_group_role_permissions(
     role: "discord.Role",
     text_channel: "discord.TextChannel",
-    voice_channel: "discord.VoiceChannel | None",
     cohort_channel: "discord.TextChannel | None",
 ) -> dict:
     """
     Set role permissions on all group-related channels.
 
     - Text channel: view_channel, send_messages, read_message_history
-    - Voice channel: view_channel, connect, speak
     - Cohort channel: view_channel, send_messages, read_message_history
 
     Args:
         role: Discord role to set permissions for
         text_channel: Group's text channel
-        voice_channel: Group's voice channel (can be None)
         cohort_channel: Cohort's shared channel (can be None)
 
     Returns:
-        {"text": bool, "voice": bool, "cohort": bool}
+        {"text": bool, "cohort": bool}
     """
     from .discord_outbound import set_role_channel_permissions
 
-    result = {"text": False, "voice": False, "cohort": False}
+    result = {"text": False, "cohort": False}
 
     # Set text channel permissions
     if text_channel:
@@ -582,17 +525,6 @@ async def _set_group_role_permissions(
             view_channel=True,
             send_messages=True,
             read_message_history=True,
-            reason="Group role permissions",
-        )
-
-    # Set voice channel permissions
-    if voice_channel:
-        result["voice"] = await set_role_channel_permissions(
-            role=role,
-            channel=voice_channel,
-            view_channel=True,
-            connect=True,
-            speak=True,
             reason="Group role permissions",
         )
 
@@ -673,7 +605,6 @@ async def _ensure_group_meetings(group_id: int) -> dict:
                 groups.c.group_name,
                 groups.c.recurring_meeting_time_utc,
                 groups.c.cohort_id,
-                groups.c.discord_voice_channel_id,
             ).where(groups.c.group_id == group_id)
         )
         group = group_result.mappings().first()
@@ -728,7 +659,6 @@ async def _ensure_group_meetings(group_id: int) -> dict:
             group_name=group["group_name"],
             first_meeting=first_meeting,
             num_meetings=num_meetings,
-            discord_voice_channel_id=group.get("discord_voice_channel_id") or "",
         )
         return {"created": len(meeting_ids), "existed": 0}
     except Exception as e:
@@ -786,100 +716,9 @@ def _calculate_first_meeting(start_date, meeting_time_str: str) -> datetime | No
     return first_meeting
 
 
-async def _ensure_meeting_discord_events(group_id: int, voice_channel) -> dict:
-    """
-    Ensure Discord scheduled events exist for all future meetings.
-
-    Args:
-        group_id: The group to create events for
-        voice_channel: Discord voice channel for the events (None to skip)
-
-    Returns:
-        {"created": int, "existed": int, "skipped": int, "failed": int}
-    """
-    from .database import get_connection, get_transaction
-    from .tables import meetings, groups
-    from datetime import datetime, timezone, timedelta
-    from sqlalchemy import select, update
-    import discord
-
-    result = {"created": 0, "existed": 0, "skipped": 0, "failed": 0}
-
-    if not voice_channel:
-        # Can't create events without voice channel
-        return result
-
-    async with get_connection() as conn:
-        # Get group name for event titles
-        group_result = await conn.execute(
-            select(groups.c.group_name).where(groups.c.group_id == group_id)
-        )
-        group_row = group_result.mappings().first()
-        group_name = group_row["group_name"] if group_row else f"Group {group_id}"
-
-        # Get all future meetings
-        now = datetime.now(timezone.utc)
-        meetings_result = await conn.execute(
-            select(
-                meetings.c.meeting_id,
-                meetings.c.discord_event_id,
-                meetings.c.scheduled_at,
-                meetings.c.meeting_number,
-            )
-            .where(meetings.c.group_id == group_id)
-            .where(meetings.c.scheduled_at > now)
-            .order_by(meetings.c.scheduled_at)
-        )
-        meeting_rows = list(meetings_result.mappings())
-
-    if not meeting_rows:
-        return result
-
-    guild = voice_channel.guild
-
-    for meeting in meeting_rows:
-        if meeting["discord_event_id"]:
-            result["existed"] += 1
-            continue
-
-        # Skip if meeting is in the past (edge case)
-        if meeting["scheduled_at"] < datetime.now(timezone.utc):
-            result["skipped"] += 1
-            continue
-
-        try:
-            event = await guild.create_scheduled_event(
-                name=f"{group_name} - Week {meeting['meeting_number']}",
-                start_time=meeting["scheduled_at"],
-                end_time=meeting["scheduled_at"] + timedelta(hours=1),
-                channel=voice_channel,
-                description=f"Weekly meeting for {group_name}",
-                entity_type=discord.EntityType.voice,
-                privacy_level=discord.PrivacyLevel.guild_only,
-            )
-
-            # Save event ID to database
-            async with get_transaction() as conn:
-                await conn.execute(
-                    update(meetings)
-                    .where(meetings.c.meeting_id == meeting["meeting_id"])
-                    .values(discord_event_id=str(event.id))
-                )
-
-            result["created"] += 1
-        except Exception as e:
-            logger.error(
-                f"Failed to create event for meeting {meeting['meeting_id']}: {e}"
-            )
-            sentry_sdk.capture_exception(e)
-            result["failed"] += 1
-
-    return result
-
-
 def _is_fully_realized(infrastructure: dict, discord_result: dict) -> bool:
     """Check if group is fully realized and ready to be active."""
-    required = ["category", "text_channel", "voice_channel"]
+    required = ["category", "text_channel"]
     for key in required:
         info = infrastructure.get(key, {})
         if info.get("status") not in ("existed", "created"):
@@ -1008,9 +847,12 @@ async def _send_sync_notifications(
         is_initial_realization: True if this is the group's first realization
         notification_context: Dict with group_name, meeting_time_utc, discord_channel_id, members
     """
+    from sqlalchemy import select
     from .notifications.dispatcher import was_notification_sent
     from .notifications.actions import notify_group_assigned, notify_member_joined
     from .enums import NotificationReferenceType
+    from .database import get_connection
+    from .tables import meetings
 
     result = {"sent": 0, "skipped": 0}
 
@@ -1019,6 +861,22 @@ async def _send_sync_notifications(
             f"No notification context for group {group_id}, skipping notifications"
         )
         return result
+
+    # Fetch first available Zoom join URL for this group
+    zoom_join_url = ""
+    try:
+        async with get_connection() as conn:
+            first_zoom = await conn.execute(
+                select(meetings.c.zoom_join_url)
+                .where(meetings.c.group_id == group_id)
+                .where(meetings.c.zoom_join_url.isnot(None))
+                .order_by(meetings.c.scheduled_at)
+                .limit(1)
+            )
+            first_zoom_row = first_zoom.first()
+            zoom_join_url = first_zoom_row[0] if first_zoom_row else ""
+    except Exception:
+        logger.debug("Could not fetch Zoom URL for group %s", group_id, exc_info=True)
 
     group_name = notification_context.get("group_name", "Unknown Group")
     meeting_time_utc = notification_context.get("meeting_time_utc", "TBD")
@@ -1062,6 +920,7 @@ async def _send_sync_notifications(
                     meeting_time_utc=meeting_time_utc,
                     member_names=member_names,
                     discord_channel_id=discord_channel_id,
+                    zoom_join_url=zoom_join_url,
                     reference_type=NotificationReferenceType.group_id,
                     reference_id=group_id,
                 )
@@ -1074,6 +933,7 @@ async def _send_sync_notifications(
                     member_names=member_names,
                     discord_channel_id=discord_channel_id,
                     discord_user_id=discord_user_id,
+                    zoom_join_url=zoom_join_url,
                 )
 
             result["sent"] += 1
@@ -1096,7 +956,6 @@ async def _get_group_for_sync(group_id: int) -> dict | None:
                 groups.c.group_id,
                 groups.c.status,
                 groups.c.discord_text_channel_id,
-                groups.c.discord_voice_channel_id,
                 groups.c.cohort_id,
             ).where(groups.c.group_id == group_id)
         )
@@ -1153,7 +1012,7 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
         get_role_member_ids,
     )
     from .tables import groups, groups_users, users, meetings, attendances
-    from .enums import GroupUserStatus, GroupUserRole, RSVPStatus
+    from .enums import GroupUserStatus, RSVPStatus
     from sqlalchemy import select
     from datetime import datetime, timezone, timedelta
 
@@ -1203,7 +1062,6 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
             select(
                 groups.c.cohort_id,
                 groups.c.discord_text_channel_id,
-                groups.c.discord_voice_channel_id,
             ).where(groups.c.group_id == group_id)
         )
         group_row = group_result.mappings().first()
@@ -1221,11 +1079,6 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
 
     cohort_id = group_row["cohort_id"]
     text_channel_id = int(group_row["discord_text_channel_id"])
-    voice_channel_id = (
-        int(group_row["discord_voice_channel_id"])
-        if group_row.get("discord_voice_channel_id")
-        else None
-    )
 
     # Step 2: Ensure cohort channel exists
     cohort_channel_result = await _ensure_cohort_channel(cohort_id)
@@ -1246,12 +1099,9 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
             "failed": 0,
         }
 
-    voice_channel = _bot.get_channel(voice_channel_id) if voice_channel_id else None
-
     await _set_group_role_permissions(
         role=role,
         text_channel=text_channel,
-        voice_channel=voice_channel,
         cohort_channel=cohort_channel,
     )
 
@@ -1286,87 +1136,6 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
 
     # Step 5: Get current role members from Discord (who CURRENTLY has the role)
     current_discord_ids = get_role_member_ids(role)
-
-    # Step 5b: Sync facilitator connect overwrites on voice channel
-    facilitator_granted, facilitator_revoked = 0, 0
-    if voice_channel:
-        import discord
-
-        # Query DB for desired facilitator discord_ids
-        async with get_connection() as conn:
-            facilitator_result = await conn.execute(
-                select(users.c.discord_id)
-                .join(groups_users, users.c.user_id == groups_users.c.user_id)
-                .where(groups_users.c.group_id == group_id)
-                .where(groups_users.c.status == GroupUserStatus.active)
-                .where(groups_users.c.role == GroupUserRole.facilitator)
-                .where(users.c.discord_id.isnot(None))
-            )
-            desired_facilitator_ids = {
-                row["discord_id"] for row in facilitator_result.mappings()
-            }
-
-        # Read current member overwrites with connect=True from voice channel
-        current_connect_ids: set[str] = set()
-        for target, overwrite in voice_channel.overwrites.items():
-            if isinstance(target, discord.Member):
-                pair = overwrite.pair()
-                # pair() returns (allow, deny) PermissionOverwrite
-                if pair[0].connect:  # connect is in the allow set
-                    current_connect_ids.add(str(target.id))
-
-        # Compute diff
-        to_grant_connect = desired_facilitator_ids - current_connect_ids
-        # Only revoke overwrites for members who are in the group
-        to_revoke_connect = (
-            current_connect_ids & expected_discord_ids
-        ) - desired_facilitator_ids
-
-        guild = role.guild
-
-        # Grant connect=True to new facilitators
-        for discord_id in to_grant_connect:
-            member = await get_or_fetch_member(guild, int(discord_id))
-            if not member:
-                logger.info(
-                    f"Member {discord_id} not in guild, skipping facilitator connect grant"
-                )
-                continue
-            try:
-                await voice_channel.set_permissions(
-                    member, connect=True, reason="Facilitator voice access"
-                )
-                facilitator_granted += 1
-            except Exception as e:
-                logger.error(
-                    f"Failed to grant facilitator connect to {discord_id}: {e}"
-                )
-                sentry_sdk.capture_exception(e)
-            await asyncio.sleep(0.1)  # Rate limit protection
-
-        # Revoke connect overwrite from demoted facilitators
-        for discord_id in to_revoke_connect:
-            member = await get_or_fetch_member(guild, int(discord_id))
-            if not member:
-                continue
-            try:
-                await voice_channel.set_permissions(
-                    member,
-                    overwrite=None,
-                    reason="Facilitator voice access removed",
-                )
-                facilitator_revoked += 1
-            except Exception as e:
-                logger.error(
-                    f"Failed to revoke facilitator connect from {discord_id}: {e}"
-                )
-                sentry_sdk.capture_exception(e)
-            await asyncio.sleep(0.1)  # Rate limit protection
-
-        logger.info(
-            f"Facilitator voice sync for group {group_id}: "
-            f"granted={facilitator_granted}, revoked={facilitator_revoked}"
-        )
 
     # Step 6: Calculate diff and add/remove role assignments
     to_grant = expected_discord_ids - current_discord_ids
@@ -1424,8 +1193,6 @@ async def sync_group_discord_permissions(group_id: int) -> dict:
         "revoked_discord_ids": revoked_discord_ids,
         "role_status": role_status,
         "cohort_channel_status": cohort_channel_status,
-        "facilitator_granted": facilitator_granted,
-        "facilitator_revoked": facilitator_revoked,
     }
 
 
@@ -1559,6 +1326,14 @@ async def sync_group_calendar(group_id: int) -> dict:
                 result["failed"] = 1
                 result["error"] = "calendar_create_failed"
 
+            # Patch Zoom join URLs onto individual calendar instances
+            if event_id:
+                try:
+                    await _patch_calendar_zoom_urls(group_id, event_id)
+                except Exception as e:
+                    logger.error(f"Failed to patch Zoom URLs for group {group_id}: {e}")
+                    result["zoom_calendar_patch_error"] = str(e)
+
             return result
 
         # --- PATCH existing recurring event if attendees changed ---
@@ -1594,7 +1369,85 @@ async def sync_group_calendar(group_id: int) -> dict:
             else:
                 result["failed"] = 1
 
+        # Patch Zoom join URLs onto individual calendar instances
+        if event_id:
+            try:
+                await _patch_calendar_zoom_urls(group_id, event_id)
+            except Exception as e:
+                logger.error(f"Failed to patch Zoom URLs for group {group_id}: {e}")
+                result["zoom_calendar_patch_error"] = str(e)
+
         return result
+
+
+async def _patch_calendar_zoom_urls(group_id: int, recurring_event_id: str) -> None:
+    """Patch each calendar instance with its meeting's Zoom join URL."""
+    import asyncio
+    from datetime import datetime
+    from sqlalchemy import select
+    from core.calendar.events import get_event_instances
+    from core.calendar.client import batch_patch_events
+    from .database import get_connection
+    from .tables import meetings
+
+    async with get_connection() as conn:
+        mtg_rows = await conn.execute(
+            select(meetings)
+            .where(meetings.c.group_id == group_id)
+            .where(meetings.c.zoom_join_url.isnot(None))
+            .order_by(meetings.c.scheduled_at)
+        )
+        zoom_meetings = {
+            mtg["scheduled_at"]: mtg["zoom_join_url"]
+            for mtg in mtg_rows.mappings().all()
+        }
+
+    if not zoom_meetings:
+        return
+
+    instances = await get_event_instances(recurring_event_id)
+    if not instances:
+        return
+
+    patches = []
+    for instance in instances:
+        instance_start_str = instance.get("start", {}).get("dateTime", "")
+        if not instance_start_str:
+            continue
+        instance_start = datetime.fromisoformat(instance_start_str)
+        zoom_url = zoom_meetings.get(instance_start)
+        if not zoom_url:
+            continue
+
+        # Skip if already has this conference URL
+        existing = instance.get("conferenceData", {}).get("entryPoints", [])
+        if any(ep.get("uri") == zoom_url for ep in existing):
+            continue
+
+        patches.append(
+            {
+                "event_id": instance["id"],
+                "body": {
+                    "conferenceData": {
+                        "entryPoints": [
+                            {
+                                "entryPointType": "video",
+                                "uri": zoom_url,
+                                "label": "Join Zoom Meeting",
+                            }
+                        ],
+                        "conferenceSolution": {
+                            "name": "Zoom",
+                            "key": {"type": "addOn"},
+                        },
+                    }
+                },
+                "send_updates": "none",
+            }
+        )
+
+    if patches:
+        await asyncio.to_thread(batch_patch_events, patches)
 
 
 async def _get_group_member_emails(conn, group_id: int) -> set[str]:
@@ -1740,6 +1593,104 @@ async def sync_all_group_rsvps() -> dict:
     return result
 
 
+async def sync_group_zoom(group_id: int) -> dict:
+    """
+    Ensure every future meeting for a group has a Zoom meeting.
+
+    For each meeting that lacks a zoom_meeting_id:
+    1. Find an available host from the Zoom account
+    2. Create a standalone Zoom meeting via the API
+    3. Store the Zoom meeting ID, join URL, and host email
+
+    Returns:
+        {"created": int, "existed": int, "skipped": int, "failed": int, "errors": list}
+    """
+    if not is_zoom_configured():
+        return {"skipped": "zoom_not_configured"}
+
+    from .database import get_connection, get_transaction
+    from .tables import groups, meetings
+    from sqlalchemy import select
+
+    results = {"created": 0, "existed": 0, "skipped": 0, "failed": 0, "errors": []}
+
+    async with get_connection() as conn:
+        # Get group info
+        group_row = await conn.execute(
+            select(groups).where(groups.c.group_id == group_id)
+        )
+        group = group_row.mappings().first()
+        if not group:
+            return {"error": "group_not_found"}
+
+        # Get future meetings without Zoom
+        now = datetime.now(tz=timezone.utc)
+        mtg_rows = await conn.execute(
+            select(meetings)
+            .where(meetings.c.group_id == group_id)
+            .where(meetings.c.scheduled_at > now)
+            .where(meetings.c.zoom_meeting_id.is_(None))
+            .order_by(meetings.c.scheduled_at)
+        )
+        future_meetings = mtg_rows.mappings().all()
+
+    for mtg in future_meetings:
+        host = await find_available_host(
+            start_time=mtg["scheduled_at"],
+            duration_minutes=60,
+        )
+        if host is None:
+            results["failed"] += 1
+            results["errors"].append(
+                f"Meeting {mtg['meeting_id']} ({mtg['scheduled_at']}): no available host"
+            )
+            continue
+
+        try:
+            topic = f"{group['group_name']} - Week {mtg['meeting_number']}"
+            zoom_data = await zoom_create_meeting(
+                host_email=host["email"],
+                topic=topic,
+                start_time=mtg["scheduled_at"].isoformat(),
+                duration_minutes=60,
+            )
+            if zoom_data is None:
+                results["skipped"] += 1
+                continue
+
+            async with get_transaction() as conn:
+                await conn.execute(
+                    meetings.update()
+                    .where(meetings.c.meeting_id == mtg["meeting_id"])
+                    .values(
+                        zoom_meeting_id=zoom_data["id"],
+                        zoom_join_url=zoom_data["join_url"],
+                        zoom_host_email=host["email"],
+                    )
+                )
+            results["created"] += 1
+        except Exception as e:
+            logger.error(
+                f"Failed to create Zoom meeting for meeting {mtg['meeting_id']}: {e}"
+            )
+            sentry_sdk.capture_exception(e)
+            results["failed"] += 1
+            results["errors"].append(f"Meeting {mtg['meeting_id']}: {e}")
+
+    # Count meetings that already had Zoom
+    async with get_connection() as conn:
+        now = datetime.now(tz=timezone.utc)
+        existing = await conn.execute(
+            select(meetings)
+            .where(meetings.c.group_id == group_id)
+            .where(meetings.c.scheduled_at > now)
+            .where(meetings.c.zoom_meeting_id.isnot(None))
+        )
+        results["existed"] = len(existing.all())
+
+    return results
+
+
 async def sync_group(group_id: int, allow_create: bool = False) -> dict[str, Any]:
     """
     Sync all external systems for a group.
@@ -1753,9 +1704,8 @@ async def sync_group(group_id: int, allow_create: bool = False) -> dict[str, Any
 
     When allow_create=True, also creates missing infrastructure:
     - Discord category (cohort level)
-    - Discord text/voice channels
+    - Discord text channel
     - Meeting records
-    - Discord scheduled events
 
     Errors are captured in the results dict, not raised. Failed syncs
     are automatically scheduled for retry.
@@ -1783,9 +1733,7 @@ async def sync_group(group_id: int, allow_create: bool = False) -> dict[str, Any
         "infrastructure": {
             "category": {"status": "skipped"},
             "text_channel": {"status": "skipped"},
-            "voice_channel": {"status": "skipped"},
             "meetings": {"created": 0, "existed": 0},
-            "discord_events": {"created": 0, "existed": 0, "skipped": 0, "failed": 0},
         },
     }
 
@@ -1821,13 +1769,10 @@ async def sync_group(group_id: int, allow_create: bool = False) -> dict[str, Any
         if category_result.get("id") and _bot:
             category = await get_or_fetch_channel(_bot, int(category_result["id"]))
 
-        # 2. Ensure group channels (needs category)
+        # 2. Ensure group text channel (needs category)
         if category:
             channels_result = await _ensure_group_channels(group_id, category)
             results["infrastructure"]["text_channel"] = channels_result["text_channel"]
-            results["infrastructure"]["voice_channel"] = channels_result[
-                "voice_channel"
-            ]
             results["infrastructure"]["welcome_message_sent"] = channels_result.get(
                 "welcome_message_sent", False
             )
@@ -1836,24 +1781,10 @@ async def sync_group(group_id: int, allow_create: bool = False) -> dict[str, Any
                 "status": "skipped",
                 "error": "no_category",
             }
-            results["infrastructure"]["voice_channel"] = {
-                "status": "skipped",
-                "error": "no_category",
-            }
 
         # 3. Ensure meeting records
         meetings_result = await _ensure_group_meetings(group_id)
         results["infrastructure"]["meetings"] = meetings_result
-
-        # 4. Ensure Discord events (needs voice channel)
-        # Use get_or_fetch_channel to handle newly created channels not yet in cache
-        voice_channel = None
-        voice_id = results["infrastructure"]["voice_channel"].get("id")
-        if voice_id and _bot:
-            voice_channel = await get_or_fetch_channel(_bot, int(voice_id))
-
-        events_result = await _ensure_meeting_discord_events(group_id, voice_channel)
-        results["infrastructure"]["discord_events"] = events_result
 
         # Refresh group data after infrastructure creation
         group = await _get_group_for_sync(group_id)
@@ -1874,6 +1805,10 @@ async def sync_group(group_id: int, allow_create: bool = False) -> dict[str, Any
         sentry_sdk.capture_exception(e)
         results["discord"] = {"error": str(e)}
         schedule_sync_retry(sync_type="discord", group_id=group_id, attempt=0)
+
+    # Zoom meetings
+    if allow_create:
+        results["zoom"] = await sync_group_zoom(group_id)
 
     # Sync Calendar
     try:

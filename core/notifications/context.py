@@ -44,6 +44,7 @@ async def get_meeting_with_group(meeting_id: int) -> tuple[dict, dict] | None:
                 meetings.c.group_id,
                 meetings.c.scheduled_at,
                 meetings.c.meeting_number,
+                meetings.c.zoom_join_url,
                 groups.c.group_name,
                 groups.c.discord_text_channel_id,
                 func.coalesce(
@@ -69,6 +70,7 @@ async def get_meeting_with_group(meeting_id: int) -> tuple[dict, dict] | None:
             "group_id": row["group_id"],
             "scheduled_at": row["scheduled_at"],
             "meeting_number": row["meeting_number"],
+            "zoom_join_url": row["zoom_join_url"],
         }
         group = {
             "group_id": row["group_id"],
@@ -194,6 +196,7 @@ def build_reminder_context(meeting: dict, group: dict) -> dict:
         "module_list": module_list,
         "modules_remaining": modules_remaining,
         "cta_text": cta_text,
+        "zoom_join_url": meeting.get("zoom_join_url", ""),
     }
 
 

@@ -47,6 +47,7 @@ class TestTimezoneFormatting:
                         "modules_remaining": "3",
                         "cta_text": "Continue where you left off",
                         "discord_channel_url": "https://discord.com/channels/123",
+                        "zoom_join_url": "https://zoom.us/j/123",
                     },
                 )
 
@@ -97,6 +98,7 @@ class TestTimezoneFormatting:
                         "modules_remaining": "3",
                         "cta_text": "Continue where you left off",
                         "discord_channel_url": "https://discord.com/channels/123",
+                        "zoom_join_url": "https://zoom.us/j/123",
                     },
                 )
 

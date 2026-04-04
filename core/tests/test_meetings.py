@@ -27,7 +27,6 @@ class TestCreateMeetingsForGroup:
                 group_name="Test Group",
                 first_meeting=datetime.now(timezone.utc),
                 num_meetings=3,
-                discord_voice_channel_id="123456",
             )
 
             assert len(meeting_ids) == 3

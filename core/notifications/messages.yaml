@@ -38,9 +38,9 @@ group_assigned:
     Meeting time: {meeting_time}
     Your groupmates: {member_names}
 
-    [Chat with your group on Discord]({discord_channel_url})
+    Meetings are held on Zoom. You'll receive the join link in your calendar invite and in reminders before each meeting.
 
-    A calendar invite is attached.
+    [Chat with your group on Discord]({discord_channel_url})
 
     Best,
     Luc
@@ -48,6 +48,7 @@ group_assigned:
   discord: |
     You've been assigned to **{group_name}**!
     Meeting time: {meeting_time}
+    Meetings are on Zoom — you'll get the join link in your calendar invite and before each meeting.
     Check your email for the calendar invite.
   calendar_title: "Lens Academy Study Group: {group_name}"
   calendar_description: |
@@ -63,6 +64,8 @@ member_joined:
 
     Meeting time: {meeting_time}
     Your groupmates: {member_names}
+
+    Meetings are held on Zoom. You'll receive the join link in your calendar invite and in reminders before each meeting.
 
     [Chat with your group on Discord]({discord_channel_url})
 
@@ -89,7 +92,7 @@ meeting_reminder_24h:
 
     [{cta_text}]({module_url})
 
-    [Chat with your group]({discord_channel_url})
+    [Join Zoom Meeting]({zoom_join_url})
 
     Best,
     Luc
@@ -98,6 +101,8 @@ meeting_reminder_24h:
     Reminder: Meeting tomorrow at {meeting_time}!
 
     Haven't finished the module yet? Late submissions are still accepted — try to make some progress today!
+
+    **Join Zoom:** {zoom_join_url}
 
 meeting_reminder_1h:
   email_subject: "Reminder: {group_name} meeting in 1 hour"
@@ -108,7 +113,7 @@ meeting_reminder_1h:
 
     Even if you haven't finished the module, join the discussion — you'll still get a lot out of it. You can submit late afterwards.
 
-    [Join your group channel]({discord_channel_url})
+    [Join Zoom Meeting]({zoom_join_url})
 
     See you there!
 
@@ -117,6 +122,8 @@ meeting_reminder_1h:
     Founder of Lens Academy
   discord_channel: |
     Meeting starting in 1 hour! Even if you haven't finished the module, join the discussion — late submissions are accepted.
+
+    **Join Zoom:** {zoom_join_url}
 
 module_nudge:
   email_subject: "Your module is due today"

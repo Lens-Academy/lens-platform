@@ -245,9 +245,53 @@ async def update_link(
 # ── Click tracking & attribution ─────────────────────────────
 
 
-async def log_click(conn: AsyncConnection, link_id: int) -> None:
-    """Record a click on a referral link."""
-    await conn.execute(insert(referral_clicks).values(link_id=link_id))
+async def log_click(
+    conn: AsyncConnection, link_id: int, *, consent_state: str = "pending"
+) -> int:
+    """Record a click on a referral link.
+
+    consent_state: 'accepted' (cookies on, dedup active), 'declined' (user
+    rejected cookies), or 'pending' (new visitor, no choice yet).
+
+    Returns the click_id of the new row.
+    """
+    result = await conn.execute(
+        insert(referral_clicks)
+        .values(link_id=link_id, consent_state=consent_state)
+        .returning(referral_clicks.c.click_id)
+    )
+    return result.scalar()
+
+
+async def update_click_consent(
+    conn: AsyncConnection, click_id: int, consent_state: str
+) -> bool:
+    """Update consent_state on a click, but only if it's still 'pending'.
+
+    When the frontend reports 'accepted', we store 'pending_then_accepted'
+    to distinguish "had cookies at click time" (accepted) from "accepted
+    during this session" (pending_then_accepted). The latter may include
+    privacy-browser users whose cookies don't persist.
+
+    'declined' is stored as-is (no need to distinguish pending_then_declined).
+
+    Returns True if the row was updated, False if it was already resolved
+    or the click_id doesn't exist.
+    """
+    stored_state = (
+        "pending_then_accepted" if consent_state == "accepted" else consent_state
+    )
+    result = await conn.execute(
+        update(referral_clicks)
+        .where(
+            and_(
+                referral_clicks.c.click_id == click_id,
+                referral_clicks.c.consent_state == "pending",
+            )
+        )
+        .values(consent_state=stored_state)
+    )
+    return result.rowcount > 0
 
 
 async def get_link_by_slug(conn: AsyncConnection, slug: str) -> dict | None:
@@ -265,24 +309,38 @@ async def get_link_by_slug(conn: AsyncConnection, slug: str) -> dict | None:
 
 
 async def resolve_attribution(
-    conn: AsyncConnection, user_id: int, ref_slug: str
+    conn: AsyncConnection, user_id: int, click_id: int
 ) -> None:
-    """Set referred_by_link_id on a user.
+    """Set referred_by_click_id on a user.
 
-    Silently does nothing if the slug is invalid or the user already has
-    attribution set.
+    Silently does nothing if the click doesn't exist, the user already has
+    attribution set, or the click belongs to the user's own link (self-referral).
     """
-    link = await get_link_by_slug(conn, ref_slug)
-    if link is None:
+    # Look up the click to get link_id
+    click_row = await conn.execute(
+        select(referral_clicks.c.click_id, referral_clicks.c.link_id).where(
+            referral_clicks.c.click_id == click_id
+        )
+    )
+    click = click_row.first()
+    if click is None:
         return
 
+    # Look up the link to get the owner
+    link_row = await conn.execute(
+        select(referral_links.c.user_id).where(
+            referral_links.c.link_id == click.link_id
+        )
+    )
+    link_owner = link_row.scalar()
+
     # Don't self-attribute
-    if link["user_id"] == user_id:
+    if link_owner == user_id:
         return
 
     # Only set if not already attributed
     row = await conn.execute(
-        select(users.c.referred_by_link_id).where(users.c.user_id == user_id)
+        select(users.c.referred_by_click_id).where(users.c.user_id == user_id)
     )
     current = row.scalar()
     if current is not None:
@@ -291,7 +349,7 @@ async def resolve_attribution(
     await conn.execute(
         update(users)
         .where(users.c.user_id == user_id)
-        .values(referred_by_link_id=link["link_id"])
+        .values(referred_by_click_id=click_id)
     )
 
 
@@ -307,24 +365,38 @@ async def get_link_stats(conn: AsyncConnection, link_id: int) -> dict:
         .select_from(referral_clicks)
         .where(referral_clicks.c.link_id == link_id)
     )
+    # Signups: users whose attributed click belongs to this link
     signup_count = await conn.scalar(
         select(func.count())
-        .select_from(users)
-        .where(users.c.referred_by_link_id == link_id)
+        .select_from(
+            users.join(
+                referral_clicks,
+                users.c.referred_by_click_id == referral_clicks.c.click_id,
+            )
+        )
+        .where(referral_clicks.c.link_id == link_id)
     )
     enrolled_count = await conn.scalar(
         select(func.count(func.distinct(signups.c.user_id)))
-        .select_from(signups.join(users, signups.c.user_id == users.c.user_id))
-        .where(users.c.referred_by_link_id == link_id)
+        .select_from(
+            signups.join(users, signups.c.user_id == users.c.user_id).join(
+                referral_clicks,
+                users.c.referred_by_click_id == referral_clicks.c.click_id,
+            )
+        )
+        .where(referral_clicks.c.link_id == link_id)
     )
     completed_count = await conn.scalar(
         select(func.count(func.distinct(groups_users.c.user_id)))
         .select_from(
-            groups_users.join(users, groups_users.c.user_id == users.c.user_id)
+            groups_users.join(users, groups_users.c.user_id == users.c.user_id).join(
+                referral_clicks,
+                users.c.referred_by_click_id == referral_clicks.c.click_id,
+            )
         )
         .where(
             and_(
-                users.c.referred_by_link_id == link_id,
+                referral_clicks.c.link_id == link_id,
                 groups_users.c.status == "completed",
             )
         )
@@ -373,7 +445,7 @@ async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
         .subquery("click_counts")
     )
 
-    # Signup counts per referrer
+    # Signup counts per referrer (via clicks)
     signup_counts = (
         select(
             referral_links.c.user_id,
@@ -381,8 +453,11 @@ async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
         )
         .select_from(
             referral_links.join(
+                referral_clicks,
+                referral_links.c.link_id == referral_clicks.c.link_id,
+            ).join(
                 users,
-                referral_links.c.link_id == users.c.referred_by_link_id,
+                referral_clicks.c.click_id == users.c.referred_by_click_id,
             )
         )
         .where(referral_links.c.deleted_at.is_(None))
@@ -399,9 +474,14 @@ async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
         )
         .select_from(
             referral_links.join(
+                referral_clicks,
+                referral_links.c.link_id == referral_clicks.c.link_id,
+            )
+            .join(
                 referred_users,
-                referral_links.c.link_id == referred_users.c.referred_by_link_id,
-            ).join(signups, signups.c.user_id == referred_users.c.user_id)
+                referral_clicks.c.click_id == referred_users.c.referred_by_click_id,
+            )
+            .join(signups, signups.c.user_id == referred_users.c.user_id)
         )
         .where(referral_links.c.deleted_at.is_(None))
         .group_by(referral_links.c.user_id)
@@ -417,9 +497,14 @@ async def get_all_referrer_stats(conn: AsyncConnection) -> list[dict]:
         )
         .select_from(
             referral_links.join(
+                referral_clicks,
+                referral_links.c.link_id == referral_clicks.c.link_id,
+            )
+            .join(
                 referred_users2,
-                referral_links.c.link_id == referred_users2.c.referred_by_link_id,
-            ).join(
+                referral_clicks.c.click_id == referred_users2.c.referred_by_click_id,
+            )
+            .join(
                 groups_users,
                 groups_users.c.user_id == referred_users2.c.user_id,
             )

@@ -4,7 +4,7 @@ import { Menu } from "lucide-react";
 import CookieSettings from "./CookieSettings";
 import { Popover } from "./Popover";
 import { CoursesDropdown } from "./nav/CoursesDropdown";
-import { BottomNav, DiscordInviteButton, MobileMenu, UserMenu } from "./nav";
+import { DiscordInviteButton, MobileMenu, UserMenu } from "./nav";
 import { useScrollDirection } from "../hooks/useScrollDirection";
 
 export default function Layout({
@@ -127,8 +127,6 @@ export default function Layout({
       />
 
       <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
-
-      <BottomNav />
     </div>
   );
 }

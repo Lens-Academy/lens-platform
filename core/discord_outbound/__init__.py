@@ -5,10 +5,8 @@ from .bot import get_bot, get_dm_semaphore, get_or_fetch_member, set_bot
 from .channels import (
     create_category,
     create_text_channel,
-    create_voice_channel,
     get_or_fetch_channel,
 )
-from .events import create_scheduled_event
 from .messages import edit_channel_message, edit_dm, send_channel_message, send_dm
 from .permissions import (
     get_members_with_access,
@@ -34,12 +32,10 @@ __all__ = [
     "edit_channel_message",
     "create_category",
     "create_text_channel",
-    "create_voice_channel",
     "get_or_fetch_channel",
     "grant_channel_access",
     "revoke_channel_access",
     "get_members_with_access",
-    "create_scheduled_event",
     # Role operations
     "create_role",
     "delete_role",

@@ -11,9 +11,8 @@ Core can use the `discord` library directly, but must access the bot instance th
 from core.discord_outbound import (
     set_bot, get_bot, get_or_fetch_member,  # Bot instance management
     send_dm, send_channel_message,           # Messages
-    create_category, create_text_channel, create_voice_channel,  # Channel creation
+    create_category, create_text_channel,    # Channel creation
     grant_channel_access, revoke_channel_access, get_members_with_access,  # Permissions
-    create_scheduled_event,                  # Discord events
 )
 ```
 
@@ -95,9 +94,8 @@ This pattern allows core to use Discord APIs while keeping the bot instance inje
 All Discord API calls go through this module. Provides primitives for:
 - `bot.py` - Bot instance management (`set_bot`, `get_bot`, `get_or_fetch_member`)
 - `messages.py` - DMs and channel messages (`send_dm`, `send_channel_message`)
-- `channels.py` - Channel creation (`create_category`, `create_text_channel`, `create_voice_channel`)
+- `channels.py` - Channel creation (`create_category`, `create_text_channel`)
 - `permissions.py` - Channel permissions (`grant_channel_access`, `revoke_channel_access`)
-- `events.py` - Discord scheduled events (`create_scheduled_event`)
 
 #### `notifications/` - Multi-Channel Notification System
 - `actions.py` - Notification actions

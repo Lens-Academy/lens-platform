@@ -172,14 +172,9 @@ export default function EnrollWizard() {
     }
   };
 
-  // Extract referral slug from URL query params (e.g., /enroll?ref=some-slug)
-  const refSlug = useMemo(() => {
-    if (typeof window === "undefined") return undefined;
-    return new URLSearchParams(window.location.search).get("ref") || undefined;
-  }, []);
-
   const handleDiscordConnect = () => {
-    login(refSlug);
+    // login() auto-detects ref from sessionStorage, no need to pass explicitly
+    login();
   };
 
   const handleSubmit = async () => {
@@ -239,7 +234,8 @@ export default function EnrollWizard() {
           No courses are currently open for enrollment
         </h2>
         <p className="text-gray-600 mb-8">
-          Leave your email and we'll notify you when the next cohort opens.
+          Leave your email and we&rsquo;ll notify you when the next course
+          opens.
         </p>
         <ProspectEmailForm variant="standalone" />
         <p className="text-sm text-gray-500 mt-6">

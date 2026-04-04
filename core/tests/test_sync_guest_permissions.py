@@ -28,7 +28,6 @@ class TestGuestVisitorsInExpectedMembers:
         mock_group_result.mappings.return_value.first.return_value = {
             "cohort_id": 1,
             "discord_text_channel_id": "123456789",
-            "discord_voice_channel_id": "987654321",
         }
 
         # Query 3: _ensure_cohort_channel -> get cohort info
@@ -48,10 +47,6 @@ class TestGuestVisitorsInExpectedMembers:
             {"discord_id": "444"},  # guest visitor
         ]
 
-        # Query 5: facilitator query
-        mock_facilitators_result = MagicMock()
-        mock_facilitators_result.mappings.return_value = []
-
         mock_conn = AsyncMock()
         mock_conn.execute = AsyncMock(
             side_effect=[
@@ -59,7 +54,6 @@ class TestGuestVisitorsInExpectedMembers:
                 mock_group_result,
                 mock_cohort_result,
                 mock_members_result,
-                mock_facilitators_result,
             ]
         )
 
@@ -72,11 +66,6 @@ class TestGuestVisitorsInExpectedMembers:
         mock_text_channel = MagicMock(spec=discord.TextChannel)
         mock_text_channel.id = 123456789
         mock_text_channel.set_permissions = AsyncMock()
-
-        mock_voice_channel = MagicMock(spec=discord.VoiceChannel)
-        mock_voice_channel.id = 987654321
-        mock_voice_channel.set_permissions = AsyncMock()
-        mock_voice_channel.overwrites = {}
 
         mock_cohort_channel = MagicMock(spec=discord.TextChannel)
         mock_cohort_channel.id = 888999000
@@ -95,7 +84,6 @@ class TestGuestVisitorsInExpectedMembers:
         mock_bot.guilds = [mock_guild]
         mock_bot.get_channel.side_effect = lambda id: {
             123456789: mock_text_channel,
-            987654321: mock_voice_channel,
             888999000: mock_cohort_channel,
             555666777: MagicMock(),  # Category
         }.get(id)
@@ -153,7 +141,6 @@ class TestGuestVisitorsInExpectedMembers:
                         ) as mock_set_perms:
                             mock_set_perms.return_value = {
                                 "text": True,
-                                "voice": True,
                                 "cohort": True,
                             }
                             result = await sync_group_discord_permissions(group_id=1)
@@ -231,7 +218,6 @@ class TestGuestVisitorsInExpectedMembers:
                         ) as mock_set_perms:
                             mock_set_perms.return_value = {
                                 "text": True,
-                                "voice": True,
                                 "cohort": True,
                             }
                             from core.sync import sync_group_discord_permissions
