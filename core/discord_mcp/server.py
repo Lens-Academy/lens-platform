@@ -221,4 +221,7 @@ def create_mcp_app(
     if auth_token:
         starlette_app.add_middleware(BearerAuthMiddleware, token=auth_token)
 
+    # Expose the session manager for lifecycle management
+    starlette_app._mcp_session_manager = mcp._session_manager
+
     return starlette_app

@@ -340,6 +340,7 @@ async def lifespan(app: FastAPI):
 
     # Mount Discord MCP server
     discord_server_id = os.environ.get("DISCORD_SERVER_ID")
+    mcp_session_ctx = None
     if bot and discord_server_id and not skip_db:
         from core.discord_mcp import create_mcp_app
 
@@ -350,16 +351,17 @@ async def lifespan(app: FastAPI):
         app.mount("/discord-mcp", mcp_starlette)
         print("Discord MCP server mounted at /discord-mcp")
 
+        # Manually start the MCP session manager's task group
+        # (mounted sub-apps don't get their lifespan called by FastAPI)
+        if hasattr(mcp_starlette, "_mcp_session_manager"):
+            mcp_session_ctx = mcp_starlette._mcp_session_manager.run()
+            await mcp_session_ctx.__aenter__()
+            print("Discord MCP session manager started")
+
         # Schedule periodic backfill
         if scheduler:
-            from core.discord_mcp.export import sync_guild
-
-            async def _backfill_job():
-                if bot.is_ready():
-                    await sync_guild(bot, int(discord_server_id))
-
             scheduler.add_job(
-                _backfill_job,
+                "core.discord_mcp.export:run_backfill",
                 trigger="interval",
                 minutes=30,
                 id="discord_mcp_backfill",
@@ -369,7 +371,7 @@ async def lifespan(app: FastAPI):
 
             # Run initial backfill after bot is ready (delay 3 minutes)
             scheduler.add_job(
-                _backfill_job,
+                "core.discord_mcp.export:run_backfill",
                 trigger="date",
                 run_date=datetime.now(timezone.utc) + timedelta(minutes=3),
                 id="discord_mcp_backfill_initial",
@@ -378,6 +380,10 @@ async def lifespan(app: FastAPI):
             print("Scheduled initial Discord backfill (in ~3 minutes)")
 
     yield  # FastAPI runs here, bot runs alongside it
+
+    # Shutdown Discord MCP session manager
+    if mcp_session_ctx:
+        await mcp_session_ctx.__aexit__(None, None, None)
 
     # Graceful shutdown of all peer services
     print("Shutting down peer services...")

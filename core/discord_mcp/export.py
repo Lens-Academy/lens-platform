@@ -184,6 +184,29 @@ async def sync_guild(bot: discord.Client, guild_id: int) -> dict:
     return {"messages_synced": total_messages, "channels": channel_count}
 
 
+async def run_backfill() -> dict | None:
+    """
+    Top-level backfill entry point for APScheduler.
+
+    Gets bot and guild_id from environment/singletons.
+    Must be a module-level function so APScheduler can serialize the reference.
+    """
+    import os
+    from core.discord_outbound import get_bot
+
+    bot = get_bot()
+    if not bot or not bot.is_ready():
+        logger.warning("Bot not ready, skipping backfill")
+        return None
+
+    guild_id = os.environ.get("DISCORD_SERVER_ID")
+    if not guild_id:
+        logger.warning("DISCORD_SERVER_ID not set, skipping backfill")
+        return None
+
+    return await sync_guild(bot, int(guild_id))
+
+
 def _channel_type_str(
     channel: discord.TextChannel | discord.ForumChannel | discord.Thread,
 ) -> str:
