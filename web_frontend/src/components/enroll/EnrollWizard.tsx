@@ -233,7 +233,7 @@ export default function EnrollWizard() {
           No courses are currently open for enrollment
         </h2>
         <p className="text-gray-600 mb-8">
-          Leave your email and we'll notify you when the next cohort opens.
+          Leave your email and we&rsquo;ll notify you when the next course opens.
         </p>
         <ProspectEmailForm variant="standalone" />
         <p className="text-sm text-gray-500 mt-6">

@@ -149,15 +149,15 @@ export default function GroupSelectionStep({
         </h2>
         {noGroupsScheduled && cohortInFuture ? (
           <p className="text-gray-600 mb-6">
-            Groups for this cohort haven't been scheduled yet. Check back closer
+            Groups for this course haven&rsquo;t been scheduled yet. Check back closer
             to the start date
             {startDate && <> ({formatCohortDate(startDate)})</>}.
           </p>
         ) : (
           <>
             <p className="text-gray-600 mb-6">
-              All groups in this cohort are full or have already started. You
-              can join a different cohort and be matched based on your
+              All groups in this course are full or have already started. You
+              can join a different course and be matched based on your
               availability.
             </p>
             <div className="flex gap-3">
@@ -171,7 +171,7 @@ export default function GroupSelectionStep({
                 onClick={onSwitchToAvailability}
                 className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
               >
-                Choose Different Cohort
+                Choose Different Course
               </button>
             </div>
           </>
@@ -289,7 +289,7 @@ export default function GroupSelectionStep({
           onClick={onSwitchToAvailability}
           className="text-sm text-blue-600 hover:text-blue-800 underline"
         >
-          None of these work? Join a different cohort
+          None of these work? Join a different course
         </button>
       </div>
 
