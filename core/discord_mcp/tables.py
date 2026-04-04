@@ -48,7 +48,7 @@ messages = Table(
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("edited_at", DateTime(timezone=True)),
     Column("reference_id", BigInteger),
-    Column("metadata_", JSONB, key="metadata"),
+    Column("metadata", JSONB),
     Column(
         "search_vector",
         TSVECTOR,
