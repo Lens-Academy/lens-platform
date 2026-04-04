@@ -268,7 +268,7 @@ export default function MeetingsPage() {
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Not Enrolled</h1>
             <p className="text-[var(--brand-text-muted)] mb-4">
-              You need to enroll in a cohort first.
+              You need to enroll in a course first.
             </p>
             <a href="/enroll" className="text-lens-orange-600 hover:underline">
               Enroll now
@@ -291,7 +291,7 @@ export default function MeetingsPage() {
             <p className="text-[var(--brand-text-muted)] mb-6">
               {userInfo.cohort_start_date && userInfo.cohort_end_date ? (
                 <>
-                  For the cohort running{" "}
+                  For the course running{" "}
                   {new Date(userInfo.cohort_start_date).toLocaleDateString(
                     "en-US",
                     { month: "short", day: "numeric" },
@@ -303,7 +303,7 @@ export default function MeetingsPage() {
                   )}
                 </>
               ) : (
-                <>Cohort: {userInfo.cohort_name}</>
+                <>{userInfo.cohort_name}</>
               )}
             </p>
 

@@ -286,66 +286,69 @@ export default function ScheduleSelector({
       )}
 
       <div className="relative">
-      <div ref={gridRef} className="overflow-x-auto overflow-y-hidden select-none">
-        {/* Header row — always at top */}
         <div
-          className="grid select-none"
-          style={{ gridTemplateColumns: GRID_COLUMNS }}
+          ref={gridRef}
+          className="overflow-x-auto overflow-y-hidden select-none"
         >
-          <div className="sticky left-0" />
-          {DAY_NAMES.map((day) => (
+          {/* Header row — always at top */}
+          <div
+            className="grid select-none"
+            style={{ gridTemplateColumns: GRID_COLUMNS }}
+          >
+            <div className="sticky left-0" />
+            {DAY_NAMES.map((day) => (
+              <div
+                key={day}
+                className="text-center font-medium text-sm py-2 text-gray-700"
+              >
+                {SHORT_DAY_NAMES[day]}
+              </div>
+            ))}
+          </div>
+
+          {/* Earlier slots — animated */}
+          {earlierSlots.length > 0 && (
             <div
-              key={day}
-              className="text-center font-medium text-sm py-2 text-gray-700"
+              className="grid transition-[grid-template-rows] duration-300 ease-in-out -mb-2"
+              style={{
+                gridTemplateRows: earlierExpanded ? "1fr" : "0fr",
+              }}
             >
-              {SHORT_DAY_NAMES[day]}
+              <div className="overflow-hidden min-h-0">
+                <SlotGrid slots={earlierSlots} topPad {...gridProps} />
+              </div>
             </div>
-          ))}
+          )}
+
+          {/* Main slots — always visible */}
+          <SlotGrid
+            slots={mainSlots}
+            showEndLabel={laterExpanded ? undefined : mainEnd}
+            {...gridProps}
+          />
+
+          {/* Later slots — animated */}
+          {laterSlots.length > 0 && (
+            <div
+              className="grid transition-[grid-template-rows] duration-300 ease-in-out -mt-2"
+              style={{
+                gridTemplateRows: laterExpanded ? "1fr" : "0fr",
+              }}
+            >
+              <div className="overflow-hidden min-h-0">
+                <SlotGrid
+                  slots={laterSlots}
+                  showEndLabel={24}
+                  topPad
+                  {...gridProps}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Earlier slots — animated */}
-        {earlierSlots.length > 0 && (
-          <div
-            className="grid transition-[grid-template-rows] duration-300 ease-in-out -mb-2"
-            style={{
-              gridTemplateRows: earlierExpanded ? "1fr" : "0fr",
-            }}
-          >
-            <div className="overflow-hidden min-h-0">
-              <SlotGrid slots={earlierSlots} topPad {...gridProps} />
-            </div>
-          </div>
-        )}
-
-        {/* Main slots — always visible */}
-        <SlotGrid
-          slots={mainSlots}
-          showEndLabel={laterExpanded ? undefined : mainEnd}
-          {...gridProps}
-        />
-
-        {/* Later slots — animated */}
-        {laterSlots.length > 0 && (
-          <div
-            className="grid transition-[grid-template-rows] duration-300 ease-in-out -mt-2"
-            style={{
-              gridTemplateRows: laterExpanded ? "1fr" : "0fr",
-            }}
-          >
-            <div className="overflow-hidden min-h-0">
-              <SlotGrid
-                slots={laterSlots}
-                showEndLabel={24}
-                topPad
-                {...gridProps}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Sentinel — placed at grid bottom to track visibility */}
-      <div ref={bottomRef} className="h-px" />
+        {/* Sentinel — placed at grid bottom to track visibility */}
+        <div ref={bottomRef} className="h-px" />
       </div>
 
       {/* Fixed gradient + scroll hint when bottom of grid is off-screen */}
@@ -354,8 +357,18 @@ export default function ScheduleSelector({
           <div className="h-24 bg-gradient-to-t from-[var(--background,#faf8f3)] to-transparent" />
           <div className="bg-[var(--background,#faf8f3)] flex justify-center items-center gap-1 pb-2">
             <span className="text-sm text-gray-500">Scroll for more times</span>
-            <svg className="w-4 h-4 text-gray-500 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            <svg
+              className="w-4 h-4 text-gray-500 animate-bounce"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
             </svg>
           </div>
         </div>
@@ -383,7 +396,6 @@ export default function ScheduleSelector({
           <span className="text-gray-600">Available</span>
         </div>
       </div>
-
     </div>
   );
 }

@@ -25,7 +25,7 @@ export default function EnrollSuccessMessage() {
       </h2>
       <p className="text-gray-600 mb-8">
         Your enrollment has been submitted successfully. Now join our Discord
-        server to connect with your cohort and get started.
+        server to connect with your group and get started.
       </p>
 
       <a

@@ -380,7 +380,7 @@ export default function ReferralsPage() {
     setError(null);
     try {
       const data = await getMyLinks();
-      setLinks(data.links);
+      setLinks(data.links ?? []);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load referral links",

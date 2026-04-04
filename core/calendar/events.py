@@ -76,6 +76,7 @@ async def create_recurring_event(
     duration_minutes: int,
     num_occurrences: int,
     attendee_emails: list[str],
+    conference_url: str | None = None,
 ) -> str | None:
     """
     Create a recurring calendar event with weekly frequency.
@@ -112,6 +113,21 @@ async def create_recurring_event(
         "reminders": {"useDefault": False, "overrides": []},
     }
 
+    if conference_url:
+        event["conferenceData"] = {
+            "entryPoints": [
+                {
+                    "entryPointType": "video",
+                    "uri": conference_url,
+                    "label": "Join Zoom Meeting",
+                }
+            ],
+            "conferenceSolution": {
+                "name": "Zoom",
+                "key": {"type": "addOn"},
+            },
+        }
+
     def _sync_insert():
         return (
             service.events()
@@ -119,6 +135,7 @@ async def create_recurring_event(
                 calendarId=get_calendar_email(),
                 body=event,
                 sendUpdates="all",
+                conferenceDataVersion=1,
             )
             .execute()
         )

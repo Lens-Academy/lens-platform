@@ -107,7 +107,6 @@ async def create_test_group(
     group_name: str = "Test Group",
     meeting_time: str = "Monday 09:00-10:00",
     discord_text_channel_id: str = None,
-    discord_voice_channel_id: str = None,
     status: str = None,
 ) -> dict:
     """Create a group for testing."""
@@ -116,7 +115,6 @@ async def create_test_group(
         "group_name": group_name,
         "recurring_meeting_time_utc": meeting_time,
         "discord_text_channel_id": discord_text_channel_id,
-        "discord_voice_channel_id": discord_voice_channel_id,
     }
     if status:
         values["status"] = status

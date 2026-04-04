@@ -110,7 +110,6 @@ async def get_cohort_groups_for_realization(
                     "group_name": "Group 1",
                     "recurring_meeting_time_utc": "Wednesday 15:00",
                     "discord_text_channel_id": None,
-                    "discord_voice_channel_id": None,
                     "members": [
                         {"user_id": 1, "discord_id": "123", "nickname": "Alice", "role": "facilitator", "timezone": "UTC"},
                         ...
@@ -172,7 +171,6 @@ async def get_cohort_groups_for_realization(
                 "group_name": group_data["group_name"],
                 "recurring_meeting_time_utc": group_data["recurring_meeting_time_utc"],
                 "discord_text_channel_id": group_data["discord_text_channel_id"],
-                "discord_voice_channel_id": group_data["discord_voice_channel_id"],
                 "status": group_data["status"],
                 "members": members,
             }
@@ -208,7 +206,6 @@ async def get_realized_groups_for_discord_user(
                 "group_id": 1,
                 "group_name": "Group 1",
                 "discord_text_channel_id": "123456789",
-                "discord_voice_channel_id": "987654321",
             },
             ...
         ]
@@ -229,7 +226,6 @@ async def get_realized_groups_for_discord_user(
             groups.c.group_id,
             groups.c.group_name,
             groups.c.discord_text_channel_id,
-            groups.c.discord_voice_channel_id,
         )
         .join(groups_users, groups.c.group_id == groups_users.c.group_id)
         .where(groups_users.c.user_id == user_id)

@@ -2,7 +2,15 @@ import { useEffect, useRef, type RefObject } from "react";
 import { LandingNav } from "@/components/LandingNav";
 import { LandingFooter } from "@/components/LandingFooter";
 import ProspectEmailForm from "@/components/ProspectEmailForm";
-import { Target, MessageSquare, Users } from "lucide-react";
+import {
+  Target,
+  MessageSquare,
+  Users,
+  BookOpen,
+  Play,
+  Bot,
+  UsersRound,
+} from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // useReveal — fade-in-up on scroll via IntersectionObserver
@@ -76,6 +84,144 @@ const fontDisplay: React.CSSProperties = {
 const fontBody: React.CSSProperties = {
   fontFamily: "var(--landing-font-body)",
 };
+
+// ---------------------------------------------------------------------------
+// Semi-donut chart — weekly time distribution
+// ---------------------------------------------------------------------------
+const ACTIVITIES = [
+  { label: "Reading", hours: 1.5, color: "#f97316", icon: BookOpen },
+  { label: "Watching", hours: 0.5, color: "#3b82f6", icon: Play },
+  { label: "AI Tutor", hours: 1.5, color: "#10b981", icon: Bot },
+  { label: "Group Meeting", hours: 1.5, color: "#8b5cf6", icon: UsersRound },
+] as const;
+
+const TOTAL_HOURS = 5;
+
+function SemiDonutChart() {
+  const r = 90;
+  const strokeWidth = 28;
+  const cx = 150;
+  const cy = 140;
+  const gap = 1.5;
+  const halfCirc = Math.PI * r;
+  const totalGap = gap * ACTIVITIES.length;
+  const usableArc = halfCirc - totalGap;
+
+  // Build segments: each gets a stroke-dasharray + offset on the same semicircle path
+  let offset = gap / 2;
+  const segments = ACTIVITIES.map((act) => {
+    const length = (act.hours / TOTAL_HOURS) * usableArc;
+    const seg = { ...act, length, offset };
+    offset += length + gap;
+    return seg;
+  });
+
+  // Semicircle path from left to right through top
+  // sweep-flag=1 = clockwise in SVG = goes upward through top
+  const path = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg
+        viewBox="0 0 300 180"
+        className="w-full max-w-xs sm:max-w-sm"
+        aria-label="Weekly time distribution: Reading 1.5h, Watching 0.5h, AI Tutor 1.5h, Group Meeting 1.5h"
+      >
+        {/* Background track */}
+        <path
+          d={path}
+          fill="none"
+          stroke="var(--landing-border)"
+          strokeWidth={strokeWidth}
+          strokeLinecap="butt"
+          opacity={0.4}
+        />
+        {/* Segments */}
+        {segments.map((seg) => (
+          <path
+            key={seg.label}
+            d={path}
+            fill="none"
+            stroke={seg.color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="butt"
+            strokeDasharray={`${seg.length} ${halfCirc}`}
+            strokeDashoffset={-seg.offset}
+          />
+        ))}
+        {/* Icons outside segments */}
+        {segments.map((seg) => {
+          const midPos = seg.offset + seg.length / 2;
+          const angle = Math.PI - midPos / r;
+          const outerR = r + strokeWidth / 2 + 14;
+          const ix = cx + outerR * Math.cos(angle);
+          const iy = cy - outerR * Math.sin(angle);
+          const iconSize = 16;
+          return (
+            <foreignObject
+              key={`icon-${seg.label}`}
+              x={ix - iconSize / 2}
+              y={iy - iconSize / 2}
+              width={iconSize}
+              height={iconSize}
+            >
+              <seg.icon
+                style={{ width: iconSize, height: iconSize, color: seg.color }}
+                strokeWidth={2}
+              />
+            </foreignObject>
+          );
+        })}
+        {/* Center text */}
+        <text
+          x={cx}
+          y={cy - 20}
+          textAnchor="middle"
+          fontSize="32"
+          fontWeight="700"
+          fill="var(--landing-text)"
+          style={{ fontFamily: "var(--landing-font-display)" }}
+        >
+          5 hrs
+        </text>
+        <text
+          x={cx}
+          y={cy - 2}
+          textAnchor="middle"
+          fontSize="13"
+          fill="var(--landing-text-muted)"
+        >
+          per week
+        </text>
+      </svg>
+
+      {/* Legend */}
+      <div className="grid grid-cols-2 gap-x-8 gap-y-3 mt-4">
+        {ACTIVITIES.map((act) => (
+          <div key={act.label} className="flex items-center gap-2.5">
+            <act.icon
+              className="w-4 h-4 shrink-0"
+              style={{ color: act.color }}
+              strokeWidth={2}
+            />
+            <span
+              className="text-sm"
+              style={{ color: "var(--landing-text-muted)" }}
+            >
+              {act.label}
+            </span>
+            <span
+              className="text-sm font-semibold ml-auto"
+              style={{ color: "var(--landing-text)" }}
+            >
+              {act.hours}h
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Product screenshot — swap placeholder for real image when asset is ready
@@ -204,7 +350,7 @@ export default function LandingPage() {
                 e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
-              Enroll in the Course
+              Enroll in a Course
             </a>
           </div>
 
@@ -275,7 +421,7 @@ export default function LandingPage() {
               {
                 icon: Users,
                 title: "Group Discussions",
-                body: "You\u2019re not figuring this out alone. Weekly group discussions with others who care about getting things right.",
+                body: "You\u2019re not figuring this out alone: weekly guided group discussions with others who care about getting things right.",
               },
             ] as const
           ).map((card, i) => (
@@ -345,21 +491,21 @@ export default function LandingPage() {
                 className="text-2xl sm:text-3xl mb-4 leading-snug"
                 style={fontDisplay}
               >
-                If Anyone Builds It, Everyone Dies
+                Machine God
                 <span
                   className="block text-base font-normal mt-2"
                   style={{ color: "var(--landing-text-muted)" }}
                 >
-                  Book Club Course
+                  If Anyone Builds It, Everyone Dies
                 </span>
               </h3>
               <p
                 className="text-base leading-relaxed mb-8 flex-1"
                 style={{ color: "var(--landing-text-muted)" }}
               >
-                Read and discuss the book together with a cohort. Weekly
-                sessions exploring the arguments, evidence, and implications
-                with fellow students and an AI tutor.
+                Read and discuss the book together with a group. Weekly sessions
+                exploring the arguments, evidence, and implications with fellow
+                students and an AI tutor.
               </p>
               <ProspectEmailForm variant="inline" />
             </div>
@@ -379,7 +525,7 @@ export default function LandingPage() {
                   color: "var(--landing-text-muted)",
                 }}
               >
-                Next cohort starting May 2026
+                Next course starting May 2026
               </span>
               <h3
                 className="text-2xl sm:text-3xl mb-4 leading-snug"
@@ -420,6 +566,146 @@ export default function LandingPage() {
       </RevealSection>
 
       {/* ================================================================= */}
+      {/* HOW IT WORKS — weekly time breakdown                              */}
+      {/* ================================================================= */}
+      <section
+        className="py-20 sm:py-28 px-6 sm:px-10"
+        style={{ backgroundColor: "var(--landing-bg-alt)" }}
+      >
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8 md:gap-12 items-center">
+            <div className="pl-8 sm:pl-10">
+              <h2
+                className="text-2xl sm:text-3xl mb-4 leading-snug"
+                style={fontDisplay}
+              >
+                How Our Courses Work
+              </h2>
+              <p
+                className="text-base leading-relaxed"
+                style={{ color: "var(--landing-text-muted)" }}
+              >
+                We&rsquo;ll set you up with a group based on your availability.
+                Each week you&rsquo;ll study the material with help from our AI
+                Tutor. Then, you&rsquo;ll meet online with your group for a
+                discussion guided by one of our
+                navigators&thinsp;&mdash;&thinsp;experienced volunteers who help
+                you get the most out of the material.
+              </p>
+            </div>
+            <SemiDonutChart />
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================= */}
+      {/* HOW TO ENROLL                                                     */}
+      {/* ================================================================= */}
+      <RevealSection className="py-20 sm:py-28 px-4">
+        <div className="max-w-3xl mx-auto">
+          <h2
+            className="text-3xl sm:text-4xl mb-12 text-center"
+            style={fontDisplay}
+          >
+            How to Enroll
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Option 1: Try first */}
+            <div
+              className="p-8 rounded-xl flex flex-col"
+              style={{
+                backgroundColor: "var(--landing-bg-alt)",
+                border: "1px solid var(--landing-border)",
+              }}
+            >
+              <h3
+                className="text-xl sm:text-2xl mb-3 leading-snug"
+                style={fontDisplay}
+              >
+                Try the intro first
+              </h3>
+              <p
+                className="text-base leading-relaxed mb-6 flex-1"
+                style={{ color: "var(--landing-text-muted)" }}
+              >
+                Take the introduction module at your own pace to see if the
+                course is right for you. When you&rsquo;re ready, enroll in a
+                full course afterwards.
+              </p>
+              <a
+                href="/course/default/module/introduction"
+                className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold transition-colors duration-200"
+                style={{
+                  backgroundColor: "var(--landing-accent)",
+                  color: "var(--landing-accent-text)",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor =
+                    "var(--landing-accent-hover)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor =
+                    "var(--landing-accent)")
+                }
+              >
+                Start Learning
+              </a>
+            </div>
+
+            {/* Option 2: Enroll directly */}
+            <div
+              className="p-8 rounded-xl flex flex-col"
+              style={{
+                backgroundColor: "var(--landing-bg-alt)",
+                border: "1px solid var(--landing-border)",
+              }}
+            >
+              <h3
+                className="text-xl sm:text-2xl mb-3 leading-snug"
+                style={fontDisplay}
+              >
+                Enroll in a course
+              </h3>
+              <p
+                className="text-base leading-relaxed mb-6 flex-1"
+                style={{ color: "var(--landing-text-muted)" }}
+              >
+                Ready to dive in? Give us your availability and preferred start
+                date, and we&rsquo;ll match you with a group of like-minded
+                individuals to go through the course together.
+              </p>
+              <a
+                href="/enroll"
+                className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold border transition-colors duration-200"
+                style={{
+                  borderColor: "var(--landing-border)",
+                  color: "var(--landing-text)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--landing-bg)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
+              >
+                Enroll Now
+              </a>
+            </div>
+          </div>
+
+          <p
+            className="text-base leading-relaxed mt-12 text-center max-w-xl mx-auto"
+            style={{ color: "var(--landing-text-muted)" }}
+          >
+            There are no requirements to join. All we ask is that you come
+            motivated and committed to creating a friendly, collaborative
+            atmosphere.
+          </p>
+        </div>
+      </RevealSection>
+
+      {/* ================================================================= */}
       {/* BOTTOM CTA                                                        */}
       {/* ================================================================= */}
       <RevealSection className="py-20 sm:py-28 px-4">
@@ -428,7 +714,7 @@ export default function LandingPage() {
             Try the intro module today
           </h2>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+          <div className="flex items-center justify-center mb-6">
             <a
               href="/course/default/module/introduction"
               className="inline-flex items-center justify-center px-7 py-3.5 rounded-lg text-base font-semibold transition-colors duration-200"
@@ -446,22 +732,6 @@ export default function LandingPage() {
               }
             >
               Start Learning
-            </a>
-            <a
-              href="/enroll"
-              className="inline-flex items-center justify-center px-7 py-3.5 rounded-lg text-base font-semibold border transition-colors duration-200"
-              style={{
-                borderColor: "var(--landing-border)",
-                color: "var(--landing-text)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--landing-bg-alt)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-              }}
-            >
-              Enroll in the Course
             </a>
           </div>
 

@@ -65,10 +65,10 @@ export default function CohortRoleStep({
   return (
     <div className="max-w-md mx-auto">
       <h2 className="text-2xl font-bold text-gray-900 mb-2">
-        Choose Your Cohort
+        Choose Your Course
       </h2>
       <p className="text-gray-600 mb-8">
-        Select which cohort you'd like to join.
+        Select which course you&rsquo;d like to join.
       </p>
 
       {/* Already enrolled cohorts */}
@@ -101,7 +101,7 @@ export default function CohortRoleStep({
             htmlFor="cohort"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Enroll in a new cohort
+            Enroll in a new course
           </label>
           <select
             id="cohort"
@@ -109,7 +109,7 @@ export default function CohortRoleStep({
             onChange={(e) => onCohortSelect(Number(e.target.value))}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           >
-            <option value="">Select a cohort...</option>
+            <option value="">Select a course...</option>
             {availableCohorts.map((cohort) => (
               <option key={cohort.cohort_id} value={cohort.cohort_id}>
                 {cohort.cohort_name} — {formatDateRange(cohort)}
@@ -119,11 +119,11 @@ export default function CohortRoleStep({
         </div>
       ) : enrolledCohorts.length > 0 ? (
         <p className="text-gray-600 mb-6">
-          You're enrolled in all available cohorts.
+          You&rsquo;re enrolled in all available courses.
         </p>
       ) : (
         <p className="text-gray-600 mb-6">
-          No cohorts are currently available for enrollment.
+          No courses are currently available for enrollment.
         </p>
       )}
 
@@ -145,7 +145,7 @@ export default function CohortRoleStep({
                   onChange={() => onRoleSelect("facilitator")}
                   className="w-4 h-4 text-blue-600"
                 />
-                <span>Facilitator</span>
+                <span>Navigator</span>
               </label>
               <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                 <input
@@ -175,7 +175,7 @@ export default function CohortRoleStep({
                 onClick={() => setShowFacilitatorModal(true)}
                 className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
               >
-                Become a facilitator
+                Become a navigator
               </button>
             </div>
           )}
@@ -212,12 +212,12 @@ export default function CohortRoleStep({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
             <h3 className="text-lg font-bold text-gray-900 mb-3">
-              Become a Facilitator
+              Become a Navigator
             </h3>
             <p className="text-gray-600 mb-6">
-              Facilitators lead weekly group discussions and help participants
-              engage with the material. You'll be matched with a group based on
-              your availability.
+              Navigators lead weekly group discussions and help participants
+              engage with the material. You&rsquo;ll be matched with a group
+              based on your availability.
             </p>
             <div className="flex gap-3">
               <button

@@ -1,6 +1,7 @@
 """SQLAlchemy Core table definitions for the database schema."""
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
@@ -67,9 +68,9 @@ users = Table(
     Column("cookies_marketing_consent", Text),  # 'accepted' | 'declined' | NULL
     Column("cookies_marketing_consent_at", TIMESTAMP(timezone=True)),
     Column(
-        "referred_by_link_id",
+        "referred_by_click_id",
         Integer,
-        ForeignKey("referral_links.link_id", ondelete="SET NULL", use_alter=True),
+        ForeignKey("referral_clicks.click_id", ondelete="SET NULL", use_alter=True),
     ),
     CheckConstraint(
         "cookies_analytics_consent IN ('accepted', 'declined')",
@@ -150,7 +151,6 @@ groups = Table(
     ),  # NULL = use cohort's course_slug, set = A/B test variant
     Column("discord_category_id", Text),
     Column("discord_text_channel_id", Text),
-    Column("discord_voice_channel_id", Text),
     Column("discord_role_id", Text),
     Column("recurring_meeting_time_utc", Text),
     Column("status", group_status_enum, server_default="preview"),
@@ -246,8 +246,9 @@ meetings = Table(
     ),
     Column("scheduled_at", TIMESTAMP(timezone=True), nullable=False),
     Column("meeting_number", Integer),
-    Column("discord_event_id", Text),
-    Column("discord_voice_channel_id", Text),
+    Column("zoom_meeting_id", BigInteger),
+    Column("zoom_join_url", Text),
+    Column("zoom_host_email", Text),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Index("idx_meetings_group_id", "group_id"),
@@ -627,5 +628,15 @@ referral_clicks = Table(
         nullable=False,
     ),
     Column("clicked_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column(
+        "consent_state",
+        Text,
+        CheckConstraint(
+            "consent_state IN ('accepted', 'declined', 'pending', 'pending_then_accepted')",
+            name="consent_state_values",
+        ),
+        nullable=False,
+        server_default=text("'pending'"),
+    ),
     Index("idx_referral_clicks_link_id", "link_id"),
 )

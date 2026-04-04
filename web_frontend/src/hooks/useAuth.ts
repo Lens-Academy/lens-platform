@@ -43,7 +43,7 @@ export interface AuthState {
 }
 
 export interface UseAuthReturn extends AuthState {
-  login: (refSlug?: string) => void;
+  login: (options?: { refSlug?: string; nextPath?: string }) => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -147,8 +147,9 @@ export function useAuth(): UseAuthReturn {
             syncMarketingConsentToServer(marketingChoice);
           }
 
-          // Clear referral ref from sessionStorage — attribution is done
+          // Clear referral data from sessionStorage — attribution is done
           sessionStorage.removeItem("ref");
+          sessionStorage.removeItem("ref_click_id");
         }
       } else {
         setState({
@@ -192,31 +193,46 @@ export function useAuth(): UseAuthReturn {
     const urlRef = params.get("ref");
     if (urlRef) {
       sessionStorage.setItem("ref", urlRef);
-      // Clean the URL — ref is now in sessionStorage, no need to show it
+      const clickId = params.get("click_id");
+      if (clickId) {
+        sessionStorage.setItem("ref_click_id", clickId);
+      }
+      // Clean the URL — ref and click_id are now in sessionStorage
       params.delete("ref");
+      params.delete("click_id");
       const clean = params.toString();
       const newUrl = window.location.pathname + (clean ? `?${clean}` : "");
       window.history.replaceState({}, "", newUrl);
     }
   }, []);
 
-  const login = useCallback((refSlug?: string) => {
-    // Redirect to Discord OAuth, with current path as the return URL
-    const next = encodeURIComponent(window.location.pathname);
-    const origin = encodeURIComponent(window.location.origin);
-    const anonymousToken = getAnonymousToken();
-    const tokenParam = anonymousToken
-      ? `&anonymous_token=${encodeURIComponent(anonymousToken)}`
-      : "";
-    // Auto-detect ref: explicit param > URL > sessionStorage
-    const ref =
-      refSlug ||
-      new URLSearchParams(window.location.search).get("ref") ||
-      sessionStorage.getItem("ref") ||
-      undefined;
-    const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : "";
-    window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}${refParam}`;
-  }, []);
+  const login = useCallback(
+    (options?: { refSlug?: string; nextPath?: string }) => {
+      // Redirect to Discord OAuth, with current path as the return URL
+      const next = encodeURIComponent(
+        options?.nextPath || window.location.pathname,
+      );
+      const origin = encodeURIComponent(window.location.origin);
+      const anonymousToken = getAnonymousToken();
+      const tokenParam = anonymousToken
+        ? `&anonymous_token=${encodeURIComponent(anonymousToken)}`
+        : "";
+      // Auto-detect ref: explicit param > URL > sessionStorage
+      const ref =
+        options?.refSlug ||
+        new URLSearchParams(window.location.search).get("ref") ||
+        sessionStorage.getItem("ref") ||
+        undefined;
+      const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : "";
+      // Pass click_id from sessionStorage through OAuth state
+      const clickId = sessionStorage.getItem("ref_click_id") || undefined;
+      const clickIdParam = clickId
+        ? `&click_id=${encodeURIComponent(clickId)}`
+        : "";
+      window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}${refParam}${clickIdParam}`;
+    },
+    [],
+  );
 
   const logout = useCallback(async () => {
     try {

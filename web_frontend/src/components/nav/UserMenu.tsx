@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { User } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { Popover } from "../Popover";
-import { API_URL } from "../../config";
 
 interface UserMenuProps {
   /** Override the default redirect path after sign in */
@@ -28,19 +27,9 @@ export function UserMenu({
     logout,
   } = useAuth();
 
-  // Custom login that uses signInRedirect if provided
+  // Use the centralized login() which handles ref attribution
   const handleLogin = useCallback(() => {
-    if (signInRedirect) {
-      const next = encodeURIComponent(signInRedirect);
-      const origin = encodeURIComponent(window.location.origin);
-      const anonymousToken = localStorage.getItem("anonymous_token");
-      const tokenParam = anonymousToken
-        ? `&anonymous_token=${encodeURIComponent(anonymousToken)}`
-        : "";
-      window.location.href = `${API_URL}/auth/discord?next=${next}&origin=${origin}${tokenParam}`;
-    } else {
-      login();
-    }
+    login(signInRedirect ? { nextPath: signInRedirect } : undefined);
   }, [signInRedirect, login]);
 
   if (isLoading) {

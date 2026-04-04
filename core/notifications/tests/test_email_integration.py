@@ -241,6 +241,7 @@ class TestNotificationFlowIntegration:
                     "group_name": "Test Group",
                     "meeting_time_utc": "2024-02-07T15:00:00+00:00",
                     "discord_channel_url": "https://discord.com/channels/111/222",
+                    "zoom_join_url": "https://zoom.us/j/123",
                 },
             )
 
@@ -265,12 +266,6 @@ class TestNotificationFlowIntegration:
     async def test_send_notification_uses_real_url_builders(self, test_user):
         """Verify URLs are built correctly using real URL builder functions."""
         from core.notifications.dispatcher import send_notification
-        from core.notifications.urls import build_discord_channel_url
-
-        discord_channel_url = build_discord_channel_url(
-            server_id="111222333",
-            channel_id="444555666",
-        )
 
         with patch("core.notifications.channels.email._get_sendgrid_client") as mock_sg:
             mock_client = MagicMock()
@@ -283,7 +278,7 @@ class TestNotificationFlowIntegration:
                 context={
                     "group_name": "Test Group",
                     "meeting_time_utc": "2024-02-07T15:00:00+00:00",
-                    "discord_channel_url": discord_channel_url,
+                    "zoom_join_url": "https://zoom.us/j/123",
                 },
             )
 
@@ -295,11 +290,8 @@ class TestNotificationFlowIntegration:
                     html_content = content.content
                     break
 
-            # Verify the Discord URL appears as a proper HTML link
-            assert (
-                '<a href="https://discord.com/channels/111222333/444555666">'
-                in html_content
-            )
+            # Verify the Zoom URL appears as a proper HTML link
+            assert '<a href="https://zoom.us/j/123">' in html_content
 
     @pytest.mark.asyncio
     async def test_send_notification_respects_email_disabled(self, test_user):
@@ -329,6 +321,7 @@ class TestNotificationFlowIntegration:
                     "group_name": "Test Group",
                     "meeting_time_utc": "2024-02-07T15:00:00+00:00",
                     "discord_channel_url": "https://discord.com/channels/111/222",
+                    "zoom_join_url": "https://zoom.us/j/123",
                 },
             )
 
@@ -365,6 +358,7 @@ class TestNotificationFlowIntegration:
                     "group_name": "Test Group",
                     "meeting_time_utc": "2024-02-07T15:00:00+00:00",
                     "discord_channel_url": "https://discord.com/channels/111/222",
+                    "zoom_join_url": "https://zoom.us/j/123",
                 },
             )
 

@@ -148,7 +148,6 @@ export default function Availability() {
           startHour={8}
           endHour={22}
         />
-
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-[var(--brand-bg)]/95 backdrop-blur-sm border-t border-[var(--brand-border)] py-4 z-10">

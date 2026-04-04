@@ -18,6 +18,7 @@ from core.referrals import (
     resolve_attribution,
     slugify_name,
     soft_delete_link,
+    update_click_consent,
     update_link,
     validate_slug,
 )
@@ -25,6 +26,7 @@ from core.tables import (
     cohorts,
     groups,
     groups_users,
+    referral_clicks,
     referral_links,
     signups,
     users,
@@ -214,6 +216,67 @@ class TestLogClick:
         assert stats["clicks"] == 2
 
 
+class TestLogClickConsentState:
+    @pytest.mark.asyncio
+    async def test_log_click_records_consent_accepted(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Consent Test")
+        await log_click(db_conn, link["link_id"], consent_state="accepted")
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.link_id == link["link_id"]
+            )
+        )
+        assert row.scalar() == "accepted"
+
+    @pytest.mark.asyncio
+    async def test_log_click_records_consent_declined(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Consent Test")
+        await log_click(db_conn, link["link_id"], consent_state="declined")
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.link_id == link["link_id"]
+            )
+        )
+        assert row.scalar() == "declined"
+
+    @pytest.mark.asyncio
+    async def test_log_click_records_consent_pending(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Consent Test")
+        await log_click(db_conn, link["link_id"], consent_state="pending")
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.link_id == link["link_id"]
+            )
+        )
+        assert row.scalar() == "pending"
+
+    @pytest.mark.asyncio
+    async def test_log_click_defaults_to_pending(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Consent Test")
+        await log_click(db_conn, link["link_id"])
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.link_id == link["link_id"]
+            )
+        )
+        assert row.scalar() == "pending"
+
+
+class TestLogClickReturnsClickId:
+    @pytest.mark.asyncio
+    async def test_log_click_returns_click_id(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Return Test")
+        click_id = await log_click(db_conn, link["link_id"])
+        assert isinstance(click_id, int)
+
+    @pytest.mark.asyncio
+    async def test_log_click_returns_unique_ids(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Return Test")
+        id1 = await log_click(db_conn, link["link_id"])
+        id2 = await log_click(db_conn, link["link_id"])
+        assert id1 != id2
+
+
 class TestGetLinkBySlug:
     @pytest.mark.asyncio
     async def test_get_link_by_slug(self, db_conn, test_user):
@@ -235,29 +298,30 @@ class TestResolveAttribution:
     @pytest.mark.asyncio
     async def test_resolve_attribution(self, db_conn, test_user):
         link = await create_default_link(db_conn, test_user, "Referrer")
-        result = await db_conn.execute(
+        click_id = await log_click(db_conn, link["link_id"])
+        referred_row = await db_conn.execute(
             insert(users)
             .values(discord_id="referred-456", discord_username="referred")
             .returning(users.c.user_id)
         )
-        referred_id = result.first()[0]
-        await resolve_attribution(db_conn, referred_id, link["slug"])
+        referred_id = referred_row.first()[0]
+        await resolve_attribution(db_conn, referred_id, click_id)
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
+            select(users.c.referred_by_click_id).where(users.c.user_id == referred_id)
         )
-        assert row.scalar() == link["link_id"]
+        assert row.scalar() == click_id
 
     @pytest.mark.asyncio
-    async def test_resolve_attribution_invalid_slug(self, db_conn, test_user):
-        result = await db_conn.execute(
+    async def test_resolve_attribution_invalid_click_id(self, db_conn):
+        referred_row = await db_conn.execute(
             insert(users)
             .values(discord_id="referred-789", discord_username="referred2")
             .returning(users.c.user_id)
         )
-        referred_id = result.first()[0]
-        await resolve_attribution(db_conn, referred_id, "nonexistent-slug")
+        referred_id = referred_row.first()[0]
+        await resolve_attribution(db_conn, referred_id, 999999)
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
+            select(users.c.referred_by_click_id).where(users.c.user_id == referred_id)
         )
         assert row.scalar() is None
 
@@ -269,17 +333,16 @@ class TestGetLinkStats:
         await log_click(db_conn, link["link_id"])
         await log_click(db_conn, link["link_id"])
         await log_click(db_conn, link["link_id"])
+        ref_click_id = await log_click(db_conn, link["link_id"])
         await db_conn.execute(
-            insert(users)
-            .values(
+            insert(users).values(
                 discord_id="ref-user-1",
                 discord_username="refuser1",
-                referred_by_link_id=link["link_id"],
+                referred_by_click_id=ref_click_id,
             )
-            .returning(users.c.user_id)
         )
         stats = await get_link_stats(db_conn, link["link_id"])
-        assert stats["clicks"] == 3
+        assert stats["clicks"] == 4  # 3 original + 1 for the referred user's click
         assert stats["signups"] == 1
 
 
@@ -289,10 +352,10 @@ class TestGetLinkStats:
 class TestResolveAttributionIdempotent:
     @pytest.mark.asyncio
     async def test_second_attribution_does_not_overwrite(self, db_conn, test_user):
-        """Once a user has attribution, a second call with a different slug does NOT overwrite."""
-        # Create two referrers with links
+        """Once a user has attribution, a second call with a different click does NOT overwrite."""
         referrer1 = test_user
         link1 = await create_default_link(db_conn, referrer1, "Referrer One")
+        click1 = await log_click(db_conn, link1["link_id"])
 
         referrer2_row = await db_conn.execute(
             insert(users)
@@ -301,8 +364,8 @@ class TestResolveAttributionIdempotent:
         )
         referrer2 = referrer2_row.first()[0]
         link2 = await create_default_link(db_conn, referrer2, "Referrer Two")
+        click2 = await log_click(db_conn, link2["link_id"])
 
-        # Create the referred user
         referred_row = await db_conn.execute(
             insert(users)
             .values(discord_id="referred-idempotent", discord_username="referred")
@@ -310,19 +373,17 @@ class TestResolveAttributionIdempotent:
         )
         referred_id = referred_row.first()[0]
 
-        # First attribution succeeds
-        await resolve_attribution(db_conn, referred_id, link1["slug"])
+        await resolve_attribution(db_conn, referred_id, click1)
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
+            select(users.c.referred_by_click_id).where(users.c.user_id == referred_id)
         )
-        assert row.scalar() == link1["link_id"]
+        assert row.scalar() == click1
 
-        # Second attribution with different slug does NOT overwrite
-        await resolve_attribution(db_conn, referred_id, link2["slug"])
+        await resolve_attribution(db_conn, referred_id, click2)
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(users.c.user_id == referred_id)
+            select(users.c.referred_by_click_id).where(users.c.user_id == referred_id)
         )
-        assert row.scalar() == link1["link_id"]
+        assert row.scalar() == click1  # unchanged
 
 
 class TestResolveAttributionSelfReferral:
@@ -330,9 +391,10 @@ class TestResolveAttributionSelfReferral:
     async def test_user_cannot_be_attributed_to_own_link(self, db_conn, test_user):
         """A user cannot be attributed to their own referral link."""
         link = await create_default_link(db_conn, test_user, "Self Referrer")
-        await resolve_attribution(db_conn, test_user, link["slug"])
+        click_id = await log_click(db_conn, link["link_id"])
+        await resolve_attribution(db_conn, test_user, click_id)
         row = await db_conn.execute(
-            select(users.c.referred_by_link_id).where(users.c.user_id == test_user)
+            select(users.c.referred_by_click_id).where(users.c.user_id == test_user)
         )
         assert row.scalar() is None
 
@@ -370,12 +432,13 @@ async def full_funnel_setup(db_conn, test_user):
     # Create referred users
     referred_ids = []
     for i in range(3):
+        click_id = await log_click(db_conn, link["link_id"])
         row = await db_conn.execute(
             insert(users)
             .values(
                 discord_id=f"funnel-ref-{i}",
                 discord_username=f"funnelref{i}",
-                referred_by_link_id=link["link_id"],
+                referred_by_click_id=click_id,
             )
             .returning(users.c.user_id)
         )
@@ -422,7 +485,7 @@ class TestGetLinkStatsFullFunnel:
         )
 
         stats = await get_link_stats(db_conn, link["link_id"])
-        assert stats["clicks"] == 5
+        assert stats["clicks"] == 8  # 5 from test + 3 from fixture's referred users
         assert stats["signups"] == 3  # 3 referred users
         assert stats["enrolled"] == 2  # 2 with signups
         assert stats["completed"] == 1  # 1 with completed group status
@@ -440,18 +503,19 @@ class TestGetAllReferrerStats:
         await log_click(db_conn, link["link_id"])
 
         # Create a referred user
+        ref_click = await log_click(db_conn, link["link_id"])
         await db_conn.execute(
             insert(users).values(
                 discord_id="stats-ref-1",
                 discord_username="statsref1",
-                referred_by_link_id=link["link_id"],
+                referred_by_click_id=ref_click,
             )
         )
 
         stats = await get_all_referrer_stats(db_conn)
         # Find our referrer in results
         referrer = next(s for s in stats if s["user_id"] == test_user)
-        assert referrer["clicks"] == 2
+        assert referrer["clicks"] == 3  # 2 original + 1 for the referred user
         assert referrer["signups"] == 1
         assert referrer["links"] == 1
 
@@ -572,6 +636,52 @@ class TestCreateCampaignLinkWithExplicitSlug:
 
 
 # ── Slugify edge cases ───────────────────────────────────────
+
+
+class TestUpdateClickConsent:
+    @pytest.mark.asyncio
+    async def test_updates_pending_to_pending_then_accepted(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Update Test")
+        click_id = await log_click(db_conn, link["link_id"], consent_state="pending")
+        updated = await update_click_consent(db_conn, click_id, "accepted")
+        assert updated is True
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.click_id == click_id
+            )
+        )
+        assert row.scalar() == "pending_then_accepted"
+
+    @pytest.mark.asyncio
+    async def test_updates_pending_to_declined(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Update Test")
+        click_id = await log_click(db_conn, link["link_id"], consent_state="pending")
+        updated = await update_click_consent(db_conn, click_id, "declined")
+        assert updated is True
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.click_id == click_id
+            )
+        )
+        assert row.scalar() == "declined"
+
+    @pytest.mark.asyncio
+    async def test_does_not_update_already_resolved(self, db_conn, test_user):
+        link = await create_default_link(db_conn, test_user, "Update Test")
+        click_id = await log_click(db_conn, link["link_id"], consent_state="accepted")
+        updated = await update_click_consent(db_conn, click_id, "declined")
+        assert updated is False
+        row = await db_conn.execute(
+            select(referral_clicks.c.consent_state).where(
+                referral_clicks.c.click_id == click_id
+            )
+        )
+        assert row.scalar() == "accepted"  # unchanged
+
+    @pytest.mark.asyncio
+    async def test_nonexistent_click_id(self, db_conn):
+        updated = await update_click_consent(db_conn, 999999, "accepted")
+        assert updated is False
 
 
 class TestSlugifyEdgeCases:
