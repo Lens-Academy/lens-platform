@@ -1,7 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { LandingNav } from "@/components/LandingNav";
 import { LandingFooter } from "@/components/LandingFooter";
-import ProspectEmailForm from "@/components/ProspectEmailForm";
 import {
   Target,
   MessageSquare,
@@ -485,7 +484,7 @@ export default function LandingPage() {
                   color: "var(--landing-accent-text)",
                 }}
               >
-                Starting April 2026
+                Starting 20 April 2026
               </span>
               <h3
                 className="text-2xl sm:text-3xl mb-4 leading-snug"
@@ -507,7 +506,42 @@ export default function LandingPage() {
                 exploring the arguments, evidence, and implications with fellow
                 students and an AI tutor.
               </p>
-              <ProspectEmailForm variant="inline" />
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="/enroll"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold transition-colors duration-200"
+                  style={{
+                    backgroundColor: "var(--landing-accent)",
+                    color: "var(--landing-accent-text)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      "var(--landing-accent-hover)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      "var(--landing-accent)";
+                  }}
+                >
+                  Enroll
+                </a>
+                <a
+                  href="/course/machine-god"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold border transition-colors duration-200"
+                  style={{
+                    borderColor: "var(--landing-border)",
+                    color: "var(--landing-text)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "var(--landing-bg)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  Browse Curriculum
+                </a>
+              </div>
             </div>
 
             {/* Course 2: Navigating Superintelligence */}
