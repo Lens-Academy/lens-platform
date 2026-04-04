@@ -71,7 +71,9 @@ def create_mcp_app(
         """
         from .search import search_keyword
 
-        return await search_keyword(query, channel=channel, limit=limit)
+        if not query.strip():
+            return []
+        return await search_keyword(query, channel=channel, limit=min(limit, 100))
 
     @mcp.tool()
     async def read_messages(
@@ -86,6 +88,10 @@ def create_mcp_app(
             around_message_id: If provided, read messages around this message ID.
             limit: Max messages to return (default 50).
         """
+        if not bot.is_ready():
+            return [{"error": "Discord bot is still connecting, try again shortly"}]
+
+        limit = min(limit, 200)
         guild = bot.get_guild(guild_id)
         if not guild:
             return [{"error": f"Guild {guild_id} not found"}]
@@ -158,6 +164,9 @@ def create_mcp_app(
             content: Message text to send.
             display_name: Custom sender name (shown in Discord). Defaults to "Lens MCP".
         """
+        if not bot.is_ready():
+            return {"error": "Discord bot is still connecting, try again shortly"}
+
         from .send import send_message as _send
 
         return await _send(bot, guild_id, channel, content, display_name)
@@ -169,6 +178,9 @@ def create_mcp_app(
         Args:
             channel: Channel name or ID. If omitted, syncs all channels.
         """
+        if not bot.is_ready():
+            return {"error": "Discord bot is still connecting, try again shortly"}
+
         from .export import sync_channel as _sync_channel, sync_guild
 
         if channel:

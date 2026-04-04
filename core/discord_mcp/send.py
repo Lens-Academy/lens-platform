@@ -95,11 +95,28 @@ async def send_message(
 
     webhook = await _get_or_create_webhook(channel, bot)
 
-    msg = await webhook.send(
-        content=content,
-        username=display_name or "Lens MCP",
-        wait=True,
-    )
+    try:
+        msg = await webhook.send(
+            content=content,
+            username=display_name or "Lens MCP",
+            wait=True,
+        )
+    except discord.NotFound:
+        # Cached webhook was deleted — clear cache and retry once
+        from sqlalchemy import update
+
+        async with get_transaction() as conn:
+            await conn.execute(
+                update(channels)
+                .where(channels.c.id == channel.id)
+                .values(webhook_id=None, webhook_token=None)
+            )
+        webhook = await _get_or_create_webhook(channel, bot)
+        msg = await webhook.send(
+            content=content,
+            username=display_name or "Lens MCP",
+            wait=True,
+        )
 
     return {
         "message_id": msg.id,
