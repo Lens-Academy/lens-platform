@@ -338,6 +338,45 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(on_bot_ready())
 
+    # Mount Discord MCP server
+    discord_server_id = os.environ.get("DISCORD_SERVER_ID")
+    if bot and discord_server_id and not skip_db:
+        from core.discord_mcp import create_mcp_app
+
+        mcp_starlette = create_mcp_app(
+            bot=bot,
+            guild_id=int(discord_server_id),
+        )
+        app.mount("/discord-mcp", mcp_starlette)
+        print("Discord MCP server mounted at /discord-mcp")
+
+        # Schedule periodic backfill
+        if scheduler:
+            from core.discord_mcp.export import sync_guild
+
+            async def _backfill_job():
+                if bot.is_ready():
+                    await sync_guild(bot, int(discord_server_id))
+
+            scheduler.add_job(
+                _backfill_job,
+                trigger="interval",
+                minutes=30,
+                id="discord_mcp_backfill",
+                replace_existing=True,
+            )
+            print("Scheduled Discord backfill job (every 30 minutes)")
+
+            # Run initial backfill after bot is ready (delay 3 minutes)
+            scheduler.add_job(
+                _backfill_job,
+                trigger="date",
+                run_date=datetime.now(timezone.utc) + timedelta(minutes=3),
+                id="discord_mcp_backfill_initial",
+                replace_existing=True,
+            )
+            print("Scheduled initial Discord backfill (in ~3 minutes)")
+
     yield  # FastAPI runs here, bot runs alongside it
 
     # Graceful shutdown of all peer services
