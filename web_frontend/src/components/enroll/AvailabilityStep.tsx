@@ -44,7 +44,7 @@ export default function AvailabilityStep({
   const dateRange = formatDateRange();
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto pb-24">
       <h2 className="text-2xl font-bold text-gray-900 mb-2">
         Your Availability
       </h2>
@@ -99,28 +99,30 @@ export default function AvailabilityStep({
         endHour={22}
       />
 
-      <div className="mt-8 flex gap-4">
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          Back
-        </button>
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={isSubmitting || totalSlots === 0}
-          className={`flex-1 px-6 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
-            isSubmitting || totalSlots === 0
-              ? "bg-gray-300 text-gray-500"
-              : "bg-blue-500 hover:bg-blue-600 text-white"
-          }`}
-        >
-          {totalSlots === 0
-            ? "Select at least one time slot"
-            : "Complete Enrollment"}
-        </button>
+      <div className="fixed bottom-0 left-0 right-0 bg-[var(--background,#faf8f3)]/95 backdrop-blur-sm border-t border-gray-200 py-4 z-10">
+        <div className="max-w-2xl mx-auto px-4 flex gap-4">
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={isSubmitting || totalSlots === 0}
+            className={`flex-1 px-6 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
+              isSubmitting || totalSlots === 0
+                ? "bg-gray-300 text-gray-500"
+                : "bg-lens-orange-500 hover:bg-lens-orange-600 text-white"
+            }`}
+          >
+            {totalSlots === 0
+              ? "Select at least one time slot"
+              : "Complete Enrollment"}
+          </button>
+        </div>
       </div>
     </div>
   );

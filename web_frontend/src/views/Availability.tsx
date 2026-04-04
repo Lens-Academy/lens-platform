@@ -97,7 +97,7 @@ export default function Availability() {
   }
 
   return (
-    <div className="py-8">
+    <div className="py-8 pb-24">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold text-[var(--brand-text)] mb-2">
           Your Availability
@@ -149,7 +149,10 @@ export default function Availability() {
           endHour={22}
         />
 
-        <div className="mt-8 flex items-center gap-4">
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-[var(--brand-bg)]/95 backdrop-blur-sm border-t border-[var(--brand-border)] py-4 z-10">
+        <div className="max-w-2xl mx-auto px-4 flex items-center gap-4">
           <button
             type="button"
             onClick={handleSave}
