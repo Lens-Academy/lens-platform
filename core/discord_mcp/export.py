@@ -1,13 +1,11 @@
 """Backfill Discord message history into the database."""
 
-import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
 import discord
 
 from .sync import upsert_channel, upsert_messages, update_channel_synced_at
-from .tables import channels
 from core.database import get_connection
 
 logger = logging.getLogger(__name__)
@@ -215,6 +213,4 @@ def _channel_type_str(
         return "thread"
     if isinstance(channel, discord.ForumChannel):
         return "forum"
-    if isinstance(channel, discord.VoiceChannel):
-        return "voice"
     return "text"

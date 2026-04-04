@@ -10,7 +10,6 @@ from sqlalchemy import (
     MetaData,
     Table,
     Text,
-    func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 

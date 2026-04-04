@@ -24,7 +24,9 @@ async def search_keyword(
         List of message dicts with author_name, channel_name, content, etc.
         Ordered by relevance (ts_rank_cd).
     """
-    ts_query = func.plainto_tsquery("english", query)
+    # websearch_to_tsquery handles natural language AND boolean-like syntax
+    # e.g. "alignment OR safety", "instrumental -convergence", "exact phrase"
+    ts_query = func.websearch_to_tsquery("english", query)
 
     stmt = (
         select(

@@ -1,15 +1,13 @@
 # core/discord_mcp/server.py
 """FastMCP server exposing Discord search, read, write, and sync tools."""
 
-import asyncio
+import hmac
 import logging
 import os
-from typing import Any
 
 import discord
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
-from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -26,7 +24,7 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         auth = request.headers.get("Authorization", "")
-        if not auth.startswith("Bearer ") or auth[7:] != self.token:
+        if not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], self.token):
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
         return await call_next(request)
 
