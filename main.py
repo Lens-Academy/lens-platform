@@ -338,7 +338,52 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(on_bot_ready())
 
+    # Mount Discord MCP server
+    discord_server_id = os.environ.get("DISCORD_SERVER_ID")
+    mcp_session_ctx = None
+    if bot and discord_server_id and not skip_db:
+        from core.discord_mcp import create_mcp_app
+
+        mcp_starlette = create_mcp_app(
+            bot=bot,
+            guild_id=int(discord_server_id),
+        )
+        app.mount("/discord-mcp", mcp_starlette)
+        print("Discord MCP server mounted at /discord-mcp")
+
+        # Manually start the MCP session manager's task group
+        # (mounted sub-apps don't get their lifespan called by FastAPI)
+        if hasattr(mcp_starlette, "_mcp_session_manager"):
+            mcp_session_ctx = mcp_starlette._mcp_session_manager.run()
+            await mcp_session_ctx.__aenter__()
+            print("Discord MCP session manager started")
+
+        # Schedule periodic backfill
+        if scheduler:
+            scheduler.add_job(
+                "core.discord_mcp.export:run_backfill",
+                trigger="interval",
+                minutes=30,
+                id="discord_mcp_backfill",
+                replace_existing=True,
+            )
+            print("Scheduled Discord backfill job (every 30 minutes)")
+
+            # Run initial backfill after bot is ready (delay 3 minutes)
+            scheduler.add_job(
+                "core.discord_mcp.export:run_backfill",
+                trigger="date",
+                run_date=datetime.now(timezone.utc) + timedelta(minutes=3),
+                id="discord_mcp_backfill_initial",
+                replace_existing=True,
+            )
+            print("Scheduled initial Discord backfill (in ~3 minutes)")
+
     yield  # FastAPI runs here, bot runs alongside it
+
+    # Shutdown Discord MCP session manager
+    if mcp_session_ctx:
+        await mcp_session_ctx.__aexit__(None, None, None)
 
     # Graceful shutdown of all peer services
     print("Shutting down peer services...")
