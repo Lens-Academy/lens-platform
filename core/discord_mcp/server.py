@@ -201,15 +201,23 @@ def create_mcp_app(
 
     def _resolve_channel(
         guild: discord.Guild, identifier: str
-    ) -> discord.TextChannel | None:
-        """Resolve a channel by name or ID."""
+    ) -> discord.abc.Messageable | None:
+        """Resolve a channel by name or ID. Searches text, forum, and thread channels."""
         try:
             channel_id = int(identifier)
-            return guild.get_channel(channel_id)
+            ch = guild.get_channel(channel_id) or guild.get_thread(channel_id)
+            return ch
         except ValueError:
+            name = identifier.lower()
             for ch in guild.text_channels:
-                if ch.name.lower() == identifier.lower():
+                if ch.name.lower() == name:
                     return ch
+            for ch in guild.forum_channels:
+                if ch.name.lower() == name:
+                    return ch
+            for thread in guild.threads:
+                if thread.name.lower() == name:
+                    return thread
             return None
 
     def _format_message(msg: discord.Message, channel_name: str) -> dict:
