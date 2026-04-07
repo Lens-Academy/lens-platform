@@ -7,6 +7,7 @@ import os
 
 import discord
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -45,6 +46,11 @@ def create_mcp_app(
     Returns:
         Starlette app ready to be mounted on FastAPI.
     """
+    # DNS rebinding protection: allow known hosts for the MCP endpoint
+    transport_security = TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+    )
+
     mcp = FastMCP(
         "Lens Discord MCP",
         instructions=(
@@ -54,6 +60,7 @@ def create_mcp_app(
         ),
         stateless_http=True,
         json_response=True,
+        transport_security=transport_security,
     )
 
     # -- Tools --
