@@ -24,7 +24,9 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         auth = request.headers.get("Authorization", "")
-        if not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], self.token):
+        if not auth.startswith("Bearer ") or not hmac.compare_digest(
+            auth[7:], self.token
+        ):
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
         return await call_next(request)
 

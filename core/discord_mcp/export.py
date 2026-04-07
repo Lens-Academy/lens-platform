@@ -19,7 +19,9 @@ def _message_to_dict(msg: discord.Message) -> dict:
     return {
         "id": msg.id,
         "channel_id": msg.channel.id,
-        "thread_id": msg.channel.id if isinstance(msg.channel, discord.Thread) else None,
+        "thread_id": msg.channel.id
+        if isinstance(msg.channel, discord.Thread)
+        else None,
         "author_id": msg.author.id,
         "author_name": msg.author.display_name,
         "content": msg.content or "",
@@ -84,9 +86,7 @@ async def sync_channel(
     batch: list[dict] = []
 
     try:
-        async for msg in channel.history(
-            limit=None, oldest_first=True, after=after
-        ):
+        async for msg in channel.history(limit=None, oldest_first=True, after=after):
             batch.append(_message_to_dict(msg))
 
             if len(batch) >= BATCH_SIZE:

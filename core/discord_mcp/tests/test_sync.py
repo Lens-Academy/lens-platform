@@ -33,8 +33,10 @@ async def test_upsert_channel_insert():
     )
     async with get_connection() as conn:
         row = (
-            await conn.execute(select(channels).where(channels.c.id == 123456))
-        ).mappings().first()
+            (await conn.execute(select(channels).where(channels.c.id == 123456)))
+            .mappings()
+            .first()
+        )
     assert row is not None
     assert row["name"] == "general"
     assert row["topic"] == "General discussion"
@@ -46,8 +48,10 @@ async def test_upsert_channel_update():
     await upsert_channel(id=123456, guild_id=111111, name="general-chat", type="text")
     async with get_connection() as conn:
         row = (
-            await conn.execute(select(channels).where(channels.c.id == 123456))
-        ).mappings().first()
+            (await conn.execute(select(channels).where(channels.c.id == 123456)))
+            .mappings()
+            .first()
+        )
     assert row["name"] == "general-chat"
 
 
@@ -77,7 +81,11 @@ async def test_upsert_messages_insert():
     assert count == 2
 
     async with get_connection() as conn:
-        rows = (await conn.execute(select(messages).order_by(messages.c.id))).mappings().all()
+        rows = (
+            (await conn.execute(select(messages).order_by(messages.c.id)))
+            .mappings()
+            .all()
+        )
     assert len(rows) == 2
     assert rows[0]["author_name"] == "Alice"
     assert rows[1]["content"] == "Hi Alice"
@@ -103,7 +111,9 @@ async def test_upsert_messages_skips_duplicates():
 
     async with get_connection() as conn:
         row = (
-            await conn.execute(select(messages).where(messages.c.id == 1001))
-        ).mappings().first()
+            (await conn.execute(select(messages).where(messages.c.id == 1001)))
+            .mappings()
+            .first()
+        )
     assert row["content"] == "Hello (edited)"
     assert row["edited_at"] is not None

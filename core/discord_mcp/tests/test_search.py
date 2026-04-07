@@ -19,32 +19,34 @@ async def seed_data():
     await upsert_channel(id=100, guild_id=1, name="general", type="text")
     await upsert_channel(id=200, guild_id=1, name="alignment", type="text")
 
-    await upsert_messages([
-        {
-            "id": 1,
-            "channel_id": 100,
-            "author_id": 10,
-            "author_name": "Alice",
-            "content": "The alignment tax is a real concern for AI safety",
-            "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
-        },
-        {
-            "id": 2,
-            "channel_id": 100,
-            "author_id": 11,
-            "author_name": "Bob",
-            "content": "I think instrumental convergence is underrated",
-            "created_at": datetime(2026, 1, 1, 0, 1, tzinfo=timezone.utc),
-        },
-        {
-            "id": 3,
-            "channel_id": 200,
-            "author_id": 10,
-            "author_name": "Alice",
-            "content": "Module 3 on alignment was really helpful",
-            "created_at": datetime(2026, 1, 1, 0, 2, tzinfo=timezone.utc),
-        },
-    ])
+    await upsert_messages(
+        [
+            {
+                "id": 1,
+                "channel_id": 100,
+                "author_id": 10,
+                "author_name": "Alice",
+                "content": "The alignment tax is a real concern for AI safety",
+                "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            },
+            {
+                "id": 2,
+                "channel_id": 100,
+                "author_id": 11,
+                "author_name": "Bob",
+                "content": "I think instrumental convergence is underrated",
+                "created_at": datetime(2026, 1, 1, 0, 1, tzinfo=timezone.utc),
+            },
+            {
+                "id": 3,
+                "channel_id": 200,
+                "author_id": 10,
+                "author_name": "Alice",
+                "content": "Module 3 on alignment was really helpful",
+                "created_at": datetime(2026, 1, 1, 0, 2, tzinfo=timezone.utc),
+            },
+        ]
+    )
     yield
     async with get_transaction() as conn:
         await conn.execute(text("DELETE FROM discord.messages"))

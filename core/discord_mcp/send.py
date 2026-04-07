@@ -25,12 +25,16 @@ async def _get_or_create_webhook(
     # Check DB cache first
     async with get_connection() as conn:
         row = (
-            await conn.execute(
-                select(channels.c.webhook_id, channels.c.webhook_token).where(
-                    channels.c.id == channel.id
+            (
+                await conn.execute(
+                    select(channels.c.webhook_id, channels.c.webhook_token).where(
+                        channels.c.id == channel.id
+                    )
                 )
             )
-        ).mappings().first()
+            .mappings()
+            .first()
+        )
 
     if row and row["webhook_id"] and row["webhook_token"]:
         url = f"https://discord.com/api/webhooks/{row['webhook_id']}/{row['webhook_token']}"
