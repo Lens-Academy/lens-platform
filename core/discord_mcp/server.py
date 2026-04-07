@@ -212,7 +212,7 @@ def create_mcp_app(
             for ch in guild.text_channels:
                 if ch.name.lower() == name:
                     return ch
-            for ch in guild.forum_channels:
+            for ch in guild.forums:
                 if ch.name.lower() == name:
                     return ch
             for thread in guild.threads:

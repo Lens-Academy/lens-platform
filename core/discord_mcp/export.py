@@ -134,7 +134,7 @@ async def sync_guild(bot: discord.Client, guild_id: int) -> dict:
             logger.info(f"  #{channel.name}: {count} new messages")
 
     # Forum channels
-    for forum in guild.forum_channels:
+    for forum in guild.forums:
         # Sync the forum itself (metadata only)
         await upsert_channel(
             id=forum.id,
