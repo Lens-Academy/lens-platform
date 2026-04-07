@@ -47,6 +47,8 @@ def serialize_flattened_module(module: FlattenedModule) -> dict:
         "title": module.title,
         "sections": module.sections,  # Already dicts from flattener
     }
+    if module.source_path is not None:
+        result["sourcePath"] = module.source_path
     if module.error is not None:
         result["error"] = module.error
     return result

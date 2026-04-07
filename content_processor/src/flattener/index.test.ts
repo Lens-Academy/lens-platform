@@ -1653,6 +1653,103 @@ title: Test Course
   });
 });
 
+describe('sourcePath tracking', () => {
+  it('includes sourcePath on module, sections, and article segments', () => {
+    const files = new Map([
+      ['modules/intro.md', `---
+slug: intro
+title: Intro
+---
+
+# Learning Outcome: Topic
+source:: [[../Learning Outcomes/lo1.md|LO1]]
+`],
+      ['Learning Outcomes/lo1.md', `---
+id: 550e8400-e29b-41d4-a716-446655440001
+---
+
+## Lens:
+source:: [[../Lenses/article-lens.md|Article Lens]]
+`],
+      ['Lenses/article-lens.md', `---
+id: 550e8400-e29b-41d4-a716-446655440003
+---
+
+#### Article
+source:: [[../articles/deep-dive.md|Article]]
+from:: "Start here"
+to:: "end here"
+`],
+      ['articles/deep-dive.md', `---
+title: Deep Dive Article
+author: Jane Doe
+---
+
+Start here with some content and end here.
+`],
+    ]);
+
+    const result = flattenModule('modules/intro.md', files);
+
+    expect(result.module).toBeDefined();
+    expect(result.errors).toHaveLength(0);
+
+    // Module level
+    expect(result.module?.sourcePath).toBe('modules/intro.md');
+
+    // Section level — should point to the lens file
+    expect(result.module?.sections[0].sourcePath).toBe('Lenses/article-lens.md');
+
+    // Article segment level — should point to the article file
+    const seg = result.module?.sections[0].segments[0] as ArticleSegment;
+    expect(seg.type).toBe('article');
+    expect(seg.sourcePath).toBe('articles/deep-dive.md');
+  });
+
+  it('uses module path as sourcePath for inline lenses', () => {
+    const files = new Map<string, string>([
+      ['modules/inline.md', `---
+slug: inline-test
+title: Inline Test
+---
+
+# Lens: Welcome
+id:: welcome-id
+
+#### Text
+content:: Welcome to the course.
+`],
+    ]);
+
+    const result = flattenModule('modules/inline.md', files);
+
+    expect(result.module).toBeDefined();
+    expect(result.module?.sourcePath).toBe('modules/inline.md');
+    // Inline lens lives in module file, so sourcePath = module path
+    expect(result.module?.sections[0].sourcePath).toBe('modules/inline.md');
+  });
+
+  it('includes sourcePath on flattenLens output', () => {
+    const files = new Map([
+      ['Lenses/standalone.md', `---
+id: standalone-id
+---
+
+#### Text
+content:: Some standalone content.
+`],
+    ]);
+
+    const result = flattenLens('Lenses/standalone.md', files);
+
+    expect(result.module).toBeDefined();
+    // Module level
+    expect(result.module?.sourcePath).toBe('Lenses/standalone.md');
+    // Section level
+    expect(result.module?.sections[0].sourcePath).toBe('Lenses/standalone.md');
+  });
+});
+
 describe('text segment wikilink resolution', () => {
   it('resolves wikilinks in text segment content', () => {
     const files = new Map<string, string>([

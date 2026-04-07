@@ -16,13 +16,15 @@
               "content": "This is the core content about AI Safety."
             }
           ],
+          "sourcePath": "Lenses/lens1.md",
           "optional": false,
           "learningOutcomeId": null,
           "learningOutcomeName": null,
           "contentId": "550e8400-e29b-41d4-a716-446655440002",
           "wordCount": 8
         }
-      ]
+      ],
+      "sourcePath": "Lenses/lens1.md"
     },
     {
       "slug": "intro",
@@ -40,13 +42,15 @@
               "content": "This is the core content about AI Safety."
             }
           ],
+          "sourcePath": "Lenses/lens1.md",
           "optional": false,
           "learningOutcomeId": "550e8400-e29b-41d4-a716-446655440001",
           "learningOutcomeName": "lo1",
           "contentId": "550e8400-e29b-41d4-a716-446655440002",
           "wordCount": 8
         }
-      ]
+      ],
+      "sourcePath": "modules/intro.md"
     }
   ],
   "courses": [],

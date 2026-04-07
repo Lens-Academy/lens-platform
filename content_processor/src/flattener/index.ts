@@ -352,6 +352,7 @@ export function flattenModule(
     title: g.title,
     contentId: parsedModule.contentId,
     sections: g.sections,
+    sourcePath: modulePath,
     ...(g.parentSlug ? { parentSlug: g.parentSlug, parentTitle: g.parentTitle } : {}),
     ...(moduleError ? { error: moduleError } : {}),
   }));
@@ -408,6 +409,7 @@ function buildTestSection(
     type: 'test',
     meta: { title: 'Test' },
     segments: testSegments,
+    sourcePath: loPath,
     optional: false,
     ...(hasFeedback && { feedback: true }),
     contentId: null,
@@ -508,6 +510,7 @@ function processLOWithSubmodules(
         type: 'lens',
         meta: { title: lens.title || section.title },
         segments,
+        sourcePath: lensPath,
         optional: section.fields.optional?.toLowerCase() === 'true' || lensRef.optional,
         ...(section.fields.hide?.toLowerCase() === 'true' && { hide: true }),
         learningOutcomeId: lo.id ?? null,
@@ -711,6 +714,7 @@ function flattenLearningOutcomeSection(
       type: 'lens',
       meta: { title: lens.title || section.title },
       segments,
+      sourcePath: lensPath,
       optional: section.fields.optional?.toLowerCase() === 'true' || lensRef.optional,
       ...(section.fields.hide?.toLowerCase() === 'true' && { hide: true }),
       learningOutcomeId: lo.id ?? null,
@@ -763,6 +767,7 @@ function flattenLensSection(
       type: 'lens',
       meta: { title: inlineLens.title || section.title },
       segments,
+      sourcePath: modulePath,
       optional: section.fields.optional?.toLowerCase() === 'true',
       ...(section.fields.hide?.toLowerCase() === 'true' && { hide: true }),
       learningOutcomeId: null,
@@ -866,6 +871,7 @@ function flattenLensSection(
     type: 'lens',
     meta: { title: lens.title || section.title },
     segments,
+    sourcePath: lensPath,
     optional: section.fields.optional?.toLowerCase() === 'true',
     ...(section.fields.hide?.toLowerCase() === 'true' && { hide: true }),
     learningOutcomeId: null,
@@ -1105,6 +1111,7 @@ function convertSegment(
       }
       if (fm.source_url) segment.sourceUrl = fm.source_url as string;
       if (fm.published) segment.published = String(fm.published);
+      segment.sourcePath = articlePath;
 
       if (parsedSegment.optional) {
         segment.optional = true;
@@ -1326,6 +1333,7 @@ export function flattenLens(
     type: 'lens',
     meta,
     segments,
+    sourcePath: lensPath,
     optional: false,
     learningOutcomeId: null,
     learningOutcomeName: null,
@@ -1341,6 +1349,7 @@ export function flattenLens(
     title: meta.title ?? fileNameToSlug(lensPath),
     contentId: lens.id ?? null,
     sections: [section],
+    sourcePath: lensPath,
   };
 
   return { module: flattenedModule, modules: [flattenedModule], errors };

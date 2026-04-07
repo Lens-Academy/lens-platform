@@ -24,6 +24,7 @@ export type ArticleSegment = {
   author?: string; // From article frontmatter
   sourceUrl?: string; // From article frontmatter
   published?: string; // From article frontmatter
+  sourcePath?: string; // Resolved file path (e.g. "articles/deep-dive.md")
   optional?: boolean;
 };
 
@@ -89,6 +90,7 @@ export type LensSection = {
   learningOutcomeName: string | null;
   meta: { title?: string | null };
   segments: ModuleSegment[];
+  sourcePath?: string;
   optional: boolean;
   hide?: boolean;
   tldr?: string;
@@ -107,6 +109,7 @@ export type TestSection = {
   learningOutcomeName: string | null;
   meta: { title?: string | null };
   segments: ModuleSegment[];
+  sourcePath?: string;
   optional: boolean;
   hide?: boolean;
   feedback?: boolean;
@@ -120,6 +123,7 @@ export type Module = {
   slug: string;
   title: string;
   sections: ModuleSection[];
+  sourcePath?: string;
   error?: string;
 };
 
@@ -157,6 +161,9 @@ export type ArticleData = {
   isExcerpt?: boolean;
   collapsed_before?: string | null; // Omitted content before this excerpt
   collapsed_after?: string | null; // Omitted content after this excerpt
+  sourcePath?: string | null; // Article file path
+  sectionSourcePath?: string | null; // Lens file path
+  moduleSourcePath?: string | null; // Module file path
 };
 
 // Stage types for progress bar (discriminated union matching section types)

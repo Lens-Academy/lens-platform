@@ -52,6 +52,7 @@ import { ModuleHeader } from "@/components/ModuleHeader";
 import ModuleDrawer from "@/components/module/ModuleDrawer";
 import type { ModuleDrawerHandle } from "@/components/module/ModuleDrawer";
 import { ChatSidebar } from "@/components/module/ChatSidebar";
+import SuggestEditsButton from "@/components/module/SuggestEditsButton";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import SectionChoiceModal from "@/components/module/SectionChoiceModal";
 import type { SectionChoice } from "@/components/module/SectionChoiceModal";
@@ -1602,6 +1603,9 @@ export default function Module({
           isExcerpt: true,
           collapsed_before: segment.collapsed_before,
           collapsed_after: segment.collapsed_after,
+          sourcePath: segment.sourcePath ?? null,
+          sectionSourcePath: section.sourcePath ?? null,
+          moduleSourcePath: module?.sourcePath ?? null,
         };
 
         // Count how many article segments came before this one
@@ -2158,6 +2162,29 @@ export default function Module({
                   </div>
                 );
               })}
+
+              {/* Suggest edits button: fixed-positioned above chat FAB */}
+              {currentSection != null && (
+                <SuggestEditsButton
+                  articlePath={
+                    currentSection.segments.find(
+                      (s): s is import("@/types/module").ArticleSegment =>
+                        s.type === "article",
+                    )?.sourcePath ?? null
+                  }
+                  articleTitle={
+                    currentSection.segments.find(
+                      (s): s is import("@/types/module").ArticleSegment =>
+                        s.type === "article",
+                    )?.title ?? null
+                  }
+                  lensPath={currentSection.sourcePath ?? null}
+                  lensTitle={currentSection.meta?.title ?? null}
+                  modulePath={module.sourcePath ?? null}
+                  moduleTitle={module.title}
+                  hidden={chatOpen || sidebarOpen}
+                />
+              )}
 
               {/* Chat sidebar: fixed-positioned on desktop, handles its own layout */}
               {currentSection != null && (
