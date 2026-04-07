@@ -56,7 +56,16 @@ def create_mcp_app(
         instructions=(
             "Search, read, and write messages in the Lens Academy Discord server. "
             "Use search_messages for keyword search, read_messages for live channel "
-            "reading, send_message to post via webhook, and list_channels to discover channels."
+            "reading, send_message to post via webhook, and list_channels to discover channels.\n\n"
+            "IMPORTANT — display_name rules for send_message:\n"
+            "- If YOU (the AI) are composing the message, set display_name to "
+            "'AI (Claude) on behalf of <user>' where <user> is the name of the person you are assisting.\n"
+            "- If a HUMAN wrote the message and asked you to send it, set display_name to "
+            "'<their name> (via MCP)' so it is clear the human authored it.\n\n"
+            "Repeat: when sending messages, always set display_name. "
+            "AI-written messages: 'AI (Claude) on behalf of <user>'. "
+            "Human-written messages: '<human name> (via MCP)'. "
+            "Never send without a display_name."
         ),
         stateless_http=True,
         json_response=True,
@@ -168,10 +177,14 @@ def create_mcp_app(
     ) -> dict:
         """Send a message to a Discord channel via webhook.
 
+        IMPORTANT: Always set display_name appropriately:
+        - AI-authored message: display_name = "AI (Claude) on behalf of <user>"
+        - Human-authored message: display_name = "<human name> (via MCP)"
+
         Args:
             channel: Channel name or ID.
             content: Message text to send.
-            display_name: Custom sender name (shown in Discord). Defaults to "Lens MCP".
+            display_name: Sender name shown in Discord. Use the naming convention above.
         """
         if not bot.is_ready():
             return {"error": "Discord bot is still connecting, try again shortly"}

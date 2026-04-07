@@ -21,9 +21,11 @@
               "title": "Deep Dive Article",
               "author": "Jane Doe",
               "sourceUrl": "https://example.com/deep-dive",
-              "published": "2024-01-01"
+              "published": "2024-01-01",
+              "sourcePath": "articles/deep-dive.md"
             }
           ],
+          "sourcePath": "Lenses/article-lens.md",
           "optional": false,
           "learningOutcomeId": null,
           "learningOutcomeName": null,
@@ -31,7 +33,8 @@
           "wordCount": 6,
           "displayType": "lens-article"
         }
-      ]
+      ],
+      "sourcePath": "Lenses/article-lens.md"
     },
     {
       "slug": "lens/video-lens",
@@ -58,6 +61,7 @@
               "videoId": "dQw4w9WgXcQ"
             }
           ],
+          "sourcePath": "Lenses/video-lens.md",
           "optional": false,
           "learningOutcomeId": null,
           "learningOutcomeName": null,
@@ -66,7 +70,8 @@
           "videoDurationSeconds": 60,
           "displayType": "lens-video"
         }
-      ]
+      ],
+      "sourcePath": "Lenses/video-lens.md"
     },
     {
       "slug": "test-uncategorized",
@@ -93,6 +98,7 @@
               "videoId": "dQw4w9WgXcQ"
             }
           ],
+          "sourcePath": "Lenses/video-lens.md",
           "optional": false,
           "learningOutcomeId": null,
           "learningOutcomeName": null,
@@ -117,9 +123,11 @@
               "title": "Deep Dive Article",
               "author": "Jane Doe",
               "sourceUrl": "https://example.com/deep-dive",
-              "published": "2024-01-01"
+              "published": "2024-01-01",
+              "sourcePath": "articles/deep-dive.md"
             }
           ],
+          "sourcePath": "Lenses/article-lens.md",
           "optional": false,
           "learningOutcomeId": null,
           "learningOutcomeName": null,
@@ -127,7 +135,8 @@
           "wordCount": 6,
           "displayType": "lens-article"
         }
-      ]
+      ],
+      "sourcePath": "modules/test-module.md"
     }
   ],
   "courses": [],

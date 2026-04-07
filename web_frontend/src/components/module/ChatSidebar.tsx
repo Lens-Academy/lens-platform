@@ -226,10 +226,6 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       }
     }, [messages, isLoading, isOpen]);
 
-    const chatIcon = (
-      <BotMessageSquare className="w-5 h-5 text-slate-500" strokeWidth={1.5} />
-    );
-
     const header = (
       <div
         className="flex items-center justify-between px-4 py-3 border-b shrink-0 bg-[var(--brand-bg)]"
@@ -365,17 +361,21 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
         {/* Floating toggle — visible when sidebar is closed */}
         <button
           onMouseDown={handleOpen}
-          className={`fixed right-3 z-30 flex items-center justify-center w-10 h-10 bg-white border rounded-lg shadow-sm hover:bg-stone-200 transition-all active:scale-95 ${
+          className={`fixed right-3 z-30 flex items-center justify-center w-10 h-10 rounded-lg shadow-sm hover:brightness-110 transition-all active:scale-95 ${
             isOpen || toggleHidden ? "opacity-0 pointer-events-none" : ""
           }`}
           style={{
             top: "calc(var(--module-header-height) + 8px)",
-            borderColor: "var(--brand-border)",
+            backgroundColor: "var(--brand-accent)",
+            color: "var(--brand-accent-text)",
           }}
           title="Ask the AI Tutor"
           aria-label="Open chat sidebar"
         >
-          {chatIcon}
+          <BotMessageSquare
+            className="w-[26px] h-[26px] text-white"
+            strokeWidth={1.5}
+          />
         </button>
 
         {/* Sidebar panel — animates width */}

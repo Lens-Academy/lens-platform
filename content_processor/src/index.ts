@@ -17,6 +17,7 @@ export interface FlattenedModule {
   title: string;
   contentId: string | null;
   sections: Section[];
+  sourcePath?: string;
   parentSlug?: string;
   parentTitle?: string;
   error?: string;
@@ -36,6 +37,7 @@ export interface Section {
   displayType?: 'lens-article' | 'lens-video' | 'lens-mixed';
   meta: SectionMeta;
   segments: Segment[];
+  sourcePath?: string;
   optional?: boolean;
   hide?: boolean;
   feedback?: boolean;
@@ -93,6 +95,7 @@ export interface ArticleSegment {
   author?: string;              // From article frontmatter
   sourceUrl?: string;           // From article frontmatter
   published?: string;           // From article frontmatter
+  sourcePath?: string;          // Resolved file path (e.g. "articles/deep-dive.md")
   optional?: boolean;
 }
 

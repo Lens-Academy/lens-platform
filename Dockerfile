@@ -16,9 +16,11 @@ COPY . .
 WORKDIR /app/content_processor
 RUN npm ci
 
-# Build frontend (pass VITE_ENV_LABEL so Vite sees it during build)
+# Build frontend (pass VITE_ vars so Vite sees them during build)
 ARG VITE_ENV_LABEL
 ENV VITE_ENV_LABEL=$VITE_ENV_LABEL
+ARG VITE_LENS_EDITOR_EDU_CONTENT_SUGGEST_TOKEN
+ENV VITE_LENS_EDITOR_EDU_CONTENT_SUGGEST_TOKEN=$VITE_LENS_EDITOR_EDU_CONTENT_SUGGEST_TOKEN
 WORKDIR /app/web_frontend
 RUN npm ci && npm run build
 
