@@ -59,4 +59,5 @@ messages = Table(
         "search_vector",
         postgresql_using="gin",
     ),
+    Index("ix_discord_messages_author_id", "author_id"),
 )

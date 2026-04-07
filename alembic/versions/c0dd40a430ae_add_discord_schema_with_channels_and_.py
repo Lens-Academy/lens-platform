@@ -85,6 +85,12 @@ def upgrade() -> None:
         schema="discord",
         postgresql_using="gin",
     )
+    op.create_index(
+        "ix_discord_messages_author_id",
+        "messages",
+        ["author_id"],
+        schema="discord",
+    )
 
 
 def downgrade() -> None:
