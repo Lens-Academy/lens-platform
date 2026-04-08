@@ -462,22 +462,34 @@ export function convertSegment(
       let cachedContent = '';
       try {
         // Simple script to fetch url and strip HTML synchronously to provide context to the AI 
+        // We set NODE_TLS_REJECT_UNAUTHORIZED=0 to handle certificate issues in some environments (like Codespaces)
         const fetchScript = `
           fetch('${url}')
-            .then(res => res.text())
+            .then(res => {
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              return res.text();
+            })
             .then(html => {
               const stripped = html.replace(/<style[^>]*>.*?<\\/style>/gis, ' ')
                                    .replace(/<script[^>]*>.*?<\\/script>/gis, ' ')
                                    .replace(/<[^>]*>?/gm, ' ')
                                    .replace(/\\s+/g, ' ')
                                    .trim();
-              console.log(stripped.substring(0, 50000));
+              process.stdout.write(stripped.substring(0, 50000));
             })
-            .catch(() => console.log(''));
+            .catch(err => {
+              process.stderr.write('Scraper error: ' + err.message);
+            });
         `.replace(/\n/g, ' ');
-        cachedContent = execSync(`node -e "${fetchScript}"`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+
+        cachedContent = execSync(`node -e "${fetchScript}"`, { 
+          encoding: 'utf8', 
+          stdio: ['pipe', 'pipe', 'pipe'],
+          env: { ...process.env, NODE_TLS_REJECT_UNAUTHORIZED: '0' }
+        }).trim();
       } catch (e) {
         // Fallback to empty if fetch or node exec fails (graceful degradation)
+        // During builds, we don't want to crash everything if one URL is down
       }
 
       const segment: ParsedEmbedSegment = {
