@@ -1614,9 +1614,11 @@ export default function Module({
           .filter((s) => s.type === "article").length;
         const isFirstExcerpt = excerptsBefore === 0;
 
-        // Check if previous segment is also an article (consecutive)
+        // Check if adjacent segments are also articles (consecutive)
         const prevSegment = section.segments[segmentIndex - 1];
         const isPrevAlsoExcerpt = prevSegment?.type === "article";
+        const nextSegment = section.segments[segmentIndex + 1];
+        const isNextAlsoExcerpt = nextSegment?.type === "article";
 
         // Compute footnote counter offset from preceding excerpts
         let footnoteCounterStart = 0;
@@ -1645,6 +1647,7 @@ export default function Module({
             article={excerptData}
             isFirstExcerpt={isFirstExcerpt}
             isConsecutiveExcerpt={!isFirstExcerpt && isPrevAlsoExcerpt}
+            isFollowedByExcerpt={!!isNextAlsoExcerpt}
             externalFootnoteDefs={sectionFootnoteDefs}
             footnoteCounterStart={footnoteCounterStart}
           />,

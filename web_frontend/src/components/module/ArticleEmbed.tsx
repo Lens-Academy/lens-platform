@@ -695,6 +695,8 @@ type ArticleEmbedProps = {
   isFirstExcerpt?: boolean;
   /** Whether this excerpt immediately follows another excerpt (no intervening segments) */
   isConsecutiveExcerpt?: boolean;
+  /** Whether the next segment is also an article excerpt */
+  isFollowedByExcerpt?: boolean;
   /** Footnote definitions collected from sibling excerpts in the same section */
   externalFootnoteDefs?: Map<string, string>;
   /** Starting counter for footnote numbering (for cross-excerpt continuity) */
@@ -709,6 +711,7 @@ export default function ArticleEmbed({
   article,
   isFirstExcerpt,
   isConsecutiveExcerpt,
+  isFollowedByExcerpt,
   externalFootnoteDefs,
   footnoteCounterStart,
 }: ArticleEmbedProps) {
@@ -963,8 +966,24 @@ export default function ArticleEmbed({
   ];
   const rehypePlugins = [rehypeRaw];
 
+  const roundingClass = isConsecutiveExcerpt && isFollowedByExcerpt
+    ? "rounded-none"
+    : isConsecutiveExcerpt
+      ? "rounded-t-none rounded-b-xl"
+      : isFollowedByExcerpt
+        ? "rounded-t-xl rounded-b-none"
+        : "rounded-xl";
+
+  const shadowParts = [
+    !isConsecutiveExcerpt && "0 -6px 14px -4px rgba(0,0,0,0.14)",
+    !isFollowedByExcerpt && "0 6px 14px -4px rgba(0,0,0,0.14)",
+  ].filter(Boolean).join(", ");
+
   return (
-    <div className="max-w-content-padded mx-auto rounded-xl overflow-clip shadow-[0_-6px_14px_-4px_rgba(0,0,0,0.14),0_6px_14px_-4px_rgba(0,0,0,0.14)]">
+    <div
+      className={`max-w-content-padded mx-auto ${roundingClass} overflow-clip`}
+      style={{ boxShadow: shadowParts || "none" }}
+    >
       {/* Header — always yellow */}
       {isConsecutiveExcerpt ? (
         // Consecutive excerpt: skip attribution, just show collapsed_before if present
