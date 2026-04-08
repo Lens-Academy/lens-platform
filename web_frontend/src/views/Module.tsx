@@ -272,6 +272,16 @@ export default function Module({
           setCourseId(courseResult.course.slug);
         }
 
+        // Fix URL if API resolved a parent slug to its first submodule
+        if (moduleResult.slug && moduleResult.slug !== moduleId) {
+          const base = courseId ? `/course/${courseId}/module/` : "/module/";
+          history.replaceState(
+            null,
+            "",
+            `${base}${moduleResult.slug}${window.location.hash}`,
+          );
+        }
+
         // Initialize completedSections from progress API response
         if (progressResult) {
           const completed = new Set<number>();

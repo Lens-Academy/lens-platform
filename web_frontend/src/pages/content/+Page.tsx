@@ -5,6 +5,7 @@ interface ContentItem {
   slug: string;
   title: string;
   type: "module" | "lens" | "article";
+  parent_title?: string | null;
 }
 
 export default function ContentIndexPage() {
@@ -50,7 +51,7 @@ export default function ContentIndexPage() {
                 href={`/module/${m.slug}`}
                 className="text-lens-orange-600 hover:text-lens-orange-700 hover:underline"
               >
-                {m.title}
+                {m.parent_title ? `${m.parent_title}: ${m.title}` : m.title}
               </a>
             </li>
           ))}
