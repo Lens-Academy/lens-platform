@@ -494,6 +494,51 @@ export function useTutorChat({
     [],
   );
 
+  // --- Stream smoothing (buffer bursty SSE chunks, drain via rAF) ----------
+
+  const STREAM_CHARS_PER_SEC = 300;
+  const streamBufferRef = useRef("");
+  const rafIdRef = useRef(0);
+  const streamDoneRef = useRef(false);
+  const lastDrainRef = useRef(0);
+
+  const drainBuffer = useCallback(() => {
+    rafIdRef.current = 0;
+    const buf = streamBufferRef.current;
+    if (!buf) {
+      if (streamDoneRef.current) return; // nothing left
+      return;
+    }
+
+    // Flush everything at once when stream is done
+    if (streamDoneRef.current) {
+      streamBufferRef.current = "";
+      dispatchChat({ type: "STREAM_TEXT", text: buf });
+      triggerChatActivity();
+      return;
+    }
+
+    const now = performance.now();
+    const elapsed = now - lastDrainRef.current;
+    lastDrainRef.current = now;
+    const chars = Math.max(1, Math.round((elapsed / 1000) * STREAM_CHARS_PER_SEC));
+    const emit = buf.slice(0, chars);
+    streamBufferRef.current = buf.slice(chars);
+
+    dispatchChat({ type: "STREAM_TEXT", text: emit });
+    triggerChatActivity();
+
+    if (streamBufferRef.current) {
+      rafIdRef.current = requestAnimationFrame(drainBuffer);
+    }
+  }, [dispatchChat, triggerChatActivity]);
+
+  const startDrain = useCallback(() => {
+    if (rafIdRef.current) return; // already running
+    lastDrainRef.current = performance.now();
+    rafIdRef.current = requestAnimationFrame(drainBuffer);
+  }, [drainBuffer]);
+
   // --- sendMessage ---------------------------------------------------------
 
   const sendMessage = useCallback(
@@ -531,6 +576,14 @@ export function useTutorChat({
         trackChatMessageSent(moduleId, content.length);
       }
 
+      // Reset smoothing state for this stream
+      streamBufferRef.current = "";
+      streamDoneRef.current = false;
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = 0;
+      }
+
       try {
         for await (const chunk of sendMessageApi(
           moduleId,
@@ -540,8 +593,8 @@ export function useTutorChat({
           courseSlug,
         )) {
           if (chunk.type === "text" && chunk.content) {
-            dispatchChat({ type: "STREAM_TEXT", text: chunk.content });
-            triggerChatActivity();
+            streamBufferRef.current += chunk.content;
+            startDrain();
           } else if (chunk.type === "system" && chunk.content) {
             dispatchChat({ type: "SYSTEM_MESSAGE", content: chunk.content });
           } else if (chunk.type === "tool_use" && chunk.name) {
@@ -567,12 +620,25 @@ export function useTutorChat({
           }
         }
 
+        // Flush remaining buffer instantly and finish
+        streamDoneRef.current = true;
+        if (streamBufferRef.current) {
+          if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = 0;
+          drainBuffer();
+        }
         dispatchChat({ type: "SEND_SUCCESS" });
       } catch {
+        // Cancel any pending drain on error
+        if (rafIdRef.current) {
+          cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = 0;
+        }
+        streamBufferRef.current = "";
         dispatchChat({ type: "SEND_FAILURE" });
       }
     },
-    [triggerChatActivity, moduleId],
+    [triggerChatActivity, moduleId, startDrain, drainBuffer],
   );
 
   // --- retryMessage --------------------------------------------------------
