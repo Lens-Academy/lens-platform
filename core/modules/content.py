@@ -591,19 +591,30 @@ def get_stage_duration(stage) -> str:
 # --- Article browsing ---
 
 
+def file_name_to_slug(file_name: str) -> str:
+    """Convert a filename to a URL slug. Matches content_processor/src/utils/slug.ts."""
+    base = file_name.rsplit("/", 1)[-1]
+    slug = re.sub(r"\.md$", "", base, flags=re.IGNORECASE)
+    slug = slug.lower()
+    slug = re.sub(r"[^a-z0-9\s-]", "", slug)
+    slug = re.sub(r"[\s-]+", "-", slug)
+    slug = slug.strip("-")
+    return slug or "untitled"
+
+
 def list_article_summaries() -> list[dict]:
     """List all articles in cache with metadata summaries.
 
     Returns:
         Sorted list of dicts with slug, title, author, source_url.
-        Slug is derived from path: articles/my-article.md -> "my-article".
+        Slug is derived by slugifying the filename.
     """
     from core.content import get_cache
 
     cache = get_cache()
     summaries = []
     for path, raw_text in cache.articles.items():
-        slug = path.removeprefix("articles/").removesuffix(".md")
+        slug = file_name_to_slug(path)
         metadata, _ = parse_frontmatter(raw_text)
         summaries.append(
             {
@@ -625,7 +636,7 @@ def build_article_module(slug: str) -> dict:
     existing Module view render it through ArticleEmbed.
 
     Args:
-        slug: Article slug (e.g. "my-article", without articles/ prefix or .md)
+        slug: Slugified article name (e.g. "my-article")
 
     Returns:
         Dict matching FlattenedModule shape.
@@ -636,12 +647,18 @@ def build_article_module(slug: str) -> dict:
     from core.content import get_cache
 
     cache = get_cache()
-    path = f"articles/{slug}.md"
 
-    if path not in cache.articles:
-        raise FileNotFoundError(f"Article not found in cache: {path}")
+    # Find article by matching slugified filename
+    matching_path = None
+    for path in cache.articles:
+        if file_name_to_slug(path) == slug:
+            matching_path = path
+            break
 
-    raw_text = cache.articles[path]
+    if matching_path is None:
+        raise FileNotFoundError(f"Article not found for slug: {slug}")
+
+    raw_text = cache.articles[matching_path]
     metadata, content = parse_frontmatter(raw_text)
 
     return {

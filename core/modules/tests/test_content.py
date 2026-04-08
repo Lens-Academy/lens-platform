@@ -9,6 +9,7 @@ import pytest
 from core.content.cache import ContentCache, set_cache, clear_cache
 from core.modules.content import (
     extract_article_section,
+    file_name_to_slug,
     parse_frontmatter,
     list_article_summaries,
     build_article_module,
@@ -113,6 +114,17 @@ title: Minimal Article
 Just a body, no author or source_url.
 """
 
+ARTICLE_WITH_SPECIAL_CHARS = """\
+---
+title: "1960, The Year The Singularity Was Cancelled"
+author: Scott Alexander
+source_url: https://example.com/1960
+published: 2019-04-22
+---
+
+Content about the singularity.
+"""
+
 
 @pytest.fixture
 def article_cache():
@@ -125,6 +137,7 @@ def article_cache():
         articles={
             "articles/test-article-one.md": ARTICLE_WITH_ALL_FIELDS,
             "articles/minimal.md": ARTICLE_MINIMAL,
+            "articles/1960, The Year The Singularity Was Cancelled.md": ARTICLE_WITH_SPECIAL_CHARS,
         },
         video_transcripts={},
         last_refreshed=datetime.now(),
@@ -154,19 +167,62 @@ def empty_cache():
 # list_article_summaries tests
 
 
+# file_name_to_slug tests
+
+
+def test_file_name_to_slug_simple():
+    """Simple filename without special chars."""
+    assert file_name_to_slug("articles/test-article-one.md") == "test-article-one"
+
+
+def test_file_name_to_slug_spaces_and_commas():
+    """Spaces become hyphens, commas stripped."""
+    assert (
+        file_name_to_slug("articles/1960, The Year The Singularity Was Cancelled.md")
+        == "1960-the-year-the-singularity-was-cancelled"
+    )
+
+
+def test_file_name_to_slug_special_chars():
+    """Apostrophes, question marks stripped."""
+    assert file_name_to_slug("Lenses/What's a Lens?.md") == "whats-a-lens"
+
+
+def test_file_name_to_slug_collapses_hyphens():
+    """Multiple spaces/hyphens collapse to single hyphen."""
+    assert file_name_to_slug("articles/Some  --  Article.md") == "some-article"
+
+
+def test_file_name_to_slug_empty_result():
+    """All-punctuation filename yields 'untitled'."""
+    assert file_name_to_slug("articles/!!!.md") == "untitled"
+
+
+# list_article_summaries tests
+
+
 def test_list_article_summaries_returns_metadata(article_cache):
     """Should parse frontmatter and return slug, title, author for each article."""
     summaries = list_article_summaries()
-    assert len(summaries) == 2
+    assert len(summaries) == 3
 
     # Should be sorted by slug
-    assert summaries[0]["slug"] == "minimal"
-    assert summaries[0]["title"] == "Minimal Article"
-    assert summaries[0]["author"] is None
+    by_slug = {s["slug"]: s for s in summaries}
 
-    assert summaries[1]["slug"] == "test-article-one"
-    assert summaries[1]["title"] == "Test Article One"
-    assert summaries[1]["author"] == "Alice Author"
+    assert by_slug["minimal"]["title"] == "Minimal Article"
+    assert by_slug["minimal"]["author"] is None
+
+    assert by_slug["test-article-one"]["title"] == "Test Article One"
+    assert by_slug["test-article-one"]["author"] == "Alice Author"
+
+    assert (
+        by_slug["1960-the-year-the-singularity-was-cancelled"]["title"]
+        == "1960, The Year The Singularity Was Cancelled"
+    )
+    assert (
+        by_slug["1960-the-year-the-singularity-was-cancelled"]["author"]
+        == "Scott Alexander"
+    )
 
 
 def test_list_article_summaries_empty_cache(empty_cache):
@@ -175,12 +231,13 @@ def test_list_article_summaries_empty_cache(empty_cache):
     assert summaries == []
 
 
-def test_list_article_summaries_slug_derived_from_path(article_cache):
-    """articles/my-article.md -> slug 'my-article'."""
+def test_list_article_summaries_slugifies_filenames(article_cache):
+    """Filenames with spaces/commas should be slugified."""
     summaries = list_article_summaries()
     slugs = [s["slug"] for s in summaries]
     assert "test-article-one" in slugs
     assert "minimal" in slugs
+    assert "1960-the-year-the-singularity-was-cancelled" in slugs
 
 
 # build_article_module tests
@@ -206,6 +263,17 @@ def test_build_article_module_returns_flattened_format(article_cache):
     assert segment["author"] == "Alice Author"
     assert segment["sourceUrl"] == "https://example.com/article-one"
     assert segment["published"] == "2024-01-15"
+
+
+def test_build_article_module_resolves_slugified_name(article_cache):
+    """Should find article by slugified name even when filename has spaces/commas."""
+    result = build_article_module("1960-the-year-the-singularity-was-cancelled")
+
+    assert result["slug"] == "article/1960-the-year-the-singularity-was-cancelled"
+    assert result["title"] == "1960, The Year The Singularity Was Cancelled"
+    segment = result["sections"][0]["segments"][0]
+    assert "Content about the singularity." in segment["content"]
+    assert segment["author"] == "Scott Alexander"
 
 
 def test_build_article_module_not_found(article_cache):
