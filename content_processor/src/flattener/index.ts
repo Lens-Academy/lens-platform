@@ -1262,6 +1262,18 @@ function convertSegment(
       return { segment, errors };
     }
 
+    case 'embed': {
+      const segment: import('../index.js').EmbedSegment = {
+        type: 'embed',
+        url: parsedSegment.url,
+      };
+      if (parsedSegment.height) segment.height = parsedSegment.height;
+      if (parsedSegment.sandbox) segment.sandbox = parsedSegment.sandbox;
+      if (parsedSegment.cachedContent) segment.cachedContent = parsedSegment.cachedContent;
+      if (parsedSegment.optional) segment.optional = true;
+      return { segment, errors };
+    }
+
     default:
       return { segment: null, errors };
   }

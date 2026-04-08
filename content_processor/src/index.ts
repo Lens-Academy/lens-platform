@@ -132,7 +132,16 @@ export interface RoleplaySegment {
   feedback?: boolean;
 }
 
-export type Segment = TextSegment | ChatSegment | ArticleSegment | VideoSegment | QuestionSegment | RoleplaySegment;
+export interface EmbedSegment {
+  type: 'embed';
+  url: string;
+  height?: string;
+  sandbox?: string;
+  cachedContent?: string;
+  optional?: boolean;
+}
+
+export type Segment = TextSegment | ChatSegment | ArticleSegment | VideoSegment | QuestionSegment | RoleplaySegment | EmbedSegment;
 
 import { flattenModule, flattenLens } from './flattener/index.js';
 import { populateCardModuleSlugs, resolveInlineLensModuleSlugs } from './flattener/resolve-text-links.js';
