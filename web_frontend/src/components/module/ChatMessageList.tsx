@@ -13,6 +13,7 @@
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { StageIcon } from "@/components/StageIcon";
 import { ChatMarkdown } from "./ChatMarkdown";
+import { CopyButton } from "./CopyButton";
 import { Bot, BookOpen, Check, Search, ChevronRight } from "lucide-react";
 
 const TOOL_CALLING_LABELS: Record<string, string> = {
@@ -129,26 +130,34 @@ export function renderMessage(
     // Show "Tutor" label only on the first assistant message in a turn.
     // Continuation messages after tool calls (prev = "assistant" or "tool") skip the label.
     const showLabel = prevRole !== "assistant" && prevRole !== "tool";
+    const content = msg.content;
     return (
-      <div key={key} className="text-gray-800">
+      <div key={key} className="group/msg text-gray-800 relative">
         {showLabel && (
           <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
             <Bot size={13} />
             Tutor
           </div>
         )}
-        <ChatMarkdown>{msg.content}</ChatMarkdown>
+        <ChatMarkdown>{content}</ChatMarkdown>
+        <div className="absolute top-0 right-0 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+          <CopyButton getText={() => content} label="Copy message" />
+        </div>
       </div>
     );
   }
 
   // user
+  const userContent = msg.content;
   return (
     <div
       key={key}
-      className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
+      className="group/msg ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl relative"
     >
-      <div className="whitespace-pre-wrap">{msg.content}</div>
+      <div className="whitespace-pre-wrap">{userContent}</div>
+      <div className="absolute top-1 right-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+        <CopyButton getText={() => userContent} size={12} label="Copy message" />
+      </div>
     </div>
   );
 }

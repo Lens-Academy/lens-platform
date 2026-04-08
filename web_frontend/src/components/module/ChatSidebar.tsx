@@ -27,6 +27,8 @@ import { useScrollContainer } from "@/hooks/useScrollContainer";
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { ChatMessageList } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
+import { CopyButton } from "@/components/module/CopyButton";
+import { formatConversationText } from "@/utils/copyChat";
 import { BotMessageSquare } from "lucide-react";
 import { useSwipePanel } from "@/hooks/useSwipePanel";
 
@@ -252,25 +254,34 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
             )}
           </div>
         </div>
-        <button
-          onMouseDown={handleClose}
-          className="p-2 min-h-[44px] min-w-[44px] hover:bg-stone-200 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
-          aria-label="Close chat sidebar"
-        >
-          <svg
-            className="w-5 h-5 text-gray-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
+        <div className="flex items-center gap-1 shrink-0">
+          {messages.some((m) => m.role === "user" || (m.role === "assistant" && m.content?.trim())) && (
+            <CopyButton
+              getText={() => formatConversationText(messages)}
+              label="Copy conversation"
+              className="min-h-[44px] min-w-[44px]"
             />
-          </svg>
-        </button>
+          )}
+          <button
+            onMouseDown={handleClose}
+            className="p-2 min-h-[44px] min-w-[44px] hover:bg-stone-200 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
+            aria-label="Close chat sidebar"
+          >
+            <svg
+              className="w-5 h-5 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     );
 

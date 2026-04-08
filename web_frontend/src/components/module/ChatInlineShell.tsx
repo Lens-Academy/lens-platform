@@ -19,6 +19,8 @@ import type { ChatMessage, PendingMessage } from "@/types/module";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import { renderMessage } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
+import { CopyButton } from "@/components/module/CopyButton";
+import { formatConversationText } from "@/utils/copyChat";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { chatViewReducer, initialChatViewState } from "./chatViewReducer";
 
@@ -352,9 +354,9 @@ export function ChatInlineShell({
             so the sticky input can engage (sticky needs a tall containing block) */}
         {!hasInteracted && <div style={{ height: "35vh" }} />}
 
-        {/* Collapse button — outside scroll area so it's always visible */}
+        {/* Collapse button + copy-all — outside scroll area so always visible */}
         {isExpanded && (
-          <div className="flex justify-center px-3 pt-2 pb-3 shrink-0">
+          <div className="flex justify-center gap-2 px-3 pt-2 pb-3 shrink-0">
             <button
               onClick={() => dispatch({ type: "COLLAPSE" })}
               className="inline-flex items-center gap-1.5 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 hover:border-gray-300 rounded-full transition-colors"
@@ -362,6 +364,13 @@ export function ChatInlineShell({
               <ChevronDown size={14} />
               Collapse
             </button>
+            {messages.some((m) => m.role === "user" || (m.role === "assistant" && m.content?.trim())) && (
+              <CopyButton
+                getText={() => formatConversationText(messages)}
+                label="Copy conversation"
+                className="border border-gray-200 hover:border-gray-300 rounded-full px-2"
+              />
+            )}
           </div>
         )}
 
@@ -383,7 +392,7 @@ export function ChatInlineShell({
                   .slice(0, recentMessagesStartIdx)
                   .filter((m) => m.role === "user").length;
                 return earlierExchanges > 0 ? (
-                  <div className="flex justify-center pb-3">
+                  <div className="flex justify-center gap-2 pb-3">
                     <button
                       onClick={() => {
                         justExpandedRef.current = true;
@@ -394,6 +403,11 @@ export function ChatInlineShell({
                       <ChevronUp size={14} />
                       {earlierExchanges} earlier
                     </button>
+                    <CopyButton
+                      getText={() => formatConversationText(messages)}
+                      label="Copy conversation"
+                      className="border border-gray-200 hover:border-gray-300 rounded-full px-2"
+                    />
                   </div>
                 ) : null;
               })()}
