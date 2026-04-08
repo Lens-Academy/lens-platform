@@ -68,13 +68,23 @@ export type RoleplaySegment = {
   feedback?: boolean;
 };
 
+export type EmbedSegment = {
+  type: "embed";
+  url: string;
+  height?: string;
+  sandbox?: string;
+  cachedContent?: string;
+  optional?: boolean;
+};
+
 export type ModuleSegment =
   | TextSegment
   | ArticleSegment
   | VideoSegment
   | ChatSegment
   | QuestionSegment
-  | RoleplaySegment;
+  | RoleplaySegment
+  | EmbedSegment;
 
 // v2 section types (flattened format - backend resolves all references)
 

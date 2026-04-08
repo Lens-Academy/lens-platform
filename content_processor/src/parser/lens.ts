@@ -1,4 +1,5 @@
-// src/parser/lens.ts
+// @ts-ignore - node:child_process might not be found by IDE if types aren't installed
+import { execSync } from 'node:child_process';
 import type { ContentError } from '../index.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { validateSegmentFields } from '../validator/segment-fields.js';
@@ -65,13 +66,23 @@ export interface ParsedRoleplaySegment {
   feedback?: boolean;
 }
 
+export interface ParsedEmbedSegment {
+  type: 'embed';
+  url: string;
+  height?: string;
+  sandbox?: string;
+  cachedContent?: string;
+  optional?: boolean;
+}
+
 export type ParsedLensSegment =
   | ParsedTextSegment
   | ParsedChatSegment
   | ParsedArticleSegment
   | ParsedVideoSegment
   | ParsedQuestionSegment
-  | ParsedRoleplaySegment;
+  | ParsedRoleplaySegment
+  | ParsedEmbedSegment;
 
 export interface ParsedLens {
   id: string;
@@ -87,7 +98,7 @@ export interface LensParseResult {
 }
 
 // Valid segment types for lens H4 headers
-export const LENS_SEGMENT_TYPES = new Set(['text', 'chat', 'article', 'video', 'question', 'roleplay']);
+export const LENS_SEGMENT_TYPES = new Set(['text', 'chat', 'article', 'video', 'question', 'roleplay', 'embed']);
 
 /** Common interface for raw segments — compatible with ParsedSection */
 export interface RawSegment {
@@ -420,6 +431,64 @@ export function convertSegment(
         optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
         feedback: raw.fields['feedback']?.toLowerCase() === 'true' ? true : undefined,
       };
+      return { segment, errors };
+    }
+
+    case 'embed': {
+      if (raw.title) {
+        const capitalized = raw.type[0].toUpperCase() + raw.type.slice(1);
+        errors.push({
+          file,
+          line: raw.line,
+          message: `Titles are not supported for ${capitalized} segments — use just '#### ${capitalized}'`,
+          suggestion: `Remove the title after '${capitalized}:'`,
+          severity: 'error',
+        });
+      }
+
+      const url = raw.fields['url'];
+      if (!url || url.trim() === '') {
+        errors.push({
+          file,
+          line: raw.line,
+          message: 'Embed segment missing url:: field',
+          suggestion: "Add 'url:: https://...' to the embed segment",
+          severity: 'error',
+        });
+        return { segment: null, errors };
+      }
+
+      // Synchronously fetch and extract content for the AI Tutor
+      let cachedContent = '';
+      try {
+        // Simple script to fetch url and strip HTML synchronously to provide context to the AI 
+        const fetchScript = `
+          fetch('${url}')
+            .then(res => res.text())
+            .then(html => {
+              const stripped = html.replace(/<style[^>]*>.*?<\\/style>/gis, ' ')
+                                   .replace(/<script[^>]*>.*?<\\/script>/gis, ' ')
+                                   .replace(/<[^>]*>?/gm, ' ')
+                                   .replace(/\\s+/g, ' ')
+                                   .trim();
+              console.log(stripped.substring(0, 50000));
+            })
+            .catch(() => console.log(''));
+        `.replace(/\n/g, ' ');
+        cachedContent = execSync(`node -e "${fetchScript}"`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+      } catch (e) {
+        // Fallback to empty if fetch or node exec fails (graceful degradation)
+      }
+
+      const segment: ParsedEmbedSegment = {
+        type: 'embed',
+        url: url.trim(),
+        height: raw.fields['height']?.trim() || undefined,
+        sandbox: raw.fields['sandbox']?.trim() || undefined,
+        cachedContent: cachedContent || undefined,
+        optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
+      };
+
       return { segment, errors };
     }
 

@@ -36,6 +36,7 @@ import ArticleEmbed, {
   countFootnoteReferences,
 } from "@/components/module/ArticleEmbed";
 import VideoEmbed from "@/components/module/VideoEmbed";
+import { EmbedSection } from "@/components/module/EmbedSection";
 import { ChatInlineShell } from "@/components/module/ChatInlineShell";
 import AnswerBox from "@/components/module/AnswerBox";
 import RoleplaySection from "@/components/module/RoleplaySection";
@@ -1775,6 +1776,15 @@ export default function Module({
               />
             )}
           </div>,
+        );
+      }
+
+      case "embed": {
+        return wrapWithSentinel(
+          <EmbedSection
+            segment={segment}
+            onActivity={triggerChatActivity}
+          />
         );
       }
 

@@ -109,8 +109,20 @@ class RoleplaySegment:
     optional: bool = False
 
 
+@dataclass
+class EmbedSegment:
+    """External embedded interactive content (e.g. iframe)."""
+
+    type: Literal["embed"]
+    url: str
+    height: str | None = None
+    sandbox: str | None = None
+    cachedContent: str | None = None
+    optional: bool = False
+
+
 NarrativeSegment = (
-    TextSegment | ArticleSegment | VideoSegment | ChatSegment | RoleplaySegment
+    TextSegment | ArticleSegment | VideoSegment | ChatSegment | RoleplaySegment | EmbedSegment
 )
 
 

@@ -56,6 +56,11 @@ export const SEGMENT_SCHEMAS: Record<string, SegmentTypeSchema> = {
     ['opening-message', 'assessment-instructions', 'optional', 'feedback'],
     ['optional', 'feedback'],
   ),
+  'embed': segmentSchema(
+    ['url'],
+    ['height', 'optional', 'sandbox'],
+    ['optional'],
+  ),
 };
 
 /**

@@ -69,6 +69,11 @@ def _extract_segment_content(
         content = seg.get("content", "")
         return f"<source>Roleplay scenario</source>\n{content}" if content else None
 
+    if seg_type == "embed":
+        content = seg.get("cachedContent", "")
+        url = seg.get("url", "External source")
+        return f"<source>{url}</source>\n{content}" if content else f"<source>{url}</source>\nEmbedded app."
+
     if seg_type == "chat":
         return "<source>Chat discussion</source>"
 
