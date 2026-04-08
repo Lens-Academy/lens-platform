@@ -10,10 +10,54 @@
  *   - "tool"           → collapsible panel (or calling indicator if content empty)
  */
 
+import { useState, useLayoutEffect, useRef } from "react";
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { StageIcon } from "@/components/StageIcon";
 import { ChatMarkdown } from "./ChatMarkdown";
 import { Bot, BookOpen, Check, Search, ChevronRight } from "lucide-react";
+
+const USER_MSG_MAX_HEIGHT = 200;
+
+/** User message bubble that collapses when content exceeds max height. */
+function UserMessageBubble({ content }: { content: string }) {
+  const textRef = useRef<HTMLDivElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  useLayoutEffect(() => {
+    if (textRef.current) {
+      setOverflows(textRef.current.scrollHeight > USER_MSG_MAX_HEIGHT);
+    }
+  }, [content]);
+
+  const collapsed = overflows && !expanded;
+
+  return (
+    <div className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 rounded-2xl overflow-hidden">
+      <div className="relative">
+        <div
+          ref={textRef}
+          className="whitespace-pre-wrap p-3"
+          style={collapsed ? { maxHeight: USER_MSG_MAX_HEIGHT, overflow: "hidden" } : undefined}
+        >
+          {content}
+        </div>
+        {collapsed && (
+          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-gray-100 to-transparent pointer-events-none" />
+        )}
+      </div>
+      {overflows && (
+        <button
+          type="button"
+          className="w-full text-xs text-gray-500 hover:text-gray-700 py-1.5 cursor-pointer"
+          onClick={() => setExpanded((e) => !e)}
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 const TOOL_CALLING_LABELS: Record<string, string> = {
   search_alignment_research: "Searching alignment research\u2026",
@@ -143,14 +187,7 @@ export function renderMessage(
   }
 
   // user
-  return (
-    <div
-      key={key}
-      className="ml-auto max-w-[80%] bg-gray-100 text-gray-800 p-3 rounded-2xl"
-    >
-      <div className="whitespace-pre-wrap">{msg.content}</div>
-    </div>
-  );
+  return <UserMessageBubble key={key} content={msg.content} />;
 }
 
 export function ChatMessageList({
@@ -180,20 +217,16 @@ export function ChatMessageList({
   }
 
   const pendingEl = pendingMessage && (
-    <div
-      className={`ml-auto max-w-[80%] p-3 rounded-2xl ${
-        pendingMessage.status === "failed"
-          ? "bg-red-50 border border-red-200"
-          : "bg-gray-100"
-      }`}
-    >
-      {pendingMessage.status === "failed" && (
+    pendingMessage.status === "failed" ? (
+      <div className="ml-auto max-w-[80%] p-3 rounded-2xl bg-red-50 border border-red-200">
         <div className="text-xs text-red-500 mb-1">Failed to send</div>
-      )}
-      <div className="whitespace-pre-wrap text-gray-800">
-        {pendingMessage.content}
+        <div className="whitespace-pre-wrap text-gray-800">
+          {pendingMessage.content}
+        </div>
       </div>
-    </div>
+    ) : (
+      <UserMessageBubble content={pendingMessage.content} />
+    )
   );
 
   // Thinking indicator: show when loading and last message is an empty assistant
