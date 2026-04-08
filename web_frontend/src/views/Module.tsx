@@ -556,19 +556,6 @@ export default function Module({
   const drawerRef = useRef<ModuleDrawerHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Track chat sidebar open state (driven by localStorage events from ChatSidebar)
-  const [chatOpen, setChatOpen] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      localStorage.getItem("chat-sidebar-pref") === "open",
-  );
-  useEffect(() => {
-    const sync = () =>
-      setChatOpen(localStorage.getItem("chat-sidebar-pref") === "open");
-    window.addEventListener("chat-sidebar-pref-change", sync);
-    return () => window.removeEventListener("chat-sidebar-pref-change", sync);
-  }, []);
-
   // Track which question's feedback chat is currently visible (only one at a time)
   const [activeFeedbackKey, setActiveFeedbackKey] = useState<string | null>(
     null,
@@ -2192,7 +2179,7 @@ export default function Module({
                   lensTitle={currentSection.meta?.title ?? null}
                   modulePath={module.sourcePath ?? null}
                   moduleTitle={module.title}
-                  hidden={chatOpen || sidebarOpen}
+                  hidden={sidebarOpen}
                 />
               )}
 
@@ -2235,7 +2222,6 @@ export default function Module({
           onSectionClick={handleStageClick}
           courseId={courseId}
           onOpenChange={setSidebarOpen}
-          chatOpen={chatOpen}
         />
 
         <SectionChoiceModal
