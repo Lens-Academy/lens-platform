@@ -24,11 +24,11 @@ import {
 } from "react";
 import { useMedia } from "react-use";
 import { useScrollContainer } from "@/hooks/useScrollContainer";
-import type { ChatMessage, PendingMessage } from "@/types/module";
 import { ChatMessageList } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
 import { BotMessageSquare } from "lucide-react";
 import { useSwipePanel } from "@/hooks/useSwipePanel";
+import { useChatMessages, useChatCold, type ChatStore } from "@/hooks/useChatStore";
 
 export type ChatSidebarHandle = {
   setAllowed: (allowed: boolean) => void;
@@ -37,10 +37,7 @@ export type ChatSidebarHandle = {
 
 type ChatSidebarProps = {
   sectionTitle?: string;
-  // Chat state (passed from Module.tsx / parent)
-  messages: ChatMessage[];
-  pendingMessage: PendingMessage | null;
-  isLoading: boolean;
+  chatStore: ChatStore;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
   /** When true, disables swipe-to-open and hides the FAB (e.g. module drawer is open). */
@@ -51,15 +48,19 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
   function ChatSidebar(
     {
       sectionTitle,
-      messages,
-      pendingMessage,
-      isLoading,
+      chatStore,
       onSendMessage,
       onRetryMessage,
       drawerOpen = false,
     },
     ref,
   ) {
+    // Subscribe to chat state — sidebar filters by sendSource
+    const { messages, pendingMessage: rawPendingMessage } = useChatMessages(chatStore);
+    const { isLoading: rawIsLoading, sendSource } = useChatCold(chatStore);
+    // Suppress loading/pending when the message was sent from inline chat
+    const isLoading = sendSource !== "inline" ? rawIsLoading : false;
+    const pendingMessage = sendSource !== "inline" ? rawPendingMessage : null;
     const isMobile = useMedia("(max-width: 700px)", false);
     const scrollContainer = useScrollContainer();
     const scrollContainerRef = useRef<HTMLDivElement>(null);

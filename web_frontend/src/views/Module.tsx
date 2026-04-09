@@ -866,8 +866,7 @@ export default function Module({
 
   // Chat state — centralised in useTutorChat hook
   const {
-    messages,
-    pendingMessage,
+    chatStore,
     isLoading,
     sendSource,
     sendMessage: handleSendMessage,
@@ -1687,8 +1686,7 @@ export default function Module({
         return wrapWithSentinel(
           <ChatInlineShell
             key={`chat-${keyPrefix}`}
-            messages={messages}
-            pendingMessage={pendingMessage}
+            chatStore={chatStore}
             isLoading={isLoading}
             sendSource={sendSource}
             onSendMessage={(content) =>
@@ -1732,8 +1730,7 @@ export default function Module({
             />
             {segment.feedback && activeFeedbackKey === feedbackKey && (
               <ChatInlineShell
-                messages={messages}
-                pendingMessage={pendingMessage}
+                chatStore={chatStore}
                 isLoading={isLoading}
                 sendSource={sendSource}
                 onSendMessage={(content) =>
@@ -1771,8 +1768,7 @@ export default function Module({
             />
             {activeFeedbackKey === feedbackKey && (
               <ChatInlineShell
-                messages={messages}
-                pendingMessage={pendingMessage}
+                chatStore={chatStore}
                 isLoading={isLoading}
                 sendSource={sendSource}
                 onSendMessage={(content) =>
@@ -2054,8 +2050,7 @@ export default function Module({
                               activeFeedbackKey === feedbackKey && (
                                 <>
                                   <ChatInlineShell
-                                    messages={messages}
-                                    pendingMessage={pendingMessage}
+                                    chatStore={chatStore}
                                     isLoading={isLoading}
                                     sendSource={sendSource}
                                     onSendMessage={(content) =>
@@ -2201,11 +2196,7 @@ export default function Module({
                 <ChatSidebar
                   ref={sidebarRef}
                   sectionTitle={currentSection?.meta?.title}
-                  messages={messages}
-                  pendingMessage={
-                    sendSource !== "inline" ? pendingMessage : null
-                  }
-                  isLoading={sendSource !== "inline" ? isLoading : false}
+                  chatStore={chatStore}
                   onSendMessage={(content) =>
                     handleSendMessage(
                       content,

@@ -15,16 +15,15 @@ import {
 } from "react";
 import { useScrollContainer } from "@/hooks/useScrollContainer";
 import { usePillVisibility } from "@/hooks/usePillVisibility";
-import type { ChatMessage, PendingMessage } from "@/types/module";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import { renderMessages } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { chatViewReducer, initialChatViewState } from "./chatViewReducer";
+import { useChatMessages, type ChatStore } from "@/hooks/useChatStore";
 
 type ChatInlineShellProps = {
-  messages: ChatMessage[];
-  pendingMessage: PendingMessage | null;
+  chatStore: ChatStore;
   isLoading: boolean;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
@@ -64,8 +63,7 @@ function PillVisibilityWrapper({
 }
 
 export function ChatInlineShell({
-  messages,
-  pendingMessage,
+  chatStore,
   isLoading,
   onSendMessage,
   onRetryMessage,
@@ -80,6 +78,7 @@ export function ChatInlineShell({
   sidebarAllowedListeners,
   sidebarRef,
 }: ChatInlineShellProps) {
+  const { messages, pendingMessage } = useChatMessages(chatStore);
   const pageScrollContainer = useScrollContainer();
 
   // View state reducer — centralized state transitions for chat view
