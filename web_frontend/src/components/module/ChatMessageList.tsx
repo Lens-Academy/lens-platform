@@ -10,7 +10,7 @@
  *   - "tool"           → collapsible panel (or calling indicator if content empty)
  */
 
-import { useState, useLayoutEffect, useRef } from "react";
+import { useState, useLayoutEffect, useRef, type ReactNode } from "react";
 import type { ChatMessage, PendingMessage } from "@/types/module";
 import { StageIcon } from "@/components/StageIcon";
 import { ChatMarkdown } from "./ChatMarkdown";
@@ -107,10 +107,123 @@ function ToolCallingIndicator({ name }: { name: string }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Shared rendering pipeline — used by both ChatMessageList and ChatInlineShell
+// ---------------------------------------------------------------------------
+
+/**
+ * Backward-scan from `index` in `allMessages`, skipping hidden messages
+ * (empty assistant+tool_calls, empty assistant). Returns the role of the
+ * previous *visible* message, or undefined if none.
+ */
+function getPrevVisibleRole(
+  allMessages: ChatMessage[],
+  index: number,
+): string | undefined {
+  for (let j = index - 1; j >= 0; j--) {
+    const m = allMessages[j];
+    if (m.role === "assistant" && m.tool_calls && !m.content?.trim()) continue;
+    if (m.role === "assistant" && !m.content?.trim()) continue;
+    return m.role;
+  }
+  return undefined;
+}
+
+type RenderMessagesOpts = {
+  isLoading?: boolean;
+  pendingMessage?: PendingMessage | null;
+  onRetryMessage?: () => void;
+  keyPrefix?: string;
+};
+
+/**
+ * Renders a slice of messages with correct prevVisibleRole tracking,
+ * thinking indicator, and pending message. Returns a ReactNode[].
+ *
+ * @param messages   The slice of messages to render
+ * @param allMessages The full messages array (for cross-split prevRole lookups)
+ * @param startIndexInAll Offset of messages[0] within allMessages
+ * @param opts       Optional rendering options
+ */
+export function renderMessages(
+  messages: ChatMessage[],
+  allMessages: ChatMessage[],
+  startIndexInAll: number,
+  opts?: RenderMessagesOpts,
+): ReactNode[] {
+  const { isLoading, pendingMessage, onRetryMessage, keyPrefix = "" } =
+    opts ?? {};
+  const nodes: ReactNode[] = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    const absIdx = startIndexInAll + i;
+    const prevRole = getPrevVisibleRole(allMessages, absIdx);
+    const key = keyPrefix ? `${keyPrefix}-${absIdx}` : absIdx;
+    nodes.push(renderMessage(messages[i], key, prevRole));
+  }
+
+  // Thinking indicator: last message is empty assistant while loading
+  if (isLoading && messages.length > 0) {
+    const lastMsg = messages[messages.length - 1];
+    if (
+      lastMsg?.role === "assistant" &&
+      !lastMsg.content?.trim() &&
+      !("tool_calls" in lastMsg && lastMsg.tool_calls)
+    ) {
+      const lastAbsIdx = startIndexInAll + messages.length - 1;
+      const thinkingPrevRole = getPrevVisibleRole(allMessages, lastAbsIdx);
+      const showLabel =
+        thinkingPrevRole !== "assistant" && thinkingPrevRole !== "tool";
+      nodes.push(
+        <div key={`${keyPrefix}-thinking`} className="text-gray-800">
+          {showLabel && (
+            <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+              <Bot size={13} />
+              Tutor
+            </div>
+          )}
+          <div>Thinking...</div>
+        </div>,
+      );
+    }
+  }
+
+  // Pending message (failed send with retry)
+  if (pendingMessage) {
+    nodes.push(
+      <div
+        key={`${keyPrefix}-pending`}
+        className={`ml-auto max-w-[80%] p-3 rounded-2xl ${
+          pendingMessage.status === "failed"
+            ? "bg-red-50 border border-red-200"
+            : "bg-gray-100"
+        }`}
+      >
+        {pendingMessage.status === "failed" && onRetryMessage && (
+          <div className="flex items-center justify-between mb-1">
+            <button
+              onClick={onRetryMessage}
+              className="text-red-600 hover:text-red-700 text-xs focus:outline-none focus:underline ml-auto"
+            >
+              Failed - Click to retry
+            </button>
+          </div>
+        )}
+        <div className="whitespace-pre-wrap text-gray-800">
+          {pendingMessage.content}
+        </div>
+      </div>,
+    );
+  }
+
+  return nodes;
+}
+
 type ChatMessageListProps = {
   messages: ChatMessage[];
   pendingMessage?: PendingMessage | null;
   isLoading?: boolean;
+  onRetryMessage?: () => void;
   /** Optional: only render messages from this index onward */
   startIndex?: number;
   /** Ref for the message list container */
@@ -194,6 +307,7 @@ export function ChatMessageList({
   messages,
   pendingMessage,
   isLoading,
+  onRetryMessage,
   startIndex = 0,
   containerRef,
   onScroll,
@@ -216,54 +330,12 @@ export function ChatMessageList({
     }
   }
 
-  const pendingEl = pendingMessage && (
-    pendingMessage.status === "failed" ? (
-      <div className="ml-auto max-w-[80%] p-3 rounded-2xl bg-red-50 border border-red-200">
-        <div className="text-xs text-red-500 mb-1">Failed to send</div>
-        <div className="whitespace-pre-wrap text-gray-800">
-          {pendingMessage.content}
-        </div>
-      </div>
-    ) : (
-      <UserMessageBubble content={pendingMessage.content} />
-    )
-  );
-
-  // Thinking indicator: show when loading and last message is an empty assistant
-  const lastMsg = visibleMessages[visibleMessages.length - 1];
-  const showThinking =
-    isLoading &&
-    lastMsg?.role === "assistant" &&
-    !lastMsg.content?.trim() &&
-    !("tool_calls" in lastMsg && lastMsg.tool_calls);
-
-  // Check if the Thinking indicator should show the "Tutor" label
-  // (suppress if previous visible message is assistant or tool — continuation of same turn)
-  let thinkingPrevRole: string | undefined;
-  if (showThinking) {
-    for (let j = messages.length - 2; j >= 0; j--) {
-      const m = messages[j];
-      if (m.role === "assistant" && m.tool_calls && !m.content?.trim())
-        continue;
-      if (m.role === "assistant" && !m.content?.trim()) continue;
-      thinkingPrevRole = m.role;
-      break;
-    }
-  }
-  const thinkingShowLabel =
-    thinkingPrevRole !== "assistant" && thinkingPrevRole !== "tool";
-
-  const thinkingEl = showThinking && (
-    <div className="text-gray-800">
-      {thinkingShowLabel && (
-        <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-          <Bot size={13} />
-          Tutor
-        </div>
-      )}
-      <div>Thinking...</div>
-    </div>
-  );
+  const tailOpts: RenderMessagesOpts = {
+    isLoading,
+    pendingMessage,
+    onRetryMessage,
+    keyPrefix: "sb",
+  };
 
   return (
     <div
@@ -272,50 +344,31 @@ export function ChatMessageList({
       style={{ overflowAnchor: "none" }}
       onScroll={onScroll}
     >
-      {visibleMessages.slice(0, splitAt).map((msg, i) => {
-        // Find previous VISIBLE message's role (skip hidden ones like empty assistant+tool_calls)
-        let prevVisibleRole: string | undefined;
-        for (let j = startIndex + i - 1; j >= 0; j--) {
-          const m = messages[j];
-          if (m.role === "assistant" && m.tool_calls && !m.content?.trim())
-            continue;
-          if (m.role === "assistant" && !m.content?.trim()) continue;
-          prevVisibleRole = m.role;
-          break;
-        }
-        return renderMessage(msg, startIndex + i, prevVisibleRole);
-      })}
-
       {useWrapper ? (
-        <div
-          ref={minHeightWrapperRef}
-          className="flex flex-col space-y-4"
-          style={{
-            minHeight: wrapperMinHeight ? `${wrapperMinHeight}px` : undefined,
-          }}
-        >
-          {visibleMessages.slice(splitAt).map((msg, i) => {
-            const absIdx = startIndex + splitAt + i;
-            let prevVisibleRole: string | undefined;
-            for (let j = absIdx - 1; j >= 0; j--) {
-              const m = messages[j];
-              if (m.role === "assistant" && m.tool_calls && !m.content?.trim())
-                continue;
-              if (m.role === "assistant" && !m.content?.trim()) continue;
-              prevVisibleRole = m.role;
-              break;
-            }
-            return renderMessage(msg, absIdx, prevVisibleRole);
-          })}
-          {pendingEl}
-          {thinkingEl}
-          <div className="flex-grow" />
-        </div>
-      ) : (
         <>
-          {pendingEl}
-          {thinkingEl}
+          {renderMessages(
+            visibleMessages.slice(0, splitAt),
+            messages,
+            startIndex,
+          )}
+          <div
+            ref={minHeightWrapperRef}
+            className="flex flex-col space-y-4"
+            style={{
+              minHeight: wrapperMinHeight ? `${wrapperMinHeight}px` : undefined,
+            }}
+          >
+            {renderMessages(
+              visibleMessages.slice(splitAt),
+              messages,
+              startIndex + splitAt,
+              tailOpts,
+            )}
+            <div className="flex-grow" />
+          </div>
         </>
+      ) : (
+        renderMessages(visibleMessages, messages, startIndex, tailOpts)
       )}
     </div>
   );

@@ -55,7 +55,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       pendingMessage,
       isLoading,
       onSendMessage,
-      onRetryMessage: _onRetryMessage,
+      onRetryMessage,
       drawerOpen = false,
     },
     ref,
@@ -259,6 +259,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           messages={messages}
           pendingMessage={pendingMessage}
           isLoading={isLoading}
+          onRetryMessage={onRetryMessage}
           containerRef={scrollContainerRef}
           wrapperStartIdx={wrapperStartIdx}
           wrapperMinHeight={
