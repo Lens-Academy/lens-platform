@@ -270,7 +270,6 @@ export type UseTutorChatOptions = {
   moduleId: string;
   /** full module object — used for loading chat history */
   module: ModuleType | null;
-  currentSectionIndex: number;
   currentSection: ModuleSection | undefined;
   /** kept for prefix message, chat segment index computations */
   isArticleSection: boolean;

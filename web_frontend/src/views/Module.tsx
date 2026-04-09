@@ -878,7 +878,6 @@ export default function Module({
   } = useTutorChat({
     moduleId,
     module,
-    currentSectionIndex,
     currentSection,
     isArticleSection,
     triggerChatActivity,
