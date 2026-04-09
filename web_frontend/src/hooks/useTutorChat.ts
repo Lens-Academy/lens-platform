@@ -494,27 +494,33 @@ export function useTutorChat({
     [],
   );
 
-  // --- Stream smoothing (buffer bursty SSE chunks, drain via rAF) ----------
+  // --- Stream smoothing (buffer + setTimeout drain) -------------------------
+  // Backend sends text in large chunks (one SSE event per reader.read()).
+  // We buffer incoming text and drain it gradually via setTimeout to produce
+  // smooth character-by-character streaming. Uses setTimeout instead of rAF
+  // because Chrome throttles rAF when the remote debugging port is active.
+  //
+  // Uses a ref-based drain function to avoid stale closure issues with
+  // useCallback — the setTimeout always calls the latest version.
 
   const STREAM_CHARS_PER_SEC = 300;
+  const DRAIN_INTERVAL_MS = 16;
   const streamBufferRef = useRef("");
-  const rafIdRef = useRef(0);
+  const drainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const streamDoneRef = useRef(false);
   const lastDrainRef = useRef(0);
 
-  const drainBuffer = useCallback(() => {
-    rafIdRef.current = 0;
+  const drainBufferRef = useRef<() => void>(() => {});
+  drainBufferRef.current = () => {
+    drainTimerRef.current = null;
     const buf = streamBufferRef.current;
-    if (!buf) {
-      if (streamDoneRef.current) return; // nothing left
-      return;
-    }
 
-    // Flush everything at once when stream is done
-    if (streamDoneRef.current) {
-      streamBufferRef.current = "";
-      dispatchChat({ type: "STREAM_TEXT", text: buf });
-      triggerChatActivity();
+    // Buffer empty: if stream is done, fire SEND_SUCCESS
+    if (!buf) {
+      if (streamDoneRef.current) {
+        streamDoneRef.current = false;
+        dispatchChat({ type: "SEND_SUCCESS" });
+      }
       return;
     }
 
@@ -528,16 +534,22 @@ export function useTutorChat({
     dispatchChat({ type: "STREAM_TEXT", text: emit });
     triggerChatActivity();
 
-    if (streamBufferRef.current) {
-      rafIdRef.current = requestAnimationFrame(drainBuffer);
-    }
-  }, [dispatchChat, triggerChatActivity]);
+    // Always schedule next drain — even if buffer is empty, we need to
+    // check streamDoneRef on the next tick to fire SEND_SUCCESS
+    drainTimerRef.current = setTimeout(
+      () => drainBufferRef.current(),
+      DRAIN_INTERVAL_MS,
+    );
+  };
 
   const startDrain = useCallback(() => {
-    if (rafIdRef.current) return; // already running
+    if (drainTimerRef.current) return; // already running
     lastDrainRef.current = performance.now();
-    rafIdRef.current = requestAnimationFrame(drainBuffer);
-  }, [drainBuffer]);
+    drainTimerRef.current = setTimeout(
+      () => drainBufferRef.current(),
+      DRAIN_INTERVAL_MS,
+    );
+  }, []);
 
   // --- sendMessage ---------------------------------------------------------
 
@@ -579,9 +591,10 @@ export function useTutorChat({
       // Reset smoothing state for this stream
       streamBufferRef.current = "";
       streamDoneRef.current = false;
-      if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = 0;
+      lastDrainRef.current = performance.now();
+      if (drainTimerRef.current) {
+        clearTimeout(drainTimerRef.current);
+        drainTimerRef.current = null;
       }
 
       try {
@@ -620,25 +633,27 @@ export function useTutorChat({
           }
         }
 
-        // Flush remaining buffer instantly and finish
+        // Signal the drain loop to finish — it will emit remaining text
+        // gradually and dispatch SEND_SUCCESS when the buffer is empty.
         streamDoneRef.current = true;
-        if (streamBufferRef.current) {
-          if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-          rafIdRef.current = 0;
-          drainBuffer();
+        // Ensure drain is running (might have stopped if buffer was empty between chunks)
+        if (!drainTimerRef.current) {
+          drainTimerRef.current = setTimeout(
+            () => drainBufferRef.current(),
+            DRAIN_INTERVAL_MS,
+          );
         }
-        dispatchChat({ type: "SEND_SUCCESS" });
       } catch {
         // Cancel any pending drain on error
-        if (rafIdRef.current) {
-          cancelAnimationFrame(rafIdRef.current);
-          rafIdRef.current = 0;
+        if (drainTimerRef.current) {
+          clearTimeout(drainTimerRef.current);
+          drainTimerRef.current = null;
         }
         streamBufferRef.current = "";
         dispatchChat({ type: "SEND_FAILURE" });
       }
     },
-    [triggerChatActivity, moduleId, startDrain, drainBuffer],
+    [triggerChatActivity, moduleId, startDrain],
   );
 
   // --- retryMessage --------------------------------------------------------
