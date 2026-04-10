@@ -1268,6 +1268,9 @@ function convertSegment(
         url: parsedSegment.url,
       };
       if (parsedSegment.height) segment.height = parsedSegment.height;
+      if (parsedSegment.width) segment.width = parsedSegment.width;
+      if (parsedSegment.aspectRatio) segment.aspectRatio = parsedSegment.aspectRatio;
+      if (parsedSegment.summary) segment.summary = parsedSegment.summary;
       if (parsedSegment.sandbox) segment.sandbox = parsedSegment.sandbox;
       if (parsedSegment.cachedContent) segment.cachedContent = parsedSegment.cachedContent;
       if (parsedSegment.optional) segment.optional = true;
