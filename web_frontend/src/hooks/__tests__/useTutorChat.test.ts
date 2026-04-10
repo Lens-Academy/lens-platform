@@ -47,7 +47,6 @@ const testArticleSection: LensSection = {
 const baseOptions = {
   moduleId: "test-module",
   module: null as Module | null,
-  currentSectionIndex: 0,
   currentSection: undefined as LensSection | undefined,
   isArticleSection: false,
   triggerChatActivity: vi.fn(),
@@ -73,8 +72,8 @@ describe("useTutorChat", () => {
   it("starts with empty state", () => {
     const { result } = renderHook(() => useTutorChat(baseOptions));
 
-    expect(result.current.messages).toEqual([]);
-    expect(result.current.pendingMessage).toBeNull();
+    expect(result.current.chatStore.getHot().messages).toEqual([]);
+    expect(result.current.chatStore.getHot().pendingMessage).toBeNull();
     expect(result.current.isLoading).toBe(false);
     expect(result.current.activeSurface).toEqual({ type: "sidebar" });
   });
@@ -161,7 +160,7 @@ describe("useTutorChat", () => {
     await act(async () => {});
 
     expect(getChatHistory).toHaveBeenCalledWith("test-module");
-    expect(result.current.messages).toEqual([
+    expect(result.current.chatStore.getHot().messages).toEqual([
       { role: "user", content: "Hello" },
       { role: "assistant", content: "Hi!" },
     ]);
@@ -194,7 +193,7 @@ describe("useTutorChat", () => {
     await act(async () => {});
 
     // Should skip the leading assistant messages
-    expect(result.current.messages).toEqual([
+    expect(result.current.chatStore.getHot().messages).toEqual([
       { role: "user", content: "First real message" },
       { role: "assistant", content: "Reply" },
     ]);
@@ -248,7 +247,6 @@ describe("useTutorChat", () => {
       useTutorChat({
         ...baseOptions,
         module: mockModule,
-        currentSectionIndex: 0,
         currentSection: testArticleSection,
         isArticleSection: true,
       }),
@@ -262,7 +260,7 @@ describe("useTutorChat", () => {
     });
 
     // After streaming finishes, messages should have tool results interleaved with text
-    const roles = result.current.messages.map((m) => m.role);
+    const roles = result.current.chatStore.getHot().messages.map((m) => m.role);
 
     // DESIRED: user → assistant+tc → tool → assistant+tc → tool → assistant
     // or at minimum the tools should not ALL appear before the text.

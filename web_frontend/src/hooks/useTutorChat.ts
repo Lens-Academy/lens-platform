@@ -1,20 +1,23 @@
 /**
  * useTutorChat — centralises all chat state for the Module player.
  *
- * Uses `useReducer` for the chat lifecycle (atomic state transitions)
- * and `useState` / `useRef` for independent concerns (active surface).
+ * Chat message state lives in an external ChatStore (not useReducer) so that
+ * STREAM_TEXT dispatches during streaming only re-render chat components, not
+ * the entire Module page. Module.tsx subscribes to "cold" state (isLoading,
+ * sendSource) which changes 2-4x per send. Chat components subscribe to "hot"
+ * state (messages, pendingMessage) via useChatMessages().
  *
  * Sidebar open/close state lives in ChatSidebar (not here) to avoid
  * re-rendering Module on every toggle.
  */
 
 import {
-  useReducer,
   useState,
   useRef,
   useEffect,
   useCallback,
   useMemo,
+  useSyncExternalStore,
 } from "react";
 import type {
   ChatMessage,
@@ -24,6 +27,7 @@ import type {
 } from "@/types/module";
 import { sendMessage as sendMessageApi, getChatHistory } from "@/api/modules";
 import { trackChatMessageSent } from "@/analytics";
+import { useChatStoreRef } from "./useChatStore";
 
 // ---------------------------------------------------------------------------
 // Chat lifecycle reducer
@@ -266,7 +270,6 @@ export type UseTutorChatOptions = {
   moduleId: string;
   /** full module object — used for loading chat history */
   module: ModuleType | null;
-  currentSectionIndex: number;
   currentSection: ModuleSection | undefined;
   /** kept for prefix message, chat segment index computations */
   isArticleSection: boolean;
@@ -287,7 +290,13 @@ export function useTutorChat({
   triggerChatActivity,
   courseSlug,
 }: UseTutorChatOptions) {
-  const [chat, dispatchChat] = useReducer(chatReducer, initialChatState);
+  // Chat state lives in an external store so STREAM_TEXT only re-renders
+  // chat components (via useChatMessages), not the entire Module page.
+  const chatStore = useChatStoreRef();
+
+  // Subscribe to cold state — Module.tsx re-renders only when these change
+  // (send start/complete, ~2-4x per message, not during streaming).
+  const cold = useSyncExternalStore(chatStore.subscribe, chatStore.getCold);
 
   // --- Independent state ---------------------------------------------------
 
@@ -306,7 +315,7 @@ export function useTutorChat({
     if (!module) return;
 
     // Clear messages when switching modules
-    dispatchChat({ type: "LOAD_HISTORY", messages: [] });
+    chatStore.dispatch({ type: "LOAD_HISTORY", messages: [] });
 
     let cancelled = false;
 
@@ -341,7 +350,7 @@ export function useTutorChat({
             setChatInteractedSections(interacted);
           }
 
-          dispatchChat({
+          chatStore.dispatch({
             type: "LOAD_HISTORY",
             messages: messagesToShow.map((m) => {
               if (m.role === "tool") {
@@ -494,6 +503,66 @@ export function useTutorChat({
     [],
   );
 
+  // --- Stream smoothing (buffer + setTimeout drain) -------------------------
+  // Backend sends text in large chunks (one SSE event per reader.read()).
+  // We buffer incoming text and drain it gradually via setTimeout to produce
+  // smooth character-by-character streaming. Uses setTimeout instead of rAF
+  // because Chrome throttles rAF when the remote debugging port is active.
+  //
+  // Uses a ref-based drain function to avoid stale closure issues with
+  // useCallback — the setTimeout always calls the latest version.
+
+  const STREAM_CHARS_PER_SEC = 300;
+  const DRAIN_INTERVAL_MS = 16;
+  const streamBufferRef = useRef("");
+  const drainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const streamDoneRef = useRef(false);
+  const lastDrainRef = useRef(0);
+
+  const drainBufferRef = useRef<() => void>(() => {});
+  drainBufferRef.current = () => {
+    drainTimerRef.current = null;
+    const buf = streamBufferRef.current;
+
+    // Buffer empty: if stream is done, fire SEND_SUCCESS
+    if (!buf) {
+      if (streamDoneRef.current) {
+        streamDoneRef.current = false;
+        chatStore.dispatch({ type: "SEND_SUCCESS" });
+      }
+      return;
+    }
+
+    const now = performance.now();
+    const elapsed = now - lastDrainRef.current;
+    lastDrainRef.current = now;
+    const chars = Math.max(
+      1,
+      Math.round((elapsed / 1000) * STREAM_CHARS_PER_SEC),
+    );
+    const emit = buf.slice(0, chars);
+    streamBufferRef.current = buf.slice(chars);
+
+    chatStore.dispatch({ type: "STREAM_TEXT", text: emit });
+    triggerChatActivity();
+
+    // Always schedule next drain — even if buffer is empty, we need to
+    // check streamDoneRef on the next tick to fire SEND_SUCCESS
+    drainTimerRef.current = setTimeout(
+      () => drainBufferRef.current(),
+      DRAIN_INTERVAL_MS,
+    );
+  };
+
+  const startDrain = useCallback(() => {
+    if (drainTimerRef.current) return; // already running
+    lastDrainRef.current = performance.now();
+    drainTimerRef.current = setTimeout(
+      () => drainBufferRef.current(),
+      DRAIN_INTERVAL_MS,
+    );
+  }, []);
+
   // --- sendMessage ---------------------------------------------------------
 
   const sendMessage = useCallback(
@@ -513,7 +582,7 @@ export function useTutorChat({
         return next;
       });
 
-      dispatchChat({
+      chatStore.dispatch({
         type: "SEND_START",
         content,
         sectionIndex,
@@ -531,6 +600,15 @@ export function useTutorChat({
         trackChatMessageSent(moduleId, content.length);
       }
 
+      // Reset smoothing state for this stream
+      streamBufferRef.current = "";
+      streamDoneRef.current = false;
+      lastDrainRef.current = performance.now();
+      if (drainTimerRef.current) {
+        clearTimeout(drainTimerRef.current);
+        drainTimerRef.current = null;
+      }
+
       try {
         for await (const chunk of sendMessageApi(
           moduleId,
@@ -540,19 +618,22 @@ export function useTutorChat({
           courseSlug,
         )) {
           if (chunk.type === "text" && chunk.content) {
-            dispatchChat({ type: "STREAM_TEXT", text: chunk.content });
-            triggerChatActivity();
+            streamBufferRef.current += chunk.content;
+            startDrain();
           } else if (chunk.type === "system" && chunk.content) {
-            dispatchChat({ type: "SYSTEM_MESSAGE", content: chunk.content });
+            chatStore.dispatch({
+              type: "SYSTEM_MESSAGE",
+              content: chunk.content,
+            });
           } else if (chunk.type === "tool_use" && chunk.name) {
             const toolState = (chunk.state as string) ?? "calling";
             if (toolState === "calling") {
-              dispatchChat({
+              chatStore.dispatch({
                 type: "TOOL_CALL_START",
                 name: chunk.name as string,
               });
             } else {
-              dispatchChat({
+              chatStore.dispatch({
                 type: "TOOL_CALL_DONE",
                 name: chunk.name as string,
                 result:
@@ -567,35 +648,51 @@ export function useTutorChat({
           }
         }
 
-        dispatchChat({ type: "SEND_SUCCESS" });
+        // Signal the drain loop to finish — it will emit remaining text
+        // gradually and dispatch SEND_SUCCESS when the buffer is empty.
+        streamDoneRef.current = true;
+        // Ensure drain is running (might have stopped if buffer was empty between chunks)
+        if (!drainTimerRef.current) {
+          drainTimerRef.current = setTimeout(
+            () => drainBufferRef.current(),
+            DRAIN_INTERVAL_MS,
+          );
+        }
       } catch {
-        dispatchChat({ type: "SEND_FAILURE" });
+        // Cancel any pending drain on error
+        if (drainTimerRef.current) {
+          clearTimeout(drainTimerRef.current);
+          drainTimerRef.current = null;
+        }
+        streamBufferRef.current = "";
+        chatStore.dispatch({ type: "SEND_FAILURE" });
       }
     },
-    [triggerChatActivity, moduleId],
+    [triggerChatActivity, moduleId, startDrain],
   );
 
   // --- retryMessage --------------------------------------------------------
 
   const retryMessage = useCallback(() => {
-    if (!chat.pendingMessage || !chat.lastPosition) return;
-    const content = chat.pendingMessage.content;
-    dispatchChat({ type: "CLEAR_PENDING" });
+    const { pendingMessage, lastPosition } = chatStore.getState();
+    if (!pendingMessage || !lastPosition) return;
+    chatStore.dispatch({ type: "CLEAR_PENDING" });
     sendMessage(
-      content,
-      chat.lastPosition.sectionIndex,
-      chat.lastPosition.segmentIndex,
+      pendingMessage.content,
+      lastPosition.sectionIndex,
+      lastPosition.segmentIndex,
     );
-  }, [chat.pendingMessage, chat.lastPosition, sendMessage]);
+  }, [chatStore, sendMessage]);
 
   // --- Return --------------------------------------------------------------
 
   return {
-    // Reducer-managed chat state
-    messages: chat.messages,
-    pendingMessage: chat.pendingMessage,
-    isLoading: chat.isLoading,
-    sendSource: chat.sendSource,
+    // External store — chat components subscribe via useChatMessages()
+    chatStore,
+
+    // Cold state (Module.tsx re-renders only for these, not during streaming)
+    isLoading: cold.isLoading,
+    sendSource: cold.sendSource,
 
     // Actions
     sendMessage,

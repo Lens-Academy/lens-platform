@@ -39,7 +39,6 @@ COGS = [
     "cogs.breakout_cog",
     "cogs.sync_cog",
     "cogs.stampy_cog",
-    "cogs.attendance_cog",
     "discord_bot.cogs.nickname_cog",  # Full path so web_api gets same module instance
     # "cogs.meetings_cog",  # Temporarily disabled
 ]

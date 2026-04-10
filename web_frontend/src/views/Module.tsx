@@ -556,19 +556,6 @@ export default function Module({
   const drawerRef = useRef<ModuleDrawerHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Track chat sidebar open state (driven by localStorage events from ChatSidebar)
-  const [chatOpen, setChatOpen] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      localStorage.getItem("chat-sidebar-pref") === "open",
-  );
-  useEffect(() => {
-    const sync = () =>
-      setChatOpen(localStorage.getItem("chat-sidebar-pref") === "open");
-    window.addEventListener("chat-sidebar-pref-change", sync);
-    return () => window.removeEventListener("chat-sidebar-pref-change", sync);
-  }, []);
-
   // Track which question's feedback chat is currently visible (only one at a time)
   const [activeFeedbackKey, setActiveFeedbackKey] = useState<string | null>(
     null,
@@ -866,8 +853,7 @@ export default function Module({
 
   // Chat state — centralised in useTutorChat hook
   const {
-    messages,
-    pendingMessage,
+    chatStore,
     isLoading,
     sendSource,
     sendMessage: handleSendMessage,
@@ -879,7 +865,6 @@ export default function Module({
   } = useTutorChat({
     moduleId,
     module,
-    currentSectionIndex,
     currentSection,
     isArticleSection,
     triggerChatActivity,
@@ -1234,6 +1219,7 @@ export default function Module({
       if (!("optional" in section)) continue;
       const sectionType = section.type as SectionChoice["type"];
       if (!["lens", "test"].includes(sectionType)) continue;
+      if (section.hide) continue;
 
       choices.push({
         index: i,
@@ -1279,27 +1265,53 @@ export default function Module({
     return choices;
   }
 
+  // Build list of all visible (non-hidden) sections, regardless of completion status.
+  // Used when the user is on a hidden section and needs to navigate back to visible content.
+  function buildVisibleSections(sections: ModuleSection[]): SectionChoice[] {
+    const choices: SectionChoice[] = [];
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      if (section.hide) continue;
+      if (!("optional" in section)) continue;
+      const sectionType = section.type as SectionChoice["type"];
+      if (!["lens", "test"].includes(sectionType)) continue;
+      choices.push({
+        index: i,
+        type: sectionType,
+        title: section.meta?.title ?? section.type,
+        tldr:
+          "tldr" in section ? (section.tldr as string | undefined) : undefined,
+        optional: section.optional ?? false,
+        completed: completedSections.has(i),
+        duration: null,
+      });
+    }
+    return choices;
+  }
+
   // Build a choice for the immediate next section (regardless of completion status)
   function buildNextSectionChoice(
     sections: ModuleSection[],
     afterIndex: number,
   ): SectionChoice | null {
-    const i = afterIndex + 1;
-    if (i >= sections.length) return null;
-    const section = sections[i];
-    if (!("optional" in section)) return null;
-    const sectionType = section.type as SectionChoice["type"];
-    if (!["lens", "test"].includes(sectionType)) return null;
-    return {
-      index: i,
-      type: sectionType,
-      title: section.meta?.title ?? section.type,
-      tldr:
-        "tldr" in section ? (section.tldr as string | undefined) : undefined,
-      optional: section.optional ?? false,
-      completed: completedSections.has(i),
-      duration: null,
-    };
+    for (let i = afterIndex + 1; i < sections.length; i++) {
+      const section = sections[i];
+      if (section.hide) continue;
+      if (!("optional" in section)) return null;
+      const sectionType = section.type as SectionChoice["type"];
+      if (!["lens", "test"].includes(sectionType)) return null;
+      return {
+        index: i,
+        type: sectionType,
+        title: section.meta?.title ?? section.type,
+        tldr:
+          "tldr" in section ? (section.tldr as string | undefined) : undefined,
+        optional: section.optional ?? false,
+        completed: completedSections.has(i),
+        duration: null,
+      };
+    }
+    return null;
   }
 
   // Ensure the immediate next section is always first in choices
@@ -1362,10 +1374,14 @@ export default function Module({
       }
     }
 
-    // Case 3: Module is complete (detected locally) → show module-complete with optional sections
+    // Case 3: Module is complete (detected locally) → show module-complete with optional sections.
+    // Skip this case when navigating from a hidden section — the user is browsing optional
+    // hidden content and doesn't need a "Module Complete" celebration; fall through to Case 4
+    // which will show visible sections they can jump back to.
     // nextModuleLink (passed to modal) is null while moduleCompletionResult is loading,
     // and updates dynamically when the fetch completes.
-    if (isModuleComplete) {
+    const currentSection = module.sections[fromIndex];
+    if (isModuleComplete && !currentSection?.hide) {
       const choices = prependNextSection(
         skippedOptionalSections,
         module.sections,
@@ -1438,6 +1454,31 @@ export default function Module({
         }
         return;
       }
+
+      // No visible choices ahead (e.g. all remaining sections are hidden) —
+      // show incomplete sections, or if all visible sections are complete,
+      // show all visible sections so the user can navigate back.
+      const incomplete = buildIncompleteSections(
+        module.sections,
+        completedSections,
+      );
+      const visibleSections = currentSection?.hide
+        ? buildVisibleSections(module.sections)
+        : [];
+      const fallbackChoices =
+        incomplete.length > 0 ? incomplete : visibleSections;
+      if (fallbackChoices.length > 0) {
+        if (shouldPromptAuth) {
+          pendingSectionChoicesRef.current = { choices: fallbackChoices };
+          setShowAuthPrompt(true);
+          setHasPromptedAuth(true);
+        } else {
+          setShowModuleCompleteInModal(false);
+          setSectionChoices(fallbackChoices);
+          setSectionChoiceOpen(true);
+        }
+        return;
+      }
     }
 
     // Case 5: No modal needed — just navigate or show fallback modal
@@ -1471,8 +1512,13 @@ export default function Module({
     if (testModeActive) return; // Block during test mode
     if (!module) return;
 
-    // At last section: show choice modal
-    if (currentSectionIndex >= module.sections.length - 1) {
+    // At last section or on a hidden section: show choice modal
+    // (hidden sections should not blindly advance to the next hidden section)
+    const currentSection = module.sections[currentSectionIndex];
+    if (
+      currentSectionIndex >= module.sections.length - 1 ||
+      currentSection?.hide
+    ) {
       tryShowChoicesOrNavigate(currentSectionIndex);
       return;
     }
@@ -1519,7 +1565,11 @@ export default function Module({
         !isAuthenticated &&
         !hasPromptedAuth;
 
-      // Check if module is now complete based on API response
+      // Check if module is now complete based on API response.
+      // Only treat as "just completed" if it wasn't already complete —
+      // otherwise Case 1 defers to a useEffect guarded by wasCompleteOnLoad.
+      const moduleJustCompleted =
+        apiResponse?.module_status === "completed" && !isModuleComplete;
       if (apiResponse?.module_status === "completed") {
         setApiConfirmedComplete(true);
       }
@@ -1531,7 +1581,7 @@ export default function Module({
 
       tryShowChoicesOrNavigate(sectionIndex, choiceTitle, {
         shouldPromptAuth,
-        isModuleJustCompleted: apiResponse?.module_status === "completed",
+        isModuleJustCompleted: moduleJustCompleted,
       });
     },
     [
@@ -1687,8 +1737,7 @@ export default function Module({
         return wrapWithSentinel(
           <ChatInlineShell
             key={`chat-${keyPrefix}`}
-            messages={messages}
-            pendingMessage={pendingMessage}
+            chatStore={chatStore}
             isLoading={isLoading}
             sendSource={sendSource}
             onSendMessage={(content) =>
@@ -1732,8 +1781,7 @@ export default function Module({
             />
             {segment.feedback && activeFeedbackKey === feedbackKey && (
               <ChatInlineShell
-                messages={messages}
-                pendingMessage={pendingMessage}
+                chatStore={chatStore}
                 isLoading={isLoading}
                 sendSource={sendSource}
                 onSendMessage={(content) =>
@@ -1771,8 +1819,7 @@ export default function Module({
             />
             {activeFeedbackKey === feedbackKey && (
               <ChatInlineShell
-                messages={messages}
-                pendingMessage={pendingMessage}
+                chatStore={chatStore}
                 isLoading={isLoading}
                 sendSource={sendSource}
                 onSendMessage={(content) =>
@@ -2054,8 +2101,7 @@ export default function Module({
                               activeFeedbackKey === feedbackKey && (
                                 <>
                                   <ChatInlineShell
-                                    messages={messages}
-                                    pendingMessage={pendingMessage}
+                                    chatStore={chatStore}
                                     isLoading={isLoading}
                                     sendSource={sendSource}
                                     onSendMessage={(content) =>
@@ -2192,7 +2238,7 @@ export default function Module({
                   lensTitle={currentSection.meta?.title ?? null}
                   modulePath={module.sourcePath ?? null}
                   moduleTitle={module.title}
-                  hidden={chatOpen || sidebarOpen}
+                  hidden={sidebarOpen}
                 />
               )}
 
@@ -2201,11 +2247,7 @@ export default function Module({
                 <ChatSidebar
                   ref={sidebarRef}
                   sectionTitle={currentSection?.meta?.title}
-                  messages={messages}
-                  pendingMessage={
-                    sendSource !== "inline" ? pendingMessage : null
-                  }
-                  isLoading={sendSource !== "inline" ? isLoading : false}
+                  chatStore={chatStore}
                   onSendMessage={(content) =>
                     handleSendMessage(
                       content,
@@ -2235,7 +2277,6 @@ export default function Module({
           onSectionClick={handleStageClick}
           courseId={courseId}
           onOpenChange={setSidebarOpen}
-          chatOpen={chatOpen}
         />
 
         <SectionChoiceModal

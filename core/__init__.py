@@ -101,9 +101,6 @@ from .meetings import (
     reschedule_meeting,
 )
 
-# Attendance
-from .attendance import record_voice_attendance
-
 # Group joining
 from .group_joining import (
     get_cohort_groups_metadata,
@@ -223,8 +220,6 @@ __all__ = [
     "create_meetings_for_group",
     "schedule_reminders_for_group",
     "reschedule_meeting",
-    # Attendance
-    "record_voice_attendance",
     # Group joining
     "get_cohort_groups_metadata",
     "get_joinable_groups",

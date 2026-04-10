@@ -15,16 +15,17 @@ import {
 } from "react";
 import { useScrollContainer } from "@/hooks/useScrollContainer";
 import { usePillVisibility } from "@/hooks/usePillVisibility";
-import type { ChatMessage, PendingMessage } from "@/types/module";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
-import { renderMessage } from "@/components/module/ChatMessageList";
+import { renderMessages } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
+import { CopyButton } from "@/components/module/CopyButton";
+import { formatConversationText } from "@/utils/copyChat";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { chatViewReducer, initialChatViewState } from "./chatViewReducer";
+import { useChatMessages, type ChatStore } from "@/hooks/useChatStore";
 
 type ChatInlineShellProps = {
-  messages: ChatMessage[];
-  pendingMessage: PendingMessage | null;
+  chatStore: ChatStore;
   isLoading: boolean;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
@@ -64,8 +65,7 @@ function PillVisibilityWrapper({
 }
 
 export function ChatInlineShell({
-  messages,
-  pendingMessage,
+  chatStore,
   isLoading,
   onSendMessage,
   onRetryMessage,
@@ -80,6 +80,7 @@ export function ChatInlineShell({
   sidebarAllowedListeners,
   sidebarRef,
 }: ChatInlineShellProps) {
+  const { messages, pendingMessage } = useChatMessages(chatStore);
   const pageScrollContainer = useScrollContainer();
 
   // View state reducer — centralized state transitions for chat view
@@ -113,10 +114,13 @@ export function ChatInlineShell({
   const scrollContainerHeightRef = useRef(0);
   scrollContainerHeightRef.current = scrollContainerHeight;
 
-  // Scroll user's new message to top when they send
-  // When activeScrollToResponse is true, scroll to the response (Thinking.../streaming) instead
+  // Scroll user's new message to top when they send (triggered by isLoading going true).
+  // When activeScrollToResponse is true, scroll to the response (Thinking.../streaming) instead.
+  const wasLoadingSendRef = useRef(false);
   useLayoutEffect(() => {
-    if (!pendingMessage || !scrollContainerRef.current) return;
+    const justStarted = isLoading && !wasLoadingSendRef.current;
+    wasLoadingSendRef.current = isLoading;
+    if (!justStarted) return;
     // Only scroll if this shell owns the active input (message was sent from here)
     if (!hasActiveInput || sendSource === "sidebar") return;
     // In expanded mode, wait for scrollContainerHeight so minHeight is applied.
@@ -126,7 +130,7 @@ export function ChatInlineShell({
     const scrollBehavior = isExpanded ? "instant" : "smooth";
 
     // scrollToResponse: scroll past the user message to show the tutor's response
-    if (activeScrollToResponse && isLoading && responseRef.current) {
+    if (activeScrollToResponse && responseRef.current) {
       scrollAnimStartRef.current = Date.now();
       responseRef.current.scrollIntoView({
         block: "start",
@@ -146,9 +150,8 @@ export function ChatInlineShell({
       });
     }
   }, [
-    pendingMessage,
-    activeScrollToResponse,
     isLoading,
+    activeScrollToResponse,
     isExpanded,
     hasActiveInput,
     sendSource,
@@ -246,8 +249,6 @@ export function ChatInlineShell({
   const previousMessages = displayMessages.slice(0, adjustedWrapperStart);
   const wrapperMessages = displayMessages.slice(adjustedWrapperStart);
 
-  const showPending = hasInteracted && !!pendingMessage;
-  const showStreaming = hasInteracted && isLoading;
   const wrapperMinHeight = hasInteracted && spacerHeight > 0 ? spacerHeight : 0;
   const scrollMargin = hasInteracted
     ? isExpanded
@@ -259,10 +260,10 @@ export function ChatInlineShell({
   // (system messages inserted, or streaming→final message height delta).
   // scrollAnchorRef is now always at wrapper top (outside space-y-4).
   // systemSkipAnchorRef appears only when system messages prefix the wrapper.
-  const wasLoadingRef = useRef(false);
+  const wasLoadingFinishRef = useRef(false);
   useLayoutEffect(() => {
-    const justFinished = wasLoadingRef.current && !isLoading;
-    wasLoadingRef.current = isLoading;
+    const justFinished = wasLoadingFinishRef.current && !isLoading;
+    wasLoadingFinishRef.current = isLoading;
     if (!justFinished) return;
     if (!hasActiveInput || sendSource === "sidebar") return;
 
@@ -352,9 +353,9 @@ export function ChatInlineShell({
             so the sticky input can engage (sticky needs a tall containing block) */}
         {!hasInteracted && <div style={{ height: "35vh" }} />}
 
-        {/* Collapse button — outside scroll area so it's always visible */}
+        {/* Collapse button + copy-all — outside scroll area so always visible */}
         {isExpanded && (
-          <div className="flex justify-center px-3 pt-2 pb-3 shrink-0">
+          <div className="flex justify-center gap-2 px-3 pt-2 pb-3 shrink-0">
             <button
               onClick={() => dispatch({ type: "COLLAPSE" })}
               className="inline-flex items-center gap-1.5 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 hover:border-gray-300 rounded-full transition-colors"
@@ -362,6 +363,17 @@ export function ChatInlineShell({
               <ChevronDown size={14} />
               Collapse
             </button>
+            {messages.some(
+              (m) =>
+                m.role === "user" ||
+                (m.role === "assistant" && m.content?.trim()),
+            ) && (
+              <CopyButton
+                getText={() => formatConversationText(messages)}
+                label="Copy conversation"
+                className="border border-gray-200 hover:border-gray-300 rounded-full px-2"
+              />
+            )}
           </div>
         )}
 
@@ -383,7 +395,7 @@ export function ChatInlineShell({
                   .slice(0, recentMessagesStartIdx)
                   .filter((m) => m.role === "user").length;
                 return earlierExchanges > 0 ? (
-                  <div className="flex justify-center pb-3">
+                  <div className="flex justify-center gap-2 pb-3">
                     <button
                       onClick={() => {
                         justExpandedRef.current = true;
@@ -394,6 +406,11 @@ export function ChatInlineShell({
                       <ChevronUp size={14} />
                       {earlierExchanges} earlier
                     </button>
+                    <CopyButton
+                      getText={() => formatConversationText(messages)}
+                      label="Copy conversation"
+                      className="border border-gray-200 hover:border-gray-300 rounded-full px-2"
+                    />
                   </div>
                 ) : null;
               })()}
@@ -401,20 +418,26 @@ export function ChatInlineShell({
             {/* Previous messages - natural height */}
             {previousMessages.length > 0 && (
               <div className="space-y-4 pb-4 max-w-content mx-auto">
-                {previousMessages.map((msg, i) => {
-                  const isRecentBoundary =
-                    isExpanded && i === recentMessagesStartIdx;
-                  const prev = i > 0 ? previousMessages[i - 1] : undefined;
-                  const msgEl = renderMessage(msg, i, prev?.role);
-                  return isRecentBoundary ? (
-                    <Fragment key={i}>
-                      <div ref={recentStartRef} />
-                      {msgEl}
-                    </Fragment>
-                  ) : (
-                    msgEl
+                {(() => {
+                  const nodes = renderMessages(
+                    previousMessages,
+                    displayMessages,
+                    0,
+                    { keyPrefix: "prev" },
                   );
-                })}
+                  return nodes.map((node, i) => {
+                    const isRecentBoundary =
+                      isExpanded && i === recentMessagesStartIdx;
+                    return isRecentBoundary ? (
+                      <Fragment key={`prev-boundary-${i}`}>
+                        <div ref={recentStartRef} />
+                        {node}
+                      </Fragment>
+                    ) : (
+                      node
+                    );
+                  });
+                })()}
               </div>
             )}
 
@@ -436,62 +459,39 @@ export function ChatInlineShell({
                 style={{ scrollMarginTop: scrollMargin }}
               />
               <div className="space-y-4 max-w-content mx-auto w-full">
-                {/* Messages in current exchange (user + completed assistant) */}
+                {/* Messages in current exchange + thinking + pending */}
                 {(() => {
+                  const nodes = renderMessages(
+                    wrapperMessages,
+                    displayMessages,
+                    adjustedWrapperStart,
+                    {
+                      isLoading: hasInteracted ? isLoading : false,
+                      pendingMessage: hasInteracted ? pendingMessage : null,
+                      onRetryMessage,
+                      keyPrefix: "current",
+                    },
+                  );
                   const firstNonSystem = wrapperMessages.findIndex(
                     (m) => m.role !== "system",
                   );
                   const hasSystemPrefix = firstNonSystem > 0;
-                  return wrapperMessages.map((msg, i) => (
-                    <Fragment key={`current-${i}`}>
+                  // Only inject system-skip anchor for message nodes (not thinking/pending)
+                  return nodes.map((node, i) => (
+                    <Fragment key={`wrap-${i}`}>
                       {hasSystemPrefix && i === firstNonSystem && (
                         <div
                           ref={systemSkipAnchorRef}
                           style={{ scrollMarginTop: scrollMargin }}
                         />
                       )}
-                      {renderMessage(
-                        msg,
-                        `current-${i}`,
-                        i > 0
-                          ? wrapperMessages[i - 1]?.role
-                          : previousMessages.length > 0
-                            ? previousMessages[previousMessages.length - 1]
-                                ?.role
-                            : undefined,
-                      )}
+                      {node}
                     </Fragment>
                   ));
                 })()}
 
-                {/* Pending user message */}
-                {showPending && (
-                  <div
-                    className={`ml-auto max-w-[80%] p-3 rounded-2xl ${
-                      pendingMessage!.status === "failed"
-                        ? "bg-red-50 border border-red-200"
-                        : "bg-gray-100"
-                    }`}
-                  >
-                    {pendingMessage!.status === "failed" && onRetryMessage && (
-                      <div className="flex items-center justify-between mb-1">
-                        <button
-                          onClick={onRetryMessage}
-                          className="text-red-600 hover:text-red-700 text-xs focus:outline-none focus:underline ml-auto"
-                        >
-                          Failed - Click to retry
-                        </button>
-                      </div>
-                    )}
-                    <div className="whitespace-pre-wrap text-gray-800">
-                      {pendingMessage!.content}
-                    </div>
-                  </div>
-                )}
-
-                {/* Scroll anchor for scrollToResponse — streaming/thinking
-                    content is now rendered as a regular message by renderMessage() */}
-                {showStreaming && activeScrollToResponse && (
+                {/* Scroll anchor for scrollToResponse */}
+                {hasInteracted && isLoading && activeScrollToResponse && (
                   <div ref={responseRef} />
                 )}
               </div>

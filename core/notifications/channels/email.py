@@ -1,21 +1,18 @@
-"""SendGrid email delivery channel."""
+"""Resend email delivery channel."""
 
 import os
 import re
 from dataclasses import dataclass
 
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+import resend
 
 
-SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
-FROM_EMAIL = os.environ.get("FROM_EMAIL", "team@lensacademy.org")
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
+FROM_EMAIL = os.environ.get("FROM_EMAIL", "team@mail.lensacademy.org")
 FROM_NAME = os.environ.get("FROM_NAME", "Lens Academy")
+REPLY_TO = os.environ.get("REPLY_TO", "team@lensacademy.org")
 
-# Regex to match markdown links: [text](url)
 MARKDOWN_LINK_PATTERN = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
-
-_client: SendGridAPIClient | None = None
 
 
 @dataclass
@@ -33,10 +30,7 @@ def markdown_to_html(text: str) -> str:
 
     Converts [text](url) to <a href="url">text</a> and preserves line breaks.
     """
-    # Convert markdown links to HTML links
     html_body = MARKDOWN_LINK_PATTERN.sub(r'<a href="\2">\1</a>', text)
-
-    # Convert newlines to <br> for proper formatting
     html_body = html_body.replace("\n", "<br>\n")
 
     return f"""<!DOCTYPE html>
@@ -59,21 +53,16 @@ def markdown_to_plain_text(text: str) -> str:
     return MARKDOWN_LINK_PATTERN.sub(r"\1 (\2)", text)
 
 
-def _get_sendgrid_client() -> SendGridAPIClient | None:
-    """Get or create SendGrid client singleton."""
-    global _client
-    if _client is None and SENDGRID_API_KEY:
-        _client = SendGridAPIClient(SENDGRID_API_KEY)
-    return _client
-
-
 def send_email(
     to_email: str,
     subject: str,
     body: str,
+    from_email: str | None = None,
+    from_name: str | None = None,
+    reply_to: str | None = None,
 ) -> bool:
     """
-    Send an email via SendGrid.
+    Send an email via Resend.
 
     The body can contain markdown-style links [text](url) which will be
     converted to HTML links. Both plain text and HTML versions are sent.
@@ -82,30 +71,38 @@ def send_email(
         to_email: Recipient email address
         subject: Email subject line
         body: Email body (may contain markdown links)
+        from_email: Override sender email (defaults to FROM_EMAIL env var)
+        from_name: Override sender name (defaults to FROM_NAME env var)
+        reply_to: Override reply-to address (defaults to REPLY_TO env var)
 
     Returns:
         True if sent successfully, False otherwise
     """
-    client = _get_sendgrid_client()
-    if not client:
-        print("Warning: SendGrid not configured (SENDGRID_API_KEY not set)")
+    if not RESEND_API_KEY:
+        print("Warning: Resend not configured (RESEND_API_KEY not set)")
         return False
 
+    resend.api_key = RESEND_API_KEY
+
+    sender_email = from_email or FROM_EMAIL
+    sender_name = from_name or FROM_NAME
+    reply_to_addr = reply_to or REPLY_TO
+
     try:
-        # Convert markdown links to appropriate formats
         plain_text = markdown_to_plain_text(body)
         html_content = markdown_to_html(body)
 
-        message = Mail(
-            from_email=(FROM_EMAIL, FROM_NAME),
-            to_emails=to_email,
-            subject=subject,
-            plain_text_content=plain_text,
-            html_content=html_content,
-        )
+        params: resend.Emails.SendParams = {
+            "from": f"{sender_name} <{sender_email}>",
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content,
+            "text": plain_text,
+            "reply_to": reply_to_addr,
+        }
 
-        response = client.send(message)
-        return response.status_code in (200, 201, 202)
+        resend.Emails.send(params)
+        return True
 
     except Exception as e:
         print(f"Failed to send email to {to_email}: {e}")

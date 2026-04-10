@@ -318,6 +318,17 @@ async def lifespan(app: FastAPI):
                 replace_existing=True,
             )
             print("Scheduled initial Substack sync (in ~2 minutes)")
+
+            from core.zoom.attendance import sync_zoom_attendance
+
+            scheduler.add_job(
+                sync_zoom_attendance,
+                trigger="interval",
+                minutes=30,
+                id="sync_zoom_attendance",
+                replace_existing=True,
+            )
+            print("Scheduled Zoom attendance sync job (every 30 minutes)")
     else:
         print("Running in --no-db mode (database operations will fail)")
 

@@ -2,11 +2,11 @@
 Integration tests for email notification flow.
 
 Uses real DB, real template rendering, real markdown conversion.
-Mocks only SendGrid (external service).
+Mocks only Resend (external service).
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from core.notifications.templates import render_message
 from core.notifications.channels.email import markdown_to_html, markdown_to_plain_text
@@ -226,11 +226,11 @@ class TestNotificationFlowIntegration:
         """Verify meeting time is formatted in user's timezone."""
         from core.notifications.dispatcher import send_notification
 
-        with patch("core.notifications.channels.email._get_sendgrid_client") as mock_sg:
-            # Setup mock
-            mock_client = MagicMock()
-            mock_sg.return_value = mock_client
-            mock_client.send.return_value = MagicMock(status_code=202)
+        with (
+            patch("core.notifications.channels.email.resend.Emails.send") as mock_send,
+            patch("core.notifications.channels.email.RESEND_API_KEY", "re_test_key"),
+        ):
+            mock_send.return_value = {"id": "email_123"}
 
             # Send notification with UTC time
             # 15:00 UTC = 16:00 Amsterdam (UTC+1)
@@ -245,20 +245,12 @@ class TestNotificationFlowIntegration:
                 },
             )
 
-            # Verify SendGrid was called
-            assert mock_client.send.called
+            # Verify Resend was called
+            assert mock_send.called
 
-            # Extract the email that was sent
-            sent_mail = mock_client.send.call_args[0][0]
+            params = mock_send.call_args[0][0]
+            html_content = params["html"]
 
-            # Get HTML content (second content item after plain text)
-            html_content = None
-            for content in sent_mail.contents:
-                if content.mime_type == "text/html":
-                    html_content = content.content
-                    break
-
-            assert html_content is not None
             # Verify time was converted to Amsterdam timezone (UTC+1)
             assert "4:00 PM (UTC+1)" in html_content
 
@@ -267,10 +259,11 @@ class TestNotificationFlowIntegration:
         """Verify URLs are built correctly using real URL builder functions."""
         from core.notifications.dispatcher import send_notification
 
-        with patch("core.notifications.channels.email._get_sendgrid_client") as mock_sg:
-            mock_client = MagicMock()
-            mock_sg.return_value = mock_client
-            mock_client.send.return_value = MagicMock(status_code=202)
+        with (
+            patch("core.notifications.channels.email.resend.Emails.send") as mock_send,
+            patch("core.notifications.channels.email.RESEND_API_KEY", "re_test_key"),
+        ):
+            mock_send.return_value = {"id": "email_123"}
 
             await send_notification(
                 user_id=test_user["user_id"],
@@ -282,13 +275,8 @@ class TestNotificationFlowIntegration:
                 },
             )
 
-            sent_mail = mock_client.send.call_args[0][0]
-
-            html_content = None
-            for content in sent_mail.contents:
-                if content.mime_type == "text/html":
-                    html_content = content.content
-                    break
+            params = mock_send.call_args[0][0]
+            html_content = params["html"]
 
             # Verify the Zoom URL appears as a proper HTML link
             assert '<a href="https://zoom.us/j/123">' in html_content
@@ -310,10 +298,10 @@ class TestNotificationFlowIntegration:
             )
             await conn.commit()
 
-        with patch("core.notifications.channels.email._get_sendgrid_client") as mock_sg:
-            mock_client = MagicMock()
-            mock_sg.return_value = mock_client
-
+        with (
+            patch("core.notifications.channels.email.resend.Emails.send") as mock_send,
+            patch("core.notifications.channels.email.RESEND_API_KEY", "re_test_key"),
+        ):
             result = await send_notification(
                 user_id=test_user["user_id"],
                 message_type="meeting_reminder_1h",
@@ -327,7 +315,7 @@ class TestNotificationFlowIntegration:
 
             # Email should not have been sent
             assert result["email"] is False
-            assert not mock_client.send.called
+            assert not mock_send.called
 
     @pytest.mark.asyncio
     async def test_send_notification_logs_to_database(self, test_user):
@@ -346,10 +334,11 @@ class TestNotificationFlowIntegration:
             )
             await conn.commit()
 
-        with patch("core.notifications.channels.email._get_sendgrid_client") as mock_sg:
-            mock_client = MagicMock()
-            mock_sg.return_value = mock_client
-            mock_client.send.return_value = MagicMock(status_code=202)
+        with (
+            patch("core.notifications.channels.email.resend.Emails.send") as mock_send,
+            patch("core.notifications.channels.email.RESEND_API_KEY", "re_test_key"),
+        ):
+            mock_send.return_value = {"id": "email_123"}
 
             await send_notification(
                 user_id=test_user["user_id"],
