@@ -24,11 +24,17 @@ import {
 } from "react";
 import { useMedia } from "react-use";
 import { useScrollContainer } from "@/hooks/useScrollContainer";
-import type { ChatMessage, PendingMessage } from "@/types/module";
 import { ChatMessageList } from "@/components/module/ChatMessageList";
 import { ChatInputArea } from "@/components/module/ChatInputArea";
+import { CopyButton } from "@/components/module/CopyButton";
+import { formatConversationText } from "@/utils/copyChat";
 import { BotMessageSquare } from "lucide-react";
 import { useSwipePanel } from "@/hooks/useSwipePanel";
+import {
+  useChatMessages,
+  useChatCold,
+  type ChatStore,
+} from "@/hooks/useChatStore";
 
 export type ChatSidebarHandle = {
   setAllowed: (allowed: boolean) => void;
@@ -37,10 +43,7 @@ export type ChatSidebarHandle = {
 
 type ChatSidebarProps = {
   sectionTitle?: string;
-  // Chat state (passed from Module.tsx / parent)
-  messages: ChatMessage[];
-  pendingMessage: PendingMessage | null;
-  isLoading: boolean;
+  chatStore: ChatStore;
   onSendMessage: (content: string) => void;
   onRetryMessage?: () => void;
   /** When true, disables swipe-to-open and hides the FAB (e.g. module drawer is open). */
@@ -51,15 +54,20 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
   function ChatSidebar(
     {
       sectionTitle,
-      messages,
-      pendingMessage,
-      isLoading,
+      chatStore,
       onSendMessage,
-      onRetryMessage: _onRetryMessage,
+      onRetryMessage,
       drawerOpen = false,
     },
     ref,
   ) {
+    // Subscribe to chat state — sidebar filters by sendSource
+    const { messages, pendingMessage: rawPendingMessage } =
+      useChatMessages(chatStore);
+    const { isLoading: rawIsLoading, sendSource } = useChatCold(chatStore);
+    // Suppress loading/pending when the message was sent from inline chat
+    const isLoading = sendSource !== "inline" ? rawIsLoading : false;
+    const pendingMessage = sendSource !== "inline" ? rawPendingMessage : null;
     const isMobile = useMedia("(max-width: 700px)", false);
     const scrollContainer = useScrollContainer();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -204,28 +212,6 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
       });
     }, [isLoading, scrollContainerHeight]);
 
-    // Scroll to bottom after streaming finishes (before paint — no flash)
-    const wasLoadingRef = useRef(false);
-    useLayoutEffect(() => {
-      const justFinished = wasLoadingRef.current && !isLoading;
-      wasLoadingRef.current = isLoading;
-      if (!justFinished || !scrollContainerRef.current) return;
-      const container = scrollContainerRef.current;
-      container.scrollTop = container.scrollHeight;
-    }, [isLoading]);
-
-    // Auto-scroll to bottom during streaming when near bottom
-    useEffect(() => {
-      if (scrollContainerRef.current && isOpen) {
-        const container = scrollContainerRef.current;
-        const distanceFromBottom =
-          container.scrollHeight - container.scrollTop - container.clientHeight;
-        if (distanceFromBottom < 150) {
-          container.scrollTop = container.scrollHeight;
-        }
-      }
-    }, [messages, isLoading, isOpen]);
-
     const header = (
       <div
         className="flex items-center justify-between px-4 py-3 border-b shrink-0 bg-[var(--brand-bg)]"
@@ -252,25 +238,38 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
             )}
           </div>
         </div>
-        <button
-          onMouseDown={handleClose}
-          className="p-2 min-h-[44px] min-w-[44px] hover:bg-stone-200 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
-          aria-label="Close chat sidebar"
-        >
-          <svg
-            className="w-5 h-5 text-gray-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
+        <div className="flex items-center gap-1 shrink-0">
+          {messages.some(
+            (m) =>
+              m.role === "user" ||
+              (m.role === "assistant" && m.content?.trim()),
+          ) && (
+            <CopyButton
+              getText={() => formatConversationText(messages)}
+              label="Copy conversation"
+              className="min-h-[44px] min-w-[44px]"
             />
-          </svg>
-        </button>
+          )}
+          <button
+            onMouseDown={handleClose}
+            className="p-2 min-h-[44px] min-w-[44px] hover:bg-stone-200 rounded-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
+            aria-label="Close chat sidebar"
+          >
+            <svg
+              className="w-5 h-5 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     );
 
@@ -280,6 +279,7 @@ export const ChatSidebar = forwardRef<ChatSidebarHandle, ChatSidebarProps>(
           messages={messages}
           pendingMessage={pendingMessage}
           isLoading={isLoading}
+          onRetryMessage={onRetryMessage}
           containerRef={scrollContainerRef}
           wrapperStartIdx={wrapperStartIdx}
           wrapperMinHeight={

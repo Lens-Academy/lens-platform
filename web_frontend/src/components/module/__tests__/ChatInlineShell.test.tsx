@@ -3,17 +3,19 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import type { ChatMessage } from "@/types/module";
+import { ChatStore } from "@/hooks/useChatStore";
 
 // Mock dependencies
 vi.mock("@/components/module/StageProgressBar", () => ({
   StageIcon: () => null,
 }));
 vi.mock("@/components/module/ChatMessageList", () => ({
-  renderMessage: (msg: ChatMessage, key: string | number) => (
-    <div key={key} data-testid={`msg-${key}`}>
-      {msg.content}
-    </div>
-  ),
+  renderMessages: (messages: ChatMessage[]) =>
+    messages.map((msg, i) => (
+      <div key={i} data-testid={`msg-${i}`}>
+        {msg.content}
+      </div>
+    )),
 }));
 vi.mock("../ChatInputArea", () => ({
   ChatInputArea: ({
@@ -85,13 +87,12 @@ describe("ChatInlineShell minHeight on second message", () => {
 
   it("sets minHeight on first message send", async () => {
     const user = userEvent.setup();
-    const messages: ChatMessage[] = [];
+    const store = new ChatStore();
     const onSendMessage = vi.fn();
 
     const { container } = render(
       <ChatInlineShell
-        messages={messages}
-        pendingMessage={null}
+        chatStore={store}
         isLoading={false}
         onSendMessage={onSendMessage}
         hasActiveInput={true}
@@ -114,15 +115,18 @@ describe("ChatInlineShell minHeight on second message", () => {
     const onSendMessage = vi.fn();
 
     // Start with first exchange already complete (user sent, assistant replied)
-    const messages: ChatMessage[] = [
-      { role: "user", content: "Hello" },
-      { role: "assistant", content: "Hi there!" },
-    ];
+    const store = new ChatStore();
+    store.dispatch({
+      type: "LOAD_HISTORY",
+      messages: [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there!" },
+      ],
+    });
 
     const { container, rerender } = render(
       <ChatInlineShell
-        messages={messages}
-        pendingMessage={null}
+        chatStore={store}
         isLoading={false}
         onSendMessage={onSendMessage}
         activated
@@ -137,16 +141,18 @@ describe("ChatInlineShell minHeight on second message", () => {
 
     expect(onSendMessage).toHaveBeenCalledWith("Follow-up");
 
-    // Simulate parent adding the new message and setting pending
-    const updatedMessages: ChatMessage[] = [
-      ...messages,
-      { role: "user", content: "Follow-up" },
-    ];
+    // Simulate the send starting (adds user message + empty assistant to store)
+    store.dispatch({
+      type: "SEND_START",
+      content: "Follow-up",
+      sectionIndex: 0,
+      segmentIndex: 0,
+      source: "inline",
+    });
 
     rerender(
       <ChatInlineShell
-        messages={updatedMessages}
-        pendingMessage={{ content: "Follow-up", status: "sending" }}
+        chatStore={store}
         isLoading={true}
         onSendMessage={onSendMessage}
         activated

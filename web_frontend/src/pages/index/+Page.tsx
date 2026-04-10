@@ -490,7 +490,7 @@ export default function LandingPage() {
                 className="text-2xl sm:text-3xl mb-4 leading-snug"
                 style={fontDisplay}
               >
-                Machine God
+                Superintelligence 101
                 <span
                   className="block text-base font-normal mt-2"
                   style={{ color: "var(--landing-text-muted)" }}
@@ -526,7 +526,7 @@ export default function LandingPage() {
                   Enroll
                 </a>
                 <a
-                  href="/course/machine-god"
+                  href="/course/superintelligence-101"
                   className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold border transition-colors duration-200"
                   style={{
                     borderColor: "var(--landing-border)",

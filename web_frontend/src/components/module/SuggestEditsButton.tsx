@@ -1,5 +1,6 @@
 import { lensEditorUrl } from "@/config";
 import { Popover } from "../Popover";
+import { useChatSidebarOpen } from "@/hooks/useChatSidebarOpen";
 
 type SuggestEditsButtonProps = {
   articlePath?: string | null;
@@ -59,6 +60,7 @@ export default function SuggestEditsButton({
   moduleTitle,
   hidden,
 }: SuggestEditsButtonProps) {
+  const chatOpen = useChatSidebarOpen();
   const hasArticle = !!(articlePath && articlePath !== lensPath);
   const hasLens = !!lensPath;
   const hasModule = !!(
@@ -69,8 +71,9 @@ export default function SuggestEditsButton({
 
   if (!hasLens && !hasArticle && !hasModule) return null;
 
+  const isHidden = hidden || chatOpen;
   const buttonClasses = `fixed right-4 z-30 flex items-center justify-center w-8 h-8 bg-white/80 border border-gray-200 rounded-md shadow-sm hover:bg-white hover:border-gray-300 transition-all active:scale-95 ${
-    hidden ? "opacity-0 pointer-events-none" : ""
+    isHidden ? "opacity-0 pointer-events-none" : ""
   }`;
   const buttonStyle = {
     top: "calc(var(--module-header-height) + 58px)",

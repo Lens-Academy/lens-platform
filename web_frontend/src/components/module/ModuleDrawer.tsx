@@ -17,6 +17,7 @@ import {
 import { useMedia } from "react-use";
 import { useScrollContainer } from "@/hooks/useScrollContainer";
 import { useSwipePanel } from "@/hooks/useSwipePanel";
+import { useChatSidebarOpen } from "@/hooks/useChatSidebarOpen";
 import type { ModuleInfo, StageInfo } from "../../types/course";
 import UnitNavigationPanel from "./UnitNavigationPanel";
 
@@ -34,8 +35,6 @@ type ModuleDrawerProps = {
   onSectionClick: (index: number) => void;
   courseId: string;
   onOpenChange?: (open: boolean) => void;
-  /** When true, disables swipe-to-open (e.g. chat sidebar is open). */
-  chatOpen?: boolean;
 };
 
 const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
@@ -50,10 +49,10 @@ const ModuleDrawer = forwardRef<ModuleDrawerHandle, ModuleDrawerProps>(
       onSectionClick,
       courseId,
       onOpenChange,
-      chatOpen = false,
     },
     ref,
   ) {
+    const chatOpen = useChatSidebarOpen();
     const [isOpen, setIsOpen] = useState(false);
 
     // Notify parent of open state changes

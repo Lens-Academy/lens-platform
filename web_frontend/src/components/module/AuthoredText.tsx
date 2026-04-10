@@ -97,7 +97,11 @@ export default function AuthoredText({
         const slug = href.slice("module:".length);
         return (
           <a
-            href={courseId ? `/course/${courseId}/module/${slug}` : `#${slug}`}
+            href={
+              courseId
+                ? `/course/${courseId}/module/${slug}`
+                : `/module/${slug}`
+            }
             className="text-gray-700 underline decoration-gray-400 hover:decoration-gray-600"
           >
             {children}

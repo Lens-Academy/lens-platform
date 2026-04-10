@@ -12,6 +12,7 @@ from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi.responses import RedirectResponse
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -79,6 +80,7 @@ async def list_modules(type: str | None = None):
                     "slug": module.slug,
                     "title": module.title,
                     "type": "lens" if is_lens else "module",
+                    "parent_title": module.parent_title,
                 }
             )
         except ModuleNotFoundError:
@@ -232,4 +234,9 @@ async def get_module(module_slug: str):
                 return build_article_module(article_slug)
             except FileNotFoundError:
                 pass
+        # Check if this is a parent module prefix — redirect to first submodule
+        prefix = module_slug + "/"
+        for slug in get_available_modules():
+            if slug.startswith(prefix):
+                return RedirectResponse(url=f"/api/modules/{slug}", status_code=307)
         raise HTTPException(status_code=404, detail="Module not found")
