@@ -458,11 +458,12 @@ export function convertSegment(
         return { segment: null, errors };
       }
 
-      // Synchronously fetch and extract content for the AI Tutor
+      const summary = raw.fields['summary']?.trim();
+
+      // Synchronously fetch and extract content + metadata for the AI Tutor
       let cachedContent = '';
       try {
-        // Simple script to fetch url and strip HTML synchronously to provide context to the AI 
-        // We set NODE_TLS_REJECT_UNAUTHORIZED=0 to handle certificate issues in some environments (like Codespaces)
+        // Advanced scraper: Extract title and meta tags for better context on SPAs
         const fetchScript = `
           fetch('${url}')
             .then(res => {
@@ -470,12 +471,26 @@ export function convertSegment(
               return res.text();
             })
             .then(html => {
-              const stripped = html.replace(/<style[^>]*>.*?<\\/style>/gis, ' ')
-                                   .replace(/<script[^>]*>.*?<\\/script>/gis, ' ')
-                                   .replace(/<[^>]*>?/gm, ' ')
-                                   .replace(/\\s+/g, ' ')
-                                   .trim();
-              process.stdout.write(stripped.substring(0, 50000));
+              const titleMatch = html.match(/<title[^>]*>(.*?)<\\/title>/i);
+              const title = titleMatch ? titleMatch[1] : '';
+              
+              const metaDescMatch = html.match(/<meta\\s+name=["']description["']\\s+content=["'](.*?)["']/i);
+              const ogDescMatch = html.match(/<meta\\s+property=["']og:description["']\\s+content=["'](.*?)["']/i);
+              const description = ogDescMatch ? ogDescMatch[1] : (metaDescMatch ? metaDescMatch[1] : '');
+
+              const body = html.replace(/<style[^>]*>.*?<\\/style>/gis, ' ')
+                               .replace(/<script[^>]*>.*?<\\/script>/gis, ' ')
+                               .replace(/<[^>]*>?/gm, ' ')
+                               .replace(/\\s+/g, ' ')
+                               .trim();
+              
+              const output = [
+                title ? 'TITLE: ' + title : '',
+                description ? 'DESCRIPTION: ' + description : '',
+                body ? 'BODY: ' + body : ''
+              ].filter(Boolean).join('\\n\\n');
+
+              process.stdout.write(output.substring(0, 50000));
             })
             .catch(err => {
               process.stderr.write('Scraper error: ' + err.message);
@@ -487,17 +502,28 @@ export function convertSegment(
           stdio: ['pipe', 'pipe', 'pipe'],
           env: { ...process.env, NODE_TLS_REJECT_UNAUTHORIZED: '0' }
         }).trim();
+        
+        if (cachedContent) {
+          console.log(`[Embed Scraper] Successfully extracted context for ${url} (Length: ${cachedContent.length})`);
+        }
       } catch (e) {
-        // Fallback to empty if fetch or node exec fails (graceful degradation)
-        // During builds, we don't want to crash everything if one URL is down
+        // Graceful degradation
       }
+
+      // Combine summary with cached content if both exist
+      const finalCachedContent = summary 
+        ? `CREATOR SUMMARY: ${summary}\n\nEXTRACTED CONTENT:\n${cachedContent}`
+        : cachedContent;
 
       const segment: ParsedEmbedSegment = {
         type: 'embed',
         url: url.trim(),
         height: raw.fields['height']?.trim() || undefined,
+        width: raw.fields['width']?.trim() || undefined,
+        aspectRatio: raw.fields['aspect-ratio']?.trim() || undefined,
+        summary,
         sandbox: raw.fields['sandbox']?.trim() || undefined,
-        cachedContent: cachedContent || undefined,
+        cachedContent: finalCachedContent || undefined,
         optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
       };
 

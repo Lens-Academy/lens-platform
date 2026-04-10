@@ -72,6 +72,9 @@ export type EmbedSegment = {
   type: "embed";
   url: string;
   height?: string;
+  width?: string;
+  aspectRatio?: string;
+  summary?: string;
   sandbox?: string;
   cachedContent?: string;
   optional?: boolean;

@@ -211,6 +211,8 @@ async def event_generator(
         # Build content context message (full content or location update)
         content_context_msg: str | None = None
         if needs_full_content and section_context:
+            if section_context.cached_content:
+                logger.info(f"🤖 [AI Context] Injecting cached content for embed: {len(section_context.cached_content)} chars")
             content_context_msg = build_content_context_message(
                 section_context, instructions
             )

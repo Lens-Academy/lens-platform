@@ -58,7 +58,7 @@ export const SEGMENT_SCHEMAS: Record<string, SegmentTypeSchema> = {
   ),
   'embed': segmentSchema(
     ['url'],
-    ['height', 'optional', 'sandbox'],
+    ['height', 'width', 'aspect-ratio', 'summary', 'optional', 'sandbox'],
     ['optional'],
   ),
 };

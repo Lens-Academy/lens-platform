@@ -116,8 +116,11 @@ class EmbedSegment:
     type: Literal["embed"]
     url: str
     height: str | None = None
+    width: str | None = None
+    aspect_ratio: str | None = None
+    summary: str | None = None
     sandbox: str | None = None
-    cachedContent: str | None = None
+    cached_content: str | None = None
     optional: bool = False
 
 
