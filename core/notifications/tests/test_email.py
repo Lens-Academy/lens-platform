@@ -1,6 +1,6 @@
 """Tests for email channel."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from core.notifications.channels.email import (
     send_email,
@@ -23,28 +23,50 @@ class TestEmailMessage:
 
 
 class TestSendEmail:
-    @patch("core.notifications.channels.email._get_sendgrid_client")
-    def test_sends_email_via_sendgrid(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        mock_response = MagicMock()
-        mock_response.status_code = 202
-        mock_client.send.return_value = mock_response
+    @patch("core.notifications.channels.email.resend.Emails.send")
+    @patch("core.notifications.channels.email.RESEND_API_KEY", "re_test_key")
+    def test_sends_email_via_resend(self, mock_send):
+        mock_send.return_value = {"id": "email_123"}
 
         result = send_email(
             to_email="alice@example.com",
             subject="Test Subject",
-            body="Test body",
+            body="Test body with [a link](https://example.com)",
         )
 
         assert result is True
-        mock_client.send.assert_called_once()
+        mock_send.assert_called_once()
+        params = mock_send.call_args[0][0]
+        assert params["to"] == ["alice@example.com"]
+        assert params["subject"] == "Test Subject"
+        assert '<a href="https://example.com">a link</a>' in params["html"]
+        assert "a link (https://example.com)" in params["text"]
+        assert "reply_to" in params
+        assert "from" in params
 
-    @patch("core.notifications.channels.email._get_sendgrid_client")
-    def test_returns_false_on_failure(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        mock_client.send.side_effect = Exception("API error")
+    @patch("core.notifications.channels.email.resend.Emails.send")
+    @patch("core.notifications.channels.email.RESEND_API_KEY", "re_test_key")
+    def test_sends_email_with_overrides(self, mock_send):
+        mock_send.return_value = {"id": "email_123"}
+
+        result = send_email(
+            to_email="alice@example.com",
+            subject="Test",
+            body="Test",
+            from_email="luc@mail.lensacademy.org",
+            from_name="Luc from Lens Academy",
+            reply_to="luc@lensacademy.org",
+        )
+
+        assert result is True
+        params = mock_send.call_args[0][0]
+        assert params["from"] == "Luc from Lens Academy <luc@mail.lensacademy.org>"
+        assert params["reply_to"] == "luc@lensacademy.org"
+
+    @patch("core.notifications.channels.email.resend.Emails.send")
+    @patch("core.notifications.channels.email.RESEND_API_KEY", "re_test_key")
+    def test_returns_false_on_failure(self, mock_send):
+        mock_send.side_effect = Exception("API error")
 
         result = send_email(
             to_email="alice@example.com",
@@ -55,14 +77,13 @@ class TestSendEmail:
         assert result is False
 
     def test_returns_false_when_not_configured(self):
-        with patch.dict("os.environ", {}, clear=True):
-            with patch("core.notifications.channels.email.SENDGRID_API_KEY", None):
-                result = send_email(
-                    to_email="alice@example.com",
-                    subject="Test",
-                    body="Test",
-                )
-                assert result is False
+        with patch("core.notifications.channels.email.RESEND_API_KEY", None):
+            result = send_email(
+                to_email="alice@example.com",
+                subject="Test",
+                body="Test",
+            )
+            assert result is False
 
 
 class TestMarkdownConversion:
