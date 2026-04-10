@@ -71,6 +71,7 @@ export type RoleplaySegment = {
 export type EmbedSegment = {
   type: "embed";
   url: string;
+  contextUrl?: string;
   height?: string;
   width?: string;
   aspectRatio?: string;

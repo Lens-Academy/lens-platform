@@ -69,6 +69,7 @@ export interface ParsedRoleplaySegment {
 export interface ParsedEmbedSegment {
   type: 'embed';
   url: string;
+  contextUrl?: string;
   height?: string;
   width?: string;
   aspectRatio?: string;
@@ -429,7 +430,7 @@ export function convertSegment(
         id,
         content,
         aiInstructions,
-        openingMessage: raw.fields['opening-message'] || undefined,
+          openingMessage: raw.fields['opening-message'] || undefined,
         assessmentInstructions: raw.fields['assessment-instructions'] || undefined,
         optional: raw.fields.optional?.toLowerCase() === 'true' ? true : undefined,
         feedback: raw.fields['feedback']?.toLowerCase() === 'true' ? true : undefined,
@@ -462,13 +463,15 @@ export function convertSegment(
       }
 
       const summary = raw.fields['summary']?.trim();
+      const contextUrl = raw.fields['context-url']?.trim() || url.trim();
 
       // Synchronously fetch and extract content + metadata for the AI Tutor
       let cachedContent = '';
       try {
-        // Advanced scraper: Extract title and meta tags for better context on SPAs
+        // Advanced scraper: Extract title and meta tags, then strip NOISE (SVGs, Styles)
+        // We use contextUrl if provided, otherwise fall back to the main url.
         const fetchScript = `
-          fetch('${url}')
+          fetch('${contextUrl}')
             .then(res => {
               if (!res.ok) throw new Error('HTTP ' + res.status);
               return res.text();
@@ -481,11 +484,19 @@ export function convertSegment(
               const ogDescMatch = html.match(/<meta\\s+property=["']og:description["']\\s+content=["'](.*?)["']/i);
               const description = ogDescMatch ? ogDescMatch[1] : (metaDescMatch ? metaDescMatch[1] : '');
 
-              const body = html.replace(/<style[^>]*>.*?<\\/style>/gis, ' ')
-                               .replace(/<script[^>]*>.*?<\\/script>/gis, ' ')
-                               .replace(/<[^>]*>?/gm, ' ')
-                               .replace(/\\s+/g, ' ')
-                               .trim();
+              // Aggressive Noise Stripping for Premium Context
+              const cleanHtml = html
+                .replace(/<style[^>]*>.*?<\\/style>/gis, ' ')
+                .replace(/<script[^>]*>.*?<\\/script>/gis, ' ')
+                .replace(/<svg[^>]*>.*?<\\/svg>/gis, ' ')
+                .replace(/<path[^>]*>.*?<\\/path>/gis, ' ')
+                .replace(/<circle[^>]*>.*?<\\/circle>/gis, ' ')
+                .replace(/<rect[^>]*>.*?<\\/rect>/gis, ' ');
+
+              const body = cleanHtml
+                .replace(/<[^>]*>?/gm, ' ')
+                .replace(/\\s+/g, ' ')
+                .trim();
               
               const output = [
                 title ? 'TITLE: ' + title : '',
@@ -507,7 +518,7 @@ export function convertSegment(
         }).trim();
         
         if (cachedContent) {
-          console.log(`[Embed Scraper] Successfully extracted context for ${url} (Length: ${cachedContent.length})`);
+          console.log(`[Embed Scraper] Successfully extracted context for ${contextUrl} (Length: ${cachedContent.length})`);
         }
       } catch (e) {
         // Graceful degradation
@@ -521,6 +532,7 @@ export function convertSegment(
       const segment: ParsedEmbedSegment = {
         type: 'embed',
         url: url.trim(),
+        contextUrl: raw.fields['context-url']?.trim() || undefined,
         height: raw.fields['height']?.trim() || undefined,
         width: raw.fields['width']?.trim() || undefined,
         aspectRatio: raw.fields['aspect-ratio']?.trim() || undefined,
