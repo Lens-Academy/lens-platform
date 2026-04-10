@@ -4,6 +4,7 @@ Assembles tools per request and dispatches execution.
 """
 
 import asyncio
+import json
 import logging
 
 from . import alignment_search
