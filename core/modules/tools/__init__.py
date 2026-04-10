@@ -11,8 +11,30 @@ from .mcp_client import MCPClientManager
 
 logger = logging.getLogger(__name__)
 
-TOOL_TIMEOUT = 15
-_LOCAL_TOOL_NAMES = {"search_course_content", "read_lens"}
+_LOCAL_TOOL_NAMES = {"search_course_content", "read_lens", "read_url"}
+
+READ_URL_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "read_url",
+        "description": (
+            "Examine the live contents of a website or embedded iframe. "
+            "Use this to research external links or to get more information from "
+            "interactive content when the initial summary is insufficient. "
+            "Returns a cleaned briefing (Title, Description, and Body)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "Full URL to fetch and examine",
+                },
+            },
+            "required": ["url"],
+        },
+    },
+}
 
 
 async def get_tools(
@@ -51,6 +73,7 @@ async def get_tools(
         from .course_search import get_tool_definitions
 
         all_tools.extend(get_tool_definitions())
+        all_tools.append(READ_URL_TOOL)
 
     return all_tools or None
 
@@ -65,6 +88,13 @@ async def execute_tool(
 
     # Local tools — no MCP needed
     if name in _LOCAL_TOOL_NAMES:
+        if name == "read_url":
+            args = json.loads(tool_call.function.arguments)
+            url = args.get("url", "")
+            from .external_reader import execute_read_url
+
+            return await execute_read_url(url)
+
         if content_index is None:
             return "Error: course content index not available"
         from .course_search import execute_tool as execute_local

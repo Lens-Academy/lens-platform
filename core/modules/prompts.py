@@ -19,6 +19,7 @@ You have access to tools for looking up information. Use them when:
 - The student asks about alignment research topics beyond the current material
 - You need to verify or expand on a specific claim
 - The student asks about something not covered in the course
+- You need to examine the live contents of an embedded website or external link (use `read_url`)
 
 When you use a tool, briefly mention what you're looking up. Cite sources \
 when providing information from tools."""
