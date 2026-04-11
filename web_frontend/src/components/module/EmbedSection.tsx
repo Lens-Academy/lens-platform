@@ -41,7 +41,7 @@ export function EmbedSection({ segment, onActivity }: EmbedSectionProps) {
   };
 
   return (
-    <div className="w-full flex justify-center my-8 group">
+    <div className="w-full flex flex-col items-center my-8 group">
       <div
         ref={wrapperRef}
         className={`relative rounded-xl overflow-hidden border transition-all duration-300 ${
@@ -69,6 +69,32 @@ export function EmbedSection({ segment, onActivity }: EmbedSectionProps) {
           title="Embedded content"
         />
       </div>
+
+      {/* Premium Attribution Bar */}
+      {(segment.sourceName || segment.author) && (
+        <div className="mt-3 flex items-center gap-1.5 text-[11px] font-medium tracking-tight text-slate-400 select-none">
+          <span className="uppercase tracking-widest text-[9px] font-bold text-slate-300">from</span>
+          {segment.sourceUrl ? (
+            <a 
+              href={segment.sourceUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-slate-500 hover:text-blue-500 transition-colors border-b border-transparent hover:border-blue-200 pb-0.5"
+            >
+              {segment.sourceName || "Original Source"}
+            </a>
+          ) : (
+            <span className="text-slate-500">{segment.sourceName}</span>
+          )}
+          {segment.author && (
+            <>
+              <span className="mx-1 text-slate-200">•</span>
+              <span className="uppercase tracking-widest text-[9px] font-bold text-slate-300">by</span>
+              <span className="text-slate-500">{segment.author}</span>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

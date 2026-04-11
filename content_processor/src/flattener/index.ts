@@ -1268,6 +1268,9 @@ function convertSegment(
         url: parsedSegment.url,
       };
       if (parsedSegment.contextUrl) segment.contextUrl = parsedSegment.contextUrl;
+      if (parsedSegment.author) segment.author = parsedSegment.author;
+      if (parsedSegment.sourceName) segment.sourceName = parsedSegment.sourceName;
+      if (parsedSegment.sourceUrl) segment.sourceUrl = parsedSegment.sourceUrl;
       if (parsedSegment.height) segment.height = parsedSegment.height;
       if (parsedSegment.width) segment.width = parsedSegment.width;
       if (parsedSegment.aspectRatio) segment.aspectRatio = parsedSegment.aspectRatio;

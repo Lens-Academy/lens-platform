@@ -70,6 +70,9 @@ export interface ParsedEmbedSegment {
   type: 'embed';
   url: string;
   contextUrl?: string;
+  author?: string;
+  sourceName?: string;
+  sourceUrl?: string;
   height?: string;
   width?: string;
   aspectRatio?: string;
@@ -553,6 +556,9 @@ export function convertSegment(
         type: 'embed',
         url: url.trim(),
         contextUrl: raw.fields['context-url']?.trim() || undefined,
+        author: raw.fields['author']?.trim() || undefined,
+        sourceName: raw.fields['source-name']?.trim() || undefined,
+        sourceUrl: raw.fields['source-url']?.trim() || undefined,
         height: raw.fields['height']?.trim() || undefined,
         width: raw.fields['width']?.trim() || undefined,
         aspectRatio: raw.fields['aspect-ratio']?.trim() || undefined,

@@ -116,6 +116,9 @@ class EmbedSegment:
     type: Literal["embed"]
     url: str
     context_url: str | None = None
+    author: str | None = None
+    source_name: str | None = None
+    source_url: str | None = None
     height: str | None = None
     width: str | None = None
     aspect_ratio: str | None = None
