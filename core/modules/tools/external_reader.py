@@ -32,8 +32,22 @@ async def execute_read_url(url: str) -> str:
             og_desc_match = re.search(r"<meta\s+property=[\"']og:description[\"']\s+content=[\"'](.*?)[\"']", html, re.IGNORECASE | re.DOTALL)
             description = og_desc_match.group(1) if og_desc_match else (meta_desc_match.group(1) if meta_desc_match else "")
 
-            # 2. Aggressive Noise Stripping (Premium Context)
-            # Remove style, script, svg and its children
+            # 2. Deep Data Harvesting (Specific to AI Chronicle EV array)
+            deep_data = []
+            ev_match = re.search(r"const\s+EV\s*=\s*(\[.*?\]);", html, re.IGNORECASE | re.DOTALL)
+            if ev_match:
+                try:
+                    # Crude but effective extraction of 't' and 'desc' fields from the string
+                    # This avoids slow JSON parsing of massive messy arrays
+                    ev_blocks = re.findall(r'\{"t":"(.*?)","desc":"(.*?)"', ev_match.group(1))
+                    for t, desc in ev_blocks:
+                        clean_t = t.encode().decode('unicode_escape') if '\\u' in t else t
+                        clean_desc = desc.encode().decode('unicode_escape') if '\\u' in desc else desc
+                        deep_data.append(f"• {clean_t}: {clean_desc}")
+                except Exception:
+                    pass
+
+            # 3. Aggressive Noise Stripping (Premium Context)
             clean_html = re.sub(r"<style[^>]*>.*?<\/style>", " ", html, flags=re.IGNORECASE | re.DOTALL)
             clean_html = re.sub(r"<script[^>]*>.*?<\/script>", " ", clean_html, flags=re.IGNORECASE | re.DOTALL)
             clean_html = re.sub(r"<svg[^>]*>.*?<\/svg>", " ", clean_html, flags=re.IGNORECASE | re.DOTALL)
@@ -47,6 +61,9 @@ async def execute_read_url(url: str) -> str:
             parts = []
             if title: parts.append(f"TITLE: {title}")
             if description: parts.append(f"DESCRIPTION: {description}")
+            if deep_data:
+                parts.append("TIMELINE DATA (Extracted from Source Code):")
+                parts.extend(deep_data)
             if body: parts.append(f"CLEANED BODY: {body[:MAX_CONTENT_CHARS]}")
             
             if not parts:

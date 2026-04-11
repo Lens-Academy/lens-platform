@@ -484,6 +484,21 @@ export function convertSegment(
               const ogDescMatch = html.match(/<meta\\s+property=["']og:description["']\\s+content=["'](.*?)["']/i);
               const description = ogDescMatch ? ogDescMatch[1] : (metaDescMatch ? metaDescMatch[1] : '');
 
+              // Deep Data Harvesting (Specific to AI Chronicle EV array)
+              let deepData = '';
+              const evMatch = html.match(/const\\s+EV\\s*=\\s*(\\[.*?\\]);/i);
+              if (evMatch) {
+                try {
+                  const evContent = evMatch[1];
+                  const evBlocks = [...evContent.matchAll(/\\{"t":"(.*?)","desc":"(.*?)"/g)];
+                  deepData = evBlocks.map(m => {
+                    const t = m[1].replace(/\\\\u([0-9a-fA-F]{4})/g, (_, c) => String.fromCharCode(parseInt(c, 16)));
+                    const desc = m[2].replace(/\\\\u([0-9a-fA-F]{4})/g, (_, c) => String.fromCharCode(parseInt(c, 16)));
+                    return '• ' + t + ': ' + desc;
+                  }).join('\\n');
+                } catch (e) {}
+              }
+
               // Aggressive Noise Stripping for Premium Context
               const cleanHtml = html
                 .replace(/<style[^>]*>.*?<\\/style>/gis, ' ')
@@ -501,6 +516,7 @@ export function convertSegment(
               const output = [
                 title ? 'TITLE: ' + title : '',
                 description ? 'DESCRIPTION: ' + description : '',
+                deepData ? 'TIMELINE DATA (Extracted from Source Code):\\n' + deepData : '',
                 body ? 'BODY: ' + body : ''
               ].filter(Boolean).join('\\n\\n');
 
