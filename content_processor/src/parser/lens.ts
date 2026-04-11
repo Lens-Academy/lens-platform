@@ -490,11 +490,15 @@ export function convertSegment(
               if (evMatch) {
                 try {
                   const evContent = evMatch[1];
-                  const evBlocks = [...evContent.matchAll(/\\{"t":"(.*?)","desc":"(.*?)"/g)];
-                  deepData = evBlocks.map(m => {
-                    const t = m[1].replace(/\\\\u([0-9a-fA-F]{4})/g, (_, c) => String.fromCharCode(parseInt(c, 16)));
-                    const desc = m[2].replace(/\\\\u([0-9a-fA-F]{4})/g, (_, c) => String.fromCharCode(parseInt(c, 16)));
-                    return '• ' + t + ': ' + desc;
+                  // More flexible regex to handle unquoted JS keys like t: and desc:
+                  const titles = [...evContent.matchAll(/t:"(.*?)"/g)].map(m => m[1]);
+                  const descs = [...evContent.matchAll(/desc:"(.*?)"/g)].map(m => m[1]);
+
+                  deepData = titles.map((t, i) => {
+                    const desc = descs[i] || '';
+                    const cleanT = t.replace(/\\\\u([0-9a-fA-F]{4})/g, (_, c) => String.fromCharCode(parseInt(c, 16)));
+                    const cleanDesc = desc.replace(/\\\\u([0-9a-fA-F]{4})/g, (_, c) => String.fromCharCode(parseInt(c, 16)));
+                    return '• ' + cleanT + ': ' + cleanDesc;
                   }).join('\\n');
                 } catch (e) {}
               }

@@ -37,10 +37,16 @@ async def execute_read_url(url: str) -> str:
             ev_match = re.search(r"const\s+EV\s*=\s*(\[.*?\]);", html, re.IGNORECASE | re.DOTALL)
             if ev_match:
                 try:
-                    # Crude but effective extraction of 't' and 'desc' fields from the string
-                    # This avoids slow JSON parsing of massive messy arrays
-                    ev_blocks = re.findall(r'\{"t":"(.*?)","desc":"(.*?)"', ev_match.group(1))
-                    for t, desc in ev_blocks:
+                    # More flexible regex to handle unquoted JS keys like t: and desc:
+                    # This captures both titles and descriptions independently
+                    content_chunk = ev_match.group(1)
+                    # Find all titles (t:"...") and descriptions (desc:"...")
+                    # We look for the patterns t:"..." and desc:"..."
+                    titles = re.findall(r't:"(.*?)"', content_chunk)
+                    descs = re.findall(r'desc:"(.*?)"', content_chunk)
+                    
+                    # Zip them together (they exist in pairs in the EV array)
+                    for t, desc in zip(titles, descs):
                         clean_t = t.encode().decode('unicode_escape') if '\\u' in t else t
                         clean_desc = desc.encode().decode('unicode_escape') if '\\u' in desc else desc
                         deep_data.append(f"• {clean_t}: {clean_desc}")
