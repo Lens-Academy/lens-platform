@@ -1,20 +1,19 @@
 """Tests for URL builder utilities."""
 
-import pytest
 from unittest.mock import patch
 
 
 class TestBuildUrls:
-    def test_builds_lesson_url(self):
-        from core.notifications.urls import build_lesson_url
+    def test_builds_module_url(self):
+        from core.notifications.urls import build_module_url
 
         with patch(
             "core.notifications.urls.get_frontend_url",
             return_value="https://aisafety.com",
         ):
-            url = build_lesson_url("lesson-123")
+            url = build_module_url("default", "module-123")
 
-        assert url == "https://aisafety.com/lesson/lesson-123"
+        assert url == "https://aisafety.com/course/default/module/module-123"
 
     def test_builds_profile_url(self):
         from core.notifications.urls import build_profile_url
@@ -25,7 +24,18 @@ class TestBuildUrls:
         ):
             url = build_profile_url()
 
-        assert url == "https://aisafety.com/signup"
+        assert url == "https://aisafety.com/enroll"
+
+    def test_builds_course_url(self):
+        from core.notifications.urls import build_course_url
+
+        with patch(
+            "core.notifications.urls.get_frontend_url",
+            return_value="https://aisafety.com",
+        ):
+            url = build_course_url()
+
+        assert url == "https://aisafety.com/course"
 
     def test_builds_discord_channel_url(self):
         from core.notifications.urls import build_discord_channel_url

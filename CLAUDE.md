@@ -2,39 +2,86 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**See also:** Subdirectory-specific guidance in `core/CLAUDE.md`, `discord_bot/CLAUDE.md`, `web_api/CLAUDE.md`, and `web_frontend/CLAUDE.md`.
+
+## Critical Rules
+
+**NEVER push directly to `main`** All changes must go through pull requests with CI checks.
+
+**NEVER push to [Lens-Academy/lens-edu-relay](https://github.com/Lens-Academy/lens-edu-relay)** (a separate repo, not this codebase) — not via `git push`, `gh api`, or any other method. That repo hosts the educational content and is continuously synced by `relay-git-sync` on the Hetzner relay production server. External pushes cause divergence that breaks the sync. Content validation CI workflow files (`.github/workflows/validate.yml`) live there. To modify them, ask the user for instructions on making changes via the production server. See `~/code/lens-relay/ws1/CLAUDE.md` for details.
+
+Always ask the user before pushing to any shared branch, including `staging`.
+
+**Before pushing ANY code to GitHub**, run these checks:
+
+```bash
+# Frontend (from web_frontend/)
+cd web_frontend
+npm run lint          # ESLint
+npm run build         # TypeScript type check + Vite/Vike build
+
+# Backend (from repo root)
+ruff check .          # Python linting
+ruff format --check . # Python formatting check
+pytest                # Run tests
+```
+
+Fix any errors before pushing. CI will run these same checks.
+
+## Python Virtual Environment
+
+A shared venv lives at the repo root and is symlinked as `.venv` in each workspace. Use it for running Python tools:
+
+```bash
+.venv/bin/python main.py    # Run server
+.venv/bin/alembic            # Run alembic
+.venv/bin/pytest             # Run tests
+```
+
 ## Commands
 
-Run the server: `python main.py --dev`. This is a unified backend (FastAPI + Discord Bot) that also serves the frontend.
+Run the server: `python main.py`. This is a unified backend (FastAPI + Discord Bot) that also serves the frontend.
 
 Options:
---dev (runs Vite dev server. Without --dev, FastAPI serves the compiled frontend.)
---no-bot (without Discord bot)
---no-db (skip database check - for frontend-only development)
---port (defaults to API_PORT env var, or 8000)
---vite-port (defaults to VITE_PORT env var, or 5173)
+- `--dev` - Dev mode: API returns JSON at /, run Vike frontend separately
+- `--no-bot` - Without Discord bot
+- `--no-db` - Skip database check (for frontend-only development)
+- `--port` - Override port (defaults to API_PORT env var, or 8000)
+
+**Debug mode:** Start the server with `DEBUG=1` to output the system prompt and messages in chat responses (rendered in the frontend before the LLM reply). Useful for reviewing prompt construction.
+
+**Database connection failures:** If the database connection fails, ask the user to start the database (Docker). Never use `--no-db` without explicit permission from the user.
 
 **Tests:**
-
 ```bash
-pytest discord_bot/tests/         # Scheduler algorithm tests
+pytest                        # All tests
+pytest core/tests/            # Core module tests
+pytest discord_bot/tests/     # Discord bot tests
+pytest web_api/tests/         # Web API tests
 ```
 
-**Legacy (standalone, for reference):**
+## Chrome DevTools MCP
 
-```bash
-cd discord_bot && python main.py  # Discord bot only
-cd web_api && python main.py      # FastAPI only
-```
+The Chrome DevTools MCP connects to Chrome on the **user's Windows device**, not the VPS. The VPS localhost ports are tunneled to the user's device as `dev.vps`. So when navigating in Chrome DevTools, use `http://dev.vps:<port>/...` (not `localhost`).
+
+## Testing Changes
+
+After making changes, start dev servers if not already running (check with `./scripts/list-servers`). Restart the backend server after any Python changes. Use Chrome DevTools MCP to verify changes in the browser first (navigate to `http://dev.vps:<port>/...`), and only ask the user to manually test after you've confirmed things look correct.
 
 ## Dev Server Management
 
-Ports are configured via `.env.local` (gitignored):
-```bash
-API_PORT=8001
-VITE_PORT=5174
-```
+Ports are auto-assigned based on workspace number (offset by 100 to avoid collisions when servers auto-increment):
+- No suffix → API :8000, Frontend :3000
+- `ws1` → API :8100, Frontend :3100
+- `ws2` → API :8200, Frontend :3200
+- `ws3` → API :8300, Frontend :3300
+- etc.
 
-If not set, defaults to 8000/5173. The server prints a note when using defaults.
+The frontend and backend ports must be exactly 5000 apart, or they won't be able to connect to each other.
+
+**Frontend port is auto-configured** — `vite.config.ts` detects the workspace number and sets the port automatically. Just run `npm run dev` from `web_frontend/` with no flags. Do NOT try to pass `--port` to Vite or Vike.
+
+**Backend port** can be overridden via `.env.local` (gitignored) or `python main.py --port <PORT>`.
 
 **Before killing any server, always list first:**
 ```bash
@@ -46,13 +93,12 @@ This shows which workspace started each server. Only kill servers from YOUR work
 ```bash
 lsof -ti:<PORT> | xargs kill
 ```
-Example: `lsof -ti:8000 | xargs kill` kills only the server on port 8000.
 
 **Never use:** `pkill -f "python main.py"` - this kills ALL dev servers across all workspaces.
 
 ## Architecture
 
-This is a Discord bot + web platform for AI Safety education course logistics.
+Discord bot + web platform for AI Safety education course logistics.
 
 ### Unified Backend
 
@@ -61,135 +107,92 @@ This is a Discord bot + web platform for AI Safety education course logistics.
 - **FastAPI** (HTTP server on :8000) - serves web API for React frontend
 - **Discord bot** (WebSocket to Discord) - handles slash commands and events
 
-Both services share:
-
-- The same event loop (can call each other's async functions directly)
-- The same `core/` business logic
-- The same database connections (PostgreSQL via SQLAlchemy)
-
-This eliminates need for IPC/message queues between services.
+Both services share the same event loop, `core/` business logic, and database connections (PostgreSQL via SQLAlchemy).
 
 ### 3-Layer Architecture
 
 ```
 ai-safety-course-platform/
-├── main.py                     # Unified backend entry point (FastAPI + Discord bot)
-├── requirements.txt            # Combined Python dependencies
+├── main.py                     # Unified entry point (FastAPI + Discord bot)
+├── requirements.txt            # Python dependencies
 │
 ├── core/                       # Layer 1: Business Logic (platform-agnostic)
-│   ├── scheduling.py           # Scheduling algorithm + Person/Group dataclasses
-│   ├── enrollment.py           # User profiles, availability storage
-│   ├── cohorts.py              # Group creation, availability matching
-│   ├── data.py                 # JSON persistence (legacy)
-│   ├── timezone.py             # UTC/local conversions
-│   ├── constants.py            # Day codes (M,T,W,R,F,S,U), timezones
-│   ├── google_docs.py          # Google Docs fetching/parsing
-│   └── cohort_names.py         # Group name generation
-│
-├── discord_bot/                # Layer 2a: Discord Adapter
-│   ├── main.py                 # Bot setup (imported by root main.py)
-│   ├── cogs/
-│   │   ├── scheduler_cog.py    # /schedule command → calls core/
-│   │   ├── enrollment_cog.py   # /signup UI → calls core/
-│   │   └── groups_cog.py       # /group command → calls core/ (needs refactor)
-│   ├── utils/                  # Re-exports from core/ for backward compat
+│   ├── *.py                    # Base modules (see core/CLAUDE.md)
+│   ├── calendar/               # Google Calendar integration
+│   ├── content/                # GitHub content fetching
+│   ├── modules/                # Course/module management
+│   ├── notifications/          # Multi-channel notifications
 │   └── tests/
 │
-├── web_api/                    # Layer 2b: FastAPI
-│   ├── main.py                 # Legacy standalone entry (not used in unified mode)
-│   ├── auth.py                 # JWT utilities (create_jwt, verify_jwt, get_current_user)
-│   └── routes/                 # API endpoints (imported by root main.py)
-│       ├── auth.py             # /auth/* - Discord OAuth, session management
-│       └── users.py            # /api/users/* - User profile endpoints
+├── discord_bot/                # Layer 2a: Discord Adapter (see discord_bot/CLAUDE.md)
+│   ├── main.py
+│   ├── cogs/                   # Slash commands
+│   └── tests/
 │
-├── web_frontend/               # Layer 3: React frontend
-└── activities/                 # Discord Activities (vanilla JS)
+├── web_api/                    # Layer 2b: FastAPI (see web_api/CLAUDE.md)
+│   ├── auth.py                 # JWT utilities
+│   ├── routes/                 # API endpoints
+│   └── tests/
+│
+├── web_frontend/               # Layer 3: Vike + React (see web_frontend/CLAUDE.md)
+│   ├── src/
+│   └── dist/                   # Built SPA (served by FastAPI)
+│
+├── migrations/                 # Raw SQL database migrations
+├── alembic/                    # Alembic migration config
+├── docs/                       # Design docs
+└── scripts/                    # Utility scripts
 ```
 
-Layer 2a (Discord adapter) and 2b (FastAPI) should never communicate directly. I.e., they should never import functions from each other directly.
+**Layer separation:** Layer 2a (Discord) and Layer 2b (FastAPI) should never import from each other. Both delegate to `core/`.
 
-### Core (`core/`)
+## Database Migrations
 
-**Platform-agnostic business logic** - no Discord imports, pure Python:
+**Workflow for schema changes:**
 
-- `scheduling.py` - Stochastic greedy algorithm, `Person`/`Group` dataclasses
-- `enrollment.py` - `get_user_profile()`, `save_user_profile()`, `get_facilitators()`
-- `cohorts.py` - `find_availability_overlap()`, `format_local_time()`
-- `data.py` - JSON persistence (legacy)
-- `database.py` - SQLAlchemy async engine (`get_connection()`, `get_transaction()`)
-- `auth.py` - Discord-to-Web auth flow (`create_auth_code()`, `get_or_create_user()`)
+1. **Edit SQLAlchemy schema** in `core/tables.py`
+2. **Auto-generate migration** with Alembic:
+   ```bash
+   .venv/bin/alembic revision --autogenerate -m "description of change"
+   ```
+3. **Manually review and fix** the generated migration file in `alembic/versions/`
+   - Alembic autogenerate is imperfect - always verify the SQL is correct
+   - Add data migrations if needed
+   - Test both upgrade and downgrade paths
+4. **Walk through migration with user** - Show the user the migration and explain changes
+5. **Run the migration** after user approval
 
-### Discord Bot (`discord_bot/`)
-
-**Thin adapter cogs** - handle Discord UI/events, delegate logic to core/:
-
-- `scheduler_cog.py` - `/schedule`, `/list-users` commands
-- `enrollment_cog.py` - `/signup` flow with Views/Buttons/Selects
-- `groups_cog.py` - `/group` command, channel/event creation (needs refactor)
-
-### Activities (`activities/`)
-
-Static HTML/JS Discord Activities served via `npx serve`. Each subfolder is a route. Currently vanilla JS, planned migration to React.
-
-## Key Patterns
-
-**Creating a new cog:**
-
-```python
-import discord
-from discord import app_commands
-from discord.ext import commands
-
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from core import get_user_profile, save_user_profile  # Import from core
-
-class MyCog(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-
-    @app_commands.command(name="mycommand", description="Description")
-    async def my_command(self, interaction: discord.Interaction):
-        await interaction.response.send_message("Hello!")
-
-async def setup(bot):
-    await bot.add_cog(MyCog(bot))
-```
-
-Then add `"cogs.my_cog"` to `COGS` list in `main.py`.
-
-**Admin-only commands:** Add `@app_commands.checks.has_permissions(administrator=True)`
-
-**Data access (from cogs):**
-
-```python
-from core import (
-    get_user_profile, save_user_profile,
-    get_facilitators, is_facilitator
-)
-```
-
-**Adding business logic:** Add to `core/` module, export in `core/__init__.py`, then import in cogs.
+Never write raw SQL migrations directly. Always start from SQLAlchemy schema changes.
 
 ## UI/UX Patterns
 
-**Never use `cursor-not-allowed`** - use `cursor-default` instead for non-interactive elements. The not-allowed cursor is visually aggressive and unnecessary; a default cursor with lack of hover feedback is sufficient to indicate non-interactivity.
+**Never use `cursor-not-allowed`** - use `cursor-default` instead for non-interactive elements.
 
 ## Hosting
 
 Single Railway service running the unified backend (`uvicorn main:app`).
 Database: PostgreSQL (Supabase-hosted, accessed via SQLAlchemy).
 
-**Railway CLI:**
+**Key integrations:**
+- Sentry - Error tracking (backend and frontend)
+- PostHog - Analytics
+- SendGrid - Email notifications
+- Google Calendar API - Meeting scheduling
+- LiteLLM - LLM provider abstraction
 
+**Railway CLI:**
 ```bash
 # Link to staging (default for development)
 railway link -p 779edcd4-bb95-40ad-836f-0bf4113c4453 -e 0cadba59-5e24-4d9f-8620-c8fc2722a2de -s lensacademy
 
+# Link to production — ONLY when explicitly asked by the user
+railway link -p 779edcd4-bb95-40ad-836f-0bf4113c4453 -e production -s lens-academy
+
 # View logs
 railway logs -n 100
+
+# List all services in current environment
+railway service status --all
 ```
 
-For production access, go to Railway Dashboard → production environment and copy the URL.
+**IMPORTANT:** Never connect to production unless the user explicitly asks. Default to staging for all development work.

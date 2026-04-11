@@ -3,33 +3,45 @@
  */
 
 export type StageInfo = {
-  type: "article" | "video" | "chat";
+  type: "article" | "video" | "chat" | "lens" | "test";
+  displayType?: "lens-article" | "lens-video" | "lens-mixed";
   title: string;
-  duration: string | null;
+  duration: number | null;
   optional: boolean;
+  hide?: boolean;
+  // New fields for lens-level progress tracking
+  contentId?: string | null;
+  completed?: boolean;
+  tldr?: string;
+  attribution?: string;
 };
 
-export type LessonStatus = "completed" | "in_progress" | "not_started";
+export type ModuleStatus = "completed" | "in_progress" | "not_started";
 
-export type LessonInfo = {
+export type ModuleInfo = {
   slug: string;
   title: string;
   stages: StageInfo[];
-  status: LessonStatus;
-  currentStageIndex: number | null;
-  sessionId: number | null;
+  status: ModuleStatus;
   optional: boolean;
-};
-
-export type ModuleInfo = {
-  id: string;
-  title: string;
-  lessons: LessonInfo[];
+  // Submodule fields (present when module was split from a parent)
+  parentSlug?: string | null;
+  parentTitle?: string | null;
+  // Legacy fields (may still be present)
+  currentStageIndex?: number | null;
+  sessionId?: number | null;
+  // New lens progress fields
+  completedLenses?: number;
+  totalLenses?: number;
+  // Module duration in minutes (computed from content word count + video duration)
+  duration?: number | null;
 };
 
 export type UnitInfo = {
   meetingNumber: number | null;
-  lessons: LessonInfo[];
+  meetingName?: string | null;
+  meetingDate?: string | null;
+  modules: ModuleInfo[];
 };
 
 export type CourseProgress = {

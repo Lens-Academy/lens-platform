@@ -1,72 +1,98 @@
 import { useEffect, useRef, useCallback } from "react";
 import { API_URL } from "../config";
+import { sendHeartbeatPing } from "../api/progress";
+import { getAnonymousToken } from "./useAnonymousToken";
 
 interface ActivityTrackerOptions {
-  sessionId: number;
-  stageIndex: number;
-  stageType: "article" | "video" | "chat";
+  contentId?: string;
+  loId?: string | null;
+  moduleId?: string | null;
+  isAuthenticated?: boolean;
+  contentTitle?: string;
+  moduleTitle?: string;
+  loTitle?: string;
+
   inactivityTimeout?: number; // ms, default 180000 (3 min)
-  heartbeatInterval?: number; // ms, default 30000 (30 sec)
+  heartbeatInterval?: number; // ms, default 20000 (20 sec)
   enabled?: boolean;
 }
 
 export function useActivityTracker({
-  sessionId,
-  stageIndex,
-  stageType,
+  contentId,
+  loId,
+  moduleId,
+  isAuthenticated = false,
+  contentTitle,
+  moduleTitle,
+  loTitle,
   inactivityTimeout = 180_000,
-  heartbeatInterval = 30_000,
+  heartbeatInterval = 20_000,
   enabled = true,
 }: ActivityTrackerOptions) {
   const isActiveRef = useRef(false);
-  // Initialize to null, set on first activity to avoid impure Date.now() during render
   const lastActivityRef = useRef<number | null>(null);
   const heartbeatIntervalRef = useRef<number | null>(null);
-  const scrollDepthRef = useRef(0);
 
-  const sendHeartbeat = useCallback(async () => {
-    if (!enabled) return;
+  // Build sendBeacon payload (no time_delta_s — server computes time)
+  const buildBeaconPayload = useCallback(() => {
+    if (!contentId) return null;
+    return JSON.stringify({
+      content_id: contentId,
+      ...(loId ? { lo_id: loId } : {}),
+      ...(moduleId ? { module_id: moduleId } : {}),
+      ...(contentTitle ? { content_title: contentTitle } : {}),
+      ...(moduleTitle ? { module_title: moduleTitle } : {}),
+      ...(loTitle ? { lo_title: loTitle } : {}),
+    });
+  }, [contentId, loId, moduleId, contentTitle, moduleTitle, loTitle]);
 
-    try {
-      await fetch(`${API_URL}/api/lesson-sessions/${sessionId}/heartbeat`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stage_index: stageIndex,
-          stage_type: stageType,
-          scroll_depth: stageType === "article" ? scrollDepthRef.current : null,
-        }),
-      });
-    } catch (error) {
-      // Fire-and-forget, ignore errors
-      console.debug("Heartbeat failed:", error);
+  // Fire a sendBeacon ping (for visibility hidden + cleanup)
+  const sendBeacon = useCallback(() => {
+    if (!contentId || !isActiveRef.current) return;
+    const payload = buildBeaconPayload();
+    if (!payload) return;
+
+    const url = `${API_URL}/api/progress/time`;
+    const blob = new Blob([payload], { type: "application/json" });
+    if (!isAuthenticated) {
+      const token = getAnonymousToken();
+      navigator.sendBeacon(`${url}?anonymous_token=${token}`, blob);
+    } else {
+      navigator.sendBeacon(url, blob);
     }
-  }, [sessionId, stageIndex, stageType, enabled]);
+  }, [contentId, isAuthenticated, buildBeaconPayload]);
+
+  // Heartbeat: just ping the server, no time computation
+  const sendHeartbeat = useCallback(async () => {
+    if (!enabled || !contentId) return;
+    try {
+      await sendHeartbeatPing(
+        contentId,
+        isAuthenticated,
+        loId,
+        moduleId,
+        contentTitle,
+        moduleTitle,
+        loTitle,
+      );
+    } catch (error) {
+      console.debug("Progress heartbeat failed:", error);
+    }
+  }, [
+    contentId,
+    loId,
+    moduleId,
+    isAuthenticated,
+    enabled,
+    contentTitle,
+    moduleTitle,
+    loTitle,
+  ]);
 
   const handleActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
-
-    if (!isActiveRef.current) {
-      isActiveRef.current = true;
-      // Send immediate heartbeat when becoming active
-      sendHeartbeat();
-    }
-  }, [sendHeartbeat]);
-
-  const handleScroll = useCallback(() => {
-    handleActivity();
-
-    // Track scroll depth for articles
-    if (stageType === "article") {
-      const scrollTop = window.scrollY;
-      const docHeight =
-        document.documentElement.scrollHeight - window.innerHeight;
-      if (docHeight > 0) {
-        scrollDepthRef.current = Math.min(1, scrollTop / docHeight);
-      }
-    }
-  }, [handleActivity, stageType]);
+    isActiveRef.current = true;
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
@@ -76,11 +102,11 @@ export function useActivityTracker({
     events.forEach((event) => {
       window.addEventListener(event, handleActivity, { passive: true });
     });
-    window.addEventListener("scroll", handleScroll, { passive: true });
 
-    // Visibility change
+    // Visibility change — flush beacon when tab is hidden
     const handleVisibility = () => {
       if (document.hidden) {
+        sendBeacon();
         isActiveRef.current = false;
       }
     };
@@ -88,7 +114,6 @@ export function useActivityTracker({
 
     // Heartbeat interval
     heartbeatIntervalRef.current = window.setInterval(() => {
-      // If no activity recorded yet, don't mark as inactive
       if (lastActivityRef.current === null) return;
 
       const timeSinceActivity = Date.now() - lastActivityRef.current;
@@ -105,12 +130,24 @@ export function useActivityTracker({
     // Initial activity
     handleActivity();
 
+    // Send initial heartbeat to establish last_heartbeat_at on the server
+    sendHeartbeat();
+
+    // sendBeacon on page unload
+    const handleBeforeUnload = () => {
+      sendBeacon();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
     return () => {
+      // Flush a final beacon on cleanup (e.g., section switch)
+      sendBeacon();
+
       events.forEach((event) => {
         window.removeEventListener(event, handleActivity);
       });
-      window.removeEventListener("scroll", handleScroll);
       document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
 
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
@@ -118,14 +155,18 @@ export function useActivityTracker({
     };
   }, [
     enabled,
+    contentId,
+    loId,
+    moduleId,
+    isAuthenticated,
     handleActivity,
-    handleScroll,
     sendHeartbeat,
+    sendBeacon,
     heartbeatInterval,
     inactivityTimeout,
   ]);
 
-  // Manual activity trigger (for video play events)
+  // Manual activity trigger (for video play events, chat streaming)
   const triggerActivity = useCallback(() => {
     handleActivity();
   }, [handleActivity]);

@@ -17,9 +17,10 @@ class CohortStatus(str, enum.Enum):
 
 
 class GroupStatus(str, enum.Enum):
-    forming = "forming"
+    preview = "preview"
     active = "active"
     completed = "completed"
+    merged = "merged"  # When groups are combined
     cancelled = "cancelled"
 
 
@@ -65,16 +66,13 @@ class RSVPStatus(str, enum.Enum):
     tentative = "tentative"
 
 
-class StageType(str, enum.Enum):
-    article = "article"
-    video = "video"
-    chat = "chat"
+class NotificationReferenceType(str, enum.Enum):
+    """Types of entities that notifications can reference."""
 
-
-class ContentEventType(str, enum.Enum):
-    heartbeat = "heartbeat"
-    start = "start"
-    complete = "complete"
+    group_id = "group_id"
+    meeting_id = "meeting_id"
+    cohort_id = "cohort_id"
+    user_id = "user_id"
 
 
 # =====================================================
@@ -102,4 +100,10 @@ ungroupable_reason_enum = SQLEnum(
 )
 rsvp_status_enum = SQLEnum(
     RSVPStatus, name="rsvp_status", create_type=False, native_enum=True
+)
+notification_reference_type_enum = SQLEnum(
+    NotificationReferenceType,
+    name="notification_reference_type",
+    create_type=False,
+    native_enum=True,
 )

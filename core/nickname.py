@@ -5,8 +5,6 @@ Discord-specific sync (update_nickname_in_discord) stays in nickname_cog.py
 since it needs bot access.
 """
 
-from typing import Any
-
 from .database import get_connection, get_transaction
 from .tables import users
 from sqlalchemy import select, update as sql_update

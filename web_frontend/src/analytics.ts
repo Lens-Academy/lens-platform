@@ -1,10 +1,12 @@
-// web_frontend/src/analytics.ts
 import posthog from "posthog-js";
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY;
 const POSTHOG_HOST =
   import.meta.env.VITE_POSTHOG_HOST || "https://eu.posthog.com";
 const CONSENT_KEY = "analytics-consent";
+const MARKETING_CONSENT_KEY = "marketing-consent";
+
+import { API_URL } from "./config";
 
 // PostHog only runs in production to keep analytics clean
 const IS_PRODUCTION = import.meta.env.PROD;
@@ -28,7 +30,7 @@ export function initPostHog(): void {
       console.log("[analytics] Skipping PostHog in development mode");
     } else if (!POSTHOG_KEY) {
       console.warn(
-        "[analytics] VITE_POSTHOG_KEY not set, skipping PostHog init"
+        "[analytics] VITE_POSTHOG_KEY not set, skipping PostHog init",
       );
     }
     return;
@@ -36,7 +38,7 @@ export function initPostHog(): void {
 
   if (initialized) return;
 
-  posthog.init(POSTHOG_KEY, {
+  posthog.init(POSTHOG_KEY!, {
     api_host: POSTHOG_HOST,
     capture_pageview: false, // We'll capture manually for SPA
     capture_pageleave: true,
@@ -64,7 +66,7 @@ export function identifyUser(
     discord_username?: string;
     email?: string | null;
     nickname?: string | null;
-  }
+  },
 ): void {
   if (!isAnalyticsEnabled() || !initialized || !hasConsent()) return;
 
@@ -85,10 +87,49 @@ export function resetUser(): void {
 }
 
 /**
+ * Sync consent choice to database (fire-and-forget).
+ * localStorage remains source of truth; DB enables cross-device sync and server-side queries.
+ */
+export async function syncConsentToServer(
+  choice: "accepted" | "declined",
+): Promise<void> {
+  try {
+    await fetch(`${API_URL}/api/users/me`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cookies_analytics_consent: choice }),
+    });
+  } catch {
+    // Fire-and-forget — localStorage is source of truth
+  }
+}
+
+/**
+ * Sync marketing consent choice to database (fire-and-forget).
+ * localStorage remains source of truth; DB enables cross-device sync and server-side queries.
+ */
+export async function syncMarketingConsentToServer(
+  choice: "accepted" | "declined",
+): Promise<void> {
+  try {
+    await fetch(`${API_URL}/api/users/me`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cookies_marketing_consent: choice }),
+    });
+  } catch {
+    // Fire-and-forget — localStorage is source of truth
+  }
+}
+
+/**
  * Opt in to tracking (user accepted consent)
  */
 export function optIn(): void {
   localStorage.setItem(CONSENT_KEY, "accepted");
+  syncConsentToServer("accepted");
   if (!isAnalyticsEnabled()) return;
 
   if (initialized) {
@@ -104,6 +145,7 @@ export function optIn(): void {
  */
 export function optOut(): void {
   localStorage.setItem(CONSENT_KEY, "declined");
+  syncConsentToServer("declined");
   if (!isAnalyticsEnabled() || !initialized) return;
   posthog.opt_out_capturing();
 }
@@ -112,6 +154,7 @@ export function optOut(): void {
  * Check if user has consented
  */
 export function hasConsent(): boolean {
+  if (typeof window === "undefined") return false;
   return localStorage.getItem(CONSENT_KEY) === "accepted";
 }
 
@@ -119,6 +162,7 @@ export function hasConsent(): boolean {
  * Check if user has made a consent choice (either way)
  */
 export function hasConsentChoice(): boolean {
+  if (typeof window === "undefined") return false;
   const consent = localStorage.getItem(CONSENT_KEY);
   return consent === "accepted" || consent === "declined";
 }
@@ -137,95 +181,154 @@ function shouldTrack(): boolean {
   return isAnalyticsEnabled() && initialized && hasConsent();
 }
 
-// Lesson events
-export function trackLessonStarted(
-  lessonId: string,
-  lessonTitle: string
+// Module events
+export function trackModuleStarted(
+  moduleId: string,
+  moduleTitle: string,
 ): void {
   if (!shouldTrack()) return;
-  posthog.capture("lesson_started", {
-    lesson_id: lessonId,
-    lesson_title: lessonTitle,
+  posthog.capture("module_started", {
+    module_id: moduleId,
+    module_title: moduleTitle,
   });
 }
 
-export function trackVideoStarted(lessonId: string): void {
+export function trackVideoStarted(moduleId: string): void {
   if (!shouldTrack()) return;
-  posthog.capture("video_started", { lesson_id: lessonId });
+  posthog.capture("video_started", { module_id: moduleId });
 }
 
 export function trackVideoCompleted(
-  lessonId: string,
-  watchDuration: number
+  moduleId: string,
+  watchDuration: number,
 ): void {
   if (!shouldTrack()) return;
   posthog.capture("video_completed", {
-    lesson_id: lessonId,
+    module_id: moduleId,
     watch_duration: watchDuration,
   });
 }
 
 export function trackArticleScrolled(
-  lessonId: string,
-  percent: 25 | 50 | 75 | 100
+  moduleId: string,
+  percent: 25 | 50 | 75 | 100,
 ): void {
   if (!shouldTrack()) return;
-  posthog.capture("article_scrolled", { lesson_id: lessonId, percent });
+  posthog.capture("article_scrolled", { module_id: moduleId, percent });
 }
 
-export function trackArticleCompleted(lessonId: string): void {
+export function trackArticleCompleted(moduleId: string): void {
   if (!shouldTrack()) return;
-  posthog.capture("article_completed", { lesson_id: lessonId });
+  posthog.capture("article_completed", { module_id: moduleId });
 }
 
-export function trackChatOpened(lessonId: string): void {
+export function trackChatOpened(moduleId: string): void {
   if (!shouldTrack()) return;
-  posthog.capture("chat_opened", { lesson_id: lessonId });
+  posthog.capture("chat_opened", { module_id: moduleId });
 }
 
 export function trackChatMessageSent(
-  lessonId: string,
-  messageLength: number
+  moduleId: string,
+  messageLength: number,
 ): void {
   if (!shouldTrack()) return;
   posthog.capture("chat_message_sent", {
-    lesson_id: lessonId,
+    module_id: moduleId,
     message_length: messageLength,
   });
 }
 
 export function trackChatSessionEnded(
-  lessonId: string,
+  moduleId: string,
   messageCount: number,
-  durationSeconds: number
+  durationSeconds: number,
 ): void {
   if (!shouldTrack()) return;
   posthog.capture("chat_session_ended", {
-    lesson_id: lessonId,
+    module_id: moduleId,
     message_count: messageCount,
     duration: durationSeconds,
   });
 }
 
-export function trackLessonCompleted(lessonId: string): void {
+export function trackModuleCompleted(moduleId: string): void {
   if (!shouldTrack()) return;
-  posthog.capture("lesson_completed", { lesson_id: lessonId });
+  posthog.capture("module_completed", { module_id: moduleId });
 }
 
-// Signup events
-export function trackSignupStarted(): void {
+// Enrollment events
+export function trackEnrollmentStarted(): void {
   if (!shouldTrack()) return;
-  posthog.capture("signup_started");
+  posthog.capture("enrollment_started");
 }
 
-export function trackSignupStepCompleted(stepName: string): void {
+export function trackEnrollmentStepCompleted(stepName: string): void {
   if (!shouldTrack()) return;
-  posthog.capture("signup_step_completed", { step_name: stepName });
+  posthog.capture("enrollment_step_completed", { step_name: stepName });
 }
 
-export function trackSignupCompleted(): void {
+export function trackEnrollmentCompleted(): void {
   if (!shouldTrack()) return;
-  posthog.capture("signup_completed");
+  posthog.capture("enrollment_completed");
+}
+
+// ============ Marketing Consent ============
+
+export function hasMarketingConsent(): boolean {
+  return localStorage.getItem(MARKETING_CONSENT_KEY) === "accepted";
+}
+
+/**
+ * Update the consent_state on a referral click (fire-and-forget).
+ * Called when the visitor makes their cookie banner choice, if they
+ * arrived via a referral link in this session.
+ */
+function updateClickConsent(choice: "accepted" | "declined"): void {
+  const clickId = sessionStorage.getItem("ref_click_id");
+  if (!clickId) return;
+  // Don't remove ref_click_id — it's still needed for OAuth attribution.
+  // It will be cleaned up by useAuth after successful login.
+  fetch(`${API_URL}/ref/clicks/${clickId}/consent`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ consent_state: choice }),
+  }).catch(() => {
+    // Fire-and-forget — click consent is best-effort
+  });
+}
+
+export function optInMarketing(): void {
+  localStorage.setItem(MARKETING_CONSENT_KEY, "accepted");
+  syncMarketingConsentToServer("accepted");
+  // Set a cookie the server can read for the /ref route
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `marketing-consent=accepted; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax${secure}`;
+  // If there's a pending referral in sessionStorage, promote it to a cookie
+  // so attribution survives across sessions (e.g., user leaves and comes back later)
+  const pendingRef = sessionStorage.getItem("ref");
+  if (pendingRef) {
+    document.cookie = `ref=${encodeURIComponent(pendingRef)}; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax${secure}`;
+  }
+  // Also promote click_id to a cookie for cross-session attribution fallback
+  const pendingClickId = sessionStorage.getItem("ref_click_id");
+  if (pendingClickId) {
+    document.cookie = `ref_click_id=${encodeURIComponent(pendingClickId)}; path=/; max-age=${90 * 24 * 60 * 60}; SameSite=Lax${secure}`;
+  }
+  updateClickConsent("accepted");
+}
+
+export function optOutMarketing(): void {
+  localStorage.setItem(MARKETING_CONSENT_KEY, "declined");
+  syncMarketingConsentToServer("declined");
+  document.cookie = "marketing-consent=declined; path=/; max-age=0";
+  // Note: the ref cookie is HttpOnly (server-set) so it cannot be cleared from JS.
+  // It will be ignored on next OAuth callback since marketing consent is declined.
+  updateClickConsent("declined");
+}
+
+export function hasMarketingConsentChoice(): boolean {
+  const consent = localStorage.getItem(MARKETING_CONSENT_KEY);
+  return consent === "accepted" || consent === "declined";
 }
 
 export { posthog };

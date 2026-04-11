@@ -1,0 +1,183 @@
+import { useState, useEffect } from "react";
+import { useAuth } from "../hooks/useAuth";
+import { Skeleton, SkeletonText } from "../components/Skeleton";
+import ScheduleSelector from "../components/schedule/ScheduleSelector";
+import type { AvailabilityData } from "../types/enroll";
+import {
+  COMMON_TIMEZONES,
+  formatTimezoneDisplay,
+  EMPTY_AVAILABILITY,
+  getBrowserTimezone,
+} from "../types/enroll";
+import { API_URL } from "../config";
+import { fetchWithRefresh } from "../api/fetchWithRefresh";
+
+export default function Availability() {
+  const { isAuthenticated, isLoading, user, login } = useAuth();
+  const [availability, setAvailability] = useState<AvailabilityData>({
+    ...EMPTY_AVAILABILITY,
+  });
+  const [timezone, setTimezone] = useState(getBrowserTimezone());
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
+    "idle",
+  );
+
+  // Load existing data when user is authenticated
+  useEffect(() => {
+    if (user) {
+      if (user.availability_local) {
+        try {
+          setAvailability(JSON.parse(user.availability_local));
+        } catch {
+          // Keep default empty
+        }
+      }
+      if (user.timezone) {
+        setTimezone(user.timezone);
+      }
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveStatus("idle");
+    try {
+      const response = await fetchWithRefresh(`${API_URL}/api/users/me`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          timezone: timezone,
+          availability_local: JSON.stringify(availability),
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to save");
+      setSaveStatus("success");
+    } catch {
+      setSaveStatus("error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const totalSlots = Object.values(availability).reduce(
+    (sum, slots) => sum + slots.length,
+    0,
+  );
+
+  if (isLoading) {
+    return (
+      <div className="py-8 flex justify-center">
+        <div className="space-y-4">
+          <Skeleton variant="rectangular" className="h-10 w-64" />
+          <SkeletonText lines={2} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="py-8 max-w-md mx-auto text-center">
+        <h1 className="text-2xl font-bold text-[var(--brand-text)] mb-4">
+          Edit Your Availability
+        </h1>
+        <p className="text-[var(--brand-text-muted)] mb-6">
+          Please sign in with Discord to view and edit your availability.
+        </p>
+        <button
+          onClick={login}
+          className="px-6 py-3 bg-[#5865F2] hover:bg-[#4752C4] text-white font-medium rounded-lg transition-colors"
+        >
+          Sign in with Discord
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-8 pb-24">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-2xl font-bold text-[var(--brand-text)] mb-2">
+          Your Availability
+        </h1>
+        <p className="text-[var(--brand-text-muted)] mb-6">
+          Update the times when you're available to participate in course
+          sessions.
+        </p>
+
+        <div className="mb-6">
+          <label
+            htmlFor="timezone"
+            className="block text-sm font-medium text-[var(--brand-text-muted)] mb-2"
+          >
+            Your Timezone
+          </label>
+          <select
+            id="timezone"
+            value={timezone}
+            onChange={(e) => {
+              setTimezone(e.target.value);
+              setSaveStatus("idle");
+            }}
+            className="w-full max-w-xs px-3 py-2 border border-[var(--brand-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-lens-orange-500 focus:border-lens-orange-500"
+          >
+            {/* Include current timezone if not in common list */}
+            {!COMMON_TIMEZONES.includes(
+              timezone as (typeof COMMON_TIMEZONES)[number],
+            ) && (
+              <option value={timezone}>
+                {formatTimezoneDisplay(timezone)}
+              </option>
+            )}
+            {COMMON_TIMEZONES.map((tz) => (
+              <option key={tz} value={tz}>
+                {formatTimezoneDisplay(tz)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <ScheduleSelector
+          value={availability}
+          onChange={(data) => {
+            setAvailability(data);
+            setSaveStatus("idle");
+          }}
+          startHour={8}
+          endHour={22}
+        />
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-[var(--brand-bg)]/95 backdrop-blur-sm border-t border-[var(--brand-border)] py-4 z-10">
+        <div className="max-w-2xl mx-auto px-4 flex items-center gap-4">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving || totalSlots === 0}
+            className={`px-6 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
+              isSaving || totalSlots === 0
+                ? "bg-[var(--brand-border)] text-[var(--brand-text-muted)]"
+                : "bg-lens-orange-500 hover:bg-lens-orange-600 text-white"
+            }`}
+          >
+            {isSaving
+              ? "Saving..."
+              : totalSlots === 0
+                ? "Select at least one time slot"
+                : "Save Changes"}
+          </button>
+          {saveStatus === "success" && (
+            <span className="text-green-600 font-medium">Saved!</span>
+          )}
+          {saveStatus === "error" && (
+            <span className="text-red-600 font-medium">
+              Error saving. Please try again.
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

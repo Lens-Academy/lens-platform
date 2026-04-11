@@ -1,31 +1,31 @@
 """SQLAlchemy Core table definitions for the database schema."""
 
 from sqlalchemy import (
-    ARRAY,
+    BigInteger,
     Boolean,
+    CheckConstraint,
     Column,
     Date,
-    Float,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
     MetaData,
     Table,
     Text,
+    UniqueConstraint,
     func,
+    text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
-
-from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
 
 from .enums import (
-    ContentEventType,
-    StageType,
     cohort_role_enum,
     cohort_status_enum,
     group_status_enum,
     group_user_role_enum,
     group_user_status_enum,
+    notification_reference_type_enum,
     rsvp_status_enum,
     ungroupable_reason_enum,
 )
@@ -63,6 +63,23 @@ users = Table(
     Column("dm_notifications_enabled", Boolean, server_default="true"),
     Column("is_admin", Boolean, server_default="false"),
     Column("tos_accepted_at", TIMESTAMP(timezone=True)),
+    Column("cookies_analytics_consent", Text),  # 'accepted' | 'declined' | NULL
+    Column("cookies_analytics_consent_at", TIMESTAMP(timezone=True)),
+    Column("cookies_marketing_consent", Text),  # 'accepted' | 'declined' | NULL
+    Column("cookies_marketing_consent_at", TIMESTAMP(timezone=True)),
+    Column(
+        "referred_by_click_id",
+        Integer,
+        ForeignKey("referral_clicks.click_id", ondelete="SET NULL", use_alter=True),
+    ),
+    CheckConstraint(
+        "cookies_analytics_consent IN ('accepted', 'declined')",
+        name="valid_cookies_analytics_consent",
+    ),
+    CheckConstraint(
+        "cookies_marketing_consent IN ('accepted', 'declined')",
+        name="valid_cookies_marketing_consent",
+    ),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("deleted_at", TIMESTAMP(timezone=True)),
@@ -106,6 +123,7 @@ cohorts = Table(
     Column("duration_days", Integer, nullable=False),
     Column("number_of_group_meetings", Integer, nullable=False),
     Column("discord_category_id", Text),
+    Column("discord_cohort_channel_id", Text),
     Column("status", cohort_status_enum, server_default="active"),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now()),
@@ -133,13 +151,15 @@ groups = Table(
     ),  # NULL = use cohort's course_slug, set = A/B test variant
     Column("discord_category_id", Text),
     Column("discord_text_channel_id", Text),
-    Column("discord_voice_channel_id", Text),
+    Column("discord_role_id", Text),
     Column("recurring_meeting_time_utc", Text),
-    Column("status", group_status_enum, server_default="forming"),
+    Column("status", group_status_enum, server_default="preview"),
     Column("start_date", Date),
     Column("expected_end_date", Date),
     Column("actual_end_date", Date),
     Column("discord_channel_archived_at", TIMESTAMP(timezone=True)),
+    Column("gcal_recurring_event_id", Text),
+    Column("calendar_invite_sent_at", TIMESTAMP(timezone=True)),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Index("idx_groups_cohort_id", "cohort_id"),
@@ -203,6 +223,7 @@ signups = Table(
     Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Index("idx_signups_user_id", "user_id"),
     Index("idx_signups_cohort_id", "cohort_id"),
+    UniqueConstraint("user_id", "cohort_id", name="uq_signups_user_id_cohort_id"),
 )
 
 
@@ -225,10 +246,9 @@ meetings = Table(
     ),
     Column("scheduled_at", TIMESTAMP(timezone=True), nullable=False),
     Column("meeting_number", Integer),
-    Column("discord_event_id", Text),
-    Column("discord_voice_channel_id", Text),
-    Column("google_calendar_event_id", Text),
-    Column("calendar_invite_sent_at", TIMESTAMP(timezone=True)),
+    Column("zoom_meeting_id", BigInteger),
+    Column("zoom_join_url", Text),
+    Column("zoom_host_email", Text),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Index("idx_meetings_group_id", "group_id"),
@@ -259,9 +279,11 @@ attendances = Table(
     Column("rsvp_status", rsvp_status_enum, server_default="pending"),
     Column("rsvp_at", TIMESTAMP(timezone=True)),
     Column("checked_in_at", TIMESTAMP(timezone=True)),
+    Column("is_guest", Boolean, server_default=text("false"), nullable=False),
     Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
     Index("idx_attendances_meeting_id", "meeting_id"),
     Index("idx_attendances_user_id", "user_id"),
+    UniqueConstraint("meeting_id", "user_id", name="attendances_meeting_user_unique"),
 )
 
 
@@ -285,93 +307,336 @@ notification_log = Table(
     Column("status", Text, nullable=False),  # "sent", "failed"
     Column("error_message", Text),  # Why it failed (if applicable)
     Column("sent_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    # New columns for notification deduplication
+    Column("reference_type", notification_reference_type_enum),
+    Column("reference_id", Integer),
     Index("idx_notification_log_user_id", "user_id"),
     Index("idx_notification_log_sent_at", "sent_at"),
+    # New index for deduplication queries
+    Index(
+        "idx_notification_log_dedup",
+        "user_id",
+        "message_type",
+        "reference_type",
+        "reference_id",
+    ),
 )
 
 
 # =====================================================
-# 10. AUTH_CODES
+# 10. REFRESH_TOKENS
 # =====================================================
-auth_codes = Table(
-    "auth_codes",
+refresh_tokens = Table(
+    "refresh_tokens",
     metadata,
-    Column("code_id", Integer, primary_key=True, autoincrement=True),
-    Column("code", Text, nullable=False, unique=True),
+    Column("token_id", Integer, primary_key=True, autoincrement=True),
+    Column("token_hash", Text, nullable=False, unique=True),
     Column(
         "user_id",
         Integer,
         ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False,
     ),
-    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column("family_id", Text, nullable=False),  # UUID grouping a rotation chain
     Column("expires_at", TIMESTAMP(timezone=True), nullable=False),
-    Column("used_at", TIMESTAMP(timezone=True)),
-    Column("discord_id", Text),
-    Index("idx_auth_codes_code", "code"),
-    Index("idx_auth_codes_user_id", "user_id"),
+    Column("revoked_at", TIMESTAMP(timezone=True)),  # NULL = active
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Index("idx_refresh_tokens_user_id", "user_id"),
+    Index("idx_refresh_tokens_family_id", "family_id"),
 )
 
 
 # =====================================================
-# 11. LESSON_SESSIONS
+# 11. USER_CONTENT_PROGRESS
 # =====================================================
-lesson_sessions = Table(
-    "lesson_sessions",
+# Progress tracking - new UUID-based system
+user_content_progress = Table(
+    "user_content_progress",
     metadata,
-    Column("session_id", Integer, primary_key=True, autoincrement=True),
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("anonymous_token", UUID(as_uuid=True), nullable=True),
     Column(
         "user_id",
         Integer,
         ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=True,
     ),
-    Column("lesson_slug", Text, nullable=False),
-    Column("current_stage_index", Integer, server_default="0"),
-    Column("messages", JSONB, server_default="[]"),
-    Column("started_at", TIMESTAMP(timezone=True), server_default=func.now()),
-    Column("last_active_at", TIMESTAMP(timezone=True), server_default=func.now()),
-    Column("completed_at", TIMESTAMP(timezone=True)),
-    Index("idx_lesson_sessions_user_id", "user_id"),
-    Index("idx_lesson_sessions_lesson_slug", "lesson_slug"),
+    Column("content_id", UUID(as_uuid=True), nullable=False),
+    Column("content_type", Text, nullable=False),
+    Column("content_title", Text, nullable=False),
+    Column(
+        "started_at", DateTime(timezone=True), server_default=func.now(), nullable=False
+    ),
+    Column("time_to_complete_s", Integer, server_default="0", nullable=False),
+    Column("total_time_spent_s", Integer, server_default="0", nullable=False),
+    Column("last_heartbeat_at", DateTime(timezone=True), nullable=True),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
+    Index(
+        "idx_user_content_progress_user",
+        "user_id",
+        "content_id",
+        unique=True,
+        postgresql_where=text("user_id IS NOT NULL"),
+    ),
+    Index(
+        "idx_user_content_progress_anon",
+        "anonymous_token",
+        "content_id",
+        unique=True,
+        postgresql_where=text("anonymous_token IS NOT NULL"),
+    ),
+    Index(
+        "idx_user_content_progress_token",
+        "anonymous_token",
+        postgresql_where=text("anonymous_token IS NOT NULL"),
+    ),
+    CheckConstraint(
+        "content_type IN ('module', 'lo', 'lens', 'test')", name="valid_content_type"
+    ),
 )
 
 
 # =====================================================
-# 12. CONTENT_EVENTS
+# 12. CHAT_SESSIONS
 # =====================================================
-content_events = Table(
-    "content_events",
+chat_sessions = Table(
+    "chat_sessions",
     metadata,
-    Column("event_id", Integer, primary_key=True, autoincrement=True),
+    Column("session_id", Integer, primary_key=True, autoincrement=True),
+    Column("anonymous_token", UUID(as_uuid=True), nullable=True),
     Column(
         "user_id",
         Integer,
-        ForeignKey("users.user_id", ondelete="SET NULL"),
-        nullable=True,  # Anonymous sessions allowed
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=True,
     ),
+    Column("module_id", UUID(as_uuid=True), nullable=True),
+    Column("roleplay_id", UUID(as_uuid=True), nullable=True),
+    Column("segment_snapshot", JSONB, nullable=True),
+    Column("messages", JSONB, server_default="[]", nullable=False),
+    Column(
+        "started_at", DateTime(timezone=True), server_default=func.now(), nullable=False
+    ),
+    Column(
+        "last_active_at",
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    ),
+    Column("archived_at", DateTime(timezone=True), nullable=True),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
+    Index("idx_chat_sessions_user_content", "user_id", "module_id", "archived_at"),
+    Index("idx_chat_sessions_token", "anonymous_token"),
+    # Unique partial indexes to prevent duplicate active sessions (race condition fix)
+    # Tutor chat: one active session per user per module (roleplay_id IS NULL)
+    Index(
+        "idx_chat_sessions_unique_user_tutor",
+        "user_id",
+        "module_id",
+        unique=True,
+        postgresql_where=text(
+            "user_id IS NOT NULL AND roleplay_id IS NULL AND archived_at IS NULL"
+        ),
+    ),
+    # Roleplay: one active session per user per module per roleplay (roleplay_id IS NOT NULL)
+    Index(
+        "idx_chat_sessions_unique_user_roleplay",
+        "user_id",
+        "module_id",
+        "roleplay_id",
+        unique=True,
+        postgresql_where=text(
+            "user_id IS NOT NULL AND roleplay_id IS NOT NULL AND archived_at IS NULL"
+        ),
+    ),
+    # Same pair for anonymous tokens
+    Index(
+        "idx_chat_sessions_unique_anon_tutor",
+        "anonymous_token",
+        "module_id",
+        unique=True,
+        postgresql_where=text(
+            "anonymous_token IS NOT NULL AND roleplay_id IS NULL AND archived_at IS NULL"
+        ),
+    ),
+    Index(
+        "idx_chat_sessions_unique_anon_roleplay",
+        "anonymous_token",
+        "module_id",
+        "roleplay_id",
+        unique=True,
+        postgresql_where=text(
+            "anonymous_token IS NOT NULL AND roleplay_id IS NOT NULL AND archived_at IS NULL"
+        ),
+    ),
+)
+
+
+# =====================================================
+# 13. QUESTION_RESPONSES
+# =====================================================
+question_responses = Table(
+    "question_responses",
+    metadata,
+    Column("response_id", Integer, primary_key=True, autoincrement=True),
+    Column("anonymous_token", UUID(as_uuid=True), nullable=True),
+    Column(
+        "user_id",
+        Integer,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=True,
+    ),
+    # What was answered
+    Column("question_id", Text, nullable=False),  # Content-derived ID (from markdown)
+    Column("module_slug", Text, nullable=False),  # Which module
+    Column(
+        "question_text", Text, nullable=False
+    ),  # Snapshot of question shown to student
+    Column(
+        "assessment_instructions", Text, nullable=True
+    ),  # Scoring rubric from content markdown (assessment-instructions:: field)
+    Column(
+        "question_hash", Text, nullable=False
+    ),  # SHA-256 of question_text for analysis
+    # The answer
+    Column("answer_text", Text, nullable=False),
+    Column(
+        "answer_metadata", JSONB, server_default="{}", nullable=False
+    ),  # voice_used, time_taken_s, etc.
+    # Timestamps
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column("completed_at", TIMESTAMP(timezone=True), nullable=True),
+    # Indexes
+    Index("idx_question_responses_user_id", "user_id"),
+    Index("idx_question_responses_anon", "anonymous_token"),
+    Index("idx_question_responses_question", "question_id"),
+    Index("idx_question_responses_module", "module_slug"),
+    Index("idx_question_responses_hash", "question_hash"),
+)
+
+
+# =====================================================
+# 14. QUESTION_ASSESSMENTS
+# =====================================================
+question_assessments = Table(
+    "question_assessments",
+    metadata,
+    Column("score_id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "response_id",
+        Integer,
+        ForeignKey("question_responses.response_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    # Score data
+    Column("score_data", JSONB, nullable=False),  # Flexible AI assessment results
+    Column("model_id", Text, nullable=True),  # Which LLM model scored this
+    Column(
+        "assessment_system_prompt_version", Text, nullable=True
+    ),  # Version of the scoring system prompt in core/scoring.py
+    # Timestamps
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    # Indexes
+    Index("idx_question_assessments_response_id", "response_id"),
+)
+
+
+# =====================================================
+# 15. ROLEPLAY_ASSESSMENTS
+# =====================================================
+# =====================================================
+# PROSPECTS (email capture for course notifications)
+# =====================================================
+prospects = Table(
+    "prospects",
+    metadata,
+    Column("prospect_id", Integer, primary_key=True, autoincrement=True),
+    Column("email", Text, nullable=False),
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column(
+        "subscribe_courses_learners", Boolean, server_default="false", nullable=False
+    ),
+    Column(
+        "subscribe_courses_navigators", Boolean, server_default="false", nullable=False
+    ),
+    Column("subscribe_substack", Boolean, server_default="false", nullable=False),
+    Column("substack_synced_at", TIMESTAMP(timezone=True)),
+    UniqueConstraint("email", name="uq_prospects_email"),
+    Index("idx_prospects_email", "email"),
+)
+
+
+# =====================================================
+# 15. ROLEPLAY_ASSESSMENTS
+# =====================================================
+roleplay_assessments = Table(
+    "roleplay_assessments",
+    metadata,
+    Column("assessment_id", Integer, primary_key=True, autoincrement=True),
     Column(
         "session_id",
         Integer,
-        ForeignKey("lesson_sessions.session_id", ondelete="CASCADE"),
+        ForeignKey("chat_sessions.session_id", ondelete="CASCADE"),
         nullable=False,
     ),
-    Column("lesson_slug", Text, nullable=False),
-    Column("stage_index", Integer, nullable=False),
+    Column("score_data", JSONB, nullable=False),
+    Column("model_id", Text, nullable=True),
+    Column("prompt_version", Text, nullable=True),
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Index("idx_roleplay_assessments_session_id", "session_id"),
+)
+
+
+# =====================================================
+# REFERRAL TRACKING
+# =====================================================
+
+referral_links = Table(
+    "referral_links",
+    metadata,
+    Column("link_id", Integer, primary_key=True, autoincrement=True),
     Column(
-        "stage_type",
-        SQLEnum(StageType, name="stage_type_enum", create_type=True),
+        "user_id",
+        Integer,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False,
     ),
+    Column("name", Text, nullable=False),
+    Column("slug", Text, nullable=False, unique=True),
+    Column("is_default", Boolean, nullable=False, server_default="false"),
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column("deleted_at", TIMESTAMP(timezone=True)),
+    Index("idx_referral_links_user_id", "user_id"),
+)
+
+# Enforce one default link per user at DB level
+Index(
+    "idx_referral_links_one_default_per_user",
+    referral_links.c.user_id,
+    unique=True,
+    postgresql_where=referral_links.c.is_default.is_(True),
+)
+
+referral_clicks = Table(
+    "referral_clicks",
+    metadata,
+    Column("click_id", Integer, primary_key=True, autoincrement=True),
     Column(
-        "event_type",
-        SQLEnum(ContentEventType, name="content_event_type_enum", create_type=True),
+        "link_id",
+        Integer,
+        ForeignKey("referral_links.link_id", ondelete="CASCADE"),
         nullable=False,
     ),
-    Column("timestamp", TIMESTAMP(timezone=True), server_default=func.now()),
-    Column("metadata", JSONB, nullable=True),  # scroll_depth, video_time, etc.
-    Index("idx_content_events_user_id", "user_id"),
-    Index("idx_content_events_session_id", "session_id"),
-    Index("idx_content_events_lesson_slug", "lesson_slug"),
-    Index("idx_content_events_timestamp", "timestamp"),
+    Column("clicked_at", TIMESTAMP(timezone=True), server_default=func.now()),
+    Column(
+        "consent_state",
+        Text,
+        CheckConstraint(
+            "consent_state IN ('accepted', 'declined', 'pending', 'pending_then_accepted')",
+            name="consent_state_values",
+        ),
+        nullable=False,
+        server_default=text("'pending'"),
+    ),
+    Index("idx_referral_clicks_link_id", "link_id"),
 )

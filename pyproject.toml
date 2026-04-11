@@ -2,5 +2,12 @@
 line-length = 88
 target-version = "py311"
 
+[tool.ruff.lint.per-file-ignores]
+# These files intentionally import after setup code (load_dotenv, sys.path, argparse)
+"main.py" = ["E402"]
+"alembic/env.py" = ["E402"]
+"scripts/*.py" = ["E402"]
+"*/tests/*.py" = ["E402"]  # Test files often need sys.path manipulation
+
 [tool.ruff.format]
 # Use defaults (double quotes, spaces for indentation)

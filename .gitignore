@@ -1,5 +1,6 @@
 # Project-specific
 /.claude
+.superpowers/
 /ASEP v2.0.md
 .jj/
 CLAUDE.local.md
@@ -24,8 +25,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -36,6 +37,7 @@ wheels/
 
 # Virtual environments
 venv/
+.venv/
 env/
 ENV/
 
@@ -64,7 +66,18 @@ activities/_dev/
 node_modules/
 web_frontend/dist/
 
+# Screenshots (debug/dev)
+screenshot*.png
+debug-screenshot*.png
+
 # OS
 .DS_Store
 Thumbs.db
 google-calendar-credentials.json
+
+
+backups/
+
+# Prod data exports (PII-stripped but not for version control)
+data/
+.superpowers/

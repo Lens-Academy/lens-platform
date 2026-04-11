@@ -1,0 +1,14 @@
+{
+  "modules": [],
+  "courses": [],
+  "errors": [
+    {
+      "file": "modules/bad.md",
+      "line": 1,
+      "message": "Missing frontmatter",
+      "suggestion": "Add YAML frontmatter with 'slug' and 'title' fields",
+      "severity": "error",
+      "category": "production"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+# core/lessons/tests/fixtures/lessons/test-basic.yaml
+slug: test-basic
+title: Test Basic Lesson
+
+stages:
+  - type: article
+    source: articles/test.md
+  - type: chat
+    instructions: Test instructions
+    hidePreviousContentFromUser: false
+    hidePreviousContentFromTutor: false

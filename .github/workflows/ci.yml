@@ -31,16 +31,31 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check formatting
+        run: npx prettier --check src/
+
       - name: Type check & Build
         run: npm run build
 
-      - name: Run tests
-        run: npm run test
-
-  # Backend tests - needs staging database
+  # Backend tests - uses local PostgreSQL
   backend:
     name: Backend Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -51,13 +66,35 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: content_processor/package-lock.json
+
+      - name: Install content processor dependencies
+        run: npm ci
+        working-directory: content_processor
+
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
+      - name: Lint
+        run: ruff check .
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        run: alembic upgrade head
+
       - name: Run tests
         env:
-          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_SERVER_ID: ${{ secrets.DISCORD_SERVER_ID }}
           TEST_CHANNEL_ID: ${{ secrets.TEST_CHANNEL_ID }}
-        run: pytest --tb=short -q
+        run: pytest --tb=short -q --durations=20

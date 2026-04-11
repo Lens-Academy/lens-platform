@@ -1,12 +1,12 @@
 """Group-related database queries using SQLAlchemy Core."""
 
-from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from ..lessons.course_loader import load_course
+from ..enums import GroupUserStatus
+from ..modules.course_loader import load_course
 from ..tables import cohorts, groups, groups_users, users
 
 
@@ -30,7 +30,7 @@ async def create_group(
             cohort_id=cohort_id,
             group_name=group_name,
             recurring_meeting_time_utc=recurring_meeting_time_utc,
-            status="forming",
+            status="preview",
         )
         .returning(groups)
     )
@@ -59,6 +59,35 @@ async def add_user_to_group(
     return dict(row)
 
 
+async def remove_user_from_group(
+    conn: AsyncConnection,
+    group_id: int,
+    user_id: int,
+) -> bool:
+    """
+    Remove a user from a group by setting status to 'removed'.
+
+    Sets left_at timestamp and updates updated_at.
+
+    Returns True if user was removed, False if not found.
+    """
+    from datetime import datetime, timezone
+
+    result = await conn.execute(
+        update(groups_users)
+        .where(groups_users.c.group_id == group_id)
+        .where(groups_users.c.user_id == user_id)
+        .where(groups_users.c.status == GroupUserStatus.active)
+        .values(
+            status=GroupUserStatus.removed,
+            left_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+        .returning(groups_users.c.group_user_id)
+    )
+    return result.first() is not None
+
+
 async def get_cohort_groups_for_realization(
     conn: AsyncConnection,
     cohort_id: int,
@@ -81,7 +110,6 @@ async def get_cohort_groups_for_realization(
                     "group_name": "Group 1",
                     "recurring_meeting_time_utc": "Wednesday 15:00",
                     "discord_text_channel_id": None,
-                    "discord_voice_channel_id": None,
                     "members": [
                         {"user_id": 1, "discord_id": "123", "nickname": "Alice", "role": "facilitator", "timezone": "UTC"},
                         ...
@@ -143,7 +171,7 @@ async def get_cohort_groups_for_realization(
                 "group_name": group_data["group_name"],
                 "recurring_meeting_time_utc": group_data["recurring_meeting_time_utc"],
                 "discord_text_channel_id": group_data["discord_text_channel_id"],
-                "discord_voice_channel_id": group_data["discord_voice_channel_id"],
+                "status": group_data["status"],
                 "members": members,
             }
         )
@@ -163,24 +191,6 @@ async def get_cohort_groups_for_realization(
     }
 
 
-async def save_discord_channel_ids(
-    conn: AsyncConnection,
-    group_id: int,
-    text_channel_id: str,
-    voice_channel_id: str,
-) -> None:
-    """Update group with Discord channel IDs after realization."""
-    await conn.execute(
-        update(groups)
-        .where(groups.c.group_id == group_id)
-        .values(
-            discord_text_channel_id=text_channel_id,
-            discord_voice_channel_id=voice_channel_id,
-            updated_at=datetime.now(timezone.utc),
-        )
-    )
-
-
 async def get_realized_groups_for_discord_user(
     conn: AsyncConnection,
     discord_id: str,
@@ -196,7 +206,6 @@ async def get_realized_groups_for_discord_user(
                 "group_id": 1,
                 "group_name": "Group 1",
                 "discord_text_channel_id": "123456789",
-                "discord_voice_channel_id": "987654321",
             },
             ...
         ]
@@ -217,7 +226,6 @@ async def get_realized_groups_for_discord_user(
             groups.c.group_id,
             groups.c.group_name,
             groups.c.discord_text_channel_id,
-            groups.c.discord_voice_channel_id,
         )
         .join(groups_users, groups.c.group_id == groups_users.c.group_id)
         .where(groups_users.c.user_id == user_id)
@@ -227,6 +235,29 @@ async def get_realized_groups_for_discord_user(
     result = await conn.execute(query)
 
     return [dict(row) for row in result.mappings()]
+
+
+async def get_cohort_group_ids(conn: AsyncConnection, cohort_id: int) -> list[int]:
+    """Get all group IDs for a cohort."""
+    result = await conn.execute(
+        select(groups.c.group_id)
+        .where(groups.c.cohort_id == cohort_id)
+        .order_by(groups.c.group_id)
+    )
+    return [row.group_id for row in result]
+
+
+async def get_cohort_preview_group_ids(
+    conn: AsyncConnection, cohort_id: int
+) -> list[int]:
+    """Get group IDs for groups in 'preview' status in a cohort."""
+    result = await conn.execute(
+        select(groups.c.group_id)
+        .where(groups.c.cohort_id == cohort_id)
+        .where(groups.c.status == "preview")
+        .order_by(groups.c.group_id)
+    )
+    return [row.group_id for row in result]
 
 
 async def get_group_welcome_data(
@@ -301,3 +332,39 @@ async def get_group_welcome_data(
         "number_of_group_meetings": row["number_of_group_meetings"],
         "members": members,
     }
+
+
+async def get_cohort_groups_summary(
+    conn: AsyncConnection,
+    cohort_id: int,
+) -> list[dict[str, Any]]:
+    """
+    Get groups in a cohort with member counts for admin panel.
+
+    Returns list of dicts with group_id, group_name, status, member_count, meeting_time.
+    """
+    # Subquery for member counts
+    member_counts = (
+        select(
+            groups_users.c.group_id,
+            func.count(groups_users.c.user_id).label("member_count"),
+        )
+        .where(groups_users.c.status == GroupUserStatus.active)
+        .group_by(groups_users.c.group_id)
+        .subquery()
+    )
+
+    result = await conn.execute(
+        select(
+            groups.c.group_id,
+            groups.c.group_name,
+            groups.c.status,
+            groups.c.recurring_meeting_time_utc.label("meeting_time"),
+            func.coalesce(member_counts.c.member_count, 0).label("member_count"),
+        )
+        .outerjoin(member_counts, groups.c.group_id == member_counts.c.group_id)
+        .where(groups.c.cohort_id == cohort_id)
+        .order_by(groups.c.group_name)
+    )
+
+    return [dict(row) for row in result.mappings()]

@@ -1,4 +1,3 @@
-// web_frontend/src/errorTracking.ts
 import * as Sentry from "@sentry/react";
 
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
@@ -8,13 +7,12 @@ let initialized = false;
 
 /**
  * Initialize Sentry (call after user consents)
- * Sentry runs in all environments (dev + prod) with environment tagging for filtering.
  */
 export function initSentry(): void {
   if (initialized || !SENTRY_DSN) {
     if (!SENTRY_DSN) {
       console.warn(
-        "[errorTracking] VITE_SENTRY_DSN not set, skipping Sentry init"
+        "[errorTracking] VITE_SENTRY_DSN not set, skipping Sentry init",
       );
     }
     return;
@@ -31,33 +29,25 @@ export function initSentry(): void {
         blockAllMedia: true,
       }),
     ],
-    // Performance sampling
-    tracesSampleRate: 0.1, // 10% of transactions
-    // Session replay on errors
-    replaysSessionSampleRate: 0, // Don't record all sessions
-    replaysOnErrorSampleRate: 1.0, // 100% when error occurs
+    tracesSampleRate: 0.1,
+    replaysSessionSampleRate: 0,
+    replaysOnErrorSampleRate: 1.0,
   });
 
   initialized = true;
 }
 
-/**
- * Check if Sentry is initialized
- */
 export function isSentryInitialized(): boolean {
   return initialized;
 }
 
-/**
- * Identify a user in Sentry (call when user logs in)
- */
 export function identifySentryUser(
   userId: number,
   properties?: {
     discord_id?: string;
     discord_username?: string;
     email?: string | null;
-  }
+  },
 ): void {
   if (!initialized) return;
 
@@ -68,9 +58,6 @@ export function identifySentryUser(
   });
 }
 
-/**
- * Reset user identity in Sentry (call when user logs out)
- */
 export function resetSentryUser(): void {
   if (!initialized) return;
   Sentry.setUser(null);

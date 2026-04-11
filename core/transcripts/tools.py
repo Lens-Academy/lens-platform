@@ -11,7 +11,7 @@ This file is intentionally duplicated across two repositories:
 
 1. ai-safety-course-platform/core/transcripts/tools.py (THIS FILE)
    - Production lookups for serving lessons
-   - Points to educational_content/video_transcripts/
+   - Points to educational_content_deprecated/video_transcripts/
 
 2. youtube-transcripts/transcript_tools.py
    - Verification during transcript correction workflow
@@ -30,9 +30,14 @@ import json
 import re
 
 
-# Default directory for transcript files (educational_content/video_transcripts/)
+# Default directory for transcript files (educational_content_deprecated/video_transcripts/)
+# NOTE: This is the deprecated local content directory. Video transcripts are now
+# loaded from GitHub and cached in memory via core/content/. This path is kept
+# for backwards compatibility with timestamp lookup tools.
 TRANSCRIPTS_DIR = (
-    Path(__file__).parent.parent.parent / "educational_content" / "video_transcripts"
+    Path(__file__).parent.parent.parent
+    / "educational_content_deprecated"
+    / "video_transcripts"
 )
 
 
@@ -62,7 +67,7 @@ def find_transcript_timestamps(
 
     Args:
         video_id: YouTube video ID (e.g., "pYXy-A4siMw")
-        search_dir: Directory to search (default: educational_content/video_transcripts/)
+        search_dir: Directory to search (default: educational_content_deprecated/video_transcripts/)
 
     Returns:
         Path to the .timestamps.json file
@@ -87,6 +92,28 @@ def find_transcript_timestamps(
     return matches[0]
 
 
+def get_text_at_time_from_data(
+    words: list[dict],
+    start: float,
+    end: float,
+) -> str:
+    """
+    Get transcript text between timestamps from pre-loaded data.
+
+    Args:
+        words: List of word dicts with "text" and "start" keys
+        start: Start time in seconds
+        end: End time in seconds
+
+    Returns:
+        Text spoken between start and end times
+    """
+    words_in_range = [
+        w["text"] for w in words if start <= _parse_timestamp(w["start"]) <= end
+    ]
+    return " ".join(words_in_range)
+
+
 def get_text_at_time(
     video_id: str,
     start: float,
@@ -96,23 +123,37 @@ def get_text_at_time(
     """
     Get transcript text between timestamps.
 
+    First tries the in-memory content cache (populated from GitHub).
+    Falls back to local filesystem if cache is unavailable.
+
     Args:
         video_id: YouTube video ID
         start: Start time in seconds
         end: End time in seconds
-        search_dir: Directory to search (default: educational_content/video_transcripts/)
+        search_dir: Directory to search (only used as fallback if cache unavailable)
 
     Returns:
         Text spoken between start and end times
+
+    Raises:
+        FileNotFoundError: If no timestamps found for this video in cache or filesystem
     """
+    # Try the content cache first
+    try:
+        from core.content.cache import get_cache, CacheNotInitializedError
+
+        cache = get_cache()
+        if cache.video_timestamps and video_id in cache.video_timestamps:
+            words = cache.video_timestamps[video_id]
+            return get_text_at_time_from_data(words, start, end)
+    except CacheNotInitializedError:
+        # Cache not available - fall back to filesystem
+        pass
+
+    # Fallback to filesystem (for tests and local development)
     timestamps_path = find_transcript_timestamps(video_id, search_dir)
     words = json.loads(timestamps_path.read_text())
-
-    words_in_range = [
-        w["text"] for w in words if start <= _parse_timestamp(w["start"]) <= end
-    ]
-
-    return " ".join(words_in_range)
+    return get_text_at_time_from_data(words, start, end)
 
 
 def normalize_for_matching(text: str) -> str:
@@ -211,7 +252,7 @@ def get_time_from_text(
         video_id: YouTube video ID
         first_words: First ~5 words of the quote
         last_words: Last ~5 words of the quote
-        search_dir: Directory to search (default: educational_content/video_transcripts/)
+        search_dir: Directory to search (default: educational_content_deprecated/video_transcripts/)
 
     Returns:
         {"start": float, "end": float}

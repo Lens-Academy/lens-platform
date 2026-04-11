@@ -12,7 +12,6 @@ High-level actions:
     schedule_meeting_reminders(...) - Schedule meeting reminders
     cancel_meeting_reminders(meeting_id) - Cancel meeting reminders
     reschedule_meeting_reminders(...) - Reschedule meeting reminders
-    schedule_trial_nudge(...) - Schedule trial lesson nudge
 """
 
 from .dispatcher import send_notification
@@ -25,11 +24,10 @@ from .scheduler import (
 from .actions import (
     notify_welcome,
     notify_group_assigned,
+    notify_member_joined,
     schedule_meeting_reminders,
     cancel_meeting_reminders,
     reschedule_meeting_reminders,
-    schedule_trial_nudge,
-    cancel_trial_nudge,
 )
 
 __all__ = [
@@ -42,9 +40,8 @@ __all__ = [
     # High-level actions
     "notify_welcome",
     "notify_group_assigned",
+    "notify_member_joined",
     "schedule_meeting_reminders",
     "cancel_meeting_reminders",
     "reschedule_meeting_reminders",
-    "schedule_trial_nudge",
-    "cancel_trial_nudge",
 ]

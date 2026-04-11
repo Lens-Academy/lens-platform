@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { DayName, AvailabilityData } from "../../types/signup";
-import { DAY_NAMES, formatTimeSlot } from "../../types/signup";
+import type { DayName, AvailabilityData } from "../../types/enroll";
+import { DAY_NAMES, formatTimeSlot } from "../../types/enroll";
 
 interface CellPosition {
   day: DayName;
@@ -22,7 +22,7 @@ interface UseScheduleSelectionOptions {
 
 function getSelectedCells(
   start: CellPosition,
-  end: CellPosition
+  end: CellPosition,
 ): CellPosition[] {
   const startDayIndex = DAY_NAMES.indexOf(start.day);
   const endDayIndex = DAY_NAMES.indexOf(end.day);
@@ -62,7 +62,7 @@ export function useScheduleSelection({
       const timeSlot = formatTimeSlot(hour);
       return value[day].includes(timeSlot);
     },
-    [value]
+    [value],
   );
 
   const getPreviewCells = useCallback((): CellPosition[] => {
@@ -75,7 +75,7 @@ export function useScheduleSelection({
     }
     return getSelectedCells(
       selectionState.startCell,
-      selectionState.currentCell
+      selectionState.currentCell,
     );
   }, [selectionState]);
 
@@ -83,17 +83,17 @@ export function useScheduleSelection({
     (day: DayName, hour: number): boolean => {
       const previewCells = getPreviewCells();
       return previewCells.some(
-        (cell) => cell.day === day && cell.hour === hour
+        (cell) => cell.day === day && cell.hour === hour,
       );
     },
-    [getPreviewCells]
+    [getPreviewCells],
   );
 
   const isHovered = useCallback(
     (day: DayName, hour: number): boolean => {
       return hoveredCell?.day === day && hoveredCell?.hour === hour;
     },
-    [hoveredCell]
+    [hoveredCell],
   );
 
   const applySelection = useCallback(() => {
@@ -107,7 +107,7 @@ export function useScheduleSelection({
 
     const cells = getSelectedCells(
       selectionState.startCell,
-      selectionState.currentCell
+      selectionState.currentCell,
     );
     const newAvailability = { ...value };
 
@@ -143,7 +143,7 @@ export function useScheduleSelection({
         selectionMode: isCurrentlySelected ? "remove" : "add",
       });
     },
-    [isSelected]
+    [isSelected],
   );
 
   const handleMouseEnter = useCallback(
@@ -156,7 +156,7 @@ export function useScheduleSelection({
         }));
       }
     },
-    [selectionState.isSelecting]
+    [selectionState.isSelecting],
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -173,7 +173,7 @@ export function useScheduleSelection({
         selectionMode: isCurrentlySelected ? "remove" : "add",
       });
     },
-    [isSelected]
+    [isSelected],
   );
 
   const getCellFromPoint = useCallback(
@@ -191,7 +191,7 @@ export function useScheduleSelection({
       }
       return null;
     },
-    [slots]
+    [slots],
   );
 
   // Global mouse up listener to handle mouse release outside the grid

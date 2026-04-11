@@ -22,9 +22,9 @@ from core import (
     # Timezone
     local_to_utc_time,
     utc_to_local_time,
-    # Group names (formerly cohort names)
-    COHORT_NAMES,
-    CohortNameGenerator,
+    # Group names
+    GROUP_NAMES,
+    pick_available_name,
     # Google docs
     extract_doc_id,
     fetch_google_doc,
@@ -37,8 +37,8 @@ __all__ = [
     "TIMEZONES",
     "local_to_utc_time",
     "utc_to_local_time",
-    "COHORT_NAMES",
-    "CohortNameGenerator",
+    "GROUP_NAMES",
+    "pick_available_name",
     "extract_doc_id",
     "fetch_google_doc",
     "parse_doc_tabs",

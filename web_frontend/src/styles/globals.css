@@ -1,0 +1,363 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --container-content: 640px;
+  --container-content-padded: calc(var(--container-content) + 128px);
+
+  /* Brand gold palette — Blend B: warm earthy tone, hue drifts 73°→64° in darks */
+  --color-lens-orange-50: #fdf8f0;
+  --color-lens-orange-100: #f9eedb;
+  --color-lens-orange-300: #dea96c;
+  --color-lens-orange-400: #d08838;
+  --color-lens-orange-500: #b87018;
+  --color-lens-orange-600: #9a5c10;
+  --color-lens-orange-700: #7a470c;
+}
+
+/* Newsreader baseline correction — nudge down to align with DM Sans.
+   Applied globally so every element using this font family is fixed. */
+[style*="Newsreader"],
+[style*="brand-font-display"],
+.font-display {
+  transform: translateY(0.13em);
+  display: inline-block;
+}
+
+:root {
+  --background: #faf8f3; /* brand-bg */
+  --foreground: #1a1a1a; /* brand-text */
+  --sidebar-width: 320px;
+
+  /* Safe area insets for notched devices */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Module header height for content offset calculations */
+  --module-header-height: 68px;
+
+  /* Dynamic header offset — tracks whether header is visible or hidden.
+     Set by ModuleHeader/Layout via JS; consumed by sticky elements. */
+  --header-offset: var(--module-header-height);
+
+  /* Brand palette (shared across landing + course) */
+  --brand-bg: #faf8f3;
+  --brand-bg-alt: #ffffff;
+  --brand-text: #1a1a1a;
+  --brand-text-muted: #5a5a5a;
+  --brand-accent: #b87018;
+  --brand-accent-hover: #9a5c10;
+  --brand-accent-text: #ffffff;
+  --brand-border: #e8e5df;
+  --brand-font-display: "Newsreader", serif;
+  --brand-font-body: "DM Sans", sans-serif;
+
+  /* Aliases for existing landing page components */
+  --landing-bg: var(--brand-bg);
+  --landing-bg-alt: var(--brand-bg-alt);
+  --landing-text: var(--brand-text);
+  --landing-text-muted: var(--brand-text-muted);
+  --landing-accent: var(--brand-accent);
+  --landing-accent-hover: var(--brand-accent-hover);
+  --landing-accent-text: var(--brand-accent-text);
+  --landing-border: var(--brand-border);
+  --landing-font-display: var(--brand-font-display);
+  --landing-font-body: var(--brand-font-body);
+
+  /* Spring easing - slight overshoot and settle */
+  --ease-spring: linear(
+    0,
+    0.006,
+    0.025 2.8%,
+    0.101 6.1%,
+    0.539 18.9%,
+    0.721 25.3%,
+    0.849 31.5%,
+    0.937 38.1%,
+    0.968 41.8%,
+    0.991 45.7%,
+    1.006 50%,
+    1.015 55%,
+    1.017 63.9%,
+    1.014 73.1%,
+    1.007 85.5%,
+    1
+  );
+  /* Back easing for subtle overshoot */
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+html {
+  touch-action: manipulation; /* Disable double-tap zoom for faster taps */
+  -webkit-text-size-adjust: 100%; /* Prevent font scaling in landscape */
+  width: 100%;
+  overflow-x: clip; /* clip instead of hidden - works on mobile + doesn't break sticky */
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 18px;
+  line-height: 1.6;
+  width: 100%;
+  max-width: 100%; /* NOT 100vw - 100vw includes scrollbar width */
+  overflow-x: clip; /* clip instead of hidden - works on mobile */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  /* Mobile-first typography scale */
+  h1 {
+    @apply text-[1.75rem] leading-tight;
+  } /* 28px mobile */
+  h2 {
+    @apply text-[1.5rem] leading-tight;
+  } /* 24px mobile */
+  h3 {
+    @apply text-[1.25rem] leading-snug;
+  } /* 20px mobile */
+  h4 {
+    @apply text-[1.125rem] leading-snug;
+  } /* 18px mobile */
+
+  /* Desktop typography scale (640px+) */
+  @media (min-width: 640px) {
+    h1 {
+      @apply text-[2.5rem];
+    } /* 40px - bigger jump */
+    h2 {
+      @apply text-[2rem];
+    } /* 32px */
+    h3 {
+      @apply text-[1.5rem];
+    } /* 24px */
+    h4 {
+      @apply text-[1.25rem];
+    } /* 20px */
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
+  /* Touch feedback - scale down on press */
+  .touch-active:active {
+    transform: scale(0.97);
+  }
+}
+
+/* Animations for unified lesson components */
+@keyframes mic-pulse {
+  0%,
+  100% {
+    stroke: #4b5563;
+  }
+  50% {
+    stroke: #000000;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Article section margin: centered by default, but ensures enough left
+   space for the ToC (250px + 24px gap) when the viewport is tight.
+   margin-right: 0 (not auto) so sidebar margin can transition smoothly. */
+.article-toc-margin {
+  margin-left: max(0px, calc((100vw - var(--container-content-padded)) / 2));
+  margin-right: 0;
+}
+
+@media (min-width: 1100px) {
+  .article-toc-margin {
+    margin-left: max(
+      calc((100vw - var(--container-content-padded)) / 2),
+      274px
+    );
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --sidebar-width: 384px;
+  }
+}
+
+/* ToC item styles - controlled via direct DOM manipulation for performance */
+.toc-current {
+  color: #111827; /* gray-900 */
+}
+
+.toc-passed {
+  color: #4b5563; /* gray-600 */
+}
+
+.toc-future {
+  color: #9ca3af; /* gray-400 */
+}
+
+/* Reduced motion - disable animations for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Modal entrance animation */
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Staggered reveal animation for list items */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-item {
+  animation: stagger-in 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+/* Stagger delay classes */
+.stagger-delay-1 {
+  animation-delay: 50ms;
+}
+.stagger-delay-2 {
+  animation-delay: 100ms;
+}
+.stagger-delay-3 {
+  animation-delay: 150ms;
+}
+.stagger-delay-4 {
+  animation-delay: 200ms;
+}
+.stagger-delay-5 {
+  animation-delay: 250ms;
+}
+
+/* View Transitions API styles */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+}
+
+/* Crossfade: old fades out, new fades in */
+::view-transition-old(root) {
+  animation: view-fade-out 200ms ease-out;
+}
+
+::view-transition-new(root) {
+  animation: view-fade-in 200ms ease-in;
+}
+
+@keyframes view-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes view-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Shorthand: apply Newsreader (baseline correction is automatic via global rule above) */
+@utility font-display {
+  font-family: var(--brand-font-display);
+}
+
+/* Round-dotted lines — matches SVG strokeDasharray="0 4" strokeLinecap="round" */
+@utility dotted-round-v {
+  width: 2.5px;
+  background-image: radial-gradient(
+    circle at center,
+    currentColor 1.25px,
+    transparent 1.25px
+  );
+  background-size: 2.5px 5px;
+  background-repeat: repeat-y;
+}
+
+@utility dotted-round-h {
+  height: 2.5px;
+  background-image: radial-gradient(
+    circle at center,
+    currentColor 1.25px,
+    transparent 1.25px
+  );
+  background-size: 5px 2.5px;
+  background-repeat: repeat-x;
+}
+
+/* Thin scrollbar for module scroll container */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Hide scrollbar while allowing scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

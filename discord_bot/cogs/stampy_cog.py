@@ -224,7 +224,7 @@ class StampyCog(commands.Cog):
         print(f"[Stampy] Getting webhook for channel {channel.name} ({channel.id})")
 
         if channel.id in self._webhooks:
-            print(f"[Stampy] Using cached webhook")
+            print("[Stampy] Using cached webhook")
             return self._webhooks[channel.id]
 
         try:
@@ -232,11 +232,11 @@ class StampyCog(commands.Cog):
             print(f"[Stampy] Found {len(webhooks)} existing webhooks")
             for wh in webhooks:
                 if wh.name == STAMPY_NAME:
-                    print(f"[Stampy] Found existing Stampy webhook")
+                    print("[Stampy] Found existing Stampy webhook")
                     self._webhooks[channel.id] = wh
                     return wh
 
-            print(f"[Stampy] Creating new webhook...")
+            print("[Stampy] Creating new webhook...")
             webhook = await channel.create_webhook(name=STAMPY_NAME)
             print(f"[Stampy] Created webhook: {webhook.id}")
             self._webhooks[channel.id] = webhook
@@ -270,10 +270,10 @@ class StampyCog(commands.Cog):
 
     async def _stream_response(self, message: discord.Message):
         """Stream Stampy response via webhook with scrolling thinking + answer messages."""
-        print(f"[Stampy] Starting stream_response")
+        print("[Stampy] Starting stream_response")
 
         webhook = await self._get_webhook(message.channel)
-        print(f"[Stampy] Got webhook, sending initial thinking message...")
+        print("[Stampy] Got webhook, sending initial thinking message...")
 
         # Create view with toggle button (added once we have enough text)
         thinking_view = ThinkingExpandView()
@@ -398,7 +398,7 @@ class StampyCog(commands.Cog):
                                         else None,
                                     )
                                     print(
-                                        f"[Timing] Fire-and-forget thinking finalization done"
+                                        "[Timing] Fire-and-forget thinking finalization done"
                                     )
                                 else:
                                     no_content_embed = discord.Embed(
@@ -418,7 +418,7 @@ class StampyCog(commands.Cog):
                         if not answer_msg_precreated:
                             # Fallback: create answer message now (shouldn't normally happen)
                             print(
-                                f"[Timing] Answer message not pre-created, creating now..."
+                                "[Timing] Answer message not pre-created, creating now..."
                             )
                             t0 = time.time()
                             answer_msg = await webhook.send(

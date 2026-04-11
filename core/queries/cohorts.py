@@ -6,7 +6,8 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from ..lessons.course_loader import load_course
+from ..enums import GroupStatus
+from ..modules.course_loader import load_course
 from ..tables import cohorts, signups
 
 
@@ -48,9 +49,9 @@ async def get_realizable_cohorts(
     conn: AsyncConnection,
 ) -> list[dict[str, Any]]:
     """
-    Get cohorts that have groups without Discord channels.
+    Get cohorts that have groups in preview status (not yet realized).
 
-    Returns cohorts where at least one group has NULL discord_text_channel_id.
+    Returns cohorts where at least one group has status='preview'.
     Each cohort includes course_name loaded from YAML.
     """
     from ..tables import groups
@@ -58,7 +59,7 @@ async def get_realizable_cohorts(
     # Subquery: cohorts with unrealized groups
     unrealized = (
         select(groups.c.cohort_id)
-        .where(groups.c.discord_text_channel_id.is_(None))
+        .where(groups.c.status == GroupStatus.preview)
         .distinct()
         .subquery()
     )
@@ -111,25 +112,64 @@ async def save_cohort_category_id(
     )
 
 
+async def get_all_cohorts_summary(
+    conn: AsyncConnection,
+) -> list[dict[str, Any]]:
+    """
+    Get all cohorts with course names for admin panel.
+
+    Returns list of dicts with cohort_id, cohort_name, course_slug, status, course_name.
+    Ordered by cohort_start_date descending (most recent first).
+    """
+    query = select(
+        cohorts.c.cohort_id,
+        cohorts.c.cohort_name,
+        cohorts.c.course_slug,
+        cohorts.c.status,
+    ).order_by(cohorts.c.cohort_start_date.desc())
+
+    result = await conn.execute(query)
+    cohort_list = []
+    for row in result.mappings():
+        cohort = dict(row)
+        try:
+            course = load_course(cohort["course_slug"])
+            cohort["course_name"] = course.title
+        except Exception:
+            cohort["course_name"] = cohort["course_slug"]
+        cohort_list.append(cohort)
+
+    return cohort_list
+
+
 async def get_available_cohorts(
     conn: AsyncConnection,
     user_id: int | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """
-    Get future cohorts, separated into enrolled and available.
+    Get cohorts available for enrollment, separated into enrolled and available.
 
-    Args:
-        conn: Database connection
-        user_id: If provided, check enrollment status for this user
-
-    Returns:
-        {"enrolled": [...], "available": [...]}
+    Includes cohorts that started up to 7 days ago (late enrollment allowed).
+    Includes has_groups flag for each cohort (True if cohort has any groups).
+    Maps course_slug to course_name using load_course().
     """
-    from datetime import date
+    from datetime import date, timedelta
+
+    from ..tables import groups
 
     today = date.today()
 
-    # Get all future active cohorts
+    # Subquery to check if cohort has groups
+    has_groups_subq = (
+        select(
+            groups.c.cohort_id,
+            func.count().label("group_count"),
+        )
+        .group_by(groups.c.cohort_id)
+        .subquery()
+    )
+
+    # Get all future active cohorts with has_groups
     query = (
         select(
             cohorts.c.cohort_id,
@@ -137,19 +177,28 @@ async def get_available_cohorts(
             cohorts.c.cohort_start_date,
             cohorts.c.course_slug,
             cohorts.c.duration_days,
+            func.coalesce(has_groups_subq.c.group_count, 0).label("group_count"),
         )
-        .where(cohorts.c.cohort_start_date > today)
+        .outerjoin(has_groups_subq, cohorts.c.cohort_id == has_groups_subq.c.cohort_id)
+        .where(cohorts.c.cohort_start_date + timedelta(days=7) > today)
         .where(cohorts.c.status == "active")
         .order_by(cohorts.c.cohort_start_date)
     )
 
     result = await conn.execute(query)
-    all_cohorts = [dict(row) for row in result.mappings()]
+    all_cohorts = []
+    for row in result.mappings():
+        cohort = dict(row)
+        cohort["has_groups"] = cohort.pop("group_count") > 0
+        # Map course_slug to course_name for frontend compatibility
+        course = load_course(cohort["course_slug"])
+        cohort["course_name"] = course.title
+        all_cohorts.append(cohort)
 
     if not user_id:
         return {"enrolled": [], "available": all_cohorts}
 
-    # Get user's signups (pending enrollments)
+    # Get user's signups
     enrollment_query = select(
         signups.c.cohort_id,
         signups.c.role,

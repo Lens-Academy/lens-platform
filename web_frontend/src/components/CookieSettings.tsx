@@ -1,4 +1,3 @@
-// web_frontend/src/components/CookieSettings.tsx
 import { useState, useSyncExternalStore, useCallback } from "react";
 import { optIn, optOut, hasConsent } from "../analytics";
 import { initSentry } from "../errorTracking";
@@ -31,7 +30,7 @@ export default function CookieSettings({
   const consentFromStorage = useSyncExternalStore(
     subscribeToConsent,
     getConsentSnapshot,
-    getConsentSnapshot
+    getConsentSnapshot,
   );
 
   // Local optimistic state for immediate UI feedback

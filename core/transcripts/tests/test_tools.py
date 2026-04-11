@@ -3,7 +3,6 @@
 
 import json
 import pytest
-from pathlib import Path
 from core.transcripts import (
     find_transcript_timestamps,
     get_text_at_time,
@@ -30,10 +29,13 @@ class TestFindTranscriptTimestamps:
         with pytest.raises(FileNotFoundError):
             find_transcript_timestamps("nonexistent", search_dir=tmp_path)
 
-    def test_finds_timestamps_in_default_dir(self):
-        """Finds real timestamps in educational_content/video_transcripts/."""
-        # Use a real transcript we know exists
-        result = find_transcript_timestamps("pYXy-A4siMw")
+    def test_finds_timestamps_with_complex_filename(self, tmp_path):
+        """Finds timestamps file with video ID prefix and additional title text."""
+        timestamps = [{"text": "hello", "start": 0.0}, {"text": "world", "start": 1.0}]
+        test_file = tmp_path / "pYXy-A4siMw_AI_Safety_Introduction.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
+
+        result = find_transcript_timestamps("pYXy-A4siMw", search_dir=tmp_path)
 
         assert result.exists()
         assert "pYXy-A4siMw" in result.name
@@ -85,25 +87,50 @@ class TestGetTextAtTime:
 
         assert result == ""
 
-    def test_works_with_real_transcript(self):
-        """Works with real transcript from educational_content/video_transcripts/."""
-        # Get text from known timestamp range in real transcript
-        result = get_text_at_time("pYXy-A4siMw", start=0.0, end=2.0)
+    def test_handles_longer_transcript(self, tmp_path):
+        """Works with a longer transcript spanning multiple time ranges."""
+        # Simulate a transcript with words spread over time
+        timestamps = [
+            {"text": "Hi.", "start": 0.0},
+            {"text": "This", "start": 0.5},
+            {"text": "video", "start": 1.0},
+            {"text": "is", "start": 1.5},
+            {"text": "about", "start": 2.0},
+            {"text": "AI", "start": 2.5},
+            {"text": "safety.", "start": 3.0},
+        ]
+        test_file = tmp_path / "vid123_Test_Video.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
 
-        assert "Hi" in result or "This" in result
+        result = get_text_at_time("vid123", start=0.0, end=2.0, search_dir=tmp_path)
 
-    def test_real_transcript_10m11s_to_12m11s(self):
-        """Gets correct text from 10:11-12:11 of AI Safety Intro video."""
-        # 10:11 = 611s, 12:11 = 731s
-        result = get_text_at_time("pYXy-A4siMw", start=611, end=732)
+        assert "Hi." in result
+        assert "This" in result
+
+    def test_respects_time_boundaries(self, tmp_path):
+        """Correctly excludes words outside the requested time range."""
+        timestamps = [
+            {"text": "before", "start": 600.0},
+            {"text": "When", "start": 611.0},
+            {"text": "a", "start": 612.0},
+            {"text": "system", "start": 613.0},
+            {"text": "is", "start": 614.0},
+            {"text": "goal.", "start": 730.0},
+            {"text": "So", "start": 731.0},
+            {"text": "after", "start": 733.0},
+        ]
+        test_file = tmp_path / "vid456_AI_Safety.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
+
+        result = get_text_at_time("vid456", start=611, end=732, search_dir=tmp_path)
 
         # Verify boundaries - text before/after should NOT be included
-        assert "Stuart Russell" not in result  # comes before 611s
-        assert "now it values the vase" not in result  # comes after 732s
+        assert "before" not in result  # comes before 611s
+        assert "after" not in result  # comes after 732s
 
         # Verify content at boundaries IS included
-        assert "When a system is" in result
-        assert "goal. So it will" in result
+        assert "When" in result
+        assert "So" in result
 
 
 class TestGetTimeFromText:
@@ -204,27 +231,58 @@ class TestGetTimeFromText:
                 search_dir=tmp_path,
             )
 
-    def test_works_with_real_transcript(self):
-        """Works with real transcript from educational_content/video_transcripts/."""
-        # Quote: "Hi. This video is a remaster of" - first 4 and last 4 words
+    def test_finds_quote_at_start_of_transcript(self, tmp_path):
+        """Finds timestamps for a quote near the beginning of the transcript."""
+        timestamps = [
+            {"text": "Hi.", "start": 0.5},
+            {"text": "This", "start": 1.0},
+            {"text": "video", "start": 1.5},
+            {"text": "is", "start": 2.0},
+            {"text": "a", "start": 2.5},
+            {"text": "remaster", "start": 3.0},
+            {"text": "of", "start": 3.5},
+            {"text": "something", "start": 4.0},
+        ]
+        test_file = tmp_path / "vid789_Intro.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
+
         result = get_time_from_text(
-            "pYXy-A4siMw",
+            "vid789",
             first_words="Hi This video is",
             last_words="is a remaster of",
+            search_dir=tmp_path,
         )
 
         # Should find timestamps near the beginning
         assert result["start"] < 5.0
         assert result["end"] > result["start"]
 
-    def test_real_transcript_when_a_system_is(self):
-        """Finds timestamps for 'When a system is...goal. So it will' passage."""
+    def test_finds_quote_in_middle_of_transcript(self, tmp_path):
+        """Finds timestamps for a passage in the middle of a transcript."""
+        timestamps = [
+            {"text": "earlier", "start": 600.0},
+            {"text": "content", "start": 605.0},
+            {"text": "When", "start": 611.6},
+            {"text": "a", "start": 612.0},
+            {"text": "system", "start": 612.5},
+            {"text": "is", "start": 613.0},
+            {"text": "middle", "start": 700.0},
+            {"text": "goal.", "start": 730.5},
+            {"text": "So", "start": 731.0},
+            {"text": "it", "start": 731.2},
+            {"text": "will", "start": 731.5},
+            {"text": "later", "start": 740.0},
+        ]
+        test_file = tmp_path / "vid999_AI_Safety.timestamps.json"
+        test_file.write_text(json.dumps(timestamps))
+
         result = get_time_from_text(
-            "pYXy-A4siMw",
+            "vid999",
             first_words="When a system is",
             last_words="goal. So it will",
+            search_dir=tmp_path,
         )
 
-        # Should match 10:11 (611s) to 12:11 (731s)
-        assert 610 < result["start"] < 613  # ~611.60s
-        assert 730 < result["end"] < 733  # ~731.20s
+        # Should match around 611s to 731s
+        assert 610 < result["start"] < 615
+        assert 730 < result["end"] < 735

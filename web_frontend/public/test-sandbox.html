@@ -1,0 +1,155 @@
+<!-- This is a test harness, not the embeddable widget. -->
+<!-- For the subscribe embed (e.g. LessWrong iframe), see: public/lw-widget.html -->
+<!DOCTYPE html>
+<html>
+<head><title>Sandbox iframe test</title></head>
+<body style="font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px;">
+<h2>Sandboxed iframe test</h2>
+<p>This page embeds widgets in sandboxed iframes identical to LessWrong's setup (<code>sandbox="allow-scripts"</code>).</p>
+
+<h3>Test 1: no-cors + form-urlencoded (courses only)</h3>
+<p style="font-size:13px; color:#666;">Fire-and-forget. Can't read response but request should land.</p>
+<iframe sandbox="allow-scripts" srcdoc='
+<html><body style="font-family: sans-serif; padding: 10px;">
+<input id="e" type="email" placeholder="email" value="test@example.com" style="padding:6px; width:200px;" />
+<button id="b" style="padding:6px 12px;">Send</button>
+<div id="r" style="margin-top:8px; font-size:14px;"></div>
+<script>
+document.getElementById("b").addEventListener("click", async () => {
+  const email = document.getElementById("e").value;
+  const r = document.getElementById("r");
+  r.textContent = "Sending...";
+  try {
+    const resp = await fetch("http://dev.vps:8200/api/subscribe", {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "email=" + encodeURIComponent(email)
+    });
+    r.textContent = "Done. type=" + resp.type + " ok=" + resp.ok + " status=" + resp.status;
+  } catch(e) {
+    r.textContent = "ERROR: " + e.message;
+  }
+});
+</script>
+</body></html>
+' style="width:100%; height:100px; border:1px solid #ccc;"></iframe>
+
+<h3>Test 2: cors + JSON (courses only)</h3>
+<p style="font-size:13px; color:#666;">Full CORS flow with preflight. Should be able to read response.</p>
+<iframe sandbox="allow-scripts" srcdoc='
+<html><body style="font-family: sans-serif; padding: 10px;">
+<input id="e" type="email" placeholder="email" value="test@example.com" style="padding:6px; width:200px;" />
+<button id="b" style="padding:6px 12px;">Send</button>
+<div id="r" style="margin-top:8px; font-size:14px;"></div>
+<script>
+document.getElementById("b").addEventListener("click", async () => {
+  const email = document.getElementById("e").value;
+  const r = document.getElementById("r");
+  r.textContent = "Sending...";
+  try {
+    const resp = await fetch("http://dev.vps:8200/api/subscribe", {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, subscribe_courses: true })
+    });
+    const data = await resp.json();
+    r.textContent = "status=" + resp.status + " body=" + JSON.stringify(data);
+  } catch(e) {
+    r.textContent = "CORS ERROR: " + e.message;
+  }
+});
+</script>
+</body></html>
+' style="width:100%; height:100px; border:1px solid #ccc;"></iframe>
+
+<h3>Test 3: cors + JSON (substack only)</h3>
+<p style="font-size:13px; color:#666;">Tests Substack forwarding without course signup.</p>
+<iframe sandbox="allow-scripts" srcdoc='
+<html><body style="font-family: sans-serif; padding: 10px;">
+<input id="e" type="email" placeholder="email" value="test@example.com" style="padding:6px; width:200px;" />
+<button id="b" style="padding:6px 12px;">Send</button>
+<div id="r" style="margin-top:8px; font-size:14px;"></div>
+<script>
+document.getElementById("b").addEventListener("click", async () => {
+  const email = document.getElementById("e").value;
+  const r = document.getElementById("r");
+  r.textContent = "Sending...";
+  try {
+    const resp = await fetch("http://dev.vps:8200/api/subscribe", {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, subscribe_substack: true })
+    });
+    const data = await resp.json();
+    r.textContent = "status=" + resp.status + " body=" + JSON.stringify(data);
+  } catch(e) {
+    r.textContent = "CORS ERROR: " + e.message;
+  }
+});
+</script>
+</body></html>
+' style="width:100%; height:100px; border:1px solid #ccc;"></iframe>
+
+<h3>Test 4: cors + JSON (both flags)</h3>
+<p style="font-size:13px; color:#666;">Tests both course + Substack subscription together.</p>
+<iframe sandbox="allow-scripts" srcdoc='
+<html><body style="font-family: sans-serif; padding: 10px;">
+<input id="e" type="email" placeholder="email" value="test@example.com" style="padding:6px; width:200px;" />
+<button id="b" style="padding:6px 12px;">Send</button>
+<div id="r" style="margin-top:8px; font-size:14px;"></div>
+<script>
+document.getElementById("b").addEventListener("click", async () => {
+  const email = document.getElementById("e").value;
+  const r = document.getElementById("r");
+  r.textContent = "Sending...";
+  try {
+    const resp = await fetch("http://dev.vps:8200/api/subscribe", {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, subscribe_courses: true, subscribe_substack: true })
+    });
+    const data = await resp.json();
+    r.textContent = "status=" + resp.status + " body=" + JSON.stringify(data);
+  } catch(e) {
+    r.textContent = "CORS ERROR: " + e.message;
+  }
+});
+</script>
+</body></html>
+' style="width:100%; height:100px; border:1px solid #ccc;"></iframe>
+
+<h3>Test 5: cors + JSON (no flags = 400)</h3>
+<p style="font-size:13px; color:#666;">Should return 400 &quot;Please select at least one option.&quot;</p>
+<iframe sandbox="allow-scripts" srcdoc='
+<html><body style="font-family: sans-serif; padding: 10px;">
+<input id="e" type="email" placeholder="email" value="test@example.com" style="padding:6px; width:200px;" />
+<button id="b" style="padding:6px 12px;">Send</button>
+<div id="r" style="margin-top:8px; font-size:14px;"></div>
+<script>
+document.getElementById("b").addEventListener("click", async () => {
+  const email = document.getElementById("e").value;
+  const r = document.getElementById("r");
+  r.textContent = "Sending...";
+  try {
+    const resp = await fetch("http://dev.vps:8200/api/subscribe", {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email })
+    });
+    const data = await resp.json();
+    r.textContent = "status=" + resp.status + " body=" + JSON.stringify(data);
+  } catch(e) {
+    r.textContent = "CORS ERROR: " + e.message;
+  }
+});
+</script>
+</body></html>
+' style="width:100%; height:100px; border:1px solid #ccc;"></iframe>
+
+</body>
+</html>

@@ -1,0 +1,62 @@
+# core/modules/flattened_types.py
+"""Flattened module types for API responses.
+
+These types represent the final, resolved structure that the API returns.
+Learning Outcomes and Uncategorized sections are expanded into their
+constituent video and article sections.
+
+Section types in the sections list (all dicts):
+- type: "lens" - Lens section with text/article/video/chat segments
+- type: "test" - Test section with question segments
+
+Lens sections include:
+- contentId: Lens UUID
+- learningOutcomeId: Learning Outcome UUID (or null if uncategorized)
+"""
+
+from dataclasses import dataclass, field
+from typing import Union
+from uuid import UUID
+
+
+@dataclass
+class FlattenedModule:
+    """A module with all sections flattened and resolved."""
+
+    slug: str
+    title: str
+    content_id: UUID | None
+    sections: list[dict] = field(default_factory=list)
+    source_path: str | None = None
+    error: str | None = None
+    parent_slug: str | None = None
+    parent_title: str | None = None
+
+
+@dataclass
+class ModuleRef:
+    """Reference to a module in a course progression."""
+
+    slug: str  # Module's frontmatter slug (e.g., "cognitive-superpowers")
+    optional: bool = False
+
+
+@dataclass
+class MeetingMarker:
+    """A meeting marker in the course progression."""
+
+    name: str
+
+
+# Type alias for progression items
+ProgressionItem = Union[ModuleRef, MeetingMarker]
+
+
+@dataclass
+class ParsedCourse:
+    """A parsed course definition."""
+
+    slug: str
+    title: str
+    progression: list[ProgressionItem] = field(default_factory=list)
+    slug_aliases: list[str] = field(default_factory=list)

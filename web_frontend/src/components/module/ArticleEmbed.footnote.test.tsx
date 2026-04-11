@@ -1,0 +1,294 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, act } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import ArticleEmbed from "./ArticleEmbed";
+import type { ArticleData } from "@/types/module";
+
+function makeArticle(content: string): ArticleData {
+  return {
+    content,
+    title: "Test Article",
+    author: "Test Author",
+    sourceUrl: null,
+  };
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("Inline footnote directive", () => {
+  it("renders an icon for :footnote[text], not the text directly", () => {
+    const article = makeArticle(
+      "The concept of :footnote[extra detail here] power-seeking is important.",
+    );
+    render(<ArticleEmbed article={article} />);
+
+    expect(screen.getByRole("img", { name: /footnote/i })).toBeInTheDocument();
+    expect(screen.queryByText("extra detail here")).not.toBeInTheDocument();
+  });
+
+  it("shows the popup with text when hovering the icon", async () => {
+    const user = userEvent.setup();
+    const article = makeArticle(
+      "The concept of :footnote[extra detail here] power-seeking is important.",
+    );
+    render(<ArticleEmbed article={article} />);
+
+    const icon = screen.getByRole("img", { name: /footnote/i });
+    await user.hover(icon.parentElement!);
+
+    expect(screen.getByText("extra detail here")).toBeInTheDocument();
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+  });
+
+  it("hides the popup after mouse leaves (with delay)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime,
+    });
+    const article = makeArticle("Some text :footnote[hover info] more text.");
+    render(<ArticleEmbed article={article} />);
+
+    const icon = screen.getByRole("img", { name: /footnote/i });
+    await user.hover(icon.parentElement!);
+    expect(screen.getByText("hover info")).toBeInTheDocument();
+
+    await user.unhover(icon.parentElement!);
+
+    // Still visible immediately (300ms delay)
+    expect(screen.getByText("hover info")).toBeInTheDocument();
+
+    // After 300ms, should be hidden
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(screen.queryByText("hover info")).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
+  it("renders ::footnote[text] (leaf form) the same as text form", () => {
+    const article = makeArticle(
+      "Before.\n\n::footnote[leaf footnote content]\n\nAfter.",
+    );
+    render(<ArticleEmbed article={article} />);
+
+    expect(screen.getByRole("img", { name: /footnote/i })).toBeInTheDocument();
+    expect(screen.queryByText("leaf footnote content")).not.toBeInTheDocument();
+  });
+
+  it("supports multiple independent footnotes", async () => {
+    const user = userEvent.setup();
+    const article = makeArticle(
+      "First :footnote[detail one] and second :footnote[detail two] points.",
+    );
+    render(<ArticleEmbed article={article} />);
+
+    const icons = screen.getAllByRole("img", { name: /footnote/i });
+    expect(icons).toHaveLength(2);
+
+    // Hover the first footnote
+    await user.hover(icons[0].parentElement!);
+    expect(screen.getByText("detail one")).toBeInTheDocument();
+    expect(screen.queryByText("detail two")).not.toBeInTheDocument();
+  });
+
+  it("lens footnote trigger has data-source='lens'", () => {
+    const article = makeArticle("Text :footnote[lens note] here.");
+    render(<ArticleEmbed article={article} />);
+    const trigger = screen
+      .getByRole("img", { name: /footnote/i })
+      .closest("[data-source]");
+    expect(trigger).toHaveAttribute("data-source", "lens");
+  });
+
+  it("GFM footnote renders as tooltip trigger, not as <sup><a>", () => {
+    const article = makeArticle(
+      "Text with a ref[^1].\n\n[^1]: The definition text.",
+    );
+    render(<ArticleEmbed article={article} />);
+    // Should NOT render default GFM footnote HTML
+    expect(document.querySelector("sup")).not.toBeInTheDocument();
+    expect(
+      document.querySelector("section[data-footnotes]"),
+    ).not.toBeInTheDocument();
+    // Should render a tooltip trigger with the number
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("GFM footnote tooltip shows definition on hover", async () => {
+    const user = userEvent.setup();
+    const article = makeArticle(
+      "Text[^1].\n\n[^1]: Author's footnote content.",
+    );
+    render(<ArticleEmbed article={article} />);
+    const trigger = screen.getByText("1");
+    await user.hover(trigger);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Author's footnote content.",
+    );
+  });
+
+  it("GFM footnote trigger has data-source='author'", () => {
+    const article = makeArticle("Text[^1].\n\n[^1]: Def.");
+    render(<ArticleEmbed article={article} />);
+    const trigger = screen.getByText("1").closest("[data-source]");
+    expect(trigger).toHaveAttribute("data-source", "author");
+  });
+
+  it("opens on click and dismisses on click-outside (mobile)", async () => {
+    const user = userEvent.setup();
+    const article = makeArticle("Text :footnote[click info] more.");
+    render(<ArticleEmbed article={article} />);
+
+    const icon = screen.getByRole("img", { name: /footnote/i });
+
+    // Click to open
+    await user.click(icon.parentElement!);
+    expect(screen.getByText("click info")).toBeInTheDocument();
+
+    // Click outside to close
+    await user.click(document.body);
+    expect(screen.queryByText("click info")).not.toBeInTheDocument();
+  });
+
+  it("author footnote shows superscript number, not Lens logo", () => {
+    const article = makeArticle("Text[^1].\n\n[^1]: Author note.");
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
+    const triggers = document.querySelectorAll("[data-source]");
+    const authorTrigger = Array.from(triggers).find(
+      (el) => el.getAttribute("data-source") === "author",
+    );
+    expect(
+      authorTrigger?.querySelector('img[alt="footnote"]'),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lens footnote still shows Lens logo", () => {
+    const article = makeArticle("Text :footnote[editorial note] here.");
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByRole("img", { name: /footnote/i })).toBeInTheDocument();
+  });
+
+  it("mixed author and lens footnotes render correctly", () => {
+    const article = makeArticle(
+      "Author says[^1] and :footnote[lens note].\n\n[^1]: Author's note.",
+    );
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /footnote/i })).toBeInTheDocument();
+  });
+
+  it("multi-paragraph GFM footnote renders all content in tooltip", async () => {
+    const user = userEvent.setup();
+    const article = makeArticle(
+      "Text[^1].\n\n[^1]: First paragraph.\n\n    Second paragraph.\n\n    Third paragraph.",
+    );
+    render(<ArticleEmbed article={article} />);
+    await user.hover(screen.getByText("1"));
+    const tooltip = screen.getByRole("tooltip");
+    // Multi-paragraph definitions are joined with " — " separator
+    expect(tooltip).toHaveTextContent("First paragraph.");
+    expect(tooltip).toHaveTextContent("Second paragraph.");
+  });
+
+  it("multiple GFM footnotes get sequential numbers", () => {
+    const article = makeArticle(
+      "Point A[^a] and point B[^b].\n\n[^a]: Def A.\n[^b]: Def B.",
+    );
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("duplicate references to same footnote both render", () => {
+    const article = makeArticle(
+      "First ref[^1] and second ref[^1].\n\n[^1]: Shared definition.",
+    );
+    render(<ArticleEmbed article={article} />);
+    const triggers = screen.getAllByText(/^[12]$/);
+    expect(triggers.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("GFM footnote endnotes section is suppressed", () => {
+    const article = makeArticle("Text[^1].\n\n[^1]: Def.");
+    render(<ArticleEmbed article={article} />);
+    expect(
+      document.querySelector("section[data-footnotes]"),
+    ).not.toBeInTheDocument();
+    expect(document.querySelector("#footnote-label")).not.toBeInTheDocument();
+  });
+
+  it("GFM footnote with definition in collapsed_after renders correctly", () => {
+    const article: ArticleData = {
+      content: "Text[^1] here.",
+      title: "Test",
+      author: "Author",
+      sourceUrl: null,
+      collapsed_after:
+        "More text.\n\n[^1]: The definition from collapsed section.",
+    };
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("GFM footnote with definition in collapsed_before renders correctly", () => {
+    const article: ArticleData = {
+      content: "Text[^1] here.",
+      title: "Test",
+      author: "Author",
+      sourceUrl: null,
+      collapsed_before:
+        "[^1]: The definition from before section.\n\nSome earlier text.",
+    };
+    render(<ArticleEmbed article={article} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("GFM footnote resolves definition from externalFootnoteDefs", async () => {
+    const user = userEvent.setup();
+    const article: ArticleData = {
+      content: "Text[^1] here.",
+      title: "Test",
+      author: "Author",
+      sourceUrl: null,
+    };
+    const externalDefs = new Map([["1", "Definition from another excerpt."]]);
+    render(
+      <ArticleEmbed article={article} externalFootnoteDefs={externalDefs} />,
+    );
+    // Should render the footnote trigger, not literal [^1]
+    expect(screen.getByText("1")).toBeInTheDocument();
+    await user.hover(screen.getByText("1"));
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Definition from another excerpt.",
+    );
+  });
+
+  it("footnoteCounterStart offsets numbering for cross-excerpt continuity", () => {
+    const article: ArticleData = {
+      content: "Text[^a] and more[^b].",
+      title: "Test",
+      author: "Author",
+      sourceUrl: null,
+    };
+    const externalDefs = new Map([
+      ["a", "Def A."],
+      ["b", "Def B."],
+    ]);
+    render(
+      <ArticleEmbed
+        article={article}
+        externalFootnoteDefs={externalDefs}
+        footnoteCounterStart={3}
+      />,
+    );
+    // With counterStart=3, first footnote should be labeled "4", second "5"
+    expect(screen.getByText("4")).toBeInTheDocument();
+    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.queryByText("1")).not.toBeInTheDocument();
+    expect(screen.queryByText("2")).not.toBeInTheDocument();
+  });
+});

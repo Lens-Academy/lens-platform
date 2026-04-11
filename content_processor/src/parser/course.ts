@@ -1,0 +1,188 @@
+// src/parser/course.ts
+import type { ContentError, ProgressionItem, Course } from '../index.js';
+import { parseFrontmatter } from './frontmatter.js';
+import { parseSections, type ParsedSection } from './sections.js';
+import { parseWikilink } from './wikilink.js';
+import { validateSlugFormat } from '../validator/field-values.js';
+import { validateFrontmatter } from '../validator/validate-frontmatter.js';
+import { stripAuthoringMarkup } from './lens.js';
+
+// Valid section types for course files
+export const COURSE_SECTION_TYPES = new Set(['module', 'meeting']);
+
+export interface CourseParseResult {
+  course: Course | null;
+  errors: ContentError[];
+}
+
+/**
+ * Parses a Module section title to extract the wikilink path
+ * Title format: [[../modules/intro.md|Display Text]]
+ */
+function parseModuleSection(
+  section: ParsedSection,
+  file: string
+): { path: string; optional: boolean } | { error: ContentError } {
+  // The title should be a wikilink
+  const wikilink = parseWikilink(section.title);
+
+  if (!wikilink) {
+    return {
+      error: {
+        file,
+        line: section.line,
+        message: `Module section must have a wikilink in title, got: "${section.title}"`,
+        suggestion: 'Use format: # Module: [[../modules/module-name.md|Display Text]]',
+        severity: 'error',
+      },
+    };
+  }
+
+  const optional = section.fields.optional?.toLowerCase() === 'true';
+
+  return { path: wikilink.path, optional };
+}
+
+/**
+ * Parses a Meeting section title to extract the meeting name.
+ * Title format: any non-empty string (e.g., "Introduction", "Week 1")
+ */
+function parseMeetingSection(
+  section: ParsedSection,
+  file: string
+): { name: string } | { error: ContentError } {
+  const name = section.title.trim();
+
+  if (!name) {
+    return {
+      error: {
+        file,
+        line: section.line,
+        message: `Meeting section must have a name in title, got: "${section.title}"`,
+        suggestion: 'Use format: # Meeting: Introduction',
+        severity: 'error',
+      },
+    };
+  }
+
+  return { name };
+}
+
+/**
+ * Normalize slug-aliases from frontmatter.
+ * Accepts: string ("default"), comma-separated ("a, b"), or YAML list (["a", "b"]).
+ */
+function parseSlugAliases(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map(a => String(a).trim()).filter(Boolean);
+  }
+  if (typeof raw === 'string') {
+    return raw.split(',').map(a => a.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+/**
+ * Parses a course file and extracts its structure.
+ *
+ * Course files use H1 sections:
+ * - `# Module: [[../modules/name.md|Display]]` - references a module
+ * - `# Meeting: 1` - marks a meeting point
+ *
+ * The raw wikilink path is stored in the progression item; processContent
+ * resolves it to the frontmatter slug after all files are parsed.
+ */
+export function parseCourse(content: string, file: string): CourseParseResult {
+  const errors: ContentError[] = [];
+
+  // Strip authoring markup (CriticMarkup + Obsidian comments) before parsing
+  content = stripAuthoringMarkup(content);
+
+  // Parse frontmatter
+  const frontmatterResult = parseFrontmatter(content, file);
+  if (frontmatterResult.error) {
+    errors.push(frontmatterResult.error);
+    return { course: null, errors };
+  }
+
+  const { frontmatter, body, bodyStartLine } = frontmatterResult;
+
+  const frontmatterErrors = validateFrontmatter(frontmatter, 'course', file);
+  errors.push(...frontmatterErrors);
+
+  // Course-specific: validate slug format
+  const slug = frontmatter.slug;
+  if (typeof slug === 'string' && slug.trim() !== '') {
+    const slugFormatError = validateSlugFormat(slug, file, 2);
+    if (slugFormatError) {
+      errors.push(slugFormatError);
+    }
+  }
+
+  if (errors.some(e => e.severity === 'error')) {
+    return { course: null, errors };
+  }
+
+  // Parse sections (H1 headers for course files)
+  const sectionsResult = parseSections(body, 0, COURSE_SECTION_TYPES, file);
+
+  // Adjust line numbers to account for frontmatter
+  for (const error of sectionsResult.errors) {
+    if (error.line) {
+      error.line += bodyStartLine - 1;
+    }
+  }
+  errors.push(...sectionsResult.errors);
+
+  for (const section of sectionsResult.sections) {
+    section.line += bodyStartLine - 1;
+  }
+
+  // Build progression array from parsed sections
+  const progression: ProgressionItem[] = [];
+
+  for (const section of sectionsResult.sections) {
+    if (section.type === 'module') {
+      const result = parseModuleSection(section, file);
+      if ('error' in result) {
+        errors.push(result.error);
+      } else {
+        progression.push({
+          type: 'module',
+          path: result.path,
+          optional: result.optional,
+        });
+      }
+    } else if (section.type === 'meeting') {
+      const result = parseMeetingSection(section, file);
+      if ('error' in result) {
+        errors.push(result.error);
+      } else {
+        progression.push({
+          type: 'meeting',
+          name: result.name,
+        });
+      }
+    }
+  }
+
+  const slugAliases = parseSlugAliases(frontmatter['slug-aliases']);
+
+  // Validate each alias format
+  for (const alias of slugAliases) {
+    const aliasError = validateSlugFormat(alias, file, 2);
+    if (aliasError) {
+      aliasError.message = aliasError.message.replace('slug format', 'slug-alias format');
+      errors.push(aliasError);
+    }
+  }
+
+  const course: Course = {
+    slug: frontmatter.slug as string,
+    title: frontmatter.title as string,
+    slugAliases,
+    progression,
+  };
+
+  return { course, errors };
+}

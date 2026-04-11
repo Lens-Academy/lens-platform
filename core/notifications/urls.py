@@ -12,16 +12,22 @@ DISCORD_SERVER_ID = os.environ.get("DISCORD_SERVER_ID", "")
 DISCORD_INVITE_URL = "https://discord.gg/nn7HrjFZ8E"
 
 
-def build_lesson_url(lesson_slug: str) -> str:
-    """Build URL to a lesson page."""
+def build_module_url(course_slug: str, module_slug: str) -> str:
+    """Build URL to a module page within a course."""
     base = get_frontend_url()
-    return f"{base}/lesson/{lesson_slug}"
+    return f"{base}/course/{course_slug}/module/{module_slug}"
 
 
 def build_profile_url() -> str:
-    """Build URL to user profile/signup page."""
+    """Build URL to user enrollment page."""
     base = get_frontend_url()
-    return f"{base}/signup"
+    return f"{base}/enroll"
+
+
+def build_course_url() -> str:
+    """Build URL to the course overview page."""
+    base = get_frontend_url()
+    return f"{base}/course"
 
 
 def build_discord_channel_url(

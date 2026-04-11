@@ -1,17 +1,9 @@
-# Stage 1: Build frontend
-FROM node:20-slim AS frontend-builder
-WORKDIR /app/web_frontend
-COPY web_frontend/package*.json ./
-RUN npm ci
-COPY web_frontend/ ./
-RUN npm run build
-
-# Stage 2: Python backend with frontend assets
+# Python backend + static frontend (served by Python)
 FROM python:3.12-slim
 WORKDIR /app
 
-# Install system dependencies (libpq5 for psycopg2, git for pip git dependencies)
-RUN apt-get update && apt-get install -y libpq5 git && rm -rf /var/lib/apt/lists/*
+# Install system dependencies including Node.js for frontend build
+RUN apt-get update && apt-get install -y libpq5 git nodejs npm && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
@@ -20,8 +12,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Copy built frontend from stage 1
-COPY --from=frontend-builder /app/web_frontend/dist ./web_frontend/dist
+# Install content processor dependencies (TypeScript parser for educational content)
+WORKDIR /app/content_processor
+RUN npm ci
 
-# Run the application (use PORT env var from Railway, default to 8000)
-CMD ["sh", "-c", "python main.py --port ${PORT:-8000}"]
+# Build frontend (pass VITE_ vars so Vite sees them during build)
+ARG VITE_ENV_LABEL
+ENV VITE_ENV_LABEL=$VITE_ENV_LABEL
+ARG VITE_LENS_EDITOR_EDU_CONTENT_SUGGEST_TOKEN
+ENV VITE_LENS_EDITOR_EDU_CONTENT_SUGGEST_TOKEN=$VITE_LENS_EDITOR_EDU_CONTENT_SUGGEST_TOKEN
+WORKDIR /app/web_frontend
+RUN npm ci && npm run build
+
+# Back to app root
+WORKDIR /app
+
+# Run migrations and start the application (use PORT env var from Railway, default to 8000)
+CMD ["sh", "-c", "alembic upgrade head && python main.py --port ${PORT:-8000}"]

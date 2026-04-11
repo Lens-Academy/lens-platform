@@ -82,7 +82,6 @@ class SyncCog(commands.Cog):
 
         await ctx.send("Done! Run `!sync` to add commands back.")
 
-
     @commands.command(name="list-commands")
     @commands.has_permissions(administrator=True)
     async def list_commands(self, ctx: commands.Context):

@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import cohort_scheduler
-from core import Person, DAY_MAP, calculate_total_available_time
+from core import Person, calculate_total_available_time
 
 # Aliases for cohort_scheduler functions
 parse_interval_string = cohort_scheduler.parse_interval_string
@@ -951,7 +951,7 @@ class TestAnalyzeUngroupableUsers:
         )
 
         assert len(details) == 1
-        assert details[0].reason == UngroupableReason.NO_AVAILABILITY
+        assert details[0].reason == UngroupableReason.no_availability
 
     def test_no_facilitator_overlap_reason(self):
         """Users whose availability doesn't overlap with facilitators."""
@@ -975,7 +975,7 @@ class TestAnalyzeUngroupableUsers:
         )
 
         assert len(details) == 1
-        assert details[0].reason == UngroupableReason.NO_FACILITATOR_OVERLAP
+        assert details[0].reason == UngroupableReason.no_facilitator_overlap
 
     def test_facilitator_capacity_reason(self):
         """Users who overlap with facilitators but all are at capacity."""
@@ -999,7 +999,7 @@ class TestAnalyzeUngroupableUsers:
         )
 
         assert len(details) == 1
-        assert details[0].reason == UngroupableReason.FACILITATOR_CAPACITY
+        assert details[0].reason == UngroupableReason.facilitator_capacity
 
     def test_insufficient_group_size_reason(self):
         """Users who can't form a group due to not enough overlapping people."""
@@ -1023,7 +1023,7 @@ class TestAnalyzeUngroupableUsers:
 
         assert len(details) == 2
         for detail in details:
-            assert detail.reason == UngroupableReason.INSUFFICIENT_GROUP_SIZE
+            assert detail.reason == UngroupableReason.insufficient_group_size
             assert detail.details["overlapping_users"] == 2
             assert detail.details["min_required"] == 4
 
@@ -1053,8 +1053,8 @@ class TestAnalyzeUngroupableUsers:
 
         assert len(details) == 2
         reasons = {d.discord_id: d.reason for d in details}
-        assert reasons["s1"] == UngroupableReason.NO_AVAILABILITY
-        assert reasons["s2"] == UngroupableReason.NO_FACILITATOR_OVERLAP
+        assert reasons["s1"] == UngroupableReason.no_availability
+        assert reasons["s2"] == UngroupableReason.no_facilitator_overlap
 
 
 class TestFindCohortTimeOptionsExtended:
@@ -1113,7 +1113,9 @@ class TestFindCohortTimeOptionsExtended:
 
         options = find_meeting_times([person], meeting_length=60, time_increment=30)
         assert len(options) == 1
-        assert options[0] == (540, 600)
+        # Options are (start, end, score) tuples - check start/end match
+        assert options[0][0] == 540
+        assert options[0][1] == 600
 
 
 class TestMoreEdgeCases:

@@ -4,28 +4,27 @@ Meeting management service.
 Coordinates database, Google Calendar, Discord, and APScheduler operations.
 """
 
+import logging
 from datetime import datetime, timedelta
 
 from core.database import get_connection, get_transaction
 from core.queries.meetings import (
     create_meeting,
-    update_meeting_calendar_id,
+    delete_meeting as db_delete_meeting,
+    get_group_for_meeting,
+    get_last_meeting_for_group,
     get_meeting,
     get_meetings_for_group,
+    renumber_meetings_after_delete,
     reschedule_meeting as db_reschedule_meeting,
-    get_group_member_emails,
-    get_group_member_user_ids,
 )
-from core.calendar import (
-    create_meeting_event,
-    update_meeting_event,
-    cancel_meeting_event,
-    is_calendar_configured,
-)
+from core.calendar import update_meeting_event, postpone_meeting_in_recurring_event
 from core.notifications.actions import (
     schedule_meeting_reminders,
     cancel_meeting_reminders,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def create_meetings_for_group(
@@ -34,9 +33,6 @@ async def create_meetings_for_group(
     group_name: str,
     first_meeting: datetime,
     num_meetings: int,
-    discord_voice_channel_id: str,
-    discord_events: list | None = None,
-    discord_text_channel_id: str | None = None,
 ) -> list[int]:
     """
     Create all meeting records for a group.
@@ -49,9 +45,6 @@ async def create_meetings_for_group(
         group_name: Group name (for calendar event titles)
         first_meeting: First meeting datetime (UTC)
         num_meetings: Number of weekly meetings
-        discord_voice_channel_id: Voice channel ID
-        discord_events: Optional list of Discord scheduled events
-        discord_text_channel_id: Text channel for reminders
 
     Returns:
         List of created meeting_ids
@@ -62,80 +55,29 @@ async def create_meetings_for_group(
         for week in range(num_meetings):
             meeting_time = first_meeting + timedelta(weeks=week)
 
-            # Get Discord event ID if available
-            discord_event_id = None
-            if discord_events and week < len(discord_events):
-                discord_event_id = str(discord_events[week].id)
-
             meeting_id = await create_meeting(
                 conn,
                 group_id=group_id,
                 cohort_id=cohort_id,
                 scheduled_at=meeting_time,
                 meeting_number=week + 1,
-                discord_event_id=discord_event_id,
-                discord_voice_channel_id=discord_voice_channel_id,
             )
             meeting_ids.append(meeting_id)
 
     return meeting_ids
 
 
-async def send_calendar_invites_for_group(
-    group_id: int,
-    group_name: str,
-    meeting_ids: list[int],
-) -> int:
-    """
-    Send Google Calendar invites for all meetings in a group.
-
-    Returns:
-        Number of invites sent successfully
-    """
-    if not is_calendar_configured():
-        print("Google Calendar not configured, skipping invites")
-        return 0
-
-    async with get_connection() as conn:
-        # Get member emails
-        emails = await get_group_member_emails(conn, group_id)
-
-        if not emails:
-            print(f"No emails found for group {group_id}, skipping calendar invites")
-            return 0
-
-        # Get meetings
-        meetings_list = await get_meetings_for_group(conn, group_id)
-
-    sent = 0
-    async with get_transaction() as conn:
-        for meeting in meetings_list:
-            if meeting["meeting_id"] not in meeting_ids:
-                continue
-
-            event_id = create_meeting_event(
-                title=f"{group_name} - Week {meeting['meeting_number']}",
-                description="Weekly AI Safety study group meeting",
-                start=meeting["scheduled_at"],
-                attendee_emails=emails,
-            )
-
-            if event_id:
-                await update_meeting_calendar_id(conn, meeting["meeting_id"], event_id)
-                sent += 1
-
-    return sent
-
-
 async def schedule_reminders_for_group(
     group_id: int,
-    group_name: str,
     meeting_ids: list[int],
-    discord_channel_id: str,
 ) -> None:
-    """Schedule APScheduler reminders for all meetings in a group."""
+    """
+    Schedule APScheduler reminders for all meetings in a group.
+
+    With lightweight jobs, we only need meeting_id and meeting_time -
+    group membership and context are fetched fresh at execution time.
+    """
     async with get_connection() as conn:
-        user_ids = await get_group_member_user_ids(conn, group_id)
         meetings_list = await get_meetings_for_group(conn, group_id)
 
     for meeting in meetings_list:
@@ -145,23 +87,22 @@ async def schedule_reminders_for_group(
         schedule_meeting_reminders(
             meeting_id=meeting["meeting_id"],
             meeting_time=meeting["scheduled_at"],
-            user_ids=user_ids,
-            group_name=group_name,
-            discord_channel_id=discord_channel_id,
         )
 
 
 async def reschedule_meeting(
     meeting_id: int,
     new_time: datetime,
-    group_name: str,
-    discord_channel_id: str,
 ) -> bool:
     """
     Reschedule a single meeting.
 
     Updates database, Google Calendar, and APScheduler reminders.
     Discord event update is NOT handled here (requires bot context).
+
+    Args:
+        meeting_id: Database meeting ID
+        new_time: New scheduled time
 
     Returns:
         True if successful
@@ -176,22 +117,186 @@ async def reschedule_meeting(
 
         # Update Google Calendar (sends notification to attendees)
         if meeting.get("google_calendar_event_id"):
-            update_meeting_event(
+            await update_meeting_event(
                 event_id=meeting["google_calendar_event_id"],
                 start=new_time,
             )
 
-        # Get user IDs for rescheduling reminders
-        user_ids = await get_group_member_user_ids(conn, meeting["group_id"])
-
-    # Reschedule APScheduler reminders
+    # Reschedule APScheduler reminders (lightweight - only needs meeting_id and time)
     cancel_meeting_reminders(meeting_id)
     schedule_meeting_reminders(
         meeting_id=meeting_id,
         meeting_time=new_time,
-        user_ids=user_ids,
-        group_name=group_name,
-        discord_channel_id=discord_channel_id,
     )
 
+    # Update Zoom meeting time if one exists
+    if meeting.get("zoom_meeting_id"):
+        from core.zoom.meetings import update_meeting as zoom_update_meeting
+        from core.zoom.hosts import find_available_host
+
+        # Check if current host is still available at new time
+        current_host_email = meeting.get("zoom_host_email")
+        host = await find_available_host(
+            start_time=new_time,
+            duration_minutes=60,
+        )
+
+        if host and host["email"] == current_host_email:
+            # Same host available — just update the time
+            await zoom_update_meeting(
+                meeting_id=meeting["zoom_meeting_id"],
+                start_time=new_time.isoformat(),
+            )
+        else:
+            # Need a different host — delete and recreate
+            from core.zoom.meetings import delete_meeting as zoom_delete_meeting
+            from core.zoom.meetings import create_meeting as zoom_create_meeting
+
+            await zoom_delete_meeting(meeting["zoom_meeting_id"])
+
+            if host:
+                # Get group name for Zoom meeting topic
+                async with get_connection() as conn:
+                    group = await get_group_for_meeting(conn, meeting_id)
+                group_name = group["group_name"] if group else "Group"
+
+                zoom_data = await zoom_create_meeting(
+                    host_email=host["email"],
+                    topic=f"{group_name} - Week {meeting['meeting_number']}",
+                    start_time=new_time.isoformat(),
+                    duration_minutes=60,
+                )
+                if zoom_data:
+                    async with get_transaction() as conn:
+                        from core.tables import meetings as meetings_table
+
+                        await conn.execute(
+                            meetings_table.update()
+                            .where(meetings_table.c.meeting_id == meeting_id)
+                            .values(
+                                zoom_meeting_id=zoom_data["id"],
+                                zoom_join_url=zoom_data["join_url"],
+                                zoom_host_email=host["email"],
+                            )
+                        )
+
     return True
+
+
+async def postpone_meeting(meeting_id: int) -> dict:
+    """
+    Postpone a meeting: cancel this week's meeting, shift meeting numbers down,
+    and add a new meeting at the end of the course.
+
+    Steps:
+    1. Delete the meeting row (attendance cascades)
+    2. Renumber subsequent meetings (decrement)
+    3. Insert new meeting at end (last meeting + 7 days)
+    4. Cancel reminders for deleted meeting
+    5. Schedule reminders for new meeting
+    6. Update Google Calendar (extend series, cancel instance)
+
+    Returns:
+        Dict with info about what happened.
+
+    Raises:
+        ValueError: If meeting not found or is in the past.
+    """
+    async with get_transaction() as conn:
+        meeting = await get_meeting(conn, meeting_id)
+        if not meeting:
+            raise ValueError("Meeting not found")
+
+        group = await get_group_for_meeting(conn, meeting_id)
+        if not group:
+            raise ValueError("Group not found for meeting")
+
+        group_id = group["group_id"]
+        deleted_number = meeting["meeting_number"]
+        deleted_scheduled_at = meeting["scheduled_at"]
+
+        # Get last meeting before deletion to calculate new end date
+        last_meeting = await get_last_meeting_for_group(conn, group_id)
+        if not last_meeting:
+            raise ValueError("No meetings found for group")
+
+        old_last_number = last_meeting["meeting_number"]
+        new_meeting_time = last_meeting["scheduled_at"] + timedelta(weeks=1)
+
+        # Delete Zoom meeting if one exists
+        if meeting.get("zoom_meeting_id"):
+            from core.zoom.meetings import delete_meeting as zoom_delete_meeting
+
+            try:
+                await zoom_delete_meeting(meeting["zoom_meeting_id"])
+            except Exception as e:
+                logger.warning(
+                    f"Failed to delete Zoom meeting {meeting['zoom_meeting_id']}: {e}"
+                )
+
+        # Delete the meeting row
+        await db_delete_meeting(conn, meeting_id)
+
+        # Renumber subsequent meetings
+        await renumber_meetings_after_delete(conn, group_id, deleted_number)
+
+        # Insert new meeting at end (number stays the same as old last,
+        # because all numbers shifted down by 1)
+        new_meeting_id = await create_meeting(
+            conn,
+            group_id=group_id,
+            cohort_id=meeting["cohort_id"],
+            scheduled_at=new_meeting_time,
+            meeting_number=old_last_number,
+        )
+
+    # Cancel reminders for deleted meeting
+    cancel_meeting_reminders(meeting_id)
+
+    # Schedule reminders for new meeting
+    schedule_meeting_reminders(
+        meeting_id=new_meeting_id,
+        meeting_time=new_meeting_time,
+    )
+
+    # Update Google Calendar
+    gcal_event_id = group.get("gcal_recurring_event_id")
+    if gcal_event_id:
+        await postpone_meeting_in_recurring_event(
+            recurring_event_id=gcal_event_id,
+            instance_start=deleted_scheduled_at,
+        )
+
+    # Create Zoom meeting for the new replacement meeting
+    from core.zoom.hosts import find_available_host
+    from core.zoom.meetings import create_meeting as zoom_create_meeting
+
+    host = await find_available_host(start_time=new_meeting_time, duration_minutes=60)
+    if host:
+        group_name = group.get("group_name", "Group")
+        zoom_data = await zoom_create_meeting(
+            host_email=host["email"],
+            topic=f"{group_name} - Week {old_last_number}",
+            start_time=new_meeting_time.isoformat(),
+            duration_minutes=60,
+        )
+        if zoom_data:
+            async with get_transaction() as conn:
+                from core.tables import meetings as meetings_table
+
+                await conn.execute(
+                    meetings_table.update()
+                    .where(meetings_table.c.meeting_id == new_meeting_id)
+                    .values(
+                        zoom_meeting_id=zoom_data["id"],
+                        zoom_join_url=zoom_data["join_url"],
+                        zoom_host_email=host["email"],
+                    )
+                )
+
+    return {
+        "deleted_meeting_number": deleted_number,
+        "new_meeting_id": new_meeting_id,
+        "new_meeting_number": old_last_number,
+        "new_meeting_time": new_meeting_time.isoformat(),
+    }

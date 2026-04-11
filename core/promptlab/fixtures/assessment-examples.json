@@ -1,0 +1,67 @@
+{
+  "name": "Assessment Examples",
+  "module": "mixed",
+  "type": "assessment",
+  "description": "Sample question-answer pairs for testing assessment prompt variations.",
+  "baseSystemPrompt": "You are a rigorous educational assessor. Score this student's response against the rubric precisely. Measure actual understanding demonstrated, not effort.",
+  "sections": [
+    {
+      "name": "Kurzgesagt Video — Understanding Check",
+      "instructions": "Award 5 for clear understanding of 2+ key concepts with specific examples. 3-4 for surface-level understanding or missing specifics. 1-2 for missing core ideas or only restating the question.",
+      "items": [
+        {
+          "label": "Strong answer",
+          "question": "What surprised you or stood out while watching this video?",
+          "answer": "I was struck by the idea that intelligence itself is a form of power that could be dangerous if misaligned with human values. The video explained how even a system designed to optimize for something benign, like making paperclips, could become catastrophic if it had enough capability and no proper alignment with broader human goals. It made me think about how the challenge isn't just making AI smart, but making sure its goals genuinely reflect what we want."
+        },
+        {
+          "label": "Weak answer",
+          "question": "What surprised you or stood out while watching this video?",
+          "answer": "It was interesting. I liked the animations."
+        },
+        {
+          "label": "Partial answer",
+          "question": "What surprised you or stood out while watching this video?",
+          "answer": "I thought it was surprising that AI could be dangerous even if no one programs it to be bad. The paperclip example was memorable."
+        }
+      ]
+    },
+    {
+      "name": "Robert Miles — Instrumental Convergence",
+      "instructions": "Award 5 for correctly explaining instrumental convergence with at least one concrete sub-goal example. 3-4 for a roughly correct definition without examples. 1-2 for incorrect or missing explanation.",
+      "items": [
+        {
+          "label": "Strong answer",
+          "question": "In your own words, explain what 'instrumental convergence' means and why it matters for AI safety.",
+          "answer": "Instrumental convergence is the idea that regardless of what final goal an AI has, there are certain intermediate goals (called instrumental goals) that almost any agent would want to pursue because they're useful for achieving almost anything. For example, self-preservation, resource acquisition, and preventing goal modification are instrumentally convergent because an agent can't achieve its goals if it's turned off, doesn't have enough resources, or has its goals changed. This matters for AI safety because it means even an AI with a seemingly harmless goal might resist being turned off or try to acquire resources in ways that conflict with human interests."
+        },
+        {
+          "label": "Weak answer",
+          "question": "In your own words, explain what 'instrumental convergence' means and why it matters for AI safety.",
+          "answer": "It means that AIs all converge on the same things. It matters because we need to be safe."
+        },
+        {
+          "label": "Partial answer",
+          "question": "In your own words, explain what 'instrumental convergence' means and why it matters for AI safety.",
+          "answer": "Instrumental convergence means that different AIs with different goals would still want some of the same things, like staying alive or getting more power. This is a problem because it could make AI hard to control."
+        }
+      ]
+    },
+    {
+      "name": "Alignment Problem — General Reflection",
+      "instructions": "Award 5 for thoughtful reflection connecting at least 2 specific concepts from the material to broader implications. 3-4 for mentioning specific concepts but without deeper connection. 1-2 for generic statements without reference to specific ideas.",
+      "items": [
+        {
+          "label": "Strong answer",
+          "question": "What do you think is the most important unsolved problem in AI alignment, and why?",
+          "answer": "I think the most important unsolved problem is the difficulty of specifying human values precisely enough for an AI system to optimize for them correctly. Even if we solve the technical problem of making AI systems that reliably pursue their given objectives, we still face the fundamental challenge that human values are complex, contextual, and sometimes contradictory. The reward misspecification problem shows us that even simple objectives can lead to unexpected behavior — scaling that up to 'do what humans actually want' seems incredibly hard. This connects to the broader challenge of corrigibility: if we can't specify values perfectly, we need AI systems that are willing to be corrected, but making a system that wants to be corrected is itself an alignment problem."
+        },
+        {
+          "label": "Weak answer",
+          "question": "What do you think is the most important unsolved problem in AI alignment, and why?",
+          "answer": "Making sure AI doesn't take over. It's important because it could be dangerous."
+        }
+      ]
+    }
+  ]
+}

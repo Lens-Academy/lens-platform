@@ -69,6 +69,8 @@ async def update_user_profile(
     timezone_str: str | None = None,
     availability_local: str | None = None,
     tos_accepted: bool | None = None,
+    cookies_analytics_consent: str | None = None,
+    cookies_marketing_consent: str | None = None,
 ) -> dict[str, Any] | None:
     """
     Update a user's profile with email verification handling.
@@ -83,6 +85,8 @@ async def update_user_profile(
         timezone_str: Timezone string
         availability_local: JSON string of day -> list of time slots (in user's local timezone)
         tos_accepted: If True, sets tos_accepted_at to current time (only if not already set)
+        cookies_analytics_consent: 'accepted' or 'declined' — sets consent and timestamp
+        cookies_marketing_consent: 'accepted' or 'declined' — sets consent and timestamp
 
     Returns:
         Updated user profile dict or None if user not found
@@ -100,6 +104,16 @@ async def update_user_profile(
         update_data["availability_last_updated_at"] = datetime.now(timezone.utc)
     if tos_accepted:
         update_data["tos_accepted_at"] = datetime.now(timezone.utc)
+    if cookies_analytics_consent is not None:
+        if cookies_analytics_consent not in ("accepted", "declined"):
+            raise ValueError(f"Invalid consent value: {cookies_analytics_consent}")
+        update_data["cookies_analytics_consent"] = cookies_analytics_consent
+        update_data["cookies_analytics_consent_at"] = datetime.now(timezone.utc)
+    if cookies_marketing_consent is not None:
+        if cookies_marketing_consent not in ("accepted", "declined"):
+            raise ValueError(f"Invalid consent value: {cookies_marketing_consent}")
+        update_data["cookies_marketing_consent"] = cookies_marketing_consent
+        update_data["cookies_marketing_consent_at"] = datetime.now(timezone.utc)
 
     async with get_transaction() as conn:
         # If email is being updated, check if it changed and clear verification
@@ -211,18 +225,22 @@ async def enroll_in_cohort(
     """
     Enroll a user in a cohort by creating a signup.
 
+    Idempotent: if the user is already enrolled, returns the existing signup
+    without creating a duplicate or sending a welcome notification.
+
     Args:
         discord_id: User's Discord ID
         cohort_id: Cohort to enroll in
         role: "participant" or "facilitator"
 
     Returns:
-        The created signup record (with enums converted to strings), or None if user/cohort not found.
+        The signup record (with enums converted to strings), or None if user/cohort not found.
     """
     from .queries.cohorts import get_cohort_by_id
     from .tables import signups
     from .enums import CohortRole
-    from sqlalchemy import insert
+    from sqlalchemy import select
+    from sqlalchemy.dialects.postgresql import insert
 
     async with get_transaction() as conn:
         user = await user_queries.get_user_by_discord_id(conn, discord_id)
@@ -237,22 +255,34 @@ async def enroll_in_cohort(
             CohortRole.facilitator if role == "facilitator" else CohortRole.participant
         )
 
-        result = await conn.execute(
-            insert(signups)
-            .values(
-                user_id=user["user_id"],
-                cohort_id=cohort_id,
-                role=role_enum,
-            )
-            .returning(signups)
+        # INSERT ON CONFLICT DO NOTHING — if signup exists, rowcount=0
+        stmt = insert(signups).values(
+            user_id=user["user_id"],
+            cohort_id=cohort_id,
+            role=role_enum,
         )
-        row = result.mappings().first()
+        stmt = stmt.on_conflict_do_nothing(
+            constraint="uq_signups_user_id_cohort_id",
+        )
+        result = await conn.execute(stmt)
+
+        is_new = result.rowcount > 0
+
+        # Fetch the signup (whether just inserted or already existing)
+        select_stmt = select(signups).where(
+            signups.c.user_id == user["user_id"],
+            signups.c.cohort_id == cohort_id,
+        )
+        row = (await conn.execute(select_stmt)).mappings().first()
         signup = dict(row)
         # Convert enums to strings for JSON serialization
         signup["role"] = signup["role"].value
+        if signup.get("ungroupable_reason"):
+            signup["ungroupable_reason"] = signup["ungroupable_reason"].value
 
-    # Send welcome notification (fire and forget)
-    asyncio.create_task(_send_welcome_notification(user["user_id"]))
+    # Only send welcome notification for genuinely new signups
+    if is_new:
+        asyncio.create_task(_send_welcome_notification(user["user_id"]))
 
     return signup
 

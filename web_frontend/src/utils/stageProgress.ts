@@ -1,0 +1,71 @@
+/**
+ * Shared utilities for stage progress visualization.
+ * Used by both StageProgressBar (horizontal) and ModuleOverview (vertical).
+ */
+
+type CircleState = {
+  isCompleted: boolean;
+  isViewing: boolean;
+  isOptional: boolean;
+};
+
+/**
+ * Get Tailwind classes for stage circle fill color.
+ * - Completed: amber
+ * - Viewing + not completed: dark gray
+ * - Not completed: light gray
+ * - Optional: dashed border variant
+ */
+export function getCircleFillClasses(
+  state: CircleState,
+  options: { includeHover?: boolean; optionalBg?: string } = {},
+): string {
+  const { isCompleted, isViewing, isOptional } = state;
+  const { includeHover = false, optionalBg = "bg-white" } = options;
+
+  if (isOptional) {
+    if (isCompleted) {
+      return includeHover
+        ? `${optionalBg} text-lens-orange-400 border-2 border-dashed border-lens-orange-400 hover:border-lens-orange-400`
+        : `${optionalBg} text-lens-orange-400 border-2 border-dashed border-lens-orange-400`;
+    }
+    if (isViewing) {
+      return includeHover
+        ? `${optionalBg} text-gray-400 border-2 border-dashed border-gray-400 hover:border-gray-500`
+        : `${optionalBg} text-gray-400 border-2 border-dashed border-gray-400`;
+    }
+    return includeHover
+      ? `${optionalBg} text-gray-400 border-2 border-dashed border-gray-300 hover:border-gray-400`
+      : `${optionalBg} text-gray-400 border-2 border-dashed border-gray-300`;
+  }
+
+  if (isCompleted) {
+    return includeHover
+      ? "bg-lens-orange-400 text-white hover:bg-lens-orange-400"
+      : "bg-lens-orange-400 text-white";
+  }
+
+  if (isViewing) {
+    return includeHover
+      ? "bg-gray-500 text-white hover:bg-gray-600"
+      : "bg-gray-500 text-white";
+  }
+
+  return includeHover
+    ? "bg-gray-200 text-gray-400 hover:bg-gray-300"
+    : "bg-gray-200 text-gray-400";
+}
+
+/**
+ * Get Tailwind classes for stage circle ring (selection indicator).
+ * Ring color matches fill: amber for completed, gray for not completed.
+ */
+export function getRingClasses(
+  isViewing: boolean,
+  isCompleted: boolean,
+): string {
+  if (!isViewing) return "";
+  return isCompleted
+    ? "ring-2 ring-offset-2 ring-lens-orange-400"
+    : "ring-2 ring-offset-2 ring-gray-500";
+}

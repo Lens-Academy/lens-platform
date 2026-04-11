@@ -21,8 +21,8 @@ from .timezone import local_to_utc_time, utc_to_local_time
 # Google Docs integration
 from .google_docs import extract_doc_id, fetch_google_doc, parse_doc_tabs, make_tab_url
 
-# Cohort name generation
-from .cohort_names import CohortNameGenerator, COHORT_NAMES
+# Group name generation
+from .group_names import GROUP_NAMES, pick_available_name
 
 # Scheduling algorithm
 import cohort_scheduler
@@ -69,8 +69,8 @@ from .availability import (
     availability_json_to_interval_string,
 )
 
-# Auth (Discord-to-Web flow)
-from .auth import create_auth_code, get_or_create_user, validate_and_use_auth_code
+# Auth
+from .auth import get_or_create_user
 
 # Stampy chatbot
 from . import stampy
@@ -80,7 +80,7 @@ from .config import (
     is_dev_mode,
     is_production,
     get_api_port,
-    get_vite_port,
+    get_frontend_port,
     get_frontend_url,
     get_allowed_origins,
 )
@@ -89,6 +89,7 @@ from .config import (
 from .notifications import (
     notify_welcome,
     notify_group_assigned,
+    notify_member_joined,
     schedule_meeting_reminders,
     cancel_meeting_reminders,
 )
@@ -96,10 +97,53 @@ from .notifications import (
 # Meetings
 from .meetings import (
     create_meetings_for_group,
-    send_calendar_invites_for_group,
     schedule_reminders_for_group,
     reschedule_meeting,
 )
+
+# Attendance
+from .attendance import record_voice_attendance
+
+# Group joining
+from .group_joining import (
+    get_cohort_groups_metadata,
+    get_joinable_groups,
+    get_user_current_group,
+    join_group,
+    get_user_group_info,
+)
+
+# Guest visits
+from .guest_visits import (
+    find_alternative_meetings,
+    create_guest_visit,
+    cancel_guest_visit,
+    get_user_guest_visits,
+)
+
+# Sync operations (sync functions for group membership changes)
+from .sync import (
+    sync_group,
+    sync_group_discord_permissions,
+    sync_group_calendar,
+    sync_group_reminders,
+    sync_group_rsvps,
+    sync_all_group_rsvps,
+    sync_after_group_change,
+)
+from .notifications.scheduler import sync_meeting_reminders
+
+# Questions (async functions)
+from .questions import (
+    submit_response,
+    update_response,
+    get_responses,
+    get_responses_for_question,
+    claim_question_responses,
+)
+
+# Scoring (async background task)
+from .assessment import enqueue_scoring
 
 __all__ = [
     # Database (SQLAlchemy)
@@ -120,16 +164,19 @@ __all__ = [
     "fetch_google_doc",
     "parse_doc_tabs",
     "make_tab_url",
-    # Cohort names
-    "CohortNameGenerator",
-    "COHORT_NAMES",
+    # Group names
+    "GROUP_NAMES",
+    "pick_available_name",
     # Scheduling (cohort_scheduler package for Group, parse_interval_string, etc.)
     "cohort_scheduler",
     # Scheduling (platform-specific)
     "Person",
     "DAY_MAP",
     "CohortSchedulingResult",
+    "UngroupableReason",
+    "UngroupableDetail",
     "calculate_total_available_time",
+    "analyze_ungroupable_users",
     "schedule_cohort",
     # User management (async)
     "get_user_profile",
@@ -156,26 +203,54 @@ __all__ = [
     "availability_json_to_intervals",
     "availability_json_to_interval_string",
     # Auth
-    "create_auth_code",
     "get_or_create_user",
-    "validate_and_use_auth_code",
     # Stampy
     "stampy",
     # Configuration
     "is_dev_mode",
     "is_production",
     "get_api_port",
-    "get_vite_port",
+    "get_frontend_port",
     "get_frontend_url",
     "get_allowed_origins",
     # Notifications
     "notify_welcome",
     "notify_group_assigned",
+    "notify_member_joined",
     "schedule_meeting_reminders",
     "cancel_meeting_reminders",
     # Meetings
     "create_meetings_for_group",
-    "send_calendar_invites_for_group",
     "schedule_reminders_for_group",
     "reschedule_meeting",
+    # Attendance
+    "record_voice_attendance",
+    # Group joining
+    "get_cohort_groups_metadata",
+    "get_joinable_groups",
+    "get_user_current_group",
+    "join_group",
+    "get_user_group_info",
+    # Guest visits
+    "find_alternative_meetings",
+    "create_guest_visit",
+    "cancel_guest_visit",
+    "get_user_guest_visits",
+    # Sync operations
+    "sync_group",
+    "sync_group_discord_permissions",
+    "sync_group_calendar",
+    "sync_group_reminders",
+    "sync_group_rsvps",
+    "sync_all_group_rsvps",
+    "sync_after_group_change",
+    "sync_meeting_reminders",
+    # Questions
+    "submit_response",
+    "update_response",
+    "get_responses",
+    "get_responses_for_question",
+    "claim_question_responses",
+    # Scoring
+    "enqueue_scoring",
 ]

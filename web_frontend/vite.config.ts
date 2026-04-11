@@ -1,50 +1,83 @@
-/// <reference types="vitest" />
-import { defineConfig } from "vite";
-import type { Plugin } from "vite";
+import { defineConfig, loadEnv } from "vite";
+import vike from "vike/plugin";
 import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import fs from "fs";
 import path from "path";
 
-// Plugin to serve static landing page at root (dev server only)
-function serveLandingPage(): Plugin {
+// Extract workspace number from directory name (e.g., "platform-ws2" → 2)
+// Used to auto-assign ports: ws1 gets 8100/3100, ws2 gets 8200/3200, etc.
+// Offset by 100 so each workspace has a port range that won't collide if
+// a server auto-increments to the next available port.
+// No workspace suffix → 8000/3000 (default)
+const workspaceMatch = path
+  .basename(path.resolve(__dirname, ".."))
+  .match(/(?:^|-)ws(\d+)$/);
+const wsNum = workspaceMatch ? parseInt(workspaceMatch[1], 10) : 0;
+const defaultApiPort = 8000 + wsNum * 100;
+const defaultFrontendPort = 3000 + wsNum * 100;
+
+export default defineConfig(({ mode }) => {
+  const wsEnv = loadEnv(mode, path.resolve(__dirname, ".."));
+  let envLabel = wsEnv.VITE_ENV_LABEL || "";
+  if (envLabel === "DEV" && wsNum > 0) {
+    envLabel = `Dev${wsNum}`;
+  }
+
   return {
-    name: "serve-landing-page",
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        if (req.url === "/" || req.url === "/index.html") {
-          const landingPath = path.resolve(__dirname, "static/landing.html");
-          if (fs.existsSync(landingPath)) {
-            res.setHeader("Content-Type", "text/html");
-            res.end(fs.readFileSync(landingPath, "utf-8"));
-            return;
-          }
-        }
-        next();
-      });
+    define: {
+      ...(envLabel
+        ? { "import.meta.env.VITE_ENV_LABEL": JSON.stringify(envLabel) }
+        : {}),
+    },
+    plugins: [
+      react(),
+      vike({
+        prerender: {
+          partial: true,
+        },
+      }),
+    ],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+    server: {
+      host: true,
+      strictPort: true,
+      allowedHosts: ["dev.vps"],
+      port: parseInt(
+        process.env.FRONTEND_PORT || String(defaultFrontendPort),
+        10,
+      ),
+      proxy: {
+        "/api": {
+          target:
+            process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
+          changeOrigin: true,
+        },
+        "/auth": {
+          target:
+            process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
+          changeOrigin: true,
+        },
+        "/ref": {
+          target:
+            process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
+          changeOrigin: true,
+        },
+        "/ws": {
+          target:
+            process.env.VITE_API_URL || `http://localhost:${defaultApiPort}`,
+          changeOrigin: true,
+          ws: true,
+        },
+      },
+    },
+    build: {
+      target: "esnext",
+    },
+    ssr: {
+      noExternal: ["react-use"],
     },
   };
-}
-
-const apiPort = process.env.API_PORT || "8000";
-
-// Auto-version from Railway git SHA, or 'dev' for local development
-const appVersion = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || "dev";
-
-export default defineConfig({
-  define: {
-    "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
-  },
-  plugins: [serveLandingPage(), react(), tailwindcss()],
-  server: {
-    proxy: {
-      "/api": `http://localhost:${apiPort}`,
-      "/auth": `http://localhost:${apiPort}`,
-    },
-  },
-  test: {
-    globals: true,
-    environment: "jsdom",
-    setupFiles: ["./src/test/setup.ts"],
-  },
 });

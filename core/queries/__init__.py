@@ -1,7 +1,21 @@
 """Query layer for database operations using SQLAlchemy Core."""
 
-from .auth import create_auth_code, validate_auth_code
-from .users import create_user, get_or_create_user, get_user_by_discord_id, update_user
+from .refresh_tokens import (
+    store_refresh_token,
+    get_refresh_token_by_hash,
+    revoke_token,
+    revoke_family,
+    revoke_all_user_tokens,
+    cleanup_expired_tokens,
+)
+from .users import (
+    create_user,
+    get_or_create_user,
+    get_user_by_discord_id,
+    get_user_admin_details,
+    update_user,
+    search_users,
+)
 from .cohorts import (
     get_schedulable_cohorts,
     get_realizable_cohorts,
@@ -11,9 +25,12 @@ from .cohorts import (
 from .groups import (
     create_group,
     add_user_to_group,
+    remove_user_from_group,
     get_cohort_groups_for_realization,
-    save_discord_channel_ids,
+    get_cohort_group_ids,
+    get_cohort_preview_group_ids,
     get_group_welcome_data,
+    get_cohort_groups_summary,
 )
 from .facilitator import (
     is_admin,
@@ -21,14 +38,14 @@ from .facilitator import (
     get_accessible_groups,
     can_access_group,
 )
-from .progress import (
-    get_group_members_summary,
-    get_user_progress_for_group,
-    get_user_chat_sessions,
-)
+
+# NOTE: progress.py removed - old progress tracking system deleted
+# The following functions need to be reimplemented using the new user_content_progress tables:
+# - get_group_members_summary
+# - get_user_progress_for_group
+# - get_user_chat_sessions
 from .meetings import (
     create_meeting,
-    update_meeting_calendar_id,
     get_meetings_for_group,
     get_meeting,
     reschedule_meeting,
@@ -39,12 +56,11 @@ from .meetings import (
 __all__ = [
     # Users
     "get_user_by_discord_id",
+    "get_user_admin_details",
     "create_user",
     "update_user",
     "get_or_create_user",
-    # Auth
-    "create_auth_code",
-    "validate_auth_code",
+    "search_users",
     # Cohorts
     "get_schedulable_cohorts",
     "get_realizable_cohorts",
@@ -53,21 +69,27 @@ __all__ = [
     # Groups
     "create_group",
     "add_user_to_group",
+    "remove_user_from_group",
     "get_cohort_groups_for_realization",
-    "save_discord_channel_ids",
+    "get_cohort_group_ids",
+    "get_cohort_preview_group_ids",
     "get_group_welcome_data",
+    "get_cohort_groups_summary",
     # Facilitator
     "is_admin",
     "get_facilitator_group_ids",
     "get_accessible_groups",
     "can_access_group",
-    # Progress
-    "get_group_members_summary",
-    "get_user_progress_for_group",
-    "get_user_chat_sessions",
+    # Progress - removed, needs reimplementation with new tables
+    # Refresh tokens
+    "store_refresh_token",
+    "get_refresh_token_by_hash",
+    "revoke_token",
+    "revoke_family",
+    "revoke_all_user_tokens",
+    "cleanup_expired_tokens",
     # Meetings
     "create_meeting",
-    "update_meeting_calendar_id",
     "get_meetings_for_group",
     "get_meeting",
     "reschedule_meeting",

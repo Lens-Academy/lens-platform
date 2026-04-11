@@ -297,7 +297,9 @@ def inject_links(content: str, html: str) -> str:
         # Try to find with context first (more precise)
         if before and after:
             # Escape special regex chars in the text portions
-            before_esc = re.escape(before[-15:]) if len(before) > 15 else re.escape(before)
+            before_esc = (
+                re.escape(before[-15:]) if len(before) > 15 else re.escape(before)
+            )
             after_esc = re.escape(after[:15]) if len(after) > 15 else re.escape(after)
             link_esc = re.escape(link_text)
 
@@ -489,8 +491,9 @@ def html_to_markdown(html: str) -> str:
     # Blockquotes
     content = re.sub(
         r"<blockquote[^>]*>(.*?)</blockquote>",
-        lambda m: "\n".join("> " + line for line in m.group(1).strip().split("\n"))
-        + "\n\n",
+        lambda m: (
+            "\n".join("> " + line for line in m.group(1).strip().split("\n")) + "\n\n"
+        ),
         content,
         flags=re.DOTALL,
     )
@@ -535,26 +538,6 @@ def extract_pdf(pdf_bytes: bytes) -> tuple[str | None, Metadata]:
 # === API Extractors (Fallback) ===
 
 
-async def extract_jina(url: str) -> tuple[str | None, Metadata]:
-    """Extract using Jina Reader API (free tier)."""
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            r = await client.get(f"https://r.jina.ai/{url}")
-            if r.status_code != 200 or len(r.text) < 200:
-                return None, Metadata()
-
-            content = r.text
-            title = None
-            for line in content.split("\n")[:10]:
-                if line.startswith("Title:"):
-                    title = line[6:].strip()
-                    break
-
-            return content, Metadata(title=title)
-    except Exception:
-        return None, Metadata()
-
-
 async def extract_api_fallback(url: str) -> tuple[str | None, Metadata]:
     """Try API extractors as fallback."""
     content, metadata = await extract_jina(url)
@@ -580,11 +563,11 @@ def light_cleanup(content: str, title: str | None = None) -> str:
         # Normalize for comparison: remove quotes, markdown links, site suffixes
         def normalize(s):
             # Remove markdown links but keep text: [text](url) -> text
-            s = re.sub(r'\[([^\]]*)\]\([^)]*\)', r'\1', s)
+            s = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", s)
             # Remove quotes and extra whitespace
-            s = re.sub(r'["\']', '', s)
+            s = re.sub(r'["\']', "", s)
             # Remove common suffixes like "- Wikipedia", "- LessWrong"
-            s = re.sub(r'\s*-\s*(Wikipedia|LessWrong|Medium)$', '', s, flags=re.I)
+            s = re.sub(r"\s*-\s*(Wikipedia|LessWrong|Medium)$", "", s, flags=re.I)
             return s.strip().lower()
 
         title_norm = normalize(title)
@@ -593,14 +576,51 @@ def light_cleanup(content: str, title: str | None = None) -> str:
         if h1_match:
             h1_norm = normalize(h1_match.group(1))
             # Remove if H1 matches or is substring of title (at least 10 chars overlap)
-            if (h1_norm == title_norm or
-                (len(title_norm) >= 10 and title_norm in h1_norm) or
-                (len(h1_norm) >= 10 and h1_norm in title_norm)):
-                result = result[h1_match.end():].lstrip()
+            if (
+                h1_norm == title_norm
+                or (len(title_norm) >= 10 and title_norm in h1_norm)
+                or (len(h1_norm) >= 10 and h1_norm in title_norm)
+            ):
+                result = result[h1_match.end() :].lstrip()
 
-    # Fix spacing around asterisks
-    result = re.sub(r"\*\s+([^*]+)\s+\*", r"*\1*", result)
-    result = re.sub(r"\*\*\s+([^*]+)\s+\*\*", r"**\1**", result)
+    # === Fix internal links ===
+    # LessWrong internal links: /lw/xxx → https://www.lesswrong.com/lw/xxx
+    result = re.sub(r"\]\(/lw/", r"](https://www.lesswrong.com/lw/", result)
+    # Alignment Forum internal links
+    result = re.sub(r"\]\(/posts/", r"](https://www.alignmentforum.org/posts/", result)
+
+    # === HTML entities ===
+    html_entities = [
+        ("&gt;", ">"),
+        ("&lt;", "<"),
+        ("&amp;", "&"),
+        ("&quot;", '"'),
+        ("&apos;", "'"),
+        ("&nbsp;", " "),
+    ]
+    for entity, replacement in html_entities:
+        result = result.replace(entity, replacement)
+
+    # === Bold/italic spacing ===
+    # Add space between formatting markers and adjacent text
+    # Patterns require content to have at least one word char (avoids matching *  *)
+
+    # **bold**letter → **bold** letter
+    result = re.sub(r"(\*\*[^*\n]*\w[^*\n]*\*\*)([a-zA-Z])", r"\1 \2", result)
+    # letter**bold** → letter **bold**
+    result = re.sub(r"([a-zA-Z])(\*\*[^*\n]*\w[^*\n]*\*\*)", r"\1 \2", result)
+    # punctuation**bold** → punctuation **bold**
+    result = re.sub(r"([,.:;)\]])(\*\*[^*\n]*\w[^*\n]*\*\*)", r"\1 \2", result)
+
+    # *italic*letter → *italic* letter (negative lookbehind avoids matching **)
+    result = re.sub(r"(?<!\*)(\*\w[^*\n]*\*)([a-zA-Z])", r"\1 \2", result)
+    # letter*italic* → letter *italic*
+    result = re.sub(r"([a-zA-Z])(\*\w[^*\n]*\*)(?!\*)", r"\1 \2", result)
+    # punctuation*italic* → punctuation *italic*
+    result = re.sub(r"([,.:;)\]])(\*\w[^*\n]*\*)(?!\*)", r"\1 \2", result)
+
+    # Collapse double spaces that might result from above
+    result = re.sub(r"  +", " ", result)
 
     # Collapse excessive blank lines
     result = re.sub(r"\n{3,}", "\n\n", result)
@@ -716,10 +736,9 @@ async def process_url(
     result.metadata.url = url
 
     is_pdf = url.lower().endswith(".pdf")
-    slug = url_to_slug(url)
 
     if verbose:
-        print(f"  Fetching...", end=" ", flush=True)
+        print("  Fetching...", end=" ", flush=True)
 
     # === PDF Handling ===
     if is_pdf:
@@ -1171,12 +1190,12 @@ def main():
         if result.success:
             if args.dual:
                 print("\nExtractions saved. Next steps:")
-                print(f"  1. Compare: select-extraction skill on:")
+                print("  1. Compare: select-extraction skill on:")
                 if result.traf_path:
                     print(f"       - {result.traf_path}")
                 if result.read_path:
                     print(f"       - {result.read_path}")
-                print(f"  2. Cleanup: cleanup-extraction skill on selected file")
+                print("  2. Cleanup: cleanup-extraction skill on selected file")
             elif output_path:
                 print(f"Saved to {output_path}")
             else:

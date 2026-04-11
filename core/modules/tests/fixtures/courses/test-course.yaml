@@ -1,0 +1,12 @@
+# core/lessons/tests/fixtures/courses/test-course.yaml
+slug: test-course
+title: Test Course
+
+progression:
+  - lesson: lesson-a
+  - lesson: lesson-b
+  - meeting: Week 1
+  - lesson: lesson-c
+    optional: true
+  - meeting: Week 2
+  - lesson: lesson-d

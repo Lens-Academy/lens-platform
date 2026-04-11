@@ -5,15 +5,19 @@ These functions are called by business logic (cogs, routes) to send notification
 They handle building context and scheduling reminders.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
+from core.enums import NotificationReferenceType
 from core.notifications.dispatcher import send_notification
-from core.notifications.scheduler import schedule_reminder, cancel_reminders
+from core.notifications.scheduler import (
+    schedule_reminder,
+    cancel_reminders,
+    REMINDER_CONFIG,
+)
 from core.notifications.urls import (
     build_profile_url,
     build_discord_channel_url,
     build_discord_invite_url,
-    build_lesson_url,
 )
 
 
@@ -43,6 +47,9 @@ async def notify_group_assigned(
     meeting_time_utc: str,
     member_names: list[str],
     discord_channel_id: str,
+    zoom_join_url: str = "",
+    reference_type: NotificationReferenceType | None = None,
+    reference_id: int | None = None,
 ) -> dict:
     """
     Send notification when user is assigned to a group.
@@ -55,6 +62,8 @@ async def notify_group_assigned(
         meeting_time_utc: Human-readable meeting time (e.g., "Wednesday 15:00 UTC")
         member_names: List of group member names
         discord_channel_id: Discord channel ID for the group
+        reference_type: Type of entity this notification references (for deduplication)
+        reference_id: ID of the referenced entity (for deduplication)
     """
     return await send_notification(
         user_id=user_id,
@@ -66,84 +75,100 @@ async def notify_group_assigned(
             "discord_channel_url": build_discord_channel_url(
                 channel_id=discord_channel_id
             ),
+            "zoom_join_url": zoom_join_url,
         },
+        reference_type=reference_type,
+        reference_id=reference_id,
     )
+
+
+async def notify_member_joined(
+    user_id: int,
+    group_name: str,
+    meeting_time_utc: str,
+    member_names: list[str],
+    discord_channel_id: str,
+    discord_user_id: str,
+    zoom_join_url: str = "",
+) -> dict:
+    """
+    Send notification when a user directly joins a group.
+
+    Unlike notify_group_assigned (used during realization), this is for
+    users who join an existing group via the web UI. It sends:
+    - Email to the joining user
+    - Discord message to the group channel (welcoming the new member)
+
+    Args:
+        user_id: Database user ID of the joining user
+        group_name: Name of the group they joined
+        meeting_time_utc: Human-readable meeting time
+        member_names: List of all group member names (including new member)
+        discord_channel_id: Discord channel ID for the group
+        discord_user_id: Discord user ID for mention in channel message
+    """
+    return await send_notification(
+        user_id=user_id,
+        message_type="member_joined",
+        context={
+            "group_name": group_name,
+            "meeting_time": meeting_time_utc,
+            "member_names": ", ".join(member_names),
+            "discord_channel_url": build_discord_channel_url(
+                channel_id=discord_channel_id
+            ),
+            "member_mention": f"<@{discord_user_id}>",
+            "zoom_join_url": zoom_join_url,
+        },
+        channel_id=discord_channel_id,  # dispatcher expects channel_id
+    )
+
+
+async def notify_member_left(
+    discord_channel_id: str,
+    discord_user_id: str,
+) -> dict:
+    """
+    Send notification to a group channel when a member leaves.
+
+    Only sends a Discord channel message (no email to the leaving user).
+
+    Args:
+        discord_channel_id: Discord channel ID for the group they left
+        discord_user_id: Discord user ID for mention in channel message
+    """
+    from core.discord_outbound import send_channel_message
+    from core.notifications.templates import get_message
+
+    context = {"member_mention": f"<@{discord_user_id}>"}
+    message = get_message("member_left", "discord_channel", context)
+
+    result = await send_channel_message(discord_channel_id, message)
+    return {"discord_channel": result}
 
 
 def schedule_meeting_reminders(
     meeting_id: int,
     meeting_time: datetime,
-    user_ids: list[int],
-    group_name: str,
-    discord_channel_id: str,
-    lesson_url: str | None = None,
 ) -> None:
     """
     Schedule all reminders for a meeting.
 
-    Schedules:
-    - 24h before: meeting reminder
-    - 1h before: meeting reminder
-    - 3d before: lesson nudge (if <50% done)
-    - 1d before: lesson nudge (if <100% done)
+    Only needs meeting_id and meeting_time - everything else is fetched
+    fresh at execution time. This avoids stale data issues.
+
+    Reminder types and timing are defined in REMINDER_CONFIG (scheduler.py).
+
+    Args:
+        meeting_id: Database meeting ID
+        meeting_time: When the meeting is scheduled
     """
-    context = {
-        "group_name": group_name,
-        "meeting_time": meeting_time.strftime("%A at %H:%M UTC"),
-        "meeting_date": meeting_time.strftime("%A, %B %d"),
-        "lesson_url": lesson_url or build_lesson_url("next"),
-        "discord_channel_url": build_discord_channel_url(channel_id=discord_channel_id),
-        "lesson_list": "- Check your course dashboard for assigned lessons",
-        "lessons_remaining": "some",
-    }
-
-    # 24h reminder
-    schedule_reminder(
-        job_id=f"meeting_{meeting_id}_reminder_24h",
-        run_at=meeting_time - timedelta(hours=24),
-        message_type="meeting_reminder_24h",
-        user_ids=user_ids,
-        context=context,
-        channel_id=discord_channel_id,
-    )
-
-    # 1h reminder
-    schedule_reminder(
-        job_id=f"meeting_{meeting_id}_reminder_1h",
-        run_at=meeting_time - timedelta(hours=1),
-        message_type="meeting_reminder_1h",
-        user_ids=user_ids,
-        context=context,
-        channel_id=discord_channel_id,
-    )
-
-    # 3d lesson nudge (conditional: <50% complete)
-    schedule_reminder(
-        job_id=f"meeting_{meeting_id}_lesson_nudge_3d",
-        run_at=meeting_time - timedelta(days=3),
-        message_type="lesson_nudge",
-        user_ids=user_ids,
-        context=context,
-        condition={
-            "type": "lesson_progress",
-            "meeting_id": meeting_id,
-            "threshold": 0.5,
-        },
-    )
-
-    # 1d lesson nudge (conditional: <100% complete)
-    schedule_reminder(
-        job_id=f"meeting_{meeting_id}_lesson_nudge_1d",
-        run_at=meeting_time - timedelta(days=1),
-        message_type="lesson_nudge",
-        user_ids=user_ids,
-        context=context,
-        condition={
-            "type": "lesson_progress",
-            "meeting_id": meeting_id,
-            "threshold": 1.0,
-        },
-    )
+    for reminder_type, config in REMINDER_CONFIG.items():
+        schedule_reminder(
+            meeting_id=meeting_id,
+            reminder_type=reminder_type,
+            run_at=meeting_time + config["offset"],
+        )
 
 
 def cancel_meeting_reminders(meeting_id: int) -> int:
@@ -161,40 +186,18 @@ def cancel_meeting_reminders(meeting_id: int) -> int:
 def reschedule_meeting_reminders(
     meeting_id: int,
     new_meeting_time: datetime,
-    user_ids: list[int],
-    group_name: str,
-    discord_channel_id: str,
 ) -> None:
     """
     Reschedule all reminders for a meeting.
 
     Cancels existing reminders and schedules new ones.
+
+    Args:
+        meeting_id: Database meeting ID
+        new_meeting_time: New scheduled time for the meeting
     """
     cancel_meeting_reminders(meeting_id)
     schedule_meeting_reminders(
         meeting_id=meeting_id,
         meeting_time=new_meeting_time,
-        user_ids=user_ids,
-        group_name=group_name,
-        discord_channel_id=discord_channel_id,
     )
-
-
-def schedule_trial_nudge(session_id: int, user_id: int, lesson_url: str) -> None:
-    """
-    Schedule a nudge for incomplete trial lesson.
-
-    Sends 24h after user started trial lesson.
-    """
-    schedule_reminder(
-        job_id=f"trial_{session_id}_nudge",
-        run_at=datetime.now(timezone.utc) + timedelta(hours=24),
-        message_type="trial_nudge",
-        user_ids=[user_id],
-        context={"lesson_url": lesson_url},
-    )
-
-
-def cancel_trial_nudge(session_id: int) -> int:
-    """Cancel trial nudge (e.g., when user completes lesson or signs up)."""
-    return cancel_reminders(f"trial_{session_id}_nudge")

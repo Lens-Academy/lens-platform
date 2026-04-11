@@ -1,11 +1,18 @@
 """Google Calendar event operations."""
 
+import asyncio
+import logging
+import re
 from datetime import datetime, timedelta
 
-from .client import get_calendar_service, get_calendar_email
+import sentry_sdk
+
+from .client import get_calendar_service, get_calendar_email, batch_patch_events
+
+logger = logging.getLogger(__name__)
 
 
-def create_meeting_event(
+async def create_meeting_event(
     title: str,
     description: str,
     start: datetime,
@@ -43,8 +50,8 @@ def create_meeting_event(
         "reminders": {"useDefault": False, "overrides": []},  # We handle reminders
     }
 
-    try:
-        result = (
+    def _sync_insert():
+        return (
             service.events()
             .insert(
                 calendarId=get_calendar_email(),
@@ -54,13 +61,171 @@ def create_meeting_event(
             .execute()
         )
 
+    try:
+        result = await asyncio.to_thread(_sync_insert)
         return result["id"]
     except Exception as e:
         print(f"Failed to create calendar event: {e}")
         return None
 
 
-def update_meeting_event(
+async def create_recurring_event(
+    title: str,
+    description: str,
+    first_meeting: datetime,
+    duration_minutes: int,
+    num_occurrences: int,
+    attendee_emails: list[str],
+    conference_url: str | None = None,
+) -> str | None:
+    """
+    Create a recurring calendar event with weekly frequency.
+
+    Args:
+        title: Event title (e.g., "Study Group Alpha")
+        description: Event description
+        first_meeting: First occurrence datetime (must be timezone-aware)
+        duration_minutes: Meeting duration
+        num_occurrences: Number of weekly meetings
+        attendee_emails: List of attendee email addresses
+
+    Returns:
+        Google Calendar recurring event ID, or None if calendar not configured
+    """
+    service = get_calendar_service()
+    if not service:
+        logger.warning(
+            "Google Calendar not configured, skipping recurring event creation"
+        )
+        return None
+
+    end = first_meeting + timedelta(minutes=duration_minutes)
+
+    event = {
+        "summary": title,
+        "description": description,
+        "start": {"dateTime": first_meeting.isoformat(), "timeZone": "UTC"},
+        "end": {"dateTime": end.isoformat(), "timeZone": "UTC"},
+        "recurrence": [f"RRULE:FREQ=WEEKLY;COUNT={num_occurrences}"],
+        "attendees": [{"email": email} for email in attendee_emails],
+        "guestsCanSeeOtherGuests": False,
+        "guestsCanModify": False,
+        "reminders": {"useDefault": False, "overrides": []},
+    }
+
+    if conference_url:
+        event["conferenceData"] = {
+            "entryPoints": [
+                {
+                    "entryPointType": "video",
+                    "uri": conference_url,
+                    "label": "Join Zoom Meeting",
+                }
+            ],
+            "conferenceSolution": {
+                "name": "Zoom",
+                "key": {"type": "addOn"},
+            },
+        }
+
+    def _sync_insert():
+        return (
+            service.events()
+            .insert(
+                calendarId=get_calendar_email(),
+                body=event,
+                sendUpdates="all",
+                conferenceDataVersion=1,
+            )
+            .execute()
+        )
+
+    try:
+        result = await asyncio.to_thread(_sync_insert)
+        return result["id"]
+    except Exception as e:
+        logger.error(f"Failed to create recurring calendar event: {e}")
+        sentry_sdk.capture_exception(e)
+        return None
+
+
+async def get_event_instances(recurring_event_id: str) -> list[dict] | None:
+    """
+    Get all instances of a recurring event.
+
+    Each instance includes its own ID, start time, and attendee RSVPs.
+
+    Args:
+        recurring_event_id: The parent recurring event ID
+
+    Returns:
+        List of instance dicts with id, start, attendees, etc.
+        Returns None if calendar not configured or API error.
+    """
+    service = get_calendar_service()
+    if not service:
+        return None
+
+    calendar_id = get_calendar_email()
+
+    def _sync_instances():
+        return (
+            service.events()
+            .instances(calendarId=calendar_id, eventId=recurring_event_id)
+            .execute()
+        )
+
+    try:
+        result = await asyncio.to_thread(_sync_instances)
+        return result.get("items", [])
+    except Exception as e:
+        logger.error(f"Failed to get instances for event {recurring_event_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        return None
+
+
+async def patch_event_instance(
+    instance_event_id: str,
+    attendees: list[dict],
+) -> bool:
+    """
+    Patch a specific instance of a recurring event (e.g., add/remove a guest).
+
+    Args:
+        instance_event_id: The event ID of the specific instance to patch
+        attendees: Full attendee list to set on the instance
+
+    Returns:
+        True if patched successfully, False otherwise
+    """
+    service = get_calendar_service()
+    if not service:
+        return False
+
+    calendar_id = get_calendar_email()
+
+    def _sync_patch():
+        return (
+            service.events()
+            .patch(
+                calendarId=calendar_id,
+                eventId=instance_event_id,
+                body={"attendees": attendees},
+                sendUpdates="all",
+            )
+            .execute()
+        )
+
+    try:
+        await asyncio.to_thread(_sync_patch)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to patch event instance {instance_event_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        return False
+
+
+async def update_meeting_event(
     event_id: str,
     start: datetime | None = None,
     title: str | None = None,
@@ -78,16 +243,26 @@ def update_meeting_event(
     if not service:
         return False
 
-    try:
-        # Get existing event
-        event = (
+    calendar_id = get_calendar_email()
+
+    def _sync_get():
+        return service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+
+    def _sync_update(event_body):
+        return (
             service.events()
-            .get(
-                calendarId=get_calendar_email(),
+            .update(
+                calendarId=calendar_id,
                 eventId=event_id,
+                body=event_body,
+                sendUpdates="all",
             )
             .execute()
         )
+
+    try:
+        # Get existing event
+        event = await asyncio.to_thread(_sync_get)
 
         # Update fields
         if start:
@@ -99,20 +274,14 @@ def update_meeting_event(
         if title:
             event["summary"] = title
 
-        service.events().update(
-            calendarId=get_calendar_email(),
-            eventId=event_id,
-            body=event,
-            sendUpdates="all",
-        ).execute()
-
+        await asyncio.to_thread(_sync_update, event)
         return True
     except Exception as e:
         print(f"Failed to update calendar event {event_id}: {e}")
         return False
 
 
-def cancel_meeting_event(event_id: str) -> bool:
+async def cancel_meeting_event(event_id: str) -> bool:
     """
     Cancel/delete a calendar event.
 
@@ -125,19 +294,28 @@ def cancel_meeting_event(event_id: str) -> bool:
     if not service:
         return False
 
+    calendar_id = get_calendar_email()
+
+    def _sync_delete():
+        return (
+            service.events()
+            .delete(
+                calendarId=calendar_id,
+                eventId=event_id,
+                sendUpdates="all",
+            )
+            .execute()
+        )
+
     try:
-        service.events().delete(
-            calendarId=get_calendar_email(),
-            eventId=event_id,
-            sendUpdates="all",
-        ).execute()
+        await asyncio.to_thread(_sync_delete)
         return True
     except Exception as e:
         print(f"Failed to cancel calendar event {event_id}: {e}")
         return False
 
 
-def get_event_rsvps(event_id: str) -> list[dict] | None:
+async def get_event_rsvps(event_id: str) -> list[dict] | None:
     """
     Get attendee RSVP statuses for an event.
 
@@ -149,16 +327,13 @@ def get_event_rsvps(event_id: str) -> list[dict] | None:
     if not service:
         return None
 
-    try:
-        event = (
-            service.events()
-            .get(
-                calendarId=get_calendar_email(),
-                eventId=event_id,
-            )
-            .execute()
-        )
+    calendar_id = get_calendar_email()
 
+    def _sync_get():
+        return service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+
+    try:
+        event = await asyncio.to_thread(_sync_get)
         return [
             {
                 "email": a["email"],
@@ -169,3 +344,108 @@ def get_event_rsvps(event_id: str) -> list[dict] | None:
     except Exception as e:
         print(f"Failed to get RSVPs for event {event_id}: {e}")
         return None
+
+
+async def postpone_meeting_in_recurring_event(
+    recurring_event_id: str,
+    instance_start: datetime,
+) -> bool:
+    """
+    Postpone one instance of a recurring event: extend the series by 1 and cancel
+    the instance matching `instance_start`.
+
+    Steps:
+    1. Get the parent event, parse RRULE COUNT, increment by 1
+    2. Patch the parent event with new COUNT (no notifications for extending)
+    3. Find the matching instance by start time
+    4. Cancel (delete) that instance (sends cancellation notification)
+
+    Returns True if successful, False otherwise.
+    """
+    service = get_calendar_service()
+    if not service:
+        logger.warning("Google Calendar not configured, skipping postpone")
+        return False
+
+    calendar_id = get_calendar_email()
+
+    # Step 1: Get parent event and update RRULE COUNT
+    def _sync_get_parent():
+        return (
+            service.events()
+            .get(calendarId=calendar_id, eventId=recurring_event_id)
+            .execute()
+        )
+
+    try:
+        parent = await asyncio.to_thread(_sync_get_parent)
+    except Exception as e:
+        logger.error(f"Failed to get parent event {recurring_event_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        return False
+
+    # Parse and increment COUNT in RRULE
+    recurrence = parent.get("recurrence", [])
+    new_recurrence = []
+    count_updated = False
+    for rule in recurrence:
+        match = re.search(r"COUNT=(\d+)", rule)
+        if match:
+            old_count = int(match.group(1))
+            new_count = old_count + 1
+            rule = rule.replace(f"COUNT={old_count}", f"COUNT={new_count}")
+            count_updated = True
+        new_recurrence.append(rule)
+
+    if not count_updated:
+        logger.error(
+            f"No COUNT found in RRULE for event {recurring_event_id}: {recurrence}"
+        )
+        return False
+
+    # Step 2: Patch parent to extend the series
+    result = await asyncio.to_thread(
+        lambda: batch_patch_events(
+            [
+                {
+                    "event_id": recurring_event_id,
+                    "body": {"recurrence": new_recurrence},
+                    "send_updates": "none",
+                }
+            ]
+        )
+    )
+    if not result or not result.get(recurring_event_id, {}).get("success"):
+        logger.error(f"Failed to extend recurring event {recurring_event_id}")
+        return False
+
+    # Step 3: Find and cancel the instance matching instance_start
+    instances = await get_event_instances(recurring_event_id)
+    if not instances:
+        logger.error(f"Failed to get instances for event {recurring_event_id}")
+        return False
+
+    # Match by start time (within 60-second tolerance for timezone differences)
+    target_instance = None
+    for inst in instances:
+        inst_start_str = inst.get("start", {}).get("dateTime")
+        if not inst_start_str:
+            continue
+        inst_start = datetime.fromisoformat(inst_start_str)
+        if abs((inst_start - instance_start).total_seconds()) < 60:
+            target_instance = inst
+            break
+
+    if not target_instance:
+        logger.warning(
+            f"Could not find instance near {instance_start} for event {recurring_event_id}"
+        )
+        return True  # Series was extended, just couldn't cancel the instance
+
+    # Step 4: Cancel the instance
+    instance_id = target_instance["id"]
+    cancelled = await cancel_meeting_event(instance_id)
+    if not cancelled:
+        logger.warning(f"Failed to cancel instance {instance_id}")
+
+    return True

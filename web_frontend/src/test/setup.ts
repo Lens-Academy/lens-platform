@@ -1,27 +1,62 @@
 import "@testing-library/jest-dom";
-import { vi } from "vitest";
 
-// Set base URL for relative fetch requests in jsdom
-// This prevents "Failed to parse URL" errors with relative paths like /api/...
-Object.defineProperty(window, "location", {
-  value: new URL("http://localhost:3000"),
+// Mock localStorage
+const localStorageMock = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
+  };
+})();
+
+Object.defineProperty(window, "localStorage", { value: localStorageMock });
+
+// Mock window.scrollTo
+window.scrollTo = () => {};
+
+// Mock window.matchMedia
+Object.defineProperty(window, "matchMedia", {
   writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }),
 });
 
-// Mock fetch globally to prevent network requests in tests
-global.fetch = vi.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({}),
-  } as Response)
-);
-
-// Mock scrollIntoView which is not available in jsdom
-Element.prototype.scrollIntoView = () => {};
-
-// Mock ResizeObserver which is not available in jsdom
-global.ResizeObserver = class ResizeObserver {
+// Mock IntersectionObserver
+class MockIntersectionObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
-};
+}
+
+Object.defineProperty(window, "IntersectionObserver", {
+  writable: true,
+  value: MockIntersectionObserver,
+});
+
+// Mock ResizeObserver
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+Object.defineProperty(window, "ResizeObserver", {
+  writable: true,
+  value: MockResizeObserver,
+});

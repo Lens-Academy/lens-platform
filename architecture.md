@@ -56,7 +56,7 @@ Platform-agnostic business logic. No Discord or web framework imports.
 | `timezone.py` | UTC/local timezone conversions |
 | `google_docs.py` | Google Docs API integration |
 | `constants.py` | Day codes, timezone list |
-| `cohort_names.py` | Cohort name generation |
+| `group_names.py` | Group name generation |
 
 All exports centralized in `core/__init__.py`.
 

@@ -4,6 +4,7 @@
 from .tools import (
     find_transcript_timestamps,
     get_text_at_time,
+    get_text_at_time_from_data,
     get_time_from_text,
     flatten_transcript,
     find_anchor_position,
@@ -14,6 +15,7 @@ from .tools import (
 __all__ = [
     "find_transcript_timestamps",
     "get_text_at_time",
+    "get_text_at_time_from_data",
     "get_time_from_text",
     "flatten_transcript",
     "find_anchor_position",

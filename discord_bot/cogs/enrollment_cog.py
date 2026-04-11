@@ -1,11 +1,7 @@
 """
-Enrollment Cog - Discord adapter for user signup and profile management.
-
-The /signup command now generates a web link with an auth code,
-redirecting users to the web frontend for profile setup.
+Enrollment Cog - Discord adapter for user profile management.
 """
 
-import os
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -18,14 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core import (
     get_user_profile,
     toggle_facilitator,
-    create_auth_code,
 )
-
-
-def _build_auth_link(code: str, next_path: str) -> str:
-    """Build an authenticated web link with the given auth code and redirect path."""
-    web_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
-    return f"{web_url}/auth/code?code={code}&next={next_path}"
 
 
 class EnrollmentCog(commands.Cog):
@@ -33,35 +22,6 @@ class EnrollmentCog(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-
-    # TODO: Probably move this function or rename the class.
-    @app_commands.command(name="signup", description="Sign up for the AI Safety course")
-    async def signup(self, interaction: discord.Interaction):
-        """Generate a web signup link with an auth code."""
-        discord_id = str(interaction.user.id)
-        code = await create_auth_code(discord_id)
-        link = _build_auth_link(code, "/signup")
-
-        await interaction.response.send_message(
-            f"Click here to sign up: {link}\n\nThis link expires in 5 minutes.",
-            ephemeral=True,
-        )
-
-    @app_commands.command(
-        name="availability", description="View and edit your availability"
-    )
-    @app_commands.default_permissions(administrator=True)
-    @app_commands.checks.has_permissions(administrator=True)
-    async def availability(self, interaction: discord.Interaction):
-        """Generate a web link with an auth code to edit availability."""
-        discord_id = str(interaction.user.id)
-        code = await create_auth_code(discord_id)
-        link = _build_auth_link(code, "/availability")
-
-        await interaction.response.send_message(
-            f"Click here to view and edit your availability: {link}\n\nThis link expires in 5 minutes.",
-            ephemeral=True,
-        )
 
     # TODO: Probably remove this command. I think it is an old trial that presumes facilitator privileges are set within the Discord guild, instead of in our DB.
     @app_commands.command(
