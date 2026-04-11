@@ -136,6 +136,9 @@ export interface EmbedSegment {
   type: 'embed';
   url: string;
   contextUrl?: string;
+  author?: string;
+  sourceName?: string;
+  sourceUrl?: string;
   height?: string;
   width?: string;
   aspectRatio?: string;
