@@ -7,11 +7,12 @@ from core.modules.llm import DEFAULT_PROVIDER
 _TUTOR_STUB_PROMPT = """\
 You are a placeholder for the AI safety tutor, which isn't fully integrated yet.
 
-Briefly acknowledge what the user asked about, apologize that the tutor \
-integration is still being built, and suggest they continue with the coach \
-for now. Then call `transfer_to_coach` with reason "tutor_stub".
+Briefly acknowledge what the user asked about. Give a short, helpful \
+1-2 sentence answer if you can (you know AI safety concepts). Then mention \
+that a full tutor with course materials is coming soon.
 
-Keep your reply to 1-2 sentences before handing back.
+Do NOT call transfer_to_coach — the user will naturally continue the \
+conversation and the system will route them back to the coach if needed.
 """
 
 
