@@ -134,6 +134,25 @@ def _extract_valid_handoff(
     return valid_handoff
 
 
+AGENT_DISPLAY_NAMES: dict[str, str] = {
+    "coach": "Coach",
+    "tutor": "Tutor",
+}
+
+
+def _build_reply_text(parts: list[tuple[str, str]]) -> str:
+    """Join reply parts, inserting a separator when the agent changes."""
+    sections = []
+    prev_agent = None
+    for agent_name, text in parts:
+        if prev_agent is not None and agent_name != prev_agent:
+            display = AGENT_DISPLAY_NAMES.get(agent_name, agent_name)
+            sections.append(f"--- *{display}* ---")
+        sections.append(text)
+        prev_agent = agent_name
+    return "\n\n".join(sections)
+
+
 async def _run_agent(agent: Agent, messages: list[dict]) -> dict:
     """Run an LLM call for the given agent. Returns the assistant message dict."""
     system = agent.system_prompt
@@ -200,7 +219,7 @@ async def _handle_locked(user_id: int, platform: str, text: str) -> HandleResult
 
     active_agent = _derive_active_agent(session["messages"], platform)
     handoffs_this_turn = 0
-    reply_parts: list[str] = []  # collect text from ALL assistant messages this turn
+    reply_parts: list[tuple[str, str]] = []  # (agent_name, text) from each assistant message
 
     while True:
         estimated = estimate_input_tokens(session["messages"], active_agent)
@@ -230,7 +249,7 @@ async def _handle_locked(user_id: int, platform: str, text: str) -> HandleResult
 
         # Collect any text the agent produced (even if it also made a tool call)
         if assistant_msg.get("content"):
-            reply_parts.append(assistant_msg["content"])
+            reply_parts.append((assistant_msg["agent"], assistant_msg["content"]))
 
         handoff = _extract_valid_handoff(assistant_msg, active_agent, session["messages"])
 
@@ -262,7 +281,7 @@ async def _handle_locked(user_id: int, platform: str, text: str) -> HandleResult
     except Exception:
         logger.exception("save_session_failed", extra={"user_id": user_id})
 
-    final_text = "\n\n".join(reply_parts) if reply_parts else None
+    final_text = _build_reply_text(reply_parts) if reply_parts else None
 
     return HandleResult(
         kind="ok",
