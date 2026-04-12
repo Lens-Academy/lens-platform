@@ -171,3 +171,45 @@ async def has_available_cohorts() -> bool:
             .limit(1)
         )
         return result.first() is not None
+
+
+async def get_course_availability() -> list[dict]:
+    """Get per-course enrollment availability (public, no auth).
+
+    Returns a list of dicts with course_slug and available (bool).
+    """
+    from datetime import date, timedelta
+
+    from .tables import cohorts
+
+    today = date.today()
+    cutoff = today - timedelta(days=7)
+
+    async with get_connection() as conn:
+        result = await conn.execute(
+            select(
+                cohorts.c.course_slug,
+                func.min(cohorts.c.cohort_start_date).label("start_date"),
+            )
+            .where(cohorts.c.status == "active")
+            .where(cohorts.c.cohort_start_date >= cutoff)
+            .group_by(cohorts.c.course_slug)
+        )
+        available_courses = {row[0]: row[1] for row in result}
+
+    # Return all known course slugs with availability
+    from .content import get_cache
+
+    cache = get_cache()
+    courses = []
+    for slug, course in cache.courses.items():
+        start_date = available_courses.get(slug)
+        courses.append(
+            {
+                "course_slug": slug,
+                "course_name": course.title,
+                "available": slug in available_courses,
+                "start_date": start_date.isoformat() if start_date else None,
+            }
+        )
+    return courses

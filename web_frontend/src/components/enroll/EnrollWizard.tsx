@@ -18,7 +18,12 @@ import {
 
 type Step = 1 | 2 | 3 | "complete";
 
-export default function EnrollWizard() {
+interface EnrollWizardProps {
+  /** Pre-selected course slug from parent (skips course selection if only one matching cohort) */
+  courseSlug?: string;
+}
+
+export default function EnrollWizard({ courseSlug }: EnrollWizardProps) {
   const { isAuthenticated, isLoading, user, discordUsername, login } =
     useAuth();
 
@@ -49,6 +54,23 @@ export default function EnrollWizard() {
   const [enrolledCohorts, setEnrolledCohorts] = useState<Cohort[]>([]);
   const [availableCohorts, setAvailableCohorts] = useState<Cohort[]>([]);
   const [isFacilitator, setIsFacilitator] = useState(false);
+
+  // Auto-select cohort matching courseSlug when cohorts load
+  useEffect(() => {
+    if (!courseSlug || availableCohorts.length === 0) return;
+    if (formData.selectedCohortId) return; // Already selected
+
+    const matching = availableCohorts.filter(
+      (c) => c.course_slug === courseSlug,
+    );
+    if (matching.length === 1) {
+      setFormData((prev) => ({
+        ...prev,
+        selectedCohortId: matching[0].cohort_id,
+        selectedRole: isFacilitator ? null : "participant",
+      }));
+    }
+  }, [courseSlug, availableCohorts, isFacilitator, formData.selectedCohortId]);
 
   // Get the selected cohort
   const selectedCohort = useMemo(() => {
@@ -173,6 +195,13 @@ export default function EnrollWizard() {
   };
 
   const handleDiscordConnect = () => {
+    // Save course selection so we restore it after OAuth redirect
+    if (courseSlug) {
+      sessionStorage.setItem(
+        "lens-enroll-state",
+        JSON.stringify({ slug: courseSlug }),
+      );
+    }
     // login() auto-detects ref from sessionStorage, no need to pass explicitly
     login();
   };
@@ -240,7 +269,11 @@ export default function EnrollWizard() {
         <ProspectEmailForm variant="standalone" />
         <p className="text-sm text-gray-500 mt-6">
           In the meantime, you can{" "}
-          <a href="/course/default" className="text-blue-600 hover:underline">
+          <a
+            href="/course/default"
+            className="hover:underline"
+            style={{ color: "var(--brand-accent)" }}
+          >
             explore our free course materials
           </a>
           .
@@ -252,7 +285,7 @@ export default function EnrollWizard() {
   if (isLoading || hasAvailableCohorts === null) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--brand-accent)]"></div>
       </div>
     );
   }

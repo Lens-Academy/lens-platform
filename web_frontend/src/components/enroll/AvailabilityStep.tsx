@@ -76,7 +76,7 @@ export default function AvailabilityStep({
           id="timezone"
           value={timezone}
           onChange={(e) => onTimezoneChange(e.target.value)}
-          className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-[var(--brand-accent)]"
         >
           {/* Include current timezone if not in common list */}
           {!COMMON_TIMEZONES.includes(
