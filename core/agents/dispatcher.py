@@ -200,6 +200,7 @@ async def _handle_locked(user_id: int, platform: str, text: str) -> HandleResult
 
     active_agent = _derive_active_agent(session["messages"], platform)
     handoffs_this_turn = 0
+    reply_parts: list[str] = []  # collect text from ALL assistant messages this turn
 
     while True:
         estimated = estimate_input_tokens(session["messages"], active_agent)
@@ -226,6 +227,10 @@ async def _handle_locked(user_id: int, platform: str, text: str) -> HandleResult
             )
 
         session["messages"].append(assistant_msg)
+
+        # Collect any text the agent produced (even if it also made a tool call)
+        if assistant_msg.get("content"):
+            reply_parts.append(assistant_msg["content"])
 
         handoff = _extract_valid_handoff(assistant_msg, active_agent, session["messages"])
 
@@ -257,11 +262,7 @@ async def _handle_locked(user_id: int, platform: str, text: str) -> HandleResult
     except Exception:
         logger.exception("save_session_failed", extra={"user_id": user_id})
 
-    final_text = None
-    for msg in reversed(session["messages"]):
-        if msg.get("role") == "assistant" and msg.get("content"):
-            final_text = msg["content"]
-            break
+    final_text = "\n\n".join(reply_parts) if reply_parts else None
 
     return HandleResult(
         kind="ok",
