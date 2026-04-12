@@ -30,7 +30,8 @@ export interface Cohort {
   cohort_id: number;
   cohort_name: string;
   cohort_start_date: string;
-  course_name: string; // Keep existing field name
+  course_slug: string;
+  course_name: string;
   duration_days: number;
   role?: string;
   has_groups?: boolean;

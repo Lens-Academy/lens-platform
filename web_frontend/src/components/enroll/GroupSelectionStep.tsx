@@ -117,7 +117,7 @@ export default function GroupSelectionStep({
     return (
       <div className="max-w-md mx-auto">
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--brand-accent)]"></div>
         </div>
       </div>
     );
@@ -129,7 +129,7 @@ export default function GroupSelectionStep({
         <div className="text-red-600 text-center py-8">{error}</div>
         <button
           onClick={fetchGroups}
-          className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          className="w-full px-4 py-2 bg-[var(--brand-accent)] text-white rounded-lg hover:bg-[var(--brand-accent-hover)]"
         >
           Try Again
         </button>
@@ -169,7 +169,7 @@ export default function GroupSelectionStep({
               </button>
               <button
                 onClick={onSwitchToAvailability}
-                className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                className="flex-1 px-4 py-3 bg-[var(--brand-accent)] text-white rounded-lg hover:bg-[var(--brand-accent-hover)]"
               >
                 Choose Different Course
               </button>
@@ -213,7 +213,7 @@ export default function GroupSelectionStep({
           id="timezone"
           value={timezone}
           onChange={(e) => onTimezoneChange(e.target.value)}
-          className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
         >
           {!COMMON_TIMEZONES.includes(
             timezone as (typeof COMMON_TIMEZONES)[number],
@@ -241,7 +241,7 @@ export default function GroupSelectionStep({
               onClick={() => onGroupSelect(group.group_id)}
               className={`w-full text-left p-4 border rounded-lg transition-colors ${
                 isSelected
-                  ? "border-blue-500 bg-blue-50"
+                  ? "border-[var(--brand-accent)] bg-orange-50"
                   : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
               }`}
             >
@@ -260,7 +260,7 @@ export default function GroupSelectionStep({
                   )}
                   <div className="text-sm text-gray-500 mt-1">
                     {group.is_current ? (
-                      <span className="text-blue-600">
+                      <span className="text-[var(--brand-accent)]">
                         You're in this group
                       </span>
                     ) : (
@@ -287,7 +287,7 @@ export default function GroupSelectionStep({
         <button
           type="button"
           onClick={onSwitchToAvailability}
-          className="text-sm text-blue-600 hover:text-blue-800 underline"
+          className="text-sm text-[var(--brand-accent)] hover:text-[var(--brand-accent-hover)] underline"
         >
           None of these work? Join a different course
         </button>
@@ -314,7 +314,7 @@ export default function GroupSelectionStep({
             !isSubmitting &&
             selectedGroupId &&
             !groups.find((g) => g.group_id === selectedGroupId)?.is_current
-              ? "bg-blue-500 hover:bg-blue-600 text-white"
+              ? "bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-hover)] text-white"
               : "bg-gray-200 text-gray-400"
           }`}
         >
@@ -323,8 +323,8 @@ export default function GroupSelectionStep({
       </div>
 
       {isSubmitting && (
-        <div className="mt-4 p-3 bg-blue-50 text-blue-700 rounded-lg flex items-center gap-2">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700"></div>
+        <div className="mt-4 p-3 bg-orange-50 text-[var(--brand-accent)] rounded-lg flex items-center gap-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--brand-accent)]"></div>
           Updating your group...
         </div>
       )}

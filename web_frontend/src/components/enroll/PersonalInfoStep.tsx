@@ -18,10 +18,10 @@ export default function PersonalInfoStep({
   return (
     <div className="w-full max-w-sm mx-auto">
       <h2 className="text-2xl font-bold text-gray-900 mb-2">
-        Join the AI Safety Course
+        Enroll in one of our courses
       </h2>
       <p className="text-gray-600 mb-8">
-        Connect your Discord account to get started.
+        To enroll, connect with your Discord account.
       </p>
 
       {/* New to Discord? help - only show before connected */}
@@ -77,7 +77,7 @@ export default function PersonalInfoStep({
         className={`flex items-center justify-center gap-3 w-full px-6 py-4 rounded-lg font-medium text-lg transition-colors disabled:cursor-default ${
           discordConnected
             ? "bg-green-100 text-green-800"
-            : "bg-[#5865F2] hover:bg-[#4752C4] text-white"
+            : "bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-hover)] text-white"
         }`}
       >
         <DiscordIconLarge className="w-6 h-6" />

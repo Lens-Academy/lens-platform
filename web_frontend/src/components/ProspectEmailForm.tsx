@@ -187,12 +187,12 @@ export default function ProspectEmailForm({
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
           required
-          className="flex-1 px-4 py-3 rounded-lg border border-gray-300 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="flex-1 px-4 py-3 rounded-lg border border-gray-300 outline-none focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-[var(--brand-accent)]"
         />
         <button
           type="submit"
           disabled={status === "loading"}
-          className="px-6 py-3 font-semibold rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors disabled:opacity-70 shrink-0"
+          className="px-6 py-3 font-semibold rounded-lg bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-hover)] text-white transition-colors disabled:opacity-70 shrink-0"
         >
           {status === "loading" ? "..." : "Notify Me"}
         </button>

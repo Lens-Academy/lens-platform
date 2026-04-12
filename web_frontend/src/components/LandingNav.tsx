@@ -3,11 +3,17 @@ import { useMedia } from "react-use";
 import { Menu, X } from "lucide-react";
 import { Popover } from "./Popover";
 import { CoursesDropdown, UserMenu } from "./nav";
+import { DiscordIcon } from "./icons/DiscordIcon";
 import { DISCORD_INVITE_URL } from "../config";
 
 const NAV_LINKS = [
-  { label: "Community", href: DISCORD_INVITE_URL, external: true as const },
-  { label: "About", href: "/about", external: false as const },
+  {
+    label: "Community",
+    href: DISCORD_INVITE_URL,
+    external: true as const,
+    icon: DiscordIcon,
+  },
+  { label: "About", href: "/about", external: false as const, icon: null },
 ];
 
 const CTA_HREF = "/course/default/module/introduction";
@@ -92,12 +98,13 @@ export function LandingNav() {
                   <a
                     key={link.label}
                     href={link.href}
-                    className="text-sm font-medium transition-colors duration-200 hover:text-[var(--landing-text)]"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 hover:text-[var(--landing-text)]"
                     style={{ color: "var(--landing-text-muted)" }}
                     {...(link.external
                       ? { target: "_blank", rel: "noopener noreferrer" }
                       : {})}
                   >
+                    {link.icon && <link.icon className="w-4 h-4" />}
                     {link.label}
                   </a>
                 ))}
@@ -184,12 +191,13 @@ export function LandingNav() {
               key={link.label}
               href={link.href}
               onClick={() => setMenuOpen(false)}
-              className="text-lg font-medium py-3 transition-transform active:scale-[0.97]"
+              className="inline-flex items-center gap-2 text-lg font-medium py-3 transition-transform active:scale-[0.97]"
               style={{ color: "var(--landing-text)" }}
               {...(link.external
                 ? { target: "_blank", rel: "noopener noreferrer" }
                 : {})}
             >
+              {link.icon && <link.icon className="w-5 h-5" />}
               {link.label}
             </a>
           ))}

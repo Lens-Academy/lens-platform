@@ -107,7 +107,7 @@ export default function CohortRoleStep({
             id="cohort"
             value={selectedCohortId ?? ""}
             onChange={(e) => onCohortSelect(Number(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-[var(--brand-accent)] outline-none"
           >
             <option value="">Select a course...</option>
             {availableCohorts.map((cohort) => (
@@ -143,7 +143,7 @@ export default function CohortRoleStep({
                   value="facilitator"
                   checked={selectedRole === "facilitator"}
                   onChange={() => onRoleSelect("facilitator")}
-                  className="w-4 h-4 text-blue-600"
+                  className="w-4 h-4 text-[var(--brand-accent)]"
                 />
                 <span>Navigator</span>
               </label>
@@ -154,7 +154,7 @@ export default function CohortRoleStep({
                   value="participant"
                   checked={selectedRole === "participant"}
                   onChange={() => onRoleSelect("participant")}
-                  className="w-4 h-4 text-blue-600"
+                  className="w-4 h-4 text-[var(--brand-accent)]"
                 />
                 <span>Participant</span>
               </label>
@@ -166,14 +166,14 @@ export default function CohortRoleStep({
                   type="radio"
                   checked
                   readOnly
-                  className="w-4 h-4 text-blue-600"
+                  className="w-4 h-4 text-[var(--brand-accent)]"
                 />
                 <span>Participant</span>
               </div>
               <button
                 type="button"
                 onClick={() => setShowFacilitatorModal(true)}
-                className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
+                className="mt-3 text-sm text-[var(--brand-accent)] hover:text-[var(--brand-accent-hover)] underline"
               >
                 Become a navigator
               </button>
@@ -199,7 +199,7 @@ export default function CohortRoleStep({
           disabled={!canProceed}
           className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors disabled:cursor-default ${
             canProceed
-              ? "bg-blue-500 hover:bg-blue-600 text-white"
+              ? "bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-hover)] text-white"
               : "bg-gray-200 text-gray-400"
           }`}
         >
@@ -232,7 +232,7 @@ export default function CohortRoleStep({
                 type="button"
                 onClick={handleBecomeFacilitator}
                 disabled={isBecoming}
-                className="flex-1 px-4 py-2 font-medium rounded-lg bg-blue-500 hover:bg-blue-600 text-white"
+                className="flex-1 px-4 py-2 font-medium rounded-lg bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-hover)] text-white"
               >
                 {isBecoming ? "..." : "Confirm"}
               </button>
