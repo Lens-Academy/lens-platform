@@ -8,12 +8,19 @@ import type {
 
 // ─── Types ──────────────────────────────────────────────────────────
 
-export type TabType = "users" | "groups";
+export type TabType = "users" | "groups" | "cohorts";
 
 export interface Cohort {
   cohort_id: number;
   cohort_name: string;
   course_name?: string;
+  course_slug: string;
+  cohort_start_date: string;
+  duration_days: number;
+  number_of_group_meetings: number;
+  max_group_size: number;
+  accepts_availability_signups: boolean;
+  status?: string;
 }
 
 export interface AdminState {
@@ -44,6 +51,9 @@ export interface AdminState {
   cohortRealizing: boolean;
   groupSyncing: Record<number, boolean>;
   groupRealizing: Record<number, boolean>;
+
+  // Cohort editing
+  cohortSaving: boolean;
 
   // Operation results
   lastGroupResult: {
@@ -121,7 +131,19 @@ export type AdminAction =
       message: string;
       groups: GroupSummary[];
     }
-  | { type: "REALIZE_GROUP_ERROR"; groupId: number; error: string };
+  | { type: "REALIZE_GROUP_ERROR"; groupId: number; error: string }
+  // Cohort CRUD
+  | { type: "CREATE_COHORT_START" }
+  | { type: "CREATE_COHORT_SUCCESS"; cohort: Cohort; message: string }
+  | { type: "CREATE_COHORT_ERROR"; error: string }
+  | { type: "UPDATE_COHORT_START" }
+  | {
+      type: "UPDATE_COHORT_SUCCESS";
+      cohortId: number;
+      updates: Partial<Cohort>;
+      message: string;
+    }
+  | { type: "UPDATE_COHORT_ERROR"; error: string };
 
 // ─── Initial state ──────────────────────────────────────────────────
 
@@ -143,6 +165,7 @@ export const initialAdminState: AdminState = {
   selectedCohortId: null,
   groups: [],
   loadingGroups: false,
+  cohortSaving: false,
   cohortSyncing: false,
   cohortRealizing: false,
   groupSyncing: {},
@@ -355,6 +378,33 @@ export function adminReducer(
         groupRealizing: { ...state.groupRealizing, [action.groupId]: false },
         error: action.error,
       };
+
+    // Cohort CRUD
+    case "CREATE_COHORT_START":
+      return { ...state, cohortSaving: true, error: null, syncMessage: null };
+    case "CREATE_COHORT_SUCCESS":
+      return {
+        ...state,
+        cohortSaving: false,
+        cohorts: [action.cohort, ...state.cohorts],
+        syncMessage: action.message,
+      };
+    case "CREATE_COHORT_ERROR":
+      return { ...state, cohortSaving: false, error: action.error };
+
+    case "UPDATE_COHORT_START":
+      return { ...state, cohortSaving: true, error: null, syncMessage: null };
+    case "UPDATE_COHORT_SUCCESS":
+      return {
+        ...state,
+        cohortSaving: false,
+        cohorts: state.cohorts.map((c) =>
+          c.cohort_id === action.cohortId ? { ...c, ...action.updates } : c,
+        ),
+        syncMessage: action.message,
+      };
+    case "UPDATE_COHORT_ERROR":
+      return { ...state, cohortSaving: false, error: action.error };
 
     default:
       return state;

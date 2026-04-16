@@ -173,43 +173,98 @@ async def has_available_cohorts() -> bool:
         return result.first() is not None
 
 
-async def get_course_availability() -> list[dict]:
-    """Get per-course enrollment availability (public, no auth).
+async def get_public_cohort_list() -> list[dict]:
+    """Get cohorts available for enrollment (public, no auth).
 
-    Returns a list of dicts with course_slug and available (bool).
+    Returns individual cohorts with enrollment-path info so the enrollment
+    page can show each option and filter out cohorts with no path forward.
+
+    A cohort is included if it has at least one enrollment path:
+    - accepts_availability_signups = true (scheduler path), OR
+    - has at least one joinable group (not full, not started)
     """
-    from datetime import date, timedelta
+    from datetime import date, datetime, timedelta, timezone
 
-    from .tables import cohorts
+    from .enums import GroupUserStatus
+    from .tables import cohorts, groups, groups_users, meetings
 
     today = date.today()
+    now = datetime.now(timezone.utc)
     cutoff = today - timedelta(days=7)
+
+    # Subquery: member count per group
+    member_count_subq = (
+        select(
+            groups_users.c.group_id,
+            func.count().label("member_count"),
+        )
+        .where(groups_users.c.status == GroupUserStatus.active)
+        .group_by(groups_users.c.group_id)
+        .subquery()
+    )
+
+    # Subquery: first meeting per group
+    first_meeting_subq = (
+        select(
+            meetings.c.group_id,
+            func.min(meetings.c.scheduled_at).label("first_meeting_at"),
+        )
+        .group_by(meetings.c.group_id)
+        .subquery()
+    )
+
+    # Subquery: does cohort have at least one joinable group?
+    # Joinable = status in (preview, active), not full, not started
+    joinable_group_exists = (
+        select(groups.c.group_id)
+        .outerjoin(member_count_subq, groups.c.group_id == member_count_subq.c.group_id)
+        .outerjoin(
+            first_meeting_subq, groups.c.group_id == first_meeting_subq.c.group_id
+        )
+        .where(groups.c.cohort_id == cohorts.c.cohort_id)
+        .where(groups.c.status.in_(["preview", "active"]))
+        .where(
+            func.coalesce(member_count_subq.c.member_count, 0)
+            < func.coalesce(groups.c.max_size, cohorts.c.max_group_size)
+        )
+        .where(
+            (first_meeting_subq.c.first_meeting_at.is_(None))
+            | (first_meeting_subq.c.first_meeting_at > now)
+        )
+        .correlate(cohorts)
+        .exists()
+    )
 
     async with get_connection() as conn:
         result = await conn.execute(
             select(
+                cohorts.c.cohort_id,
+                cohorts.c.cohort_name,
                 cohorts.c.course_slug,
-                func.min(cohorts.c.cohort_start_date).label("start_date"),
+                cohorts.c.cohort_start_date,
+                cohorts.c.duration_days,
+                cohorts.c.accepts_availability_signups,
+                joinable_group_exists.label("has_joinable_groups"),
             )
             .where(cohorts.c.status == "active")
             .where(cohorts.c.cohort_start_date >= cutoff)
-            .group_by(cohorts.c.course_slug)
+            .where(
+                cohorts.c.accepts_availability_signups.is_(True) | joinable_group_exists
+            )
+            .order_by(cohorts.c.cohort_start_date)
         )
-        available_courses = {row[0]: row[1] for row in result}
 
-    # Return all known course slugs with availability
     from .content import get_cache
 
     cache = get_cache()
-    courses = []
-    for slug, course in cache.courses.items():
-        start_date = available_courses.get(slug)
-        courses.append(
-            {
-                "course_slug": slug,
-                "course_name": course.title,
-                "available": slug in available_courses,
-                "start_date": start_date.isoformat() if start_date else None,
-            }
-        )
-    return courses
+    cohort_list = []
+    for row in result.mappings():
+        cohort = dict(row)
+        try:
+            course = cache.courses[cohort["course_slug"]]
+            cohort["course_name"] = course.title
+        except (KeyError, AttributeError):
+            cohort["course_name"] = cohort["course_slug"]
+        cohort["cohort_start_date"] = cohort["cohort_start_date"].isoformat()
+        cohort_list.append(cohort)
+    return cohort_list

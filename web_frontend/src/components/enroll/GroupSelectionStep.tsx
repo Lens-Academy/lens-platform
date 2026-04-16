@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Group } from "../../types/enroll";
 import { COMMON_TIMEZONES, formatTimezoneDisplay } from "../../types/enroll";
 import { API_URL } from "../../config";
@@ -20,6 +20,7 @@ interface GroupSelectionStepProps {
   cohortStartDate?: string;
   cohortEndDate?: string;
   cohortName?: string;
+  showAvailabilityOption?: boolean;
 }
 
 export default function GroupSelectionStep({
@@ -38,8 +39,10 @@ export default function GroupSelectionStep({
   cohortStartDate,
   cohortEndDate,
   cohortName,
+  showAvailabilityOption = true,
 }: GroupSelectionStepProps) {
   const [groups, setGroups] = useState<Group[]>([]);
+  const [showStartedGroups, setShowStartedGroups] = useState(false);
   const [totalGroupsInCohort, setTotalGroupsInCohort] = useState<number | null>(
     null,
   );
@@ -113,6 +116,15 @@ export default function GroupSelectionStep({
     });
   };
 
+  const unstartedGroups = useMemo(
+    () => groups.filter((g) => !g.has_started),
+    [groups],
+  );
+  const startedGroups = useMemo(
+    () => groups.filter((g) => g.has_started && !g.is_current),
+    [groups],
+  );
+
   if (isLoading) {
     return (
       <div className="max-w-md mx-auto">
@@ -137,7 +149,7 @@ export default function GroupSelectionStep({
     );
   }
 
-  if (groups.length === 0) {
+  if (unstartedGroups.length === 0 && startedGroups.length === 0) {
     const startDate = cohortStartDate ?? fetchedCohortStartDate;
     const noGroupsScheduled = totalGroupsInCohort === 0;
     const cohortInFuture = startDate ? new Date(startDate) > new Date() : false;
@@ -153,6 +165,19 @@ export default function GroupSelectionStep({
             closer to the start date
             {startDate && <> ({formatCohortDate(startDate)})</>}.
           </p>
+        ) : !showAvailabilityOption ? (
+          <>
+            <p className="text-gray-600 mb-6">
+              All groups are currently full. Check back later or contact us for
+              assistance.
+            </p>
+            <button
+              onClick={onBack}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Back
+            </button>
+          </>
         ) : (
           <>
             <p className="text-gray-600 mb-6">
@@ -228,9 +253,9 @@ export default function GroupSelectionStep({
         </select>
       </div>
 
-      {/* Group list - rendered directly from API response */}
+      {/* Group list - unstarted groups (primary) */}
       <div className="space-y-3 mb-6">
-        {groups.map((group) => {
+        {unstartedGroups.map((group) => {
           const isSelected = selectedGroupId === group.group_id;
           const badgeText = getBadgeText(group.badge);
 
@@ -282,16 +307,65 @@ export default function GroupSelectionStep({
         })}
       </div>
 
+      {/* Started groups - collapsed section (group-switch flow) */}
+      {startedGroups.length > 0 && (
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={() => setShowStartedGroups(!showStartedGroups)}
+            className="text-sm text-gray-500 hover:text-gray-700 mb-3"
+          >
+            {showStartedGroups ? "Hide" : "Show"} {startedGroups.length} group
+            {startedGroups.length !== 1 ? "s" : ""} already in progress
+          </button>
+          {showStartedGroups && (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500 mb-2">
+                Only join if you've been invited by this group.
+              </p>
+              {startedGroups.map((group) => {
+                const isSelected = selectedGroupId === group.group_id;
+                return (
+                  <button
+                    key={group.group_id}
+                    type="button"
+                    onClick={() => onGroupSelect(group.group_id)}
+                    className={`w-full text-left p-4 border rounded-lg transition-colors ${
+                      isSelected
+                        ? "border-[var(--brand-accent)] bg-orange-50"
+                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="font-medium text-gray-900">
+                      {formatMeetingTime(group.next_meeting_at)}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {group.group_name}
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      {group.member_count} member
+                      {group.member_count !== 1 ? "s" : ""} · already started
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Escape hatch */}
-      <div className="text-center mb-6">
-        <button
-          type="button"
-          onClick={onSwitchToAvailability}
-          className="text-sm text-[var(--brand-accent)] hover:text-[var(--brand-accent-hover)] underline"
-        >
-          None of these work? Join a different course
-        </button>
-      </div>
+      {showAvailabilityOption && (
+        <div className="text-center mb-6">
+          <button
+            type="button"
+            onClick={onSwitchToAvailability}
+            className="text-sm text-[var(--brand-accent)] hover:text-[var(--brand-accent-hover)] underline"
+          >
+            None of these work? Join a different course
+          </button>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="flex gap-3">
