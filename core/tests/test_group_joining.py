@@ -214,6 +214,7 @@ class TestJoinGroup:
             "cohort_id": 10,
             "first_meeting_at": datetime.now(timezone.utc) + timedelta(days=7),
             "member_count": 4,
+            "effective_max": 8,
         }
 
         # Mock: insert succeeds
@@ -250,6 +251,7 @@ class TestJoinGroup:
             "cohort_id": 10,
             "first_meeting_at": datetime.now(timezone.utc) + timedelta(days=7),
             "member_count": 4,
+            "effective_max": 8,
         }
 
         # Mock: update old group (mark as removed)
@@ -285,6 +287,7 @@ class TestJoinGroup:
             "cohort_id": 10,
             "first_meeting_at": datetime.now(timezone.utc) - timedelta(days=1),  # Past
             "member_count": 4,
+            "effective_max": 8,
         }
 
         mock_conn.execute = AsyncMock(side_effect=[mock_no_group, mock_group])
@@ -323,6 +326,7 @@ class TestJoinGroup:
             "cohort_id": 10,
             "first_meeting_at": datetime.now(timezone.utc) + timedelta(days=7),
             "member_count": 8,
+            "effective_max": 8,
         }
 
         mock_conn.execute = AsyncMock(side_effect=[mock_no_group, mock_group])

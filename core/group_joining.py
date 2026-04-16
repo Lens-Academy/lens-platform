@@ -14,10 +14,8 @@ from .enums import GroupUserStatus
 from .tables import cohorts, groups, groups_users, meetings, users
 
 
-# Constants for group size thresholds
-MIN_BADGE_SIZE = 3  # Groups with 3-4 members get "best size" badge
+MIN_BADGE_SIZE = 3
 MAX_BADGE_SIZE = 4
-MAX_JOINABLE_SIZE = 7  # Groups with 8+ members are hidden (8 is max capacity)
 
 
 def _calculate_next_meeting(
@@ -192,15 +190,21 @@ async def get_cohort_groups_metadata(
     )
     total = (await conn.execute(count_query)).scalar() or 0
 
-    # Cohort start date
-    cohort_query = select(cohorts.c.cohort_start_date).where(
-        cohorts.c.cohort_id == cohort_id
-    )
-    start_date = (await conn.execute(cohort_query)).scalar()
+    # Cohort details
+    cohort_query = select(
+        cohorts.c.cohort_start_date,
+        cohorts.c.accepts_availability_signups,
+    ).where(cohorts.c.cohort_id == cohort_id)
+    cohort_row = (await conn.execute(cohort_query)).mappings().first()
 
     return {
         "total_groups_in_cohort": total,
-        "cohort_start_date": start_date.isoformat() if start_date else None,
+        "cohort_start_date": cohort_row["cohort_start_date"].isoformat()
+        if cohort_row and cohort_row["cohort_start_date"]
+        else None,
+        "accepts_availability_signups": cohort_row["accepts_availability_signups"]
+        if cohort_row
+        else True,
     }
 
 
@@ -273,13 +277,17 @@ async def get_joinable_groups(
         .subquery()
     )
 
+    # Effective max: per-group override or cohort default
+    effective_max = func.coalesce(groups.c.max_size, cohorts.c.max_group_size)
+
     # Build member count filter - always include user's current group
+    member_count_filter = (
+        func.coalesce(member_count_subq.c.member_count, 0) < effective_max
+    )
     if user_current_group_id:
-        member_count_filter = (
-            func.coalesce(member_count_subq.c.member_count, 0) < 8
-        ) | (groups.c.group_id == user_current_group_id)
-    else:
-        member_count_filter = func.coalesce(member_count_subq.c.member_count, 0) < 8
+        member_count_filter = member_count_filter | (
+            groups.c.group_id == user_current_group_id
+        )
 
     # Base query with joins
     query = (
@@ -292,6 +300,7 @@ async def get_joinable_groups(
             first_meeting_subq.c.first_meeting_at,
             facilitator_subq.c.facilitator_name,
         )
+        .join(cohorts, groups.c.cohort_id == cohorts.c.cohort_id)
         .outerjoin(member_count_subq, groups.c.group_id == member_count_subq.c.group_id)
         .outerjoin(
             first_meeting_subq, groups.c.group_id == first_meeting_subq.c.group_id
@@ -299,9 +308,7 @@ async def get_joinable_groups(
         .outerjoin(facilitator_subq, groups.c.group_id == facilitator_subq.c.group_id)
         .where(groups.c.cohort_id == cohort_id)
         .where(groups.c.status.in_(["preview", "active"]))
-        # Filter: member count < 8 (8 is max capacity), but always include user's current group
         .where(member_count_filter)
-        # Sort: smallest groups first (nudge toward balanced sizes)
         .order_by(func.coalesce(member_count_subq.c.member_count, 0))
     )
 
@@ -409,7 +416,11 @@ async def join_group(
             groups.c.status,
             first_meeting_subq.c.first_meeting_at,
             func.coalesce(member_count_subq.c.member_count, 0).label("member_count"),
+            func.coalesce(groups.c.max_size, cohorts.c.max_group_size).label(
+                "effective_max"
+            ),
         )
+        .join(cohorts, groups.c.cohort_id == cohorts.c.cohort_id)
         .outerjoin(
             first_meeting_subq, groups.c.group_id == first_meeting_subq.c.group_id
         )
@@ -423,7 +434,7 @@ async def join_group(
     if not target_group:
         return {"success": False, "error": "group_not_found"}
 
-    if target_group["member_count"] >= 8:
+    if target_group["member_count"] >= target_group["effective_max"]:
         return {"success": False, "error": "group_full"}
 
     if current_group and current_group["group_id"] == group_id:

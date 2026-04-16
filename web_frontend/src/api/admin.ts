@@ -35,6 +35,8 @@ export interface GroupSummary {
   status: string;
   member_count: number;
   meeting_time: string | null;
+  max_size: number | null;
+  effective_max: number;
 }
 
 export interface SyncResult {
@@ -380,6 +382,95 @@ export async function createGroup(
       throw new Error("Access denied. Admin privileges required.");
     }
     throw new Error("Failed to create group");
+  }
+
+  return res.json();
+}
+
+/**
+ * Create a new cohort.
+ */
+export async function createCohort(body: {
+  cohort_name: string;
+  course_slug?: string;
+  cohort_start_date: string;
+  duration_days?: number;
+  number_of_group_meetings?: number;
+  max_group_size?: number;
+  accepts_availability_signups?: boolean;
+}): Promise<Record<string, unknown>> {
+  const res = await fetchWithRefresh(`${API_URL}/api/admin/cohorts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    if (res.status === 403) {
+      throw new Error("Access denied. Admin privileges required.");
+    }
+    throw new Error("Failed to create cohort");
+  }
+
+  return res.json();
+}
+
+/**
+ * Partially update a cohort.
+ */
+export async function updateCohort(
+  cohortId: number,
+  body: {
+    cohort_name?: string;
+    max_group_size?: number;
+    accepts_availability_signups?: boolean;
+    status?: string;
+  },
+): Promise<Record<string, unknown>> {
+  const res = await fetchWithRefresh(
+    `${API_URL}/api/admin/cohorts/${cohortId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    },
+  );
+
+  if (!res.ok) {
+    if (res.status === 403) {
+      throw new Error("Access denied. Admin privileges required.");
+    }
+    throw new Error("Failed to update cohort");
+  }
+
+  return res.json();
+}
+
+/**
+ * Partially update a group (e.g. max_size override).
+ * Pass { clear_max_size: true } to revert to cohort default.
+ */
+export async function updateGroup(
+  groupId: number,
+  body: { max_size?: number; clear_max_size?: boolean },
+): Promise<Record<string, unknown>> {
+  const res = await fetchWithRefresh(
+    `${API_URL}/api/admin/groups/${groupId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    },
+  );
+
+  if (!res.ok) {
+    if (res.status === 403) {
+      throw new Error("Access denied. Admin privileges required.");
+    }
+    throw new Error("Failed to update group");
   }
 
   return res.json();

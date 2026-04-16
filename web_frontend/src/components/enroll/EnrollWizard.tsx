@@ -19,11 +19,16 @@ import {
 type Step = 1 | 2 | 3 | "complete";
 
 interface EnrollWizardProps {
-  /** Pre-selected course slug from parent (skips course selection if only one matching cohort) */
+  /** Pre-selected course slug from parent */
   courseSlug?: string;
+  /** Pre-selected cohort ID from parent (auto-selects this cohort) */
+  preselectedCohortId?: number;
 }
 
-export default function EnrollWizard({ courseSlug }: EnrollWizardProps) {
+export default function EnrollWizard({
+  courseSlug,
+  preselectedCohortId,
+}: EnrollWizardProps) {
   const { isAuthenticated, isLoading, user, discordUsername, login } =
     useAuth();
 
@@ -55,22 +60,44 @@ export default function EnrollWizard({ courseSlug }: EnrollWizardProps) {
   const [availableCohorts, setAvailableCohorts] = useState<Cohort[]>([]);
   const [isFacilitator, setIsFacilitator] = useState(false);
 
-  // Auto-select cohort matching courseSlug when cohorts load
+  // Auto-select cohort from parent (preselectedCohortId or courseSlug fallback)
   useEffect(() => {
-    if (!courseSlug || availableCohorts.length === 0) return;
-    if (formData.selectedCohortId) return; // Already selected
+    if (availableCohorts.length === 0) return;
+    if (formData.selectedCohortId) return;
 
-    const matching = availableCohorts.filter(
-      (c) => c.course_slug === courseSlug,
-    );
-    if (matching.length === 1) {
-      setFormData((prev) => ({
-        ...prev,
-        selectedCohortId: matching[0].cohort_id,
-        selectedRole: isFacilitator ? null : "participant",
-      }));
+    if (preselectedCohortId) {
+      const match = availableCohorts.find(
+        (c) => c.cohort_id === preselectedCohortId,
+      );
+      if (match) {
+        setFormData((prev) => ({
+          ...prev,
+          selectedCohortId: match.cohort_id,
+          selectedRole: isFacilitator ? null : "participant",
+        }));
+        return;
+      }
     }
-  }, [courseSlug, availableCohorts, isFacilitator, formData.selectedCohortId]);
+
+    if (courseSlug) {
+      const matching = availableCohorts.filter(
+        (c) => c.course_slug === courseSlug,
+      );
+      if (matching.length === 1) {
+        setFormData((prev) => ({
+          ...prev,
+          selectedCohortId: matching[0].cohort_id,
+          selectedRole: isFacilitator ? null : "participant",
+        }));
+      }
+    }
+  }, [
+    courseSlug,
+    preselectedCohortId,
+    availableCohorts,
+    isFacilitator,
+    formData.selectedCohortId,
+  ]);
 
   // Get the selected cohort
   const selectedCohort = useMemo(() => {
@@ -83,6 +110,10 @@ export default function EnrollWizard({ courseSlug }: EnrollWizardProps) {
 
   // Determine if selected cohort has groups (for direct group join flow)
   const selectedCohortHasGroups = selectedCohort?.has_groups ?? false;
+
+  // Whether the selected cohort allows availability-based scheduling
+  const selectedCohortAcceptsAvailability =
+    selectedCohort?.accepts_availability_signups ?? true;
 
   // Calculate cohort end date from start date + duration
   const selectedCohortEndDate = useMemo(() => {
@@ -334,7 +365,8 @@ export default function EnrollWizard({ courseSlug }: EnrollWizardProps) {
       )}
 
       {currentStep === 3 &&
-        (selectedCohortHasGroups && !forceAvailabilityMode ? (
+        (selectedCohortHasGroups &&
+        (!forceAvailabilityMode || !selectedCohortAcceptsAvailability) ? (
           <GroupSelectionStep
             cohortId={formData.selectedCohortId!}
             isSubmitting={isSubmitting}
@@ -358,6 +390,7 @@ export default function EnrollWizard({ courseSlug }: EnrollWizardProps) {
               setForceAvailabilityMode(true);
               setCurrentStep(2);
             }}
+            hideAvailabilityEscapeHatch={!selectedCohortAcceptsAvailability}
             cohortStartDate={selectedCohort?.cohort_start_date}
             cohortEndDate={selectedCohortEndDate}
             cohortName={selectedCohort?.cohort_name}

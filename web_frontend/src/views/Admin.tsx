@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback } from "react";
+import { useReducer, useEffect, useCallback, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { Skeleton, SkeletonText } from "../components/Skeleton";
 import {
@@ -10,6 +10,9 @@ import {
   syncCohort,
   realizeCohort,
   addMemberToGroup,
+  createCohort,
+  updateCohort,
+  updateGroup,
 } from "../api/admin";
 import {
   GroupOperationDetails,
@@ -41,6 +44,7 @@ export default function Admin() {
     selectedCohortId,
     groups,
     loadingGroups,
+    cohortSaving,
     cohortSyncing,
     cohortRealizing,
     groupSyncing,
@@ -375,6 +379,18 @@ export default function Admin() {
           >
             Groups
           </button>
+          <button
+            onClick={() =>
+              dispatch({ type: "SET_ACTIVE_TAB", tab: "cohorts" })
+            }
+            className={`py-2 px-1 border-b-2 font-medium ${
+              activeTab === "cohorts"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Cohorts
+          </button>
         </nav>
       </div>
 
@@ -698,6 +714,9 @@ export default function Admin() {
                     <th className="text-left px-4 py-3 font-medium">Status</th>
                     <th className="text-left px-4 py-3 font-medium">Members</th>
                     <th className="text-left px-4 py-3 font-medium">
+                      Max Size
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium">
                       Meeting Time
                     </th>
                     <th className="text-left px-4 py-3 font-medium">Actions</th>
@@ -723,6 +742,37 @@ export default function Admin() {
                         </span>
                       </td>
                       <td className="px-4 py-3">{g.member_count}</td>
+                      <td className="px-4 py-3">
+                        <MaxSizeCell
+                          group={g}
+                          onSave={async (maxSize) => {
+                            await updateGroup(g.group_id, {
+                              max_size: maxSize,
+                            });
+                            if (selectedCohortId) {
+                              const groupsList =
+                                await getCohortGroups(selectedCohortId);
+                              dispatch({
+                                type: "LOAD_GROUPS_SUCCESS",
+                                groups: groupsList,
+                              });
+                            }
+                          }}
+                          onClear={async () => {
+                            await updateGroup(g.group_id, {
+                              clear_max_size: true,
+                            });
+                            if (selectedCohortId) {
+                              const groupsList =
+                                await getCohortGroups(selectedCohortId);
+                              dispatch({
+                                type: "LOAD_GROUPS_SUCCESS",
+                                groups: groupsList,
+                              });
+                            }
+                          }}
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         {g.meeting_time || (
                           <span className="text-gray-400">-</span>
@@ -763,6 +813,505 @@ export default function Admin() {
           )}
         </div>
       )}
+
+      {/* Cohorts Tab */}
+      {activeTab === "cohorts" && (
+        <CohortsTab
+          cohorts={cohorts}
+          cohortSaving={cohortSaving}
+          dispatch={dispatch}
+        />
+      )}
     </div>
+  );
+}
+
+// ─── MaxSizeCell (inline editing for group max_size) ────────────────
+
+function MaxSizeCell({
+  group,
+  onSave,
+  onClear,
+}: {
+  group: { max_size: number | null; effective_max: number };
+  onSave: (maxSize: number) => Promise<void>;
+  onClear: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const hasOverride = group.max_size !== null;
+
+  const handleStartEdit = () => {
+    setValue(String(group.max_size ?? group.effective_max));
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    const num = parseInt(value, 10);
+    if (isNaN(num) || num < 1) return;
+    setSaving(true);
+    try {
+      await onSave(num);
+    } finally {
+      setSaving(false);
+      setEditing(false);
+    }
+  };
+
+  const handleClear = async () => {
+    setSaving(true);
+    try {
+      await onClear();
+    } finally {
+      setSaving(false);
+      setEditing(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleSave();
+    if (e.key === "Escape") setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          type="number"
+          min={1}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleSave}
+          disabled={saving}
+          className="border rounded px-2 py-1 w-16 text-sm"
+          autoFocus
+        />
+        {hasOverride && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              handleClear();
+            }}
+            disabled={saving}
+            className="text-gray-400 hover:text-red-500 text-sm leading-none"
+            title="Clear override (revert to cohort default)"
+          >
+            &times;
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleStartEdit}
+      className="text-left hover:bg-gray-100 rounded px-1 -mx-1"
+    >
+      {hasOverride ? (
+        <span>{group.max_size}</span>
+      ) : (
+        <span className="text-gray-400">
+          {group.effective_max}{" "}
+          <span className="text-xs">(default)</span>
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ─── CohortsTab ─────────────────────────────────────────────────────
+
+function CohortsTab({
+  cohorts,
+  cohortSaving,
+  dispatch,
+}: {
+  cohorts: import("./adminReducer").Cohort[];
+  cohortSaving: boolean;
+  dispatch: React.Dispatch<import("./adminReducer").AdminAction>;
+}) {
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  return (
+    <div className="space-y-6">
+      {/* Create Cohort toggle */}
+      <button
+        onClick={() => setShowCreate(!showCreate)}
+        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+      >
+        {showCreate ? "Cancel" : "Create Cohort"}
+      </button>
+
+      {showCreate && (
+        <CreateCohortForm
+          saving={cohortSaving}
+          dispatch={dispatch}
+          onDone={() => setShowCreate(false)}
+        />
+      )}
+
+      {/* Cohorts table */}
+      {cohorts.length > 0 ? (
+        <div className="bg-white border rounded-lg overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium">Name</th>
+                <th className="text-left px-4 py-3 font-medium">Course</th>
+                <th className="text-left px-4 py-3 font-medium">
+                  Start Date
+                </th>
+                <th className="text-left px-4 py-3 font-medium">Status</th>
+                <th className="text-left px-4 py-3 font-medium">
+                  Max Group Size
+                </th>
+                <th className="text-left px-4 py-3 font-medium">
+                  Signups Open
+                </th>
+                <th className="text-left px-4 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cohorts.map((c) =>
+                editingId === c.cohort_id ? (
+                  <EditCohortRow
+                    key={c.cohort_id}
+                    cohort={c}
+                    saving={cohortSaving}
+                    dispatch={dispatch}
+                    onClose={() => setEditingId(null)}
+                  />
+                ) : (
+                  <tr key={c.cohort_id} className="border-t">
+                    <td className="px-4 py-3">{c.cohort_name}</td>
+                    <td className="px-4 py-3">
+                      {c.course_name || c.course_slug}
+                    </td>
+                    <td className="px-4 py-3">{c.cohort_start_date}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                          c.status === "active"
+                            ? "bg-green-100 text-green-800"
+                            : c.status === "completed"
+                              ? "bg-gray-100 text-gray-800"
+                              : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {c.status || "active"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{c.max_group_size}</td>
+                    <td className="px-4 py-3">
+                      {c.accepts_availability_signups ? "Yes" : "No"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setEditingId(c.cohort_id)}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-gray-500">No cohorts found.</p>
+      )}
+    </div>
+  );
+}
+
+// ─── CreateCohortForm ───────────────────────────────────────────────
+
+function CreateCohortForm({
+  saving,
+  dispatch,
+  onDone,
+}: {
+  saving: boolean;
+  dispatch: React.Dispatch<import("./adminReducer").AdminAction>;
+  onDone: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [courseSlug, setCourseSlug] = useState("default");
+  const [startDate, setStartDate] = useState("");
+  const [durationDays, setDurationDays] = useState(42);
+  const [numMeetings, setNumMeetings] = useState(6);
+  const [maxGroupSize, setMaxGroupSize] = useState(8);
+  const [acceptsSignups, setAcceptsSignups] = useState(true);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !startDate) return;
+
+    dispatch({ type: "CREATE_COHORT_START" });
+    try {
+      const result = await createCohort({
+        cohort_name: name.trim(),
+        course_slug: courseSlug,
+        cohort_start_date: startDate,
+        duration_days: durationDays,
+        number_of_group_meetings: numMeetings,
+        max_group_size: maxGroupSize,
+        accepts_availability_signups: acceptsSignups,
+      });
+      dispatch({
+        type: "CREATE_COHORT_SUCCESS",
+        cohort: {
+          cohort_id: result.cohort_id as number,
+          cohort_name: result.cohort_name as string,
+          course_slug: result.course_slug as string,
+          cohort_start_date: result.cohort_start_date as string,
+          duration_days: result.duration_days as number,
+          number_of_group_meetings: result.number_of_group_meetings as number,
+          max_group_size: result.max_group_size as number,
+          accepts_availability_signups:
+            result.accepts_availability_signups as boolean,
+          status: result.status as string,
+          course_name: result.course_slug as string,
+        },
+        message: `Cohort "${name.trim()}" created`,
+      });
+      onDone();
+    } catch (err) {
+      dispatch({
+        type: "CREATE_COHORT_ERROR",
+        error: err instanceof Error ? err.message : "Failed to create cohort",
+      });
+    }
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white border rounded-lg p-6 space-y-4 max-w-xl"
+    >
+      <h3 className="font-semibold text-lg">Create Cohort</h3>
+
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">Cohort Name</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          className="border rounded px-3 py-2 w-full"
+          placeholder="e.g. January 2026"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">
+            Course Slug
+          </label>
+          <input
+            type="text"
+            value={courseSlug}
+            onChange={(e) => setCourseSlug(e.target.value)}
+            className="border rounded px-3 py-2 w-full"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">
+            Start Date
+          </label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            required
+            className="border rounded px-3 py-2 w-full"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">
+            Duration (days)
+          </label>
+          <input
+            type="number"
+            min={1}
+            value={durationDays}
+            onChange={(e) => setDurationDays(Number(e.target.value))}
+            className="border rounded px-3 py-2 w-full"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">
+            Meetings
+          </label>
+          <input
+            type="number"
+            min={1}
+            value={numMeetings}
+            onChange={(e) => setNumMeetings(Number(e.target.value))}
+            className="border rounded px-3 py-2 w-full"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">
+            Max Group Size
+          </label>
+          <input
+            type="number"
+            min={1}
+            value={maxGroupSize}
+            onChange={(e) => setMaxGroupSize(Number(e.target.value))}
+            className="border rounded px-3 py-2 w-full"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={acceptsSignups}
+            onChange={(e) => setAcceptsSignups(e.target.checked)}
+          />
+          Signups open
+        </label>
+      </div>
+
+      <button
+        type="submit"
+        disabled={saving || !name.trim() || !startDate}
+        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:bg-green-400"
+      >
+        {saving ? "Creating..." : "Create"}
+      </button>
+    </form>
+  );
+}
+
+// ─── EditCohortRow (inline editing row) ─────────────────────────────
+
+function EditCohortRow({
+  cohort,
+  saving,
+  dispatch,
+  onClose,
+}: {
+  cohort: import("./adminReducer").Cohort;
+  saving: boolean;
+  dispatch: React.Dispatch<import("./adminReducer").AdminAction>;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(cohort.cohort_name);
+  const [maxSize, setMaxSize] = useState(cohort.max_group_size);
+  const [signups, setSignups] = useState(cohort.accepts_availability_signups);
+  const [status, setStatus] = useState(cohort.status || "active");
+
+  const handleSave = async () => {
+    dispatch({ type: "UPDATE_COHORT_START" });
+    try {
+      const body: Record<string, unknown> = {};
+      if (name !== cohort.cohort_name) body.cohort_name = name;
+      if (maxSize !== cohort.max_group_size) body.max_group_size = maxSize;
+      if (signups !== cohort.accepts_availability_signups)
+        body.accepts_availability_signups = signups;
+      if (status !== (cohort.status || "active")) body.status = status;
+
+      if (Object.keys(body).length === 0) {
+        onClose();
+        return;
+      }
+
+      await updateCohort(cohort.cohort_id, body);
+      dispatch({
+        type: "UPDATE_COHORT_SUCCESS",
+        cohortId: cohort.cohort_id,
+        updates: {
+          cohort_name: name,
+          max_group_size: maxSize,
+          accepts_availability_signups: signups,
+          status,
+        },
+        message: `Cohort "${name}" updated`,
+      });
+      onClose();
+    } catch (err) {
+      dispatch({
+        type: "UPDATE_COHORT_ERROR",
+        error: err instanceof Error ? err.message : "Failed to update cohort",
+      });
+    }
+  };
+
+  return (
+    <tr className="border-t bg-blue-50">
+      <td className="px-4 py-2">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="border rounded px-2 py-1 w-full text-sm"
+        />
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-500">
+        {cohort.course_name || cohort.course_slug}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-500">
+        {cohort.cohort_start_date}
+      </td>
+      <td className="px-4 py-2">
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="border rounded px-2 py-1 text-sm"
+        >
+          <option value="active">active</option>
+          <option value="completed">completed</option>
+          <option value="archived">archived</option>
+        </select>
+      </td>
+      <td className="px-4 py-2">
+        <input
+          type="number"
+          min={1}
+          value={maxSize}
+          onChange={(e) => setMaxSize(Number(e.target.value))}
+          className="border rounded px-2 py-1 w-16 text-sm"
+        />
+      </td>
+      <td className="px-4 py-2">
+        <input
+          type="checkbox"
+          checked={signups}
+          onChange={(e) => setSignups(e.target.checked)}
+        />
+      </td>
+      <td className="px-4 py-2">
+        <div className="flex gap-2">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="text-green-600 hover:text-green-800 disabled:text-green-400 text-sm"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+          <button
+            onClick={onClose}
+            disabled={saving}
+            className="text-gray-500 hover:text-gray-700 text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }

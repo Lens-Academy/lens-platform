@@ -15,6 +15,7 @@ async def create_group(
     cohort_id: int,
     group_name: str,
     recurring_meeting_time_utc: str,
+    max_size: int | None = None,
 ) -> dict[str, Any]:
     """
     Create a new group and return the created record.
@@ -23,17 +24,18 @@ async def create_group(
         cohort_id: The cohort this group belongs to
         group_name: Display name (e.g., "Group 1")
         recurring_meeting_time_utc: Meeting time (e.g., "Wednesday 15:00")
+        max_size: Per-group cap override (None = inherit from cohort)
     """
-    result = await conn.execute(
-        insert(groups)
-        .values(
-            cohort_id=cohort_id,
-            group_name=group_name,
-            recurring_meeting_time_utc=recurring_meeting_time_utc,
-            status="preview",
-        )
-        .returning(groups)
-    )
+    values = {
+        "cohort_id": cohort_id,
+        "group_name": group_name,
+        "recurring_meeting_time_utc": recurring_meeting_time_utc,
+        "status": "preview",
+    }
+    if max_size is not None:
+        values["max_size"] = max_size
+
+    result = await conn.execute(insert(groups).values(**values).returning(groups))
     row = result.mappings().first()
     return dict(row)
 
@@ -360,8 +362,13 @@ async def get_cohort_groups_summary(
             groups.c.group_name,
             groups.c.status,
             groups.c.recurring_meeting_time_utc.label("meeting_time"),
+            groups.c.max_size,
             func.coalesce(member_counts.c.member_count, 0).label("member_count"),
+            func.coalesce(groups.c.max_size, cohorts.c.max_group_size).label(
+                "effective_max"
+            ),
         )
+        .join(cohorts, groups.c.cohort_id == cohorts.c.cohort_id)
         .outerjoin(member_counts, groups.c.group_id == member_counts.c.group_id)
         .where(groups.c.cohort_id == cohort_id)
         .order_by(groups.c.group_name)

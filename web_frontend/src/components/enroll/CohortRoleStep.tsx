@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { Cohort } from "../../types/enroll";
+import { SelectMenu } from "../SelectMenu";
 
 interface CohortRoleStepProps {
   enrolledCohorts: Cohort[];
@@ -60,6 +61,23 @@ export default function CohortRoleStep({
     }
   };
 
+  const cohortOptions = useMemo(
+    () =>
+      availableCohorts.map((cohort) => {
+        const d = new Date(cohort.cohort_start_date);
+        const short = d.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+        return {
+          value: cohort.cohort_id,
+          label: cohort.course_name,
+          description: `Starts ${short}`,
+        };
+      }),
+    [availableCohorts],
+  );
+
   const canProceed = selectedCohortId !== null && selectedRole !== null;
 
   return (
@@ -103,19 +121,13 @@ export default function CohortRoleStep({
           >
             Enroll in a new course
           </label>
-          <select
+          <SelectMenu
             id="cohort"
-            value={selectedCohortId ?? ""}
-            onChange={(e) => onCohortSelect(Number(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-[var(--brand-accent)] outline-none"
-          >
-            <option value="">Select a course...</option>
-            {availableCohorts.map((cohort) => (
-              <option key={cohort.cohort_id} value={cohort.cohort_id}>
-                {cohort.cohort_name} — {formatDateRange(cohort)}
-              </option>
-            ))}
-          </select>
+            value={selectedCohortId}
+            onChange={(id) => onCohortSelect(id as number)}
+            placeholder="Select a course..."
+            options={cohortOptions}
+          />
         </div>
       ) : enrolledCohorts.length > 0 ? (
         <p className="text-gray-600 mb-6">

@@ -35,6 +35,7 @@ export interface Cohort {
   duration_days: number;
   role?: string;
   has_groups?: boolean;
+  accepts_availability_signups?: boolean;
 }
 
 export interface EnrollFormData {

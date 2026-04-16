@@ -20,6 +20,7 @@ interface GroupSelectionStepProps {
   cohortStartDate?: string;
   cohortEndDate?: string;
   cohortName?: string;
+  hideAvailabilityEscapeHatch?: boolean;
 }
 
 export default function GroupSelectionStep({
@@ -38,6 +39,7 @@ export default function GroupSelectionStep({
   cohortStartDate,
   cohortEndDate,
   cohortName,
+  hideAvailabilityEscapeHatch = false,
 }: GroupSelectionStepProps) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [totalGroupsInCohort, setTotalGroupsInCohort] = useState<number | null>(
@@ -153,6 +155,19 @@ export default function GroupSelectionStep({
             closer to the start date
             {startDate && <> ({formatCohortDate(startDate)})</>}.
           </p>
+        ) : hideAvailabilityEscapeHatch ? (
+          <>
+            <p className="text-gray-600 mb-6">
+              All groups are currently full. Check back later or contact us for
+              assistance.
+            </p>
+            <button
+              onClick={onBack}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Back
+            </button>
+          </>
         ) : (
           <>
             <p className="text-gray-600 mb-6">
@@ -283,15 +298,17 @@ export default function GroupSelectionStep({
       </div>
 
       {/* Escape hatch */}
-      <div className="text-center mb-6">
-        <button
-          type="button"
-          onClick={onSwitchToAvailability}
-          className="text-sm text-[var(--brand-accent)] hover:text-[var(--brand-accent-hover)] underline"
-        >
-          None of these work? Join a different course
-        </button>
-      </div>
+      {!hideAvailabilityEscapeHatch && (
+        <div className="text-center mb-6">
+          <button
+            type="button"
+            onClick={onSwitchToAvailability}
+            className="text-sm text-[var(--brand-accent)] hover:text-[var(--brand-accent-hover)] underline"
+          >
+            None of these work? Join a different course
+          </button>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="flex gap-3">

@@ -2,26 +2,15 @@
 Admin panel API routes.
 
 All endpoints require admin authentication.
-
-Endpoints:
-- POST /api/admin/users/search - Search users by name/username
-- GET /api/admin/users/{user_id} - Get user details
-- POST /api/admin/groups/{group_id}/sync - Sync a group
-- POST /api/admin/groups/{group_id}/realize - Realize a group
-- POST /api/admin/groups/{group_id}/members/add - Add user to group
-- POST /api/admin/groups/{group_id}/members/remove - Remove user from group
-- POST /api/admin/groups/create - Create a new group
-- POST /api/admin/cohorts/{cohort_id}/sync - Sync all groups in cohort
-- POST /api/admin/cohorts/{cohort_id}/realize - Realize All Preview Groups
-- GET /api/admin/cohorts/{cohort_id}/groups - List groups in cohort
 """
 
 import sys
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -37,6 +26,7 @@ from core.queries.groups import (
 )
 from core.queries.users import get_user_admin_details, search_users
 from core.sync import sync_after_group_change, sync_group
+from core.tables import cohorts, groups
 from web_api.auth import require_admin
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -61,6 +51,35 @@ class CreateGroupRequest(BaseModel):
     cohort_id: int
     group_name: str
     meeting_time: str  # e.g., "Wednesday 15:00"
+    max_size: int | None = None
+
+
+class CreateCohortRequest(BaseModel):
+    """Request body for creating a cohort."""
+
+    cohort_name: str
+    course_slug: str = "default"
+    cohort_start_date: date
+    duration_days: int = 42
+    number_of_group_meetings: int = 6
+    max_group_size: int = 8
+    accepts_availability_signups: bool = True
+
+
+class UpdateCohortRequest(BaseModel):
+    """Request body for updating a cohort (all fields optional)."""
+
+    cohort_name: str | None = None
+    max_group_size: int | None = Field(default=None, ge=1)
+    accepts_availability_signups: bool | None = None
+    status: str | None = None
+
+
+class UpdateGroupRequest(BaseModel):
+    """Request body for updating a group."""
+
+    max_size: int | None = Field(default=None, ge=1)
+    clear_max_size: bool = False
 
 
 @router.post("/users/search")
@@ -215,6 +234,7 @@ async def create_group_endpoint(
             cohort_id=request.cohort_id,
             group_name=request.group_name,
             recurring_meeting_time_utc=request.meeting_time,
+            max_size=request.max_size,
         )
 
     return group
@@ -279,3 +299,104 @@ async def list_cohort_groups_endpoint(
         groups_list = await get_cohort_groups_summary(conn, cohort_id)
 
     return {"groups": groups_list}
+
+
+@router.post("/cohorts")
+async def create_cohort_endpoint(
+    request: CreateCohortRequest,
+    admin: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """Create a new cohort."""
+    from sqlalchemy import insert
+
+    async with get_transaction() as conn:
+        result = await conn.execute(
+            insert(cohorts)
+            .values(
+                cohort_name=request.cohort_name,
+                course_slug=request.course_slug,
+                cohort_start_date=request.cohort_start_date,
+                duration_days=request.duration_days,
+                number_of_group_meetings=request.number_of_group_meetings,
+                max_group_size=request.max_group_size,
+                accepts_availability_signups=request.accepts_availability_signups,
+                status="active",
+            )
+            .returning(cohorts)
+        )
+        cohort = dict(result.mappings().first())
+
+    cohort["cohort_start_date"] = cohort["cohort_start_date"].isoformat()
+    return cohort
+
+
+@router.patch("/cohorts/{cohort_id}")
+async def update_cohort_endpoint(
+    cohort_id: int,
+    request: UpdateCohortRequest,
+    admin: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """Update a cohort (partial update)."""
+    from sqlalchemy import select, update
+
+    updates = {}
+    if request.cohort_name is not None:
+        updates["cohort_name"] = request.cohort_name
+    if request.max_group_size is not None:
+        updates["max_group_size"] = request.max_group_size
+    if request.accepts_availability_signups is not None:
+        updates["accepts_availability_signups"] = request.accepts_availability_signups
+    if request.status is not None:
+        updates["status"] = request.status
+
+    if not updates:
+        raise HTTPException(400, "No fields to update")
+
+    updates["updated_at"] = datetime.now(timezone.utc)
+
+    async with get_transaction() as conn:
+        result = await conn.execute(
+            select(cohorts.c.cohort_id).where(cohorts.c.cohort_id == cohort_id)
+        )
+        if not result.first():
+            raise HTTPException(404, "Cohort not found")
+
+        await conn.execute(
+            update(cohorts).where(cohorts.c.cohort_id == cohort_id).values(**updates)
+        )
+
+    return {"status": "updated", "cohort_id": cohort_id, **updates}
+
+
+@router.patch("/groups/{group_id}")
+async def update_group_endpoint(
+    group_id: int,
+    request: UpdateGroupRequest,
+    admin: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """Update a group (partial update). Set clear_max_size=true to revert to cohort default."""
+    from sqlalchemy import select, update
+
+    updates: dict[str, Any] = {}
+    if request.clear_max_size:
+        updates["max_size"] = None
+    elif request.max_size is not None:
+        updates["max_size"] = request.max_size
+
+    if not updates:
+        raise HTTPException(400, "No fields to update")
+
+    updates["updated_at"] = datetime.now(timezone.utc)
+
+    async with get_transaction() as conn:
+        result = await conn.execute(
+            select(groups.c.group_id).where(groups.c.group_id == group_id)
+        )
+        if not result.first():
+            raise HTTPException(404, "Group not found")
+
+        await conn.execute(
+            update(groups).where(groups.c.group_id == group_id).values(**updates)
+        )
+
+    return {"status": "updated", "group_id": group_id, **updates}

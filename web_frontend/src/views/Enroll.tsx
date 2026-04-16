@@ -1,23 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import EnrollWizard from "../components/enroll/EnrollWizard";
 import ProspectEmailForm from "../components/ProspectEmailForm";
+import { SelectMenu } from "../components/SelectMenu";
 import SemiDonutChart from "../components/SemiDonutChart";
 import { API_URL } from "../config";
 
-interface CourseAvailability {
+interface CohortOption {
+  cohort_id: number;
+  cohort_name: string;
   course_slug: string;
   course_name: string;
-  available: boolean;
-  start_date: string | null;
+  cohort_start_date: string;
+  duration_days: number;
 }
 
 const ENROLL_STATE_KEY = "lens-enroll-state";
 
-function saveEnrollState(slug: string) {
-  sessionStorage.setItem(ENROLL_STATE_KEY, JSON.stringify({ slug }));
+function saveEnrollState(cohortId: number, courseSlug: string) {
+  sessionStorage.setItem(
+    ENROLL_STATE_KEY,
+    JSON.stringify({ cohortId, slug: courseSlug }),
+  );
 }
 
-function loadAndClearEnrollState(): { slug: string } | null {
+function loadAndClearEnrollState(): {
+  cohortId?: number;
+  slug?: string;
+} | null {
   const raw = sessionStorage.getItem(ENROLL_STATE_KEY);
   if (!raw) return null;
   sessionStorage.removeItem(ENROLL_STATE_KEY);
@@ -28,60 +37,77 @@ function loadAndClearEnrollState(): { slug: string } | null {
   }
 }
 
-function formatStartDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+function formatDateRange(cohort: CohortOption): string {
+  const start = new Date(cohort.cohort_start_date + "T00:00:00");
+  const end = new Date(start);
+  end.setDate(end.getDate() + cohort.duration_days);
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${fmt(start)} – ${fmt(end)}`;
 }
 
 export default function Enroll() {
-  const [courses, setCourses] = useState<CourseAvailability[]>([]);
-  const [selectedSlug, setSelectedSlug] = useState<string>("");
+  const [cohorts, setCohorts] = useState<CohortOption[]>([]);
+  const [selectedCohortId, setSelectedCohortId] = useState<number | null>(null);
   const [step, setStep] = useState<"select" | "enroll">("select");
 
+  const selectedCohort = cohorts.find(
+    (c) => c.cohort_id === selectedCohortId,
+  );
+
+  const selectOptions = useMemo(
+    () =>
+      cohorts.map((c) => {
+        const d = new Date(c.cohort_start_date + "T00:00:00");
+        const short = d.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+        return {
+          value: c.cohort_id,
+          label: c.course_name,
+          description: `Starts ${short}`,
+        };
+      }),
+    [cohorts],
+  );
+
   useEffect(() => {
-    // Restore state after OAuth redirect
     const saved = loadAndClearEnrollState();
 
     fetch(`${API_URL}/api/cohorts/course-availability`)
       .then((res) => res.json())
       .then((data) => {
-        setCourses(data.courses);
+        const list = data.courses as CohortOption[];
+        setCohorts(list);
 
-        if (saved?.slug) {
-          // Returning from OAuth — restore selection and go to enroll
-          setSelectedSlug(saved.slug);
+        if (saved?.cohortId) {
+          setSelectedCohortId(saved.cohortId);
           setStep("enroll");
-        } else {
-          // Fresh visit — auto-select if only one available
-          const available = (data.courses as CourseAvailability[]).filter(
-            (c) => c.available,
-          );
-          if (available.length === 1) {
-            setSelectedSlug(available[0].course_slug);
+        } else if (saved?.slug) {
+          const match = list.find((c) => c.course_slug === saved.slug);
+          if (match) {
+            setSelectedCohortId(match.cohort_id);
+            setStep("enroll");
           }
+        } else if (list.length === 1) {
+          setSelectedCohortId(list[0].cohort_id);
         }
       })
       .catch(() => {});
   }, []);
 
-  const availableCourses = courses.filter((c) => c.available);
-  const selectedCourse = courses.find((c) => c.course_slug === selectedSlug);
-
   const handleNext = () => {
-    // Save state before potential OAuth redirect
-    saveEnrollState(selectedSlug);
+    if (!selectedCohort) return;
+    saveEnrollState(selectedCohort.cohort_id, selectedCohort.course_slug);
     setStep("enroll");
   };
 
   // Step 2: enrollment wizard
-  if (step === "enroll" && selectedSlug) {
+  if (step === "enroll" && selectedCohort) {
     return (
       <div className="py-8">
-        <div className="max-w-md mx-auto px-4 mb-4">
+        <div className="max-w-md mx-auto mb-4">
           <button
             type="button"
             onClick={() => setStep("select")}
@@ -90,15 +116,18 @@ export default function Enroll() {
             &larr; Back to course selection
           </button>
         </div>
-        <EnrollWizard courseSlug={selectedSlug} />
+        <EnrollWizard
+          courseSlug={selectedCohort.course_slug}
+          preselectedCohortId={selectedCohort.cohort_id}
+        />
       </div>
     );
   }
 
-  // Step 1: course selection
-  const courseSelector = (id: string) => (
-    <div className="max-w-md mx-auto px-4">
-      {availableCourses.length > 0 ? (
+  // Step 1: course/cohort selection
+  const cohortSelector = (id: string) => (
+    <div className="max-w-md mx-auto">
+      {cohorts.length > 0 ? (
         <>
           <label
             htmlFor={id}
@@ -106,29 +135,21 @@ export default function Enroll() {
           >
             Choose a course to enroll in
           </label>
-          <select
+          <SelectMenu
             id={id}
-            value={selectedSlug}
-            onChange={(e) => setSelectedSlug(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-[var(--brand-accent)] outline-none"
-          >
-            <option value="">Select a course...</option>
-            {availableCourses.map((c) => (
-              <option key={c.course_slug} value={c.course_slug}>
-                {c.course_name}
-              </option>
-            ))}
-          </select>
+            value={selectedCohortId}
+            onChange={(id) => setSelectedCohortId(id as number)}
+            placeholder="Select a course..."
+            options={selectOptions}
+          />
 
-          {/* Start date for selected course */}
-          {selectedCourse?.start_date && (
+          {selectedCohort && (
             <p className="text-sm text-gray-500 mt-2">
-              Starts {formatStartDate(selectedCourse.start_date)}
+              {formatDateRange(selectedCohort)}
             </p>
           )}
 
-          {/* Next button */}
-          {selectedSlug && (
+          {selectedCohortId && (
             <button
               type="button"
               onClick={handleNext}
@@ -146,13 +167,12 @@ export default function Enroll() {
             </button>
           )}
         </>
-      ) : courses.length > 0 ? (
+      ) : (
         <p className="text-sm text-gray-600 text-center">
           No courses are currently open for enrollment.
         </p>
-      ) : null}
+      )}
 
-      {/* Notify me — compact */}
       <p className="text-xs text-gray-500 mt-4">
         If the course you want is not available, leave your email address.
       </p>
@@ -163,7 +183,7 @@ export default function Enroll() {
   return (
     <div className="py-8">
       {/* Header */}
-      <div className="max-w-2xl mx-auto px-4 text-center mb-8">
+      <div className="max-w-2xl mx-auto text-center mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
           Enroll in a Course
         </h1>
@@ -173,11 +193,11 @@ export default function Enroll() {
         </p>
       </div>
 
-      {/* Top course selector */}
-      {courseSelector("course-select-top")}
+      {/* Top cohort selector */}
+      {cohortSelector("cohort-select-top")}
 
       {/* Course cards */}
-      <div className="max-w-2xl mx-auto px-4 my-10">
+      <div className="max-w-2xl mx-auto my-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Course 1: Superintelligence 101 */}
           <div className="p-5 rounded-lg border border-gray-200 bg-gray-50 flex flex-col">
@@ -232,7 +252,7 @@ export default function Enroll() {
       </div>
 
       {/* How Our Courses Work */}
-      <div className="max-w-2xl mx-auto px-4 mb-10">
+      <div className="max-w-2xl mx-auto mb-10">
         <div className="grid grid-cols-1 sm:grid-cols-[2fr_3fr] gap-6 items-center">
           <div>
             <h2 className="text-xl font-bold text-gray-900 mb-3">
@@ -251,9 +271,9 @@ export default function Enroll() {
         </div>
       </div>
 
-      {/* Bottom course selector */}
+      {/* Bottom cohort selector */}
       <div className="border-t border-gray-200 max-w-md mx-auto my-8" />
-      {courseSelector("course-select-bottom")}
+      {cohortSelector("cohort-select-bottom")}
 
       {/* Link to homepage */}
       <p className="text-sm text-gray-500 text-center mt-6">

@@ -168,15 +168,17 @@ async def has_available_cohorts() -> bool:
             select(cohorts.c.cohort_id)
             .where(cohorts.c.status == "active")
             .where(cohorts.c.cohort_start_date >= cutoff)
+            .where(cohorts.c.accepts_availability_signups.is_(True))
             .limit(1)
         )
         return result.first() is not None
 
 
 async def get_course_availability() -> list[dict]:
-    """Get per-course enrollment availability (public, no auth).
+    """Get available cohorts for enrollment (public, no auth).
 
-    Returns a list of dicts with course_slug and available (bool).
+    Returns individual cohorts with course info so the enrollment page
+    can show each start-date option.
     """
     from datetime import date, timedelta
 
@@ -188,28 +190,28 @@ async def get_course_availability() -> list[dict]:
     async with get_connection() as conn:
         result = await conn.execute(
             select(
+                cohorts.c.cohort_id,
+                cohorts.c.cohort_name,
                 cohorts.c.course_slug,
-                func.min(cohorts.c.cohort_start_date).label("start_date"),
+                cohorts.c.cohort_start_date,
+                cohorts.c.duration_days,
             )
             .where(cohorts.c.status == "active")
             .where(cohorts.c.cohort_start_date >= cutoff)
-            .group_by(cohorts.c.course_slug)
+            .order_by(cohorts.c.cohort_start_date)
         )
-        available_courses = {row[0]: row[1] for row in result}
 
-    # Return all known course slugs with availability
     from .content import get_cache
 
     cache = get_cache()
-    courses = []
-    for slug, course in cache.courses.items():
-        start_date = available_courses.get(slug)
-        courses.append(
-            {
-                "course_slug": slug,
-                "course_name": course.title,
-                "available": slug in available_courses,
-                "start_date": start_date.isoformat() if start_date else None,
-            }
-        )
-    return courses
+    cohort_list = []
+    for row in result.mappings():
+        cohort = dict(row)
+        try:
+            course = cache.courses[cohort["course_slug"]]
+            cohort["course_name"] = course.title
+        except (KeyError, AttributeError):
+            cohort["course_name"] = cohort["course_slug"]
+        cohort["cohort_start_date"] = cohort["cohort_start_date"].isoformat()
+        cohort_list.append(cohort)
+    return cohort_list
