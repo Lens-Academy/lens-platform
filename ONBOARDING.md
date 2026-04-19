@@ -29,47 +29,50 @@ Apply migrations, then seed a dev DB with an admin user + test cohort:
 
 ## 3. `.env.local` (repo root)
 
-Copy `.env.example` → `.env.local` and fill in just these:
+Copy `.env.example` → `.env.local`. **You don't need any credentials from the team** to get a working setup — the values below are all self-generated or public:
 
 ```
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
-JWT_SECRET=<random string — generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">
-ANTHROPIC_API_KEY=<your own key>
-EDUCATIONAL_CONTENT_BRANCH=main
+JWT_SECRET=<any random string — generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">
+EDUCATIONAL_CONTENT_BRANCH=staging
 ```
 
-Everything else (Discord, SendGrid, Sentry, PostHog, Zoom, Google Calendar, Supabase, SendGrid) is **optional** — leave blank unless you're specifically testing that integration. **Don't ask for the team's keys**; the ones in `.env.example` paths are production.
+- `DATABASE_URL` — points at your local Postgres from step 2.
+- `JWT_SECRET` — any random string, only used to sign session cookies locally. Not a shared secret.
+- `EDUCATIONAL_CONTENT_BRANCH` — selects which branch of the public [`lens-edu-relay`](https://github.com/Lens-Academy/lens-edu-relay) repo to clone for course content. Use `staging` for dev (stable but includes in-progress content); use `main` only when mirroring production. No GitHub token required — the repo is public.
 
-### Discord login
+### Optional (skip for basic setup)
 
-Discord OAuth requires `DISCORD_CLIENT_ID` + `DISCORD_CLIENT_SECRET` + `DISCORD_REDIRECT_URI`. If you skip these you can't log in through the UI — use `reset_dev_database.py` to create a user matching your Discord ID, then you'll need to either (a) set up your own Discord OAuth app, or (b) ask the team for a shared dev OAuth app.
+- **Anthropic / OpenAI / Gemini keys** — only needed to use the AI tutor/chat or speech-to-text. Use your own keys, not the team's.
+- **Discord OAuth** (`DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` / `DISCORD_REDIRECT_URI`) — only needed to log in through the UI via Discord. Skip, and test against the admin user created by `reset_dev_database.py` instead (there's usually a dev login bypass, or ask someone on the team how they log in locally).
+- **Discord bot** (`DISCORD_BOT_TOKEN` / `DISCORD_SERVER_ID`) — only needed to test the bot. Run with `--no-bot` to skip. If you do want to test it, [create your own bot](https://discord.com/developers/applications) pointing at a server you control. **Do not** use the team's bot token.
+- **GITHUB_TOKEN** — only required if you're testing the tutor's private-source search (`core/content/private_sources.py`), which clones a private repo of copyrighted books. Skip otherwise.
+- **SendGrid / Resend / Sentry / PostHog / Zoom / Google Calendar / Supabase** — production integrations, all optional. Leave blank.
 
-### Discord bot
+**Don't ask for the team's production keys** — most integrations (SendGrid, Sentry, etc.) use our production accounts, so the credentials can't be shared. Use your own keys or skip.
 
-`--no-bot` skips it entirely. If you want to test the bot, create your own at https://discord.com/developers/applications and set `DISCORD_BOT_TOKEN` + `DISCORD_SERVER_ID` to a server you control. **Do not** use the team's bot token.
+## 4. Verify your setup
 
-## 4. Run it
-
-Two terminals:
+Start the dev server and run the test suite. If either fails, fix whatever's missing (wrong Python/Node version, missing system package, etc.) before moving on.
 
 ```bash
-# Backend (with --dev, API returns JSON at /; without it, serves built frontend)
+# Start the backend
 .venv/bin/python main.py --dev --no-bot
 
-# Frontend
+# In a second terminal, start the frontend
 cd web_frontend && npm run dev
 ```
 
-Open the frontend URL printed in the Vite output.
+Open the frontend URL printed in the Vite output — you should see the app load.
 
-## 5. Before pushing
+Then run the full test + lint suite:
 
 ```bash
 ruff check . && ruff format --check . && pytest
 cd web_frontend && npm run lint && npm run build
 ```
 
-CI runs the same checks. **Never push to `main`** — PRs only.
+These are the same checks CI runs. Everything should pass on a fresh clone — if something fails, it's a setup issue, not a codebase issue. **Never push to `main`** — PRs only.
 
 ## Gotchas
 
