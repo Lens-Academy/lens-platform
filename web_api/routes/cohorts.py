@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import get_connection
 from core.prospects import (
-    get_course_availability,
+    get_public_cohort_list,
     has_available_cohorts as check_available_cohorts,
 )
 from core.queries.cohorts import get_available_cohorts
@@ -31,10 +31,10 @@ async def get_available_public() -> dict:
     return {"has_available": await check_available_cohorts()}
 
 
-@router.get("/course-availability")
-async def get_course_availability_public() -> dict:
-    """Get per-course enrollment availability (no auth required)."""
-    return {"courses": await get_course_availability()}
+@router.get("/available-list")
+async def get_available_list_public() -> dict:
+    """Get cohorts available for enrollment with enrollment-path info (no auth required)."""
+    return {"cohorts": await get_public_cohort_list()}
 
 
 @router.get("/available")

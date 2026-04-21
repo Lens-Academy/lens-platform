@@ -41,6 +41,8 @@ async def create_cohort(
     start_date: date,
     duration_days: int,
     num_meetings: int,
+    max_group_size: int = 8,
+    accepts_availability_signups: bool = True,
 ):
     """Create a new cohort."""
     async with get_connection() as conn:
@@ -52,6 +54,8 @@ async def create_cohort(
                 cohort_start_date=start_date,
                 duration_days=duration_days,
                 number_of_group_meetings=num_meetings,
+                max_group_size=max_group_size,
+                accepts_availability_signups=accepts_availability_signups,
                 status="active",
             )
             .returning(cohorts)
@@ -66,6 +70,8 @@ async def create_cohort(
         print(f"  Start date:    {cohort['cohort_start_date']}")
         print(f"  Duration:      {cohort['duration_days']} days")
         print(f"  Meetings:      {cohort['number_of_group_meetings']}")
+        print(f"  Max group:     {cohort['max_group_size']}")
+        print(f"  Signups open:  {cohort['accepts_availability_signups']}")
         print(
             f"\nTo add test users: python scripts/create_test_scheduling_data.py --cohort-id {cohort['cohort_id']}"
         )
@@ -101,6 +107,17 @@ def main():
         default=6,
         help="Number of group meetings (default: 6)",
     )
+    parser.add_argument(
+        "--max-group-size",
+        type=int,
+        default=8,
+        help="Maximum members per group (default: 8)",
+    )
+    parser.add_argument(
+        "--no-availability-signups",
+        action="store_true",
+        help="Disable availability signups (scheduler path) for this cohort",
+    )
     args = parser.parse_args()
 
     asyncio.run(
@@ -110,6 +127,8 @@ def main():
             start_date=args.start_date,
             duration_days=args.duration_days,
             num_meetings=args.num_meetings,
+            max_group_size=args.max_group_size,
+            accepts_availability_signups=not args.no_availability_signups,
         )
     )
 

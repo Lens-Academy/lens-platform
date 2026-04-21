@@ -22,7 +22,7 @@ function frozen(overrides: Partial<AdminState> = {}): AdminState {
 // ─── 1. Initial state ───────────────────────────────────────────────
 
 describe("initial state", () => {
-  it("has correct default values for all 23 fields", () => {
+  it("has correct default values", () => {
     const s = initialAdminState;
     expect(s.activeTab).toBe("users");
     expect(s.error).toBeNull();
@@ -41,6 +41,7 @@ describe("initial state", () => {
     expect(s.selectedCohortId).toBeNull();
     expect(s.groups).toEqual([]);
     expect(s.loadingGroups).toBe(false);
+    expect(s.cohortSaving).toBe(false);
     expect(s.cohortSyncing).toBe(false);
     expect(s.cohortRealizing).toBe(false);
     expect(s.groupSyncing).toEqual({});
@@ -70,7 +71,18 @@ describe("simple setters", () => {
   });
 
   it("SET_COHORTS sets cohorts array", () => {
-    const cohorts: Cohort[] = [{ cohort_id: 1, cohort_name: "C1" }];
+    const cohorts: Cohort[] = [
+      {
+        cohort_id: 1,
+        cohort_name: "C1",
+        course_slug: "default",
+        cohort_start_date: "2026-01-01",
+        duration_days: 42,
+        number_of_group_meetings: 6,
+        max_group_size: 8,
+        accepts_availability_signups: true,
+      },
+    ];
     const result = adminReducer(frozen(), { type: "SET_COHORTS", cohorts });
     expect(result.cohorts).toEqual(cohorts);
   });
@@ -123,6 +135,8 @@ describe("simple setters", () => {
         status: "active",
         member_count: 3,
         meeting_time: null,
+        max_size: null,
+        effective_max: 8,
       },
     ];
     const result = adminReducer(frozen(), {
@@ -359,6 +373,8 @@ describe("load groups lifecycle", () => {
         status: "active",
         member_count: 5,
         meeting_time: "Mon 6pm",
+        max_size: null,
+        effective_max: 8,
       },
     ];
     const state = frozen({ loadingGroups: true });
@@ -377,6 +393,8 @@ describe("load groups lifecycle", () => {
           status: "active",
           member_count: 5,
           meeting_time: null,
+          max_size: null,
+          effective_max: 8,
         },
       ],
     });
@@ -474,6 +492,8 @@ describe("cohort realize lifecycle", () => {
         status: "active",
         member_count: 3,
         meeting_time: null,
+        max_size: null,
+        effective_max: 8,
       },
     ];
     const state = frozen({ cohortRealizing: true });
@@ -608,6 +628,8 @@ describe("per-group realize lifecycle", () => {
         status: "active",
         member_count: 4,
         meeting_time: "Wed 3pm",
+        max_size: null,
+        effective_max: 8,
       },
     ];
     const state = frozen({ groupRealizing: { 7: true } });
@@ -663,6 +685,8 @@ describe("state isolation", () => {
         status: "active",
         member_count: 3,
         meeting_time: null,
+        max_size: null,
+        effective_max: 8,
       },
     ];
     const state = frozen({ groups, selectedCohortId: 5, loadingGroups: false });

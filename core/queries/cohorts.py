@@ -125,6 +125,11 @@ async def get_all_cohorts_summary(
         cohorts.c.cohort_id,
         cohorts.c.cohort_name,
         cohorts.c.course_slug,
+        cohorts.c.cohort_start_date,
+        cohorts.c.duration_days,
+        cohorts.c.number_of_group_meetings,
+        cohorts.c.max_group_size,
+        cohorts.c.accepts_availability_signups,
         cohorts.c.status,
     ).order_by(cohorts.c.cohort_start_date.desc())
 
@@ -177,6 +182,7 @@ async def get_available_cohorts(
             cohorts.c.cohort_start_date,
             cohorts.c.course_slug,
             cohorts.c.duration_days,
+            cohorts.c.accepts_availability_signups,
             func.coalesce(has_groups_subq.c.group_count, 0).label("group_count"),
         )
         .outerjoin(has_groups_subq, cohorts.c.cohort_id == has_groups_subq.c.cohort_id)

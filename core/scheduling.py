@@ -16,7 +16,7 @@ from .enums import UngroupableReason
 from .queries.cohorts import get_cohort_by_id
 from .group_names import pick_available_name
 from .queries.groups import create_group, add_user_to_group
-from .tables import signups, users, facilitators, groups, groups_users
+from .tables import cohorts, signups, users, facilitators, groups, groups_users
 
 
 # Day code mapping (used by tests)
@@ -269,6 +269,14 @@ async def schedule_cohort(
         cohort = await get_cohort_by_id(conn, cohort_id)
         if not cohort:
             raise ValueError(f"Cohort {cohort_id} not found")
+
+        # Persist max_people to cohort so join validation uses the same limit
+        if cohort.get("max_group_size") != max_people:
+            await conn.execute(
+                update(cohorts)
+                .where(cohorts.c.cohort_id == cohort_id)
+                .values(max_group_size=max_people)
+            )
 
         # Load users awaiting grouping for this cohort
         # (row exists in signups = awaiting grouping, excludes users already in groups)
