@@ -245,10 +245,9 @@ export default function LandingPage() {
                 style={{ color: "var(--landing-text-muted)" }}
               >
                 Designed by a team with years of AI Safety experience and formal
-                training in education. We&rsquo;re building a learning
-                experience grounded in evidence-based
-                principles&thinsp;&mdash;&thinsp;from the course design to the
-                AI tutor.
+                training in education. We&rsquo;re building a program grounded
+                in evidence-based principles&thinsp;&mdash;&thinsp;from the
+                course design to the AI tutor.
               </p>
             </div>
           </div>
@@ -272,8 +271,8 @@ export default function LandingPage() {
               },
               {
                 icon: MessageSquare,
-                title: "AI Tutoring",
-                body: "Your AI tutor meets you where you are, challenges your reasoning, and stays with you until things actually click.",
+                title: "AI Guidance",
+                body: "In courses, our AI tutor meets you where you are. Lens Coach, coming soon, stays with you beyond courses too — from first curiosity through meaningful action.",
               },
               {
                 icon: Users,
@@ -313,6 +312,49 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* ================================================================= */}
+      {/* LENS COACH — coming soon                                          */}
+      {/* ================================================================= */}
+      <RevealSection className="py-20 sm:py-28 px-4">
+        <div className="max-w-3xl mx-auto">
+          <div
+            className="p-8 sm:p-10 rounded-xl flex flex-col"
+            style={{
+              backgroundColor: "var(--landing-bg-alt)",
+              border: "1px solid var(--landing-border)",
+            }}
+          >
+            <span
+              className="inline-block self-start text-xs font-semibold tracking-wide uppercase px-3 py-1 rounded-full mb-5"
+              style={{
+                backgroundColor: "var(--landing-accent)",
+                color: "var(--landing-accent-text)",
+              }}
+            >
+              Coming soon
+            </span>
+            <h3
+              className="text-2xl sm:text-3xl mb-4 leading-snug"
+              style={fontDisplay}
+            >
+              Lens Coach
+            </h3>
+            <p
+              className="text-base leading-relaxed"
+              style={{ color: "var(--landing-text-muted)" }}
+            >
+              An AI that stays with you beyond
+              courses&thinsp;&mdash;&thinsp;from first curiosity to meaningful
+              action. Drawing on the alignment research dataset, MATS&rsquo;s
+              research project database, and aisafety.com&rsquo;s directory of
+              organizations and communities, Lens Coach will help you find
+              what&rsquo;s worth reading, who to connect with, and what to do
+              next&thinsp;&mdash;&thinsp;at whatever stage you are.
+            </p>
+          </div>
+        </div>
+      </RevealSection>
 
       {/* ================================================================= */}
       {/* OUR COURSES                                                       */}
