@@ -161,16 +161,17 @@ export default function LandingPage() {
             className="text-[2.25rem] sm:text-[3.5rem] lg:text-[4.25rem] leading-[1.08] tracking-tight mb-8"
             style={fontDisplay}
           >
-            Some of the smartest people alive are worried about AI. Understand
-            why.
+            Some of the smartest people alive are worried about AI. We&rsquo;ll
+            help you do something about it.
           </h1>
 
           <p
             className="text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed"
             style={{ color: "var(--landing-text-muted)" }}
           >
-            Learn why superintelligent AI could be catastrophic for
-            humanity&thinsp;&mdash;&thinsp;and what to do about it.
+            Lens guides you from first understanding why superintelligent AI
+            could be catastrophic&thinsp;&mdash;&thinsp;to finding what you,
+            specifically, can do about it.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
@@ -190,7 +191,7 @@ export default function LandingPage() {
                   "var(--landing-accent)")
               }
             >
-              Start Learning
+              Start with the intro
             </a>
             <a
               href="/enroll"
@@ -237,7 +238,7 @@ export default function LandingPage() {
                 className="text-2xl sm:text-3xl mb-4 leading-snug"
                 style={fontDisplay}
               >
-                A tailor-made learning experience
+                A tailor-made program
               </h2>
               <p
                 className="text-base leading-relaxed"
