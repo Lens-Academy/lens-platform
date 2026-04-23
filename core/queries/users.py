@@ -374,6 +374,29 @@ async def get_user_enrollment_status(
     }
 
 
+async def list_users_for_dev_picker(
+    conn: AsyncConnection,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    """List users for the dev-login picker (dev-only tool).
+
+    Returns the fields the picker needs to render a row: user_id,
+    discord_id, nickname, discord_username. Ordered by user_id desc
+    so the newest accounts show first.
+    """
+    result = await conn.execute(
+        select(
+            users.c.user_id,
+            users.c.discord_id,
+            users.c.nickname,
+            users.c.discord_username,
+        )
+        .order_by(users.c.user_id.desc())
+        .limit(limit)
+    )
+    return [dict(row) for row in result.mappings()]
+
+
 async def get_user_admin_details(
     conn: AsyncConnection,
     user_id: int,

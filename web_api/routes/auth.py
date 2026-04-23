@@ -9,6 +9,7 @@ Endpoints:
 - GET /auth/me - Get current user info
 """
 
+import html as html_escape
 import os
 import secrets
 import sys
@@ -21,7 +22,7 @@ from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -40,6 +41,7 @@ from core.queries.refresh_tokens import (
 from core.queries.users import (
     get_user_by_id,
     get_user_enrollment_status,
+    list_users_for_dev_picker,
 )
 from core.config import (
     is_dev_mode,
@@ -174,6 +176,11 @@ async def discord_oauth_start(
         return RedirectResponse(url=f"{validated_origin}/course")
 
     if not DISCORD_CLIENT_ID:
+        if not is_production():
+            safe_next = _validate_next_path(next)
+            return RedirectResponse(
+                url=f"/auth/dev-login?next={quote(safe_next)}"
+            )
         raise HTTPException(500, "Discord OAuth not configured")
 
     # Generate state for CSRF protection
@@ -328,6 +335,95 @@ async def discord_oauth_callback(
             response.delete_cookie("ref_click_id", path="/")
 
     return response
+
+
+@router.get("/dev-login")
+async def dev_login(user_id: int | None = None, next: str = "/"):
+    """Dev-only bypass for Discord OAuth. Disabled when RAILWAY_ENVIRONMENT is set.
+
+    - Without user_id: renders an HTML picker listing users.
+      /auth/dev-login?next=/promptlab
+    - With user_id: mints a JWT + refresh token and redirects to `next`.
+      /auth/dev-login?user_id=N&next=/promptlab
+    """
+    if is_production():
+        raise HTTPException(404, "Not found")
+
+    safe_next = _validate_next_path(next)
+
+    if user_id is None:
+        async with get_connection() as conn:
+            users_list = await list_users_for_dev_picker(conn)
+        return HTMLResponse(_render_dev_login_picker(users_list, safe_next))
+
+    async with get_connection() as conn:
+        user = await get_user_by_id(conn, user_id)
+    if not user:
+        raise HTTPException(404, f"No user with id {user_id}")
+
+    username = user.get("discord_username") or f"dev-user-{user_id}"
+    token = create_jwt(user["discord_id"], username)
+    # Relative redirect — keeps whatever host the browser used (localhost,
+    # dev.vps, etc.) so cookies stay on the right origin.
+    redirect = RedirectResponse(url=safe_next, status_code=302)
+    set_session_cookie(redirect, token)
+    await _issue_refresh_token(redirect, user["user_id"])
+    return redirect
+
+
+def _render_dev_login_picker(users_list: list[dict], next_path: str) -> str:
+    """Render the dev-login picker page. Dev-only, unstyled on purpose."""
+    esc = html_escape.escape
+    rows = []
+    for u in users_list:
+        nickname = esc(u.get("nickname") or "")
+        username = esc(u.get("discord_username") or "")
+        discord_id = esc(u.get("discord_id") or "")
+        uid = u["user_id"]
+        href = f"/auth/dev-login?user_id={uid}&next={quote(next_path)}"
+        rows.append(
+            f'<li><a href="{href}">'
+            f'<span class="id">#{uid}</span> '
+            f'<span class="nick">{nickname or "—"}</span> '
+            f'<span class="user">@{username or "—"}</span> '
+            f"<code>{discord_id}</code>"
+            f"</a></li>"
+        )
+    rows_html = "\n".join(rows)
+    next_html = esc(next_path)
+    return f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>dev-login picker</title>
+<style>
+  body {{ font: 14px/1.4 system-ui, sans-serif; max-width: 780px; margin: 2em auto; padding: 0 1em; color: #222; }}
+  h1 {{ font-size: 1.2em; margin: 0 0 0.3em; }}
+  .next {{ color: #888; font-size: 0.9em; margin-bottom: 1em; }}
+  input {{ width: 100%; padding: 0.5em; font: inherit; box-sizing: border-box; margin-bottom: 1em; }}
+  ul {{ list-style: none; padding: 0; margin: 0; }}
+  li a {{ display: block; padding: 0.4em 0.6em; border-bottom: 1px solid #eee; color: inherit; text-decoration: none; }}
+  li a:hover {{ background: #f0f0ff; }}
+  .id {{ color: #999; font-variant-numeric: tabular-nums; }}
+  .nick {{ font-weight: 600; }}
+  .user {{ color: #555; }}
+  code {{ color: #888; font-size: 0.85em; }}
+</style></head>
+<body>
+<h1>dev-login — pick a user</h1>
+<p class="next">Will redirect to <code>{next_html}</code> after sign-in.</p>
+<input id="filter" placeholder="filter by nickname, username, or discord id…" autofocus>
+<ul id="users">
+{rows_html}
+</ul>
+<script>
+  const filter = document.getElementById('filter');
+  const items = document.querySelectorAll('#users li');
+  filter.addEventListener('input', () => {{
+    const q = filter.value.toLowerCase();
+    items.forEach(li => {{
+      li.style.display = li.textContent.toLowerCase().includes(q) ? '' : 'none';
+    }});
+  }});
+</script>
+</body></html>"""
 
 
 @router.post("/refresh")
