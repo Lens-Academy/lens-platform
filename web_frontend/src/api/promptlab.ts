@@ -144,122 +144,32 @@ export async function loadFixture(name: string): Promise<Fixture> {
 }
 
 /**
- * Regenerate an assistant response via SSE streaming.
+ * Tutor-turn request: one tutor turn through the production pipeline, minus DB.
+ * `scenarioSource` discriminates between a live-module source and a fixture source.
+ * Both paths flow through the same backend code (`build_scenario_turn` → `send_module_message`).
+ * Override fields skip their respective assembly steps on the server when set.
  */
-export async function* regenerateResponse(
-  messages: FixtureMessage[],
-  baseSystemPrompt: string,
-  instructions: string,
-  context: string,
-  enableThinking: boolean,
-  effort?: string,
-  model?: string,
-): AsyncGenerator<StreamEvent> {
-  const body: Record<string, unknown> = {
-    messages,
-    baseSystemPrompt,
-    instructions,
-    context,
-    enableThinking,
-  };
-  if (effort) body.effort = effort;
-  if (model) body.model = model;
-
-  const res = await fetchWithRefresh(`${API_BASE}/api/promptlab/regenerate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) throw new Error("Failed to regenerate response");
-
-  const reader = res.body?.getReader();
-  if (!reader) throw new Error("No response body");
-
-  const decoder = new TextDecoder();
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    const chunk = decoder.decode(value);
-    const lines = chunk.split("\n");
-
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      try {
-        const data = JSON.parse(line.slice(6));
-        yield data;
-      } catch {
-        // Skip invalid JSON
-      }
-    }
-  }
-}
-
-/**
- * Continue a conversation via SSE streaming.
- */
-export async function* continueConversation(
-  messages: FixtureMessage[],
-  baseSystemPrompt: string,
-  instructions: string,
-  context: string,
-  enableThinking: boolean,
-  effort?: string,
-  model?: string,
-): AsyncGenerator<StreamEvent> {
-  const body: Record<string, unknown> = {
-    messages,
-    baseSystemPrompt,
-    instructions,
-    context,
-    enableThinking,
-  };
-  if (effort) body.effort = effort;
-  if (model) body.model = model;
-
-  const res = await fetchWithRefresh(`${API_BASE}/api/promptlab/continue`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) throw new Error("Failed to continue conversation");
-
-  const reader = res.body?.getReader();
-  if (!reader) throw new Error("No response body");
-
-  const decoder = new TextDecoder();
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    const chunk = decoder.decode(value);
-    const lines = chunk.split("\n");
-
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      try {
-        const data = JSON.parse(line.slice(6));
-        yield data;
-      } catch {
-        // Skip invalid JSON
-      }
-    }
-  }
-}
-
 export interface TutorTurnRequest {
-  moduleSlug: string;
+  scenarioSource?: "live_module" | "fixture";
+
+  // live_module source
+  moduleSlug?: string | null;
   sectionIndex?: number;
   segmentIndex?: number;
   courseSlug?: string | null;
+
+  // fixture source
+  fixtureKey?: string | null;
+  fixtureSectionIndex?: number;
+
+  // shared
   messages: FixtureMessage[];
   basePromptOverride?: string | null;
+  systemPromptOverride?: string | null;
+  instructionsOverride?: string | null;
+  contentContextOverride?: string | null;
+  courseOverviewOverride?: string | null;
+  llmMessagesOverride?: FixtureMessage[] | null;
   enableTools?: boolean;
   enableThinking?: boolean;
   effort?: string;
@@ -267,8 +177,30 @@ export interface TutorTurnRequest {
   model?: string | null;
 }
 
+/** Inspector payload: what the LLM would see for a given request, without invoking it. */
+export interface InspectResponse {
+  scenario: {
+    llm_messages: FixtureMessage[];
+    stage: Record<string, unknown>;
+    current_content: string | null;
+    course_overview: string | null;
+    instructions: string;
+    section_title: string | null;
+    system_messages_to_persist: string[];
+  };
+  system_prompt: string;
+  llm_messages: FixtureMessage[];
+  llm_kwargs: {
+    model: string;
+    thinking?: Record<string, unknown> | null;
+    output_config?: Record<string, unknown> | null;
+    max_tokens: number;
+  };
+  provenance: Record<string, string>;
+}
+
 /**
- * Run a tutor turn via the live-tutor endpoint — mirrors the production
+ * Run a tutor turn via the tutor-turn endpoint — mirrors the production
  * tutor pipeline (course overview, tools, stage context) without DB writes.
  */
 export async function* runTutorTurn(
@@ -306,6 +238,34 @@ export async function* runTutorTurn(
       }
     }
   }
+}
+
+/**
+ * Inspect what the tutor-turn endpoint would send to the LLM — same input
+ * shape as runTutorTurn, but returns the assembled system prompt, messages,
+ * and kwargs without invoking the LLM.
+ */
+export async function inspect(req: TutorTurnRequest): Promise<InspectResponse> {
+  const res = await fetchWithRefresh(`${API_BASE}/api/promptlab/inspect`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    // Try to surface the backend's HTTPException detail (e.g. "Module not
+    // found") so the Inspector shows something actionable. Fall back to
+    // the status code + URL if parsing fails.
+    let detail: string;
+    try {
+      const body = await res.json();
+      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body);
+    } catch {
+      detail = `${res.status} ${res.statusText}`;
+    }
+    throw new Error(detail);
+  }
+  return res.json();
 }
 
 /**

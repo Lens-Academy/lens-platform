@@ -1,44 +1,106 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import ConversationColumn from "./ConversationColumn";
 import type { ConversationColumnHandle } from "./ConversationColumn";
-import type { FixtureSection } from "@/api/promptlab";
+import RequestInspector, {
+  type StageGroupOverrides,
+} from "./RequestInspector";
+import type {
+  FixtureSection,
+  ModelChoice,
+  TutorTurnRequest,
+} from "@/api/promptlab";
+
+/**
+ * Source discriminator: how to obtain a ScenarioTurn on the server. The
+ * frontend carries the identifying info (fixtureKey, moduleSlug, etc.) and
+ * passes it through every tutor-turn + inspect call.
+ *
+ * live_module support lands in change 5 (F6) — this change (F1-F4) only
+ * wires the fixture case, but the StageGroup shape is already source-
+ * agnostic so change 5 just adds a new variant here.
+ */
+export type StageGroupSource =
+  | {
+      kind: "fixture";
+      fixtureKey: string;
+      fixtureSectionIndex: number;
+      section: FixtureSection;
+    }
+  | {
+      kind: "live_module";
+      moduleSlug: string;
+      sectionIndex: number;
+      segmentIndex: number;
+      courseSlug?: string;
+      // Display-only — resolved from the server on mount.
+      sectionTitle: string | null;
+    };
 
 interface StageGroupProps {
-  section: FixtureSection;
+  source: StageGroupSource;
   stageKey: string;
-  systemPrompt: string;
-  enableThinking: boolean;
-  effort: string;
+  /** Default model for this stage group's Inspector. Just a seed — once the
+   * Inspector mounts, it owns the model selection per-group. */
   model?: string;
+  /** Full model list for the Inspector's model selector. */
+  models?: ModelChoice[];
   onRemove: () => void;
   columnRefs: React.MutableRefObject<Map<string, ConversationColumnHandle>>;
 }
 
 export default function StageGroup({
-  section,
+  source,
   stageKey,
-  systemPrompt,
-  enableThinking,
-  effort,
   model,
+  models,
   onRemove,
   columnRefs,
 }: StageGroupProps) {
-  const [instructions, setInstructions] = useState(section.instructions);
-  const [context, setContext] = useState(section.context);
-  const [contextExpanded, setContextExpanded] = useState(false);
+  const [overrides, setOverrides] = useState<StageGroupOverrides>({
+    enableThinking: true,
+    effort: "low",
+    systemPromptOverride: null,
+    model: model ?? null,
+  });
 
-  const fixtureConversations = useMemo(
-    () =>
-      section.conversations.map((c) => ({
-        label: c.label,
-        messages: c.messages.map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        })),
+  // Build the TutorTurnRequest the backend will see (minus per-column messages).
+  // This same object feeds the Inspector and each ConversationColumn's
+  // runTutorTurn calls — one source of truth.
+  const requestBase: Omit<TutorTurnRequest, "messages"> = useMemo(() => {
+    const base: Omit<TutorTurnRequest, "messages"> = {
+      scenarioSource: source.kind,
+      basePromptOverride: overrides.basePromptOverride ?? null,
+      systemPromptOverride: overrides.systemPromptOverride ?? null,
+      instructionsOverride: overrides.instructionsOverride ?? null,
+      contentContextOverride: overrides.contentContextOverride ?? null,
+      courseOverviewOverride: overrides.courseOverviewOverride ?? null,
+      enableThinking: overrides.enableThinking !== false,
+      effort: overrides.effort ?? "low",
+      model: overrides.model ?? null,
+      enableTools: true,
+    };
+    if (source.kind === "fixture") {
+      base.fixtureKey = source.fixtureKey;
+      base.fixtureSectionIndex = source.fixtureSectionIndex;
+    } else {
+      base.moduleSlug = source.moduleSlug;
+      base.sectionIndex = source.sectionIndex;
+      base.segmentIndex = source.segmentIndex;
+      base.courseSlug = source.courseSlug ?? null;
+    }
+    return base;
+  }, [source, overrides]);
+
+  const fixtureConversations = useMemo(() => {
+    if (source.kind !== "fixture") return [];
+    return source.section.conversations.map((c) => ({
+      label: c.label,
+      messages: c.messages.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
       })),
-    [section],
-  );
+    }));
+  }, [source]);
 
   const [extraChats, setExtraChats] = useState<{ label: string }[]>([]);
   const nextChatNum = useRef(1);
@@ -48,7 +110,6 @@ export default function StageGroup({
     setExtraChats((prev) => [...prev, { label }]);
   }, []);
 
-  // Register column refs with globally-unique keys
   const setColumnRef = useCallback(
     (convLabel: string) => (handle: ConversationColumnHandle | null) => {
       const key = `${stageKey}::${convLabel}`;
@@ -73,15 +134,35 @@ export default function StageGroup({
     );
   }, [stageKey, columnRefs]);
 
+  const sourceLabel =
+    source.kind === "fixture"
+      ? `fixture: ${source.section.name}`
+      : `live: ${source.moduleSlug} / ${source.sectionIndex} / ${source.segmentIndex}`;
+
+  const columnBase: TutorTurnRequest = {
+    ...requestBase,
+    messages: [],
+  };
+
+  // Inspector needs a canonical request shape; use one representative
+  // message list (the first fixture conversation, or empty for live/new).
+  const inspectorMessages = fixtureConversations[0]?.messages ?? [];
+  const inspectorRequest: TutorTurnRequest = {
+    ...requestBase,
+    messages: inspectorMessages,
+  };
+
   return (
     <div className="shrink-0 h-full flex flex-col border-2 border-slate-300 rounded-lg bg-white">
       {/* Group header — sticky left */}
       <div className="sticky left-0 self-start w-[450px] flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200 rounded-tl-lg">
         <h3 className="text-xs font-semibold text-slate-700 truncate">
-          {section.name}
+          {source.kind === "fixture"
+            ? source.section.name
+            : (source.sectionTitle ?? source.moduleSlug)}
         </h3>
-        <span className="text-[10px] text-slate-400">
-          {section.conversations.length} chats
+        <span className="text-[9px] text-slate-400 font-mono truncate">
+          {sourceLabel}
         </span>
         <div className="ml-auto flex items-center gap-1.5">
           <button
@@ -94,7 +175,7 @@ export default function StageGroup({
             onClick={handleRegenerateSection}
             className="text-[10px] font-medium text-blue-600 hover:text-blue-800 transition-colors"
           >
-            Regenerate
+            Regenerate all
           </button>
           <button
             onClick={onRemove}
@@ -106,54 +187,15 @@ export default function StageGroup({
         </div>
       </div>
 
-      {/* Instructions editor — sticky left */}
-      <div className="sticky left-0 self-start w-[450px] px-3 py-2 border-b border-gray-100">
-        <label className="text-[10px] font-medium text-slate-500 mb-1 block">
-          Instructions
-        </label>
-        <textarea
-          value={instructions}
-          onChange={(e) => setInstructions(e.target.value)}
-          className="w-full border border-gray-200 rounded p-2 text-[11px] text-slate-700 resize-y min-h-[5rem] max-h-[10rem] focus:outline-none focus:ring-1 focus:ring-blue-500"
-          spellCheck={false}
-        />
-      </div>
-
-      {/* Context (collapsible) — sticky left */}
-      <div className="sticky left-0 self-start w-[450px] px-3 py-1.5 border-b border-gray-100">
-        <button
-          onClick={() => setContextExpanded(!contextExpanded)}
-          className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-700 transition-colors"
-        >
-          <svg
-            className={`w-2.5 h-2.5 transition-transform ${contextExpanded ? "rotate-90" : ""}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-          Context
-          {!contextExpanded && context && (
-            <span className="text-slate-400 truncate max-w-[200px]">
-              — {context.slice(0, 60)}...
-            </span>
-          )}
-        </button>
-        {contextExpanded && (
-          <textarea
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
-            className="w-full mt-1 border border-gray-200 rounded p-2 text-[11px] text-slate-700 resize-y min-h-[3rem] max-h-[12rem] focus:outline-none focus:ring-1 focus:ring-blue-500"
-            spellCheck={false}
-          />
-        )}
-      </div>
+      {/* Request Inspector replaces the legacy Instructions + Context editors.
+          Every field (system prompt, instructions, content context, course
+          overview) is a section inside it, with an Override toggle. */}
+      <RequestInspector
+        request={inspectorRequest}
+        overrides={overrides}
+        setOverrides={setOverrides}
+        models={models}
+      />
 
       {/* Conversation columns */}
       <div className="flex flex-1 min-h-0">
@@ -163,12 +205,7 @@ export default function StageGroup({
             ref={setColumnRef(conv.label)}
             initialMessages={conv.messages}
             label={conv.label}
-            baseSystemPrompt={systemPrompt}
-            instructions={instructions}
-            context={context}
-            enableThinking={enableThinking}
-            effort={effort}
-            model={model}
+            requestBase={columnBase}
           />
         ))}
         {extraChats.map((chat) => (
@@ -177,12 +214,7 @@ export default function StageGroup({
             ref={setColumnRef(chat.label)}
             initialMessages={[]}
             label={chat.label}
-            baseSystemPrompt={systemPrompt}
-            instructions={instructions}
-            context={context}
-            enableThinking={enableThinking}
-            effort={effort}
-            model={model}
+            requestBase={columnBase}
             clearable
           />
         ))}

@@ -283,5 +283,8 @@ def fixture_section_to_scenario(
         course_overview=None,
         instructions=instructions,
         section_title=section_name,
-        system_messages_to_persist=[],
+        # Mirrors build_scenario_turn for the needs_full_content case: the
+        # content-context block is included here even when no new user
+        # message is being sent, so the Inspector can display it.
+        system_messages_to_persist=[content_context_msg] if content_context_msg else [],
     )

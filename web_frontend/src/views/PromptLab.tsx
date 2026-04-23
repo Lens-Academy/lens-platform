@@ -1,11 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import FixtureBrowser from "@/components/promptlab/FixtureBrowser";
-import SystemPromptEditor from "@/components/promptlab/SystemPromptEditor";
 import StageGroup from "@/components/promptlab/StageGroup";
 import AssessmentStageGroup from "@/components/promptlab/AssessmentStageGroup";
 import FixturePicker from "@/components/promptlab/FixturePicker";
-import LiveTutorView from "@/components/promptlab/LiveTutorView";
+import LiveModulePicker, {
+  type LiveModuleSource,
+} from "@/components/promptlab/LiveModulePicker";
 import type { ConversationColumnHandle } from "@/components/promptlab/ConversationColumn";
 import type { AssessmentColumnHandle } from "@/components/promptlab/AssessmentColumn";
 import {
@@ -18,61 +19,80 @@ import {
   type ModelChoice,
 } from "@/api/promptlab";
 
-type Mode = "fixtures" | "live";
-
-/** A section loaded into the grid, tagged with its parent fixture name. */
+/**
+ * A stage group loaded into the grid. Three variants:
+ * - `chat`: fixture-sourced chat (existing).
+ * - `assessment`: fixture-sourced assessment (existing, uses AssessmentStageGroup).
+ * - `live_module`: synthesized from a live module via build_scenario_turn.
+ */
 type LoadedStage =
-  | { type: "chat"; fixtureKey: string; section: FixtureSection }
-  | { type: "assessment"; fixtureKey: string; section: AssessmentSection };
+  | {
+      type: "chat";
+      fixtureKey: string;
+      sectionIndex: number;
+      section: FixtureSection;
+    }
+  | {
+      type: "assessment";
+      fixtureKey: string;
+      sectionIndex: number;
+      section: AssessmentSection;
+    }
+  | {
+      type: "live_module";
+      /** Stable key for React list rendering. */
+      id: string;
+      moduleSlug: string;
+      sectionIndex: number;
+      segmentIndex: number;
+      courseSlug?: string;
+    };
 
 const MAX_CONCURRENT_REGENERATIONS = 10;
+
+/** Unique key for a LoadedStage — used as React key and as the prefix for
+ * this group's ConversationColumn refs in columnRefsMap. */
+function stageKeyOf(stage: LoadedStage): string {
+  if (stage.type === "live_module") {
+    return `live::${stage.id}`;
+  }
+  return `${stage.fixtureKey}::${stage.section.name}`;
+}
 
 export default function PromptLab() {
   const { isAuthenticated, isLoading, login } = useAuth();
 
-  // Mode selector — fixtures are for canned-conversation replay, live is the
-  // real tutor pipeline against a module.
-  const [mode, setMode] = useState<Mode>("fixtures");
-
-  // Shared state
-  const [systemPrompt, setSystemPrompt] = useState("");
-  const [originalPrompt, setOriginalPrompt] = useState("");
-  const [enableThinking, setEnableThinking] = useState(true);
-  const [effort, setEffort] = useState<"low" | "medium" | "high">("low");
-
-  // Model selection — shared across modes so changing it and regenerating
-  // immediately compares output across models.
   const [models, setModels] = useState<ModelChoice[]>([]);
-  const [model, setModel] = useState<string>("");
-  const [defaultBasePrompt, setDefaultBasePrompt] = useState<string>("");
+  /** Default model seed for newly-added stage groups. Each Inspector owns
+   * its own model after that — this value doesn't propagate to existing
+   * groups when changed. */
+  const [defaultModel, setDefaultModel] = useState<string>("");
 
   useEffect(() => {
     if (!isAuthenticated) return;
     getConfig()
       .then((cfg) => {
         setModels(cfg.models);
-        setModel(cfg.defaultModel);
-        setDefaultBasePrompt(cfg.defaultBasePrompt);
+        setDefaultModel(cfg.defaultModel);
       })
       .catch((err) => {
         console.error("Failed to load promptlab config:", err);
       });
   }, [isAuthenticated]);
 
-  // Multi-fixture state — each fixture expands its sections into stages
   const [stages, setStages] = useState<LoadedStage[]>([]);
   const [loadedFixtureNames, setLoadedFixtureNames] = useState<string[]>([]);
-  const [showPicker, setShowPicker] = useState(false);
+  type AddMenu = "fixture" | "live_module" | null;
+  const [showAddMenu, setShowAddMenu] = useState<AddMenu>(null);
 
-  // Refs to all conversation columns for "Regenerate All"
   const columnRefsMap = useRef<Map<string, ConversationColumnHandle>>(
     new Map(),
   );
-
-  // Refs to all assessment columns for "Score All"
   const assessmentRefsMap = useRef<Map<string, AssessmentColumnHandle>>(
     new Map(),
   );
+
+  const nextLiveIdRef = useRef(1);
 
   const handleAddFixture = useCallback(
     (fixture: Fixture | AssessmentFixture) => {
@@ -82,43 +102,64 @@ export default function PromptLab() {
       });
 
       if (isAssessmentFixture(fixture)) {
-        setSystemPrompt(fixture.baseSystemPrompt);
-        setOriginalPrompt(fixture.baseSystemPrompt);
         setStages((prev) => {
-          if (prev.some((s) => s.fixtureKey === fixture.name)) return prev;
-          const newStages: LoadedStage[] = fixture.sections.map((section) => ({
-            type: "assessment" as const,
-            fixtureKey: fixture.name,
-            section,
-          }));
+          if (prev.some((s) => s.type === "assessment" && s.fixtureKey === fixture.name))
+            return prev;
+          const newStages: LoadedStage[] = fixture.sections.map(
+            (section, i) => ({
+              type: "assessment" as const,
+              fixtureKey: fixture.name,
+              sectionIndex: i,
+              section,
+            }),
+          );
           return [...prev, ...newStages];
         });
       } else {
-        const basePrompt = fixture.baseSystemPrompt ?? "";
-        setSystemPrompt(basePrompt);
-        setOriginalPrompt(basePrompt);
         setStages((prev) => {
-          if (prev.some((s) => s.fixtureKey === fixture.name)) return prev;
-          const newStages: LoadedStage[] = fixture.sections.map((section) => ({
-            type: "chat" as const,
-            fixtureKey: fixture.name,
-            section,
-          }));
+          if (prev.some((s) => s.type === "chat" && s.fixtureKey === fixture.name))
+            return prev;
+          const newStages: LoadedStage[] = fixture.sections.map(
+            (section, i) => ({
+              type: "chat" as const,
+              fixtureKey: fixture.name,
+              sectionIndex: i,
+              section,
+            }),
+          );
           return [...prev, ...newStages];
         });
       }
-      setShowPicker(false);
+      setShowAddMenu(null);
     },
     [],
   );
 
-  const handleRemoveStage = useCallback((stageKey: string) => {
+  const handleAddLiveModule = useCallback((source: LiveModuleSource) => {
+    setStages((prev) => [
+      ...prev,
+      {
+        type: "live_module" as const,
+        id: `${source.moduleSlug}-${source.sectionIndex}-${source.segmentIndex}-${nextLiveIdRef.current++}`,
+        moduleSlug: source.moduleSlug,
+        sectionIndex: source.sectionIndex,
+        segmentIndex: source.segmentIndex,
+        courseSlug: source.courseSlug,
+      },
+    ]);
+    setShowAddMenu(null);
+  }, []);
+
+  const handleRemoveStage = useCallback((key: string) => {
     setStages((prev) => {
-      const next = prev.filter(
-        (s) => `${s.fixtureKey}::${s.section.name}` !== stageKey,
+      const next = prev.filter((s) => stageKeyOf(s) !== key);
+      const remainingFixtures = new Set(
+        next
+          .filter((s): s is Exclude<LoadedStage, { type: "live_module" }> =>
+            s.type !== "live_module",
+          )
+          .map((s) => s.fixtureKey),
       );
-      // Also clean up loadedFixtureNames if no sections from that fixture remain
-      const remainingFixtures = new Set(next.map((s) => s.fixtureKey));
       setLoadedFixtureNames((names) =>
         names.filter((n) => remainingFixtures.has(n)),
       );
@@ -126,21 +167,9 @@ export default function PromptLab() {
     });
   }, []);
 
-  const handleBack = useCallback(() => {
-    setStages([]);
-    setSystemPrompt("");
-    setOriginalPrompt("");
-    setShowPicker(false);
-    columnRefsMap.current.clear();
-    assessmentRefsMap.current.clear();
-  }, []);
-
-  // Regenerate All summary state
   const [regenSummary, setRegenSummary] = useState<string | null>(null);
-
   const regenSummaryTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Clean up auto-dismiss timeout on unmount
   useEffect(
     () => () => {
       if (regenSummaryTimeoutRef.current)
@@ -149,7 +178,9 @@ export default function PromptLab() {
     [],
   );
 
-  const hasChatStages = stages.some((s) => s.type === "chat");
+  const hasChatStages = stages.some(
+    (s) => s.type === "chat" || s.type === "live_module",
+  );
   const hasAssessmentStages = stages.some((s) => s.type === "assessment");
 
   const handleRegenerateAll = useCallback(async () => {
@@ -275,38 +306,14 @@ export default function PromptLab() {
     );
   }
 
-  const modeSwitch = (
-    <div className="flex items-center gap-1 text-xs">
-      <button
-        onClick={() => setMode("fixtures")}
-        className={`px-2 py-0.5 rounded ${
-          mode === "fixtures"
-            ? "bg-slate-900 text-white"
-            : "text-slate-600 hover:bg-slate-100"
-        }`}
-      >
-        Fixtures
-      </button>
-      <button
-        onClick={() => setMode("live")}
-        className={`px-2 py-0.5 rounded ${
-          mode === "live"
-            ? "bg-slate-900 text-white"
-            : "text-slate-600 hover:bg-slate-100"
-        }`}
-      >
-        Live Tutor
-      </button>
-    </div>
-  );
-
-  const modelDropdown = models.length > 0 && (
+  const defaultModelDropdown = models.length > 0 && (
     <label className="flex items-center gap-1.5 text-xs text-slate-600">
-      Model
+      Default model
       <select
-        value={model}
-        onChange={(e) => setModel(e.target.value)}
+        value={defaultModel}
+        onChange={(e) => setDefaultModel(e.target.value)}
         className="border border-slate-300 rounded px-1.5 py-0.5 text-xs bg-white"
+        title="Seed for newly-added stage groups. Each group's Inspector owns its own model after creation."
       >
         {models.map((m) => (
           <option key={m.id} value={m.id}>
@@ -317,58 +324,46 @@ export default function PromptLab() {
     </label>
   );
 
-  // --- Live Tutor mode ---
-
-  if (mode === "live") {
-    return (
-      <div className="flex flex-col" style={{ height: "calc(100dvh - 7rem)" }}>
-        <div className="flex items-center gap-3 py-2 shrink-0">
-          <span className="text-sm font-semibold text-slate-800">
-            Prompt Lab
-          </span>
-          <span className="text-sm text-slate-300">|</span>
-          {modeSwitch}
-          <span className="text-sm text-slate-300">|</span>
-          {modelDropdown}
-          <label className="flex items-center gap-1.5 text-xs text-slate-600">
-            <input
-              type="checkbox"
-              checked={enableThinking}
-              onChange={(e) => setEnableThinking(e.target.checked)}
-              className="rounded border-slate-300"
+  const addMenu = (
+    <div className="relative">
+      <button
+        onClick={() => setShowAddMenu(showAddMenu ? null : "fixture")}
+        className="text-xs font-medium bg-slate-100 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-200 transition-colors"
+      >
+        + Add
+      </button>
+      {showAddMenu === "fixture" && (
+        <div className="absolute right-0 top-full mt-1 z-10 flex flex-col">
+          <div className="bg-white border border-slate-300 rounded-lg shadow-lg overflow-hidden">
+            <button
+              onClick={() => setShowAddMenu("live_module")}
+              className="block w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
+            >
+              From live module…
+            </button>
+            <div className="border-t border-slate-200" />
+          </div>
+          <div className="mt-2">
+            <FixturePicker
+              loadedFixtureNames={loadedFixtureNames}
+              onSelect={handleAddFixture}
+              onClose={() => setShowAddMenu(null)}
             />
-            Reasoning
-          </label>
-          {enableThinking && (
-            <label className="flex items-center gap-1.5 text-xs text-slate-600">
-              Effort
-              <select
-                value={effort}
-                onChange={(e) =>
-                  setEffort(e.target.value as "low" | "medium" | "high")
-                }
-                className="border border-slate-300 rounded px-1.5 py-0.5 text-xs bg-white"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </label>
-          )}
+          </div>
         </div>
-        <div className="flex-1 min-h-0">
-          <LiveTutorView
-            defaultBasePrompt={defaultBasePrompt}
-            model={model}
-            enableThinking={enableThinking}
-            effort={effort}
+      )}
+      {showAddMenu === "live_module" && (
+        <div className="absolute right-0 top-full mt-1 z-10">
+          <LiveModulePicker
+            onAdd={handleAddLiveModule}
+            onCancel={() => setShowAddMenu(null)}
           />
         </div>
-      </div>
-    );
-  }
+      )}
+    </div>
+  );
 
-  // --- Fixture browser (no stages loaded) ---
+  // --- Empty state: show fixture browser + live-module button ---
 
   if (stages.length === 0) {
     return (
@@ -378,13 +373,14 @@ export default function PromptLab() {
             Prompt Lab
           </h1>
           <span className="text-sm text-slate-300">|</span>
-          {modeSwitch}
-          <span className="text-sm text-slate-300">|</span>
-          {modelDropdown}
+          {defaultModelDropdown}
+          <div className="ml-auto">{addMenu}</div>
         </div>
         <p className="text-sm text-slate-500 mb-4">
-          Test system prompt variations against saved conversation fixtures, or
-          switch to Live Tutor to run the real pipeline against a module.
+          Add a fixture for saved conversation snapshots, or a live module to
+          run the production tutor pipeline against real course content.
+          Every stage group flows through the same pipeline — fixtures don't
+          drift from the live tutor.
         </p>
         <FixtureBrowser onSelectFixture={handleAddFixture} />
       </div>
@@ -393,55 +389,24 @@ export default function PromptLab() {
 
   // --- Multi-conversation grid ---
 
-  const isPromptModified = systemPrompt !== originalPrompt;
-
   return (
     <div className="flex flex-col" style={{ height: "calc(100dvh - 7rem)" }}>
       {/* Toolbar */}
       <div className="flex items-center gap-3 py-2 shrink-0">
         <span className="text-sm font-semibold text-slate-800">Prompt Lab</span>
         <span className="text-sm text-slate-300">|</span>
-        {modeSwitch}
-        <span className="text-sm text-slate-300">|</span>
         <button
-          onClick={handleBack}
+          onClick={() => {
+            setStages([]);
+            columnRefsMap.current.clear();
+            assessmentRefsMap.current.clear();
+          }}
           className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
         >
-          &larr; Back
+          Clear all
         </button>
         <span className="text-sm text-slate-300">|</span>
-        {modelDropdown}
-
-        {/* LLM config — only show reasoning controls when chat fixtures loaded */}
-        {hasChatStages && (
-          <>
-            <label className="flex items-center gap-1.5 text-xs text-slate-600">
-              <input
-                type="checkbox"
-                checked={enableThinking}
-                onChange={(e) => setEnableThinking(e.target.checked)}
-                className="rounded border-slate-300"
-              />
-              Reasoning
-            </label>
-            {enableThinking && (
-              <label className="flex items-center gap-1.5 text-xs text-slate-600">
-                Effort
-                <select
-                  value={effort}
-                  onChange={(e) =>
-                    setEffort(e.target.value as "low" | "medium" | "high")
-                  }
-                  className="border border-slate-300 rounded px-1.5 py-0.5 text-xs bg-white"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </label>
-            )}
-          </>
-        )}
+        {defaultModelDropdown}
 
         <div className="ml-auto flex items-center gap-2 relative">
           {regenSummary && (
@@ -454,7 +419,7 @@ export default function PromptLab() {
               onClick={handleRegenerateAll}
               className="text-xs font-medium bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition-colors"
             >
-              Regenerate All
+              Regenerate all
             </button>
           )}
           {hasAssessmentStages && (
@@ -462,70 +427,67 @@ export default function PromptLab() {
               onClick={handleScoreAll}
               className="text-xs font-medium bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition-colors"
             >
-              Score All
+              Score all
             </button>
           )}
-          <button
-            onClick={() => setShowPicker(!showPicker)}
-            className="text-xs font-medium bg-slate-100 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-200 transition-colors"
-          >
-            + Add
-          </button>
-          {showPicker && (
-            <FixturePicker
-              loadedFixtureNames={loadedFixtureNames}
-              onSelect={handleAddFixture}
-              onClose={() => setShowPicker(false)}
-            />
-          )}
+          {addMenu}
         </div>
       </div>
 
-      {/* System prompt (left) + stage groups (right, scrollable) */}
-      <div className="flex flex-1 min-h-0 gap-3">
-        {/* System prompt — anchored left */}
-        <div className="shrink-0 w-[380px] overflow-y-auto">
-          <SystemPromptEditor
-            value={systemPrompt}
-            onChange={setSystemPrompt}
-            onReset={() => setSystemPrompt(originalPrompt)}
-            isModified={isPromptModified}
-          />
-        </div>
-
-        {/* Horizontal scroll grid of stage groups */}
-        <div className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
-          <div className="flex gap-3 h-full">
-            {stages.map((stage) => {
-              const key = `${stage.fixtureKey}::${stage.section.name}`;
-              if (stage.type === "assessment") {
-                return (
-                  <AssessmentStageGroup
-                    key={key}
-                    section={stage.section}
-                    stageKey={key}
-                    systemPrompt={systemPrompt}
-                    model={model}
-                    onRemove={() => handleRemoveStage(key)}
-                    columnRefs={assessmentRefsMap}
-                  />
-                );
-              }
+      {/* Horizontal scroll grid of stage groups */}
+      <div className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
+        <div className="flex gap-3 h-full">
+          {stages.map((stage) => {
+            const key = stageKeyOf(stage);
+            if (stage.type === "assessment") {
               return (
-                <StageGroup
+                <AssessmentStageGroup
                   key={key}
                   section={stage.section}
                   stageKey={key}
-                  systemPrompt={systemPrompt}
-                  enableThinking={enableThinking}
-                  effort={effort}
-                  model={model}
+                  systemPrompt=""
+                  model={defaultModel}
+                  onRemove={() => handleRemoveStage(key)}
+                  columnRefs={assessmentRefsMap}
+                />
+              );
+            }
+            if (stage.type === "live_module") {
+              return (
+                <StageGroup
+                  key={key}
+                  source={{
+                    kind: "live_module",
+                    moduleSlug: stage.moduleSlug,
+                    sectionIndex: stage.sectionIndex,
+                    segmentIndex: stage.segmentIndex,
+                    courseSlug: stage.courseSlug,
+                    sectionTitle: null,
+                  }}
+                  stageKey={key}
+                  model={defaultModel}
+                  models={models}
                   onRemove={() => handleRemoveStage(key)}
                   columnRefs={columnRefsMap}
                 />
               );
-            })}
-          </div>
+            }
+            return (
+              <StageGroup
+                key={key}
+                source={{
+                  kind: "fixture",
+                  fixtureKey: stage.fixtureKey,
+                  fixtureSectionIndex: stage.sectionIndex,
+                  section: stage.section,
+                }}
+                stageKey={key}
+                model={defaultModel}
+                onRemove={() => handleRemoveStage(key)}
+                columnRefs={columnRefsMap}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

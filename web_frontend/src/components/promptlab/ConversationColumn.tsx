@@ -7,7 +7,10 @@ import {
   useImperativeHandle,
 } from "react";
 import ChatMarkdown from "@/components/ChatMarkdown";
-import { useConversationSlot } from "@/hooks/useConversationSlot";
+import {
+  useConversationSlot,
+  type RequestBase,
+} from "@/hooks/useConversationSlot";
 import type { ConversationMessage } from "@/hooks/useConversationSlot";
 
 export interface ConversationColumnHandle {
@@ -19,12 +22,10 @@ export interface ConversationColumnHandle {
 interface ConversationColumnProps {
   initialMessages: ConversationMessage[];
   label: string;
-  baseSystemPrompt: string;
-  instructions: string;
-  context: string;
-  enableThinking: boolean;
-  effort: string;
-  model?: string;
+  /** Everything needed to call runTutorTurn minus the `messages` list — the
+   * hook fills messages from its own state. StageGroup builds this object
+   * from its source + override state. */
+  requestBase: RequestBase;
   clearable?: boolean;
 }
 
@@ -32,17 +33,7 @@ const ConversationColumn = forwardRef<
   ConversationColumnHandle,
   ConversationColumnProps
 >(function ConversationColumn(
-  {
-    initialMessages,
-    label,
-    baseSystemPrompt,
-    instructions,
-    context,
-    enableThinking,
-    effort,
-    model,
-    clearable,
-  },
+  { initialMessages, label, requestBase, clearable },
   ref,
 ) {
   const slot = useConversationSlot(initialMessages);
@@ -51,46 +42,18 @@ const ConversationColumn = forwardRef<
   const [followUpInput, setFollowUpInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Expose regenerate to parent for "Regenerate All"
-  const baseSystemPromptRef = useRef(baseSystemPrompt);
-  const instructionsRef = useRef(instructions);
-  const contextRef = useRef(context);
-  const enableThinkingRef = useRef(enableThinking);
-  const effortRef = useRef(effort);
-  const modelRef = useRef(model);
-  baseSystemPromptRef.current = baseSystemPrompt;
-  instructionsRef.current = instructions;
-  contextRef.current = context;
-  enableThinkingRef.current = enableThinking;
-  effortRef.current = effort;
-  modelRef.current = model;
+  const requestBaseRef = useRef(requestBase);
+  requestBaseRef.current = requestBase;
 
   useImperativeHandle(ref, () => ({
-    regenerate: () =>
-      slot.regenerate(
-        baseSystemPromptRef.current,
-        instructionsRef.current,
-        contextRef.current,
-        enableThinkingRef.current,
-        effortRef.current,
-        undefined,
-        modelRef.current,
-      ),
+    regenerate: () => slot.regenerate(requestBaseRef.current),
     regenerateLastAssistant: () => {
       const lastIdx = slot.messages.findLastIndex(
         (m) => m.role === "assistant",
       );
       if (lastIdx < 0) return Promise.resolve();
       slot.selectMessage(lastIdx);
-      return slot.regenerate(
-        baseSystemPromptRef.current,
-        instructionsRef.current,
-        contextRef.current,
-        enableThinkingRef.current,
-        effortRef.current,
-        lastIdx,
-        modelRef.current,
-      );
+      return slot.regenerate(requestBaseRef.current, lastIdx);
     },
     autoSelectLastAssistant: () => {
       const lastIdx = slot.messages.findLastIndex(
@@ -167,15 +130,7 @@ const ConversationColumn = forwardRef<
     e.preventDefault();
     const text = followUpInput.trim();
     if (text && !slot.isStreaming) {
-      slot.sendFollowUp(
-        text,
-        baseSystemPrompt,
-        instructions,
-        context,
-        enableThinking,
-        effort,
-        model,
-      );
+      slot.sendFollowUp(text, requestBase);
       setFollowUpInput("");
     }
   }
@@ -209,17 +164,7 @@ const ConversationColumn = forwardRef<
           )}
           {canRegenerate && (
             <button
-              onClick={() =>
-                slot.regenerate(
-                  baseSystemPrompt,
-                  instructions,
-                  context,
-                  enableThinking,
-                  effort,
-                  undefined,
-                  model,
-                )
-              }
+              onClick={() => slot.regenerate(requestBase)}
               disabled={slot.isStreaming}
               className={`text-[10px] font-medium px-2 py-1 rounded transition-colors ${
                 slot.isStreaming

@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
-  regenerateResponse,
-  continueConversation,
+  runTutorTurn,
   type FixtureMessage,
+  type TutorTurnRequest,
 } from "@/api/promptlab";
 
 export interface ConversationMessage {
@@ -23,26 +23,14 @@ export interface ConversationSlotState {
   error: string | null;
 }
 
+/** Everything about the request EXCEPT `messages` — the hook assembles those
+ * from its own state. The caller (StageGroup) owns scenarioSource and overrides. */
+export type RequestBase = Omit<TutorTurnRequest, "messages">;
+
 export interface ConversationSlotActions {
   selectMessage: (index: number) => void;
-  regenerate: (
-    baseSystemPrompt: string,
-    instructions: string,
-    context: string,
-    enableThinking: boolean,
-    effort: string,
-    messageIndex?: number,
-    model?: string,
-  ) => Promise<void>;
-  sendFollowUp: (
-    message: string,
-    baseSystemPrompt: string,
-    instructions: string,
-    context: string,
-    enableThinking: boolean,
-    effort: string,
-    model?: string,
-  ) => Promise<void>;
+  regenerate: (requestBase: RequestBase, messageIndex?: number) => Promise<void>;
+  sendFollowUp: (message: string, requestBase: RequestBase) => Promise<void>;
   dismissError: () => void;
   reset: (newMessages: ConversationMessage[]) => void;
 }
@@ -62,7 +50,6 @@ export function useConversationSlot(
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef(false);
 
-  // Refs to avoid stale closures in async callbacks
   const messagesRef = useRef(messages);
   const selectedMessageIndexRef = useRef(selectedMessageIndex);
   useEffect(() => {
@@ -83,19 +70,9 @@ export function useConversationSlot(
   );
 
   const regenerate = useCallback(
-    async (
-      baseSystemPrompt: string,
-      instructions: string,
-      context: string,
-      enableThinking: boolean,
-      effort: string,
-      messageIndex?: number,
-      model?: string,
-    ) => {
-      // Use provided messageIndex (from Regenerate All) or fall back to current selection
+    async (requestBase: RequestBase, messageIndex?: number) => {
       const idx = messageIndex ?? selectedMessageIndexRef.current;
       if (idx === null) return;
-
       const currentMessages = messagesRef.current;
 
       setIsStreaming(true);
@@ -112,15 +89,10 @@ export function useConversationSlot(
         .map((m) => ({ role: m.role, content: m.content }));
 
       try {
-        for await (const event of regenerateResponse(
-          messagesToSend,
-          baseSystemPrompt,
-          instructions,
-          context,
-          enableThinking,
-          effort,
-          model,
-        )) {
+        for await (const event of runTutorTurn({
+          ...requestBase,
+          messages: messagesToSend,
+        })) {
           if (abortRef.current) break;
 
           if (event.type === "thinking" && event.content) {
@@ -164,15 +136,7 @@ export function useConversationSlot(
   );
 
   const sendFollowUp = useCallback(
-    async (
-      message: string,
-      baseSystemPrompt: string,
-      instructions: string,
-      context: string,
-      enableThinking: boolean,
-      effort: string,
-      model?: string,
-    ) => {
+    async (message: string, requestBase: RequestBase) => {
       const userMessage: ConversationMessage = {
         role: "user",
         content: message,
@@ -197,15 +161,10 @@ export function useConversationSlot(
       ];
 
       try {
-        for await (const event of continueConversation(
-          allMessages,
-          baseSystemPrompt,
-          instructions,
-          context,
-          enableThinking,
-          effort,
-          model,
-        )) {
+        for await (const event of runTutorTurn({
+          ...requestBase,
+          messages: allMessages,
+        })) {
           if (abortRef.current) break;
 
           if (event.type === "thinking" && event.content) {
