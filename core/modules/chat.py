@@ -222,6 +222,7 @@ async def send_module_message(
     base_prompt: str | None = None,
     enable_tools: bool = True,
     system_prompt_override: str | None = None,
+    emit_inspect: bool = False,
 ) -> AsyncIterator[dict]:
     """
     Send messages to an LLM and stream the response, with multi-round tool execution.
@@ -243,9 +244,16 @@ async def send_module_message(
             prompt is this string verbatim — base_prompt / course_overview /
             content blocks are ignored. Intended for iterating on a fully
             hand-crafted prompt.
+        emit_inspect: When True, yields a {"type": "request_assembled",
+            "payload": {system_prompt, llm_messages, llm_kwargs}} event ONCE
+            right before the first LLM call. Intended for the in-course
+            dev-mode Inspector — the payload is the same shape the /inspect
+            endpoint returns. Default False to avoid wasted bandwidth in
+            production.
 
     Yields:
         Dicts with either:
+        - {"type": "request_assembled", "payload": dict} iff emit_inspect=True
         - {"type": "thinking", "content": str} for thinking chunks
         - {"type": "text", "content": str} for text chunks
         - {"type": "tool_use", "name": str} for tool calls
@@ -274,6 +282,31 @@ async def send_module_message(
     # api_messages is the filtered, non-system message list (grows per round
     # as tool_calls + tool results are appended).
     api_messages = list(request["llm_messages"][1:])
+
+    if emit_inspect:
+        # Tools list is potentially huge (JSON schemas for each MCP tool) —
+        # summarize rather than dump the whole thing so the payload stays
+        # reasonable and the dev Inspector UI doesn't drown.
+        tools_summary: list[dict] | None = None
+        if tools:
+            tools_summary = [
+                {"name": t.get("function", {}).get("name", "?"), "type": "function"}
+                for t in tools
+            ]
+        yield {
+            "type": "request_assembled",
+            "payload": {
+                "system_prompt": system,
+                "llm_messages": request["llm_messages"],
+                "llm_kwargs": {
+                    "model": base_kwargs["model"],
+                    "thinking": base_kwargs.get("thinking"),
+                    "output_config": base_kwargs.get("output_config"),
+                    "max_tokens": base_kwargs.get("max_tokens"),
+                    "tools_summary": tools_summary,
+                },
+            },
+        }
 
     for round_num in range(MAX_TOOL_ROUNDS + 1):
         llm_messages = [{"role": "system", "content": system}] + api_messages

@@ -111,7 +111,12 @@ export async function* sendMessage(
   segmentIndex: number,
   message: string,
   courseSlug?: string,
-): AsyncGenerator<{ type: string; content?: string; name?: string }> {
+): AsyncGenerator<{
+  type: string;
+  content?: string;
+  name?: string;
+  payload?: Record<string, unknown>;
+}> {
   const res = await fetchWithRefresh(`${API_BASE}/api/chat/module`, {
     method: "POST",
     headers: {

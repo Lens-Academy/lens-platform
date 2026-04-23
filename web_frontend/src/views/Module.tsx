@@ -53,6 +53,7 @@ import ModuleDrawer from "@/components/module/ModuleDrawer";
 import type { ModuleDrawerHandle } from "@/components/module/ModuleDrawer";
 import { ChatSidebar } from "@/components/module/ChatSidebar";
 import SuggestEditsButton from "@/components/module/SuggestEditsButton";
+import DevInspector from "@/components/devInspector/DevInspector";
 import type { ChatSidebarHandle } from "@/components/module/ChatSidebar";
 import SectionChoiceModal from "@/components/module/SectionChoiceModal";
 import type { SectionChoice } from "@/components/module/SectionChoiceModal";
@@ -2334,6 +2335,7 @@ export default function Module({
           />
         )}
       </ScrollContainerContext.Provider>
+      <DevInspector />
     </div>
   );
 }

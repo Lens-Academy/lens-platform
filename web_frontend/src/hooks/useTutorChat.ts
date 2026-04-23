@@ -26,6 +26,7 @@ import type {
   ModuleSection,
 } from "@/types/module";
 import { sendMessage as sendMessageApi, getChatHistory } from "@/api/modules";
+import { addEntry as addDevInspectorEntry } from "@/components/devInspector/devInspectorStore";
 import { trackChatMessageSent } from "@/analytics";
 import { useChatStoreRef } from "./useChatStore";
 
@@ -620,6 +621,21 @@ export function useTutorChat({
           if (chunk.type === "text" && chunk.content) {
             streamBufferRef.current += chunk.content;
             startDrain();
+          } else if (chunk.type === "request_assembled" && chunk.payload) {
+            // Dev-mode only — backend gates this behind not-is-production.
+            // Store the payload for the floating DevInspector to display.
+            const payload = chunk.payload as {
+              system_prompt: string;
+              llm_messages: { role: string; content: string }[];
+              llm_kwargs: Record<string, unknown>;
+            };
+            addDevInspectorEntry({
+              moduleId,
+              sectionIndex,
+              segmentIndex,
+              lastUserMessage: content || null,
+              payload,
+            });
           } else if (chunk.type === "system" && chunk.content) {
             chatStore.dispatch({
               type: "SYSTEM_MESSAGE",

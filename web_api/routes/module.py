@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from core.config import is_production
 from core.database import get_connection
 from core.modules import ModuleNotFoundError
 from core.modules.chat import send_module_message
@@ -180,9 +181,16 @@ async def event_generator(
             mcp_manager=mcp_manager,
             course_overview=scenario.course_overview,
             content_index=content_index,
+            # In non-production, stream the assembled LLM request as a first
+            # SSE event so the in-course dev Inspector can show exactly what
+            # the tutor is sending. Gate is server-side only — clients that
+            # ignore the event just see a no-op.
+            emit_inspect=not is_production(),
         ):
             if chunk.get("type") == "text":
                 assistant_content += chunk.get("content", "")
+                yield f"data: {json.dumps(chunk)}\n\n"
+            elif chunk.get("type") == "request_assembled":
                 yield f"data: {json.dumps(chunk)}\n\n"
             elif chunk.get("type") == "tool_save":
                 had_tool_calls = True
