@@ -1,0 +1,39 @@
+version: "0.5"
+is_tui_disabled: true
+
+log_level: info
+log_length: 50000
+
+# Start via ./scripts/dev (sets PC_PORT_NUM, API_PORT, FRONTEND_PORT, BACKEND_ARGS).
+# Running `process-compose up` directly will work but use default ports, which
+# collide with the backend port in ws0 (both 8080 vs 8000 are fine, but
+# PC_PORT_NUM defaults to 8080 and that's inside the backend range 8000-8999).
+
+processes:
+  check:
+    command: |
+      set -e
+      .venv/bin/ruff check .
+      cd web_frontend && npm run lint
+    availability:
+      restart: "no"
+
+  backend:
+    command: |
+      ./scripts/free-port.sh "${API_PORT:-8000}"
+      exec .venv/bin/python main.py ${BACKEND_ARGS:-}
+    depends_on:
+      check:
+        condition: process_completed_successfully
+    availability:
+      restart: always
+
+  frontend:
+    command: |
+      ./scripts/free-port.sh "${FRONTEND_PORT:-3000}"
+      cd web_frontend && exec npm run dev
+    depends_on:
+      check:
+        condition: process_completed_successfully
+    availability:
+      restart: always

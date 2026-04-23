@@ -1,0 +1,54 @@
+#!/bin/bash
+# Start all dev services via process-compose.
+#
+# Usage:
+#   ./scripts/dev                             # default: full stack, no TUI
+#   ./scripts/dev --tui                       # with process-compose TUI
+#   ./scripts/dev -- --no-bot                 # pass flags to main.py
+#   ./scripts/dev --tui -- --no-bot --no-db
+#
+# Anything after `--` is forwarded to `python main.py` as $BACKEND_ARGS,
+# expanded inside process-compose.yaml. TUI is off by default so the script
+# works in non-TTY callers; pass --tui for the interactive dashboard.
+#
+# Port layout (workspace-aware, matches main.py / vite.config.ts):
+#   ws0 (no suffix): backend 8000, frontend 3000, process-compose API 9081
+#   ws1:             backend 8100, frontend 3100, process-compose API 9181
+#   wsN:             backend 8000+N*100, frontend 3000+N*100, PC 9081+N*100
+# PC_PORT_NUM is moved off its 8080 default so it doesn't collide with the
+# backend port in any workspace (which can land anywhere in 8000-8999).
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# Workspace number from current dir name: "platform" → 0, "platform-ws2" → 2.
+ws_num=0
+if [[ "$(basename "$PWD")" =~ (^|-)ws([0-9]+)$ ]]; then
+  ws_num="${BASH_REMATCH[2]}"
+fi
+
+export WS_NUM="$ws_num"
+export API_PORT=$((8000 + ws_num * 100))
+export FRONTEND_PORT=$((3000 + ws_num * 100))
+export PC_PORT_NUM=$((9081 + ws_num * 100))
+
+# Parse our own flags, then split off extra args passed after `--` for main.py.
+tui=0
+backend_args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tui) tui=1; shift ;;
+    --) shift; backend_args=("$@"); break ;;
+    *)  echo "unknown arg: $1 (did you mean '-- $1'?)" >&2; exit 2 ;;
+  esac
+done
+export BACKEND_ARGS="${backend_args[*]}"
+
+echo "scripts/dev: ws=$ws_num  backend=$API_PORT  frontend=$FRONTEND_PORT  pc-api=$PC_PORT_NUM"
+[ -n "$BACKEND_ARGS" ] && echo "scripts/dev: backend args: $BACKEND_ARGS"
+
+tui_flag=(-t=false)
+[ "$tui" = 1 ] && tui_flag=()
+
+exec process-compose "${tui_flag[@]}" up
