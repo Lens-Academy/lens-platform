@@ -16,8 +16,13 @@ from starlette.responses import JSONResponse
 logger = logging.getLogger(__name__)
 
 
-class BearerAuthMiddleware(BaseHTTPMiddleware):
-    """Simple bearer token auth middleware."""
+class TokenAuthMiddleware(BaseHTTPMiddleware):
+    """Token auth middleware. Accepts the token via either:
+
+    - Authorization: Bearer <token>  (Claude Code, Desktop, direct API clients)
+    - ?token=<token> query parameter (claude.ai web, which doesn't support
+      custom headers on connectors as of 2026; the URL becomes the secret)
+    """
 
     def __init__(self, app, token: str):
         super().__init__(app)
@@ -25,11 +30,28 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         auth = request.headers.get("Authorization", "")
-        if not auth.startswith("Bearer ") or not hmac.compare_digest(
+        header_ok = auth.startswith("Bearer ") and hmac.compare_digest(
             auth[7:], self.token
-        ):
+        )
+        query_token = request.query_params.get("token", "")
+        query_ok = bool(query_token) and hmac.compare_digest(query_token, self.token)
+        if not (header_ok or query_ok):
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
         return await call_next(request)
+
+
+class AlwaysDenyMiddleware(BaseHTTPMiddleware):
+    """Fail-closed middleware used when no auth token is configured.
+
+    Returning 503 (not 401) signals that the server is misconfigured rather
+    than the client being unauthorized — the fix is operator-side.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        return JSONResponse(
+            {"error": "Discord MCP is not configured (missing DISCORD_MCP_AUTH_TOKEN)"},
+            status_code=503,
+        )
 
 
 def create_mcp_app(
@@ -256,10 +278,17 @@ def create_mcp_app(
     # Build the Starlette app
     starlette_app = mcp.streamable_http_app()
 
-    # Add auth middleware if token is configured
+    # Fail closed: require DISCORD_MCP_AUTH_TOKEN. If unset, refuse all requests
+    # instead of silently exposing the endpoint (which allows send_message etc.).
     auth_token = os.environ.get("DISCORD_MCP_AUTH_TOKEN")
     if auth_token:
-        starlette_app.add_middleware(BearerAuthMiddleware, token=auth_token)
+        starlette_app.add_middleware(TokenAuthMiddleware, token=auth_token)
+    else:
+        logger.error(
+            "DISCORD_MCP_AUTH_TOKEN is not set — Discord MCP will refuse all "
+            "requests. Set the env var to enable the endpoint."
+        )
+        starlette_app.add_middleware(AlwaysDenyMiddleware)
 
     # Expose the session manager for lifecycle management
     starlette_app._mcp_session_manager = mcp._session_manager
