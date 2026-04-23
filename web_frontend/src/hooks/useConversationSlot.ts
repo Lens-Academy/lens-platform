@@ -32,6 +32,7 @@ export interface ConversationSlotActions {
     enableThinking: boolean,
     effort: string,
     messageIndex?: number,
+    model?: string,
   ) => Promise<void>;
   sendFollowUp: (
     message: string,
@@ -40,6 +41,7 @@ export interface ConversationSlotActions {
     context: string,
     enableThinking: boolean,
     effort: string,
+    model?: string,
   ) => Promise<void>;
   dismissError: () => void;
   reset: (newMessages: ConversationMessage[]) => void;
@@ -88,6 +90,7 @@ export function useConversationSlot(
       enableThinking: boolean,
       effort: string,
       messageIndex?: number,
+      model?: string,
     ) => {
       // Use provided messageIndex (from Regenerate All) or fall back to current selection
       const idx = messageIndex ?? selectedMessageIndexRef.current;
@@ -116,6 +119,7 @@ export function useConversationSlot(
           context,
           enableThinking,
           effort,
+          model,
         )) {
           if (abortRef.current) break;
 
@@ -167,6 +171,7 @@ export function useConversationSlot(
       context: string,
       enableThinking: boolean,
       effort: string,
+      model?: string,
     ) => {
       const userMessage: ConversationMessage = {
         role: "user",
@@ -199,6 +204,7 @@ export function useConversationSlot(
           context,
           enableThinking,
           effort,
+          model,
         )) {
           if (abortRef.current) break;
 

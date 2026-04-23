@@ -33,32 +33,6 @@ COURSE_OVERVIEW_INTRO = (
 )
 
 
-def assemble_chat_prompt(
-    base: str,
-    instructions: str | None = None,
-    context: str | None = None,
-) -> str:
-    """Assemble a simple system prompt from parts (for promptlab).
-
-    Args:
-        base: The base system prompt.
-        instructions: Stage-specific instructions (appended under header).
-        context: Plain string context (treated as previous content).
-
-    Returns:
-        The assembled system prompt string.
-    """
-    prompt = base
-    if instructions:
-        prompt += f"\n\n# Current Instructions\n\n{instructions}"
-    if context:
-        prompt += (
-            "\n\n# User's Current Location\n\n"
-            f"The user previously read this content:\n---\n{context}\n---"
-        )
-    return prompt
-
-
 def build_content_context_message(
     context: SectionContext,
     instructions: str | None = None,

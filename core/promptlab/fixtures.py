@@ -10,6 +10,13 @@ import json
 from pathlib import Path
 from typing import TypedDict
 
+from core.modules.tutor_scenario import (
+    ScenarioTurn,
+    build_scenario_turn,
+    merge_existing_messages,
+)
+from core.modules.types import ChatStage
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
@@ -182,3 +189,99 @@ def load_fixture(name: str) -> dict | None:
             print(f"Warning: skipping malformed fixture {path.name}: {e}")
 
     return None
+
+
+def fixture_section_to_scenario(
+    fixture: dict,
+    section_index: int,
+    messages: list[dict],
+) -> ScenarioTurn:
+    """Convert a fixture section + conversation to a ScenarioTurn.
+
+    Unifies fixture and live-module pipelines: the returned ScenarioTurn is
+    fed to `send_module_message` exactly like a live-built scenario, so
+    fixtures and the production tutor go through identical LLM-facing code.
+
+    **New-format fixtures** (sections carry `moduleSlug` + `sectionIndex` +
+    `segmentIndex`): delegates to `build_scenario_turn` so assembly is
+    byte-identical to the live tutor path.
+
+    **Legacy fixtures** (no module refs): synthesizes a ScenarioTurn from
+    stored strings. `section.instructions` → `ScenarioTurn.instructions` +
+    `<segment-instructions>` block. `section.context` → `<lens>…</lens>`
+    content block. The <lens>/<segment-instructions> wrapping matches the
+    live tutor's shape so the LLM sees the same structure either way.
+
+    `fixture.baseSystemPrompt` is NOT consumed here — it's a system-prompt
+    level concern, not a scenario concern. Caller (the /tutor-turn endpoint)
+    threads it through as `system_prompt_override` if desired.
+
+    Args:
+        fixture: Full fixture dict as returned by `load_fixture`.
+        section_index: Which section of the fixture to use.
+        messages: Conversation so far. If the last entry is a user message,
+            it is treated as the new turn's input (content-context is
+            prepended to it, matching `build_scenario_turn` semantics).
+
+    Returns:
+        A ScenarioTurn ready to feed into `send_module_message`.
+    """
+    section = fixture["sections"][section_index]
+    section_name = section.get("name")
+
+    user_message = ""
+    existing = list(messages)
+    if existing and existing[-1].get("role") == "user":
+        user_message = existing[-1].get("content", "")
+        existing = existing[:-1]
+
+    module_slug = section.get("moduleSlug")
+    if module_slug is not None:
+        from core.modules.loader import load_flattened_module
+
+        module = load_flattened_module(module_slug)
+        return build_scenario_turn(
+            module=module,
+            section_index=section.get("sectionIndex", 0),
+            segment_index=section.get("segmentIndex", 0),
+            existing_messages=existing,
+            user_message=user_message,
+            course_slug=section.get("courseSlug"),
+        )
+
+    instructions = section.get("instructions", "") or ""
+    context = section.get("context", "") or ""
+
+    parts: list[str] = []
+    if context:
+        attrs = f' lens_title="{section_name}"' if section_name else ""
+        parts.append(f"<lens{attrs}>")
+        parts.append('<segment index="1" type="article">')
+        parts.append(context)
+        parts.append("</segment>")
+        parts.append("</lens>")
+    if instructions:
+        parts.append("<segment-instructions>")
+        parts.append(instructions)
+        parts.append("</segment-instructions>")
+    content_context_msg: str | None = "\n".join(parts) if parts else None
+
+    llm_messages, pending_context = merge_existing_messages(existing)
+    if user_message:
+        content = user_message
+        extras = list(pending_context)
+        if content_context_msg:
+            extras.append(content_context_msg)
+        if extras:
+            content = "\n\n".join(extras) + "\n\n" + content
+        llm_messages.append({"role": "user", "content": content})
+
+    return ScenarioTurn(
+        llm_messages=llm_messages,
+        stage=ChatStage(type="chat", instructions=None),
+        current_content=None,
+        course_overview=None,
+        instructions=instructions,
+        section_title=section_name,
+        system_messages_to_persist=[],
+    )

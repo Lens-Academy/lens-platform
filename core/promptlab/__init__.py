@@ -4,18 +4,20 @@ Prompt Lab evaluation module.
 Provides fixture loading and evaluation utilities for the Prompt Lab,
 a facilitator-only workbench for iterating on AI tutor system prompts.
 
-Prompt Lab calls llm.py directly -- it does not modify chat.py or scoring.py.
-Fixtures are stored as JSON files in the repo (version-controlled, curated).
+Every tutor-style call routes through the production pipeline
+(`build_scenario_turn` → `send_module_message`), so the Lab cannot drift
+from the live tutor. Fixtures are stored as JSON files in the repo
+(version-controlled, curated).
 """
 
-from .fixtures import list_fixtures, load_fixture
-from .regenerate import regenerate_response, continue_conversation
+from .fixtures import fixture_section_to_scenario, list_fixtures, load_fixture
 from .score import score_response
+from .tutor_mode import run_tutor_turn
 
 __all__ = [
+    "fixture_section_to_scenario",
     "list_fixtures",
     "load_fixture",
-    "regenerate_response",
-    "continue_conversation",
     "score_response",
+    "run_tutor_turn",
 ]

@@ -12,13 +12,14 @@ interface AssessmentColumnProps {
   answer: string;
   baseSystemPrompt: string;
   assessmentInstructions: string;
+  model?: string;
 }
 
 const AssessmentColumn = forwardRef<
   AssessmentColumnHandle,
   AssessmentColumnProps
 >(function AssessmentColumn(
-  { label, question, answer, baseSystemPrompt, assessmentInstructions },
+  { label, question, answer, baseSystemPrompt, assessmentInstructions, model },
   ref,
 ) {
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
@@ -28,8 +29,10 @@ const AssessmentColumn = forwardRef<
   // Refs for stable access from imperative handle
   const baseSystemPromptRef = useRef(baseSystemPrompt);
   const instructionsRef = useRef(assessmentInstructions);
+  const modelRef = useRef(model);
   baseSystemPromptRef.current = baseSystemPrompt;
   instructionsRef.current = assessmentInstructions;
+  modelRef.current = model;
 
   async function doScore() {
     setIsScoring(true);
@@ -40,6 +43,7 @@ const AssessmentColumn = forwardRef<
         instructionsRef.current,
         question,
         answer,
+        modelRef.current,
       );
       setScoreResult(result);
     } catch (err) {

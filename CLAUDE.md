@@ -48,8 +48,6 @@ Options:
 - `--no-db` - Skip database check (for frontend-only development)
 - `--port` - Override port (defaults to API_PORT env var, or 8000)
 
-**Debug mode:** Start the server with `DEBUG=1` to output the system prompt and messages in chat responses (rendered in the frontend before the LLM reply). Useful for reviewing prompt construction.
-
 **Database connection failures:** If the database connection fails, ask the user to start the database (Docker). Never use `--no-db` without explicit permission from the user.
 
 **Tests:**

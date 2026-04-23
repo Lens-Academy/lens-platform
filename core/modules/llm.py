@@ -15,6 +15,18 @@ from litellm import acompletion
 DEFAULT_PROVIDER = os.environ.get("LLM_PROVIDER", "anthropic/claude-sonnet-4-6")
 
 
+# Models selectable from the Prompt Lab UI. The `id` is passed to LiteLLM's
+# acompletion(). Kept here (not in promptlab/) so both the tutor and promptlab
+# can reference the same list. Add/remove entries to change what's selectable.
+MODEL_CHOICES: list[dict] = [
+    {"id": "anthropic/claude-opus-4-7", "label": "Claude Opus 4.7"},
+    {"id": "anthropic/claude-opus-4-5", "label": "Claude Opus 4.5"},
+    {"id": "anthropic/claude-sonnet-4-6", "label": "Claude Sonnet 4.6"},
+    {"id": "anthropic/claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5"},
+    {"id": "gemini/gemini-2.5-pro", "label": "Gemini 2.5 Pro"},
+]
+
+
 def iter_chunk_events(chunk) -> list[dict]:
     """Normalize a single streaming chunk into event dicts.
 

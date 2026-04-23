@@ -187,9 +187,15 @@ def test_get_course_progress_returns_units():
 
 def test_get_course_progress_includes_meeting_dates():
     """Should include meetingDate in units when user has meeting dates."""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import AsyncMock, MagicMock, patch
 
     mock_meeting_dates = {1: "2026-03-06T15:00:00+00:00"}
+
+    # Mock the DB pool — pool state leaks between tests via SQLAlchemy's
+    # connection cache + asyncpg's loop-bound futures, so bypass it entirely.
+    mock_conn = MagicMock()
+    mock_conn.__aenter__ = AsyncMock(return_value=mock_conn)
+    mock_conn.__aexit__ = AsyncMock(return_value=None)
 
     with (
         patch(
@@ -201,6 +207,15 @@ def test_get_course_progress_includes_meeting_dates():
             "web_api.routes.courses.get_or_create_user",
             new_callable=AsyncMock,
             return_value=({"user_id": 42}, False),
+        ),
+        patch(
+            "web_api.routes.courses.get_connection",
+            return_value=mock_conn,
+        ),
+        patch(
+            "web_api.routes.courses.get_module_progress",
+            new_callable=AsyncMock,
+            return_value={},
         ),
         patch(
             "web_api.routes.courses.get_meeting_dates_for_user",

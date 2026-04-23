@@ -24,6 +24,7 @@ interface ConversationColumnProps {
   context: string;
   enableThinking: boolean;
   effort: string;
+  model?: string;
   clearable?: boolean;
 }
 
@@ -39,6 +40,7 @@ const ConversationColumn = forwardRef<
     context,
     enableThinking,
     effort,
+    model,
     clearable,
   },
   ref,
@@ -55,11 +57,13 @@ const ConversationColumn = forwardRef<
   const contextRef = useRef(context);
   const enableThinkingRef = useRef(enableThinking);
   const effortRef = useRef(effort);
+  const modelRef = useRef(model);
   baseSystemPromptRef.current = baseSystemPrompt;
   instructionsRef.current = instructions;
   contextRef.current = context;
   enableThinkingRef.current = enableThinking;
   effortRef.current = effort;
+  modelRef.current = model;
 
   useImperativeHandle(ref, () => ({
     regenerate: () =>
@@ -69,6 +73,8 @@ const ConversationColumn = forwardRef<
         contextRef.current,
         enableThinkingRef.current,
         effortRef.current,
+        undefined,
+        modelRef.current,
       ),
     regenerateLastAssistant: () => {
       const lastIdx = slot.messages.findLastIndex(
@@ -83,6 +89,7 @@ const ConversationColumn = forwardRef<
         enableThinkingRef.current,
         effortRef.current,
         lastIdx,
+        modelRef.current,
       );
     },
     autoSelectLastAssistant: () => {
@@ -167,6 +174,7 @@ const ConversationColumn = forwardRef<
         context,
         enableThinking,
         effort,
+        model,
       );
       setFollowUpInput("");
     }
@@ -208,6 +216,8 @@ const ConversationColumn = forwardRef<
                   context,
                   enableThinking,
                   effort,
+                  undefined,
+                  model,
                 )
               }
               disabled={slot.isStreaming}

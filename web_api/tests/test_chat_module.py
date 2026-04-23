@@ -209,7 +209,7 @@ class TestPostChatModule:
                 side_effect=lambda *a, **kw: mock_stream(),
             ),
             patch(
-                "web_api.routes.module.gather_section_context",
+                "core.modules.tutor_scenario.gather_section_context",
                 return_value=SectionContext(
                     segments=[(0, "video", "Video content here")],
                     segment_index=1,

@@ -5,15 +5,20 @@ import SystemPromptEditor from "@/components/promptlab/SystemPromptEditor";
 import StageGroup from "@/components/promptlab/StageGroup";
 import AssessmentStageGroup from "@/components/promptlab/AssessmentStageGroup";
 import FixturePicker from "@/components/promptlab/FixturePicker";
+import LiveTutorView from "@/components/promptlab/LiveTutorView";
 import type { ConversationColumnHandle } from "@/components/promptlab/ConversationColumn";
 import type { AssessmentColumnHandle } from "@/components/promptlab/AssessmentColumn";
 import {
+  getConfig,
   isAssessmentFixture,
   type Fixture,
   type AssessmentFixture,
   type FixtureSection,
   type AssessmentSection,
+  type ModelChoice,
 } from "@/api/promptlab";
+
+type Mode = "fixtures" | "live";
 
 /** A section loaded into the grid, tagged with its parent fixture name. */
 type LoadedStage =
@@ -25,11 +30,34 @@ const MAX_CONCURRENT_REGENERATIONS = 10;
 export default function PromptLab() {
   const { isAuthenticated, isLoading, login } = useAuth();
 
+  // Mode selector — fixtures are for canned-conversation replay, live is the
+  // real tutor pipeline against a module.
+  const [mode, setMode] = useState<Mode>("fixtures");
+
   // Shared state
   const [systemPrompt, setSystemPrompt] = useState("");
   const [originalPrompt, setOriginalPrompt] = useState("");
   const [enableThinking, setEnableThinking] = useState(true);
   const [effort, setEffort] = useState<"low" | "medium" | "high">("low");
+
+  // Model selection — shared across modes so changing it and regenerating
+  // immediately compares output across models.
+  const [models, setModels] = useState<ModelChoice[]>([]);
+  const [model, setModel] = useState<string>("");
+  const [defaultBasePrompt, setDefaultBasePrompt] = useState<string>("");
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    getConfig()
+      .then((cfg) => {
+        setModels(cfg.models);
+        setModel(cfg.defaultModel);
+        setDefaultBasePrompt(cfg.defaultBasePrompt);
+      })
+      .catch((err) => {
+        console.error("Failed to load promptlab config:", err);
+      });
+  }, [isAuthenticated]);
 
   // Multi-fixture state — each fixture expands its sections into stages
   const [stages, setStages] = useState<LoadedStage[]>([]);
@@ -247,19 +275,117 @@ export default function PromptLab() {
     );
   }
 
+  const modeSwitch = (
+    <div className="flex items-center gap-1 text-xs">
+      <button
+        onClick={() => setMode("fixtures")}
+        className={`px-2 py-0.5 rounded ${
+          mode === "fixtures"
+            ? "bg-slate-900 text-white"
+            : "text-slate-600 hover:bg-slate-100"
+        }`}
+      >
+        Fixtures
+      </button>
+      <button
+        onClick={() => setMode("live")}
+        className={`px-2 py-0.5 rounded ${
+          mode === "live"
+            ? "bg-slate-900 text-white"
+            : "text-slate-600 hover:bg-slate-100"
+        }`}
+      >
+        Live Tutor
+      </button>
+    </div>
+  );
+
+  const modelDropdown = models.length > 0 && (
+    <label className="flex items-center gap-1.5 text-xs text-slate-600">
+      Model
+      <select
+        value={model}
+        onChange={(e) => setModel(e.target.value)}
+        className="border border-slate-300 rounded px-1.5 py-0.5 text-xs bg-white"
+      >
+        {models.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
+  // --- Live Tutor mode ---
+
+  if (mode === "live") {
+    return (
+      <div className="flex flex-col" style={{ height: "calc(100dvh - 7rem)" }}>
+        <div className="flex items-center gap-3 py-2 shrink-0">
+          <span className="text-sm font-semibold text-slate-800">
+            Prompt Lab
+          </span>
+          <span className="text-sm text-slate-300">|</span>
+          {modeSwitch}
+          <span className="text-sm text-slate-300">|</span>
+          {modelDropdown}
+          <label className="flex items-center gap-1.5 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={enableThinking}
+              onChange={(e) => setEnableThinking(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Reasoning
+          </label>
+          {enableThinking && (
+            <label className="flex items-center gap-1.5 text-xs text-slate-600">
+              Effort
+              <select
+                value={effort}
+                onChange={(e) =>
+                  setEffort(e.target.value as "low" | "medium" | "high")
+                }
+                className="border border-slate-300 rounded px-1.5 py-0.5 text-xs bg-white"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </label>
+          )}
+        </div>
+        <div className="flex-1 min-h-0">
+          <LiveTutorView
+            defaultBasePrompt={defaultBasePrompt}
+            model={model}
+            enableThinking={enableThinking}
+            effort={effort}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // --- Fixture browser (no stages loaded) ---
 
   if (stages.length === 0) {
     return (
       <div className="py-4">
-        <div className="mb-4">
+        <div className="flex items-center gap-3 mb-4">
           <h1 className="text-xl font-bold text-[var(--brand-text)]">
             Prompt Lab
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Test system prompt variations against saved conversation fixtures.
-          </p>
+          <span className="text-sm text-slate-300">|</span>
+          {modeSwitch}
+          <span className="text-sm text-slate-300">|</span>
+          {modelDropdown}
         </div>
+        <p className="text-sm text-slate-500 mb-4">
+          Test system prompt variations against saved conversation fixtures, or
+          switch to Live Tutor to run the real pipeline against a module.
+        </p>
         <FixtureBrowser onSelectFixture={handleAddFixture} />
       </div>
     );
@@ -275,6 +401,8 @@ export default function PromptLab() {
       <div className="flex items-center gap-3 py-2 shrink-0">
         <span className="text-sm font-semibold text-slate-800">Prompt Lab</span>
         <span className="text-sm text-slate-300">|</span>
+        {modeSwitch}
+        <span className="text-sm text-slate-300">|</span>
         <button
           onClick={handleBack}
           className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
@@ -282,6 +410,7 @@ export default function PromptLab() {
           &larr; Back
         </button>
         <span className="text-sm text-slate-300">|</span>
+        {modelDropdown}
 
         {/* LLM config — only show reasoning controls when chat fixtures loaded */}
         {hasChatStages && (
@@ -376,6 +505,7 @@ export default function PromptLab() {
                     section={stage.section}
                     stageKey={key}
                     systemPrompt={systemPrompt}
+                    model={model}
                     onRemove={() => handleRemoveStage(key)}
                     columnRefs={assessmentRefsMap}
                   />
@@ -389,6 +519,7 @@ export default function PromptLab() {
                   systemPrompt={systemPrompt}
                   enableThinking={enableThinking}
                   effort={effort}
+                  model={model}
                   onRemove={() => handleRemoveStage(key)}
                   columnRefs={columnRefsMap}
                 />

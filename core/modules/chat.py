@@ -5,7 +5,6 @@ Module chat - LLM integration with stage-aware prompting and tool execution loop
 
 import json
 import logging
-import os
 from typing import AsyncIterator
 
 from litellm import acompletion, stream_chunk_builder
@@ -31,6 +30,7 @@ def _build_system_prompt(
     current_stage: Stage,
     current_content: str | None,
     course_overview: str | None = None,
+    base_prompt: str | None = None,
 ) -> str:
     """Build the system prompt based on current stage and context.
 
@@ -42,9 +42,12 @@ def _build_system_prompt(
         current_stage: The current module stage
         current_content: Content of current stage (for article/video stages)
         course_overview: Optional course overview to inject after base prompt
+        base_prompt: Override for DEFAULT_BASE_PROMPT (used by Prompt Lab to
+            iterate on the tutor persona). None uses the production default.
     """
 
-    role_block = f"# General Instructions\n\n{DEFAULT_BASE_PROMPT}"
+    base = base_prompt if base_prompt is not None else DEFAULT_BASE_PROMPT
+    role_block = f"# General Instructions\n\n{base}"
 
     if isinstance(current_stage, (ArticleStage, VideoStage)):
         content_type = (
@@ -68,9 +71,83 @@ The user is currently {content_type}. Answer the student's questions to help the
             prompt += f"\n\n# Course Overview\n\n{course_overview}"
 
     # Repeat general instructions at the end for improved adherence
-    prompt += f"\n\n# General Instructions\n\n{DEFAULT_BASE_PROMPT}"
+    prompt += f"\n\n# General Instructions\n\n{base}"
 
     return prompt
+
+
+def assemble_llm_request(
+    *,
+    messages: list[dict],
+    current_stage: Stage,
+    current_content: str | None = None,
+    course_overview: str | None = None,
+    base_prompt: str | None = None,
+    model: str,
+    thinking: bool = True,
+    effort: str = "low",
+    tools: list | None = None,
+    system_prompt_override: str | None = None,
+) -> dict:
+    """Return {system_prompt, llm_messages, llm_kwargs} for the first LLM call.
+
+    Pure helper — no async, no side effects, no tool loop. Used by
+    send_module_message (which then runs the tool loop with this as the
+    round-zero baseline) and by /api/promptlab/inspect (which shows what
+    the LLM will see without invoking it).
+
+    When system_prompt_override is given, the rendered system prompt is the
+    override verbatim — _build_system_prompt is not called.
+
+    tool_choice is intentionally not set here: it's round-dependent (forced
+    to "none" on the final tool-loop round) and belongs in the loop.
+    """
+    if system_prompt_override is not None:
+        system_prompt = system_prompt_override
+    else:
+        system_prompt = _build_system_prompt(
+            current_stage, current_content, course_overview, base_prompt
+        )
+
+    # Filter: drop system-role (stage-transition markers — LLM APIs don't
+    # accept them in messages). When tools are not offered to the model,
+    # also strip tool_calls metadata and tool results — Anthropic rejects
+    # assistant tool_calls when tools= is not set.
+    if tools:
+        api_messages = [m for m in messages if m["role"] != "system"]
+    else:
+        api_messages = []
+        for m in messages:
+            if m["role"] == "system":
+                continue
+            if m["role"] == "tool":
+                continue
+            if m["role"] == "assistant" and "tool_calls" in m:
+                api_messages.append(
+                    {"role": "assistant", "content": m.get("content", "")}
+                )
+            else:
+                api_messages.append(m)
+
+    llm_messages = [{"role": "system", "content": system_prompt}] + api_messages
+
+    llm_kwargs: dict = {
+        "model": model,
+        "messages": llm_messages,
+        "max_tokens": 16384,
+        "stream": True,
+    }
+    if thinking:
+        llm_kwargs["thinking"] = {"type": "adaptive"}
+        llm_kwargs["output_config"] = {"effort": effort}
+    if tools:
+        llm_kwargs["tools"] = tools
+
+    return {
+        "system_prompt": system_prompt,
+        "llm_messages": llm_messages,
+        "llm_kwargs": llm_kwargs,
+    }
 
 
 def get_stage_content(stage: Stage) -> ArticleContent | None:
@@ -140,6 +217,11 @@ async def send_module_message(
     course_overview: str | None = None,
     mcp_manager=None,
     content_index=None,
+    thinking: bool = True,
+    effort: str = "low",
+    base_prompt: str | None = None,
+    enable_tools: bool = True,
+    system_prompt_override: str | None = None,
 ) -> AsyncIterator[dict]:
     """
     Send messages to an LLM and stream the response, with multi-round tool execution.
@@ -152,6 +234,15 @@ async def send_module_message(
                   If None, uses DEFAULT_PROVIDER from environment.
         course_overview: Optional course overview text for system prompt
         mcp_manager: Optional MCPClientManager for tool access
+        thinking: Enable adaptive thinking / chain-of-thought (default True).
+        effort: Thinking effort level — "low", "medium", or "high" (default "low").
+        base_prompt: Override for DEFAULT_BASE_PROMPT (Prompt Lab).
+        enable_tools: When False, skip loading/passing tools even if mcp_manager
+            is provided. Used by Prompt Lab to isolate tool behavior.
+        system_prompt_override: Prompt Lab only. When set, the rendered system
+            prompt is this string verbatim — base_prompt / course_overview /
+            content blocks are ignored. Intended for iterating on a fully
+            hand-crafted prompt.
 
     Yields:
         Dicts with either:
@@ -160,55 +251,36 @@ async def send_module_message(
         - {"type": "tool_use", "name": str} for tool calls
         - {"type": "done"} when complete
     """
-    # Get available tools if mcp_manager provided
     tools = None
-    if mcp_manager is not None:
+    if enable_tools and mcp_manager is not None:
         tools = await get_tools(mcp_manager, content_index=content_index)
-
-    system = _build_system_prompt(current_stage, current_content, course_overview)
-
-    # Debug mode: show system prompt in chat
-    if os.environ.get("DEBUG") == "1":
-        debug_text = f"**[DEBUG - System Prompt]**\n\n```\n{system}\n```\n\n**[DEBUG - Messages]**\n\n```\n{messages}\n```\n\n---\n\n"
-        yield {"type": "text", "content": debug_text}
-
-    # Filter out system messages (stage transition markers) - LLM APIs don't accept them in messages.
-    # Also strip tool_calls/tool messages when no tools are available — Anthropic
-    # rejects tool_calls in messages if tools= param is not set.
-    if tools:
-        api_messages = [m for m in messages if m["role"] != "system"]
-    else:
-        api_messages = []
-        for m in messages:
-            if m["role"] == "system":
-                continue
-            if m["role"] == "tool":
-                continue  # drop tool result messages
-            if m["role"] == "assistant" and "tool_calls" in m:
-                # Keep assistant text but strip tool_calls metadata
-                api_messages.append(
-                    {"role": "assistant", "content": m.get("content", "")}
-                )
-            else:
-                api_messages.append(m)
 
     model = provider or DEFAULT_PROVIDER
 
-    # Tool execution loop
+    request = assemble_llm_request(
+        messages=messages,
+        current_stage=current_stage,
+        current_content=current_content,
+        course_overview=course_overview,
+        base_prompt=base_prompt,
+        model=model,
+        thinking=thinking,
+        effort=effort,
+        tools=tools,
+        system_prompt_override=system_prompt_override,
+    )
+    system = request["system_prompt"]
+    base_kwargs = request["llm_kwargs"]
+    # api_messages is the filtered, non-system message list (grows per round
+    # as tool_calls + tool results are appended).
+    api_messages = list(request["llm_messages"][1:])
+
     for round_num in range(MAX_TOOL_ROUNDS + 1):
         llm_messages = [{"role": "system", "content": system}] + api_messages
-        kwargs = {
-            "model": model,
-            "messages": llm_messages,
-            "max_tokens": 16384,
-            "stream": True,
-            "thinking": {"type": "adaptive"},
-            "output_config": {"effort": "low"},
-        }
-        if tools:
-            kwargs["tools"] = tools
-            if round_num == MAX_TOOL_ROUNDS:
-                kwargs["tool_choice"] = "none"  # force text on final round
+        kwargs = dict(base_kwargs)
+        kwargs["messages"] = llm_messages
+        if tools and round_num == MAX_TOOL_ROUNDS:
+            kwargs["tool_choice"] = "none"  # force text on final round
 
         response = await acompletion(**kwargs)
         chunks = []

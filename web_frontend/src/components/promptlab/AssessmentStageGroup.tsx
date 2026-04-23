@@ -9,6 +9,7 @@ interface AssessmentStageGroupProps {
   section: AssessmentSection;
   stageKey: string;
   systemPrompt: string;
+  model?: string;
   onRemove: () => void;
   columnRefs: React.MutableRefObject<Map<string, AssessmentColumnHandle>>;
 }
@@ -17,6 +18,7 @@ export default function AssessmentStageGroup({
   section,
   stageKey,
   systemPrompt,
+  model,
   onRemove,
   columnRefs,
 }: AssessmentStageGroupProps) {
@@ -118,6 +120,7 @@ export default function AssessmentStageGroup({
             answer={item.answer}
             baseSystemPrompt={systemPrompt}
             assessmentInstructions={instructions}
+            model={model}
           />
         ))}
       </div>

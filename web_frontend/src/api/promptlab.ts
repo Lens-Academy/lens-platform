@@ -82,14 +82,42 @@ export function isAssessmentFixture(
 }
 
 export interface StreamEvent {
-  type: "text" | "thinking" | "done" | "error";
+  type: "text" | "thinking" | "done" | "error" | "tool_use";
   content?: string;
   message?: string;
+  // tool_use-only fields:
+  name?: string;
+  state?: "calling" | "result" | "error";
+  arguments?: Record<string, unknown>;
+  result?: string;
+}
+
+export interface ModelChoice {
+  id: string;
+  label: string;
+}
+
+export interface PromptLabConfig {
+  models: ModelChoice[];
+  defaultModel: string;
+  defaultBasePrompt: string;
 }
 
 // --- Functions ---
 
 const API_BASE = API_URL;
+
+/**
+ * Fetch facilitator configuration: model list + the production tutor's
+ * default base prompt (for prepopulating the live-tutor editor).
+ */
+export async function getConfig(): Promise<PromptLabConfig> {
+  const res = await fetchWithRefresh(`${API_BASE}/api/promptlab/config`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to fetch promptlab config");
+  return res.json();
+}
 
 /**
  * List all available fixtures.
@@ -218,6 +246,61 @@ export async function* continueConversation(
       try {
         const data = JSON.parse(line.slice(6));
         yield data;
+      } catch {
+        // Skip invalid JSON
+      }
+    }
+  }
+}
+
+export interface TutorTurnRequest {
+  moduleSlug: string;
+  sectionIndex?: number;
+  segmentIndex?: number;
+  courseSlug?: string | null;
+  messages: FixtureMessage[];
+  basePromptOverride?: string | null;
+  enableTools?: boolean;
+  enableThinking?: boolean;
+  effort?: string;
+  enableCourseOverview?: boolean;
+  model?: string | null;
+}
+
+/**
+ * Run a tutor turn via the live-tutor endpoint — mirrors the production
+ * tutor pipeline (course overview, tools, stage context) without DB writes.
+ */
+export async function* runTutorTurn(
+  req: TutorTurnRequest,
+): AsyncGenerator<StreamEvent> {
+  const res = await fetchWithRefresh(`${API_BASE}/api/promptlab/tutor-turn`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(req),
+  });
+
+  if (!res.ok) throw new Error("Failed to run tutor turn");
+
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("No response body");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      try {
+        yield JSON.parse(line.slice(6)) as StreamEvent;
       } catch {
         // Skip invalid JSON
       }

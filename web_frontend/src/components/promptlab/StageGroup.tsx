@@ -9,6 +9,7 @@ interface StageGroupProps {
   systemPrompt: string;
   enableThinking: boolean;
   effort: string;
+  model?: string;
   onRemove: () => void;
   columnRefs: React.MutableRefObject<Map<string, ConversationColumnHandle>>;
 }
@@ -19,6 +20,7 @@ export default function StageGroup({
   systemPrompt,
   enableThinking,
   effort,
+  model,
   onRemove,
   columnRefs,
 }: StageGroupProps) {
@@ -166,6 +168,7 @@ export default function StageGroup({
             context={context}
             enableThinking={enableThinking}
             effort={effort}
+            model={model}
           />
         ))}
         {extraChats.map((chat) => (
@@ -179,6 +182,7 @@ export default function StageGroup({
             context={context}
             enableThinking={enableThinking}
             effort={effort}
+            model={model}
             clearable
           />
         ))}

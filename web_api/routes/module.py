@@ -28,18 +28,51 @@ from core.modules.chat_sessions import (
     get_or_create_chat_session,
     save_raw_message,
 )
-from core.modules.context import gather_section_context
-from core.modules.prompts import (
-    build_content_context_message,
-    build_location_update_message,
-)
 from core.modules.loader import load_flattened_module
-from core.modules.types import ChatStage
+from core.modules.tutor_scenario import build_scenario_turn
 from web_api.auth import get_user_or_anonymous
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["module"])
+
+
+async def _load_roleplay_transcript_if_applicable(
+    conn,
+    *,
+    module,
+    section_index: int,
+    segment_index: int,
+    user_id: int | None,
+    anonymous_token: UUID | None,
+) -> str | None:
+    """Fetch the latest roleplay transcript when the current segment is a
+    roleplay-feedback segment. Returns a pre-formatted 'Role: content' string
+    or None if no transcript is available.
+    """
+    section = (
+        module.sections[section_index] if section_index < len(module.sections) else {}
+    )
+    segments = section.get("segments", [])
+    current_segment = segments[segment_index] if segment_index < len(segments) else {}
+    if current_segment.get("type") != "roleplay":
+        return None
+    roleplay_id_str = current_segment.get("id")
+    if not roleplay_id_str:
+        return None
+    rp_session = await get_latest_roleplay_session(
+        conn,
+        user_id=user_id,
+        anonymous_token=anonymous_token,
+        module_id=module.content_id,
+        roleplay_id=UUID(roleplay_id_str),
+    )
+    if not rp_session:
+        return None
+    rp_messages = rp_session.get("messages", [])
+    if not rp_messages:
+        return None
+    return "\n".join(f"{m['role'].title()}: {m['content']}" for m in rp_messages)
 
 
 def _segment_context_label(segment_type: str) -> str | None:
@@ -84,7 +117,6 @@ async def event_generator(
     course_slug: str | None = None,
 ):
     """Generate SSE events from chat interaction."""
-    # Get or create chat session
     async with get_connection() as conn:
         session = await get_or_create_chat_session(
             conn,
@@ -95,147 +127,35 @@ async def event_generator(
         session_id = session["session_id"]
         existing_messages = session.get("messages", [])
 
-        # Detect position change from previous user message
-        context_messages: list[str] = []
-        last_section_idx = None
-        last_segment_idx = None
-        for m in reversed(existing_messages):
-            if m.get("role") == "user" and m.get("sectionIndex") is not None:
-                last_section_idx = m["sectionIndex"]
-                last_segment_idx = m.get("segmentIndex")
-                break
-
-        has_user_message = any(m["role"] == "user" for m in existing_messages)
-
-        # Get section data for context injection
-        section = (
-            module.sections[section_index]
-            if section_index < len(module.sections)
-            else {}
-        )
-        section_title = section.get("meta", {}).get("title")
-
-        # Determine what context to inject
-        needs_full_content = False
-        needs_location_update = False
-        section_context = None
-
-        if not has_user_message:
-            # First message — inject full content context
-            needs_full_content = True
-        elif has_user_message and last_section_idx is not None:
-            if last_section_idx != section_index:
-                # Section changed — inject full content for new section
-                needs_full_content = True
-            elif last_segment_idx is not None and last_segment_idx != segment_index:
-                # Segment changed within same section — location update only
-                needs_location_update = True
-
-        if needs_full_content:
-            section_context = gather_section_context(section, segment_index)
-            if section_context:
-                section_context.module_title = module.title
-                section_context.section_title = section_title
-                section_context.learning_outcome = section.get("learningOutcomeName")
-                # Instructions are built below after section_context is set
-        elif needs_location_update and section_title:
-            location_msg = build_location_update_message(section_title, segment_index)
-            context_messages.append(location_msg)
-
-        # Get chat instructions from segment
-        segments = section.get("segments", [])
-        current_segment = (
-            segments[segment_index] if segment_index < len(segments) else {}
+        # Fetch roleplay transcript for feedback segments; the scenario
+        # builder is pure, so we inline the DB lookup here.
+        roleplay_transcript = await _load_roleplay_transcript_if_applicable(
+            conn,
+            module=module,
+            section_index=section_index,
+            segment_index=segment_index,
+            user_id=user_id,
+            anonymous_token=anonymous_token,
         )
 
-        # Test sections: provide all question context for holistic feedback
-        if section.get("type") == "test":
-            instructions = "The student has completed a test. Here is the context:\n"
-            learning_outcome_name = section.get("learningOutcomeName")
-            if learning_outcome_name:
-                instructions += f"\nLearning Outcome: {learning_outcome_name}"
-            for seg in segments:
-                if seg.get("type") == "question":
-                    instructions += f"\n\nQuestion: {seg.get('content', '')}"
-                    if seg.get("assessmentInstructions"):
-                        instructions += f"\nRubric:\n{seg['assessmentInstructions']}"
-        # Standalone question segments: provide single-question context
-        elif current_segment.get("type") == "question":
-            question_text = current_segment.get("content", "")
-            assessment_instructions = current_segment.get("assessmentInstructions")
-            learning_outcome_name = section.get("learningOutcomeName")
+        scenario = build_scenario_turn(
+            module=module,
+            section_index=section_index,
+            segment_index=segment_index,
+            existing_messages=existing_messages,
+            user_message=user_message,
+            course_slug=course_slug,
+            roleplay_transcript=roleplay_transcript,
+        )
 
-            instructions = f"The student answered a question. Here is the context:\n\nQuestion: {question_text}"
-            if learning_outcome_name:
-                instructions += f"\nLearning Outcome: {learning_outcome_name}"
-            if assessment_instructions:
-                instructions += f"\nRubric:\n{assessment_instructions}"
-        # Roleplay segments: provide scenario + transcript for feedback
-        elif current_segment.get("type") == "roleplay":
-            scenario_content = current_segment.get("content", "")
-            assessment_instructions = current_segment.get("assessmentInstructions")
-            learning_outcome_name = section.get("learningOutcomeName")
-
-            instructions = (
-                "The student has completed a roleplay exercise and wants to discuss "
-                "their performance. Give specific, constructive feedback.\n\n"
-                f"Scenario: {scenario_content}"
-            )
-            if learning_outcome_name:
-                instructions += f"\nLearning Outcome: {learning_outcome_name}"
-            if assessment_instructions:
-                instructions += f"\nAssessment criteria:\n{assessment_instructions}"
-
-            # Load roleplay transcript for feedback context
-            roleplay_id_str = current_segment.get("id")
-            if roleplay_id_str:
-                rp_session = await get_latest_roleplay_session(
-                    conn,
-                    user_id=user_id,
-                    anonymous_token=anonymous_token,
-                    module_id=module.content_id,
-                    roleplay_id=UUID(roleplay_id_str),
-                )
-                if rp_session:
-                    rp_messages = rp_session.get("messages", [])
-                    if rp_messages:
-                        lines = [
-                            f"{m['role'].title()}: {m['content']}" for m in rp_messages
-                        ]
-                        instructions += "\n\nRoleplay transcript:\n" + "\n".join(lines)
-        else:
-            instructions = current_segment.get(
-                "instructions", "Help the user learn about AI safety."
-            )
-
-        # Build content context message (full content or location update)
-        content_context_msg: str | None = None
-        if needs_full_content and section_context:
-            content_context_msg = build_content_context_message(
-                section_context, instructions
-            )
-        elif needs_location_update:
-            content_context_msg = (
-                f"<segment-instructions>\n{instructions}\n</segment-instructions>"
-            )
-
-        # Save all context messages to DB BEFORE the user message
-        for msg in context_messages:
+        for msg in scenario.system_messages_to_persist:
             await add_chat_message(
                 conn,
                 session_id=session_id,
                 role="system",
                 content=msg,
             )
-        if content_context_msg:
-            await add_chat_message(
-                conn,
-                session_id=session_id,
-                role="system",
-                content=content_context_msg,
-            )
 
-        # Save user message with position metadata
         if user_message:
             await add_chat_message(
                 conn,
@@ -246,82 +166,19 @@ async def event_generator(
                 segmentIndex=segment_index,
             )
 
-    # Context messages are stored in DB for LLM history but not streamed
-    # to the frontend — they contain XML context meant only for the model.
-
-    # Build messages for LLM (existing history + new message)
-    # Merge system messages into adjacent user messages
-    # to avoid consecutive user-role messages (Anthropic API requirement)
-    llm_messages = []
-    pending_context: list[str] = []
-    for m in existing_messages:
-        if m["role"] == "system":
-            pending_context.append(m["content"])
-        elif m["role"] == "user":
-            content = m["content"]
-            if pending_context:
-                content = "\n\n".join(pending_context) + "\n\n" + content
-                pending_context.clear()
-            llm_messages.append({"role": "user", "content": content})
-        elif m["role"] == "assistant":
-            msg = {"role": "assistant", "content": m.get("content", "")}
-            if "tool_calls" in m:
-                msg["tool_calls"] = m["tool_calls"]
-            llm_messages.append(msg)
-        elif m["role"] == "tool":
-            llm_messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": m["tool_call_id"],
-                    "name": m["name"],
-                    "content": m["content"],
-                }
-            )
-
-    if user_message:
-        content = user_message
-        # Prepend any pending context (content context + location + instructions)
-        all_context = list(pending_context)
-        if content_context_msg:
-            all_context.append(content_context_msg)
-        if all_context:
-            content = "\n\n".join(all_context) + "\n\n" + content
-            pending_context.clear()
-        llm_messages.append({"role": "user", "content": content})
-
-    # Create chat stage (instructions now in conversation history, not system prompt)
-    stage = ChatStage(
-        type="chat",
-        instructions=None,
-    )
-
-    # Build course overview for system prompt
-    from core.modules.prompts import build_course_overview
-    from core.modules.course_loader import load_course
-
-    course_overview = None
-    try:
-        if course_slug:
-            course = load_course(course_slug)
-            course_overview = build_course_overview(course)
-    except Exception as e:
-        logger.warning("Failed to build course overview: %s", e)
-
-    # Get MCP manager and content index from app state
     mcp_manager = getattr(app.state, "mcp_manager", None) if app else None
     content_index = getattr(app.state, "content_index", None) if app else None
 
-    # Stream response
     assistant_content = ""
     had_tool_calls = False
     post_tool_content_start = 0
     try:
         async for chunk in send_module_message(
-            llm_messages,
-            stage,
-            None,
+            scenario.llm_messages,
+            scenario.stage,
+            scenario.current_content,
             mcp_manager=mcp_manager,
-            course_overview=course_overview,
+            course_overview=scenario.course_overview,
             content_index=content_index,
         ):
             if chunk.get("type") == "text":

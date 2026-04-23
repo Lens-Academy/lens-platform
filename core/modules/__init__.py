@@ -31,7 +31,6 @@ from .chat import send_module_message, get_stage_content
 from .context import gather_section_context
 from .llm import DEFAULT_PROVIDER
 from .prompts import (
-    assemble_chat_prompt,
     build_content_context_message,
     DEFAULT_BASE_PROMPT,
 )
@@ -74,7 +73,6 @@ __all__ = [
     "get_stage_content",
     "DEFAULT_PROVIDER",
     # Prompt assembly
-    "assemble_chat_prompt",
     "build_content_context_message",
     "DEFAULT_BASE_PROMPT",
     # Context gathering
