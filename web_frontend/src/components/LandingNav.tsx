@@ -125,7 +125,7 @@ export function LandingNav() {
                       "var(--landing-accent)")
                   }
                 >
-                  Start Learning
+                  Start with the intro
                 </a>
               </div>
             )}
@@ -212,7 +212,7 @@ export function LandingNav() {
               color: "var(--landing-accent-text)",
             }}
           >
-            Start Learning
+            Start with the intro
           </a>
 
           <div
