@@ -83,12 +83,35 @@ export default function RequestInspector({
 
   const originLabel = data?.provenance?.scenario_origin ?? "(loading)";
 
+  // Count active overrides so the collapsed Inspector summary tells the user
+  // at a glance whether anything is being overridden. A plain summary line
+  // hides that — fine for clean states, misleading when fields are dirty.
+  const overrideFields: (keyof StageGroupOverrides)[] = [
+    "systemPromptOverride",
+    "instructionsOverride",
+    "contentContextOverride",
+    "courseOverviewOverride",
+    "basePromptOverride",
+  ];
+  const overrideCount = overrideFields.filter(
+    (k) => overrides[k] != null,
+  ).length;
+
   return (
     <details className="sticky left-0 self-start w-[450px] border-b border-gray-100">
-      <summary className="cursor-pointer px-3 py-2 text-[10px] font-semibold text-slate-600 bg-slate-50 select-none">
-        Request Inspector
-        {loading && <span className="ml-2 text-slate-400">…</span>}
-        {error && <span className="ml-2 text-red-500">{error}</span>}
+      <summary className="cursor-pointer px-3 py-2 text-[10px] font-semibold text-slate-600 bg-slate-50 select-none flex items-center gap-2">
+        <span>Request Inspector</span>
+        {overrideCount > 0 && (
+          <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-medium">
+            {overrideCount} override{overrideCount === 1 ? "" : "s"}
+          </span>
+        )}
+        {loading && <span className="text-slate-400">…</span>}
+        {error && (
+          <span className="text-red-500 font-normal truncate" title={error}>
+            {error}
+          </span>
+        )}
       </summary>
 
       <div className="px-3 py-2 space-y-3 bg-white max-h-[60vh] overflow-y-auto">

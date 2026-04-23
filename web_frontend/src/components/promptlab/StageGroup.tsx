@@ -102,11 +102,16 @@ export default function StageGroup({
     }));
   }, [source]);
 
-  const [extraChats, setExtraChats] = useState<{ label: string }[]>([]);
-  const nextChatNum = useRef(1);
+  // Live-module stage groups have no pre-loaded conversations; seed one
+  // empty column so the user immediately has somewhere to type. Fixture
+  // groups get their columns from the fixture's conversations list.
+  const [extraChats, setExtraChats] = useState<{ label: string }[]>(() =>
+    source.kind === "live_module" ? [{ label: "Chat 1" }] : [],
+  );
+  const nextChatNum = useRef(source.kind === "live_module" ? 2 : 1);
 
   const handleAddChat = useCallback(() => {
-    const label = `New chat ${nextChatNum.current++}`;
+    const label = `Chat ${nextChatNum.current++}`;
     setExtraChats((prev) => [...prev, { label }]);
   }, []);
 

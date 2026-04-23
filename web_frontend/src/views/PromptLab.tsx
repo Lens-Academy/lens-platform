@@ -82,8 +82,11 @@ export default function PromptLab() {
 
   const [stages, setStages] = useState<LoadedStage[]>([]);
   const [loadedFixtureNames, setLoadedFixtureNames] = useState<string[]>([]);
-  type AddMenu = "fixture" | "live_module" | null;
-  const [showAddMenu, setShowAddMenu] = useState<AddMenu>(null);
+  /** Which "+ Add" flow is visible, or null for closed. `choose` is the top-level
+   * menu; `fixture` / `live_module` are the two pickers. */
+  const [pickerState, setPickerState] = useState<
+    "choose" | "fixture" | "live_module" | null
+  >(null);
 
   const columnRefsMap = useRef<Map<string, ConversationColumnHandle>>(
     new Map(),
@@ -130,7 +133,7 @@ export default function PromptLab() {
           return [...prev, ...newStages];
         });
       }
-      setShowAddMenu(null);
+      setPickerState(null);
     },
     [],
   );
@@ -147,7 +150,7 @@ export default function PromptLab() {
         courseSlug: source.courseSlug,
       },
     ]);
-    setShowAddMenu(null);
+    setPickerState(null);
   }, []);
 
   const handleRemoveStage = useCallback((key: string) => {
@@ -327,36 +330,52 @@ export default function PromptLab() {
   const addMenu = (
     <div className="relative">
       <button
-        onClick={() => setShowAddMenu(showAddMenu ? null : "fixture")}
+        onClick={() =>
+          setPickerState(pickerState === null ? "choose" : null)
+        }
         className="text-xs font-medium bg-slate-100 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-200 transition-colors"
       >
         + Add
       </button>
-      {showAddMenu === "fixture" && (
-        <div className="absolute right-0 top-full mt-1 z-10 flex flex-col">
-          <div className="bg-white border border-slate-300 rounded-lg shadow-lg overflow-hidden">
-            <button
-              onClick={() => setShowAddMenu("live_module")}
-              className="block w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
-            >
-              From live module…
-            </button>
-            <div className="border-t border-slate-200" />
-          </div>
-          <div className="mt-2">
-            <FixturePicker
-              loadedFixtureNames={loadedFixtureNames}
-              onSelect={handleAddFixture}
-              onClose={() => setShowAddMenu(null)}
-            />
-          </div>
+      {pickerState === "choose" && (
+        <div className="absolute right-0 top-full mt-1 z-10 bg-white border border-slate-300 rounded-lg shadow-lg overflow-hidden w-[220px]">
+          <button
+            onClick={() => setPickerState("live_module")}
+            className="block w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 border-b border-slate-100"
+          >
+            <div className="font-medium">From live module…</div>
+            <div className="text-[10px] text-slate-500">
+              Real course content through the production tutor pipeline.
+            </div>
+          </button>
+          <button
+            onClick={() => setPickerState("fixture")}
+            className="block w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
+          >
+            <div className="font-medium">From fixture…</div>
+            <div className="text-[10px] text-slate-500">
+              Saved conversation snapshot.
+            </div>
+          </button>
         </div>
       )}
-      {showAddMenu === "live_module" && (
+      {pickerState === "fixture" && (
+        <div className="absolute right-0 top-full mt-1 z-10">
+          <FixturePicker
+            loadedFixtureNames={loadedFixtureNames}
+            onSelect={handleAddFixture}
+            onClose={() => setPickerState(null)}
+          />
+        </div>
+      )}
+      {pickerState === "live_module" && (
         <div className="absolute right-0 top-full mt-1 z-10">
           <LiveModulePicker
-            onAdd={handleAddLiveModule}
-            onCancel={() => setShowAddMenu(null)}
+            onAdd={(source) => {
+              handleAddLiveModule(source);
+              setPickerState(null);
+            }}
+            onCancel={() => setPickerState(null)}
           />
         </div>
       )}
