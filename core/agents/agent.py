@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Callable
 
 
 @dataclass(frozen=True)
@@ -9,3 +10,4 @@ class Agent:
     model: str
     extra_tools: tuple[dict, ...] = field(default_factory=tuple)
     can_handoff_to: tuple[str, ...] = field(default_factory=tuple)
+    tool_executor: Callable | None = None
