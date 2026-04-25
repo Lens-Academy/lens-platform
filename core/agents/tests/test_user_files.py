@@ -13,11 +13,13 @@ async def test_load_creates_empty_files_for_new_user():
     """First load for a user creates three empty files."""
     from core.database import get_transaction
     from core.tables import users
-    from sqlalchemy import insert
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     async with get_transaction() as conn:
         await conn.execute(
-            insert(users).values(user_id=99999, discord_id="test_uf_99999")
+            pg_insert(users)
+            .values(user_id=99999, discord_id="test_uf_99999")
+            .on_conflict_do_nothing()
         )
 
     files = await load_user_files(99999)
@@ -30,11 +32,13 @@ async def test_load_returns_existing_content():
     """After saving, load returns the saved content."""
     from core.database import get_transaction
     from core.tables import users
-    from sqlalchemy import insert
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     async with get_transaction() as conn:
         await conn.execute(
-            insert(users).values(user_id=99998, discord_id="test_uf_99998")
+            pg_insert(users)
+            .values(user_id=99998, discord_id="test_uf_99998")
+            .on_conflict_do_nothing()
         )
 
     # First load creates files

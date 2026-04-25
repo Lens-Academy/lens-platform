@@ -13,7 +13,7 @@ from core.agents.caching import estimate_input_tokens, apply_cache_control
 from core.agents.identity import PlatformIdentity, resolve_user_id
 from core.agents.registry import AGENT_REGISTRY, default_agent_for
 from core.agents.sessions import load_or_create_open_ended_session, save_session
-from core.agents.tools import build_all_transfer_tools
+from core.agents.tools.transfer import build_all_transfer_tools
 
 logger = logging.getLogger(__name__)
 

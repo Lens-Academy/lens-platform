@@ -16,9 +16,9 @@ def test_build_transfer_tool_description_mentions_target():
 
 
 def test_build_all_transfer_tools(monkeypatch):
-    from core.agents import tools as tools_module
+    from core.agents.tools import transfer as transfer_module
     fake_registry = {"coach": None, "tutor": None}
-    monkeypatch.setattr(tools_module, "AGENT_REGISTRY", fake_registry)
+    monkeypatch.setattr(transfer_module, "AGENT_REGISTRY", fake_registry)
     all_tools = build_all_transfer_tools()
     assert len(all_tools) == 2
     names = {t["function"]["name"] for t in all_tools}

@@ -1,5 +1,5 @@
 from core.agents.agent import Agent
-from core.agents import tools as tools_module
+from core.agents.tools import transfer as transfer_module
 from core.coach.persona import build_coach_agent
 from core.modules.llm import DEFAULT_PROVIDER
 
@@ -31,7 +31,7 @@ AGENT_REGISTRY: dict[str, Agent] = {
 }
 
 # Wire up tools.py's forward reference
-tools_module.AGENT_REGISTRY = AGENT_REGISTRY
+transfer_module.AGENT_REGISTRY = AGENT_REGISTRY
 
 PLATFORM_DEFAULTS: dict[str, str] = {
     "discord_dm": "coach",
