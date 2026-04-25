@@ -16,7 +16,6 @@ async def test_get_user_course_slug_returns_slug():
     """Returns course_slug when user is in an active group."""
     from core.database import get_transaction
     from core.tables import users, cohorts, groups, groups_users
-    from sqlalchemy import insert
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     async with get_transaction() as conn:

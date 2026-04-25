@@ -105,6 +105,11 @@ def mock_sessions():
         patch("core.agents.dispatcher.load_or_create_open_ended_session", side_effect=fake_load),
         patch("core.agents.dispatcher.save_session", side_effect=fake_save),
         patch("core.agents.dispatcher.resolve_user_id", return_value=42),
+        patch("core.agents.dispatcher.build_context_block", new_callable=AsyncMock, return_value=""),
+        patch("core.agents.dispatcher.load_user_files", new_callable=AsyncMock, return_value={
+            "agent_style.md": "", "user.md": "", "memory.md": "",
+        }),
+        patch("core.agents.dispatcher._get_user_timezone", new_callable=AsyncMock, return_value=None),
     ):
         yield session
 

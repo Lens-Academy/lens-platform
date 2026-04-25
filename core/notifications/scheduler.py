@@ -105,6 +105,16 @@ def init_scheduler(skip_if_db_unavailable: bool = True) -> AsyncIOScheduler | No
     try:
         _scheduler.start()
         print("Notification scheduler started")
+
+        # Coach scheduled job processor — runs every 15 minutes
+        from core.agents.job_processor import process_due_coach_jobs
+        _scheduler.add_job(
+            process_due_coach_jobs,
+            trigger="interval",
+            minutes=15,
+            id="coach_job_processor",
+            replace_existing=True,
+        )
     except Exception as e:
         if skip_if_db_unavailable and "timeout" in str(e).lower():
             # Database unavailable - fall back to in-memory scheduler
