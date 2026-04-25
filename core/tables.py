@@ -11,6 +11,7 @@ from sqlalchemy import (
     Index,
     Integer,
     MetaData,
+    PrimaryKeyConstraint,
     Table,
     Text,
     UniqueConstraint,
@@ -647,4 +648,46 @@ referral_clicks = Table(
         server_default=text("'pending'"),
     ),
     Index("idx_referral_clicks_link_id", "link_id"),
+)
+
+
+# =====================================================
+# COACH: PER-USER FILES
+# =====================================================
+coach_user_files = Table(
+    "coach_user_files",
+    metadata,
+    Column(
+        "user_id",
+        Integer,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("filename", Text, nullable=False),
+    Column("content", Text, nullable=False, server_default=""),
+    Column("updated_at", TIMESTAMP(timezone=True), server_default=func.now(), nullable=False),
+    PrimaryKeyConstraint("user_id", "filename"),
+)
+
+
+# =====================================================
+# COACH: SCHEDULED JOBS
+# =====================================================
+coach_scheduled_jobs = Table(
+    "coach_scheduled_jobs",
+    metadata,
+    Column("job_id", UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()),
+    Column(
+        "user_id",
+        Integer,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("fire_at", TIMESTAMP(timezone=True), nullable=False),
+    Column("reason", Text, nullable=False),
+    Column("status", Text, nullable=False, server_default="pending"),
+    Column("created_at", TIMESTAMP(timezone=True), server_default=func.now(), nullable=False),
+    Column("resolved_at", TIMESTAMP(timezone=True)),
+    Index("idx_coach_jobs_pending", "fire_at", postgresql_where=text("status = 'pending'")),
+    Index("idx_coach_jobs_user", "user_id"),
 )

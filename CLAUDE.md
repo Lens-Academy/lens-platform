@@ -70,12 +70,7 @@ After making changes, start dev servers if not already running (check with `./sc
 
 ## Dev Server Management
 
-Ports are auto-assigned based on workspace number (offset by 100 to avoid collisions when servers auto-increment):
-- No suffix → API :8000, Frontend :3000
-- `ws1` → API :8100, Frontend :3100
-- `ws2` → API :8200, Frontend :3200
-- `ws3` → API :8300, Frontend :3300
-- etc.
+See `CLAUDE.local.md` for port assignments per workspace.
 
 The frontend and backend ports must be exactly 5000 apart, or they won't be able to connect to each other.
 
