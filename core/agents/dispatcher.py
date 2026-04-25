@@ -176,7 +176,7 @@ AGENT_DISPLAY_NAMES: dict[str, str] = {
 
 
 def _build_reply_text(parts: list[tuple[str, str]]) -> str:
-    """Join reply parts, inserting a separator when the agent changes."""
+    """Join reply parts, prefixing with agent name and inserting separators on change."""
     sections = []
     prev_agent = None
     for agent_name, text in parts:
@@ -185,7 +185,16 @@ def _build_reply_text(parts: list[tuple[str, str]]) -> str:
             sections.append(f"--- *{display}* ---")
         sections.append(text)
         prev_agent = agent_name
-    return "\n\n".join(sections)
+
+    reply = "\n\n".join(sections)
+
+    # Prefix with agent name from the first part
+    if parts:
+        first_agent = parts[0][0]
+        display = AGENT_DISPLAY_NAMES.get(first_agent, first_agent)
+        reply = f"**{display}:**\n{reply}"
+
+    return reply
 
 
 def _build_system_prompt_with_files(base_prompt: str, user_files: dict[str, str]) -> str:

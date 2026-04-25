@@ -1,33 +1,31 @@
-"""Speech-to-text transcription using OpenAI Whisper API."""
+"""Speech-to-text transcription using ElevenLabs Scribe."""
 
 import os
+from io import BytesIO
 
-import httpx
+from elevenlabs import AsyncElevenLabs
 
 
 async def transcribe_audio(audio_bytes: bytes, filename: str) -> str:
-    """Transcribe audio using OpenAI Whisper API.
+    """Transcribe audio using ElevenLabs Scribe.
 
     Args:
-        audio_bytes: Raw audio file bytes (webm, mp3, wav, m4a, etc.)
+        audio_bytes: Raw audio file bytes (webm, mp3, wav, m4a, ogg, etc.)
         filename: Original filename with extension
 
     Returns:
         Transcribed text string
 
     Raises:
-        httpx.HTTPStatusError: If the API request fails
+        ValueError: If ELEVENLABS_API_KEY is not set
     """
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("ELEVENLABS_API_KEY")
     if not api_key:
-        raise ValueError("OPENAI_API_KEY environment variable is required")
+        raise ValueError("ELEVENLABS_API_KEY environment variable is required")
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            "https://api.openai.com/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {api_key}"},
-            files={"file": (filename, audio_bytes)},
-            data={"model": "whisper-1"},
-        )
-        response.raise_for_status()
-        return response.json()["text"]
+    client = AsyncElevenLabs(api_key=api_key)
+    response = await client.speech_to_text.convert(
+        file=BytesIO(audio_bytes),
+        model_id="scribe_v2",
+    )
+    return response.text
