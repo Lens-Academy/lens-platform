@@ -1,6 +1,6 @@
 from core.agents.agent import Agent
 from core.agents.tools import transfer as transfer_module
-from core.coach.persona import build_coach_agent
+from core.agents.coach.persona import build_coach_agent
 from core.modules.llm import DEFAULT_PROVIDER
 
 
