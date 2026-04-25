@@ -11,10 +11,20 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.agents.dispatcher import handle_message, HandleResult
 from core.agents.identity import PlatformIdentity
+from core.speech import transcribe_audio
 
 logger = logging.getLogger(__name__)
 
 DISCORD_MAX_LENGTH = 2000
+AUDIO_CONTENT_TYPES = {"audio/ogg", "audio/mpeg", "audio/mp4", "audio/wav", "audio/webm"}
+
+
+def _get_voice_attachment(message: discord.Message) -> discord.Attachment | None:
+    """Return the first audio attachment if present, else None."""
+    for attachment in message.attachments:
+        if attachment.content_type and attachment.content_type.split(";")[0] in AUDIO_CONTENT_TYPES:
+            return attachment
+    return None
 
 
 def _should_handle(message: discord.Message) -> bool:
@@ -23,7 +33,7 @@ def _should_handle(message: discord.Message) -> bool:
         return False
     if not isinstance(message.channel, discord.DMChannel):
         return False
-    if not message.content.strip():
+    if not message.content.strip() and not _get_voice_attachment(message):
         return False
     return True
 
@@ -70,7 +80,17 @@ class CoachCog(commands.Cog):
 
         async with message.channel.typing():
             try:
-                result: HandleResult = await handle_message(identity, message.content)
+                # Transcribe voice messages to text
+                voice = _get_voice_attachment(message)
+                if voice:
+                    audio_bytes = await voice.read()
+                    text = await transcribe_audio(audio_bytes, voice.filename or "voice.ogg")
+                    if message.content.strip():
+                        text = message.content.strip() + "\n\n" + text
+                else:
+                    text = message.content
+
+                result: HandleResult = await handle_message(identity, text)
             except Exception:
                 logger.exception("coach_cog_error", extra={
                     "discord_user_id": message.author.id,

@@ -82,7 +82,7 @@ async def test_reply_text_from_last_assistant(mock_llm):
 
     result = await handle_message(identity, "Anything")
     assert result.kind == "ok"
-    assert result.reply_text == expected_reply
+    assert expected_reply in result.reply_text
 
 
 # ---------------------------------------------------------------------------

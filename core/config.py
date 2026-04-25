@@ -64,8 +64,8 @@ def get_allowed_origins() -> list[str]:
     Includes localhost variants for dev and the production frontend URL.
     """
     # Base ports + workspace ports (offset by 100: ws1=8100, ws2=8200, etc.)
-    workspace_api_ports = [8000 + i * 100 for i in range(4)]
-    workspace_frontend_ports = [3000 + i * 100 for i in range(4)]
+    workspace_api_ports = [8000 + i * 100 for i in range(5)]
+    workspace_frontend_ports = [3000 + i * 100 for i in range(5)]
     all_ports = workspace_api_ports + workspace_frontend_ports
     # Include DEV_HOST for remote development access (e.g., dev.vps)
     dev_host = get_dev_host()
