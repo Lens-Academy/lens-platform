@@ -114,7 +114,7 @@ export default function RequestInspector({
         )}
       </summary>
 
-      <div className="px-3 py-2 space-y-3 bg-white max-h-[60vh] overflow-y-auto">
+      <div className="px-3 py-2 space-y-1 bg-white">
         <div className="text-[10px] text-slate-400 font-mono break-all">
           {originLabel}
         </div>
@@ -127,7 +127,6 @@ export default function RequestInspector({
           onOverride={(v) =>
             setOverrides((p) => ({ ...p, systemPromptOverride: v }))
           }
-          minRows={8}
         />
 
         <OverrideSection
@@ -138,7 +137,6 @@ export default function RequestInspector({
           onOverride={(v) =>
             setOverrides((p) => ({ ...p, courseOverviewOverride: v }))
           }
-          minRows={4}
         />
 
         <OverrideSection
@@ -149,7 +147,6 @@ export default function RequestInspector({
           onOverride={(v) =>
             setOverrides((p) => ({ ...p, instructionsOverride: v }))
           }
-          minRows={4}
         />
 
         <OverrideSection
@@ -160,7 +157,6 @@ export default function RequestInspector({
           onOverride={(v) =>
             setOverrides((p) => ({ ...p, contentContextOverride: v }))
           }
-          minRows={6}
         />
 
         <MessagesSection messages={data?.llm_messages ?? []} />
@@ -197,21 +193,20 @@ function OverrideSection({
   readValue,
   overrideValue,
   onOverride,
-  minRows = 4,
 }: {
   label: string;
   provenance?: string;
   readValue: string;
   overrideValue: string | null;
   onOverride: (value: string | null) => void;
-  minRows?: number;
 }) {
   const isOverridden = overrideValue !== null;
   const displayed = isOverridden ? (overrideValue ?? "") : readValue;
+  const lineCount = Math.max(displayed.split("\n").length, 4);
 
   return (
-    <div className="border border-slate-200 rounded">
-      <div className="flex items-center gap-1 px-2 py-1 bg-slate-50 border-b border-slate-200">
+    <details className="border border-slate-200 rounded">
+      <summary className="cursor-pointer flex items-center gap-1 px-2 py-1 bg-slate-50 select-none">
         <span className="text-[10px] font-semibold text-slate-600">
           {label}
         </span>
@@ -220,58 +215,57 @@ function OverrideSection({
             overridden
           </span>
         )}
-        <div className="ml-auto flex items-center gap-1.5">
+        <span className="ml-auto text-[9px] text-slate-400">
+          {displayed.length} chars
+        </span>
+      </summary>
+      <div className="border-t border-slate-200">
+        <div className="flex items-center gap-2 px-2 py-1 bg-slate-50/60 border-b border-slate-100">
+          {provenance && (
+            <span className="text-[9px] text-slate-400 italic truncate">
+              {provenance}
+            </span>
+          )}
           <button
-            onClick={() => onOverride(isOverridden ? null : displayed)}
-            className="text-[10px] text-blue-600 hover:text-blue-800"
+            onClick={(e) => {
+              e.preventDefault();
+              onOverride(isOverridden ? null : displayed);
+            }}
+            className="ml-auto text-[10px] text-blue-600 hover:text-blue-800"
           >
             {isOverridden ? "Reset" : "Override"}
           </button>
         </div>
+        <textarea
+          value={displayed}
+          onChange={(e) => isOverridden && onOverride(e.target.value)}
+          readOnly={!isOverridden}
+          rows={lineCount}
+          className="w-full p-2 text-[11px] font-mono text-slate-700 resize-y focus:outline-none focus:ring-1 focus:ring-blue-500 whitespace-pre"
+          spellCheck={false}
+        />
       </div>
-      {provenance && (
-        <div className="px-2 py-0.5 text-[9px] text-slate-400 italic border-b border-slate-100">
-          {provenance}
-        </div>
-      )}
-      <textarea
-        value={displayed}
-        onChange={(e) => isOverridden && onOverride(e.target.value)}
-        readOnly={!isOverridden}
-        className="w-full p-2 text-[11px] font-mono text-slate-700 resize-y focus:outline-none focus:ring-1 focus:ring-blue-500 whitespace-pre"
-        style={{ minHeight: `${minRows * 1.2}rem` }}
-        spellCheck={false}
-      />
-    </div>
+    </details>
   );
 }
 
 function MessagesSection({ messages }: { messages: { role: string; content: string }[] }) {
-  const [expanded, setExpanded] = useState(false);
   return (
-    <div className="border border-slate-200 rounded">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-1 px-2 py-1 bg-slate-50 border-b border-slate-200 text-left"
-      >
+    <details className="border border-slate-200 rounded">
+      <summary className="cursor-pointer flex items-center gap-1 px-2 py-1 bg-slate-50 select-none">
         <span className="text-[10px] font-semibold text-slate-600">
           llm_messages ({messages.length})
         </span>
-        <span className="ml-auto text-[10px] text-slate-400">
-          {expanded ? "−" : "+"}
-        </span>
-      </button>
-      {expanded && (
-        <div className="p-2 text-[11px] font-mono text-slate-700 max-h-[20rem] overflow-y-auto space-y-2">
-          {messages.map((m, i) => (
-            <div key={i}>
-              <div className="text-[9px] text-slate-400 uppercase">{m.role}</div>
-              <pre className="whitespace-pre-wrap break-words">{m.content}</pre>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+      </summary>
+      <div className="p-2 text-[11px] font-mono text-slate-700 space-y-2 border-t border-slate-200">
+        {messages.map((m, i) => (
+          <div key={i}>
+            <div className="text-[9px] text-slate-400 uppercase">{m.role}</div>
+            <pre className="whitespace-pre-wrap break-words">{m.content}</pre>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 
