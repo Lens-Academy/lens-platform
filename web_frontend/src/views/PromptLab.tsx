@@ -67,6 +67,14 @@ export default function PromptLab() {
    * its own model after that — this value doesn't propagate to existing
    * groups when changed. */
   const [defaultModel, setDefaultModel] = useState<string>("");
+  /** Production tutor's base prompt — read-only display value used as the
+   * placeholder in the global override sidebar. Loaded once at mount. */
+  const [defaultBasePrompt, setDefaultBasePrompt] = useState<string>("");
+  /** Page-level base-prompt override. When non-null, every stage group uses
+   * this as its base_prompt unless its own group-level override is set. */
+  const [globalBasePromptOverride, setGlobalBasePromptOverride] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -74,6 +82,7 @@ export default function PromptLab() {
       .then((cfg) => {
         setModels(cfg.models);
         setDefaultModel(cfg.defaultModel);
+        setDefaultBasePrompt(cfg.defaultBasePrompt);
       })
       .catch((err) => {
         console.error("Failed to load promptlab config:", err);
@@ -453,10 +462,16 @@ export default function PromptLab() {
         </div>
       </div>
 
-      {/* Horizontal scroll grid of stage groups */}
-      <div className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
-        <div className="flex gap-3 h-full">
-          {stages.map((stage) => {
+      {/* Sidebar (global overrides) + horizontal scroll grid of stage groups */}
+      <div className="flex flex-1 min-h-0 gap-3">
+        <GlobalOverridesSidebar
+          defaultBasePrompt={defaultBasePrompt}
+          basePromptOverride={globalBasePromptOverride}
+          setBasePromptOverride={setGlobalBasePromptOverride}
+        />
+        <div className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
+          <div className="flex gap-3 h-full">
+            {stages.map((stage) => {
             const key = stageKeyOf(stage);
             if (stage.type === "assessment") {
               return (
@@ -486,6 +501,7 @@ export default function PromptLab() {
                   stageKey={key}
                   model={defaultModel}
                   models={models}
+                  globalBasePromptOverride={globalBasePromptOverride}
                   onRemove={() => handleRemoveStage(key)}
                   columnRefs={columnRefsMap}
                 />
@@ -502,13 +518,69 @@ export default function PromptLab() {
                 }}
                 stageKey={key}
                 model={defaultModel}
+                globalBasePromptOverride={globalBasePromptOverride}
                 onRemove={() => handleRemoveStage(key)}
                 columnRefs={columnRefsMap}
               />
             );
-          })}
+            })}
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Sidebar pinned to the left of the stage-group grid. Owns the page-level
+ * base-prompt override — when set, every stage group inherits it as its
+ * `basePromptOverride` unless the group has its own group-level override.
+ *
+ * The textarea seeds with DEFAULT_BASE_PROMPT (read-only) until the user
+ * clicks Override; from that point the value lives in the parent state.
+ */
+function GlobalOverridesSidebar({
+  defaultBasePrompt,
+  basePromptOverride,
+  setBasePromptOverride,
+}: {
+  defaultBasePrompt: string;
+  basePromptOverride: string | null;
+  setBasePromptOverride: (v: string | null) => void;
+}) {
+  const isOverridden = basePromptOverride !== null;
+  const displayed = isOverridden ? basePromptOverride : defaultBasePrompt;
+
+  return (
+    <aside className="shrink-0 w-[340px] border border-slate-200 rounded bg-white flex flex-col">
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
+        <span className="text-[11px] font-semibold text-slate-700">
+          Global: Base Prompt
+        </span>
+        {isOverridden && (
+          <span className="text-[9px] text-orange-600 font-medium">
+            overridden
+          </span>
+        )}
+        <button
+          onClick={() =>
+            setBasePromptOverride(isOverridden ? null : defaultBasePrompt)
+          }
+          className="ml-auto text-[10px] text-blue-600 hover:text-blue-800"
+        >
+          {isOverridden ? "Reset" : "Override"}
+        </button>
+      </div>
+      <div className="px-3 py-1 text-[10px] text-slate-400 italic border-b border-slate-100">
+        Shared across every stage group. Group-level overrides win.
+      </div>
+      <textarea
+        value={displayed}
+        onChange={(e) => isOverridden && setBasePromptOverride(e.target.value)}
+        readOnly={!isOverridden}
+        className="flex-1 p-2 text-[11px] font-mono text-slate-700 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 whitespace-pre-wrap"
+        spellCheck={false}
+      />
+    </aside>
   );
 }

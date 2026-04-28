@@ -44,6 +44,9 @@ interface StageGroupProps {
   model?: string;
   /** Full model list for the Inspector's model selector. */
   models?: ModelChoice[];
+  /** Page-level base prompt override, shared across every stage group. The
+   * group's own basePromptOverride takes precedence when set. */
+  globalBasePromptOverride?: string | null;
   onRemove: () => void;
   columnRefs: React.MutableRefObject<Map<string, ConversationColumnHandle>>;
 }
@@ -53,6 +56,7 @@ export default function StageGroup({
   stageKey,
   model,
   models,
+  globalBasePromptOverride = null,
   onRemove,
   columnRefs,
 }: StageGroupProps) {
@@ -69,7 +73,10 @@ export default function StageGroup({
   const requestBase: Omit<TutorTurnRequest, "messages"> = useMemo(() => {
     const base: Omit<TutorTurnRequest, "messages"> = {
       scenarioSource: source.kind,
-      basePromptOverride: overrides.basePromptOverride ?? null,
+      // Group-level override wins; otherwise fall back to the page-level
+      // global override; otherwise null (= production default).
+      basePromptOverride:
+        overrides.basePromptOverride ?? globalBasePromptOverride ?? null,
       systemPromptOverride: overrides.systemPromptOverride ?? null,
       instructionsOverride: overrides.instructionsOverride ?? null,
       contentContextOverride: overrides.contentContextOverride ?? null,
@@ -89,7 +96,7 @@ export default function StageGroup({
       base.courseSlug = source.courseSlug ?? null;
     }
     return base;
-  }, [source, overrides]);
+  }, [source, overrides, globalBasePromptOverride]);
 
   const fixtureConversations = useMemo(() => {
     if (source.kind !== "fixture") return [];
