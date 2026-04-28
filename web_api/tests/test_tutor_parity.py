@@ -118,18 +118,19 @@ async def test_fixture_with_module_refs_matches_live_module():
     This is the canary for 'fixtures go through the same thing the live
     code does' — a saved test case is literally the same pipeline."""
     fixture = {
+        "schemaVersion": 2,
         "name": "parity-fixture",
-        "module": _MODULE_SLUG,
         "description": "",
-        "baseSystemPrompt": "",
-        "sections": [
+        "globalOverrides": {"basePrompt": None},
+        "stageGroups": [
             {
-                "name": "Live-refs section",
-                "instructions": "",
-                "context": "",
+                "kind": "live_module",
                 "moduleSlug": _MODULE_SLUG,
                 "sectionIndex": 0,
                 "segmentIndex": 0,
+                "courseSlug": None,
+                "overrides": {},
+                "chats": [],
             }
         ],
     }
@@ -161,15 +162,18 @@ def test_legacy_fixture_wraps_content_in_live_tutor_shape():
     shape either way. Can't match byte-for-byte (no live content) but the
     envelope must match."""
     fixture = {
-        "name": "legacy-test",
-        "module": "",
+        "schemaVersion": 2,
+        "name": "inline-test",
         "description": "",
-        "baseSystemPrompt": "",
-        "sections": [
+        "globalOverrides": {"basePrompt": None},
+        "stageGroups": [
             {
+                "kind": "inline",
                 "name": "Legacy section",
                 "instructions": "Legacy instructions.",
                 "context": "Legacy article content.",
+                "overrides": {},
+                "chats": [],
             }
         ],
     }

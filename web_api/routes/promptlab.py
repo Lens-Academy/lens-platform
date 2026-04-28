@@ -32,10 +32,13 @@ from core.modules.llm import DEFAULT_PROVIDER, MODEL_CHOICES
 from core.modules.prompts import DEFAULT_BASE_PROMPT
 from core.modules.tutor_scenario import ScenarioTurn, build_scenario_turn
 from core.promptlab import (
+    InvalidFixtureNameError,
+    delete_fixture,
     fixture_section_to_scenario,
     list_fixtures,
     load_fixture,
     run_tutor_turn,
+    save_fixture,
     score_response,
 )
 from core.queries.facilitator import get_facilitator_group_ids, is_admin
@@ -208,6 +211,39 @@ async def get_fixture(
     if not fixture:
         raise HTTPException(404, "Fixture not found")
     return fixture
+
+
+@router.put("/fixtures/{name}")
+async def put_fixture(
+    name: str,
+    body: dict,
+    _user: dict = Depends(get_facilitator_user),
+) -> dict:
+    """Atomically write a fixture file. Body is the full v2 fixture dict.
+
+    Used by the Prompt Lab to persist every UI change. The body's `name`
+    field must equal the path `name`. Auth: facilitator or admin.
+    """
+    try:
+        return save_fixture(name, body)
+    except InvalidFixtureNameError as e:
+        raise HTTPException(400, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.delete("/fixtures/{name}")
+async def delete_fixture_endpoint(
+    name: str,
+    _user: dict = Depends(get_facilitator_user),
+) -> dict:
+    try:
+        removed = delete_fixture(name)
+    except InvalidFixtureNameError as e:
+        raise HTTPException(400, str(e))
+    if not removed:
+        raise HTTPException(404, "Fixture not found")
+    return {"removed": True}
 
 
 @router.post("/score")

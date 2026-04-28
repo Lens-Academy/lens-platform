@@ -10,14 +10,26 @@ from the live tutor. Fixtures are stored as JSON files in the repo
 (version-controlled, curated).
 """
 
-from .fixtures import fixture_section_to_scenario, list_fixtures, load_fixture
+from .fixtures import (
+    InvalidFixtureNameError,
+    delete_fixture,
+    fixture_section_to_scenario,
+    list_fixtures,
+    load_fixture,
+    save_fixture,
+    stage_group_to_scenario,
+)
 from .score import score_response
 from .tutor_mode import run_tutor_turn
 
 __all__ = [
+    "InvalidFixtureNameError",
+    "delete_fixture",
     "fixture_section_to_scenario",
     "list_fixtures",
     "load_fixture",
+    "save_fixture",
+    "stage_group_to_scenario",
     "score_response",
     "run_tutor_turn",
 ]

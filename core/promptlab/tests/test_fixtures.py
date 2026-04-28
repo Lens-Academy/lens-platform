@@ -2,30 +2,19 @@ import json
 
 import pytest
 
-from core.promptlab.fixtures import list_fixtures, load_fixture
+from core.promptlab.fixtures import (
+    SCHEMA_VERSION,
+    InvalidFixtureNameError,
+    delete_fixture,
+    list_fixtures,
+    load_fixture,
+    save_fixture,
+)
 
-FLAT_FIXTURE = {
-    "name": "Test Flat Fixture",
+LEGACY_SECTIONED = {
+    "name": "Legacy Sectioned",
     "module": "test-module",
-    "description": "A flat-format fixture for testing.",
-    "baseSystemPrompt": "You are a test tutor.",
-    "instructions": "You are a helpful tutor.",
-    "context": "The student is learning about X.",
-    "conversations": [
-        {
-            "label": "Opening exchange",
-            "messages": [
-                {"role": "user", "content": "What is X?"},
-                {"role": "assistant", "content": "X is a concept."},
-            ],
-        }
-    ],
-}
-
-SECTIONED_FIXTURE = {
-    "name": "Test Sectioned Fixture",
-    "module": "test-module",
-    "description": "A sectioned fixture for testing.",
+    "description": "A legacy sectioned fixture.",
     "baseSystemPrompt": "You are a sectioned tutor.",
     "sections": [
         {
@@ -42,73 +31,119 @@ SECTIONED_FIXTURE = {
                 }
             ],
         },
+    ],
+}
+
+LEGACY_FLAT = {
+    "name": "Legacy Flat",
+    "module": "test-module",
+    "description": "A legacy flat fixture.",
+    "baseSystemPrompt": "You are a flat tutor.",
+    "instructions": "Instruction X",
+    "context": "Context X",
+    "conversations": [
         {
-            "name": "Section B",
-            "instructions": "Instruction B",
-            "context": "Context B",
-            "conversations": [
-                {
-                    "label": "Convo B",
-                    "messages": [
-                        {"role": "user", "content": "Hello B"},
-                        {"role": "assistant", "content": "Hi B"},
-                    ],
-                }
-            ],
-        },
+            "label": "Convo X",
+            "messages": [{"role": "user", "content": "hi"}],
+        }
+    ],
+}
+
+V2_FIXTURE = {
+    "schemaVersion": SCHEMA_VERSION,
+    "name": "v2-sample",
+    "description": "Native v2 fixture",
+    "globalOverrides": {"basePrompt": None},
+    "stageGroups": [
+        {
+            "kind": "live_module",
+            "moduleSlug": "introduction",
+            "sectionIndex": 0,
+            "segmentIndex": 0,
+            "courseSlug": None,
+            "overrides": {},
+            "chats": [{"label": "Chat 1", "messages": []}],
+        }
     ],
 }
 
 
 @pytest.fixture(autouse=True)
 def _use_test_fixtures(tmp_path, monkeypatch):
-    """Point FIXTURES_DIR at a temp directory with test data."""
-    (tmp_path / "flat.json").write_text(json.dumps(FLAT_FIXTURE))
-    (tmp_path / "sectioned.json").write_text(json.dumps(SECTIONED_FIXTURE))
+    (tmp_path / "legacy-sectioned.json").write_text(json.dumps(LEGACY_SECTIONED))
+    (tmp_path / "legacy-flat.json").write_text(json.dumps(LEGACY_FLAT))
+    (tmp_path / "v2-sample.json").write_text(json.dumps(V2_FIXTURE))
     monkeypatch.setattr("core.promptlab.fixtures.FIXTURES_DIR", tmp_path)
 
 
-def test_list_fixtures_returns_summaries():
+def test_list_fixtures_summaries():
     fixtures = list_fixtures()
-    assert len(fixtures) == 2
-    for f in fixtures:
-        assert "name" in f
-        assert "module" in f
-        assert "description" in f
     names = {f["name"] for f in fixtures}
-    assert names == {"Test Flat Fixture", "Test Sectioned Fixture"}
+    assert names == {"Legacy Sectioned", "Legacy Flat", "v2-sample"}
+    for f in fixtures:
+        assert {"name", "description", "type"} <= f.keys()
 
 
-def test_load_flat_fixture_normalized_to_sections():
-    """Flat-format fixtures (legacy) get wrapped in a single section."""
-    fixture = load_fixture("Test Flat Fixture")
-    assert fixture is not None
-    assert fixture["baseSystemPrompt"] == "You are a test tutor."
-    assert "sections" in fixture
-    assert len(fixture["sections"]) == 1
-    section = fixture["sections"][0]
-    assert "instructions" in section
-    assert "context" in section
-    assert "conversations" in section
-    assert len(section["conversations"]) == 1
-    conv = section["conversations"][0]
-    assert conv["label"] == "Opening exchange"
-    assert len(conv["messages"]) == 2
+def test_load_legacy_sectioned_migrated_to_v2():
+    fx = load_fixture("Legacy Sectioned")
+    assert fx is not None
+    assert fx["schemaVersion"] == SCHEMA_VERSION
+    assert fx["globalOverrides"]["basePrompt"] == "You are a sectioned tutor."
+    assert len(fx["stageGroups"]) == 1
+    sg = fx["stageGroups"][0]
+    assert sg["kind"] == "inline"
+    assert sg["name"] == "Section A"
+    assert sg["instructions"] == "Instruction A"
+    assert sg["chats"][0]["label"] == "Convo A"
 
 
-def test_load_sectioned_fixture():
-    """Sectioned-format fixtures have multiple sections."""
-    fixture = load_fixture("Test Sectioned Fixture")
-    assert fixture is not None
-    assert fixture["baseSystemPrompt"] == "You are a sectioned tutor."
-    assert len(fixture["sections"]) == 2
-    for section in fixture["sections"]:
-        assert "name" in section
-        assert "instructions" in section
-        assert "context" in section
-        assert len(section["conversations"]) >= 1
+def test_load_legacy_flat_migrated_to_one_stagegroup():
+    fx = load_fixture("Legacy Flat")
+    assert fx["schemaVersion"] == SCHEMA_VERSION
+    assert len(fx["stageGroups"]) == 1
+    assert fx["stageGroups"][0]["kind"] == "inline"
+    assert fx["stageGroups"][0]["instructions"] == "Instruction X"
 
 
-def test_load_fixture_not_found():
-    fixture = load_fixture("Nonexistent Fixture")
-    assert fixture is None
+def test_load_v2_passthrough():
+    fx = load_fixture("v2-sample")
+    assert fx == V2_FIXTURE
+
+
+def test_load_missing_returns_none():
+    assert load_fixture("does-not-exist") is None
+
+
+def test_save_then_load_roundtrip(tmp_path):
+    saved = save_fixture("v2-sample", V2_FIXTURE)
+    assert saved["schemaVersion"] == SCHEMA_VERSION
+    reloaded = load_fixture("v2-sample")
+    assert reloaded == saved
+
+
+def test_save_rejects_mismatched_name():
+    with pytest.raises(ValueError):
+        save_fixture("v2-sample", {**V2_FIXTURE, "name": "different"})
+
+
+@pytest.mark.parametrize(
+    "bad",
+    ["../escape", "Caps", "with space", ".dot", "", "a/b", "name.json"],
+)
+def test_save_rejects_unsafe_names(bad):
+    with pytest.raises(InvalidFixtureNameError):
+        save_fixture(bad, {**V2_FIXTURE, "name": bad})
+
+
+def test_save_atomic_write_visible_only_after_rename(tmp_path, monkeypatch):
+    """Tempfile must not be visible under the final filename mid-write."""
+    save_fixture("v2-sample", V2_FIXTURE)
+    files = {p.name for p in tmp_path.iterdir()}
+    # No temp leftover with our prefix.
+    assert not any(name.startswith(".v2-sample.") for name in files)
+
+
+def test_delete_fixture():
+    assert delete_fixture("v2-sample") is True
+    assert load_fixture("v2-sample") is None
+    assert delete_fixture("v2-sample") is False

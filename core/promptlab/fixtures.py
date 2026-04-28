@@ -1,12 +1,50 @@
 """
-Fixture listing and loading for the Prompt Lab.
+Fixture listing, loading, and saving for the Prompt Lab.
 
-Fixtures are curated conversation snapshots stored as JSON files in the
-fixtures/ directory. They capture real tutor-student interactions for
-facilitators to use when iterating on system prompts.
+A fixture is the entire backing state of one Prompt Lab page. The frontend
+mirrors the file shape 1:1 — opening a fixture loads it as page state, and
+every UI mutation auto-saves the file via the PUT endpoint. This makes
+fixtures `jj evolog`-trackable and revertable per change.
+
+Schema v2 (new format):
+
+    {
+      "schemaVersion": 2,
+      "name": "...",
+      "description": "...",
+      "globalOverrides": {"basePrompt": null | str},
+      "stageGroups": [
+        {
+          "kind": "live_module",
+          "moduleSlug": "...",
+          "sectionIndex": 0,
+          "segmentIndex": 0,
+          "courseSlug": "..." | null,
+          "overrides": {...},
+          "chats": [{"label": "...", "messages": [{role, content}]}]
+        },
+        {
+          "kind": "inline",
+          "name": "...",
+          "instructions": "...",
+          "context": "...",
+          "overrides": {...},
+          "chats": [...]
+        }
+      ]
+    }
+
+Legacy schema (assessments + the original real-student-conversations format)
+is migrated transparently on load. Save always emits v2.
+
+Assessment fixtures (type=assessment) keep their separate format and are
+returned as-is by load_fixture; they don't pass through the v2 migration.
 """
 
 import json
+import os
+import re
+import tempfile
 from pathlib import Path
 from typing import TypedDict
 
@@ -19,22 +57,20 @@ from core.modules.types import ChatStage
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
+SCHEMA_VERSION = 2
+
+# Names: lowercase + digits + dash + underscore. Refuse paths and dotfiles.
+_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
 
 class FixtureMessage(TypedDict):
-    role: str  # "user" or "assistant"
+    role: str
     content: str
 
 
-class FixtureConversation(TypedDict):
+class FixtureChat(TypedDict):
     label: str
     messages: list[FixtureMessage]
-
-
-class FixtureSection(TypedDict):
-    name: str
-    instructions: str
-    context: str
-    conversations: list[FixtureConversation]
 
 
 class AssessmentItem(TypedDict):
@@ -45,44 +81,94 @@ class AssessmentItem(TypedDict):
 
 class AssessmentSection(TypedDict):
     name: str
-    instructions: str  # rubric
+    instructions: str
     items: list[AssessmentItem]
 
 
 class FixtureSummary(TypedDict):
     name: str
-    module: str
     description: str
     type: str  # "chat" or "assessment"
 
 
-class Fixture(TypedDict):
-    name: str
-    module: str
-    description: str
-    baseSystemPrompt: str
-    sections: list[FixtureSection]
+class InvalidFixtureNameError(ValueError):
+    """Raised when a fixture name fails validation."""
 
 
-def _parse_conversations(raw: list[dict]) -> list[FixtureConversation]:
-    return [
-        FixtureConversation(
-            label=c["label"],
-            messages=[
-                FixtureMessage(role=m["role"], content=m["content"])
-                for m in c["messages"]
-            ],
+def _validate_name(name: str) -> str:
+    """Return the name if safe; raise otherwise. Refuses anything that
+    could escape FIXTURES_DIR or hit dotfiles."""
+    if not _NAME_RE.fullmatch(name):
+        raise InvalidFixtureNameError(
+            f"Invalid fixture name {name!r}: must match [a-z0-9][a-z0-9_-]*"
         )
-        for c in raw
-    ]
+    return name
+
+
+def _path_for(name: str) -> Path:
+    """Resolve a validated name to its FIXTURES_DIR path, with a final
+    sanity check that the resolved path stays inside FIXTURES_DIR."""
+    _validate_name(name)
+    path = (FIXTURES_DIR / f"{name}.json").resolve()
+    if FIXTURES_DIR.resolve() not in path.parents:
+        raise InvalidFixtureNameError(f"Resolved path escapes FIXTURES_DIR: {path}")
+    return path
+
+
+def _migrate_legacy_chat(data: dict) -> dict:
+    """Convert a legacy chat fixture dict to v2.
+
+    Legacy "sectioned" format had `sections: [{name, instructions, context,
+    conversations}]`. Legacy "flat" format had top-level instructions /
+    context / conversations and no sections array. Both become v2 with
+    each legacy section mapping to one `inline` stage group.
+    """
+    if "sections" in data:
+        legacy_sections = data["sections"]
+    else:
+        legacy_sections = [
+            {
+                "name": data.get("name", ""),
+                "instructions": data.get("instructions", ""),
+                "context": data.get("context", ""),
+                "conversations": data.get("conversations", []),
+            }
+        ]
+
+    stage_groups = []
+    for s in legacy_sections:
+        stage_groups.append(
+            {
+                "kind": "inline",
+                "name": s.get("name", ""),
+                "instructions": s.get("instructions", "") or "",
+                "context": s.get("context", "") or "",
+                "overrides": {},
+                "chats": [
+                    {
+                        "label": c["label"],
+                        "messages": [
+                            {"role": m["role"], "content": m["content"]}
+                            for m in c["messages"]
+                        ],
+                    }
+                    for c in s.get("conversations", [])
+                ],
+            }
+        )
+
+    base_prompt = data.get("baseSystemPrompt") or None
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "name": data["name"],
+        "description": data.get("description", ""),
+        "globalOverrides": {"basePrompt": base_prompt},
+        "stageGroups": stage_groups,
+    }
 
 
 def list_fixtures() -> list[FixtureSummary]:
-    """Scan FIXTURES_DIR for *.json files and return metadata for each.
-
-    Returns a list of {name, module, description} dicts sorted by name.
-    Returns an empty list if FIXTURES_DIR doesn't exist.
-    """
+    """Scan FIXTURES_DIR for *.json files and return summaries."""
     if not FIXTURES_DIR.exists():
         return []
 
@@ -93,8 +179,7 @@ def list_fixtures() -> list[FixtureSummary]:
             fixtures.append(
                 FixtureSummary(
                     name=data["name"],
-                    module=data["module"],
-                    description=data["description"],
+                    description=data.get("description", ""),
                     type=data.get("type", "chat"),
                 )
             )
@@ -106,18 +191,10 @@ def list_fixtures() -> list[FixtureSummary]:
 
 
 def load_fixture(name: str) -> dict | None:
-    """Load a specific fixture by name.
+    """Load a fixture by `name` field. Returns the v2 dict (chat fixtures
+    are migrated on read) or the assessment dict (untouched).
 
-    Supports three JSON formats:
-
-    **Assessment format**: has ``"type": "assessment"`` with sections
-    containing items (question/answer pairs) instead of conversations.
-
-    **Sectioned format** (chat): has a top-level "sections" array, each with
-    name, instructions, context, and conversations.
-
-    **Flat format** (legacy chat): has top-level instructions, context, and
-    conversations. Normalized into a single section using the fixture name.
+    Returns None if no matching file exists.
     """
     if not FIXTURES_DIR.exists():
         return None
@@ -125,109 +202,88 @@ def load_fixture(name: str) -> dict | None:
     for path in FIXTURES_DIR.glob("*.json"):
         try:
             data = json.loads(path.read_text())
-            if data.get("name") != name:
-                continue
-
-            fixture_type = data.get("type", "chat")
-
-            # Assessment fixtures
-            if fixture_type == "assessment":
-                sections = [
-                    AssessmentSection(
-                        name=s["name"],
-                        instructions=s["instructions"],
-                        items=[
-                            AssessmentItem(
-                                label=item["label"],
-                                question=item["question"],
-                                answer=item["answer"],
-                            )
-                            for item in s["items"]
-                        ],
-                    )
-                    for s in data["sections"]
-                ]
-                return {
-                    "name": data["name"],
-                    "module": data["module"],
-                    "type": "assessment",
-                    "description": data["description"],
-                    "baseSystemPrompt": data.get("baseSystemPrompt", ""),
-                    "sections": sections,
-                }
-
-            # Chat fixtures — sectioned format
-            if "sections" in data:
-                sections = [
-                    FixtureSection(
-                        name=s["name"],
-                        instructions=s["instructions"],
-                        context=s["context"],
-                        conversations=_parse_conversations(s["conversations"]),
-                    )
-                    for s in data["sections"]
-                ]
-            else:
-                # Flat format — wrap in a single section
-                sections = [
-                    FixtureSection(
-                        name=data["name"],
-                        instructions=data["instructions"],
-                        context=data["context"],
-                        conversations=_parse_conversations(data["conversations"]),
-                    )
-                ]
-
-            return Fixture(
-                name=data["name"],
-                module=data["module"],
-                description=data["description"],
-                baseSystemPrompt=data.get("baseSystemPrompt", ""),
-                sections=sections,
-            )
-        except (json.JSONDecodeError, KeyError) as e:
+        except json.JSONDecodeError as e:
             print(f"Warning: skipping malformed fixture {path.name}: {e}")
+            continue
+        if data.get("name") != name:
+            continue
+
+        if data.get("type") == "assessment":
+            return data
+
+        if data.get("schemaVersion") == SCHEMA_VERSION:
+            # Already v2. Defensive: ensure required fields exist.
+            data.setdefault("globalOverrides", {"basePrompt": None})
+            data.setdefault("stageGroups", [])
+            data.setdefault("description", "")
+            return data
+
+        return _migrate_legacy_chat(data)
 
     return None
 
 
-def fixture_section_to_scenario(
+def save_fixture(name: str, fixture: dict) -> dict:
+    """Atomically write `fixture` to FIXTURES_DIR/{name}.json.
+
+    `fixture` must already be in v2 shape with `name` matching the path.
+    Writes via tempfile + os.replace for atomicity (no half-written files
+    visible to readers).
+
+    Returns the saved fixture (with schemaVersion stamped).
+    """
+    path = _path_for(name)
+    if fixture.get("name") != name:
+        raise ValueError(
+            f"Fixture name {fixture.get('name')!r} doesn't match path name {name!r}"
+        )
+
+    out = dict(fixture)
+    out["schemaVersion"] = SCHEMA_VERSION
+    out.setdefault("description", "")
+    out.setdefault("globalOverrides", {"basePrompt": None})
+    out.setdefault("stageGroups", [])
+
+    FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=FIXTURES_DIR, prefix=f".{name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(out, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+        raise
+    return out
+
+
+def delete_fixture(name: str) -> bool:
+    """Delete a fixture by name. Returns True if removed, False if absent."""
+    path = _path_for(name)
+    try:
+        path.unlink()
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def stage_group_to_scenario(
     fixture: dict,
-    section_index: int,
+    stage_group_index: int,
     messages: list[dict],
 ) -> ScenarioTurn:
-    """Convert a fixture section + conversation to a ScenarioTurn.
+    """Convert a v2 stage group + conversation history to a ScenarioTurn.
 
-    Unifies fixture and live-module pipelines: the returned ScenarioTurn is
-    fed to `send_module_message` exactly like a live-built scenario, so
-    fixtures and the production tutor go through identical LLM-facing code.
-
-    **New-format fixtures** (sections carry `moduleSlug` + `sectionIndex` +
-    `segmentIndex`): delegates to `build_scenario_turn` so assembly is
-    byte-identical to the live tutor path.
-
-    **Legacy fixtures** (no module refs): synthesizes a ScenarioTurn from
-    stored strings. `section.instructions` → `ScenarioTurn.instructions` +
-    `<segment-instructions>` block. `section.context` → `<lens>…</lens>`
-    content block. The <lens>/<segment-instructions> wrapping matches the
-    live tutor's shape so the LLM sees the same structure either way.
-
-    `fixture.baseSystemPrompt` is NOT consumed here — it's a system-prompt
-    level concern, not a scenario concern. Caller (the /tutor-turn endpoint)
-    threads it through as `system_prompt_override` if desired.
-
-    Args:
-        fixture: Full fixture dict as returned by `load_fixture`.
-        section_index: Which section of the fixture to use.
-        messages: Conversation so far. If the last entry is a user message,
-            it is treated as the new turn's input (content-context is
-            prepended to it, matching `build_scenario_turn` semantics).
-
-    Returns:
-        A ScenarioTurn ready to feed into `send_module_message`.
+    Both `live_module` and `inline` kinds are routed through this path
+    (live_module delegates to build_scenario_turn for byte-identical parity
+    with the production tutor; inline synthesizes a ScenarioTurn from the
+    stored instructions/context strings).
     """
-    section = fixture["sections"][section_index]
-    section_name = section.get("name")
+    sg = fixture["stageGroups"][stage_group_index]
+    kind = sg["kind"]
 
     user_message = ""
     existing = list(messages)
@@ -235,22 +291,23 @@ def fixture_section_to_scenario(
         user_message = existing[-1].get("content", "")
         existing = existing[:-1]
 
-    module_slug = section.get("moduleSlug")
-    if module_slug is not None:
+    if kind == "live_module":
         from core.modules.loader import load_flattened_module
 
-        module = load_flattened_module(module_slug)
+        module = load_flattened_module(sg["moduleSlug"])
         return build_scenario_turn(
             module=module,
-            section_index=section.get("sectionIndex", 0),
-            segment_index=section.get("segmentIndex", 0),
+            section_index=sg.get("sectionIndex", 0),
+            segment_index=sg.get("segmentIndex", 0),
             existing_messages=existing,
             user_message=user_message,
-            course_slug=section.get("courseSlug"),
+            course_slug=sg.get("courseSlug"),
         )
 
-    instructions = section.get("instructions", "") or ""
-    context = section.get("context", "") or ""
+    # inline
+    section_name = sg.get("name") or None
+    instructions = sg.get("instructions", "") or ""
+    context = sg.get("context", "") or ""
 
     parts: list[str] = []
     if context:
@@ -283,8 +340,14 @@ def fixture_section_to_scenario(
         course_overview=None,
         instructions=instructions,
         section_title=section_name,
-        # Mirrors build_scenario_turn for the needs_full_content case: the
-        # content-context block is included here even when no new user
-        # message is being sent, so the Inspector can display it.
         system_messages_to_persist=[content_context_msg] if content_context_msg else [],
     )
+
+
+# Back-compat shim: existing callers (the /tutor-turn + /inspect endpoints
+# pre-rename) call `fixture_section_to_scenario(fixture, idx, messages)`.
+# Forward to the new name. New code should call `stage_group_to_scenario`.
+def fixture_section_to_scenario(
+    fixture: dict, section_index: int, messages: list[dict]
+) -> ScenarioTurn:
+    return stage_group_to_scenario(fixture, section_index, messages)
