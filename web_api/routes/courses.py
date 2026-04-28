@@ -26,6 +26,31 @@ from core import get_or_create_user
 router = APIRouter(prefix="/api/courses", tags=["courses"])
 
 
+@router.get("")
+async def list_courses():
+    """List all courses with their module progressions.
+
+    Returns slug, title, and the ordered module slugs in each course's
+    progression — enough for the Prompt Lab live-module picker to build
+    cascading dropdowns (course → module → section → segment).
+    """
+    from core.content.cache import get_cache
+
+    cache = get_cache()
+    out = []
+    for slug, course in cache.courses.items():
+        modules = []
+        for item in course.progression:
+            if not isinstance(item, ModuleRef):
+                continue
+            mod = cache.flattened_modules.get(item.slug)
+            modules.append(
+                {"slug": item.slug, "title": mod.title if mod else item.slug}
+            )
+        out.append({"slug": slug, "title": course.title, "modules": modules})
+    return {"courses": out}
+
+
 def get_module_status_from_lenses(
     parsed_module: FlattenedModule, progress_map: dict[UUID, dict]
 ) -> tuple[str, int, int]:

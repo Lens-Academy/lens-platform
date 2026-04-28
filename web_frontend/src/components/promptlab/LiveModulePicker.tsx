@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { API_URL } from "@/config";
 import { fetchWithRefresh } from "@/api/fetchWithRefresh";
 
@@ -12,7 +12,7 @@ export interface LiveModuleSource {
 interface Props {
   onAdd: (source: LiveModuleSource) => void;
   onCancel: () => void;
-  /** Seed value for the course-slug input (shared default across runs). */
+  /** Seed value for the course dropdown (shared default across runs). */
   defaultCourseSlug?: string;
 }
 
@@ -21,45 +21,124 @@ interface ModuleSummary {
   title: string;
 }
 
+interface CourseSummary {
+  slug: string;
+  title: string;
+  modules: ModuleSummary[];
+}
+
+interface SectionDetail {
+  type: string;
+  meta?: { title?: string | null };
+  segments: { type: string; title?: string | null }[];
+}
+
+interface ModuleDetail {
+  slug: string;
+  title: string;
+  sections: SectionDetail[];
+}
+
 /**
- * Inline form to pick a live module + position for a new stage group.
+ * Cascading-dropdown picker: course → module → section → segment.
  *
- * Renders as a popover-style card. Kept minimal — autocomplete from the
- * content cache would be nice but can come later; for now the facilitator
- * types slugs by hand (same as the old Live Tutor tab).
+ * Course is optional (defaults to "any") — without a course, the module
+ * dropdown lists every available module. Selecting a course narrows it
+ * to that course's progression. Section/segment dropdowns load lazily
+ * after a module is picked. Sections show their meta.title and segments
+ * show type + title so the facilitator can target a specific lens point
+ * without translating slugs to indices by hand.
  */
 export default function LiveModulePicker({
   onAdd,
   onCancel,
   defaultCourseSlug,
 }: Props) {
+  const [courses, setCourses] = useState<CourseSummary[]>([]);
+  const [allModules, setAllModules] = useState<ModuleSummary[]>([]);
+  const [courseSlug, setCourseSlug] = useState(defaultCourseSlug ?? "");
   const [moduleSlug, setModuleSlug] = useState("");
+  const [moduleDetail, setModuleDetail] = useState<ModuleDetail | null>(null);
+  const [moduleLoading, setModuleLoading] = useState(false);
   const [sectionIndex, setSectionIndex] = useState(0);
   const [segmentIndex, setSegmentIndex] = useState(0);
-  const [courseSlug, setCourseSlug] = useState(defaultCourseSlug ?? "");
-  const [modules, setModules] = useState<ModuleSummary[]>([]);
 
   useEffect(() => {
+    fetchWithRefresh(`${API_URL}/api/courses`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.courses) setCourses(data.courses);
+      })
+      .catch(() => {});
     fetchWithRefresh(`${API_URL}/api/modules?type=module`, {
       credentials: "include",
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data?.modules) {
-          setModules(
-            data.modules.map((m: ModuleSummary) => ({
-              slug: m.slug,
-              title: m.title,
-            })),
-          );
-        }
+        if (data?.modules) setAllModules(data.modules);
       })
-      .catch(() => {
-        // Autocomplete is a nice-to-have; silent fail is OK.
-      });
+      .catch(() => {});
   }, []);
 
-  const valid = moduleSlug.trim() !== "";
+  // Modules narrowed to the selected course, or all modules if no course.
+  const moduleOptions: ModuleSummary[] = useMemo(() => {
+    if (!courseSlug) return allModules;
+    const c = courses.find((c) => c.slug === courseSlug);
+    return c?.modules ?? allModules;
+  }, [courseSlug, courses, allModules]);
+
+  // Auto-pick the first module when the module list changes and the current
+  // pick isn't in it. Avoids showing a stale slug when switching courses.
+  useEffect(() => {
+    if (
+      moduleOptions.length > 0 &&
+      !moduleOptions.some((m) => m.slug === moduleSlug)
+    ) {
+      setModuleSlug(moduleOptions[0].slug);
+    }
+  }, [moduleOptions, moduleSlug]);
+
+  // Load section/segment shape for the selected module.
+  useEffect(() => {
+    if (!moduleSlug) {
+      setModuleDetail(null);
+      return;
+    }
+    setModuleLoading(true);
+    let cancelled = false;
+    fetchWithRefresh(
+      `${API_URL}/api/modules/${encodeURIComponent(moduleSlug)}`,
+      { credentials: "include" },
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setModuleDetail(data);
+        setSectionIndex(0);
+        setSegmentIndex(0);
+      })
+      .catch(() => {
+        if (!cancelled) setModuleDetail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setModuleLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [moduleSlug]);
+
+  const sections = moduleDetail?.sections ?? [];
+  const segments = sections[sectionIndex]?.segments ?? [];
+
+  // Clamp segmentIndex if section change shrinks the segment list.
+  useEffect(() => {
+    if (segmentIndex >= segments.length && segments.length > 0) {
+      setSegmentIndex(0);
+    }
+  }, [segmentIndex, segments.length]);
+
+  const valid = moduleSlug.trim() !== "" && sections.length > 0;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,80 +154,73 @@ export default function LiveModulePicker({
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white border border-slate-300 rounded-lg shadow-lg p-4 w-[400px] space-y-3"
+      className="bg-white border border-slate-300 rounded-lg shadow-lg p-4 w-[440px] space-y-3"
     >
       <div className="text-sm font-semibold text-slate-700">
         Add live-module stage group
       </div>
-      <div className="text-[11px] text-slate-500 -mt-1">
-        Loads a live module, section, and segment. Synthesizes a ScenarioTurn
-        via the same `build_scenario_turn` path the production tutor uses.
-      </div>
 
-      <label className="block">
-        <span className="text-[11px] font-medium text-slate-600">
-          Module slug{" "}
-          {modules.length > 0 && (
-            <span className="text-slate-400">({modules.length} available)</span>
-          )}
-        </span>
-        <input
-          type="text"
-          list="live-module-slugs"
-          value={moduleSlug}
-          onChange={(e) => setModuleSlug(e.target.value)}
-          placeholder="e.g. module-fundamental-difficulties"
-          className="w-full mt-0.5 border border-slate-200 rounded px-2 py-1 text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500"
-          autoFocus
-        />
-        <datalist id="live-module-slugs">
-          {modules.map((m) => (
-            <option key={m.slug} value={m.slug}>
-              {m.title}
-            </option>
-          ))}
-        </datalist>
-      </label>
-
-      <div className="flex gap-2">
-        <label className="flex-1 block">
-          <span className="text-[11px] font-medium text-slate-600">
-            Section index
-          </span>
-          <input
-            type="number"
-            min={0}
-            value={sectionIndex}
-            onChange={(e) => setSectionIndex(Number(e.target.value))}
-            className="w-full mt-0.5 border border-slate-200 rounded px-2 py-1 text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </label>
-        <label className="flex-1 block">
-          <span className="text-[11px] font-medium text-slate-600">
-            Segment index
-          </span>
-          <input
-            type="number"
-            min={0}
-            value={segmentIndex}
-            onChange={(e) => setSegmentIndex(Number(e.target.value))}
-            className="w-full mt-0.5 border border-slate-200 rounded px-2 py-1 text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </label>
-      </div>
-
-      <label className="block">
-        <span className="text-[11px] font-medium text-slate-600">
-          Course slug <span className="text-slate-400">(optional)</span>
-        </span>
-        <input
-          type="text"
+      <Field label="Course">
+        <select
           value={courseSlug}
           onChange={(e) => setCourseSlug(e.target.value)}
-          placeholder="e.g. superintelligence-101"
-          className="w-full mt-0.5 border border-slate-200 rounded px-2 py-1 text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-      </label>
+          className="w-full border border-slate-200 rounded px-2 py-1 text-[12px]"
+        >
+          <option value="">(any — all modules)</option>
+          {courses.map((c) => (
+            <option key={c.slug} value={c.slug}>
+              {c.title} ({c.slug})
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label="Module">
+        <select
+          value={moduleSlug}
+          onChange={(e) => setModuleSlug(e.target.value)}
+          className="w-full border border-slate-200 rounded px-2 py-1 text-[12px]"
+          disabled={moduleOptions.length === 0}
+        >
+          {moduleOptions.length === 0 && <option>(loading…)</option>}
+          {moduleOptions.map((m) => (
+            <option key={m.slug} value={m.slug}>
+              {m.title || m.slug}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label={`Section${moduleLoading ? " (loading…)" : ""}`}>
+        <select
+          value={sectionIndex}
+          onChange={(e) => setSectionIndex(Number(e.target.value))}
+          className="w-full border border-slate-200 rounded px-2 py-1 text-[12px]"
+          disabled={sections.length === 0}
+        >
+          {sections.map((s, i) => (
+            <option key={i} value={i}>
+              {i}: {s.meta?.title || `(${s.type})`}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label="Segment">
+        <select
+          value={segmentIndex}
+          onChange={(e) => setSegmentIndex(Number(e.target.value))}
+          className="w-full border border-slate-200 rounded px-2 py-1 text-[12px]"
+          disabled={segments.length === 0}
+        >
+          {segments.map((g, i) => (
+            <option key={i} value={i}>
+              {i}: {g.type}
+              {g.title ? ` — ${g.title}` : ""}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       <div className="flex gap-2 justify-end pt-1">
         <button
@@ -167,5 +239,20 @@ export default function LiveModulePicker({
         </button>
       </div>
     </form>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[11px] font-medium text-slate-600">{label}</span>
+      <div className="mt-0.5">{children}</div>
+    </label>
   );
 }
