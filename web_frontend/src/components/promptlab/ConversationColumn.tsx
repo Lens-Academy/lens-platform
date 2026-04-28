@@ -27,16 +27,35 @@ interface ConversationColumnProps {
    * from its source + override state. */
   requestBase: RequestBase;
   clearable?: boolean;
+  /** Fires whenever the displayed messages change (after stream completion,
+   * regeneration, or clear). PromptLab uses this to lift messages into the
+   * v2 fixture state for auto-save. Stripped to {role, content} — UI-only
+   * fields like isRegenerated are not persisted. */
+  onMessagesChange?: (messages: { role: string; content: string }[]) => void;
 }
 
 const ConversationColumn = forwardRef<
   ConversationColumnHandle,
   ConversationColumnProps
 >(function ConversationColumn(
-  { initialMessages, label, requestBase, clearable },
+  { initialMessages, label, requestBase, clearable, onMessagesChange },
   ref,
 ) {
   const slot = useConversationSlot(initialMessages);
+
+  // Lift messages up so PromptLab can persist them to the fixture file.
+  // Skip the mount-time call — initialMessages came FROM the parent, so
+  // re-emitting them would loop. Watch length+last-content to stay cheap.
+  const messagesRef = useRef(slot.messages);
+  useEffect(() => {
+    if (messagesRef.current === slot.messages) return;
+    messagesRef.current = slot.messages;
+    if (onMessagesChange) {
+      onMessagesChange(
+        slot.messages.map((m) => ({ role: m.role, content: m.content })),
+      );
+    }
+  }, [slot.messages, onMessagesChange]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [followUpInput, setFollowUpInput] = useState("");

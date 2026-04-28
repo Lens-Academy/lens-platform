@@ -9,7 +9,6 @@ import { fetchWithRefresh } from "./fetchWithRefresh";
 
 export interface FixtureSummary {
   name: string;
-  module: string;
   description: string;
   type?: string; // "chat" or "assessment"
 }
@@ -19,24 +18,63 @@ export interface FixtureMessage {
   content: string;
 }
 
-export interface FixtureConversation {
+export interface FixtureChat {
   label: string;
   messages: FixtureMessage[];
 }
 
-export interface FixtureSection {
-  name: string;
-  instructions: string;
-  context: string;
-  conversations: FixtureConversation[];
+/**
+ * Per-stage-group overrides — same shape as the Inspector's StageGroupOverrides,
+ * persisted to disk. Anything null means "inherit upstream" (group → global →
+ * production default).
+ */
+export interface StageGroupOverridesV2 {
+  systemPrompt?: string | null;
+  basePrompt?: string | null;
+  instructions?: string | null;
+  contentContext?: string | null;
+  courseOverview?: string | null;
+  model?: string | null;
+  thinking?: boolean;
+  effort?: string;
 }
 
+export type StageGroupV2 =
+  | {
+      kind: "live_module";
+      moduleSlug: string;
+      sectionIndex: number;
+      segmentIndex: number;
+      courseSlug?: string | null;
+      overrides: StageGroupOverridesV2;
+      chats: FixtureChat[];
+    }
+  | {
+      kind: "inline";
+      name?: string | null;
+      instructions: string;
+      context: string;
+      overrides: StageGroupOverridesV2;
+      chats: FixtureChat[];
+    };
+
 export interface Fixture {
+  schemaVersion: 2;
   name: string;
-  module: string;
   description: string;
-  baseSystemPrompt?: string;
-  sections: FixtureSection[];
+  globalOverrides: { basePrompt: string | null };
+  stageGroups: StageGroupV2[];
+}
+
+/** Build an empty v2 fixture with just an id/name. */
+export function emptyFixture(name: string): Fixture {
+  return {
+    schemaVersion: 2,
+    name,
+    description: "",
+    globalOverrides: { basePrompt: null },
+    stageGroups: [],
+  };
 }
 
 // --- Assessment types ---
@@ -132,14 +170,50 @@ export async function listFixtures(): Promise<FixtureSummary[]> {
 }
 
 /**
- * Load a single fixture by name.
+ * Load a single fixture by name. Returns either a v2 chat fixture or an
+ * assessment fixture (untouched legacy shape) — caller distinguishes via
+ * `isAssessmentFixture`.
  */
-export async function loadFixture(name: string): Promise<Fixture> {
+export async function loadFixture(
+  name: string,
+): Promise<Fixture | AssessmentFixture> {
   const res = await fetchWithRefresh(
     `${API_BASE}/api/promptlab/fixtures/${encodeURIComponent(name)}`,
     { credentials: "include" },
   );
   if (!res.ok) throw new Error("Failed to load fixture");
+  return res.json();
+}
+
+/**
+ * Atomic PUT of a v2 fixture file. The backend rewrites the file via temp +
+ * rename, so readers never see a half-written state. Throws on validation
+ * errors (bad name, name/path mismatch, etc).
+ */
+export async function saveFixture(
+  name: string,
+  fixture: Fixture,
+): Promise<Fixture> {
+  const res = await fetchWithRefresh(
+    `${API_BASE}/api/promptlab/fixtures/${encodeURIComponent(name)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(fixture),
+    },
+  );
+  if (!res.ok) {
+    let detail: string;
+    try {
+      const body = await res.json();
+      detail =
+        typeof body.detail === "string" ? body.detail : JSON.stringify(body);
+    } catch {
+      detail = `${res.status} ${res.statusText}`;
+    }
+    throw new Error(`Failed to save fixture: ${detail}`);
+  }
   return res.json();
 }
 

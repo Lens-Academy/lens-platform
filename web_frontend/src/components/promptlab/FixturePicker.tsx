@@ -81,7 +81,11 @@ export default function FixturePicker({
                 </span>
               )}
             </div>
-            <div className="text-[10px] text-slate-400">{f.module}</div>
+            {f.description && (
+              <div className="text-[10px] text-slate-400 truncate">
+                {f.description}
+              </div>
+            )}
           </button>
         ))
       )}

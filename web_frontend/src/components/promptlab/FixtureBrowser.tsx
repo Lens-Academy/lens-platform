@@ -11,6 +11,9 @@ interface FixtureBrowserProps {
   onSelectFixture: (fixture: Fixture | AssessmentFixture) => void;
 }
 
+// FixtureBrowser displays available fixtures with optional type filter.
+// The legacy `module` field was dropped in v2; filtering is now type-only.
+
 /**
  * FixtureBrowser -- lists available conversation fixtures with module and type filtering.
  *
@@ -23,7 +26,6 @@ export default function FixtureBrowser({
   const [fixtures, setFixtures] = useState<FixtureSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedModule, setSelectedModule] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [loadingFixture, setLoadingFixture] = useState<string | null>(null);
 
@@ -57,26 +59,15 @@ export default function FixtureBrowser({
     };
   }, []);
 
-  const modules = useMemo(() => {
-    const unique = new Set(fixtures.map((f) => f.module));
-    return Array.from(unique).sort();
-  }, [fixtures]);
-
   const types = useMemo(() => {
     const unique = new Set(fixtures.map((f) => f.type || "chat"));
     return Array.from(unique).sort();
   }, [fixtures]);
 
   const filteredFixtures = useMemo(() => {
-    let result = fixtures;
-    if (selectedModule !== "all") {
-      result = result.filter((f) => f.module === selectedModule);
-    }
-    if (selectedType !== "all") {
-      result = result.filter((f) => (f.type || "chat") === selectedType);
-    }
-    return result;
-  }, [fixtures, selectedModule, selectedType]);
+    if (selectedType === "all") return fixtures;
+    return fixtures.filter((f) => (f.type || "chat") === selectedType);
+  }, [fixtures, selectedType]);
 
   async function handleSelect(fixture: FixtureSummary) {
     setLoadingFixture(fixture.name);
@@ -156,20 +147,6 @@ export default function FixtureBrowser({
     <div>
       {/* Filters */}
       <div className="flex gap-2 mb-3">
-        {modules.length > 1 && (
-          <select
-            value={selectedModule}
-            onChange={(e) => setSelectedModule(e.target.value)}
-            className="text-sm border border-stone-300 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/50"
-          >
-            <option value="all">All modules</option>
-            {modules.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        )}
         {types.length > 1 && (
           <select
             value={selectedType}
@@ -214,9 +191,6 @@ export default function FixtureBrowser({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {fixture.module}
-                  </p>
                   {fixture.description && (
                     <p className="text-sm text-slate-500 mt-1 line-clamp-2">
                       {fixture.description}
