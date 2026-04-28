@@ -30,79 +30,57 @@ export interface ModuleProgressResponse {
 
 const API_BASE = API_URL;
 
-// Default timeout for API requests (in milliseconds)
-const DEFAULT_TIMEOUT_MS = 10000;
+// If a request is still pending after this long, warn the user (but keep waiting).
+const DEFAULT_SLOW_WARNING_MS = 10000;
 
 /**
- * Custom error class for request timeouts.
- * Distinguishes timeouts from other network errors.
- */
-export class RequestTimeoutError extends Error {
-  public readonly url: string;
-  public readonly timeoutMs: number;
-
-  constructor(url: string, timeoutMs: number) {
-    super(`Request timed out after ${timeoutMs / 1000}s`);
-    this.name = "RequestTimeoutError";
-    this.url = url;
-    this.timeoutMs = timeoutMs;
-  }
-}
-
-/**
- * Fetch with timeout and error tracking.
- * - Aborts request after timeout
- * - Logs timeout to console
- * - Captures timeout in Sentry with context
+ * Fetch with slow-request warning.
+ * Does NOT abort: slow networks should still load eventually. Instead, after
+ * `slowWarningMs`, reports to Sentry and dispatches `api:slow-request` /
+ * `api:request-settled` window events for UI to surface a banner.
  */
 async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
-  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  slowWarningMs: number = DEFAULT_SLOW_WARNING_MS,
 ): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
   const startTime = Date.now();
+  let warned = false;
+
+  const warningId = setTimeout(() => {
+    warned = true;
+    console.warn(`[API] Slow request after ${slowWarningMs}ms:`, url);
+
+    const slowError = new Error(
+      `Request still pending after ${slowWarningMs / 1000}s`,
+    );
+    slowError.name = "SlowRequestWarning";
+    Sentry.captureException(slowError, {
+      tags: {
+        error_type: "slow_request",
+        endpoint: new URL(url, window.location.origin).pathname,
+      },
+      extra: { url, slowWarningMs },
+    });
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("api:slow-request", { detail: { url } }),
+      );
+    }
+  }, slowWarningMs);
 
   try {
-    const response = await fetchWithRefresh(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    const elapsed = Date.now() - startTime;
-
-    if (error instanceof Error && error.name === "AbortError") {
-      // Request was aborted due to timeout
-      const timeoutError = new RequestTimeoutError(url, timeoutMs);
-
-      console.error(`[API] Request timeout after ${elapsed}ms:`, url, {
-        timeoutMs,
-        elapsed,
-      });
-
-      // Capture in Sentry with context
-      Sentry.captureException(timeoutError, {
-        tags: {
-          error_type: "request_timeout",
-          endpoint: new URL(url, window.location.origin).pathname,
-        },
-        extra: {
-          url,
-          timeoutMs,
-          elapsed,
-        },
-      });
-
-      throw timeoutError;
+    return await fetchWithRefresh(url, options);
+  } finally {
+    clearTimeout(warningId);
+    if (warned && typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("api:request-settled", {
+          detail: { url, elapsed: Date.now() - startTime },
+        }),
+      );
     }
-
-    // Re-throw other errors (network failures, etc.)
-    throw error;
   }
 }
 
@@ -156,19 +134,20 @@ export async function* sendMessage(
   if (!reader) throw new Error("No response body");
 
   const decoder = new TextDecoder();
+  let buffer = "";
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
 
-    const chunk = decoder.decode(value);
-    const lines = chunk.split("\n");
-
-    for (const line of lines) {
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, nl);
+      buffer = buffer.slice(nl + 1);
       if (!line.startsWith("data: ")) continue;
       try {
-        const data = JSON.parse(line.slice(6));
-        yield data;
+        yield JSON.parse(line.slice(6));
       } catch {
         // Skip invalid JSON
       }

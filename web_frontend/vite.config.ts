@@ -1,6 +1,7 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type Connect } from "vite";
 import vike from "vike/plugin";
 import react from "@vitejs/plugin-react";
+import compression from "compression";
 import path from "path";
 
 // Extract workspace number from directory name (e.g., "platform-ws2" → 2)
@@ -29,6 +30,17 @@ export default defineConfig(({ mode }) => {
         : {}),
     },
     plugins: [
+      // Vite dev server doesn't compress responses; over high-RTT links
+      // (e.g. Tailscale to a remote dev box) the uncompressed JS modules
+      // dominate load time. Gzip cuts ~23MB of dev bundle to ~5MB.
+      {
+        name: "dev-gzip",
+        apply: "serve",
+        configureServer(server) {
+          // compression's types are express-shaped; connect accepts it at runtime.
+          server.middlewares.use(compression() as Connect.NextHandleFunction);
+        },
+      },
       react(),
       vike({
         prerender: {
@@ -44,7 +56,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       strictPort: true,
-      allowedHosts: ["dev.vps"],
+      allowedHosts: ["dev.vps", "g"],
       port: parseInt(
         process.env.FRONTEND_PORT || String(defaultFrontendPort),
         10,

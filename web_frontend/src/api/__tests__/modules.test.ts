@@ -9,7 +9,6 @@ import {
   transcribeAudio,
   getModuleProgress,
   getCourseProgress,
-  RequestTimeoutError,
 } from "../modules";
 
 const fm = createFetchMock();
@@ -17,6 +16,7 @@ const fm = createFetchMock();
 beforeEach(() => {
   fm.install();
   vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 afterEach(() => {
   fm.restore();
@@ -209,18 +209,7 @@ describe("getCourseProgress", () => {
 });
 
 describe("fetchWithTimeout (via getModule)", () => {
-  it("RequestTimeoutError has correct properties", () => {
-    const err = new RequestTimeoutError("/api/modules/test", 10000);
-
-    expect(err).toBeInstanceOf(Error);
-    expect(err).toBeInstanceOf(RequestTimeoutError);
-    expect(err.name).toBe("RequestTimeoutError");
-    expect(err.url).toBe("/api/modules/test");
-    expect(err.timeoutMs).toBe(10000);
-    expect(err.message).toBe("Request timed out after 10s");
-  });
-
-  it("aborts fetch after timeout elapses", async () => {
+  it("does NOT abort slow requests, dispatches api:slow-request after threshold", async () => {
     vi.useFakeTimers();
 
     let capturedSignal: AbortSignal | undefined;
@@ -231,71 +220,73 @@ describe("fetchWithTimeout (via getModule)", () => {
       },
     );
 
+    const slowEvents: string[] = [];
+    const onSlow = (e: Event) =>
+      slowEvents.push((e as CustomEvent<{ url: string }>).detail.url);
+    window.addEventListener("api:slow-request", onSlow);
+
     const promise = getModule("test-slug");
 
-    expect(capturedSignal).toBeDefined();
-    expect(capturedSignal!.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(10_001);
 
-    vi.advanceTimersByTime(10_001);
+    expect(capturedSignal?.aborted ?? false).toBe(false);
+    expect(slowEvents).toHaveLength(1);
+    expect(slowEvents[0]).toContain("/api/modules/test-slug");
 
-    expect(capturedSignal!.aborted).toBe(true);
-
+    window.removeEventListener("api:slow-request", onSlow);
     vi.useRealTimers();
     promise.catch(() => {});
   });
 
-  it("converts AbortError to RequestTimeoutError on timeout", async () => {
+  it("dispatches api:request-settled after a slow request finally resolves", async () => {
     vi.useFakeTimers();
 
+    let resolveFetch: ((r: Response) => void) | undefined;
     fm.mock.mockImplementation(
-      (_url: string | URL | Request, init?: RequestInit) =>
-        new Promise<Response>((_, reject) => {
-          init?.signal?.addEventListener("abort", () => {
-            const err = new Error("The operation was aborted.");
-            err.name = "AbortError";
-            reject(err);
-          });
+      () =>
+        new Promise<Response>((res) => {
+          resolveFetch = res;
         }),
     );
 
-    const result = getModule("test-slug").then(
-      () => {
-        throw new Error("should have rejected");
-      },
-      (err: unknown) => err,
-    );
+    const settled: string[] = [];
+    const onSettled = (e: Event) =>
+      settled.push((e as CustomEvent<{ url: string }>).detail.url);
+    window.addEventListener("api:request-settled", onSettled);
+
+    const promise = getModule("slow-slug");
 
     await vi.advanceTimersByTimeAsync(10_001);
+    resolveFetch!(jsonResponse({ slug: "slow-slug" }));
+    await promise;
 
-    const err = await result;
-    expect(err).toBeInstanceOf(RequestTimeoutError);
+    expect(settled).toHaveLength(1);
+    expect(settled[0]).toContain("/api/modules/slow-slug");
 
+    window.removeEventListener("api:request-settled", onSettled);
     vi.useRealTimers();
   });
 });
 
-describe("transcribeAudio timeout", () => {
-  it("uses 30s timeout, not the default 10s", async () => {
+describe("transcribeAudio slow warning", () => {
+  it("uses 30s warning threshold, not the default 10s", async () => {
     vi.useFakeTimers();
+    fm.mock.mockImplementation(() => new Promise<Response>(() => {}));
 
-    let capturedSignal: AbortSignal | undefined;
-    fm.mock.mockImplementation(
-      (_url: string | URL | Request, init?: RequestInit) => {
-        capturedSignal = init?.signal ?? undefined;
-        return new Promise<Response>(() => {});
-      },
-    );
+    const slow: string[] = [];
+    const onSlow = (e: Event) =>
+      slow.push((e as CustomEvent<{ url: string }>).detail.url);
+    window.addEventListener("api:slow-request", onSlow);
 
     const promise = transcribeAudio(new Blob(["audio"]));
 
-    // At 10s (default timeout) — should NOT be aborted
-    vi.advanceTimersByTime(10_001);
-    expect(capturedSignal!.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(10_001);
+    expect(slow).toHaveLength(0);
 
-    // At 30s — should be aborted
-    vi.advanceTimersByTime(20_000);
-    expect(capturedSignal!.aborted).toBe(true);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(slow).toHaveLength(1);
 
+    window.removeEventListener("api:slow-request", onSlow);
     vi.useRealTimers();
     promise.catch(() => {});
   });
