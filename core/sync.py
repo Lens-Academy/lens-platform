@@ -1236,6 +1236,7 @@ async def sync_group_calendar(group_id: int) -> dict:
                 groups.c.group_name,
                 groups.c.gcal_recurring_event_id,
                 groups.c.cohort_id,
+                groups.c.recurring_meeting_time_utc,
             )
             .where(groups.c.group_id == group_id)
             .with_for_update()
@@ -1299,14 +1300,19 @@ async def sync_group_calendar(group_id: int) -> dict:
 
         # --- CREATE recurring event if none exists ---
         if not group["gcal_recurring_event_id"]:
+            from .scheduling import parse_meeting_duration_minutes
+
             first_meeting = meeting_rows[0]["scheduled_at"]
             num_meetings = len(meeting_rows)
+            duration_minutes = parse_meeting_duration_minutes(
+                group["recurring_meeting_time_utc"]
+            )
 
             event_id = await create_recurring_event(
                 title=f"{group['group_name']} - Weekly Meeting",
                 description="AI Safety study group meeting",
                 first_meeting=first_meeting,
-                duration_minutes=60,
+                duration_minutes=duration_minutes,
                 num_occurrences=num_meetings,
                 attendee_emails=list(expected_emails),
             )

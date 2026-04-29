@@ -23,6 +23,7 @@ class TestSyncGroupCalendarRecurring:
             "group_name": "Test Group",
             "gcal_recurring_event_id": None,
             "cohort_id": 1,
+            "recurring_meeting_time_utc": "Monday 09:00 - 10:00",
         }
 
         meetings_data = [
@@ -69,6 +70,60 @@ class TestSyncGroupCalendarRecurring:
         assert result["created_recurring"] is True
         assert result["recurring_event_id"] == "recurring123"
         mock_create.assert_called_once()
+        assert mock_create.call_args.kwargs["duration_minutes"] == 60
+
+    @pytest.mark.asyncio
+    async def test_passes_actual_meeting_duration_to_calendar(self):
+        """Recurring event uses duration parsed from recurring_meeting_time_utc,
+        not a hardcoded 60min (regression test for 90/120min meetings showing as 60)."""
+        from core.sync import sync_group_calendar
+
+        group_result = MagicMock()
+        group_result.mappings.return_value.first.return_value = {
+            "group_id": 1,
+            "group_name": "Long Group",
+            "gcal_recurring_event_id": None,
+            "cohort_id": 1,
+            "recurring_meeting_time_utc": "Wednesday 14:00 - 15:30",
+        }
+
+        meetings_data = [
+            {
+                "meeting_id": 1,
+                "scheduled_at": datetime(2026, 2, 4, 14, 0, tzinfo=timezone.utc),
+                "meeting_number": 1,
+            }
+        ]
+        meetings_result = MagicMock()
+        meetings_result.mappings.return_value = meetings_data
+        emails_result = MagicMock()
+        emails_result.mappings.return_value = [{"email": "user@example.com"}]
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return group_result
+            elif call_count[0] == 2:
+                return emails_result
+            elif call_count[0] == 3:
+                return meetings_result
+            return MagicMock()
+
+        conn = AsyncMock()
+        conn.execute = mock_execute
+
+        with patch("core.database.get_transaction") as mock_tx:
+            mock_tx.return_value.__aenter__.return_value = conn
+            with patch(
+                "core.calendar.events.create_recurring_event",
+                return_value="recurring456",
+            ) as mock_create:
+                await sync_group_calendar(1)
+
+        mock_create.assert_called_once()
+        assert mock_create.call_args.kwargs["duration_minutes"] == 90
 
     @pytest.mark.asyncio
     async def test_patches_attendees_on_existing_recurring_event(self):
