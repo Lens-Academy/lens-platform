@@ -278,10 +278,9 @@ async def schedule_cohort(
                 .values(max_group_size=max_people)
             )
 
-        # Load users awaiting grouping for this cohort
-        # (row exists in signups = awaiting grouping, excludes users already in groups)
-
-        # Subquery: users already in groups for this cohort
+        # Subquery: users with any groups_users row for this cohort. Used to
+        # exclude already-placed users from re-grouping. Mirror in
+        # core/queries/cohorts.py::get_schedulable_cohorts.
         already_grouped = (
             select(groups_users.c.user_id)
             .join(groups, groups_users.c.group_id == groups.c.group_id)
