@@ -862,8 +862,10 @@ async def _send_sync_notifications(
         )
         return result
 
-    # Fetch first available Zoom join URL for this group
+    # Fetch first available Zoom URL and the next upcoming meeting datetime.
+    # The datetime feeds DST-correct timezone formatting in notifications.
     zoom_join_url = ""
+    next_meeting_at: datetime | None = None
     try:
         async with get_connection() as conn:
             first_zoom = await conn.execute(
@@ -875,11 +877,24 @@ async def _send_sync_notifications(
             )
             first_zoom_row = first_zoom.first()
             zoom_join_url = first_zoom_row[0] if first_zoom_row else ""
+
+            now = datetime.now(timezone.utc)
+            next_mtg = await conn.execute(
+                select(meetings.c.scheduled_at)
+                .where(meetings.c.group_id == group_id)
+                .where(meetings.c.scheduled_at > now)
+                .order_by(meetings.c.scheduled_at)
+                .limit(1)
+            )
+            next_mtg_row = next_mtg.first()
+            next_meeting_at = next_mtg_row[0] if next_mtg_row else None
     except Exception:
-        logger.debug("Could not fetch Zoom URL for group %s", group_id, exc_info=True)
+        logger.debug(
+            "Could not fetch meeting metadata for group %s", group_id, exc_info=True
+        )
 
     group_name = notification_context.get("group_name", "Unknown Group")
-    meeting_time_utc = notification_context.get("meeting_time_utc", "TBD")
+    recurring_meeting_time_utc = notification_context.get("meeting_time_utc", "TBD")
     discord_channel_id = notification_context.get("discord_channel_id", "")
     member_names = notification_context.get("member_names", [])
     members_by_discord_id = {
@@ -917,23 +932,25 @@ async def _send_sync_notifications(
                 await notify_group_assigned(
                     user_id=user_id,
                     group_name=group_name,
-                    meeting_time_utc=meeting_time_utc,
+                    recurring_meeting_time_utc=recurring_meeting_time_utc,
                     member_names=member_names,
                     discord_channel_id=discord_channel_id,
                     zoom_join_url=zoom_join_url,
                     reference_type=NotificationReferenceType.group_id,
                     reference_id=group_id,
+                    next_meeting_at=next_meeting_at,
                 )
             else:
                 # Short "you joined" message for late join (DM to user)
                 await notify_member_joined(
                     user_id=user_id,
                     group_name=group_name,
-                    meeting_time_utc=meeting_time_utc,
+                    recurring_meeting_time_utc=recurring_meeting_time_utc,
                     member_names=member_names,
                     discord_channel_id=discord_channel_id,
                     discord_user_id=discord_user_id,
                     zoom_join_url=zoom_join_url,
+                    next_meeting_at=next_meeting_at,
                 )
 
             result["sent"] += 1

@@ -107,6 +107,158 @@ class TestTimezoneFormatting:
         assert "Wednesday at 15:00 UTC" in captured_body
 
 
+class TestRecurringMeetingTimeFormatting:
+    """meeting_time_recurring_utc carries a 'Wednesday 15:00' style string.
+
+    Fallback path used by group_assigned / member_joined when no concrete
+    next-meeting datetime is available. The preferred path uses
+    meeting_time_utc with an ISO timestamp.
+    """
+
+    @pytest.mark.asyncio
+    async def test_formats_recurring_in_user_timezone(self):
+        from core.notifications.dispatcher import send_notification
+
+        mock_user = {
+            "user_id": 1,
+            "email": "alice@example.com",
+            "discord_id": "123456",
+            "nickname": "Alice",
+            "timezone": "Asia/Bangkok",  # UTC+7
+            "email_notifications_enabled": True,
+            "dm_notifications_enabled": False,
+        }
+
+        captured_body = None
+
+        def capture_email(to_email, subject, body):
+            nonlocal captured_body
+            captured_body = body
+            return True
+
+        with patch(
+            "core.notifications.dispatcher.get_user_by_id",
+            AsyncMock(return_value=mock_user),
+        ):
+            with patch(
+                "core.notifications.dispatcher.send_email",
+                side_effect=capture_email,
+            ):
+                await send_notification(
+                    user_id=1,
+                    message_type="group_assigned",
+                    context={
+                        "meeting_time_recurring_utc": "Wednesday 15:00",
+                        "meeting_time": "Wednesday at 15:00 UTC",  # fallback
+                        "group_name": "Test Group",
+                        "member_names": "Alice, Bob",
+                        "discord_channel_url": "https://discord.com/channels/123",
+                        "zoom_join_url": "https://zoom.us/j/123",
+                    },
+                )
+
+        assert captured_body is not None
+        assert "Wednesday at 10:00 PM (UTC+7)" in captured_body
+        assert "15:00 UTC" not in captured_body
+
+    @pytest.mark.asyncio
+    async def test_recurring_falls_back_to_utc_marker_when_no_timezone(self):
+        """User with no timezone gets the UTC fallback (already in meeting_time)."""
+        from core.notifications.dispatcher import send_notification
+
+        mock_user = {
+            "user_id": 1,
+            "email": "alice@example.com",
+            "discord_id": "123456",
+            "nickname": "Alice",
+            "timezone": None,
+            "email_notifications_enabled": True,
+            "dm_notifications_enabled": False,
+        }
+
+        captured_body = None
+
+        def capture_email(to_email, subject, body):
+            nonlocal captured_body
+            captured_body = body
+            return True
+
+        with patch(
+            "core.notifications.dispatcher.get_user_by_id",
+            AsyncMock(return_value=mock_user),
+        ):
+            with patch(
+                "core.notifications.dispatcher.send_email",
+                side_effect=capture_email,
+            ):
+                await send_notification(
+                    user_id=1,
+                    message_type="group_assigned",
+                    context={
+                        "meeting_time_recurring_utc": "Wednesday 15:00",
+                        "meeting_time": "Wednesday at 15:00 UTC",
+                        "group_name": "Test Group",
+                        "member_names": "Alice, Bob",
+                        "discord_channel_url": "https://discord.com/channels/123",
+                        "zoom_join_url": "https://zoom.us/j/123",
+                    },
+                )
+
+        assert captured_body is not None
+        assert "Wednesday at 15:00 UTC" in captured_body
+
+    @pytest.mark.asyncio
+    async def test_iso_parse_failure_logs_warning(self, caplog):
+        """Reviewer #4: a non-ISO meeting_time_utc must not silently swallow errors.
+
+        Previously a free-form recurring string assigned to meeting_time_utc
+        would raise ValueError in fromisoformat() and be silently ignored.
+        Now the dispatcher logs a warning so bad data is discoverable.
+        """
+        import logging
+        from core.notifications.dispatcher import send_notification
+
+        mock_user = {
+            "user_id": 1,
+            "email": "alice@example.com",
+            "discord_id": "123456",
+            "nickname": "Alice",
+            "timezone": "Asia/Bangkok",
+            "email_notifications_enabled": True,
+            "dm_notifications_enabled": False,
+        }
+
+        with caplog.at_level(logging.WARNING, logger="core.notifications.dispatcher"):
+            with patch(
+                "core.notifications.dispatcher.get_user_by_id",
+                AsyncMock(return_value=mock_user),
+            ):
+                with patch(
+                    "core.notifications.dispatcher.send_email",
+                    return_value=True,
+                ):
+                    await send_notification(
+                        user_id=1,
+                        message_type="group_assigned",
+                        context={
+                            # Non-ISO value, simulating accidental misuse
+                            "meeting_time_utc": "Wednesday 15:00",
+                            "meeting_time": "Wednesday at 15:00 UTC",
+                            "group_name": "Test Group",
+                            "member_names": "Alice, Bob",
+                            "discord_channel_url": "https://x",
+                            "zoom_join_url": "https://x",
+                        },
+                    )
+
+        assert any(
+            "meeting_time_utc" in r.message and "Wednesday 15:00" in r.message
+            for r in caplog.records
+        ), (
+            f"Expected warning about non-ISO meeting_time_utc, got: {[r.message for r in caplog.records]}"
+        )
+
+
 class TestSendNotification:
     @pytest.mark.asyncio
     async def test_sends_email_when_enabled(self):

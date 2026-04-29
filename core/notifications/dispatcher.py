@@ -2,13 +2,21 @@
 Notification dispatcher - routes messages to channels based on user preferences.
 """
 
+import logging
 from datetime import datetime
 
 from core.enums import NotificationReferenceType
 from core.notifications.templates import get_message, load_templates
 from core.notifications.channels.email import send_email
 from core.discord_outbound import send_dm, send_channel_message
-from core.timezone import format_datetime_in_timezone, format_date_in_timezone
+from core.timezone import (
+    format_datetime_in_timezone,
+    format_date_in_timezone,
+    format_recurring_time_in_timezone,
+    parse_recurring_meeting_time,
+)
+
+logger = logging.getLogger(__name__)
 
 
 async def log_notification(
@@ -146,7 +154,24 @@ async def send_notification(
                     utc_dt, user_tz
                 )
             except (ValueError, TypeError):
-                pass  # Keep original meeting_time
+                logger.warning(
+                    "meeting_time_utc=%r is not an ISO timestamp; "
+                    "leaving meeting_time fallback in place",
+                    context.get("meeting_time_utc"),
+                )
+        if "meeting_time_recurring_utc" in context:
+            parsed = parse_recurring_meeting_time(context["meeting_time_recurring_utc"])
+            if parsed:
+                day_name, hour, minute = parsed
+                full_context["meeting_time"] = format_recurring_time_in_timezone(
+                    day_name, hour, minute, user_tz
+                )
+            else:
+                logger.warning(
+                    "meeting_time_recurring_utc=%r could not be parsed; "
+                    "leaving meeting_time fallback in place",
+                    context.get("meeting_time_recurring_utc"),
+                )
         if "meeting_date_utc" in context:
             try:
                 utc_dt = datetime.fromisoformat(context["meeting_date_utc"])
