@@ -4,6 +4,7 @@ Cohort Scheduling - Database-backed scheduling using cohort_scheduler package.
 Main entry point: schedule_cohort() - loads users from DB, runs scheduling, persists results.
 """
 
+import time
 from dataclasses import dataclass, field
 
 from sqlalchemy import select, update
@@ -21,6 +22,33 @@ from .tables import cohorts, signups, users, facilitators, groups, groups_users
 
 # Day code mapping (used by tests)
 DAY_MAP = {"M": 0, "T": 1, "W": 2, "R": 3, "F": 4, "S": 5, "U": 6}
+
+
+def parse_meeting_duration_minutes(s: str | None) -> int:
+    """Recover meeting duration (minutes) from a recurring_meeting_time_utc string.
+
+    The format comes from cohort_scheduler.format_time_range, e.g.
+    "Monday 09:00 - 10:00" (60min) or "Monday 23:00 - Tuesday 01:00" (120min).
+    Same-day ranges omit the day prefix on the second half.
+
+    Falls back to 60 for None/""/"TBD" (groups without a scheduled time).
+    Raises ValueError on malformed strings.
+    """
+    if not s or s == "TBD":
+        return 60
+    try:
+        start_str, end_str = (p.strip() for p in s.split(" - ", 1))
+        if " " not in end_str:  # same-day form: end half is just "HH:MM"
+            end_str = f"{start_str.split(' ', 1)[0]} {end_str}"
+        start = time.strptime(start_str, "%A %H:%M")
+        end = time.strptime(end_str, "%A %H:%M")
+    except ValueError as e:
+        raise ValueError(f"Cannot parse meeting time range: {s!r}") from e
+
+    def _minutes(t: time.struct_time) -> int:
+        return t.tm_wday * 1440 + t.tm_hour * 60 + t.tm_min
+
+    return (_minutes(end) - _minutes(start)) % (7 * 1440)
 
 
 @dataclass
