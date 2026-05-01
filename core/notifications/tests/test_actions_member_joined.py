@@ -17,7 +17,7 @@ async def test_notify_member_joined_sends_email_and_channel_message():
         result = await notify_member_joined(
             user_id=123,
             group_name="Test Group",
-            meeting_time_utc="Wednesday 15:00",
+            recurring_meeting_time_utc="Wednesday 15:00",
             member_names=["Alice", "Bob"],
             discord_channel_id="999888777",
             discord_user_id="111222333",
@@ -30,7 +30,12 @@ async def test_notify_member_joined_sends_email_and_channel_message():
         assert call_kwargs["user_id"] == 123
         assert call_kwargs["message_type"] == "member_joined"
         assert call_kwargs["context"]["group_name"] == "Test Group"
-        assert call_kwargs["context"]["meeting_time"] == "Wednesday 15:00"
+        # Fallback shown to users without timezone — must include UTC marker
+        assert call_kwargs["context"]["meeting_time"] == "Wednesday at 15:00 UTC"
+        # Raw recurring string preserved so dispatcher can localize per user
+        assert call_kwargs["context"]["meeting_time_recurring_utc"] == (
+            "Wednesday 15:00"
+        )
         assert "Alice, Bob" in call_kwargs["context"]["member_names"]
         assert call_kwargs["context"]["member_mention"] == "<@111222333>"
         # IMPORTANT: dispatcher expects channel_id, not discord_channel_id

@@ -71,3 +71,160 @@ class TestFormatDateInTimezone:
 
         assert "Tuesday" in result
         assert "January 9" in result
+
+
+class TestParseRecurringMeetingTime:
+    def test_parses_basic_format(self):
+        from core.timezone import parse_recurring_meeting_time
+
+        assert parse_recurring_meeting_time("Wednesday 15:00") == ("Wednesday", 15, 0)
+
+    def test_parses_with_minutes(self):
+        from core.timezone import parse_recurring_meeting_time
+
+        assert parse_recurring_meeting_time("Monday 09:30") == ("Monday", 9, 30)
+
+    def test_parses_range_form(self):
+        from core.timezone import parse_recurring_meeting_time
+
+        assert parse_recurring_meeting_time("Wednesday 15:00-16:30") == (
+            "Wednesday",
+            15,
+            0,
+        )
+
+    def test_parses_spaced_range(self):
+        """'Wednesday 15:00 - 16:00' (spaced dash) should also work."""
+        from core.timezone import parse_recurring_meeting_time
+
+        assert parse_recurring_meeting_time("Wednesday 15:00 - 16:00") == (
+            "Wednesday",
+            15,
+            0,
+        )
+
+    def test_parses_case_insensitive_day(self):
+        from core.timezone import parse_recurring_meeting_time
+
+        assert parse_recurring_meeting_time("wednesday 15:00") == ("Wednesday", 15, 0)
+        assert parse_recurring_meeting_time("WEDNESDAY 15:00") == ("Wednesday", 15, 0)
+
+    def test_parses_three_letter_abbreviation(self):
+        from core.timezone import parse_recurring_meeting_time
+
+        assert parse_recurring_meeting_time("Wed 15:00") == ("Wednesday", 15, 0)
+        assert parse_recurring_meeting_time("wed 15:00") == ("Wednesday", 15, 0)
+        assert parse_recurring_meeting_time("Mon 09:30") == ("Monday", 9, 30)
+
+    def test_parses_with_at_connector(self):
+        from core.timezone import parse_recurring_meeting_time
+
+        assert parse_recurring_meeting_time("Wednesday at 15:00") == (
+            "Wednesday",
+            15,
+            0,
+        )
+
+    def test_parses_with_utc_suffix(self):
+        from core.timezone import parse_recurring_meeting_time
+
+        assert parse_recurring_meeting_time("Wednesday 15:00 UTC") == (
+            "Wednesday",
+            15,
+            0,
+        )
+
+    def test_returns_none_for_tbd(self):
+        from core.timezone import parse_recurring_meeting_time
+
+        assert parse_recurring_meeting_time("TBD") is None
+
+    def test_returns_none_for_empty(self):
+        from core.timezone import parse_recurring_meeting_time
+
+        assert parse_recurring_meeting_time("") is None
+        assert parse_recurring_meeting_time(None) is None
+
+    def test_returns_none_for_garbage(self):
+        from core.timezone import parse_recurring_meeting_time
+
+        assert parse_recurring_meeting_time("not a time") is None
+        assert parse_recurring_meeting_time("Wednesday") is None
+
+
+class TestFormatRecurringTimeInTimezone:
+    def test_formats_with_offset(self):
+        """Wednesday 15:00 UTC -> Wednesday at 10:00 PM (UTC+7) in Bangkok."""
+        from core.timezone import format_recurring_time_in_timezone
+
+        result = format_recurring_time_in_timezone("Wednesday", 15, 0, "Asia/Bangkok")
+        assert result == "Wednesday at 10:00 PM (UTC+7)"
+
+    def test_day_shifts_when_timezone_crosses_midnight(self):
+        """Wednesday 01:00 UTC = Tuesday 17:00 in LA -> Tuesday at 5:00 PM."""
+        from core.timezone import format_recurring_time_in_timezone
+
+        # Use a winter reference so LA is on PST (UTC-8)
+        winter = datetime(2026, 1, 15, tzinfo=ZoneInfo("UTC"))
+        result = format_recurring_time_in_timezone(
+            "Wednesday", 1, 0, "America/Los_Angeles", reference_dt=winter
+        )
+        assert result == "Tuesday at 5:00 PM (UTC-8)"
+
+    def test_preserves_minutes(self):
+        from core.timezone import format_recurring_time_in_timezone
+
+        winter = datetime(2026, 1, 15, tzinfo=ZoneInfo("UTC"))
+        result = format_recurring_time_in_timezone(
+            "Monday", 9, 30, "America/New_York", reference_dt=winter
+        )
+        assert result == "Monday at 4:30 AM (UTC-5)"
+
+    def test_dst_summer_shows_correct_offset_in_us_east(self):
+        """Reviewer #1: anchored to summer reference, NY is UTC-4 (EDT), not -5."""
+        from core.timezone import format_recurring_time_in_timezone
+
+        summer = datetime(2026, 7, 15, tzinfo=ZoneInfo("UTC"))
+        result = format_recurring_time_in_timezone(
+            "Wednesday", 15, 0, "America/New_York", reference_dt=summer
+        )
+        assert "(UTC-4)" in result
+        assert "11:00 AM" in result
+
+    def test_dst_winter_shows_standard_offset_in_us_east(self):
+        from core.timezone import format_recurring_time_in_timezone
+
+        winter = datetime(2026, 1, 15, tzinfo=ZoneInfo("UTC"))
+        result = format_recurring_time_in_timezone(
+            "Wednesday", 15, 0, "America/New_York", reference_dt=winter
+        )
+        assert "(UTC-5)" in result
+        assert "10:00 AM" in result
+
+    def test_utc_falls_back_with_marker(self):
+        from core.timezone import format_recurring_time_in_timezone
+
+        result = format_recurring_time_in_timezone("Wednesday", 15, 0, "UTC")
+        assert result == "Wednesday at 3:00 PM (UTC)"
+
+    def test_invalid_timezone_falls_back_to_utc(self):
+        from core.timezone import format_recurring_time_in_timezone
+
+        result = format_recurring_time_in_timezone(
+            "Wednesday", 15, 0, "Invalid/Timezone"
+        )
+        assert result == "Wednesday at 3:00 PM (UTC)"
+
+
+class TestFormatRecurringTimeUtc:
+    def test_formats_in_24h_with_utc_marker(self):
+        from core.timezone import format_recurring_time_utc
+
+        assert format_recurring_time_utc("Wednesday", 15, 0) == (
+            "Wednesday at 15:00 UTC"
+        )
+
+    def test_pads_minutes(self):
+        from core.timezone import format_recurring_time_utc
+
+        assert format_recurring_time_utc("Monday", 9, 5) == "Monday at 09:05 UTC"

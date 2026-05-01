@@ -5,6 +5,7 @@ These functions are called by business logic (cogs, routes) to send notification
 They handle building context and scheduling reminders.
 """
 
+import logging
 from datetime import datetime
 
 from core.enums import NotificationReferenceType
@@ -19,6 +20,69 @@ from core.notifications.urls import (
     build_discord_channel_url,
     build_discord_invite_url,
 )
+from core.timezone import (
+    format_recurring_time_utc,
+    parse_recurring_meeting_time,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _build_meeting_time_context(
+    recurring_meeting_time_utc: str,
+    next_meeting_at: datetime | None,
+) -> dict:
+    """Build the meeting-time slice of the notification context.
+
+    Three cases:
+
+    1. ``next_meeting_at`` provided: pass an ISO timestamp via
+       ``meeting_time_utc`` so the dispatcher converts to the user's
+       timezone using the actual date (correct DST offset).
+
+    2. Recurring string parseable: pass the string via
+       ``meeting_time_recurring_utc`` so the dispatcher localizes it
+       against ``now()``.
+
+    3. Recurring string unparseable: log a warning and ensure the
+       fallback carries an explicit UTC marker so the user can
+       interpret the time correctly. ("TBD"-style non-time strings
+       pass through unchanged.)
+    """
+    if next_meeting_at is not None:
+        if next_meeting_at.tzinfo is None:
+            from datetime import timezone
+
+            next_meeting_at = next_meeting_at.replace(tzinfo=timezone.utc)
+        parsed = parse_recurring_meeting_time(recurring_meeting_time_utc)
+        if parsed:
+            day_name, hour, minute = parsed
+            fallback = format_recurring_time_utc(day_name, hour, minute)
+        else:
+            fallback = next_meeting_at.strftime("%A at %H:%M UTC")
+        return {
+            "meeting_time_utc": next_meeting_at.isoformat(),
+            "meeting_time": fallback,
+        }
+
+    parsed = parse_recurring_meeting_time(recurring_meeting_time_utc)
+    if parsed:
+        day_name, hour, minute = parsed
+        return {
+            "meeting_time_recurring_utc": recurring_meeting_time_utc,
+            "meeting_time": format_recurring_time_utc(day_name, hour, minute),
+        }
+
+    fallback = recurring_meeting_time_utc
+    if fallback and any(c.isdigit() for c in fallback):
+        # Time-shaped but unparseable — surface the bad data and at least mark UTC
+        logger.warning(
+            "Could not parse recurring meeting time %r; falling back with UTC marker",
+            recurring_meeting_time_utc,
+        )
+        if "UTC" not in fallback.upper():
+            fallback = f"{fallback} UTC"
+    return {"meeting_time": fallback}
 
 
 async def notify_welcome(user_id: int) -> dict:
@@ -44,33 +108,37 @@ async def notify_welcome(user_id: int) -> dict:
 async def notify_group_assigned(
     user_id: int,
     group_name: str,
-    meeting_time_utc: str,
+    recurring_meeting_time_utc: str,
     member_names: list[str],
     discord_channel_id: str,
     zoom_join_url: str = "",
     reference_type: NotificationReferenceType | None = None,
     reference_id: int | None = None,
+    next_meeting_at: datetime | None = None,
 ) -> dict:
     """
     Send notification when user is assigned to a group.
 
-    Calendar invites are now sent via Google Calendar API, not email attachments.
-
     Args:
         user_id: Database user ID
         group_name: Name of the assigned group
-        meeting_time_utc: Human-readable meeting time (e.g., "Wednesday 15:00 UTC")
+        recurring_meeting_time_utc: Recurring weekly slot string from
+            ``groups.recurring_meeting_time_utc`` (e.g. "Wednesday 15:00").
         member_names: List of group member names
         discord_channel_id: Discord channel ID for the group
-        reference_type: Type of entity this notification references (for deduplication)
+        zoom_join_url: Zoom join URL for the meeting
+        reference_type: Type of entity this notification references
         reference_id: ID of the referenced entity (for deduplication)
+        next_meeting_at: Concrete datetime of the next upcoming meeting,
+            used for DST-correct timezone formatting. Falls back to the
+            recurring string when not provided.
     """
     return await send_notification(
         user_id=user_id,
         message_type="group_assigned",
         context={
             "group_name": group_name,
-            "meeting_time": meeting_time_utc,
+            **_build_meeting_time_context(recurring_meeting_time_utc, next_meeting_at),
             "member_names": ", ".join(member_names),
             "discord_channel_url": build_discord_channel_url(
                 channel_id=discord_channel_id
@@ -85,11 +153,12 @@ async def notify_group_assigned(
 async def notify_member_joined(
     user_id: int,
     group_name: str,
-    meeting_time_utc: str,
+    recurring_meeting_time_utc: str,
     member_names: list[str],
     discord_channel_id: str,
     discord_user_id: str,
     zoom_join_url: str = "",
+    next_meeting_at: datetime | None = None,
 ) -> dict:
     """
     Send notification when a user directly joins a group.
@@ -99,20 +168,14 @@ async def notify_member_joined(
     - Email to the joining user
     - Discord message to the group channel (welcoming the new member)
 
-    Args:
-        user_id: Database user ID of the joining user
-        group_name: Name of the group they joined
-        meeting_time_utc: Human-readable meeting time
-        member_names: List of all group member names (including new member)
-        discord_channel_id: Discord channel ID for the group
-        discord_user_id: Discord user ID for mention in channel message
+    See ``notify_group_assigned`` for the meaning of meeting-time params.
     """
     return await send_notification(
         user_id=user_id,
         message_type="member_joined",
         context={
             "group_name": group_name,
-            "meeting_time": meeting_time_utc,
+            **_build_meeting_time_context(recurring_meeting_time_utc, next_meeting_at),
             "member_names": ", ".join(member_names),
             "discord_channel_url": build_discord_channel_url(
                 channel_id=discord_channel_id
