@@ -5,7 +5,7 @@ Tests core/queries/cohorts.py and core/queries/groups.py with real database.
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, insert, update
 
 import sys
 from pathlib import Path
@@ -23,6 +23,7 @@ from core.queries.groups import (
 )
 from core.scheduling import schedule_cohort, CohortSchedulingResult
 from core.tables import cohorts, users, signups, groups, groups_users
+from core.enums import GroupUserStatus
 
 from .helpers import (
     create_test_cohort,
@@ -53,6 +54,59 @@ class TestGetSchedulableCohorts:
         matching = [c for c in result if c["cohort_id"] == cohort["cohort_id"]][0]
         assert matching["cohort_name"] == "Test Cohort"
         assert matching["pending_users"] == 1
+
+    @pytest.mark.asyncio
+    async def test_pending_excludes_grouped_users_scoped_to_cohort(self, db_conn):
+        """Pending = signed up minus anyone with a groups_users row in THIS cohort."""
+        from core.enums import UngroupableReason
+
+        cohort_a = await create_test_cohort(db_conn, name="Cohort A")
+        cohort_b = await create_test_cohort(db_conn, name="Cohort B")
+        group_a = await create_test_group(db_conn, cohort_a["cohort_id"], "GA")
+        group_b = await create_test_group(db_conn, cohort_b["cohort_id"], "GB")
+
+        # Counts as pending: ungroupable_reason set, no group row.
+        # (The bug we're fixing was excluding these.)
+        for i in range(2):
+            u = await create_test_user(db_conn, cohort_a["cohort_id"], f"ungroup_{i}")
+            await db_conn.execute(
+                update(signups)
+                .where(signups.c.user_id == u["user_id"])
+                .values(ungroupable_reason=UngroupableReason.no_overlap_with_others)
+            )
+
+        # Doesn't count: actively grouped in cohort A.
+        grouped_a = await create_test_user(db_conn, cohort_a["cohort_id"], "grouped_a")
+        await add_user_to_group(db_conn, group_a["group_id"], grouped_a["user_id"])
+
+        # Doesn't count: any groups_users row in this cohort excludes, even
+        # status='removed'. Matches scheduling.py's already_grouped subquery.
+        removed_a = await create_test_user(db_conn, cohort_a["cohort_id"], "removed_a")
+        await add_user_to_group(db_conn, group_a["group_id"], removed_a["user_id"])
+        await db_conn.execute(
+            update(groups_users)
+            .where(groups_users.c.user_id == removed_a["user_id"])
+            .values(status=GroupUserStatus.removed)
+        )
+
+        # Counts: signed up to A, but only grouped in B. Catches a
+        # non-correlated alternative that would exclude based on any cohort.
+        cross = await create_test_user(db_conn, cohort_a["cohort_id"], "cross")
+        await db_conn.execute(
+            insert(signups).values(
+                user_id=cross["user_id"],
+                cohort_id=cohort_b["cohort_id"],
+                role="participant",
+            )
+        )
+        await add_user_to_group(db_conn, group_b["group_id"], cross["user_id"])
+
+        result = await get_schedulable_cohorts(db_conn)
+        a = [c for c in result if c["cohort_id"] == cohort_a["cohort_id"]][0]
+        # 2 ungroupable + 1 cross-cohort = 3. grouped_a and removed_a excluded.
+        assert a["pending_users"] == 3
+        # Cohort B's only signup is grouped in B → B not in result at all.
+        assert cohort_b["cohort_id"] not in [c["cohort_id"] for c in result]
 
     @pytest.mark.asyncio
     async def test_returns_empty_when_no_pending_users(self, db_conn):

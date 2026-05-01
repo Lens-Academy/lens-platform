@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from ..enums import GroupStatus
 from ..modules.course_loader import load_course
-from ..tables import cohorts, signups
+from ..tables import cohorts, groups, groups_users, signups
 
 
 async def get_schedulable_cohorts(
@@ -17,13 +17,23 @@ async def get_schedulable_cohorts(
     """
     Get cohorts that have users awaiting grouping.
 
-    Returns list of dicts with cohort_id, cohort_name, course_name, pending_users count.
+    "Pending" = signed up to the cohort and not in any of its groups (any
+    groups_users row in this cohort excludes the user, regardless of status).
+    Ungroupable users still count as pending — their ungroupable_reason gets
+    cleared on the next /schedule run, which retries them.
+
+    Returns list of dicts with cohort_id, cohort_name, course_slug, pending_users.
+    Must stay in sync with the matching subquery in core/scheduling.py.
     """
-    # Subquery to count pending users per cohort
-    # (row exists in signups = awaiting grouping, ungroupable_reason is NULL = not yet processed)
+    # Correlated subquery: users with any groups_users row for this cohort.
+    already_grouped = (
+        select(groups_users.c.user_id)
+        .join(groups, groups_users.c.group_id == groups.c.group_id)
+        .where(groups.c.cohort_id == signups.c.cohort_id)
+    )
     pending_count = (
         select(signups.c.cohort_id, func.count().label("pending_users"))
-        .where(signups.c.ungroupable_reason.is_(None))
+        .where(signups.c.user_id.notin_(already_grouped))
         .group_by(signups.c.cohort_id)
         .subquery()
     )
